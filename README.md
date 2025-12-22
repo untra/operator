@@ -2,14 +2,14 @@
 
 # Operator!
 
-Multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+Multi-agent orchestration dashboard for **AI-assisted** _kanban-shaped_ software development.
 
 ## Overview
 
 `operator` is a TUI (terminal user interface) application that uses [Tmux](https://github.com/tmux/tmux/wiki) to manages multiple Claude Code agents across multi-project workspaces of many codebases. It is designed to be ticket-first, starting claude code keyed off from markdown stories from a ticketing provider. It provides:
 
-- **Queue Management**: FIFO ticket queue with priority-based work assignment, launchable from a single dashboard
-- **Agent Orchestration**: Launch, monitor, pause/resume Claude Desktop agents against kanban shaped work, and track that work as it goes through it's
+- **Queue Management**: ticket queue with priority-based work assignment, launchable from a dashboard
+- **Agent Orchestration**: Launch, monitor, pause/resume Claude Desktop agents against kanban shaped work tickets, and track the ticket progress as it goes through your defined work implementation steps
 - **Notifications**: macOS and linux notifications for agent events, keeping you the human in the loop. 
 - **Dashboard**: Real-time view of queue, active agents, completed work, and waiting instances seeking feedback or human review
 
@@ -54,9 +54,37 @@ operator resume             # Resume queue processing
 
 ## Installation
 
+Download the latest release for your platform:
+
 ```bash
+# macOS Apple Silicon
+curl -L https://github.com/untra/operator/releases/latest/download/operator-macos-arm64 -o operator
+chmod +x operator
+sudo mv operator /usr/local/bin/
+
+# macOS Intel
+curl -L https://github.com/untra/operator/releases/latest/download/operator-macos-x86_64 -o operator
+chmod +x operator
+sudo mv operator /usr/local/bin/
+
+# Linux x86_64
+curl -L https://github.com/untra/operator/releases/latest/download/operator-linux-x86_64 -o operator
+chmod +x operator
+sudo mv operator /usr/local/bin/
+
+# Linux ARM64
+curl -L https://github.com/untra/operator/releases/latest/download/operator-linux-arm64 -o operator
+chmod +x operator
+sudo mv operator /usr/local/bin/
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/untra/operator.git
 cd operator
-# TBD: package manager installation
+cargo build --release
+sudo cp target/release/operator /usr/local/bin/
 ```
 
 ## Configuration

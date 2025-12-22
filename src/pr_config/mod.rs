@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::queue::Ticket;
 
@@ -108,7 +108,7 @@ impl Default for PrConfig {
 impl PrConfig {
     /// Load PR config from a project directory
     /// Looks for `.operator/pr-config.toml` in the project root
-    pub fn load_from_project(project_path: &PathBuf) -> Result<Option<Self>> {
+    pub fn load_from_project(project_path: &Path) -> Result<Option<Self>> {
         let config_path = project_path.join(".operator").join("pr-config.toml");
 
         if !config_path.exists() {
@@ -129,7 +129,7 @@ impl PrConfig {
     }
 
     /// Load PR config or return defaults if not found
-    pub fn load_or_default(project_path: &PathBuf) -> Self {
+    pub fn load_or_default(project_path: &Path) -> Self {
         Self::load_from_project(project_path)
             .ok()
             .flatten()
@@ -172,7 +172,7 @@ impl PrConfig {
     }
 
     /// Generate PR body from ticket data using template
-    pub fn generate_body(&self, ticket: &Ticket, project_path: &PathBuf) -> Result<String> {
+    pub fn generate_body(&self, ticket: &Ticket, project_path: &Path) -> Result<String> {
         // Determine which template to use
         let template = if let Some(ref inline) = self.body_template {
             inline.clone()
@@ -221,7 +221,7 @@ impl PrConfig {
     }
 
     /// Get the gh pr create command arguments for this config
-    pub fn gh_create_args(&self, ticket: &Ticket, project_path: &PathBuf) -> Result<Vec<String>> {
+    pub fn gh_create_args(&self, ticket: &Ticket, project_path: &Path) -> Result<Vec<String>> {
         let mut args = vec![
             "pr".to_string(),
             "create".to_string(),

@@ -431,14 +431,15 @@ mod tests {
         std::fs::create_dir_all(&test_project).unwrap();
         std::fs::write(test_project.join("CLAUDE.md"), "# Test Project").unwrap();
 
-        let mut config = Config::default();
-        config.paths = PathsConfig {
-            tickets: tickets_path.to_string_lossy().to_string(),
-            projects: projects_path.to_string_lossy().to_string(),
-            state: state_path.to_string_lossy().to_string(),
-        };
-        config.projects = vec!["test-project".to_string()];
-        config
+        Config {
+            paths: PathsConfig {
+                tickets: tickets_path.to_string_lossy().to_string(),
+                projects: projects_path.to_string_lossy().to_string(),
+                state: state_path.to_string_lossy().to_string(),
+            },
+            projects: vec!["test-project".to_string()],
+            ..Default::default()
+        }
     }
 
     #[test]

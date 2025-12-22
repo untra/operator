@@ -4,7 +4,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Represents a persisted agent session for recovery and auditing
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,7 +54,7 @@ impl Session {
         }
     }
 
-    pub fn load(sessions_dir: &PathBuf, id: &str) -> Result<Option<Self>> {
+    pub fn load(sessions_dir: &Path, id: &str) -> Result<Option<Self>> {
         let path = sessions_dir.join(format!("{}.json", id));
 
         if !path.exists() {
@@ -66,7 +66,7 @@ impl Session {
         Ok(Some(session))
     }
 
-    pub fn save(&self, sessions_dir: &PathBuf) -> Result<()> {
+    pub fn save(&self, sessions_dir: &Path) -> Result<()> {
         fs::create_dir_all(sessions_dir)?;
         let path = sessions_dir.join(format!("{}.json", self.id));
         let contents = serde_json::to_string_pretty(self)?;

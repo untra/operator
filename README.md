@@ -2,18 +2,18 @@
 
 # Operator!
 
-Multi-agent orchestration dashboard for AI assisted development workflows.
+Multi-agent orchestration dashboard for AI assisted kanban shaped software development.
 
 ## Overview
 
-`operator` is a TUI (terminal user interface) application that manages multiple Claude Code agents across multi-project codebases. It provides:
+`operator` is a TUI (terminal user interface) application that uses [Tmux](https://github.com/tmux/tmux/wiki) to manages multiple Claude Code agents across multi-project workspaces of many codebases. It is designed to be ticket-first, starting claude code keyed off from markdown stories from a ticketing provider. It provides:
 
-- **Queue Management**: FIFO ticket queue with priority-based work assignment
-- **Agent Orchestration**: Launch, monitor, pause/resume Claude Desktop agents
-- **Notifications**: macOS notifications for agent events
-- **Dashboard**: Real-time view of queue, active agents, and completed work
+- **Queue Management**: FIFO ticket queue with priority-based work assignment, launchable from a single dashboard
+- **Agent Orchestration**: Launch, monitor, pause/resume Claude Desktop agents against kanban shaped work, and track that work as it goes through it's
+- **Notifications**: macOS and linux notifications for agent events, keeping you the human in the loop. 
+- **Dashboard**: Real-time view of queue, active agents, completed work, and waiting instances seeking feedback or human review
 
-Operator is designed to facilitate ticket-based work across multiple code repositories by semi-autonomous agents. It should be started from the root of your collective work projects repository (eg, `~/Documents`).
+Operator is designed to facilitate work from markdown tickets, tackling tasks across multiple code repositories by semi-autonomous agents. Operator should be started from the root of your collective work projects repository (eg, `~/Documents`), so that it may start feature or fix work in the right part of the codebase.
 
 When started for the first time, Operator will setup configuration to consume and process work tickets, and identify local projects with `claude.md files` to setup.
 

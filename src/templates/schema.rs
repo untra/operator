@@ -147,10 +147,10 @@ pub struct StepSchema {
 /// Status category for a step
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum StepStatus {
-    TODO,
-    DOING,
-    AWAIT,
-    DONE,
+    Todo,
+    Doing,
+    Await,
+    Done,
 }
 
 /// Types of outputs a step can produce
@@ -201,13 +201,15 @@ impl TemplateSchema {
 
         // Check that all required fields (except 'id' with auto=id) have defaults
         for field in &self.fields {
-            if field.required && field.auto.is_none() && field.name != "id" {
-                if field.default.is_none() {
-                    errors.push(format!(
-                        "Required field '{}' must have a default value",
-                        field.name
-                    ));
-                }
+            if field.required
+                && field.auto.is_none()
+                && field.name != "id"
+                && field.default.is_none()
+            {
+                errors.push(format!(
+                    "Required field '{}' must have a default value",
+                    field.name
+                ));
             }
 
             // Check enum fields have options
@@ -265,13 +267,13 @@ impl StepSchema {
     /// Derive status from step properties and position
     pub fn derived_status(&self, is_first: bool, is_last: bool) -> StepStatus {
         if is_last {
-            StepStatus::DONE
+            StepStatus::Done
         } else if self.requires_review {
-            StepStatus::AWAIT
+            StepStatus::Await
         } else if is_first {
-            StepStatus::TODO
+            StepStatus::Todo
         } else {
-            StepStatus::DOING
+            StepStatus::Doing
         }
     }
 

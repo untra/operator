@@ -25,7 +25,7 @@ pub enum FormField {
     },
     /// Multi-line text input using tui-textarea
     TextArea {
-        textarea: TextArea<'static>,
+        textarea: Box<TextArea<'static>>,
         placeholder: String,
     },
     /// Enum selection from predefined options
@@ -63,7 +63,7 @@ impl FormField {
                     textarea.insert_str(default);
                 }
                 FormField::TextArea {
-                    textarea,
+                    textarea: Box::new(textarea),
                     placeholder: schema.placeholder.clone().unwrap_or_default(),
                 }
             }
@@ -378,7 +378,7 @@ impl FormField {
                     textarea.set_placeholder_style(Style::default().fg(Color::DarkGray));
                 }
 
-                frame.render_widget(&*textarea, area);
+                frame.render_widget(&**textarea, area);
             }
             FormField::EnumSelect {
                 options,

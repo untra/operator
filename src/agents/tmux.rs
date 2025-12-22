@@ -583,7 +583,7 @@ impl TmuxClient for MockTmuxClient {
         let sessions = self.sessions.lock().unwrap();
         let result: Vec<TmuxSession> = sessions
             .iter()
-            .filter(|(name, _)| prefix.map_or(true, |p| name.starts_with(p)))
+            .filter(|(name, _)| prefix.is_none_or(|p| name.starts_with(p)))
             .map(|(name, s)| TmuxSession {
                 name: name.clone(),
                 created: None,

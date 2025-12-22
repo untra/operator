@@ -127,13 +127,13 @@ impl StepManager {
     pub fn current_status(&self, ticket: &Ticket) -> StepStatus {
         let template = match self.get_template(&ticket.ticket_type) {
             Some(t) => t,
-            None => return StepStatus::TODO,
+            None => return StepStatus::Todo,
         };
 
         let step_name = if ticket.step.is_empty() {
             match template.first_step() {
                 Some(s) => s.name.clone(),
-                None => return StepStatus::TODO,
+                None => return StepStatus::Todo,
             }
         } else {
             ticket.step.clone()
@@ -141,7 +141,7 @@ impl StepManager {
 
         let step = match template.get_step(&step_name) {
             Some(s) => s,
-            None => return StepStatus::TODO,
+            None => return StepStatus::Todo,
         };
 
         let is_first = template

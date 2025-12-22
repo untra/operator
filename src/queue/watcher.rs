@@ -7,9 +7,9 @@ use std::sync::mpsc::{channel, Receiver};
 use std::time::Duration;
 
 pub enum QueueEvent {
-    TicketAdded(PathBuf),
-    TicketRemoved(PathBuf),
-    TicketModified(PathBuf),
+    Added(PathBuf),
+    Removed(PathBuf),
+    Modified(PathBuf),
 }
 
 pub struct QueueWatcher {
@@ -68,14 +68,14 @@ impl QueueWatcher {
         let path = event.paths.first()?.clone();
 
         // Only care about markdown files
-        if path.extension().map_or(true, |e| e != "md") {
+        if path.extension().is_none_or(|e| e != "md") {
             return None;
         }
 
         match event.kind {
-            EventKind::Create(_) => Some(QueueEvent::TicketAdded(path)),
-            EventKind::Remove(_) => Some(QueueEvent::TicketRemoved(path)),
-            EventKind::Modify(_) => Some(QueueEvent::TicketModified(path)),
+            EventKind::Create(_) => Some(QueueEvent::Added(path)),
+            EventKind::Remove(_) => Some(QueueEvent::Removed(path)),
+            EventKind::Modify(_) => Some(QueueEvent::Modified(path)),
             _ => None,
         }
     }

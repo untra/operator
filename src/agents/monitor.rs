@@ -290,11 +290,13 @@ mod tests {
         std::fs::create_dir_all(tickets_path.join("completed")).unwrap();
         std::fs::create_dir_all(&state_path).unwrap();
 
-        let mut config = Config::default();
-        config.paths = PathsConfig {
-            tickets: tickets_path.to_string_lossy().to_string(),
-            projects: projects_path.to_string_lossy().to_string(),
-            state: state_path.to_string_lossy().to_string(),
+        let mut config = Config {
+            paths: PathsConfig {
+                tickets: tickets_path.to_string_lossy().to_string(),
+                projects: projects_path.to_string_lossy().to_string(),
+                state: state_path.to_string_lossy().to_string(),
+            },
+            ..Default::default()
         };
         config.agents.health_check_interval = 1; // 1 second for testing
         config

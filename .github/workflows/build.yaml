@@ -1,4 +1,5 @@
 name: operator build
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: ${{ github.ref_name != 'main' }}
@@ -9,6 +10,8 @@ on:
       - main
     paths-ignore:
       - 'VERSION'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
   pull_request:
     branches:
       - main
@@ -16,8 +19,11 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+
 jobs:
-  build-lint-test:
+  lint-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,12 +31,12 @@ jobs:
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
+          toolchain: 1.85.0
           profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt, clippy
+          override: true
 
-      - name: Cache cargo registry
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
@@ -46,8 +52,117 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Build
-        run: cargo build --release
-
       - name: Tests
         run: cargo test --all-features
+
+  build:
+    needs: lint-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: operator-linux-x86_64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact_name: operator-linux-arm64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            artifact_name: operator-macos-x86_64
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact_name: operator-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.85.0
+          target: ${{ matrix.target }}
+          profile: minimal
+          override: true
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename binary
+        run: |
+          cp target/${{ matrix.target }}/release/operator ${{ matrix.artifact_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Bump version
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          NEW_VERSION="$major.$minor.$((patch + 1))"
+          echo "$NEW_VERSION" > VERSION
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Bumped version: $VERSION -> $NEW_VERSION"
+
+      - name: Update Cargo.toml version
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.version }}"/' Cargo.toml
+
+      - name: Update Cargo.lock
+        run: cargo update --workspace
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION Cargo.toml Cargo.lock
+          git commit -m "chore: bump version to v${{ steps.version.outputs.version }} [skip ci]"
+          git push
+
+      - name: Create tag
+        run: |
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f -name 'operator-*' -exec cp {} release-assets/ \;
+          chmod +x release-assets/*
+          ls -la release-assets/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --title "v${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            release-assets/*

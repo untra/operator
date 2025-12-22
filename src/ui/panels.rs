@@ -347,7 +347,7 @@ pub struct HeaderBar<'a> {
     pub rate_limit: Option<&'a crate::api::RateLimitInfo>,
 }
 
-impl<'a> HeaderBar<'a> {
+impl HeaderBar<'_> {
     pub fn render(&self, frame: &mut Frame, area: Rect) {
         let mut spans = vec![
             Span::styled(

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! GitHub API provider implementation
 
 use async_trait::async_trait;

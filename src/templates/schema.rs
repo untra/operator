@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Schema definitions for issuetype templates
 
 use serde::{Deserialize, Serialize};

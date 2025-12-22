@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+
 //! Ticket-session synchronization for keeping ticket metadata in sync with tmux sessions.
 //!
 //! This module provides periodic and manual synchronization between:

@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 //! TMux session management abstraction layer.
 //!
 //! Provides a trait-based abstraction over tmux operations to enable:

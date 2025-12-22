@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Anthropic API provider implementation
 
 use async_trait::async_trait;

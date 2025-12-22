@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 //! Step session creation for launching Claude agents per step
 
 use anyhow::{Context, Result};

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! AI Provider trait and implementations
 //!
 //! Supports Anthropic, OpenAI, and Gemini providers for rate limit monitoring.

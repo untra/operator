@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Step manager for handling workflow step transitions
 
 use anyhow::{Context, Result};

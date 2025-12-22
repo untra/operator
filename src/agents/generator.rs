@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Agent ticket creator for operator-managed projects
 //!
 //! Creates TASK tickets for generating Claude Code agent files in a project's

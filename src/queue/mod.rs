@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 pub mod creator;
 mod ticket;
 mod watcher;

@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 //! Session preview dialog for viewing agent tmux session content.
 
 use ratatui::{

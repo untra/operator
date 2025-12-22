@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! API error types with authentication failure tracking
 
 use std::fmt;

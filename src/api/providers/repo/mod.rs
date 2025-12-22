@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Repository Provider trait and implementations
 //!
 //! Supports GitHub, GitLab, and Azure Repos for PR/issue status tracking.

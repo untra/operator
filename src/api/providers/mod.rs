@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 //! Provider trait definitions for external service integrations
 //!
 //! This module defines the trait interfaces for different provider categories:

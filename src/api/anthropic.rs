@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Anthropic API client for rate limit monitoring
 
 use anyhow::{Context, Result};

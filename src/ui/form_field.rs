@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Reusable form field widgets for TUI forms
 
 use crossterm::event::KeyCode;

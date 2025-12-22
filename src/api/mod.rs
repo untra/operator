@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 //! API client modules for external service integrations
 //!
 //! This module provides:

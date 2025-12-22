@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! PR configuration module for project-specific pull request workflows
 
 use anyhow::{Context, Result};

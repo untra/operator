@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! GitHub API client for PR and issue status tracking
 
 use anyhow::{Context, Result};

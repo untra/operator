@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Session health monitoring for agent tmux sessions.
 //!
 //! Periodically checks that agent tmux sessions are still alive and

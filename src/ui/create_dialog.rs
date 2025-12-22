@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 //! Dialog for creating new tickets with form-based field input
 
 use std::collections::HashMap;

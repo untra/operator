@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use anyhow::Result;
 
 #[cfg(target_os = "macos")]

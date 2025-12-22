@@ -1,6 +1,6 @@
-# Operator!
+![Operator! logo](./img/operator_logo.svg)
 
-![Operator! logo](./img/operator.png)
+# Operator!
 
 Multi-agent orchestration dashboard for AI assisted development workflows.
 

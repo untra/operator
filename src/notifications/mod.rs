@@ -3,6 +3,9 @@ use anyhow::Result;
 #[cfg(target_os = "macos")]
 mod macos;
 
+#[cfg(target_os = "linux")]
+mod linux;
+
 /// Send a notification
 pub fn send(title: &str, subtitle: &str, message: &str, sound: bool) -> Result<()> {
     #[cfg(target_os = "macos")]
@@ -10,9 +13,14 @@ pub fn send(title: &str, subtitle: &str, message: &str, sound: bool) -> Result<(
         macos::send_notification(title, subtitle, message, sound)
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
     {
-        // Fall back to just logging on non-macOS systems
+        linux::send_notification(title, subtitle, message, sound)
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    {
+        // Fall back to just logging on other systems
         tracing::info!("Notification: {} - {} - {}", title, subtitle, message);
         Ok(())
     }

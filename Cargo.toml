@@ -35,9 +35,6 @@ toml = "0.8"
 # CLI
 clap = { version = "4", features = ["derive"] }
 
-# Notifications (macOS)
-mac-notification-sys = "0.6"
-
 # Utilities
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
@@ -64,3 +61,10 @@ async-trait = "0.1"
 
 [dev-dependencies]
 tempfile = "3"
+
+# Platform-specific notifications
+[target.'cfg(target_os = "macos")'.dependencies]
+mac-notification-sys = "0.6"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+notify-rust = "4"

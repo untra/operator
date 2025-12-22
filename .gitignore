@@ -1,0 +1,22 @@
+# Rust build artifacts
+/target/
+
+# Rust backup files
+*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Operator runtime state
+.operator/

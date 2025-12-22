@@ -1,0 +1,174 @@
+{
+  "$schema": "./issuetype_schema.json",
+  "key": "INV",
+  "name": "Investigation",
+  "description": "Incident investigation ticket (paired mode)",
+  "mode": "paired",
+  "glyph": "!",
+  "color": "yellow",
+  "branch_prefix": "investigate",
+  "project_required": false,
+  "agent_prompt": "Review this project and prepare to create an agent for incident investigations. The agent triages issues, investigates root causes, coordinates remediation, and documents postmortems. It works in paired mode with the operator. Output ONLY the agent system prompt.",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "scope",
+      "description": "Affected scope/project",
+      "type": "enum",
+      "required": false,
+      "default": "global",
+      "options": ["global", "adminsvc", "apisvc", "gamesvc", "g", "hushsvc", "uzersvc", "outboundsvc", "www", "iac", "proto", "e2e", "operator"],
+      "display_order": 1
+    },
+    {
+      "name": "project",
+      "description": "Focused project for investigation (optional)",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "placeholder": "Optional project name",
+      "display_order": 2
+    },
+    {
+      "name": "severity",
+      "description": "Incident severity",
+      "type": "enum",
+      "required": false,
+      "default": "S1-major",
+      "options": ["S0-outage", "S1-major", "S2-minor"],
+      "display_order": 3
+    },
+    {
+      "name": "status",
+      "description": "Ticket status",
+      "type": "string",
+      "required": true,
+      "auto": "status",
+      "default": "queued",
+      "display_order": 4,
+      "user_editable": false
+    },
+    {
+      "name": "created",
+      "description": "Creation date",
+      "type": "date",
+      "required": true,
+      "auto": "date",
+      "display_order": 5,
+      "user_editable": false
+    },
+    {
+      "name": "source",
+      "description": "How the incident was detected",
+      "type": "enum",
+      "required": false,
+      "default": "monitoring",
+      "options": ["alert", "user-report", "monitoring", "deploy-failure", "test-failure"],
+      "display_order": 6
+    },
+    {
+      "name": "summary",
+      "description": "named summary of the failure investigation",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Brief description of the observed failure",
+      "max_length": 120,
+      "display_order": 7
+    },
+    {
+      "name": "observed_behavior",
+      "description": "What is happening? Include error messages, logs",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "placeholder": "Error messages, log excerpts, metrics",
+      "display_order": 8
+    },
+    {
+      "name": "expected_behavior",
+      "description": "What should be happening instead?",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "placeholder": "Expected behavior under normal conditions",
+      "display_order": 9
+    },
+    {
+      "name": "impact",
+      "description": "Users/services affected",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "placeholder": "Affected users, services, or systems",
+      "display_order": 10
+    }
+  ],
+  "steps": [
+    {
+      "name": "triage",
+      "display_name": "Triage",
+      "status": "TODO",
+      "outputs": ["report"],
+      "prompt": "Triage the incident:\n\n1. Confirm the issue is real and ongoing\n2. Assess severity and impact\n3. Identify affected systems\n4. Begin documenting in `.tickets/incidents/{{ id }}.md`\n\nWork with the operator to gather initial information.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "requires_review": false,
+      "next_step": "investigate"
+    },
+    {
+      "name": "investigate",
+      "display_name": "Investigating",
+      "status": "DOING",
+      "outputs": ["report"],
+      "prompt": "Investigate the root cause:\n\n1. Search logs and metrics for anomalies\n2. Trace the error path through the code\n3. Identify recent changes that might be related\n4. Form hypotheses and test them\n5. Update `.tickets/incidents/{{ id }}.md` with findings",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "requires_review": false,
+      "next_step": "remediate"
+    },
+    {
+      "name": "remediate",
+      "display_name": "Remediating",
+      "status": "AWAIT",
+      "outputs": ["code", "ticket"],
+      "prompt": "Determine remediation:\n\n1. If a quick fix is possible, implement it\n2. If a hotfix is needed, create a FIX ticket\n3. If a rollback is needed, coordinate with the operator\n4. Document the resolution in the incident report",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "requires_review": true,
+      "on_reject": {
+        "goto_step": "investigate",
+        "prompt": "More investigation needed. Continue searching for the root cause."
+      },
+      "next_step": "postmortem"
+    },
+    {
+      "name": "postmortem",
+      "display_name": "Postmortem",
+      "status": "AWAIT",
+      "outputs": ["report", "ticket"],
+      "prompt": "Complete the postmortem:\n\n1. Finalize the incident report with:\n   - Timeline of events\n   - Root cause analysis\n   - Remediation taken\n   - Lessons learned\n2. Create follow-up tickets for preventive measures",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "requires_review": true,
+      "on_reject": {
+        "goto_step": "postmortem",
+        "prompt": "Postmortem needs more detail. Expand the analysis."
+      },
+      "next_step": "done"
+    },
+    {
+      "name": "done",
+      "display_name": "Complete",
+      "status": "DONE",
+      "outputs": ["review"],
+      "prompt": "Investigation complete. Move ticket to completed.",
+      "allowed_tools": ["Bash"],
+      "requires_review": false
+    }
+  ]
+}

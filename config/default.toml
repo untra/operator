@@ -1,0 +1,68 @@
+# operator configuration
+
+# Projects that operator can assign work to (populated during setup)
+projects = []
+
+[agents]
+# Maximum number of concurrent agents
+max_parallel = 5
+
+# Number of CPU cores to keep free (actual max = cores - reserved)
+cores_reserved = 1
+
+# Timeout for agent health checks (seconds)
+health_check_interval = 30
+
+[notifications]
+# Enable/disable all notifications
+enabled = true
+
+# Individual notification types
+on_agent_start = true
+on_agent_complete = true
+on_agent_needs_input = true
+on_pr_created = true
+on_investigation_created = true
+
+# Play sound with notifications
+sound = false
+
+[queue]
+# Automatically assign work when agent slots are available
+auto_assign = true
+
+# Priority order for ticket types (highest first)
+priority_order = ["INV", "FIX", "FEAT", "SPIKE"]
+
+# Poll interval for queue changes (milliseconds)
+poll_interval_ms = 1000
+
+[paths]
+# Path to tickets directory (relative to cwd or absolute)
+tickets = ".tickets"
+
+# Path to projects root (cwd is projects root)
+projects = "."
+
+# Path to operator state directory
+state = ".tickets/operator"
+
+[ui]
+# Refresh rate for TUI (milliseconds)
+refresh_rate_ms = 250
+
+# Show completed tickets from last N hours
+completed_history_hours = 24
+
+# Truncate long ticket summaries at N characters
+summary_max_length = 40
+
+[launch]
+# Require confirmation before launching autonomous agents
+confirm_autonomous = true
+
+# Require confirmation before launching paired agents
+confirm_paired = true
+
+# Delay between launching multiple agents (milliseconds)
+launch_delay_ms = 2000

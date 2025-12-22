@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gbqr.us/operator/issuetype-template.schema.json",
+  "title": "Issuetype Template Schema",
+  "description": "Schema for validating operator issuetype template configurations",
+  "type": "object",
+  "required": ["key", "name", "description", "mode", "glyph", "fields", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for validation"
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^[A-Z]+$",
+      "description": "Unique issuetype key (e.g., FEAT, FIX, SPIKE, INV, TASK)",
+      "examples": ["FEAT", "FIX", "SPIKE", "INV", "TASK"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable name of the issuetype"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of what this issuetype is for"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["autonomous", "paired"],
+      "description": "Whether this issuetype runs autonomously or requires human pairing"
+    },
+    "glyph": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4,
+      "description": "Icon/glyph character displayed in the UI for this issuetype (e.g., '*', '#', '!', '?', '>')",
+      "examples": ["*", "#", "!", "?", ">"]
+    },
+    "color": {
+      "type": "string",
+      "enum": ["blue", "cyan", "green", "yellow", "magenta", "red"],
+      "description": "Optional color for the glyph in TUI display"
+    },
+    "branch_prefix": {
+      "type": "string",
+      "description": "Git branch prefix for this issuetype (e.g., 'feature', 'fix')",
+      "default": "task"
+    },
+    "project_required": {
+      "type": "boolean",
+      "description": "Whether a project must be specified for this issuetype",
+      "default": true
+    },
+    "fields": {
+      "type": "array",
+      "description": "Field definitions for the ticket form",
+      "items": {
+        "$ref": "#/definitions/field"
+      },
+      "minItems": 1
+    },
+    "steps": {
+      "type": "array",
+      "description": "Lifecycle steps for completing this ticket type",
+      "items": {
+        "$ref": "#/definitions/step"
+      },
+      "minItems": 1
+    },
+    "agent_prompt": {
+      "type": "string",
+      "description": "Prompt for generating an operator agent for this issuetype via 'claude -p'. Should instruct Claude to output ONLY the agent system prompt. If omitted, no operator agent will be generated for this issuetype."
+    }
+  },
+  "definitions": {
+    "field": {
+      "type": "object",
+      "required": ["name", "description", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z_]+$",
+          "description": "Field identifier (lowercase with underscores)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the field"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "text", "enum", "date", "boolean"],
+          "description": "Field data type"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this field must be filled"
+        },
+        "default": {
+          "type": ["string", "boolean", "null"],
+          "description": "Default value for the field. Required if field is required (except for 'id' field)"
+        },
+        "auto": {
+          "type": "string",
+          "enum": ["id", "date", "branch", "status"],
+          "description": "Auto-generation strategy for this field"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Available options for enum fields"
+        },
+        "placeholder": {
+          "type": "string",
+          "description": "Placeholder text shown in empty field"
+        },
+        "max_length": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum character length for string/text fields"
+        },
+        "display_order": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Order in which to display this field in the form"
+        },
+        "user_editable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the user can edit this field (false for auto-generated)"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "enum" }
+            }
+          },
+          "then": {
+            "required": ["options"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "required": { "const": true },
+              "auto": false
+            },
+            "not": {
+              "properties": {
+                "name": { "const": "id" }
+              }
+            }
+          },
+          "then": {
+            "required": ["default"]
+          }
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "required": ["name", "status", "outputs", "prompt", "allowed_tools"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Step identifier (lowercase)",
+          "pattern": "^[a-z_]+$"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable step name"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["TODO", "DOING", "AWAIT", "DONE"],
+          "description": "Status category this step maps to"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["plan", "code", "test", "pr", "ticket", "review", "report", "documentation"]
+          },
+          "description": "Types of outputs this step produces"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Initial prompt template for the Claude agent at this step"
+        },
+        "allowed_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Claude Code tools allowed in this step (e.g., 'Read', 'Write', 'Bash')"
+        },
+        "requires_review": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this step requires human review before proceeding"
+        },
+        "on_reject": {
+          "type": "object",
+          "description": "What to do if step output is rejected",
+          "properties": {
+            "goto_step": {
+              "type": "string",
+              "description": "Step name to return to on rejection"
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Prompt to use when restarting after rejection"
+            }
+          }
+        },
+        "next_step": {
+          "type": ["string", "null"],
+          "description": "Name of the next step (null for final step)"
+        }
+      }
+    }
+  }
+}

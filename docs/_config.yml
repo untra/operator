@@ -7,6 +7,7 @@ baseurl: ""
 # GitHub repository
 github:
   repo: "https://github.com/untra/operator"
+  author: "https://github.com/untra"
 
 # Build settings
 markdown: kramdown

@@ -3,7 +3,7 @@ title: Tmux Sessions
 layout: doc
 ---
 
-Operator uses tmux for terminal session management, providing a customized experience for managing multiple agent sessions.
+Operator uses **tmux** for terminal session management, providing a customized experience for managing multiple agent sessions.
 
 ## Custom Configuration
 

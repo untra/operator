@@ -23,13 +23,13 @@ pub fn generate_tmux_conf(status_script_path: &Path, state_path: &Path) -> Strin
 # Feel free to customize this file to your preferences
 
 # ============================================
-# COLOR PALETTE (Operator theme - Salmon Background)
+# COLOR PALETTE (Operator theme - Refined)
 # ============================================
-# Salmon:      #cc6c55 (background)
-# Dark teal:   #114145 (primary text, healthy/running)
-# Darker salmon: #8a4a3a (muted text, separators)
-# Tan/cream:   #f4dbb7 (accent, session name)
-# Red/coral:   #d46048 (warning, awaiting)
+# Terracotta:  #E05D44 (primary, background)
+# Deep Pine:   #115566 (primary text, healthy/running)
+# Cornflower:  #6688AA (muted text, separators)
+# Cream:       #F2EAC9 (accent, session name)
+# (warning uses Terracotta)
 
 # ============================================
 # KEY BINDINGS
@@ -60,28 +60,28 @@ set -g status on
 set -g status-interval 5
 set -g status-position bottom
 
-# Status bar colors (Operator theme - Salmon background)
-set -g status-style "bg=#cc6c55,fg=#114145"
+# Status bar colors (Operator theme - Terracotta background)
+set -g status-style "bg=#E05D44,fg=#115566"
 
 # Left: session name
-set -g status-left "#[fg=#f4dbb7,bold] op:#S #[fg=#8a4a3a]| "
+set -g status-left "#[fg=#F2EAC9,bold] op:#S #[fg=#6688AA]| "
 set -g status-left-length 30
 
 # Middle: window status
-setw -g window-status-format "#[fg=#8a4a3a]#I:#W"
-setw -g window-status-current-format "#[fg=#114145,bold]#I:#W"
+setw -g window-status-format "#[fg=#6688AA]#I:#W"
+setw -g window-status-current-format "#[fg=#115566,bold]#I:#W"
 setw -g window-status-separator "  "
 
 # Right: operator stats from script + time
-set -g status-right "#[fg=#8a4a3a]| #('{script_path}' '{state_file_path}') #[fg=#8a4a3a]| %H:%M"
+set -g status-right "#[fg=#6688AA]| #('{script_path}' '{state_file_path}') #[fg=#6688AA]| %H:%M"
 set -g status-right-length 50
 
 # ============================================
 # PANE BORDERS
 # ============================================
 
-set -g pane-border-style "fg=#8a4a3a"
-set -g pane-active-border-style "fg=#f4dbb7"
+set -g pane-border-style "fg=#6688AA"
+set -g pane-active-border-style "fg=#F2EAC9"
 
 # ============================================
 # COPY/PASTE (macOS)
@@ -119,8 +119,8 @@ set -g visual-activity off
 # MESSAGE STYLE
 # ============================================
 
-set -g message-style "bg=#cc6c55,fg=#114145"
-set -g message-command-style "bg=#cc6c55,fg=#114145"
+set -g message-style "bg=#E05D44,fg=#115566"
+set -g message-command-style "bg=#E05D44,fg=#115566"
 "##
     )
 }
@@ -159,19 +159,19 @@ else
     grep -q '"paused": true' "$STATE_FILE" 2>/dev/null && PAUSED="true"
 fi
 
-# Build output string with tmux color codes (Operator theme - Salmon background)
-# Dark teal #114145 = running/healthy (on salmon bg)
-# Coral #d46048 = warning/awaiting
-# Darker salmon #8a4a3a = muted
+# Build output string with tmux color codes (Operator theme - Terracotta background)
+# Deep Pine #115566 = running/healthy
+# Terracotta #E05D44 = warning/awaiting
+# Cornflower #6688AA = muted
 if [ "$PAUSED" = "true" ]; then
-    echo "#[fg=#d46048]PAUSED"
+    echo "#[fg=#E05D44]PAUSED"
 elif [ "$AWAITING" -gt 0 ]; then
     # Show running/awaiting in different colors
-    echo "#[fg=#114145]$RUNNING#[fg=#8a4a3a]/#[fg=#d46048]$AWAITING#[fg=#8a4a3a] agents"
+    echo "#[fg=#115566]$RUNNING#[fg=#6688AA]/#[fg=#E05D44]$AWAITING#[fg=#6688AA] agents"
 elif [ "$RUNNING" -gt 0 ]; then
-    echo "#[fg=#114145]$RUNNING#[fg=#8a4a3a] agents"
+    echo "#[fg=#115566]$RUNNING#[fg=#6688AA] agents"
 else
-    echo "#[fg=#8a4a3a]0 agents"
+    echo "#[fg=#6688AA]0 agents"
 fi
 "##
     .to_string()

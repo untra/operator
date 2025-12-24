@@ -1,0 +1,32 @@
+# Site settings
+title: Operator Documentation
+description: Documentation for Operator! - combining kanban workflows with LLM tools
+url: ""
+baseurl: ""
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Exclude from build
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+
+# Plugins
+plugins:
+  - jekyll-seo-tag
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: "doc"
+
+# Collections
+collections_dir: .
+
+# Permalink structure
+permalink: pretty

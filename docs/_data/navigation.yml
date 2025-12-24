@@ -1,0 +1,13 @@
+docs:
+  - title: Kanban
+    url: /kanban/
+  - title: Issue Types
+    url: /issue-types/
+  - title: LLM Tools
+    url: /llm-tools/
+  - title: Tickets
+    url: /tickets/
+  - title: Agents
+    url: /agents/
+  - title: Tmux
+    url: /tmux/

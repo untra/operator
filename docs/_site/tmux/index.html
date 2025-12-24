@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tmux Sessions | Operator Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Tmux Sessions | Operator Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Tmux Sessions" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/tmux/" />
+<meta property="og:url" content="https://operator.untra.io/tmux/" />
+<meta property="og:site_name" content="Operator Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Tmux Sessions" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Tmux Sessions","url":"https://operator.untra.io/tmux/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development</p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li>
+      <a href="/kanban/" >Kanban</a>
+    </li>
+    
+    <li>
+      <a href="/issue-types/" >Issue Types</a>
+    </li>
+    
+    <li>
+      <a href="/llm-tools/" >LLM Tools</a>
+    </li>
+    
+    <li>
+      <a href="/tickets/" >Tickets</a>
+    </li>
+    
+    <li>
+      <a href="/agents/" >Agents</a>
+    </li>
+    
+    <li>
+      <a href="/tmux/" class="active">Tmux</a>
+    </li>
+    
+  </ul>
+
+  <div class="sidebar-footer">
+    <a href="https://github.com/gbqr-us/operator" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Tmux Sessions</h1>
+  
+
+  <p>Operator uses tmux for terminal session management, providing a customized experience for managing multiple agent sessions.</p>
+
+<h2 id="custom-configuration">Custom Configuration</h2>
+
+<p>Operator generates a custom <code class="language-plaintext highlighter-rouge">.tmux.conf</code> for managed sessions with:</p>
+
+<ul>
+  <li>Easy detach binding (Ctrl+a)</li>
+  <li>Mouse support</li>
+  <li>Increased scrollback</li>
+  <li>Custom status bar with agent stats</li>
+  <li>Operator color theme</li>
+</ul>
+
+<h2 id="color-theme">Color Theme</h2>
+
+<p>The tmux theme uses Operator’s salmon-based palette:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Element</th>
+      <th>Color</th>
+      <th>Hex</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Background</td>
+      <td>Salmon</td>
+      <td><code class="language-plaintext highlighter-rouge">#cc6c55</code></td>
+    </tr>
+    <tr>
+      <td>Primary text</td>
+      <td>Dark teal</td>
+      <td><code class="language-plaintext highlighter-rouge">#114145</code></td>
+    </tr>
+    <tr>
+      <td>Muted text</td>
+      <td>Darker salmon</td>
+      <td><code class="language-plaintext highlighter-rouge">#8a4a3a</code></td>
+    </tr>
+    <tr>
+      <td>Accent</td>
+      <td>Tan/cream</td>
+      <td><code class="language-plaintext highlighter-rouge">#f4dbb7</code></td>
+    </tr>
+    <tr>
+      <td>Warning</td>
+      <td>Red/coral</td>
+      <td><code class="language-plaintext highlighter-rouge">#d46048</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="status-bar">Status Bar</h2>
+
+<p>The status bar shows:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>op:SESSION | 1:window  | 3 agents | 14:30
+</code></pre></div></div>
+
+<h3 id="agent-display">Agent Display</h3>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">3 agents</code> - All agents running</li>
+  <li><code class="language-plaintext highlighter-rouge">2/1 agents</code> - 2 running, 1 awaiting input</li>
+  <li><code class="language-plaintext highlighter-rouge">PAUSED</code> - Queue is paused</li>
+</ul>
+
+<h2 id="key-bindings">Key Bindings</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Binding</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Ctrl+a</code></td>
+      <td>Detach from session</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Ctrl+b</code> (prefix)</td>
+      <td>Standard tmux prefix</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="configuration-file">Configuration File</h2>
+
+<p>The generated config includes:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Operator custom tmux configuration</span>
+
+<span class="c"># Easy detach: Ctrl+a (no prefix needed!)</span>
+bind-key <span class="nt">-n</span> C-a detach-client
+
+<span class="c"># Increase scrollback buffer</span>
+<span class="nb">set</span> <span class="nt">-g</span> history-limit 10000
+
+<span class="c"># Status bar colors (Operator theme)</span>
+<span class="nb">set</span> <span class="nt">-g</span> status-style <span class="s2">"bg=#cc6c55,fg=#114145"</span>
+
+<span class="c"># Left: session name</span>
+<span class="nb">set</span> <span class="nt">-g</span> status-left <span class="s2">"#[fg=#f4dbb7,bold] op:#S #[fg=#8a4a3a]| "</span>
+
+<span class="c"># Right: operator stats + time</span>
+<span class="nb">set</span> <span class="nt">-g</span> status-right <span class="s2">"#[fg=#8a4a3a]| #(status-script) | %H:%M"</span>
+</code></pre></div></div>
+
+<h2 id="status-script">Status Script</h2>
+
+<p>The status script reads <code class="language-plaintext highlighter-rouge">state.json</code> and outputs:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash</span>
+<span class="nv">STATE_FILE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$1</span><span class="s2">"</span>
+
+<span class="k">if </span><span class="nb">command</span> <span class="nt">-v</span> jq &amp;&gt; /dev/null<span class="p">;</span> <span class="k">then
+    </span><span class="nv">RUNNING</span><span class="o">=</span><span class="si">$(</span>jq <span class="s1">'[.agents[] | select(.status == "running")] | length'</span> <span class="s2">"</span><span class="nv">$STATE_FILE</span><span class="s2">"</span><span class="si">)</span>
+    <span class="nv">AWAITING</span><span class="o">=</span><span class="si">$(</span>jq <span class="s1">'[.agents[] | select(.status == "awaiting_input")] | length'</span> <span class="s2">"</span><span class="nv">$STATE_FILE</span><span class="s2">"</span><span class="si">)</span>
+<span class="k">fi
+
+if</span> <span class="o">[</span> <span class="s2">"</span><span class="nv">$AWAITING</span><span class="s2">"</span> <span class="nt">-gt</span> 0 <span class="o">]</span><span class="p">;</span> <span class="k">then
+    </span><span class="nb">echo</span> <span class="s2">"</span><span class="nv">$RUNNING</span><span class="s2">/</span><span class="nv">$AWAITING</span><span class="s2"> agents"</span>
+<span class="k">else
+    </span><span class="nb">echo</span> <span class="s2">"</span><span class="nv">$RUNNING</span><span class="s2"> agents"</span>
+<span class="k">fi</span>
+</code></pre></div></div>
+
+<h2 id="best-practices">Best Practices</h2>
+
+<ol>
+  <li><strong>Use Ctrl+a to detach</strong> - Quick detach without prefix</li>
+  <li><strong>Check status bar</strong> - Monitor agent count at a glance</li>
+  <li><strong>Scroll history</strong> - Use mouse or vi keys in copy mode</li>
+  <li><strong>Multiple windows</strong> - Organize by project or task</li>
+</ol>
+
+</article>
+
+  </main>
+</body>
+</html>

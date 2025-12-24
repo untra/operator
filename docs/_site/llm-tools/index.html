@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM Tools | Operator Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>LLM Tools | Operator Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="LLM Tools" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/llm-tools/" />
+<meta property="og:url" content="https://operator.untra.io/llm-tools/" />
+<meta property="og:site_name" content="Operator Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="LLM Tools" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"LLM Tools","url":"https://operator.untra.io/llm-tools/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development</p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li>
+      <a href="/kanban/" >Kanban</a>
+    </li>
+    
+    <li>
+      <a href="/issue-types/" >Issue Types</a>
+    </li>
+    
+    <li>
+      <a href="/llm-tools/" class="active">LLM Tools</a>
+    </li>
+    
+    <li>
+      <a href="/tickets/" >Tickets</a>
+    </li>
+    
+    <li>
+      <a href="/agents/" >Agents</a>
+    </li>
+    
+    <li>
+      <a href="/tmux/" >Tmux</a>
+    </li>
+    
+  </ul>
+
+  <div class="sidebar-footer">
+    <a href="https://github.com/gbqr-us/operator" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">LLM Tools</h1>
+  
+
+  <p>Operator integrates with LLM tools like Claude Code to power AI-assisted development.</p>
+
+<h2 id="supported-tools">Supported Tools</h2>
+
+<h3 id="claude-code">Claude Code</h3>
+
+<p>The primary LLM tool supported by Operator. Claude Code is a CLI tool that provides:</p>
+
+<ul>
+  <li>Code generation and editing</li>
+  <li>Bug analysis and fixes</li>
+  <li>Test writing</li>
+  <li>Documentation</li>
+  <li>Refactoring</li>
+</ul>
+
+<h2 id="integration-points">Integration Points</h2>
+
+<h3 id="launching-agents">Launching Agents</h3>
+
+<p>Operator launches Claude Code with project context:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># macOS launch command</span>
+open <span class="nt">-a</span> <span class="s2">"Claude"</span> <span class="nt">--args</span> <span class="nt">--project</span> <span class="s2">"/path/to/project"</span>
+</code></pre></div></div>
+
+<h3 id="initial-prompts">Initial Prompts</h3>
+
+<p>Tickets provide context to agents through:</p>
+
+<ol>
+  <li><strong>Ticket content</strong> - The markdown ticket file</li>
+  <li><strong>Project CLAUDE.md</strong> - Project-specific instructions</li>
+  <li><strong>Clipboard injection</strong> - Initial prompt via paste simulation</li>
+</ol>
+
+<h3 id="monitoring">Monitoring</h3>
+
+<p>Operator tracks agent status:</p>
+
+<ul>
+  <li><strong>Running</strong> - Agent is actively working</li>
+  <li><strong>Awaiting Input</strong> - Agent needs human response</li>
+  <li><strong>Completed</strong> - Work is finished</li>
+  <li><strong>Failed</strong> - An error occurred</li>
+</ul>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>Configure LLM tool settings in your Operator config:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">llm</span><span class="k">]</span>
+<span class="n">tool</span> <span class="o">=</span><span class="w"> </span><span class="s">"claude-code"</span>
+<span class="n">max_concurrent</span> <span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+
+<span class="k">[</span><span class="n">llm</span><span class="k">.</span><span class="n">claude</span><span class="k">]</span>
+<span class="n">path</span> <span class="o">=</span><span class="w"> </span><span class="s">"/Applications/Claude.app"</span>
+</code></pre></div></div>
+
+<h2 id="best-practices">Best Practices</h2>
+
+<ol>
+  <li><strong>Clear tickets</strong> - Write detailed ticket descriptions</li>
+  <li><strong>Project context</strong> - Maintain good CLAUDE.md files</li>
+  <li><strong>Monitor paired work</strong> - Stay engaged with INV/SPIKE agents</li>
+  <li><strong>Review autonomous work</strong> - Check completed FEAT/FIX work</li>
+</ol>
+
+</article>
+
+  </main>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kanban Workflow | Operator Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Kanban Workflow | Operator Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Kanban Workflow" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/kanban/" />
+<meta property="og:url" content="https://operator.untra.io/kanban/" />
+<meta property="og:site_name" content="Operator Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Kanban Workflow" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Kanban Workflow","url":"https://operator.untra.io/kanban/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development</p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li>
+      <a href="/kanban/" class="active">Kanban</a>
+    </li>
+    
+    <li>
+      <a href="/issue-types/" >Issue Types</a>
+    </li>
+    
+    <li>
+      <a href="/llm-tools/" >LLM Tools</a>
+    </li>
+    
+    <li>
+      <a href="/tickets/" >Tickets</a>
+    </li>
+    
+    <li>
+      <a href="/agents/" >Agents</a>
+    </li>
+    
+    <li>
+      <a href="/tmux/" >Tmux</a>
+    </li>
+    
+  </ul>
+
+  <div class="sidebar-footer">
+    <a href="https://github.com/gbqr-us/operator" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Kanban Workflow</h1>
+  
+
+  <p>Operator uses a kanban-style workflow to manage tickets through their lifecycle.</p>
+
+<h2 id="ticket-lifecycle">Ticket Lifecycle</h2>
+
+<p>Tickets flow through these stages:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.tickets/queue/     -&gt; Work waiting to be picked up
+.tickets/in-progress/ -&gt; Currently being worked on
+.tickets/completed/   -&gt; Finished work
+</code></pre></div></div>
+
+<h2 id="workflow-steps">Workflow Steps</h2>
+
+<h3 id="1-queue">1. Queue</h3>
+
+<p>New tickets are created in <code class="language-plaintext highlighter-rouge">.tickets/queue/</code>. They are sorted by:</p>
+<ol>
+  <li><strong>Priority</strong> - INV &gt; FIX &gt; FEAT &gt; SPIKE</li>
+  <li><strong>Timestamp</strong> - FIFO within same priority</li>
+</ol>
+
+<h3 id="2-assignment">2. Assignment</h3>
+
+<p>When an agent slot is available, Operator:</p>
+<ol>
+  <li>Selects the next ticket by priority</li>
+  <li>Prompts for launch confirmation</li>
+  <li>Moves ticket to <code class="language-plaintext highlighter-rouge">in-progress/</code></li>
+</ol>
+
+<h3 id="3-in-progress">3. In Progress</h3>
+
+<p>While work is in progress:</p>
+<ul>
+  <li>Agent status is tracked</li>
+  <li>Progress notifications are sent</li>
+  <li>Operator monitors for completion or awaiting input</li>
+</ul>
+
+<h3 id="4-completion">4. Completion</h3>
+
+<p>When work finishes:</p>
+<ul>
+  <li>Ticket moves to <code class="language-plaintext highlighter-rouge">completed/</code></li>
+  <li>Notification is sent</li>
+  <li>Agent slot is freed for next ticket</li>
+</ul>
+
+<h2 id="parallelism-rules">Parallelism Rules</h2>
+
+<p>Operator enforces these rules for concurrent work:</p>
+
+<ul>
+  <li><strong>Max agents</strong> = min(configured_max, cpu_cores - reserved_cores)</li>
+  <li><strong>Autonomous agents</strong> (FEAT, FIX) can run in parallel on different projects</li>
+  <li><strong>Paired agents</strong> (SPIKE, INV) run one at a time per operator</li>
+  <li><strong>Same project</strong> = sequential execution to avoid conflicts</li>
+</ul>
+
+</article>
+
+  </main>
+</body>
+</html>

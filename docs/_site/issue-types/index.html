@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Issue Types | Operator Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Issue Types | Operator Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Issue Types" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/issue-types/" />
+<meta property="og:url" content="https://operator.untra.io/issue-types/" />
+<meta property="og:site_name" content="Operator Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Issue Types" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Issue Types","url":"https://operator.untra.io/issue-types/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development</p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li>
+      <a href="/kanban/" >Kanban</a>
+    </li>
+    
+    <li>
+      <a href="/issue-types/" class="active">Issue Types</a>
+    </li>
+    
+    <li>
+      <a href="/llm-tools/" >LLM Tools</a>
+    </li>
+    
+    <li>
+      <a href="/tickets/" >Tickets</a>
+    </li>
+    
+    <li>
+      <a href="/agents/" >Agents</a>
+    </li>
+    
+    <li>
+      <a href="/tmux/" >Tmux</a>
+    </li>
+    
+  </ul>
+
+  <div class="sidebar-footer">
+    <a href="https://github.com/gbqr-us/operator" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Issue Types</h1>
+  
+
+  <p>Operator supports four issue types, each with different priority levels and execution modes.</p>
+
+<h2 id="priority-order">Priority Order</h2>
+
+<ol>
+  <li><strong>INV</strong> (Investigation) - Highest priority</li>
+  <li><strong>FIX</strong> - Bug fixes</li>
+  <li><strong>FEAT</strong> - Features</li>
+  <li><strong>SPIKE</strong> - Research (lowest priority)</li>
+</ol>
+
+<h2 id="issue-type-details">Issue Type Details</h2>
+
+<h3 id="inv---investigation">INV - Investigation</h3>
+
+<p><strong>Priority:</strong> 1 (highest)
+<strong>Mode:</strong> Paired</p>
+
+<p>Investigation tickets are for diagnosing failures, understanding bugs, or exploring issues. They require human interaction and are worked on with operator pairing.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INV-001-project-investigate-login-failure.md
+</code></pre></div></div>
+
+<h3 id="fix---bug-fix">FIX - Bug Fix</h3>
+
+<p><strong>Priority:</strong> 2
+<strong>Mode:</strong> Autonomous</p>
+
+<p>Bug fixes are addressed after investigations. Agents can work autonomously once the problem is understood.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>FIX-042-project-fix-null-pointer-exception.md
+</code></pre></div></div>
+
+<h3 id="feat---feature">FEAT - Feature</h3>
+
+<p><strong>Priority:</strong> 3
+<strong>Mode:</strong> Autonomous</p>
+
+<p>New features are implemented after critical bugs are addressed. Agents can work autonomously with clear requirements.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>FEAT-123-project-add-dark-mode.md
+</code></pre></div></div>
+
+<h3 id="spike---research">SPIKE - Research</h3>
+
+<p><strong>Priority:</strong> 4 (lowest)
+<strong>Mode:</strong> Paired</p>
+
+<p>Spikes are for research, exploration, and proof-of-concept work. They require human interaction and discussion.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SPIKE-007-project-evaluate-new-framework.md
+</code></pre></div></div>
+
+<h2 id="agent-modes">Agent Modes</h2>
+
+<h3 id="autonomous-mode-feat-fix">Autonomous Mode (FEAT, FIX)</h3>
+
+<ul>
+  <li>Launch and monitor progress</li>
+  <li>Minimal human intervention</li>
+  <li>Can run multiple agents in parallel</li>
+</ul>
+
+<h3 id="paired-mode-spike-inv">Paired Mode (SPIKE, INV)</h3>
+
+<ul>
+  <li>Requires active human participation</li>
+  <li>Tracks “awaiting input” states</li>
+  <li>One paired agent at a time per operator</li>
+</ul>
+
+</article>
+
+  </main>
+</body>
+</html>

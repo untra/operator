@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tickets | Operator Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Tickets | Operator Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Tickets" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/tickets/" />
+<meta property="og:url" content="https://operator.untra.io/tickets/" />
+<meta property="og:site_name" content="Operator Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Tickets" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Tickets","url":"https://operator.untra.io/tickets/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development</p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li>
+      <a href="/kanban/" >Kanban</a>
+    </li>
+    
+    <li>
+      <a href="/issue-types/" >Issue Types</a>
+    </li>
+    
+    <li>
+      <a href="/llm-tools/" >LLM Tools</a>
+    </li>
+    
+    <li>
+      <a href="/tickets/" class="active">Tickets</a>
+    </li>
+    
+    <li>
+      <a href="/agents/" >Agents</a>
+    </li>
+    
+    <li>
+      <a href="/tmux/" >Tmux</a>
+    </li>
+    
+  </ul>
+
+  <div class="sidebar-footer">
+    <a href="https://github.com/gbqr-us/operator" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Tickets</h1>
+  
+
+  <p>Tickets are the core unit of work in Operator. They describe tasks for LLM agents to complete.</p>
+
+<h2 id="ticket-format">Ticket Format</h2>
+
+<p>Tickets are markdown files with a specific naming convention:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{TYPE}-{ID}-{project}-{description}.md
+</code></pre></div></div>
+
+<h3 id="examples">Examples</h3>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INV-001-backend-investigate-login-failure.md
+FIX-042-api-fix-null-pointer.md
+FEAT-123-frontend-add-dark-mode.md
+SPIKE-007-platform-evaluate-kubernetes.md
+</code></pre></div></div>
+
+<h2 id="ticket-structure">Ticket Structure</h2>
+
+<p>A typical ticket contains:</p>
+
+<div class="language-markdown highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gh"># FEAT-123: Add Dark Mode</span>
+
+<span class="gu">## Summary</span>
+Implement a dark mode toggle in the application settings.
+
+<span class="gu">## Requirements</span>
+<span class="p">-</span> Add toggle switch in settings page
+<span class="p">-</span> Persist preference to local storage
+<span class="p">-</span> Apply theme to all components
+<span class="p">-</span> Support system preference detection
+
+<span class="gu">## Acceptance Criteria</span>
+<span class="p">-</span> [ ] Toggle switch works
+<span class="p">-</span> [ ] Theme persists across sessions
+<span class="p">-</span> [ ] All components support both themes
+
+<span class="gu">## Notes</span>
+See design mockup in Figma: [link]
+</code></pre></div></div>
+
+<h2 id="creating-tickets">Creating Tickets</h2>
+
+<h3 id="manual-creation">Manual Creation</h3>
+
+<ol>
+  <li>Create a markdown file in <code class="language-plaintext highlighter-rouge">.tickets/queue/</code></li>
+  <li>Follow the naming convention</li>
+  <li>Add ticket content</li>
+</ol>
+
+<h3 id="using-operator-cli">Using Operator CLI</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Show current queue</span>
+cargo run <span class="nt">--</span> queue
+
+<span class="c"># Launch next ticket</span>
+cargo run <span class="nt">--</span> launch
+</code></pre></div></div>
+
+<h2 id="ticket-directories">Ticket Directories</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.tickets/
+├── queue/        # Pending work
+├── in-progress/  # Currently being worked
+└── completed/    # Finished work
+</code></pre></div></div>
+
+<h2 id="ticket-lifecycle">Ticket Lifecycle</h2>
+
+<ol>
+  <li><strong>Created</strong> - Ticket added to <code class="language-plaintext highlighter-rouge">queue/</code></li>
+  <li><strong>Assigned</strong> - Moved to <code class="language-plaintext highlighter-rouge">in-progress/</code> when agent starts</li>
+  <li><strong>Completed</strong> - Moved to <code class="language-plaintext highlighter-rouge">completed/</code> when done</li>
+</ol>
+
+<h2 id="best-practices">Best Practices</h2>
+
+<ul>
+  <li><strong>Be specific</strong> - Clear requirements help agents succeed</li>
+  <li><strong>Include context</strong> - Link to related issues, PRs, or docs</li>
+  <li><strong>Define done</strong> - Clear acceptance criteria</li>
+  <li><strong>Right-size</strong> - Keep tickets focused and achievable</li>
+</ul>
+
+</article>
+
+  </main>
+</body>
+</html>

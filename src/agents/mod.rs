@@ -7,6 +7,7 @@ mod monitor;
 mod session;
 mod sync;
 pub mod tmux;
+pub mod tmux_config;
 
 pub use generator::{AgentTicketCreator, AgentTicketResult, AGENT_TOOLS};
 pub use launcher::Launcher;
@@ -17,3 +18,4 @@ pub use tmux::{
     sanitize_session_name, MockTmuxClient, SystemTmuxClient, TmuxClient, TmuxError, TmuxSession,
     TmuxVersion,
 };
+pub use tmux_config::{generate_status_script, generate_tmux_conf};

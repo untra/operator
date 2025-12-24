@@ -17,6 +17,12 @@ pub struct Config {
     pub templates: TemplatesConfig,
     #[serde(default)]
     pub api: ApiConfig,
+    #[serde(default)]
+    pub logging: LoggingConfig,
+    #[serde(default)]
+    pub tmux: TmuxConfig,
+    #[serde(default)]
+    pub llm_tools: LlmToolsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,7 +107,7 @@ pub struct PanelNamesConfig {
 }
 
 fn default_todo_name() -> String {
-    "TODO".to_string()
+    "TODO QUEUE".to_string()
 }
 
 fn default_doing_name() -> String {
@@ -134,11 +140,194 @@ pub struct LaunchConfig {
     pub launch_delay_ms: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TmuxConfig {
+    /// Whether custom tmux config has been generated
+    #[serde(default)]
+    pub config_generated: bool,
+}
+
+/// LLM CLI tools configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LlmToolsConfig {
+    /// Detected CLI tools (populated on first startup)
+    #[serde(default)]
+    pub detected: Vec<DetectedTool>,
+
+    /// Available {tool, model} pairs for launching tickets
+    /// Built from detected tools + their model aliases
+    #[serde(default)]
+    pub providers: Vec<LlmProvider>,
+
+    /// Whether detection has been completed
+    #[serde(default)]
+    pub detection_complete: bool,
+}
+
+/// A detected CLI tool (e.g., claude binary)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetectedTool {
+    /// Tool name (e.g., "claude")
+    pub name: String,
+    /// Path to the binary
+    pub path: String,
+    /// Version string
+    pub version: String,
+    /// Available model aliases (e.g., ["opus", "sonnet", "haiku"])
+    pub model_aliases: Vec<String>,
+    /// Command template with {{model}}, {{session_id}}, {{prompt_file}} placeholders
+    #[serde(default)]
+    pub command_template: String,
+    /// Tool capabilities
+    #[serde(default)]
+    pub capabilities: ToolCapabilities,
+}
+
+/// Tool capabilities
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ToolCapabilities {
+    /// Whether the tool supports session continuity via UUID
+    #[serde(default)]
+    pub supports_sessions: bool,
+    /// Whether the tool can run in headless/non-interactive mode
+    #[serde(default)]
+    pub supports_headless: bool,
+}
+
+/// A {tool, model} pair that can be selected when launching tickets
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LlmProvider {
+    /// CLI tool name (e.g., "claude")
+    pub tool: String,
+    /// Model alias or name (e.g., "opus", "sonnet")
+    pub model: String,
+    /// Optional display name for UI (e.g., "Claude Opus")
+    #[serde(default)]
+    pub display_name: Option<String>,
+}
+
+impl LlmProvider {
+    /// Get the display name, falling back to "tool model" format
+    pub fn display(&self) -> String {
+        self.display_name
+            .clone()
+            .unwrap_or_else(|| format!("{} {}", self.tool, self.model))
+    }
+}
+
+/// Predefined issue type collections
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollectionPreset {
+    /// Simple tasks only: TASK
+    Simple,
+    /// Developer kanban: TASK, FEAT, FIX
+    DevKanban,
+    /// DevOps kanban: TASK, SPIKE, INV, FEAT, FIX
+    #[default]
+    DevopsKanban,
+    /// Custom collection (use the collection field)
+    Custom,
+}
+
+impl CollectionPreset {
+    /// Get the issue types for this preset
+    pub fn issue_types(&self) -> Vec<String> {
+        match self {
+            CollectionPreset::Simple => vec!["TASK".to_string()],
+            CollectionPreset::DevKanban => {
+                vec!["TASK".to_string(), "FEAT".to_string(), "FIX".to_string()]
+            }
+            CollectionPreset::DevopsKanban => vec![
+                "TASK".to_string(),
+                "SPIKE".to_string(),
+                "INV".to_string(),
+                "FEAT".to_string(),
+                "FIX".to_string(),
+            ],
+            CollectionPreset::Custom => Vec::new(), // Use collection field
+        }
+    }
+
+    /// Get display name for this preset
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            CollectionPreset::Simple => "Simple (TASK only)",
+            CollectionPreset::DevKanban => "Dev Kanban (TASK, FEAT, FIX)",
+            CollectionPreset::DevopsKanban => "DevOps Kanban (TASK, SPIKE, INV, FEAT, FIX)",
+            CollectionPreset::Custom => "Custom",
+        }
+    }
+
+    /// Get all available presets
+    pub fn all() -> &'static [CollectionPreset] {
+        &[
+            CollectionPreset::Simple,
+            CollectionPreset::DevKanban,
+            CollectionPreset::DevopsKanban,
+            CollectionPreset::Custom,
+        ]
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplatesConfig {
-    /// Issuetype collection - which template types are enabled
-    /// Default: ["SPIKE", "INV", "FEAT", "FIX"]
+    /// Named preset for issue type collection
+    /// Options: simple, dev_kanban, devops_kanban, custom
+    #[serde(default)]
+    pub preset: CollectionPreset,
+    /// Custom issuetype collection (only used when preset = custom)
+    /// List of issue type keys: TASK, FEAT, FIX, SPIKE, INV
+    #[serde(default)]
     pub collection: Vec<String>,
+}
+
+impl TemplatesConfig {
+    /// Get the effective issue types based on preset or custom collection
+    pub fn effective_issue_types(&self) -> Vec<String> {
+        match self.preset {
+            CollectionPreset::Custom => self.collection.clone(),
+            _ => self.preset.issue_types(),
+        }
+    }
+}
+
+impl Default for TemplatesConfig {
+    fn default() -> Self {
+        Self {
+            preset: CollectionPreset::DevopsKanban,
+            collection: Vec::new(),
+        }
+    }
+}
+
+/// Logging configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoggingConfig {
+    /// Log level filter (trace, debug, info, warn, error)
+    #[serde(default = "default_log_level")]
+    pub level: String,
+
+    /// Whether to log to file in TUI mode (false = stderr for debugging)
+    #[serde(default = "default_log_to_file")]
+    pub to_file: bool,
+}
+
+fn default_log_level() -> String {
+    "info".to_string()
+}
+
+fn default_log_to_file() -> bool {
+    true
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            level: default_log_level(),
+            to_file: default_log_to_file(),
+        }
+    }
 }
 
 /// API integrations configuration
@@ -281,6 +470,21 @@ impl Config {
         }
     }
 
+    /// Get absolute path to logs directory
+    pub fn logs_path(&self) -> PathBuf {
+        self.state_path().join("logs")
+    }
+
+    /// Get path to operator's custom tmux config
+    pub fn tmux_config_path(&self) -> PathBuf {
+        self.tickets_path().join("operator").join(".tmux.conf")
+    }
+
+    /// Get path to tmux status script
+    pub fn tmux_status_script_path(&self) -> PathBuf {
+        self.tickets_path().join("operator").join("tmux-status.sh")
+    }
+
     /// Get priority index for a ticket type (lower = higher priority)
     pub fn priority_index(&self, ticket_type: &str) -> usize {
         self.queue
@@ -345,16 +549,11 @@ impl Default for Config {
                 confirm_paired: true,
                 launch_delay_ms: 2000,
             },
-            templates: TemplatesConfig {
-                collection: vec![
-                    "SPIKE".to_string(),
-                    "INV".to_string(),
-                    "FEAT".to_string(),
-                    "FIX".to_string(),
-                    "TASK".to_string(),
-                ],
-            },
+            templates: TemplatesConfig::default(),
             api: ApiConfig::default(),
+            logging: LoggingConfig::default(),
+            tmux: TmuxConfig::default(),
+            llm_tools: LlmToolsConfig::default(),
         }
     }
 }

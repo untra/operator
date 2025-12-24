@@ -21,9 +21,12 @@ use crate::ui::create_dialog::{CreateDialog, CreateDialogResult};
 use crate::ui::dialogs::HelpDialog;
 use crate::ui::projects_dialog::{ProjectAction, ProjectsDialog, ProjectsDialogResult};
 use crate::ui::session_preview::SessionPreview;
-use crate::ui::setup::{SetupResult, SetupScreen};
-use crate::ui::{ConfirmDialog, ConfirmSelection, Dashboard};
+use crate::ui::setup::{DetectedToolInfo, SetupResult, SetupScreen};
+use crate::ui::{with_suspended_tui, ConfirmDialog, ConfirmSelection, Dashboard};
 use std::sync::Arc;
+
+/// Type alias for the terminal used by the app
+type AppTerminal = Terminal<CrosstermBackend<io::Stdout>>;
 
 pub struct App {
     config: Config,
@@ -51,7 +54,37 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(config: Config) -> Result<Self> {
+    pub fn new(mut config: Config) -> Result<Self> {
+        // Run LLM tool detection on first startup
+        if !config.llm_tools.detection_complete {
+            tracing::info!("Detecting LLM CLI tools...");
+            config.llm_tools = crate::llm::detect_all_tools();
+
+            // Log detected tools
+            for tool in &config.llm_tools.detected {
+                tracing::info!(
+                    tool = %tool.name,
+                    version = %tool.version,
+                    path = %tool.path,
+                    "LLM tool detected"
+                );
+            }
+
+            // Log available providers
+            for provider in &config.llm_tools.providers {
+                tracing::debug!(
+                    tool = %provider.tool,
+                    model = %provider.model,
+                    "LLM provider available"
+                );
+            }
+
+            // Save the detection results to config
+            if let Err(e) = config.save() {
+                tracing::warn!("Failed to save LLM detection results: {}", e);
+            }
+        }
+
         let dashboard = Dashboard::new(&config);
 
         // Check if tickets directory exists
@@ -61,11 +94,27 @@ impl App {
         // For setup screen, we discover projects dynamically
         // After setup, we use the projects list from config
         let (setup_screen, projects_for_dialog) = if needs_setup {
-            // Discover projects for the setup screen display
+            // Discover projects by tool for the setup screen display
+            let projects_by_tool =
+                crate::projects::discover_projects_by_tool(&config.projects_path());
             let discovered_projects = config.discover_projects();
+
+            // Build detected tool info for display
+            let detected_tools: Vec<DetectedToolInfo> = config
+                .llm_tools
+                .detected
+                .iter()
+                .map(|t| DetectedToolInfo {
+                    name: t.name.clone(),
+                    version: t.version.clone(),
+                    model_count: t.model_aliases.len(),
+                })
+                .collect();
+
             let setup = SetupScreen::new(
                 tickets_path.to_string_lossy().to_string(),
-                discovered_projects.clone(),
+                detected_tools,
+                projects_by_tool,
             );
             // Projects will be saved to config during initialize_tickets()
             (Some(setup), discovered_projects)
@@ -86,8 +135,17 @@ impl App {
         // Initialize session monitor
         let session_monitor = SessionMonitor::new(&config);
 
-        // Initialize ticket-session sync
-        let tmux_client: Arc<dyn crate::agents::TmuxClient> = Arc::new(SystemTmuxClient::new());
+        // Initialize ticket-session sync with custom tmux config if available
+        let tmux_client: Arc<dyn crate::agents::TmuxClient> = if config.tmux.config_generated {
+            let config_path = config.tmux_config_path();
+            if config_path.exists() {
+                Arc::new(SystemTmuxClient::with_config(config_path))
+            } else {
+                Arc::new(SystemTmuxClient::new())
+            }
+        } else {
+            Arc::new(SystemTmuxClient::new())
+        };
         let ticket_sync = TicketSessionSync::new(&config, tmux_client);
 
         // Initialize API capabilities from environment
@@ -160,7 +218,7 @@ impl App {
             if event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
                     if key.kind == KeyEventKind::Press {
-                        self.handle_key(key.code).await?;
+                        self.handle_key(key.code, &mut terminal).await?;
                     }
                 }
             }
@@ -302,6 +360,11 @@ impl App {
             );
         }
 
+        // Detect and update orphan sessions for display
+        if let Ok(orphans) = self.session_monitor.detect_orphan_sessions() {
+            self.dashboard.update_orphan_sessions(orphans);
+        }
+
         Ok(())
     }
 
@@ -418,7 +481,7 @@ impl App {
         Ok(())
     }
 
-    async fn handle_key(&mut self, key: KeyCode) -> Result<()> {
+    async fn handle_key(&mut self, key: KeyCode, terminal: &mut AppTerminal) -> Result<()> {
         // Setup screen takes absolute priority
         if let Some(ref mut setup) = self.setup_screen {
             match key {
@@ -516,7 +579,7 @@ impl App {
         // Create dialog handling
         if self.create_dialog.visible {
             if let Some(result) = self.create_dialog.handle_key(key) {
-                self.create_ticket(result)?;
+                self.create_ticket(result, terminal)?;
             }
             return Ok(());
         }
@@ -536,10 +599,10 @@ impl App {
                     self.launch_confirmed().await?;
                 }
                 KeyCode::Char('v') | KeyCode::Char('V') => {
-                    self.view_ticket()?;
+                    self.view_ticket(terminal)?;
                 }
                 KeyCode::Char('e') | KeyCode::Char('E') => {
-                    self.edit_ticket()?;
+                    self.edit_ticket(terminal)?;
                 }
                 KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
                     self.confirm_dialog.hide();
@@ -555,7 +618,7 @@ impl App {
                         self.launch_confirmed().await?;
                     }
                     ConfirmSelection::View => {
-                        self.view_ticket()?;
+                        self.view_ticket(terminal)?;
                     }
                     ConfirmSelection::No => {
                         self.confirm_dialog.hide();
@@ -586,8 +649,23 @@ impl App {
             KeyCode::Down | KeyCode::Char('j') => {
                 self.dashboard.select_next();
             }
-            KeyCode::Char('L') | KeyCode::Char('l') | KeyCode::Enter => {
+            KeyCode::Char('L') | KeyCode::Char('l') => {
                 self.try_launch()?;
+            }
+            KeyCode::Enter => {
+                // Enter key behavior depends on focused panel
+                match self.dashboard.focused {
+                    crate::ui::dashboard::FocusedPanel::Queue => {
+                        self.try_launch()?;
+                    }
+                    crate::ui::dashboard::FocusedPanel::Agents
+                    | crate::ui::dashboard::FocusedPanel::Awaiting => {
+                        self.attach_to_session(terminal)?;
+                    }
+                    crate::ui::dashboard::FocusedPanel::Completed => {
+                        // No action on completed panel
+                    }
+                }
             }
             KeyCode::Char('P') | KeyCode::Char('p') => {
                 self.pause_queue()?;
@@ -662,35 +740,29 @@ impl App {
     }
 
     /// View ticket file in $VISUAL or with `open` command
-    fn view_ticket(&mut self) -> Result<()> {
+    fn view_ticket(&mut self, terminal: &mut AppTerminal) -> Result<()> {
         let Some(filepath) = self.confirm_dialog.ticket_filepath() else {
             return Ok(());
         };
 
-        // Temporarily exit TUI
-        disable_raw_mode()?;
-        execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+        with_suspended_tui(terminal, || {
+            // Try $VISUAL first, then fall back to `open` (macOS)
+            let result = if let Ok(visual) = std::env::var("VISUAL") {
+                std::process::Command::new(&visual).arg(&filepath).status()
+            } else {
+                std::process::Command::new("open").arg(&filepath).status()
+            };
 
-        // Try $VISUAL first, then fall back to `open` (macOS)
-        let result = if let Ok(visual) = std::env::var("VISUAL") {
-            std::process::Command::new(&visual).arg(&filepath).status()
-        } else {
-            std::process::Command::new("open").arg(&filepath).status()
-        };
+            if let Err(e) = result {
+                tracing::warn!("Failed to open file: {}", e);
+            }
 
-        if let Err(e) = result {
-            tracing::warn!("Failed to open file: {}", e);
-        }
-
-        // Restore TUI
-        enable_raw_mode()?;
-        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Edit ticket file in $EDITOR
-    fn edit_ticket(&mut self) -> Result<()> {
+    fn edit_ticket(&mut self, terminal: &mut AppTerminal) -> Result<()> {
         let Some(filepath) = self.confirm_dialog.ticket_filepath() else {
             return Ok(());
         };
@@ -700,21 +772,15 @@ impl App {
             return Ok(());
         };
 
-        // Temporarily exit TUI
-        disable_raw_mode()?;
-        execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+        with_suspended_tui(terminal, || {
+            let result = std::process::Command::new(&editor).arg(&filepath).status();
 
-        let result = std::process::Command::new(&editor).arg(&filepath).status();
+            if let Err(e) = result {
+                tracing::warn!("Failed to open editor: {}", e);
+            }
 
-        if let Err(e) = result {
-            tracing::warn!("Failed to open editor: {}", e);
-        }
-
-        // Restore TUI
-        enable_raw_mode()?;
-        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-
-        Ok(())
+            Ok(())
+        })
     }
 
     fn pause_queue(&mut self) -> Result<()> {
@@ -757,12 +823,87 @@ impl App {
         };
 
         // Capture the session content
-        let tmux = SystemTmuxClient::new();
+        // Use custom tmux config if it has been generated and exists
+        let tmux: Box<dyn TmuxClient> = if self.config.tmux.config_generated {
+            let config_path = self.config.tmux_config_path();
+            if config_path.exists() {
+                Box::new(SystemTmuxClient::with_config(config_path))
+            } else {
+                Box::new(SystemTmuxClient::new())
+            }
+        } else {
+            Box::new(SystemTmuxClient::new())
+        };
+
         let content = tmux
             .capture_pane(session_name, false)
             .map_err(|e| format!("Failed to capture session: {}", e));
 
         self.session_preview.show(&agent, content);
+
+        Ok(())
+    }
+
+    /// Attach to the selected agent's tmux session
+    ///
+    /// Suspends the TUI, runs `tmux attach`, and restores the TUI when the user detaches.
+    fn attach_to_session(&mut self, terminal: &mut AppTerminal) -> Result<()> {
+        use crate::agents::tmux::TmuxClient;
+        use crate::ui::dashboard::FocusedPanel;
+
+        // Get the selected agent or orphan session based on focused panel
+        let session_name = match self.dashboard.focused {
+            FocusedPanel::Agents => {
+                // Check if an orphan session is selected
+                if let Some(orphan) = self.dashboard.selected_orphan() {
+                    Some(orphan.session_name.clone())
+                } else {
+                    // Otherwise get selected running agent's session
+                    self.dashboard
+                        .selected_running_agent()
+                        .and_then(|a| a.session_name.clone())
+                }
+            }
+            FocusedPanel::Awaiting => self
+                .dashboard
+                .selected_awaiting_agent()
+                .and_then(|a| a.session_name.clone()),
+            _ => None,
+        };
+
+        let Some(session_name) = session_name else {
+            return Ok(());
+        };
+
+        // Create tmux client (with custom config if available)
+        let tmux: Box<dyn TmuxClient> = if self.config.tmux.config_generated {
+            let config_path = self.config.tmux_config_path();
+            if config_path.exists() {
+                Box::new(SystemTmuxClient::with_config(config_path))
+            } else {
+                Box::new(SystemTmuxClient::new())
+            }
+        } else {
+            Box::new(SystemTmuxClient::new())
+        };
+
+        tracing::info!(session = %session_name, "Attaching to tmux session");
+
+        // Suspend TUI and attach to session
+        with_suspended_tui(terminal, || {
+            match tmux.attach_session(&session_name) {
+                Ok(()) => {
+                    tracing::info!(session = %session_name, "Detached from tmux session");
+                }
+                Err(e) => {
+                    tracing::warn!(session = %session_name, error = %e, "Failed to attach to session");
+                }
+            }
+            Ok(())
+        })?;
+
+        // Refresh data after returning
+        self.refresh_data()?;
 
         Ok(())
     }
@@ -779,14 +920,19 @@ impl App {
         fs::create_dir_all(tickets_path.join("operator"))?;
 
         // Get selected issuetype collection from setup screen
-        let selected_collection = self
+        let (selected_preset, selected_collection) = self
             .setup_screen
             .as_ref()
-            .map(|s| s.collection())
+            .map(|s| (s.preset(), s.collection()))
             .unwrap_or_default();
 
-        // Update config with selected collection
-        self.config.templates.collection = selected_collection.clone();
+        // Update config with selected preset and collection
+        self.config.templates.preset = selected_preset;
+        if selected_preset == crate::config::CollectionPreset::Custom {
+            self.config.templates.collection = selected_collection.clone();
+        } else {
+            self.config.templates.collection.clear();
+        }
 
         // Write template files (only for selected types)
         for template_type in TemplateType::all() {
@@ -817,6 +963,9 @@ impl App {
             fs::write(&schema_filepath, template_type.schema())?;
         }
 
+        // Generate tmux configuration files
+        self.generate_tmux_config()?;
+
         // Discover projects (one-time scan during setup)
         let discovered_projects = self.config.discover_projects();
 
@@ -830,26 +979,65 @@ impl App {
         Ok(())
     }
 
+    /// Generate custom tmux config and status script
+    fn generate_tmux_config(&mut self) -> Result<()> {
+        use crate::agents::{generate_status_script, generate_tmux_conf};
+
+        let state_path = self.config.state_path();
+        let tmux_conf_path = self.config.tmux_config_path();
+        let status_script_path = self.config.tmux_status_script_path();
+
+        // Generate tmux.conf
+        let tmux_conf_content = generate_tmux_conf(&status_script_path, &state_path);
+        fs::write(&tmux_conf_path, tmux_conf_content)?;
+
+        // Generate status script
+        let status_script_content = generate_status_script();
+        fs::write(&status_script_path, status_script_content)?;
+
+        // Make status script executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&status_script_path)?.permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&status_script_path, perms)?;
+        }
+
+        // Mark config as generated
+        self.config.tmux.config_generated = true;
+
+        tracing::info!(
+            tmux_conf = %tmux_conf_path.display(),
+            status_script = %status_script_path.display(),
+            "Generated tmux configuration files"
+        );
+
+        Ok(())
+    }
+
     /// Create a new ticket from the dialog result
-    fn create_ticket(&mut self, dialog_result: CreateDialogResult) -> Result<()> {
-        // Need to temporarily exit TUI to open editor
-        disable_raw_mode()?;
-        execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+    fn create_ticket(
+        &mut self,
+        dialog_result: CreateDialogResult,
+        terminal: &mut AppTerminal,
+    ) -> Result<()> {
+        let config = self.config.clone();
 
-        let creator = TicketCreator::new(&self.config);
-        // Use the new method that accepts pre-filled values
-        let result =
-            creator.create_ticket_with_values(dialog_result.template_type, &dialog_result.values);
-
-        // Restore TUI
-        enable_raw_mode()?;
-        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+        let result = with_suspended_tui(terminal, || {
+            let creator = TicketCreator::new(&config);
+            // Use the new method that accepts pre-filled values
+            creator.create_ticket_with_values(dialog_result.template_type, &dialog_result.values)
+        });
 
         // Handle result after TUI is restored
-        if let Err(e) = result {
-            tracing::error!("Failed to create ticket: {}", e);
-        } else {
-            self.refresh_data()?;
+        match result {
+            Ok(_) => {
+                self.refresh_data()?;
+            }
+            Err(e) => {
+                tracing::error!("Failed to create ticket: {}", e);
+            }
         }
 
         Ok(())

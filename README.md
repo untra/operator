@@ -197,6 +197,57 @@ Investigations can be triggered externally:
 operator alert --source pagerduty --message "500 errors in backend" --severity S1
 ```
 
+## LLM CLI Tool Requirements
+
+Operator launches LLM agents via CLI tools in tmux sessions. To be compatible with Operator, an LLM CLI tool must support the following capabilities:
+
+### Required CLI Flags
+
+| Flag | Purpose | Example |
+|------|---------|---------|
+| `-p` or `--prompt` | Accept an initial prompt/instruction | `-p "implement feature X"` |
+| `--model` | Specify which model to use | `--model opus` |
+| `--session-id` | UUID for session continuity/resumption | `--session-id 550e8400-...` |
+
+### How Operator Calls LLM Tools
+
+Operator constructs commands in this format:
+
+```bash
+<tool> --model <model> -p "$(cat <prompt_file>)" --session-id <uuid>
+```
+
+**Details:**
+- **Prompt file**: Prompts are written to `.tickets/operator/prompts/<uuid>.txt` to avoid shell escaping issues with multiline prompts
+- **Session ID**: A UUID v4 is generated per launch, enabling session resumption
+- **Model aliases**: Operator uses short aliases (e.g., "opus", "sonnet") that resolve to latest model versions
+
+### Currently Supported Tools
+
+| Tool | Detection | Models |
+|------|-----------|--------|
+| `claude` | `which claude` + `claude --version` | opus, sonnet, haiku |
+
+### Adding Support for New LLM Tools
+
+To add support for a new LLM CLI tool (e.g., OpenAI Codex, Google Gemini):
+
+1. Create a detector in `src/llm/<tool>.rs` that:
+   - Checks if the binary exists (`which <tool>`)
+   - Gets version (`<tool> --version`)
+   - Returns available model aliases
+
+2. Register the detector in `src/llm/detection.rs`
+
+3. Update the launcher in `src/agents/launcher.rs` to handle the tool's specific CLI syntax
+
+**Requirements for the LLM tool:**
+- Must be installable as a CLI binary
+- Must accept prompt via flag (not just stdin)
+- Must support model selection
+- Should support session/conversation ID for continuity
+- Should run interactively in a terminal (for tmux integration)
+
 ## Development
 
 ```bash

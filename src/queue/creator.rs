@@ -264,4 +264,89 @@ mod tests {
         assert_eq!(user_fields[0].name, "summary");
         assert_eq!(user_fields[1].name, "context");
     }
+
+    #[test]
+    fn test_step_omitted_when_empty() {
+        // Step should be omitted from frontmatter when empty/falsey
+        let template = r#"---
+id: {{ id }}
+{{#if step }}step: {{ step }}
+{{/if}}status: {{ status }}
+---
+
+# Feature: {{ summary }}
+"#;
+        let mut values = HashMap::new();
+        values.insert("id".to_string(), "FEAT-1234".to_string());
+        values.insert("step".to_string(), "".to_string()); // Empty step
+        values.insert("status".to_string(), "queued".to_string());
+        values.insert("summary".to_string(), "Test feature".to_string());
+
+        let result = render_template(template, &values).unwrap();
+
+        // Step line should NOT appear in output when empty
+        assert!(
+            !result.contains("step:"),
+            "Empty step should be omitted from frontmatter"
+        );
+        assert!(result.contains("id: FEAT-1234"));
+        assert!(result.contains("status: queued"));
+    }
+
+    #[test]
+    fn test_step_included_when_present() {
+        // Step should be included when it has a value
+        let template = r#"---
+id: {{ id }}
+{{#if step }}step: {{ step }}
+{{/if}}status: {{ status }}
+---
+
+# Feature: {{ summary }}
+"#;
+        let mut values = HashMap::new();
+        values.insert("id".to_string(), "FEAT-1234".to_string());
+        values.insert("step".to_string(), "plan".to_string()); // Non-empty step
+        values.insert("status".to_string(), "queued".to_string());
+        values.insert("summary".to_string(), "Test feature".to_string());
+
+        let result = render_template(template, &values).unwrap();
+
+        // Step line should appear in output when non-empty
+        assert!(
+            result.contains("step: plan"),
+            "Non-empty step should be included in frontmatter"
+        );
+        assert!(result.contains("id: FEAT-1234"));
+        assert!(result.contains("status: queued"));
+    }
+
+    #[test]
+    fn test_template_step_omitted_when_empty_after_fix() {
+        // After the fix, templates use conditional rendering for step
+        // and empty step values should be omitted
+
+        // Using the fixed feature.md template pattern
+        let template = r#"---
+id: {{ id }}
+{{#if step }}step: {{ step }}
+{{/if}}status: {{ status }}
+---
+
+# Feature: {{ summary }}
+"#;
+        let mut values = HashMap::new();
+        values.insert("id".to_string(), "FEAT-1234".to_string());
+        values.insert("step".to_string(), "".to_string()); // Empty step
+        values.insert("status".to_string(), "queued".to_string());
+        values.insert("summary".to_string(), "Test feature".to_string());
+
+        let result = render_template(template, &values).unwrap();
+
+        // Fixed behavior: step line is NOT rendered when empty
+        assert!(
+            !result.contains("step:"),
+            "Empty step should be omitted from frontmatter"
+        );
+    }
 }

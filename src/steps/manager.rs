@@ -296,6 +296,7 @@ mod tests {
             status: "queued".to_string(),
             step: step.to_string(),
             content: "Test content".to_string(),
+            sessions: std::collections::HashMap::new(),
         }
     }
 

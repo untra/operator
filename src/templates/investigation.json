@@ -116,7 +116,6 @@
     {
       "name": "triage",
       "display_name": "Triage",
-      "status": "TODO",
       "outputs": ["report"],
       "prompt": "Triage the incident:\n\n1. Confirm the issue is real and ongoing\n2. Assess severity and impact\n3. Identify affected systems\n4. Begin documenting in `.tickets/incidents/{{ id }}.md`\n\nWork with the operator to gather initial information.",
       "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
@@ -126,7 +125,6 @@
     {
       "name": "investigate",
       "display_name": "Investigating",
-      "status": "DOING",
       "outputs": ["report"],
       "prompt": "Investigate the root cause:\n\n1. Search logs and metrics for anomalies\n2. Trace the error path through the code\n3. Identify recent changes that might be related\n4. Form hypotheses and test them\n5. Update `.tickets/incidents/{{ id }}.md` with findings",
       "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
@@ -136,7 +134,6 @@
     {
       "name": "remediate",
       "display_name": "Remediating",
-      "status": "AWAIT",
       "outputs": ["code", "ticket"],
       "prompt": "Determine remediation:\n\n1. If a quick fix is possible, implement it\n2. If a hotfix is needed, create a FIX ticket\n3. If a rollback is needed, coordinate with the operator\n4. Document the resolution in the incident report",
       "allowed_tools": ["Read", "Write", "Edit", "Bash"],
@@ -150,7 +147,6 @@
     {
       "name": "postmortem",
       "display_name": "Postmortem",
-      "status": "AWAIT",
       "outputs": ["report", "ticket"],
       "prompt": "Complete the postmortem:\n\n1. Finalize the incident report with:\n   - Timeline of events\n   - Root cause analysis\n   - Remediation taken\n   - Lessons learned\n2. Create follow-up tickets for preventive measures",
       "allowed_tools": ["Read", "Write", "Bash"],
@@ -164,7 +160,6 @@
     {
       "name": "done",
       "display_name": "Complete",
-      "status": "DONE",
       "outputs": ["review"],
       "prompt": "Investigation complete. Move ticket to completed.",
       "allowed_tools": ["Bash"],

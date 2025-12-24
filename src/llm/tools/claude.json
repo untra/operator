@@ -1,0 +1,16 @@
+{
+  "tool_name": "claude",
+  "display_name": "Claude Code",
+  "version_command": "claude --version",
+  "capabilities": {
+    "supports_sessions": true,
+    "supports_headless": false
+  },
+  "model_aliases": ["opus", "sonnet", "haiku"],
+  "arg_mapping": {
+    "prompt": "-p",
+    "model": "--model",
+    "session_id": "--session-id"
+  },
+  "command_template": "claude {{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\""
+}

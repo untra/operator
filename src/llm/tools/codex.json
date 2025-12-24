@@ -1,0 +1,17 @@
+{
+  "tool_name": "codex",
+  "display_name": "OpenAI Codex",
+  "version_command": "codex --version",
+  "capabilities": {
+    "supports_sessions": true,
+    "supports_headless": true
+  },
+  "model_aliases": ["gpt-4o", "o1", "o3"],
+  "arg_mapping": {
+    "prompt": "",
+    "model": "-m",
+    "session_id": "--resume",
+    "quiet": "-q"
+  },
+  "command_template": "codex exec -m {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\""
+}

@@ -3,8 +3,11 @@
 
 //! Step session creation for launching Claude agents per step
 
+use std::fs;
+use std::path::PathBuf;
+
 use anyhow::{Context, Result};
-use chrono::Local;
+use uuid::Uuid;
 
 use crate::config::Config;
 use crate::pr_config::PrConfig;
@@ -28,19 +31,23 @@ impl StepSession {
     }
 
     /// Generate the Claude command arguments for a specific step
-    /// Returns arguments for: claude -p <prompt> --session-name <name> --message <message>
+    /// Returns arguments for: claude -p <prompt> --session-id <uuid>
+    /// The prompt includes the initial message after a `---` separator
     pub fn generate_claude_args(
         &self,
-        ticket: &Ticket,
+        ticket: &mut Ticket,
         step: &StepSchema,
         pr_config: Option<&PrConfig>,
         project_path: &str,
-    ) -> Result<(String, String, String)> {
-        let prompt = self.generate_prompt(ticket, step, pr_config)?;
-        let session_name = self.generate_session_name(ticket, step);
+    ) -> Result<(String, String)> {
+        let base_prompt = self.generate_prompt(ticket, step, pr_config)?;
+        let session_uuid = self.generate_session_uuid(ticket, step)?;
         let initial_message = self.generate_initial_message(ticket, step);
 
-        Ok((prompt, session_name, initial_message))
+        // Combine prompt and message with separator
+        let full_prompt = format!("{}\n---\n{}", base_prompt, initial_message);
+
+        Ok((full_prompt, session_uuid))
     }
 
     /// Generate the agent system prompt for a step
@@ -96,22 +103,14 @@ When you have completed this step, clearly indicate "STEP COMPLETE" in your fina
         Ok(prompt)
     }
 
-    /// Generate a unique session name for this step
-    fn generate_session_name(&self, ticket: &Ticket, step: &StepSchema) -> String {
-        let timestamp = Local::now().format("%Y%m%d-%H%M%S");
-        let slug = ticket
-            .summary
-            .to_lowercase()
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '-' })
-            .collect::<String>()
-            .split('-')
-            .filter(|s| !s.is_empty())
-            .take(3)
-            .collect::<Vec<_>>()
-            .join("-");
+    /// Generate a unique session UUID for this step and store it in the ticket
+    fn generate_session_uuid(&self, ticket: &mut Ticket, step: &StepSchema) -> Result<String> {
+        let session_uuid = Uuid::new_v4().to_string();
 
-        format!("{}-{}-{}-{}", ticket.id, step.name, slug, timestamp)
+        // Store the session UUID in the ticket frontmatter
+        ticket.set_session_id(&step.name, &session_uuid)?;
+
+        Ok(session_uuid)
     }
 
     /// Generate the initial message to send to the agent
@@ -136,24 +135,60 @@ When you have completed this step, clearly indicate "STEP COMPLETE" in your fina
     /// Returns the full command to launch Claude in a tmux session
     pub fn generate_tmux_command(
         &self,
-        ticket: &Ticket,
+        ticket: &mut Ticket,
         step: &StepSchema,
         pr_config: Option<&PrConfig>,
         project_path: &str,
     ) -> Result<String> {
-        let (prompt, session_name, initial_message) =
+        let (prompt, session_uuid) =
             self.generate_claude_args(ticket, step, pr_config, project_path)?;
 
-        // Escape single quotes in prompt and message
-        let escaped_prompt = prompt.replace("'", "'\\''");
-        let escaped_message = initial_message.replace("'", "'\\''");
+        // Write prompt to file (avoids newline issues with tmux send-keys)
+        let prompt_file = self.write_prompt_file(&session_uuid, &prompt)?;
 
-        let command = format!(
-            "cd '{}' && claude -p '{}' --session-name '{}' --message '{}'",
-            project_path, escaped_prompt, session_name, escaped_message
-        );
+        // Get the configured LLM tool
+        let tool = self
+            .config
+            .llm_tools
+            .detected
+            .first()
+            .context("No LLM tool detected. Install claude, gemini, or codex CLI.")?;
+
+        // Get model from first available provider (default to "sonnet" if none)
+        let model = self
+            .config
+            .llm_tools
+            .providers
+            .first()
+            .map(|p| p.model.as_str())
+            .unwrap_or("sonnet");
+
+        // Build model flag
+        let model_flag = format!("--model {} ", model);
+
+        // Build command from template
+        let llm_cmd = tool
+            .command_template
+            .replace("{{model_flag}}", &model_flag)
+            .replace("{{model}}", model)
+            .replace("{{session_id}}", &session_uuid)
+            .replace("{{prompt_file}}", &prompt_file.display().to_string());
+
+        let command = format!("cd '{}' && {}", project_path, llm_cmd);
 
         Ok(command)
+    }
+
+    /// Write a prompt to a file and return the path
+    /// Prompts are stored in .tickets/operator/prompts/{session_uuid}.txt
+    fn write_prompt_file(&self, session_uuid: &str, prompt: &str) -> Result<PathBuf> {
+        let prompts_dir = self.config.tickets_path().join("operator/prompts");
+        fs::create_dir_all(&prompts_dir).context("Failed to create prompts directory")?;
+
+        let prompt_file = prompts_dir.join(format!("{}.txt", session_uuid));
+        fs::write(&prompt_file, prompt).context("Failed to write prompt file")?;
+
+        Ok(prompt_file)
     }
 
     /// Get step progress info for display
@@ -235,6 +270,7 @@ mod tests {
             status: "queued".to_string(),
             step: "plan".to_string(),
             content: "Test content".to_string(),
+            sessions: std::collections::HashMap::new(),
         }
     }
 
@@ -252,15 +288,34 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_session_name() {
+    fn test_generate_session_uuid() {
         let config = Config::default();
         let session = StepSession::new(&config);
-        let ticket = make_test_ticket();
+
+        // Create a temp file for the ticket
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20241221-1430-FEAT-gamesvc-test.md");
+        let content = r#"---
+id: FEAT-1234
+status: queued
+step: plan
+---
+
+# Feature: Test feature
+"#;
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let mut ticket = crate::queue::Ticket::from_file(&ticket_path).unwrap();
         let step = make_test_step();
 
-        let name = session.generate_session_name(&ticket, &step);
-        assert!(name.starts_with("FEAT-1234-plan-"));
-        assert!(name.contains("test-feature"));
+        let uuid = session.generate_session_uuid(&mut ticket, &step).unwrap();
+
+        // UUID should be valid format (36 chars with hyphens)
+        assert_eq!(uuid.len(), 36);
+        assert!(uuid.contains('-'));
+
+        // Session ID should be stored in ticket
+        assert_eq!(ticket.get_session_id("plan").unwrap(), &uuid);
     }
 
     #[test]

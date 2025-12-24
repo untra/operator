@@ -22,6 +22,8 @@ pub struct Ticket {
     pub status: String,
     pub step: String,
     pub content: String,
+    /// Claude session IDs per step (step_name -> session_uuid)
+    pub sessions: HashMap<String, String>,
 }
 
 impl Ticket {
@@ -39,36 +41,36 @@ impl Ticket {
         let (timestamp, ticket_type, project) = parse_filename(&filename)?;
 
         // Try to extract metadata from YAML frontmatter first, fall back to legacy regex parsing
-        let (id, priority, status, step, summary) = if let Some((frontmatter, body)) =
-            extract_frontmatter(&content)
-        {
-            let id = frontmatter
-                .get("id")
-                .cloned()
-                .unwrap_or_else(|| format!("{}-{}", ticket_type, timestamp.replace('-', "")));
-            let priority = frontmatter
-                .get("priority")
-                .cloned()
-                .unwrap_or_else(|| "P2-medium".to_string());
-            let status = frontmatter
-                .get("status")
-                .cloned()
-                .unwrap_or_else(|| "queued".to_string());
-            let step = frontmatter.get("step").cloned().unwrap_or_default();
-            // Extract summary from body (after frontmatter)
-            let summary = extract_summary(body);
-            (id, priority, status, step, summary)
-        } else {
-            // Legacy parsing using regex for inline metadata
-            let id = extract_field(&content, "ID")
-                .unwrap_or_else(|| format!("{}-{}", ticket_type, timestamp.replace('-', "")));
-            let priority =
-                extract_field(&content, "Priority").unwrap_or_else(|| "P2-medium".to_string());
-            let status = extract_field(&content, "Status").unwrap_or_else(|| "queued".to_string());
-            let step = extract_field(&content, "Step").unwrap_or_default();
-            let summary = extract_summary(&content);
-            (id, priority, status, step, summary)
-        };
+        let (id, priority, status, step, summary, sessions) =
+            if let Some((frontmatter, sessions, body)) = extract_frontmatter(&content) {
+                let id = frontmatter
+                    .get("id")
+                    .cloned()
+                    .unwrap_or_else(|| format!("{}-{}", ticket_type, timestamp.replace('-', "")));
+                let priority = frontmatter
+                    .get("priority")
+                    .cloned()
+                    .unwrap_or_else(|| "P2-medium".to_string());
+                let status = frontmatter
+                    .get("status")
+                    .cloned()
+                    .unwrap_or_else(|| "queued".to_string());
+                let step = frontmatter.get("step").cloned().unwrap_or_default();
+                // Extract summary from body (after frontmatter)
+                let summary = extract_summary(body);
+                (id, priority, status, step, summary, sessions)
+            } else {
+                // Legacy parsing using regex for inline metadata
+                let id = extract_field(&content, "ID")
+                    .unwrap_or_else(|| format!("{}-{}", ticket_type, timestamp.replace('-', "")));
+                let priority =
+                    extract_field(&content, "Priority").unwrap_or_else(|| "P2-medium".to_string());
+                let status =
+                    extract_field(&content, "Status").unwrap_or_else(|| "queued".to_string());
+                let step = extract_field(&content, "Step").unwrap_or_default();
+                let summary = extract_summary(&content);
+                (id, priority, status, step, summary, HashMap::new())
+            };
 
         Ok(Self {
             filename,
@@ -82,6 +84,7 @@ impl Ticket {
             status,
             step,
             content,
+            sessions,
         })
     }
 
@@ -125,7 +128,7 @@ impl Ticket {
     /// Update a frontmatter field in the ticket file and save
     pub fn update_field(&mut self, field: &str, value: &str) -> Result<()> {
         // Parse frontmatter
-        if let Some((mut frontmatter, body)) = extract_frontmatter(&self.content) {
+        if let Some((mut frontmatter, sessions, body)) = extract_frontmatter(&self.content) {
             frontmatter.insert(field.to_string(), value.to_string());
 
             // Rebuild the frontmatter
@@ -133,6 +136,15 @@ impl Ticket {
             for (k, v) in &frontmatter {
                 yaml_lines.push(format!("{}: {}", k, v));
             }
+
+            // Add sessions if present
+            if !sessions.is_empty() {
+                yaml_lines.push("sessions:".to_string());
+                for (step, session_id) in &sessions {
+                    yaml_lines.push(format!("  {}: {}", step, session_id));
+                }
+            }
+
             yaml_lines.sort(); // Keep consistent order
 
             let new_content = format!("---\n{}\n---{}", yaml_lines.join("\n"), body);
@@ -226,11 +238,109 @@ impl Ticket {
             .map(|s| s.requires_review)
             .unwrap_or(false)
     }
+
+    /// Get the session ID for a specific step
+    pub fn get_session_id(&self, step_name: &str) -> Option<&String> {
+        self.sessions.get(step_name)
+    }
+
+    /// Set the session ID for a specific step and save to frontmatter
+    pub fn set_session_id(&mut self, step_name: &str, session_id: &str) -> Result<()> {
+        self.sessions
+            .insert(step_name.to_string(), session_id.to_string());
+        self.save_sessions_to_frontmatter()
+    }
+
+    /// Save the sessions map to the ticket frontmatter
+    fn save_sessions_to_frontmatter(&mut self) -> Result<()> {
+        let content = self.content.trim_start();
+
+        if !content.starts_with("---") {
+            // No frontmatter, create one
+            let sessions_yaml = self.format_sessions_yaml();
+            let new_content = format!(
+                "---\nid: {}\nstatus: {}\npriority: {}\nstep: {}\n{}\n---\n{}",
+                self.id, self.status, self.priority, self.step, sessions_yaml, content
+            );
+            self.content = new_content.clone();
+            fs::write(&self.filepath, new_content).context("Failed to write ticket file")?;
+            return Ok(());
+        }
+
+        // Find the closing ---
+        let after_open = &content[3..];
+        if let Some(end_idx) = after_open.find("\n---") {
+            let yaml_str = &after_open[..end_idx];
+            let rest = &after_open[end_idx + 4..]; // Content after closing ---
+
+            // Parse existing YAML
+            let mut frontmatter: serde_yaml::Value = serde_yaml::from_str(yaml_str)
+                .unwrap_or(serde_yaml::Value::Mapping(serde_yaml::Mapping::new()));
+
+            // Update sessions in the YAML
+            if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
+                // Build sessions mapping
+                let mut sessions_map = serde_yaml::Mapping::new();
+                for (step, session_id) in &self.sessions {
+                    sessions_map.insert(
+                        serde_yaml::Value::String(step.clone()),
+                        serde_yaml::Value::String(session_id.clone()),
+                    );
+                }
+                map.insert(
+                    serde_yaml::Value::String("sessions".to_string()),
+                    serde_yaml::Value::Mapping(sessions_map),
+                );
+            }
+
+            // Serialize back to YAML
+            let new_yaml =
+                serde_yaml::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
+
+            let new_content = format!("---\n{}---{}", new_yaml, rest);
+            self.content = new_content.clone();
+            fs::write(&self.filepath, new_content).context("Failed to write ticket file")?;
+        }
+
+        Ok(())
+    }
+
+    /// Format sessions as YAML for frontmatter
+    fn format_sessions_yaml(&self) -> String {
+        if self.sessions.is_empty() {
+            return String::new();
+        }
+
+        let mut lines = vec!["sessions:".to_string()];
+        for (step, session_id) in &self.sessions {
+            lines.push(format!("  {}: {}", step, session_id));
+        }
+        lines.join("\n")
+    }
+}
+
+/// Extract sessions mapping from YAML frontmatter value
+fn extract_sessions_from_yaml(
+    frontmatter: &HashMap<String, serde_yaml::Value>,
+) -> HashMap<String, String> {
+    if let Some(serde_yaml::Value::Mapping(map)) = frontmatter.get("sessions") {
+        map.iter()
+            .filter_map(|(k, v)| {
+                let key = k.as_str()?.to_string();
+                let value = v.as_str()?.to_string();
+                Some((key, value))
+            })
+            .collect()
+    } else {
+        HashMap::new()
+    }
 }
 
 /// Extract YAML frontmatter from markdown content
-/// Returns the parsed frontmatter as a HashMap and the content after the frontmatter
-fn extract_frontmatter(content: &str) -> Option<(HashMap<String, String>, &str)> {
+/// Returns the parsed frontmatter as a HashMap, sessions HashMap, and the content after the frontmatter
+fn extract_frontmatter(
+    content: &str,
+) -> Option<(HashMap<String, String>, HashMap<String, String>, &str)> {
     let content = content.trim_start();
     if !content.starts_with("---") {
         return None;
@@ -245,21 +355,27 @@ fn extract_frontmatter(content: &str) -> Option<(HashMap<String, String>, &str)>
     // Parse YAML into HashMap
     let frontmatter: HashMap<String, serde_yaml::Value> = serde_yaml::from_str(yaml_str).ok()?;
 
-    // Convert all values to strings
+    // Extract sessions before converting to strings
+    let sessions = extract_sessions_from_yaml(&frontmatter);
+
+    // Convert scalar values to strings (skip mappings like sessions)
     let string_map: HashMap<String, String> = frontmatter
-        .into_iter()
-        .map(|(k, v)| {
+        .iter()
+        .filter_map(|(k, v)| {
             let s = match v {
-                serde_yaml::Value::String(s) => s,
+                serde_yaml::Value::String(s) => s.clone(),
                 serde_yaml::Value::Number(n) => n.to_string(),
                 serde_yaml::Value::Bool(b) => b.to_string(),
+                serde_yaml::Value::Null => String::new(),
+                // Skip mappings/sequences - they're handled separately
+                serde_yaml::Value::Mapping(_) | serde_yaml::Value::Sequence(_) => return None,
                 _ => v.as_str().unwrap_or("").to_string(),
             };
-            (k, s)
+            Some((k.clone(), s))
         })
         .collect();
 
-    Some((string_map, rest))
+    Some((string_map, sessions, rest))
 }
 
 fn parse_filename(filename: &str) -> Result<(String, String, String)> {
@@ -298,7 +414,23 @@ fn extract_field(content: &str, field: &str) -> Option<String> {
 }
 
 fn extract_summary(content: &str) -> String {
-    // Try to find the Summary section
+    // Try to find the "# Type: Summary" header pattern used by templates
+    // Supports: # Feature: X, # Fix: X, # Spike: X, # Investigation: X, # Task: X
+    let type_header_pattern =
+        Regex::new(r"^#\s+(?:Feature|Fix|Spike|Investigation|Task):\s*(.+)$").unwrap();
+
+    for line in content.lines() {
+        if let Some(caps) = type_header_pattern.captures(line.trim()) {
+            if let Some(summary) = caps.get(1) {
+                let text = summary.as_str().trim();
+                if !text.is_empty() {
+                    return text.to_string();
+                }
+            }
+        }
+    }
+
+    // Try to find the ## Summary section (legacy format)
     if let Some(idx) = content.find("## Summary") {
         let after = &content[idx + 10..];
         if let Some(line) = after.lines().find(|l| !l.trim().is_empty()) {
@@ -344,5 +476,307 @@ mod tests {
         assert_eq!(ts, "20241221-1520");
         assert_eq!(tt, "INV");
         assert_eq!(proj, "global");
+    }
+
+    #[test]
+    fn test_extract_summary_from_feature_header() {
+        // Summary should be extracted from "# Feature: X" format
+        let content = r#"
+# Feature: Add user authentication
+
+## Context
+This is the context.
+"#;
+        let summary = extract_summary(content);
+        assert_eq!(summary, "Add user authentication");
+    }
+
+    #[test]
+    fn test_extract_summary_from_fix_header() {
+        // Summary should be extracted from "# Fix: X" format
+        let content = r#"
+# Fix: Resolve login timeout issue
+
+## Context
+Users are experiencing timeouts.
+"#;
+        let summary = extract_summary(content);
+        assert_eq!(summary, "Resolve login timeout issue");
+    }
+
+    #[test]
+    fn test_extract_summary_from_spike_header() {
+        let content = r#"
+# Spike: Investigate caching strategies
+
+## Context
+Need to explore caching options.
+"#;
+        let summary = extract_summary(content);
+        assert_eq!(summary, "Investigate caching strategies");
+    }
+
+    #[test]
+    fn test_extract_summary_from_investigation_header() {
+        let content = r#"
+# Investigation: Database connection failures
+
+## Observed Behavior
+Connections are dropping.
+"#;
+        let summary = extract_summary(content);
+        assert_eq!(summary, "Database connection failures");
+    }
+
+    #[test]
+    fn test_extract_summary_from_task_header() {
+        let content = r#"
+# Task: Update dependencies
+
+## Context
+Routine maintenance.
+"#;
+        let summary = extract_summary(content);
+        assert_eq!(summary, "Update dependencies");
+    }
+
+    #[test]
+    fn test_extract_summary_from_summary_section() {
+        // Legacy format with ## Summary section should still work
+        let content = r#"
+## Summary
+This is the summary text.
+
+## Details
+More details here.
+"#;
+        let summary = extract_summary(content);
+        assert_eq!(summary, "This is the summary text.");
+    }
+
+    #[test]
+    fn test_extract_summary_fallback_to_first_line() {
+        // When no recognized format, should fall back to first non-header line
+        let content = r#"
+This is just some text without headers.
+"#;
+        let summary = extract_summary(content);
+        assert_eq!(summary, "This is just some text without headers.");
+    }
+
+    #[test]
+    fn test_extract_summary_returns_no_summary_when_empty() {
+        let content = "";
+        let summary = extract_summary(content);
+        assert_eq!(summary, "No summary");
+    }
+
+    #[test]
+    fn test_extract_frontmatter_with_empty_step() {
+        // Frontmatter with empty step should return empty string
+        let content = r#"---
+id: FEAT-1234
+step:
+status: queued
+---
+
+# Feature: Test feature
+"#;
+        let (frontmatter, _sessions, _body) = extract_frontmatter(content).unwrap();
+        let step = frontmatter.get("step").cloned().unwrap_or_default();
+        assert!(
+            step.is_empty(),
+            "Empty step should be empty string, got: '{}'",
+            step
+        );
+    }
+
+    #[test]
+    fn test_extract_frontmatter_without_step() {
+        // Frontmatter without step field should be handled gracefully
+        let content = r#"---
+id: FEAT-1234
+status: queued
+---
+
+# Feature: Test feature
+"#;
+        let (frontmatter, _sessions, _body) = extract_frontmatter(content).unwrap();
+        let step = frontmatter.get("step").cloned().unwrap_or_default();
+        assert!(
+            step.is_empty(),
+            "Missing step should default to empty string"
+        );
+    }
+
+    #[test]
+    fn test_ticket_id_does_not_duplicate_type() {
+        // The ticket.id field should be the full ID like "FEAT-1234"
+        // and should NOT be duplicated when displayed
+        let content = r#"---
+id: FEAT-7598
+status: queued
+project: operator
+---
+
+# Feature: Test summary
+"#;
+
+        // Create temp file for testing
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let ticket = Ticket::from_file(&ticket_path).unwrap();
+
+        // The ID should be exactly "FEAT-7598", not "FEAT-FEAT-7598"
+        assert_eq!(
+            ticket.id, "FEAT-7598",
+            "ID should be FEAT-7598, not duplicated"
+        );
+        assert_eq!(ticket.ticket_type, "FEAT");
+
+        // Verify we don't get duplication when formatting for display
+        let display_id = &ticket.id; // Should use this directly, not format!("{}-{}", type, id)
+        assert!(
+            !display_id.starts_with("FEAT-FEAT"),
+            "Display ID should not have duplicated prefix"
+        );
+    }
+
+    #[test]
+    fn test_sessions_frontmatter_parsing() {
+        // Frontmatter with sessions should parse correctly
+        let content = r#"---
+id: FEAT-1234
+status: running
+step: implement
+sessions:
+  plan: 550e8400-e29b-41d4-a716-446655440000
+  implement: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+---
+
+# Feature: Test feature
+"#;
+        let (frontmatter, sessions, _body) = extract_frontmatter(content).unwrap();
+        assert_eq!(frontmatter.get("id").unwrap(), "FEAT-1234");
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(
+            sessions.get("plan").unwrap(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
+        assert_eq!(
+            sessions.get("implement").unwrap(),
+            "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        );
+    }
+
+    #[test]
+    fn test_sessions_empty_when_not_present() {
+        let content = r#"---
+id: FEAT-1234
+status: queued
+---
+
+# Feature: Test feature
+"#;
+        let (_frontmatter, sessions, _body) = extract_frontmatter(content).unwrap();
+        assert!(sessions.is_empty());
+    }
+
+    #[test]
+    fn test_ticket_from_file_with_sessions() {
+        let content = r#"---
+id: FEAT-5678
+status: running
+step: implement
+sessions:
+  plan: 550e8400-e29b-41d4-a716-446655440000
+  implement: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+---
+
+# Feature: Test with sessions
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let ticket = Ticket::from_file(&ticket_path).unwrap();
+
+        assert_eq!(ticket.sessions.len(), 2);
+        assert_eq!(
+            ticket.get_session_id("plan").unwrap(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
+        assert_eq!(
+            ticket.get_session_id("implement").unwrap(),
+            "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        );
+    }
+
+    #[test]
+    fn test_set_session_id() {
+        let content = r#"---
+id: FEAT-9999
+status: queued
+step: plan
+---
+
+# Feature: Test set session
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let mut ticket = Ticket::from_file(&ticket_path).unwrap();
+
+        // Set a session ID
+        let session_uuid = "abcd1234-5678-90ab-cdef-1234567890ab";
+        ticket.set_session_id("plan", session_uuid).unwrap();
+
+        // Verify in memory
+        assert_eq!(ticket.get_session_id("plan").unwrap(), session_uuid);
+
+        // Reload from file and verify persistence
+        let reloaded = Ticket::from_file(&ticket_path).unwrap();
+        assert_eq!(reloaded.get_session_id("plan").unwrap(), session_uuid);
+    }
+
+    #[test]
+    fn test_set_multiple_session_ids() {
+        let content = r#"---
+id: FEAT-8888
+status: queued
+step: plan
+---
+
+# Feature: Test multiple sessions
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let mut ticket = Ticket::from_file(&ticket_path).unwrap();
+
+        // Set session IDs for multiple steps
+        let plan_uuid = "11111111-1111-1111-1111-111111111111";
+        let implement_uuid = "22222222-2222-2222-2222-222222222222";
+
+        ticket.set_session_id("plan", plan_uuid).unwrap();
+        ticket.set_session_id("implement", implement_uuid).unwrap();
+
+        // Verify in memory
+        assert_eq!(ticket.sessions.len(), 2);
+        assert_eq!(ticket.get_session_id("plan").unwrap(), plan_uuid);
+        assert_eq!(ticket.get_session_id("implement").unwrap(), implement_uuid);
+
+        // Reload from file and verify persistence
+        let reloaded = Ticket::from_file(&ticket_path).unwrap();
+        assert_eq!(reloaded.sessions.len(), 2);
+        assert_eq!(reloaded.get_session_id("plan").unwrap(), plan_uuid);
+        assert_eq!(
+            reloaded.get_session_id("implement").unwrap(),
+            implement_uuid
+        );
     }
 }

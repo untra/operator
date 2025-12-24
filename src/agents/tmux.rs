@@ -9,6 +9,7 @@
 //! - Graceful handling when tmux is unavailable
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
 
@@ -131,18 +132,56 @@ pub trait TmuxClient: Send + Sync {
 
     /// Reset the silence flag after handling (by briefly toggling monitor-silence)
     fn reset_silence_flag(&self, session: &str) -> Result<(), TmuxError>;
+
+    /// Attach to a session (returns the command to execute for shell attach)
+    /// This suspends the current terminal and attaches to the tmux session
+    fn attach_session(&self, session: &str) -> Result<(), TmuxError>;
 }
 
 /// Real implementation using system tmux
-pub struct SystemTmuxClient;
+pub struct SystemTmuxClient {
+    /// Path to custom tmux config file (None = use default)
+    config_path: Option<PathBuf>,
+    /// Tmux server socket name (None = use default socket)
+    /// Using a dedicated socket ensures our custom config is always used
+    socket_name: Option<String>,
+}
+
+/// Default socket name for operator-managed tmux sessions
+pub const OPERATOR_SOCKET: &str = "operator";
 
 impl SystemTmuxClient {
+    /// Create a new client using default tmux config and socket
     pub fn new() -> Self {
-        Self
+        Self {
+            config_path: None,
+            socket_name: None,
+        }
+    }
+
+    /// Create a new client using a custom tmux config file
+    /// This also uses a dedicated socket ("operator") to ensure isolation
+    pub fn with_config(config_path: PathBuf) -> Self {
+        Self {
+            config_path: Some(config_path),
+            socket_name: Some(OPERATOR_SOCKET.to_string()),
+        }
     }
 
     fn run_tmux(&self, args: &[&str]) -> Result<Output, TmuxError> {
-        Command::new("tmux").args(args).output().map_err(|e| {
+        let mut cmd = Command::new("tmux");
+
+        // Use dedicated socket if configured (must come before -f)
+        if let Some(ref socket) = self.socket_name {
+            cmd.arg("-L").arg(socket);
+        }
+
+        // If custom config is set, add -f flag
+        if let Some(ref config_path) = self.config_path {
+            cmd.arg("-f").arg(config_path);
+        }
+
+        cmd.args(args).output().map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 TmuxError::NotInstalled
             } else {
@@ -380,6 +419,43 @@ impl TmuxClient for SystemTmuxClient {
 
         Ok(())
     }
+
+    fn attach_session(&self, session: &str) -> Result<(), TmuxError> {
+        // Use status() instead of output() for interactive execution.
+        // This allows the user to interact with the tmux session directly.
+        // The caller should handle terminal suspension/restoration.
+        let mut cmd = Command::new("tmux");
+
+        // Use dedicated socket if configured (must come before -f)
+        if let Some(ref socket) = self.socket_name {
+            cmd.arg("-L").arg(socket);
+        }
+
+        // If custom config is set, add -f flag
+        if let Some(ref config_path) = self.config_path {
+            cmd.arg("-f").arg(config_path);
+        }
+
+        let status = cmd
+            .args(["attach-session", "-t", session])
+            .status()
+            .map_err(|e| {
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    TmuxError::NotInstalled
+                } else {
+                    TmuxError::CommandFailed(e.to_string())
+                }
+            })?;
+
+        if !status.success() {
+            return Err(TmuxError::CommandFailed(format!(
+                "tmux attach failed with exit code: {:?}",
+                status.code()
+            )));
+        }
+
+        Ok(())
+    }
 }
 
 /// Mock implementation for testing
@@ -395,6 +471,10 @@ pub struct MockTmuxClient {
     pub command_log: Arc<Mutex<Vec<MockCommand>>>,
     /// Whether to simulate server running
     pub server_running: Arc<Mutex<bool>>,
+    /// Config path used (for test verification)
+    pub config_path: Arc<Mutex<Option<PathBuf>>>,
+    /// Socket name used (for test verification)
+    pub socket_name: Arc<Mutex<Option<String>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -427,7 +507,17 @@ impl MockTmuxClient {
             }))),
             command_log: Arc::new(Mutex::new(Vec::new())),
             server_running: Arc::new(Mutex::new(true)),
+            config_path: Arc::new(Mutex::new(None)),
+            socket_name: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Create a mock that uses a custom config path and dedicated socket
+    pub fn with_config(config_path: PathBuf) -> Self {
+        let mock = Self::new();
+        *mock.config_path.lock().unwrap() = Some(config_path);
+        *mock.socket_name.lock().unwrap() = Some(OPERATOR_SOCKET.to_string());
+        mock
     }
 
     /// Create a mock that simulates tmux not being installed
@@ -681,6 +771,22 @@ impl TmuxClient for MockTmuxClient {
             Err(TmuxError::SessionNotFound(session.to_string()))
         }
     }
+
+    fn attach_session(&self, session: &str) -> Result<(), TmuxError> {
+        self.log_command("attach_session", &[session]);
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        let mut sessions = self.sessions.lock().unwrap();
+        if let Some(s) = sessions.get_mut(session) {
+            s.attached = true;
+            Ok(())
+        } else {
+            Err(TmuxError::SessionNotFound(session.to_string()))
+        }
+    }
 }
 
 /// Sanitize a string for use as a tmux session name
@@ -847,5 +953,97 @@ mod tests {
 
         let all_sessions = client.list_sessions(None).unwrap();
         assert_eq!(all_sessions.len(), 3);
+    }
+
+    #[test]
+    fn test_mock_attach_session() {
+        let client = MockTmuxClient::new();
+
+        // Create a session to attach to
+        client.create_session("op-TEST-123", "/tmp").unwrap();
+
+        // Initially not attached
+        {
+            let sessions = client.list_sessions(None).unwrap();
+            let session = sessions.iter().find(|s| s.name == "op-TEST-123").unwrap();
+            assert!(!session.attached);
+        }
+
+        // Attach to session
+        client.attach_session("op-TEST-123").unwrap();
+
+        // Now should be marked as attached
+        {
+            let sessions = client.list_sessions(None).unwrap();
+            let session = sessions.iter().find(|s| s.name == "op-TEST-123").unwrap();
+            assert!(session.attached);
+        }
+
+        // Verify command was logged
+        let commands = client.get_commands();
+        assert!(commands.iter().any(|c| c.operation == "attach_session"));
+    }
+
+    #[test]
+    fn test_mock_attach_session_not_found() {
+        let client = MockTmuxClient::new();
+
+        // Try to attach to non-existent session
+        let result = client.attach_session("nonexistent");
+        assert!(matches!(result, Err(TmuxError::SessionNotFound(_))));
+    }
+
+    #[test]
+    fn test_mock_attach_session_not_installed() {
+        let client = MockTmuxClient::not_installed();
+
+        let result = client.attach_session("any-session");
+        assert!(matches!(result, Err(TmuxError::NotInstalled)));
+    }
+
+    #[test]
+    fn test_mock_with_config_stores_path() {
+        let config_path = PathBuf::from("/test/.tmux.conf");
+        let client = MockTmuxClient::with_config(config_path.clone());
+
+        let stored_path = client.config_path.lock().unwrap();
+        assert_eq!(*stored_path, Some(config_path));
+    }
+
+    #[test]
+    fn test_system_tmux_with_config_stores_path() {
+        let config_path = PathBuf::from("/test/.tmux.conf");
+        let client = SystemTmuxClient::with_config(config_path.clone());
+
+        assert_eq!(client.config_path, Some(config_path));
+    }
+
+    #[test]
+    fn test_mock_with_config_attach_session() {
+        let config_path = PathBuf::from("/test/.tmux.conf");
+        let client = MockTmuxClient::with_config(config_path.clone());
+
+        // Create a session to attach to
+        client.create_session("op-TEST-123", "/tmp").unwrap();
+
+        // Attach to session (config should be accessible during attach)
+        client.attach_session("op-TEST-123").unwrap();
+
+        // Verify config path was stored and attach was logged
+        let stored_path = client.config_path.lock().unwrap();
+        assert_eq!(*stored_path, Some(config_path));
+
+        let commands = client.get_commands();
+        assert!(commands.iter().any(|c| c.operation == "attach_session"));
+    }
+
+    #[test]
+    fn test_default_tmux_client_has_no_config() {
+        let client = SystemTmuxClient::new();
+        assert!(client.config_path.is_none());
+
+        let mock = MockTmuxClient::new();
+        let stored_path = mock.config_path.lock().unwrap();
+        assert!(stored_path.is_none());
     }
 }

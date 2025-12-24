@@ -1,5 +1,9 @@
 //! Startup setup screen when .tickets/ directory is not found
 
+use std::collections::HashMap;
+
+use crate::config::CollectionPreset;
+use crate::projects::TOOL_MARKERS;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -8,14 +12,23 @@ use ratatui::{
     Frame,
 };
 
-/// Available issuetype collections
-pub const DEFAULT_COLLECTION: &[&str] = &["SPIKE", "INV", "FEAT", "FIX", "TASK"];
+/// Simplified tool info for display on the welcome screen
+#[derive(Debug, Clone)]
+pub struct DetectedToolInfo {
+    pub name: String,
+    pub version: String,
+    pub model_count: usize,
+}
 
-/// Collection source options
+/// Available issuetype collections (all known types)
+pub const ALL_ISSUE_TYPES: &[&str] = &["TASK", "FEAT", "FIX", "SPIKE", "INV"];
+
+/// Collection source options shown in setup
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CollectionSourceOption {
     Simple,
-    KanbanDefault,
+    DevKanban,
+    DevopsKanban,
     ImportJira,
     ImportNotion,
     CustomSelection,
@@ -25,7 +38,8 @@ impl CollectionSourceOption {
     pub fn all() -> &'static [CollectionSourceOption] {
         &[
             CollectionSourceOption::Simple,
-            CollectionSourceOption::KanbanDefault,
+            CollectionSourceOption::DevKanban,
+            CollectionSourceOption::DevopsKanban,
             CollectionSourceOption::ImportJira,
             CollectionSourceOption::ImportNotion,
             CollectionSourceOption::CustomSelection,
@@ -35,7 +49,8 @@ impl CollectionSourceOption {
     pub fn label(&self) -> &'static str {
         match self {
             CollectionSourceOption::Simple => "Simple",
-            CollectionSourceOption::KanbanDefault => "Kanban Default",
+            CollectionSourceOption::DevKanban => "Dev Kanban",
+            CollectionSourceOption::DevopsKanban => "DevOps Kanban",
             CollectionSourceOption::ImportJira => "Import from Jira",
             CollectionSourceOption::ImportNotion => "Import from Notion",
             CollectionSourceOption::CustomSelection => "Custom Selection",
@@ -45,7 +60,8 @@ impl CollectionSourceOption {
     pub fn description(&self) -> &'static str {
         match self {
             CollectionSourceOption::Simple => "Just TASK - minimal setup for general work",
-            CollectionSourceOption::KanbanDefault => "5 issue types: SPIKE, INV, FEAT, FIX, TASK",
+            CollectionSourceOption::DevKanban => "3 issue types: TASK, FEAT, FIX",
+            CollectionSourceOption::DevopsKanban => "5 issue types: TASK, SPIKE, INV, FEAT, FIX",
             CollectionSourceOption::ImportJira => "(Coming soon)",
             CollectionSourceOption::ImportNotion => "(Coming soon)",
             CollectionSourceOption::CustomSelection => "Choose individual issue types",
@@ -57,6 +73,17 @@ impl CollectionSourceOption {
             self,
             CollectionSourceOption::ImportJira | CollectionSourceOption::ImportNotion
         )
+    }
+
+    /// Convert to a CollectionPreset (for non-custom options)
+    pub fn to_preset(&self) -> Option<CollectionPreset> {
+        match self {
+            CollectionSourceOption::Simple => Some(CollectionPreset::Simple),
+            CollectionSourceOption::DevKanban => Some(CollectionPreset::DevKanban),
+            CollectionSourceOption::DevopsKanban => Some(CollectionPreset::DevopsKanban),
+            CollectionSourceOption::CustomSelection => Some(CollectionPreset::Custom),
+            _ => None,
+        }
     }
 }
 
@@ -83,10 +110,14 @@ pub struct SetupScreen {
     pub confirm_selected: bool,
     /// Path where tickets directory will be created
     tickets_path: String,
-    /// Discovered projects (directories with CLAUDE.md files)
-    discovered_projects: Vec<String>,
-    /// Selected issuetype collection
-    pub selected_collection: Vec<String>,
+    /// Detected LLM tools (from LlmToolsConfig)
+    detected_tools: Vec<DetectedToolInfo>,
+    /// Projects grouped by tool
+    projects_by_tool: HashMap<String, Vec<String>>,
+    /// Selected collection preset
+    pub selected_preset: CollectionPreset,
+    /// Custom issuetype collection (only used when preset is Custom)
+    pub custom_collection: Vec<String>,
     /// List state for collection source selection
     source_state: ListState,
     /// List state for custom collection selection
@@ -104,13 +135,19 @@ pub enum SetupStep {
     CollectionSource,
     /// Custom issuetype selection (optional)
     CustomCollection,
+    /// Tmux onboarding/help
+    TmuxOnboarding,
     /// Confirm initialization
     Confirm,
 }
 
 impl SetupScreen {
     /// Create a new setup screen
-    pub fn new(tickets_path: String, discovered_projects: Vec<String>) -> Self {
+    pub fn new(
+        tickets_path: String,
+        detected_tools: Vec<DetectedToolInfo>,
+        projects_by_tool: HashMap<String, Vec<String>>,
+    ) -> Self {
         let mut source_state = ListState::default();
         source_state.select(Some(0));
 
@@ -122,17 +159,27 @@ impl SetupScreen {
             step: SetupStep::Welcome,
             confirm_selected: true, // Default to Initialize
             tickets_path,
-            discovered_projects,
-            selected_collection: DEFAULT_COLLECTION.iter().map(|s| s.to_string()).collect(),
+            detected_tools,
+            projects_by_tool,
+            selected_preset: CollectionPreset::DevopsKanban,
+            custom_collection: ALL_ISSUE_TYPES.iter().map(|s| s.to_string()).collect(),
             source_state,
             collection_state,
             from_custom: false,
         }
     }
 
-    /// Get the selected issuetype collection
+    /// Get the selected collection preset
+    pub fn preset(&self) -> CollectionPreset {
+        self.selected_preset
+    }
+
+    /// Get the effective issuetype collection based on preset
     pub fn collection(&self) -> Vec<String> {
-        self.selected_collection.clone()
+        match self.selected_preset {
+            CollectionPreset::Custom => self.custom_collection.clone(),
+            _ => self.selected_preset.issue_types(),
+        }
     }
 
     /// Get the currently selected source option
@@ -148,13 +195,13 @@ impl SetupScreen {
             SetupStep::CustomCollection => {
                 // Toggle the currently highlighted collection item
                 if let Some(i) = self.collection_state.selected() {
-                    let types = DEFAULT_COLLECTION;
+                    let types = ALL_ISSUE_TYPES;
                     if i < types.len() {
                         let type_str = types[i].to_string();
-                        if self.selected_collection.contains(&type_str) {
-                            self.selected_collection.retain(|t| t != &type_str);
+                        if self.custom_collection.contains(&type_str) {
+                            self.custom_collection.retain(|t| t != &type_str);
                         } else {
-                            self.selected_collection.push(type_str);
+                            self.custom_collection.push(type_str);
                         }
                     }
                 }
@@ -175,7 +222,7 @@ impl SetupScreen {
                 self.source_state.select(Some(i));
             }
             SetupStep::CustomCollection => {
-                let len = DEFAULT_COLLECTION.len();
+                let len = ALL_ISSUE_TYPES.len();
                 let i = self
                     .collection_state
                     .selected()
@@ -198,7 +245,7 @@ impl SetupScreen {
                 self.source_state.select(Some(i));
             }
             SetupStep::CustomCollection => {
-                let len = DEFAULT_COLLECTION.len();
+                let len = ALL_ISSUE_TYPES.len();
                 let i = self.collection_state.selected().map_or(0, |i| {
                     if i == 0 {
                         len - 1
@@ -223,18 +270,21 @@ impl SetupScreen {
                 if let Some(source) = self.selected_source() {
                     match source {
                         CollectionSourceOption::Simple => {
-                            // Just TASK for minimal setup
-                            self.selected_collection = vec!["TASK".to_string()];
+                            self.selected_preset = CollectionPreset::Simple;
                             self.from_custom = false;
-                            self.step = SetupStep::Confirm;
+                            self.step = SetupStep::TmuxOnboarding;
                             SetupResult::Continue
                         }
-                        CollectionSourceOption::KanbanDefault => {
-                            // Auto-select all 5 types and skip to Confirm
-                            self.selected_collection =
-                                DEFAULT_COLLECTION.iter().map(|s| s.to_string()).collect();
+                        CollectionSourceOption::DevKanban => {
+                            self.selected_preset = CollectionPreset::DevKanban;
                             self.from_custom = false;
-                            self.step = SetupStep::Confirm;
+                            self.step = SetupStep::TmuxOnboarding;
+                            SetupResult::Continue
+                        }
+                        CollectionSourceOption::DevopsKanban => {
+                            self.selected_preset = CollectionPreset::DevopsKanban;
+                            self.from_custom = false;
+                            self.step = SetupStep::TmuxOnboarding;
                             SetupResult::Continue
                         }
                         CollectionSourceOption::ImportJira => SetupResult::ExitUnimplemented(
@@ -244,6 +294,7 @@ impl SetupScreen {
                             "Notion import is not yet implemented".to_string(),
                         ),
                         CollectionSourceOption::CustomSelection => {
+                            self.selected_preset = CollectionPreset::Custom;
                             self.from_custom = true;
                             self.step = SetupStep::CustomCollection;
                             SetupResult::Continue
@@ -254,9 +305,13 @@ impl SetupScreen {
                 }
             }
             SetupStep::CustomCollection => {
-                if !self.selected_collection.is_empty() {
-                    self.step = SetupStep::Confirm;
+                if !self.custom_collection.is_empty() {
+                    self.step = SetupStep::TmuxOnboarding;
                 }
+                SetupResult::Continue
+            }
+            SetupStep::TmuxOnboarding => {
+                self.step = SetupStep::Confirm;
                 SetupResult::Continue
             }
             SetupStep::Confirm => {
@@ -281,12 +336,16 @@ impl SetupScreen {
                 self.step = SetupStep::CollectionSource;
                 SetupResult::Continue
             }
-            SetupStep::Confirm => {
+            SetupStep::TmuxOnboarding => {
                 if self.from_custom {
                     self.step = SetupStep::CustomCollection;
                 } else {
                     self.step = SetupStep::CollectionSource;
                 }
+                SetupResult::Continue
+            }
+            SetupStep::Confirm => {
+                self.step = SetupStep::TmuxOnboarding;
                 SetupResult::Continue
             }
         }
@@ -302,12 +361,13 @@ impl SetupScreen {
             SetupStep::Welcome => self.render_welcome_step(frame),
             SetupStep::CollectionSource => self.render_collection_source_step(frame),
             SetupStep::CustomCollection => self.render_custom_collection_step(frame),
+            SetupStep::TmuxOnboarding => self.render_tmux_onboarding_step(frame),
             SetupStep::Confirm => self.render_confirm_step(frame),
         }
     }
 
     fn render_welcome_step(&self, frame: &mut Frame) {
-        let area = centered_rect(70, 70, frame.area());
+        let area = centered_rect(70, 80, frame.area());
         frame.render_widget(Clear, area);
 
         let block = Block::default()
@@ -332,12 +392,14 @@ impl SetupScreen {
             .margin(2)
             .constraints([
                 Constraint::Length(3), // Title
-                Constraint::Length(2), // Spacer
-                Constraint::Length(3), // Description
-                Constraint::Length(2), // Spacer
-                Constraint::Length(3), // Path info
-                Constraint::Length(2), // Spacer
-                Constraint::Min(6),    // Discovered projects
+                Constraint::Length(1), // Spacer
+                Constraint::Length(2), // Description
+                Constraint::Length(1), // Spacer
+                Constraint::Length(6), // Detected LLM Tools
+                Constraint::Length(1), // Spacer
+                Constraint::Min(6),    // Discovered projects by tool
+                Constraint::Length(1), // Spacer
+                Constraint::Length(2), // Path info
                 Constraint::Length(3), // Footer
             ])
             .split(inner);
@@ -353,13 +415,79 @@ impl SetupScreen {
         frame.render_widget(title, chunks[0]);
 
         // Description
-        let desc = Paragraph::new(vec![
-            Line::from("A TUI for orchestrating Claude Code agents."),
-            Line::from(""),
-            Line::from("The ticket queue directory was not found."),
-        ])
-        .alignment(Alignment::Center);
+        let desc = Paragraph::new(vec![Line::from("A TUI for orchestrating LLM Code agents.")])
+            .alignment(Alignment::Center);
         frame.render_widget(desc, chunks[2]);
+
+        // Detected LLM Tools
+        let mut tools_text = vec![Line::from(Span::styled(
+            "Detected LLM Tools:",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ))];
+
+        // Show each known tool with detection status
+        for (tool_name, _marker) in TOOL_MARKERS {
+            let detected = self.detected_tools.iter().find(|t| t.name == *tool_name);
+
+            let line = if let Some(tool) = detected {
+                Line::from(vec![
+                    Span::styled("  + ", Style::default().fg(Color::Green)),
+                    Span::styled(
+                        tool_name.to_string(),
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        format!(" (v{}) - {} models", tool.version, tool.model_count),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                ])
+            } else {
+                Line::from(vec![
+                    Span::styled("  - ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(tool_name.to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::styled(" - not installed", Style::default().fg(Color::DarkGray)),
+                ])
+            };
+            tools_text.push(line);
+        }
+        frame.render_widget(Paragraph::new(tools_text), chunks[4]);
+
+        // Discovered projects by tool
+        let mut projects_text = vec![Line::from(Span::styled(
+            "Discovered Projects:",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ))];
+
+        let mut has_any_projects = false;
+        for (tool_name, _marker) in TOOL_MARKERS {
+            if let Some(projects) = self.projects_by_tool.get(*tool_name) {
+                if !projects.is_empty() {
+                    has_any_projects = true;
+                    let project_list = projects.join(", ");
+                    projects_text.push(Line::from(vec![
+                        Span::styled(
+                            format!("  {}: ", tool_name),
+                            Style::default().fg(Color::Cyan),
+                        ),
+                        Span::styled(project_list, Style::default().fg(Color::Green)),
+                    ]));
+                }
+            }
+        }
+
+        if !has_any_projects {
+            projects_text.push(Line::from(Span::styled(
+                "  (no projects with marker files found)",
+                Style::default().fg(Color::DarkGray),
+            )));
+        }
+        frame.render_widget(Paragraph::new(projects_text), chunks[6]);
 
         // Path info
         let path_info = Paragraph::new(Line::from(vec![
@@ -367,33 +495,7 @@ impl SetupScreen {
             Span::styled(&self.tickets_path, Style::default().fg(Color::White)),
         ]))
         .alignment(Alignment::Center);
-        frame.render_widget(path_info, chunks[4]);
-
-        // Discovered projects
-        let projects_text = if self.discovered_projects.is_empty() {
-            vec![
-                Line::from(Span::styled(
-                    "Discovered projects:",
-                    Style::default().fg(Color::Yellow),
-                )),
-                Line::from(Span::styled(
-                    "  (none - no directories with CLAUDE.md found)",
-                    Style::default().fg(Color::DarkGray),
-                )),
-            ]
-        } else {
-            let mut lines = vec![Line::from(Span::styled(
-                "Discovered projects:",
-                Style::default().fg(Color::Yellow),
-            ))];
-            let project_list = self.discovered_projects.join(", ");
-            lines.push(Line::from(vec![
-                Span::raw("  "),
-                Span::styled(project_list, Style::default().fg(Color::Green)),
-            ]));
-            lines
-        };
-        frame.render_widget(Paragraph::new(projects_text), chunks[6]);
+        frame.render_widget(path_info, chunks[8]);
 
         // Footer
         let footer = Paragraph::new(Line::from(vec![
@@ -403,7 +505,7 @@ impl SetupScreen {
             Span::raw(" cancel"),
         ]))
         .alignment(Alignment::Center);
-        frame.render_widget(footer, chunks[7]);
+        frame.render_widget(footer, chunks[9]);
     }
 
     fn render_collection_source_step(&mut self, frame: &mut Frame) {
@@ -537,17 +639,17 @@ impl SetupScreen {
         frame.render_widget(instructions, chunks[1]);
 
         // Collection list
-        let items: Vec<ListItem> = DEFAULT_COLLECTION
+        let items: Vec<ListItem> = ALL_ISSUE_TYPES
             .iter()
             .map(|t| {
-                let is_selected = self.selected_collection.contains(&t.to_string());
+                let is_selected = self.custom_collection.contains(&t.to_string());
                 let checkbox = if is_selected { "[x]" } else { "[ ]" };
                 let description = match *t {
-                    "SPIKE" => "Research or exploration (paired mode)",
-                    "INV" => "Incident investigation (paired mode)",
+                    "TASK" => "Focused task that executes one specific thing",
                     "FEAT" => "New feature or enhancement",
                     "FIX" => "Bug fix, follow-up work, tech debt",
-                    "TASK" => "Neutral task that outputs a plan",
+                    "SPIKE" => "Research or exploration (paired mode)",
+                    "INV" => "Incident investigation (paired mode)",
                     _ => "",
                 };
                 ListItem::new(vec![
@@ -587,7 +689,7 @@ impl SetupScreen {
         frame.render_stateful_widget(list, chunks[2], &mut self.collection_state);
 
         // Footer
-        let selected_count = self.selected_collection.len();
+        let selected_count = self.custom_collection.len();
         let footer = Paragraph::new(Line::from(vec![
             Span::styled(
                 format!("{} selected", selected_count),
@@ -605,6 +707,106 @@ impl SetupScreen {
         ]))
         .alignment(Alignment::Center);
         frame.render_widget(footer, chunks[3]);
+    }
+
+    fn render_tmux_onboarding_step(&self, frame: &mut Frame) {
+        let area = centered_rect(70, 70, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(" Tmux Configuration ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(2), // Spacer
+                Constraint::Length(3), // Intro
+                Constraint::Length(2), // Spacer
+                Constraint::Min(12),   // Help text
+                Constraint::Length(3), // Footer
+            ])
+            .split(inner);
+
+        // Title
+        let title = Paragraph::new(Line::from(vec![Span::styled(
+            "Tmux Session Help",
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        )]))
+        .alignment(Alignment::Center);
+        frame.render_widget(title, chunks[0]);
+
+        // Intro
+        let intro = Paragraph::new(vec![Line::from(
+            "Operator launches Claude agents in tmux sessions.",
+        )])
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::Gray));
+        frame.render_widget(intro, chunks[2]);
+
+        // Help text
+        let help_text = vec![
+            Line::from(Span::styled(
+                "Essential Commands:",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  Detach from session:  ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    "Ctrl+a",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    " (quick, no prefix needed!)",
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled("  Fallback detach:      ", Style::default().fg(Color::Gray)),
+                Span::styled("Ctrl+b", Style::default().fg(Color::Cyan)),
+                Span::styled(" then ", Style::default().fg(Color::Gray)),
+                Span::styled("d", Style::default().fg(Color::Cyan)),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  List sessions:        ", Style::default().fg(Color::Gray)),
+                Span::styled("tmux ls", Style::default().fg(Color::Green)),
+            ]),
+            Line::from(vec![
+                Span::styled("  Attach to session:    ", Style::default().fg(Color::Gray)),
+                Span::styled("tmux attach -t ", Style::default().fg(Color::Green)),
+                Span::styled("<name>", Style::default().fg(Color::DarkGray)),
+            ]),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Operator session names start with 'op-'",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ];
+        frame.render_widget(Paragraph::new(help_text), chunks[4]);
+
+        // Footer
+        let footer = Paragraph::new(Line::from(vec![
+            Span::styled("Enter", Style::default().fg(Color::Yellow)),
+            Span::raw(" continue  "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" back"),
+        ]))
+        .alignment(Alignment::Center);
+        frame.render_widget(footer, chunks[5]);
     }
 
     fn render_confirm_step(&self, frame: &mut Frame) {
@@ -661,15 +863,19 @@ impl SetupScreen {
         frame.render_widget(path_info, chunks[4]);
 
         // Selected collection
+        let effective_collection = self.collection();
         let collection_text = vec![
             Line::from(Span::styled(
-                "Selected issue types:",
+                format!(
+                    "Selected issue types ({}):",
+                    self.selected_preset.display_name()
+                ),
                 Style::default().fg(Color::Yellow),
             )),
             Line::from(vec![
                 Span::raw("  "),
                 Span::styled(
-                    self.selected_collection.join(", "),
+                    effective_collection.join(", "),
                     Style::default().fg(Color::Cyan),
                 ),
             ]),
@@ -740,4 +946,70 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detected_tool_info_creation() {
+        let info = DetectedToolInfo {
+            name: "claude".to_string(),
+            version: "2.0.76".to_string(),
+            model_count: 3,
+        };
+        assert_eq!(info.name, "claude");
+        assert_eq!(info.version, "2.0.76");
+        assert_eq!(info.model_count, 3);
+    }
+
+    #[test]
+    fn test_setup_screen_new_with_detected_tools() {
+        let tools = vec![DetectedToolInfo {
+            name: "claude".to_string(),
+            version: "2.0.76".to_string(),
+            model_count: 3,
+        }];
+        let mut projects = HashMap::new();
+        projects.insert("claude".to_string(), vec!["project-a".to_string()]);
+
+        let screen = SetupScreen::new(".tickets".to_string(), tools, projects);
+
+        assert!(screen.visible);
+        assert_eq!(screen.step, SetupStep::Welcome);
+    }
+
+    #[test]
+    fn test_setup_screen_with_no_detected_tools() {
+        let screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        assert!(screen.visible);
+        assert_eq!(screen.step, SetupStep::Welcome);
+    }
+
+    #[test]
+    fn test_setup_screen_with_multiple_tools() {
+        let tools = vec![
+            DetectedToolInfo {
+                name: "claude".to_string(),
+                version: "2.0.0".to_string(),
+                model_count: 3,
+            },
+            DetectedToolInfo {
+                name: "gemini".to_string(),
+                version: "1.0.0".to_string(),
+                model_count: 2,
+            },
+        ];
+        let mut projects = HashMap::new();
+        projects.insert(
+            "claude".to_string(),
+            vec!["api".to_string(), "web".to_string()],
+        );
+        projects.insert("gemini".to_string(), vec!["api".to_string()]);
+
+        let screen = SetupScreen::new(".tickets".to_string(), tools, projects);
+        assert!(screen.visible);
+        assert_eq!(screen.step, SetupStep::Welcome);
+    }
 }

@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use chrono::Local;
+use uuid::Uuid;
 
 use super::tmux::{sanitize_session_name, SystemTmuxClient, TmuxClient, TmuxError};
 use crate::config::Config;
@@ -25,10 +27,24 @@ pub struct Launcher {
 
 impl Launcher {
     /// Create a new Launcher with the system tmux client
+    ///
+    /// Uses custom tmux config if it has been generated and exists.
     pub fn new(config: &Config) -> Result<Self> {
+        // Use custom tmux config if it exists
+        let tmux: Arc<dyn TmuxClient> = if config.tmux.config_generated {
+            let config_path = config.tmux_config_path();
+            if config_path.exists() {
+                Arc::new(SystemTmuxClient::with_config(config_path))
+            } else {
+                Arc::new(SystemTmuxClient::new())
+            }
+        } else {
+            Arc::new(SystemTmuxClient::new())
+        };
+
         Ok(Self {
             config: config.clone(),
-            tmux: Arc::new(SystemTmuxClient::new()),
+            tmux,
         })
     }
 
@@ -278,6 +294,10 @@ When done, move the ticket to completed."#,
                 _ => anyhow::anyhow!("Failed to create tmux session '{}': {}", session_name, e),
             })?;
 
+        // Wait for the shell to initialize before sending keys
+        // Without this delay, send_keys may run before the shell is ready
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
         // Set up silence monitoring for awaiting input detection
         if let Err(e) = self
             .tmux
@@ -290,11 +310,42 @@ When done, move the ticket to completed."#,
             );
         }
 
-        // Generate claude session name with slug and datetime
-        let claude_session = generate_session_slug(ticket);
+        // Generate a UUID for the Claude session-id
+        let session_uuid = generate_session_uuid();
 
-        // Build the claude command based on whether template has agent_prompt
-        let claude_cmd = if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
+        // Get the step name (use "initial" if not set)
+        let step_name = if ticket.step.is_empty() {
+            "initial".to_string()
+        } else {
+            ticket.step.clone()
+        };
+
+        // Store the session UUID in the ticket file (now in in-progress)
+        let ticket_in_progress_path = self
+            .config
+            .tickets_path()
+            .join("in-progress")
+            .join(&ticket.filename);
+        if ticket_in_progress_path.exists() {
+            if let Ok(mut updated_ticket) = Ticket::from_file(&ticket_in_progress_path) {
+                if let Err(e) = updated_ticket.set_session_id(&step_name, &session_uuid) {
+                    tracing::warn!(
+                        error = %e,
+                        ticket = %ticket.id,
+                        step = %step_name,
+                        "Failed to store session UUID in ticket"
+                    );
+                }
+            }
+        }
+
+        // Get the model from first available provider (default to "sonnet" if none)
+        let model = self
+            .get_default_model()
+            .unwrap_or_else(|| "sonnet".to_string());
+
+        // Build the full prompt based on whether template has agent_prompt
+        let full_prompt = if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
             // Templates with agent_prompt (FEAT, FIX, INV, SPIKE)
             let ticket_path = format!(".tickets/in-progress/{}", ticket.filename);
             let message = format!(
@@ -302,32 +353,32 @@ When done, move the ticket to completed."#,
                 ticket.ticket_type.to_lowercase(),
                 ticket_path
             );
-            format!(
-                "claude -p {} --session-name {} --message {}",
-                shell_escape(&agent_prompt),
-                shell_escape(&claude_session),
-                shell_escape(&message)
-            )
+            // Combine prompt and message with separator
+            format!("{}\n---\n{}", agent_prompt, message)
         } else {
             // Templates without agent_prompt (TASK) - use original detailed prompt
-            format!(
-                "claude --session-name {} --message {}",
-                shell_escape(&claude_session),
-                shell_escape(initial_prompt)
-            )
+            initial_prompt.to_string()
         };
 
-        // Send the claude command to the session
-        if let Err(e) = self.tmux.send_keys(&session_name, &claude_cmd, true) {
+        // Write prompt to file (avoids newline issues with tmux send-keys)
+        let prompt_file = write_prompt_file(&self.config, &session_uuid, &full_prompt)?;
+
+        // Build command using the detected tool's template
+        let llm_cmd = self.build_llm_command(&model, &session_uuid, &prompt_file)?;
+
+        // Send the LLM command to the session
+        if let Err(e) = self.tmux.send_keys(&session_name, &llm_cmd, true) {
             // Clean up the session if we couldn't send the command
             let _ = self.tmux.kill_session(&session_name);
-            anyhow::bail!("Failed to start claude in tmux session: {}", e);
+            anyhow::bail!("Failed to start LLM agent in tmux session: {}", e);
         }
 
         tracing::info!(
             session = %session_name,
+            session_uuid = %session_uuid,
             project = %ticket.project,
             ticket = %ticket.id,
+            step = %step_name,
             "Launched agent in tmux session"
         );
 
@@ -373,6 +424,51 @@ When done, move the ticket to completed."#,
     pub fn attach_command(session_name: &str) -> String {
         format!("tmux attach -t {}", session_name)
     }
+
+    /// Get the model for the first available provider
+    fn get_default_model(&self) -> Option<String> {
+        self.config
+            .llm_tools
+            .providers
+            .first()
+            .map(|p| p.model.clone())
+    }
+
+    /// Get the detected tool for a given provider
+    fn get_detected_tool(&self, tool_name: &str) -> Option<&crate::config::DetectedTool> {
+        self.config
+            .llm_tools
+            .detected
+            .iter()
+            .find(|t| t.name == tool_name)
+    }
+
+    /// Build the LLM command using the tool's command template
+    fn build_llm_command(
+        &self,
+        model: &str,
+        session_id: &str,
+        prompt_file: &std::path::Path,
+    ) -> Result<String> {
+        // Find the first detected tool (default to claude for backwards compatibility)
+        let tool = self.config.llm_tools.detected.first().ok_or_else(|| {
+            anyhow::anyhow!("No LLM tool detected. Install claude, gemini, or codex CLI.")
+        })?;
+
+        // Build model flag based on tool's arg_mapping
+        // For now, use a simple pattern - could be enhanced to use arg_mapping from config
+        let model_flag = format!("--model {} ", model);
+
+        // Build command from template
+        let cmd = tool
+            .command_template
+            .replace("{{model_flag}}", &model_flag)
+            .replace("{{model}}", model)
+            .replace("{{session_id}}", session_id)
+            .replace("{{prompt_file}}", &prompt_file.display().to_string());
+
+        Ok(cmd)
+    }
 }
 
 /// Get the agent_prompt from a template if it exists
@@ -382,24 +478,21 @@ fn get_agent_prompt(ticket_type: &str) -> Option<String> {
         .and_then(|schema| schema.agent_prompt)
 }
 
-/// Generate a session slug for the claude --session-name flag
-/// Format: {ticket-id}-{summary-slug}-{YYYYMMDD-HHMMSS}
-fn generate_session_slug(ticket: &Ticket) -> String {
-    // Create summary slug: lowercase, alphanumeric with hyphens, max 5 words
-    let summary_slug: String = ticket
-        .summary
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .take(5)
-        .collect::<Vec<_>>()
-        .join("-");
+/// Generate a UUID for the claude --session-id flag
+fn generate_session_uuid() -> String {
+    Uuid::new_v4().to_string()
+}
 
-    let datetime = Local::now().format("%Y%m%d-%H%M%S");
-    format!("{}-{}-{}", ticket.id, summary_slug, datetime)
+/// Write a prompt to a file and return the path
+/// Prompts are stored in .tickets/operator/prompts/{session_uuid}.txt
+fn write_prompt_file(config: &Config, session_uuid: &str, prompt: &str) -> Result<PathBuf> {
+    let prompts_dir = config.tickets_path().join("operator/prompts");
+    fs::create_dir_all(&prompts_dir).context("Failed to create prompts directory")?;
+
+    let prompt_file = prompts_dir.join(format!("{}.txt", session_uuid));
+    fs::write(&prompt_file, prompt).context("Failed to write prompt file")?;
+
+    Ok(prompt_file)
 }
 
 /// Escape a string for safe use in shell command
@@ -415,6 +508,7 @@ mod tests {
     use crate::agents::tmux::MockTmuxClient;
     use crate::config::PathsConfig;
     use tempfile::TempDir;
+    use uuid::Uuid;
 
     fn make_test_config(temp_dir: &TempDir) -> Config {
         let projects_path = temp_dir.path().join("projects");
@@ -623,5 +717,30 @@ mod tests {
             ),
             "op-INV-critical"
         );
+    }
+
+    #[test]
+    fn test_generate_session_uuid_is_valid() {
+        let uuid_str = generate_session_uuid();
+
+        // Should be a valid UUID format (36 chars with hyphens)
+        assert_eq!(uuid_str.len(), 36);
+        assert!(uuid_str.contains('-'));
+
+        // Should parse as a valid UUID
+        let parsed = Uuid::parse_str(&uuid_str);
+        assert!(parsed.is_ok());
+    }
+
+    #[test]
+    fn test_generate_session_uuid_is_unique() {
+        let uuid1 = generate_session_uuid();
+        let uuid2 = generate_session_uuid();
+        let uuid3 = generate_session_uuid();
+
+        // Each UUID should be unique
+        assert_ne!(uuid1, uuid2);
+        assert_ne!(uuid2, uuid3);
+        assert_ne!(uuid1, uuid3);
     }
 }

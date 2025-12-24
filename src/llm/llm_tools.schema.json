@@ -1,0 +1,31 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "LLM CLI Tool Configuration",
+    "type": "object",
+    "properties": {
+      "tool_name": { "type": "string", "description": "The binary name (e.g., 'claude')" },
+      "version_command": { "type": "string", "default": "--version" },
+      "capabilities": {
+        "type": "object",
+        "properties": {
+          "supports_sessions": { "type": "boolean" }
+        }
+      },
+      "arg_mapping": {
+        "type": "object",
+        "properties": {
+          "prompt": { "type": "string", "description": "The flag for initial instructions" },
+          "model": { "type": "string", "description": "The flag for model selection" },
+          "session_id": { "type": "string", "description": "The flag for continuity" },
+          "quiet": { "type": "string", "description": "Flag for non-interactive mode if available" }
+        },
+        "required": ["prompt", "model"]
+      },
+      "command_template": {
+        "type": "string",
+        "description": "Handlebars-style template for shell execution",
+        "example": "{{binary}} {{model_flag}} {{model}} {{prompt_flag}} \"{{prompt_file_content}}\""
+      }
+    },
+    "required": ["tool_name", "arg_mapping", "command_template"]
+  }

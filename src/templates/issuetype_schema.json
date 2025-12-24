@@ -166,7 +166,7 @@
     },
     "step": {
       "type": "object",
-      "required": ["name", "status", "outputs", "prompt", "allowed_tools"],
+      "required": ["name", "outputs", "prompt", "allowed_tools"],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -177,11 +177,6 @@
         "display_name": {
           "type": "string",
           "description": "Human-readable step name"
-        },
-        "status": {
-          "type": "string",
-          "enum": ["TODO", "DOING", "AWAIT", "DONE"],
-          "description": "Status category this step maps to"
         },
         "outputs": {
           "type": "array",

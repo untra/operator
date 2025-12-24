@@ -1,10 +1,12 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use std::path::PathBuf;
 
 mod api;
 mod app;
 mod config;
+mod llm;
+mod logging;
 mod pr_config;
 mod projects;
 mod state;
@@ -157,17 +159,14 @@ enum Commands {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Initialize logging
-    let log_level = if cli.debug { "debug" } else { "info" };
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| log_level.to_string()),
-        ))
-        .with(tracing_subscriber::fmt::layer().with_target(false))
-        .init();
-
-    // Load configuration
+    // Load configuration first (needed for logging setup)
     let config = Config::load(cli.config.as_deref())?;
+
+    // Determine if we're running in TUI mode (no subcommand)
+    let is_tui_mode = cli.command.is_none();
+
+    // Initialize logging (file-based for TUI, stderr for CLI)
+    let logging_handle = logging::init_logging(&config, is_tui_mode, cli.debug)?;
 
     match cli.command {
         Some(Commands::Queue { all }) => {
@@ -201,14 +200,14 @@ async fn main() -> Result<()> {
         }
         None => {
             // No subcommand = launch TUI dashboard
-            run_tui(config).await?;
+            run_tui(config, logging_handle.log_file_path).await?;
         }
     }
 
     Ok(())
 }
 
-async fn run_tui(config: Config) -> Result<()> {
+async fn run_tui(config: Config, log_file_path: Option<PathBuf>) -> Result<()> {
     // Check tmux availability before starting TUI
     if let Err(err) = check_tmux_available() {
         print_tmux_error(&err);
@@ -216,7 +215,20 @@ async fn run_tui(config: Config) -> Result<()> {
     }
 
     let mut app = App::new(config)?;
-    app.run().await
+    let result = app.run().await;
+
+    // Print log file path on exit if logs were written
+    if let Some(log_path) = log_file_path {
+        if log_path.exists() {
+            if let Ok(metadata) = log_path.metadata() {
+                if metadata.len() > 0 {
+                    eprintln!("Session log: {}", log_path.display());
+                }
+            }
+        }
+    }
+
+    result
 }
 
 async fn cmd_queue(config: &Config, all: bool) -> Result<()> {

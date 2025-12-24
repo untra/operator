@@ -337,6 +337,7 @@ mod tests {
             status: "running".to_string(),
             step: "plan".to_string(),
             content: "# Test".to_string(),
+            sessions: std::collections::HashMap::new(),
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
@@ -366,6 +367,7 @@ mod tests {
             status: "running".to_string(),
             step: "plan".to_string(),
             content: "# Test".to_string(),
+            sessions: std::collections::HashMap::new(),
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
@@ -395,6 +397,7 @@ mod tests {
             status: "running".to_string(),
             step: "implement".to_string(),
             content: "# Test".to_string(),
+            sessions: std::collections::HashMap::new(),
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-456", &health);
@@ -426,6 +429,7 @@ mod tests {
             status: "running".to_string(),
             step: "test".to_string(),
             content: "# Test".to_string(),
+            sessions: std::collections::HashMap::new(),
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-789", &health);

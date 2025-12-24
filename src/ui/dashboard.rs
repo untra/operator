@@ -9,7 +9,7 @@ use super::panels::{AgentsPanel, AwaitingPanel, CompletedPanel, HeaderBar, Queue
 use crate::api::RateLimitInfo;
 use crate::config::Config;
 use crate::queue::Ticket;
-use crate::state::{AgentState, CompletedTicket};
+use crate::state::{AgentState, CompletedTicket, OrphanSession};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FocusedPanel {
@@ -65,6 +65,10 @@ impl Dashboard {
 
     pub fn update_completed(&mut self, tickets: Vec<CompletedTicket>) {
         self.completed_panel.tickets = tickets;
+    }
+
+    pub fn update_orphan_sessions(&mut self, orphans: Vec<OrphanSession>) {
+        self.agents_panel.orphan_sessions = orphans;
     }
 
     pub fn render(&mut self, frame: &mut Frame) {
@@ -161,7 +165,8 @@ impl Dashboard {
                 }
             }
             FocusedPanel::Agents => {
-                let len = self.agents_panel.agents.len();
+                // Include orphan sessions in total count
+                let len = self.agents_panel.total_items();
                 if len > 0 {
                     let i = self.agents_panel.state.selected().map_or(0, |i| {
                         if i >= len - 1 {
@@ -206,7 +211,8 @@ impl Dashboard {
                 }
             }
             FocusedPanel::Agents => {
-                let len = self.agents_panel.agents.len();
+                // Include orphan sessions in total count
+                let len = self.agents_panel.total_items();
                 if len > 0 {
                     let i = self.agents_panel.state.selected().map_or(0, |i| {
                         if i == 0 {
@@ -276,5 +282,10 @@ impl Dashboard {
             .state
             .selected()
             .and_then(|i| self.awaiting_panel.agents.get(i))
+    }
+
+    /// Get the selected orphan session (from agents panel, below the fold)
+    pub fn selected_orphan(&self) -> Option<&OrphanSession> {
+        self.agents_panel.selected_orphan()
     }
 }

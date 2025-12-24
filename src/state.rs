@@ -73,6 +73,15 @@ pub struct CompletedTicket {
     pub output_tickets: Vec<String>,
 }
 
+/// Represents a tmux session with op-* prefix that has no matching agent in state.
+/// These are "orphan" sessions that exist but are not tracked.
+#[derive(Debug, Clone)]
+pub struct OrphanSession {
+    pub session_name: String,
+    pub created: Option<String>,
+    pub attached: bool,
+}
+
 impl State {
     pub fn load(config: &Config) -> Result<Self> {
         let state_path = config.state_path();

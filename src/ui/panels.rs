@@ -7,8 +7,15 @@ use ratatui::{
 };
 
 use crate::queue::Ticket;
-use crate::state::{AgentState, CompletedTicket};
+use crate::state::{AgentState, CompletedTicket, OrphanSession};
 use crate::templates::{color_for_key, glyph_for_key};
+
+/// Format the ticket ID for display.
+/// The ticket_id field already contains the full ID (e.g., "FEAT-1234"),
+/// so we should NOT prepend the ticket_type again.
+pub fn format_display_id(ticket_id: &str) -> String {
+    ticket_id.to_string()
+}
 
 pub struct QueuePanel {
     pub tickets: Vec<Ticket>,
@@ -92,6 +99,7 @@ impl QueuePanel {
 
 pub struct AgentsPanel {
     pub agents: Vec<AgentState>,
+    pub orphan_sessions: Vec<OrphanSession>,
     pub state: ListState,
     pub title: String,
 }
@@ -100,6 +108,7 @@ impl AgentsPanel {
     pub fn new(title: String) -> Self {
         Self {
             agents: Vec::new(),
+            orphan_sessions: Vec::new(),
             state: ListState::default(),
             title,
         }
@@ -112,7 +121,7 @@ impl AgentsPanel {
             Style::default().fg(Color::Gray)
         };
 
-        let items: Vec<ListItem> = self
+        let mut items: Vec<ListItem> = self
             .agents
             .iter()
             .map(|a| {
@@ -160,7 +169,7 @@ impl AgentsPanel {
                     Line::from(vec![
                         Span::raw("  "),
                         Span::styled(
-                            format!("{}-{}", a.ticket_type, a.ticket_id),
+                            format_display_id(&a.ticket_id),
                             Style::default().fg(Color::Gray),
                         ),
                         Span::raw(" "),
@@ -171,6 +180,37 @@ impl AgentsPanel {
                 ListItem::new(lines)
             })
             .collect();
+
+        // Add orphan sessions below a fold separator if any exist
+        if !self.orphan_sessions.is_empty() {
+            // Add separator line
+            items.push(ListItem::new(Line::from(vec![Span::styled(
+                "── Orphan Sessions ──",
+                Style::default().fg(Color::DarkGray),
+            )])));
+
+            // Add each orphan session
+            for orphan in &self.orphan_sessions {
+                let mut spans = vec![
+                    Span::styled("⚠ ", Style::default().fg(Color::Red)),
+                    Span::styled(
+                        &orphan.session_name,
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::ITALIC),
+                    ),
+                ];
+
+                if orphan.attached {
+                    spans.push(Span::styled(
+                        " [attached]",
+                        Style::default().fg(Color::Yellow),
+                    ));
+                }
+
+                items.push(ListItem::new(Line::from(spans)));
+            }
+        }
 
         let title = format!("{} ({}/{})", self.title, self.agents.len(), max_agents);
         let list = List::new(items)
@@ -183,6 +223,28 @@ impl AgentsPanel {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
         frame.render_stateful_widget(list, area, &mut self.state);
+    }
+
+    /// Get the total number of items (agents + separator + orphans) for selection
+    pub fn total_items(&self) -> usize {
+        let orphan_items = if self.orphan_sessions.is_empty() {
+            0
+        } else {
+            1 + self.orphan_sessions.len() // separator + orphans
+        };
+        self.agents.len() + orphan_items
+    }
+
+    /// Get the selected orphan session, if any
+    pub fn selected_orphan(&self) -> Option<&OrphanSession> {
+        if let Some(selected) = self.state.selected() {
+            if selected > self.agents.len() && !self.orphan_sessions.is_empty() {
+                // selected - agents.len() - 1 (for separator) = orphan index
+                let orphan_idx = selected - self.agents.len() - 1;
+                return self.orphan_sessions.get(orphan_idx);
+            }
+        }
+        None
     }
 }
 
@@ -227,7 +289,7 @@ impl AwaitingPanel {
                         Span::styled(step_display, Style::default().fg(Color::Cyan)),
                         Span::raw(" "),
                         Span::styled(
-                            format!("[{}-{}]", a.ticket_type, a.ticket_id),
+                            format!("[{}]", format_display_id(&a.ticket_id)),
                             Style::default().fg(Color::Gray),
                         ),
                     ]),
@@ -289,7 +351,7 @@ impl CompletedPanel {
                 ListItem::new(Line::from(vec![
                     Span::styled("✓ ", Style::default().fg(Color::Green)),
                     Span::styled(
-                        format!("{}-{}", t.ticket_type, t.ticket_id),
+                        format_display_id(&t.ticket_id),
                         Style::default().fg(Color::White),
                     ),
                     Span::raw(" "),
@@ -414,5 +476,56 @@ impl HeaderBar<'_> {
         let bar = Paragraph::new(content).block(Block::default().borders(Borders::BOTTOM));
 
         frame.render_widget(bar, area);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_display_id_returns_ticket_id_as_is() {
+        // The ticket_id already contains the full ID (e.g., "FEAT-1234")
+        // so format_display_id should return it unchanged
+        assert_eq!(format_display_id("FEAT-1234"), "FEAT-1234");
+        assert_eq!(format_display_id("FIX-5678"), "FIX-5678");
+        assert_eq!(format_display_id("SPIKE-9999"), "SPIKE-9999");
+        assert_eq!(format_display_id("INV-0001"), "INV-0001");
+    }
+
+    #[test]
+    fn test_format_display_id_does_not_duplicate_type() {
+        // Verify that the display ID doesn't become "FEAT-FEAT-1234"
+        let ticket_id = "FEAT-7598";
+        let display_id = format_display_id(ticket_id);
+
+        // Should NOT have the duplicated type prefix
+        assert!(
+            !display_id.starts_with("FEAT-FEAT"),
+            "Display ID should not have duplicated prefix, got: {}",
+            display_id
+        );
+        assert_eq!(display_id, "FEAT-7598");
+    }
+
+    #[test]
+    fn test_format_display_id_handles_various_types() {
+        // Test all ticket types
+        let test_cases = vec![
+            ("FEAT-1234", "FEAT-1234"),
+            ("FIX-5678", "FIX-5678"),
+            ("SPIKE-1111", "SPIKE-1111"),
+            ("INV-2222", "INV-2222"),
+            ("TASK-3333", "TASK-3333"),
+        ];
+
+        for (input, expected) in test_cases {
+            let result = format_display_id(input);
+            assert_eq!(
+                result, expected,
+                "format_display_id({}) should return {}, got {}",
+                input, expected, result
+            );
+        }
     }
 }

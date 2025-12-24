@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 
 use super::tmux::{SystemTmuxClient, TmuxClient};
 use crate::config::Config;
-use crate::state::State;
+use crate::state::{OrphanSession, State};
 
 /// Result of a health check cycle
 #[derive(Debug, Default)]
@@ -42,11 +42,25 @@ pub struct SessionMonitor {
 }
 
 impl SessionMonitor {
-    /// Create a new session monitor with the default tmux client
+    /// Create a new session monitor
+    ///
+    /// Uses custom tmux config if it has been generated and exists,
+    /// matching the socket used by the Launcher.
     pub fn new(config: &Config) -> Self {
+        let tmux: Arc<dyn TmuxClient> = if config.tmux.config_generated {
+            let config_path = config.tmux_config_path();
+            if config_path.exists() {
+                Arc::new(SystemTmuxClient::with_config(config_path))
+            } else {
+                Arc::new(SystemTmuxClient::new())
+            }
+        } else {
+            Arc::new(SystemTmuxClient::new())
+        };
+
         Self {
             config: config.clone(),
-            tmux: Arc::new(SystemTmuxClient::new()),
+            tmux,
             last_check: Instant::now(),
             check_interval: Duration::from_secs(config.agents.health_check_interval),
         }
@@ -263,6 +277,39 @@ impl SessionMonitor {
             }
         }
         Ok(killed)
+    }
+
+    /// Detect orphan tmux sessions (op-* sessions with no matching agent in state).
+    ///
+    /// Returns a list of OrphanSession structs representing tmux sessions that
+    /// have the operator prefix but are not tracked by any agent in state.
+    /// Unlike `reconcile_on_startup`, this does not modify state - it's purely
+    /// for display purposes.
+    pub fn detect_orphan_sessions(&self) -> Result<Vec<OrphanSession>> {
+        let state = State::load(&self.config)?;
+
+        // Get all op-* sessions from tmux
+        let active_sessions = self.tmux.list_sessions(Some("op-")).unwrap_or_default();
+
+        // Get session names from tracked agents (excluding orphaned agents)
+        let known_sessions: HashSet<String> = state
+            .agents_with_sessions()
+            .iter()
+            .filter_map(|a| a.session_name.clone())
+            .collect();
+
+        // Return sessions that exist in tmux but have no matching agent
+        let orphans: Vec<OrphanSession> = active_sessions
+            .into_iter()
+            .filter(|s| !known_sessions.contains(&s.name))
+            .map(|s| OrphanSession {
+                session_name: s.name,
+                created: s.created,
+                attached: s.attached,
+            })
+            .collect();
+
+        Ok(orphans)
     }
 }
 
@@ -579,5 +626,118 @@ mod tests {
         assert_eq!(killed, 2);
         assert!(!mock.session_exists("op-STALE-1").unwrap());
         assert!(!mock.session_exists("op-STALE-2").unwrap());
+    }
+
+    #[test]
+    fn test_detect_orphan_sessions_none_when_empty() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        // No agents, no sessions
+        let mock = Arc::new(MockTmuxClient::new());
+
+        let monitor = SessionMonitor::with_tmux_client(&config, mock);
+        let orphans = monitor.detect_orphan_sessions().unwrap();
+
+        assert!(orphans.is_empty());
+    }
+
+    #[test]
+    fn test_detect_orphan_sessions_finds_orphans() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        // No agents in state, but sessions exist in tmux
+        let mock = Arc::new(MockTmuxClient::new());
+        mock.add_session("op-ORPHAN-001", "/tmp");
+        mock.add_session("op-ORPHAN-002", "/tmp");
+        mock.add_session("other-session", "/tmp"); // Non-operator session, should be ignored
+
+        let monitor = SessionMonitor::with_tmux_client(&config, mock);
+        let orphans = monitor.detect_orphan_sessions().unwrap();
+
+        // Should find only the op-* sessions (2 orphans)
+        assert_eq!(orphans.len(), 2);
+        assert!(orphans.iter().any(|o| o.session_name == "op-ORPHAN-001"));
+        assert!(orphans.iter().any(|o| o.session_name == "op-ORPHAN-002"));
+    }
+
+    #[test]
+    fn test_detect_orphan_sessions_none_when_matched() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        // Create an agent with a matching session
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "FEAT-100".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_session(&agent_id, "op-FEAT-100")
+            .unwrap();
+
+        // Mock has the matching session
+        let mock = Arc::new(MockTmuxClient::new());
+        mock.add_session("op-FEAT-100", "/tmp");
+
+        let monitor = SessionMonitor::with_tmux_client(&config, mock);
+        let orphans = monitor.detect_orphan_sessions().unwrap();
+
+        // No orphans - session matches agent
+        assert!(orphans.is_empty());
+    }
+
+    #[test]
+    fn test_detect_orphan_sessions_ignores_non_operator_sessions() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        // Only non-operator sessions in tmux
+        let mock = Arc::new(MockTmuxClient::new());
+        mock.add_session("my-personal-session", "/tmp");
+        mock.add_session("work-stuff", "/tmp");
+
+        let monitor = SessionMonitor::with_tmux_client(&config, mock);
+        let orphans = monitor.detect_orphan_sessions().unwrap();
+
+        // No orphans - only op-* prefix sessions are tracked
+        assert!(orphans.is_empty());
+    }
+
+    #[test]
+    fn test_detect_orphan_sessions_mixed() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        // Create an agent with a session
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "FEAT-200".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_session(&agent_id, "op-FEAT-200")
+            .unwrap();
+
+        // Mock has the matching session plus an orphan
+        let mock = Arc::new(MockTmuxClient::new());
+        mock.add_session("op-FEAT-200", "/tmp"); // Matched
+        mock.add_session("op-ORPHAN-777", "/tmp"); // Orphan
+
+        let monitor = SessionMonitor::with_tmux_client(&config, mock);
+        let orphans = monitor.detect_orphan_sessions().unwrap();
+
+        // Only the unmatched session is an orphan
+        assert_eq!(orphans.len(), 1);
+        assert_eq!(orphans[0].session_name, "op-ORPHAN-777");
     }
 }

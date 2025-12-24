@@ -1,0 +1,17 @@
+{
+  "tool_name": "gemini",
+  "display_name": "Google Gemini",
+  "version_command": "gemini --version",
+  "capabilities": {
+    "supports_sessions": true,
+    "supports_headless": true
+  },
+  "model_aliases": ["pro", "flash", "ultra"],
+  "arg_mapping": {
+    "prompt": "-p",
+    "model": "--model",
+    "session_id": "--resume",
+    "quiet": "--output-format json"
+  },
+  "command_template": "gemini --model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\""
+}

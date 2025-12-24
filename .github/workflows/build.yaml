@@ -29,12 +29,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
-          toolchain: 1.85.0
-          profile: minimal
           components: rustfmt, clippy
-          override: true
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -78,12 +75,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
-          toolchain: 1.85.0
-          target: ${{ matrix.target }}
-          profile: minimal
-          override: true
+          targets: ${{ matrix.target }}
 
       - name: Cache cargo
         uses: actions/cache@v4

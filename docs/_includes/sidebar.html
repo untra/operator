@@ -3,7 +3,8 @@
 
   <div class="sidebar-header">
     <a href="{{ '/' | relative_url }}" class="sidebar-title">Operator!</a>
-    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development</p>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.</p>
+    <p class="sidebar-tagline">A project by <b><a href="{{ site.github.author }}" target="_blank">@untra</a></b></p>
   </div>
 
   <ul class="sidebar-nav">
@@ -16,6 +17,8 @@
   </ul>
 
   <div class="sidebar-footer">
-    <a href="https://github.com/gbqr-us/operator" target="_blank">GitHub</a>
+    <p><a class="sidebar-nav-item" href="{{ site.github.repo }}"><b>Operator!</b> GitHub project</a></p>
+    <p><a class="sidebar-nav-item" href="{{ site.github.repo }}/tree/main/docs/{{ page.path }}"><small>View this page source on Github</small></a></p>
+    <small class="sidebar-nav-item">currently v{{ site.version }}</small>
   </div>
 </nav>

@@ -4,6 +4,11 @@ description: Documentation for Operator! - combining kanban workflows with LLM t
 url: "https://operator.untra.io"
 baseurl: ""
 
+# GitHub repository
+github:
+  repo: "https://github.com/untra/operator"
+  author: "https://github.com/untra"
+
 # Build settings
 markdown: kramdown
 highlighter: rouge
@@ -30,3 +35,4 @@ collections_dir: .
 
 # Permalink structure
 permalink: pretty
+version: 0.1.5

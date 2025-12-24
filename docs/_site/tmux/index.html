@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tmux Sessions | Operator Documentation</title>
-  <meta name="description" content="Documentation for Operator - combining kanban workflows with LLM tools and tmux terminals">
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
 
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/syntax.css">
@@ -14,8 +14,8 @@
 <meta name="generator" content="Jekyll v4.4.1" />
 <meta property="og:title" content="Tmux Sessions" />
 <meta property="og:locale" content="en_US" />
-<meta name="description" content="Documentation for Operator - combining kanban workflows with LLM tools and tmux terminals" />
-<meta property="og:description" content="Documentation for Operator - combining kanban workflows with LLM tools and tmux terminals" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
 <link rel="canonical" href="http://localhost:4000/tmux/" />
 <meta property="og:url" content="http://localhost:4000/tmux/" />
 <meta property="og:site_name" content="Operator Documentation" />
@@ -23,7 +23,7 @@
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="Tmux Sessions" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator - combining kanban workflows with LLM tools and tmux terminals","headline":"Tmux Sessions","url":"http://localhost:4000/tmux/"}</script>
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Tmux Sessions","url":"http://localhost:4000/tmux/"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -35,7 +35,8 @@
 
   <div class="sidebar-header">
     <a href="/" class="sidebar-title">Operator!</a>
-    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development</p>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.</p>
+    <p class="sidebar-tagline">A project by <b><a href="https://github.com/untra" target="_blank">@untra</a></b></p>
   </div>
 
   <ul class="sidebar-nav">
@@ -68,7 +69,9 @@
   </ul>
 
   <div class="sidebar-footer">
-    <a href="https://github.com/gbqr-us/operator" target="_blank">GitHub</a>
+    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><b>Operator!</b> GitHub project</a></p>
+    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/tmux/index.md"><small>View this page source on Github</small></a></p>
+    <small class="sidebar-nav-item">currently v0.1.5</small>
   </div>
 </nav>
 
@@ -79,7 +82,15 @@
   <h1 class="doc-title">Tmux Sessions</h1>
   
 
-  <p>Operator uses <strong>tmux</strong> for terminal session management, providing a customized experience for managing multiple agent sessions.</p>
+  <p>Operator uses <a href="https://github.com/tmux/tmux/wiki" target="_blank"><strong>tmux</strong></a> for terminal session management, providing a customized experience for managing multiple LLM tool agent sessions from a single terminal.</p>
+
+<h2 id="what-is-tmux">What is <code class="language-plaintext highlighter-rouge">tmux</code>?</h2>
+
+<p>tmux is a program which runs in a terminal and allows multiple other terminal programs to be run inside it. Each program inside tmux gets its own terminal managed by tmux, which can be accessed from the single terminal where tmux is running - this called multiplexing and tmux is a terminal multiplexer.</p>
+
+<p>tmux - and any programs running inside it - may be detached from the terminal where it is running (the outside terminal) and later reattached to the same or another terminal.</p>
+
+<p><strong>Operator!</strong> uses tmux to start llm sessions in, so that those sessions can be attached when the llms await input, and detach once work is delegated to.</p>
 
 <h2 id="custom-configuration">Custom Configuration</h2>
 

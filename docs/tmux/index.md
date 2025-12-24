@@ -3,7 +3,15 @@ title: Tmux Sessions
 layout: doc
 ---
 
-Operator uses **tmux** for terminal session management, providing a customized experience for managing multiple agent sessions.
+Operator uses [**tmux**](https://github.com/tmux/tmux/wiki){:target="_blank"} for terminal session management, providing a customized experience for managing multiple LLM tool agent sessions from a single terminal.
+
+## What is `tmux`?
+
+tmux is a program which runs in a terminal and allows multiple other terminal programs to be run inside it. Each program inside tmux gets its own terminal managed by tmux, which can be accessed from the single terminal where tmux is running - this called multiplexing and tmux is a terminal multiplexer.
+
+tmux - and any programs running inside it - may be detached from the terminal where it is running (the outside terminal) and later reattached to the same or another terminal.
+
+**Operator!** uses tmux to start llm sessions in, so that those sessions can be attached when the llms await input, and detach once work is delegated to.
 
 ## Custom Configuration
 

@@ -12,9 +12,14 @@ on:
       - 'VERSION'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
 
 env:
   CARGO_TERM_COLOR: always
@@ -132,11 +137,15 @@ jobs:
       - name: Update Cargo.lock
         run: cargo update --workspace
 
+      - name: Update docs/_config.yml version
+        run: |
+          sed -i 's/^version: .*/version: ${{ steps.version.outputs.version }}/' docs/_config.yml
+
       - name: Commit version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION Cargo.toml Cargo.lock
+          git add VERSION Cargo.toml Cargo.lock docs/_config.yml
           git commit -m "chore: bump version to v${{ steps.version.outputs.version }} [skip ci]"
           git push
 

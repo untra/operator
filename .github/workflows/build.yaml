@@ -12,9 +12,14 @@ on:
       - 'VERSION'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
 
 env:
   CARGO_TERM_COLOR: always

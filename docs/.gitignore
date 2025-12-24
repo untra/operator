@@ -1,6 +1,5 @@
-_site/
+# Note: _site/ is tracked for git subtree push to gh-pages (see publi.sh)
 .sass-cache/
 .jekyll-cache/
 .jekyll-metadata
 vendor/
-Gemfile.lock

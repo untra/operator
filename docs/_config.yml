@@ -1,7 +1,7 @@
 # Site settings
 title: Operator Documentation
 description: Documentation for Operator! - combining kanban workflows with LLM tools
-url: ""
+url: "https://operator.untra.io"
 baseurl: ""
 
 # Build settings

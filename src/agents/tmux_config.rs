@@ -9,9 +9,9 @@ use std::path::Path;
 ///
 /// The generated config includes:
 /// - Easy detach binding: Ctrl+a (no prefix needed)
-/// - Mouse support and increased scrollback
+/// - Increased scrollback buffer
 /// - Custom status bar with operator stats
-/// - Catppuccin-style dark theme
+/// - Operator theme (terracotta/pine colors)
 pub fn generate_tmux_conf(status_script_path: &Path, state_path: &Path) -> String {
     let script_path = status_script_path.display();
     let state_file = state_path.join("state.json");
@@ -204,16 +204,6 @@ mod tests {
         assert!(conf.contains("status-right"));
         assert!(conf.contains("/tmp/status.sh"));
         assert!(conf.contains("/tmp/state.json"));
-    }
-
-    #[test]
-    fn test_generate_tmux_conf_contains_mouse() {
-        let script_path = PathBuf::from("/tmp/status.sh");
-        let state_path = PathBuf::from("/tmp");
-
-        let conf = generate_tmux_conf(&script_path, &state_path);
-
-        assert!(conf.contains("mouse on"));
     }
 
     #[test]

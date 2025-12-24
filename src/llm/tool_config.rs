@@ -58,6 +58,7 @@ impl ToolConfig {
     }
 
     /// Build a command string by substituting template variables
+    #[allow(dead_code)] // Used in tests
     pub fn build_command(&self, model: &str, session_id: &str, prompt_file: &str) -> String {
         let model_flag = if self.arg_mapping.model.is_empty() {
             String::new()

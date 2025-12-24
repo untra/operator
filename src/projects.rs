@@ -240,9 +240,9 @@ mod tests {
         let by_tool = discover_projects_by_tool(temp.path());
 
         // claude should have projects
-        assert!(by_tool.get("claude").is_some());
+        assert!(by_tool.contains_key("claude"));
         // gemini and codex should be None (not even empty Vec)
-        assert!(by_tool.get("gemini").is_none());
-        assert!(by_tool.get("codex").is_none());
+        assert!(!by_tool.contains_key("gemini"));
+        assert!(!by_tool.contains_key("codex"));
     }
 }

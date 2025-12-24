@@ -206,15 +206,6 @@ pub struct LlmProvider {
     pub display_name: Option<String>,
 }
 
-impl LlmProvider {
-    /// Get the display name, falling back to "tool model" format
-    pub fn display(&self) -> String {
-        self.display_name
-            .clone()
-            .unwrap_or_else(|| format!("{} {}", self.tool, self.model))
-    }
-}
-
 /// Predefined issue type collections
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -258,16 +249,6 @@ impl CollectionPreset {
             CollectionPreset::Custom => "Custom",
         }
     }
-
-    /// Get all available presets
-    pub fn all() -> &'static [CollectionPreset] {
-        &[
-            CollectionPreset::Simple,
-            CollectionPreset::DevKanban,
-            CollectionPreset::DevopsKanban,
-            CollectionPreset::Custom,
-        ]
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -280,16 +261,6 @@ pub struct TemplatesConfig {
     /// List of issue type keys: TASK, FEAT, FIX, SPIKE, INV
     #[serde(default)]
     pub collection: Vec<String>,
-}
-
-impl TemplatesConfig {
-    /// Get the effective issue types based on preset or custom collection
-    pub fn effective_issue_types(&self) -> Vec<String> {
-        match self.preset {
-            CollectionPreset::Custom => self.collection.clone(),
-            _ => self.preset.issue_types(),
-        }
-    }
 }
 
 impl Default for TemplatesConfig {

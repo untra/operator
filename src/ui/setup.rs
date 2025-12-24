@@ -74,17 +74,6 @@ impl CollectionSourceOption {
             CollectionSourceOption::ImportJira | CollectionSourceOption::ImportNotion
         )
     }
-
-    /// Convert to a CollectionPreset (for non-custom options)
-    pub fn to_preset(&self) -> Option<CollectionPreset> {
-        match self {
-            CollectionSourceOption::Simple => Some(CollectionPreset::Simple),
-            CollectionSourceOption::DevKanban => Some(CollectionPreset::DevKanban),
-            CollectionSourceOption::DevopsKanban => Some(CollectionPreset::DevopsKanban),
-            CollectionSourceOption::CustomSelection => Some(CollectionPreset::Custom),
-            _ => None,
-        }
-    }
 }
 
 /// Result of setup screen actions

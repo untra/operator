@@ -13,15 +13,60 @@
 - **Config**: config crate (TOML)
 - **File Watching**: notify crate
 
+## Development Standards
+
+### Mandatory Before Committing
+
+All changes MUST pass these checks before committing:
+
+```bash
+cargo fmt                      # Format code
+cargo clippy -- -D warnings    # Lint (warnings are errors)
+cargo test                     # Run all tests
+```
+
+If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)]` attributes to silence warnings unless there's a documented reason (e.g., code used only in tests).
+
+### Test-Driven Development (TDD)
+
+This project follows TDD practices:
+
+1. **Write tests first** - Before implementing a feature or fix, write a failing test that defines the expected behavior
+2. **Run the test** - Verify it fails for the right reason
+3. **Implement the minimum code** - Write just enough code to make the test pass
+4. **Refactor** - Clean up while keeping tests green
+5. **Repeat** - Add more tests to cover edge cases
+
+Example workflow:
+```bash
+# 1. Write a new test in the appropriate module
+# 2. Run tests to see it fail
+cargo test test_new_feature -- --nocapture
+
+# 3. Implement the feature
+# 4. Run tests to see it pass
+cargo test
+
+# 5. Run full validation before committing
+cargo fmt && cargo clippy -- -D warnings && cargo test
+```
+
+### Test Organization
+
+- Unit tests go in the same file as the code, in a `#[cfg(test)] mod tests` block
+- Integration tests go in `tests/` directory
+- Use descriptive test names: `test_<function>_<scenario>_<expected_behavior>`
+
 ## Quick Reference
 
 ```bash
-cargo fmt           # Format code
-cargo clippy        # Lint
-cargo test          # Run tests
-cargo run           # Run TUI
-cargo run -- queue  # CLI: show queue
-cargo run -- launch # CLI: launch next ticket
+cargo fmt                      # Format code
+cargo clippy -- -D warnings    # Lint (warnings as errors)
+cargo test                     # Run all tests
+cargo test <name>              # Run specific test
+cargo run                      # Run TUI
+cargo run -- queue             # CLI: show queue
+cargo run -- launch            # CLI: launch next ticket
 ```
 
 ## Architecture
@@ -130,7 +175,6 @@ On startup, operator scans the configured projects directory for subdirectories 
 
 ### Completing Work
 
-1. Run `cargo fmt && cargo clippy && cargo test`
-2. Commit with message: `{type}({project}): {summary}\n\nTicket: {ID}`
-3. Create PR
-4. Move ticket to `.tickets/completed/`
+1. Run full validation: `cargo fmt && cargo clippy -- -D warnings && cargo test`
+2. Ensure all tests pass and no clippy warnings
+3. Commit with message: `{type}({project}): {summary}\n\nTicket: {ID}\n`

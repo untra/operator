@@ -338,6 +338,7 @@ fn extract_sessions_from_yaml(
 
 /// Extract YAML frontmatter from markdown content
 /// Returns the parsed frontmatter as a HashMap, sessions HashMap, and the content after the frontmatter
+#[allow(clippy::type_complexity)]
 fn extract_frontmatter(
     content: &str,
 ) -> Option<(HashMap<String, String>, HashMap<String, String>, &str)> {

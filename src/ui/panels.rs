@@ -235,16 +235,6 @@ impl AgentsPanel {
         self.agents.len() + orphan_items
     }
 
-    /// Check if the selected index is an orphan session (not a regular agent)
-    pub fn selected_is_orphan(&self) -> bool {
-        if let Some(selected) = self.state.selected() {
-            // If selected is beyond agents + separator, it's an orphan
-            selected > self.agents.len()
-        } else {
-            false
-        }
-    }
-
     /// Get the selected orphan session, if any
     pub fn selected_orphan(&self) -> Option<&OrphanSession> {
         if let Some(selected) = self.state.selected() {

@@ -4,7 +4,9 @@
   "version_command": "gemini --version",
   "capabilities": {
     "supports_sessions": true,
-    "supports_headless": true
+    "supports_headless": true,
+    "supports_config_override": true,
+    "supports_permission_mode": false
   },
   "model_aliases": ["pro", "flash", "ultra"],
   "arg_mapping": {
@@ -13,5 +15,5 @@
     "session_id": "--resume",
     "quiet": "--output-format json"
   },
-  "command_template": "gemini --model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\""
+  "command_template": "gemini {{config_flags}}--model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\""
 }

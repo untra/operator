@@ -6,6 +6,7 @@ use ratatui::{
     Frame,
 };
 
+use crate::backstage::ServerStatus;
 use crate::queue::Ticket;
 use crate::state::{AgentState, CompletedTicket, OrphanSession};
 use crate::templates::{color_for_key, glyph_for_key};
@@ -376,6 +377,7 @@ pub struct StatusBar {
     pub paused: bool,
     pub agent_count: usize,
     pub max_agents: usize,
+    pub backstage_status: ServerStatus,
 }
 
 impl StatusBar {
@@ -391,12 +393,27 @@ impl StatusBar {
             Style::default().fg(Color::Gray),
         );
 
+        // Backstage server indicator
+        let backstage = match &self.backstage_status {
+            ServerStatus::Running { port, .. } => Span::styled(
+                format!("  [W]eb ●:{}", port),
+                Style::default().fg(Color::Green),
+            ),
+            ServerStatus::Starting => {
+                Span::styled("  [W]eb ...", Style::default().fg(Color::Yellow))
+            }
+            ServerStatus::Stopped => {
+                Span::styled("  [W]eb ○", Style::default().fg(Color::DarkGray))
+            }
+            ServerStatus::Error(_) => Span::styled("  [W]eb !", Style::default().fg(Color::Red)),
+        };
+
         let help = Span::styled(
             "  [Q]ueue [L]aunch [C]reate Pro[J]ects [P]ause [R]esume [A]gents [S]ync [V]iew [?]Help [q]uit",
             Style::default().fg(Color::DarkGray),
         );
 
-        let content = Line::from(vec![status, agents, help]);
+        let content = Line::from(vec![status, agents, backstage, help]);
 
         let bar = Paragraph::new(content).block(Block::default().borders(Borders::TOP));
 

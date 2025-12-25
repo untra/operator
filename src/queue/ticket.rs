@@ -3,11 +3,26 @@
 use anyhow::{Context, Result};
 use chrono::Local;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
 use crate::templates::{schema::TemplateSchema, TemplateType};
+
+/// LLM task metadata for delegate mode integration
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct LlmTask {
+    /// LLM task ID (e.g., Claude delegate mode task UUID)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// LLM task status: "open" or "resolved"
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// List of task IDs that must resolve before this task
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocked_by: Vec<String>,
+}
 
 #[derive(Debug, Clone)]
 pub struct Ticket {
@@ -24,6 +39,8 @@ pub struct Ticket {
     pub content: String,
     /// Claude session IDs per step (step_name -> session_uuid)
     pub sessions: HashMap<String, String>,
+    /// LLM task metadata for delegate mode integration
+    pub llm_task: LlmTask,
 }
 
 impl Ticket {
@@ -41,8 +58,8 @@ impl Ticket {
         let (timestamp, ticket_type, project) = parse_filename(&filename)?;
 
         // Try to extract metadata from YAML frontmatter first, fall back to legacy regex parsing
-        let (id, priority, status, step, summary, sessions) =
-            if let Some((frontmatter, sessions, body)) = extract_frontmatter(&content) {
+        let (id, priority, status, step, summary, sessions, llm_task) =
+            if let Some((frontmatter, sessions, llm_task, body)) = extract_frontmatter(&content) {
                 let id = frontmatter
                     .get("id")
                     .cloned()
@@ -58,7 +75,7 @@ impl Ticket {
                 let step = frontmatter.get("step").cloned().unwrap_or_default();
                 // Extract summary from body (after frontmatter)
                 let summary = extract_summary(body);
-                (id, priority, status, step, summary, sessions)
+                (id, priority, status, step, summary, sessions, llm_task)
             } else {
                 // Legacy parsing using regex for inline metadata
                 let id = extract_field(&content, "ID")
@@ -69,7 +86,15 @@ impl Ticket {
                     extract_field(&content, "Status").unwrap_or_else(|| "queued".to_string());
                 let step = extract_field(&content, "Step").unwrap_or_default();
                 let summary = extract_summary(&content);
-                (id, priority, status, step, summary, HashMap::new())
+                (
+                    id,
+                    priority,
+                    status,
+                    step,
+                    summary,
+                    HashMap::new(),
+                    LlmTask::default(),
+                )
             };
 
         Ok(Self {
@@ -85,6 +110,7 @@ impl Ticket {
             step,
             content,
             sessions,
+            llm_task,
         })
     }
 
@@ -128,7 +154,9 @@ impl Ticket {
     /// Update a frontmatter field in the ticket file and save
     pub fn update_field(&mut self, field: &str, value: &str) -> Result<()> {
         // Parse frontmatter
-        if let Some((mut frontmatter, sessions, body)) = extract_frontmatter(&self.content) {
+        if let Some((mut frontmatter, sessions, llm_task, body)) =
+            extract_frontmatter(&self.content)
+        {
             frontmatter.insert(field.to_string(), value.to_string());
 
             // Rebuild the frontmatter
@@ -142,6 +170,24 @@ impl Ticket {
                 yaml_lines.push("sessions:".to_string());
                 for (step, session_id) in &sessions {
                     yaml_lines.push(format!("  {}: {}", step, session_id));
+                }
+            }
+
+            // Add llm_task if present
+            if llm_task.id.is_some() || llm_task.status.is_some() || !llm_task.blocked_by.is_empty()
+            {
+                yaml_lines.push("llm_task:".to_string());
+                if let Some(ref id) = llm_task.id {
+                    yaml_lines.push(format!("  id: {}", id));
+                }
+                if let Some(ref status) = llm_task.status {
+                    yaml_lines.push(format!("  status: {}", status));
+                }
+                if !llm_task.blocked_by.is_empty() {
+                    yaml_lines.push("  blocked_by:".to_string());
+                    for task_id in &llm_task.blocked_by {
+                        yaml_lines.push(format!("    - {}", task_id));
+                    }
                 }
             }
 
@@ -251,6 +297,125 @@ impl Ticket {
         self.save_sessions_to_frontmatter()
     }
 
+    /// Set the LLM task ID and save to frontmatter
+    pub fn set_llm_task_id(&mut self, id: &str) -> Result<()> {
+        self.llm_task.id = Some(id.to_string());
+        self.save_llm_task_to_frontmatter()
+    }
+
+    /// Set the LLM task status and save to frontmatter
+    pub fn set_llm_task_status(&mut self, status: &str) -> Result<()> {
+        self.llm_task.status = Some(status.to_string());
+        self.save_llm_task_to_frontmatter()
+    }
+
+    /// Set the LLM task blocked_by list and save to frontmatter
+    pub fn set_llm_task_blocked_by(&mut self, blocked_by: Vec<String>) -> Result<()> {
+        self.llm_task.blocked_by = blocked_by;
+        self.save_llm_task_to_frontmatter()
+    }
+
+    /// Save the LLM task to the ticket frontmatter
+    fn save_llm_task_to_frontmatter(&mut self) -> Result<()> {
+        let content = self.content.trim_start();
+
+        if !content.starts_with("---") {
+            // No frontmatter, create one
+            let llm_task_yaml = self.format_llm_task_yaml();
+            let new_content = format!(
+                "---\nid: {}\nstatus: {}\npriority: {}\nstep: {}\n{}\n---\n{}",
+                self.id, self.status, self.priority, self.step, llm_task_yaml, content
+            );
+            self.content = new_content.clone();
+            fs::write(&self.filepath, new_content).context("Failed to write ticket file")?;
+            return Ok(());
+        }
+
+        // Find the closing ---
+        let after_open = &content[3..];
+        if let Some(end_idx) = after_open.find("\n---") {
+            let yaml_str = &after_open[..end_idx];
+            let rest = &after_open[end_idx + 4..]; // Content after closing ---
+
+            // Parse existing YAML
+            let mut frontmatter: serde_yaml::Value = serde_yaml::from_str(yaml_str)
+                .unwrap_or(serde_yaml::Value::Mapping(serde_yaml::Mapping::new()));
+
+            // Update llm_task in the YAML
+            if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
+                // Build llm_task mapping
+                let mut llm_task_map = serde_yaml::Mapping::new();
+                if let Some(ref id) = self.llm_task.id {
+                    llm_task_map.insert(
+                        serde_yaml::Value::String("id".to_string()),
+                        serde_yaml::Value::String(id.clone()),
+                    );
+                }
+                if let Some(ref status) = self.llm_task.status {
+                    llm_task_map.insert(
+                        serde_yaml::Value::String("status".to_string()),
+                        serde_yaml::Value::String(status.clone()),
+                    );
+                }
+                if !self.llm_task.blocked_by.is_empty() {
+                    let blocked_by_seq: Vec<serde_yaml::Value> = self
+                        .llm_task
+                        .blocked_by
+                        .iter()
+                        .map(|s| serde_yaml::Value::String(s.clone()))
+                        .collect();
+                    llm_task_map.insert(
+                        serde_yaml::Value::String("blocked_by".to_string()),
+                        serde_yaml::Value::Sequence(blocked_by_seq),
+                    );
+                }
+
+                // Only add llm_task if it has any data
+                if !llm_task_map.is_empty() {
+                    map.insert(
+                        serde_yaml::Value::String("llm_task".to_string()),
+                        serde_yaml::Value::Mapping(llm_task_map),
+                    );
+                }
+            }
+
+            // Serialize back to YAML
+            let new_yaml =
+                serde_yaml::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
+
+            let new_content = format!("---\n{}---{}", new_yaml, rest);
+            self.content = new_content.clone();
+            fs::write(&self.filepath, new_content).context("Failed to write ticket file")?;
+        }
+
+        Ok(())
+    }
+
+    /// Format LLM task as YAML for frontmatter
+    fn format_llm_task_yaml(&self) -> String {
+        if self.llm_task.id.is_none()
+            && self.llm_task.status.is_none()
+            && self.llm_task.blocked_by.is_empty()
+        {
+            return String::new();
+        }
+
+        let mut lines = vec!["llm_task:".to_string()];
+        if let Some(ref id) = self.llm_task.id {
+            lines.push(format!("  id: {}", id));
+        }
+        if let Some(ref status) = self.llm_task.status {
+            lines.push(format!("  status: {}", status));
+        }
+        if !self.llm_task.blocked_by.is_empty() {
+            lines.push("  blocked_by:".to_string());
+            for task_id in &self.llm_task.blocked_by {
+                lines.push(format!("    - {}", task_id));
+            }
+        }
+        lines.join("\n")
+    }
+
     /// Save the sessions map to the ticket frontmatter
     fn save_sessions_to_frontmatter(&mut self) -> Result<()> {
         let content = self.content.trim_start();
@@ -336,12 +501,50 @@ fn extract_sessions_from_yaml(
     }
 }
 
+/// Extract LLM task metadata from YAML frontmatter value
+fn extract_llm_task_from_yaml(frontmatter: &HashMap<String, serde_yaml::Value>) -> LlmTask {
+    if let Some(serde_yaml::Value::Mapping(map)) = frontmatter.get("llm_task") {
+        let id = map
+            .get(serde_yaml::Value::String("id".to_string()))
+            .and_then(|v| v.as_str())
+            .map(String::from);
+
+        let status = map
+            .get(serde_yaml::Value::String("status".to_string()))
+            .and_then(|v| v.as_str())
+            .map(String::from);
+
+        let blocked_by = map
+            .get(serde_yaml::Value::String("blocked_by".to_string()))
+            .and_then(|v| v.as_sequence())
+            .map(|seq| {
+                seq.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        LlmTask {
+            id,
+            status,
+            blocked_by,
+        }
+    } else {
+        LlmTask::default()
+    }
+}
+
 /// Extract YAML frontmatter from markdown content
-/// Returns the parsed frontmatter as a HashMap, sessions HashMap, and the content after the frontmatter
+/// Returns the parsed frontmatter as a HashMap, sessions HashMap, LlmTask, and the content after the frontmatter
 #[allow(clippy::type_complexity)]
 fn extract_frontmatter(
     content: &str,
-) -> Option<(HashMap<String, String>, HashMap<String, String>, &str)> {
+) -> Option<(
+    HashMap<String, String>,
+    HashMap<String, String>,
+    LlmTask,
+    &str,
+)> {
     let content = content.trim_start();
     if !content.starts_with("---") {
         return None;
@@ -359,7 +562,10 @@ fn extract_frontmatter(
     // Extract sessions before converting to strings
     let sessions = extract_sessions_from_yaml(&frontmatter);
 
-    // Convert scalar values to strings (skip mappings like sessions)
+    // Extract LLM task metadata
+    let llm_task = extract_llm_task_from_yaml(&frontmatter);
+
+    // Convert scalar values to strings (skip mappings like sessions, llm_task)
     let string_map: HashMap<String, String> = frontmatter
         .iter()
         .filter_map(|(k, v)| {
@@ -376,7 +582,7 @@ fn extract_frontmatter(
         })
         .collect();
 
-    Some((string_map, sessions, rest))
+    Some((string_map, sessions, llm_task, rest))
 }
 
 fn parse_filename(filename: &str) -> Result<(String, String, String)> {
@@ -583,7 +789,7 @@ status: queued
 
 # Feature: Test feature
 "#;
-        let (frontmatter, _sessions, _body) = extract_frontmatter(content).unwrap();
+        let (frontmatter, _sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
         let step = frontmatter.get("step").cloned().unwrap_or_default();
         assert!(
             step.is_empty(),
@@ -602,7 +808,7 @@ status: queued
 
 # Feature: Test feature
 "#;
-        let (frontmatter, _sessions, _body) = extract_frontmatter(content).unwrap();
+        let (frontmatter, _sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
         let step = frontmatter.get("step").cloned().unwrap_or_default();
         assert!(
             step.is_empty(),
@@ -659,7 +865,7 @@ sessions:
 
 # Feature: Test feature
 "#;
-        let (frontmatter, sessions, _body) = extract_frontmatter(content).unwrap();
+        let (frontmatter, sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
         assert_eq!(frontmatter.get("id").unwrap(), "FEAT-1234");
         assert_eq!(sessions.len(), 2);
         assert_eq!(
@@ -681,7 +887,7 @@ status: queued
 
 # Feature: Test feature
 "#;
-        let (_frontmatter, sessions, _body) = extract_frontmatter(content).unwrap();
+        let (_frontmatter, sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
         assert!(sessions.is_empty());
     }
 
@@ -779,5 +985,153 @@ step: plan
             reloaded.get_session_id("implement").unwrap(),
             implement_uuid
         );
+    }
+
+    #[test]
+    fn test_llm_task_frontmatter_parsing() {
+        // Frontmatter with llm_task should parse correctly
+        let content = r#"---
+id: FEAT-1234
+status: running
+step: implement
+llm_task:
+  id: abc12345-6789-0abc-def0-123456789abc
+  status: open
+  blocked_by:
+    - task-001
+    - task-002
+---
+
+# Feature: Test feature
+"#;
+        let (_frontmatter, _sessions, llm_task, _body) = extract_frontmatter(content).unwrap();
+        assert_eq!(
+            llm_task.id,
+            Some("abc12345-6789-0abc-def0-123456789abc".to_string())
+        );
+        assert_eq!(llm_task.status, Some("open".to_string()));
+        assert_eq!(llm_task.blocked_by.len(), 2);
+        assert_eq!(llm_task.blocked_by[0], "task-001");
+        assert_eq!(llm_task.blocked_by[1], "task-002");
+    }
+
+    #[test]
+    fn test_llm_task_empty_when_not_present() {
+        let content = r#"---
+id: FEAT-1234
+status: queued
+---
+
+# Feature: Test feature
+"#;
+        let (_frontmatter, _sessions, llm_task, _body) = extract_frontmatter(content).unwrap();
+        assert_eq!(llm_task, LlmTask::default());
+    }
+
+    #[test]
+    fn test_ticket_from_file_with_llm_task() {
+        let content = r#"---
+id: FEAT-5678
+status: running
+step: implement
+llm_task:
+  id: test-task-uuid
+  status: open
+---
+
+# Feature: Test with LLM task
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let ticket = Ticket::from_file(&ticket_path).unwrap();
+
+        assert_eq!(ticket.llm_task.id, Some("test-task-uuid".to_string()));
+        assert_eq!(ticket.llm_task.status, Some("open".to_string()));
+        assert!(ticket.llm_task.blocked_by.is_empty());
+    }
+
+    #[test]
+    fn test_set_llm_task_id() {
+        let content = r#"---
+id: FEAT-9999
+status: queued
+step: plan
+---
+
+# Feature: Test set LLM task
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let mut ticket = Ticket::from_file(&ticket_path).unwrap();
+
+        // Set LLM task ID
+        let task_id = "new-task-id-12345";
+        ticket.set_llm_task_id(task_id).unwrap();
+
+        // Verify in memory
+        assert_eq!(ticket.llm_task.id, Some(task_id.to_string()));
+
+        // Reload from file and verify persistence
+        let reloaded = Ticket::from_file(&ticket_path).unwrap();
+        assert_eq!(reloaded.llm_task.id, Some(task_id.to_string()));
+    }
+
+    #[test]
+    fn test_set_llm_task_status() {
+        let content = r#"---
+id: FEAT-7777
+status: queued
+step: plan
+---
+
+# Feature: Test set LLM task status
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let mut ticket = Ticket::from_file(&ticket_path).unwrap();
+
+        // Set LLM task status
+        ticket.set_llm_task_status("resolved").unwrap();
+
+        // Verify in memory
+        assert_eq!(ticket.llm_task.status, Some("resolved".to_string()));
+
+        // Reload from file and verify persistence
+        let reloaded = Ticket::from_file(&ticket_path).unwrap();
+        assert_eq!(reloaded.llm_task.status, Some("resolved".to_string()));
+    }
+
+    #[test]
+    fn test_set_llm_task_blocked_by() {
+        let content = r#"---
+id: FEAT-6666
+status: queued
+step: plan
+---
+
+# Feature: Test set LLM task blocked_by
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let mut ticket = Ticket::from_file(&ticket_path).unwrap();
+
+        // Set LLM task blocked_by
+        let blockers = vec!["blocker-1".to_string(), "blocker-2".to_string()];
+        ticket.set_llm_task_blocked_by(blockers.clone()).unwrap();
+
+        // Verify in memory
+        assert_eq!(ticket.llm_task.blocked_by, blockers);
+
+        // Reload from file and verify persistence
+        let reloaded = Ticket::from_file(&ticket_path).unwrap();
+        assert_eq!(reloaded.llm_task.blocked_by, blockers);
     }
 }

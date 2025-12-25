@@ -23,6 +23,8 @@ pub struct Config {
     pub tmux: TmuxConfig,
     #[serde(default)]
     pub llm_tools: LlmToolsConfig,
+    #[serde(default)]
+    pub backstage: BackstageConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,6 +149,54 @@ pub struct TmuxConfig {
     pub config_generated: bool,
 }
 
+/// Backstage integration configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackstageConfig {
+    /// Whether Backstage integration is enabled
+    #[serde(default = "default_backstage_enabled")]
+    pub enabled: bool,
+    /// Port for the Backstage server
+    #[serde(default = "default_backstage_port")]
+    pub port: u16,
+    /// Auto-start Backstage server when TUI launches
+    #[serde(default)]
+    pub auto_start: bool,
+    /// Subdirectory within state_path for Backstage installation
+    #[serde(default = "default_backstage_subpath")]
+    pub subpath: String,
+    /// Subdirectory within backstage path for branding customization
+    #[serde(default = "default_branding_subpath")]
+    pub branding_subpath: String,
+}
+
+fn default_backstage_enabled() -> bool {
+    true
+}
+
+fn default_backstage_port() -> u16 {
+    7007
+}
+
+fn default_backstage_subpath() -> String {
+    "backstage".to_string()
+}
+
+fn default_branding_subpath() -> String {
+    "branding".to_string()
+}
+
+impl Default for BackstageConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_backstage_enabled(),
+            port: default_backstage_port(),
+            auto_start: false,
+            subpath: default_backstage_subpath(),
+            branding_subpath: default_branding_subpath(),
+        }
+    }
+}
+
 /// LLM CLI tools configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LlmToolsConfig {
@@ -261,6 +311,10 @@ pub struct TemplatesConfig {
     /// List of issue type keys: TASK, FEAT, FIX, SPIKE, INV
     #[serde(default)]
     pub collection: Vec<String>,
+    /// Active collection name (overrides preset if set)
+    /// Can be a builtin preset name or a user-defined collection
+    #[serde(default)]
+    pub active_collection: Option<String>,
 }
 
 impl Default for TemplatesConfig {
@@ -268,6 +322,7 @@ impl Default for TemplatesConfig {
         Self {
             preset: CollectionPreset::DevopsKanban,
             collection: Vec::new(),
+            active_collection: None,
         }
     }
 }
@@ -456,6 +511,17 @@ impl Config {
         self.tickets_path().join("operator").join("tmux-status.sh")
     }
 
+    /// Get absolute path to Backstage installation directory
+    pub fn backstage_path(&self) -> PathBuf {
+        self.state_path().join(&self.backstage.subpath)
+    }
+
+    /// Get absolute path to Backstage branding directory
+    #[allow(dead_code)]
+    pub fn backstage_branding_path(&self) -> PathBuf {
+        self.backstage_path().join(&self.backstage.branding_subpath)
+    }
+
     /// Get priority index for a ticket type (lower = higher priority)
     pub fn priority_index(&self, ticket_type: &str) -> usize {
         self.queue
@@ -525,6 +591,7 @@ impl Default for Config {
             logging: LoggingConfig::default(),
             tmux: TmuxConfig::default(),
             llm_tools: LlmToolsConfig::default(),
+            backstage: BackstageConfig::default(),
         }
     }
 }

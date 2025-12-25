@@ -297,6 +297,7 @@ mod tests {
             step: step.to_string(),
             content: "Test content".to_string(),
             sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
         }
     }
 

@@ -1,12 +1,18 @@
 //! Embedded templates and schemas for ticket creation
+//!
+//! This module provides built-in template types and schemas.
+//! For dynamic issue types and collections, see the `issuetypes` module.
+
+#![allow(dead_code)] // Registry helper functions used when registry is integrated
 
 pub mod schema;
 
+use crate::issuetypes::IssueTypeRegistry;
 use once_cell::sync::Lazy;
 use schema::TemplateSchema;
 use std::collections::HashMap;
 
-/// Cached map of issuetype key to glyph (built at startup)
+/// Cached map of issuetype key to glyph (built at startup from builtin types)
 static GLYPH_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
     let mut map = HashMap::new();
     for tt in TemplateType::all() {
@@ -17,7 +23,7 @@ static GLYPH_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
     map
 });
 
-/// Cached map of issuetype key to color (built at startup)
+/// Cached map of issuetype key to color (built at startup from builtin types)
 static COLOR_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
     let mut map = HashMap::new();
     for tt in TemplateType::all() {
@@ -30,14 +36,46 @@ static COLOR_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
     map
 });
 
-/// Get glyph for a ticket type key, returns "?" if not found
+/// Get glyph for a ticket type key
+/// Returns "?" if not found in static maps
 pub fn glyph_for_key(key: &str) -> &str {
     GLYPH_MAP.get(key).map(|s| s.as_str()).unwrap_or("?")
+}
+
+/// Get glyph for a ticket type key, checking registry first
+/// Falls back to static map if not in registry
+pub fn glyph_for_key_with_registry(key: &str, registry: &IssueTypeRegistry) -> String {
+    if let Some(issue_type) = registry.get(key) {
+        issue_type.glyph.clone()
+    } else {
+        glyph_for_key(key).to_string()
+    }
 }
 
 /// Get color for a ticket type key, returns None if not set
 pub fn color_for_key(key: &str) -> Option<&str> {
     COLOR_MAP.get(key).map(|s| s.as_str())
+}
+
+/// Get color for a ticket type key, checking registry first
+/// Falls back to static map if not in registry
+pub fn color_for_key_with_registry(key: &str, registry: &IssueTypeRegistry) -> Option<String> {
+    if let Some(issue_type) = registry.get(key) {
+        issue_type.color.clone()
+    } else {
+        color_for_key(key).map(|s| s.to_string())
+    }
+}
+
+/// Check if a key represents a paired mode type, checking registry first
+pub fn is_paired_with_registry(key: &str, registry: &IssueTypeRegistry) -> bool {
+    if let Some(issue_type) = registry.get(key) {
+        issue_type.is_paired()
+    } else if let Some(tt) = TemplateType::from_key(key) {
+        tt.is_paired()
+    } else {
+        false // Unknown types default to autonomous
+    }
 }
 
 /// Template types supported by the operator
@@ -48,6 +86,9 @@ pub enum TemplateType {
     Task,
     Spike,
     Investigation,
+    Assess,
+    Sync,
+    Init,
 }
 
 impl TemplateType {
@@ -59,6 +100,9 @@ impl TemplateType {
             TemplateType::Task,
             TemplateType::Spike,
             TemplateType::Investigation,
+            TemplateType::Assess,
+            TemplateType::Sync,
+            TemplateType::Init,
         ]
     }
 
@@ -70,6 +114,9 @@ impl TemplateType {
             TemplateType::Task => "TASK",
             TemplateType::Spike => "SPIKE",
             TemplateType::Investigation => "INV",
+            TemplateType::Assess => "ASSESS",
+            TemplateType::Sync => "SYNC",
+            TemplateType::Init => "INIT",
         }
     }
 
@@ -81,6 +128,9 @@ impl TemplateType {
             TemplateType::Task => "Task",
             TemplateType::Spike => "Spike",
             TemplateType::Investigation => "Investigation",
+            TemplateType::Assess => "Project Assessment",
+            TemplateType::Sync => "Catalog Sync",
+            TemplateType::Init => "Backstage Init",
         }
     }
 
@@ -92,6 +142,9 @@ impl TemplateType {
             TemplateType::Task => "Neutral task that outputs a plan for execution",
             TemplateType::Spike => "Research or exploration (paired mode)",
             TemplateType::Investigation => "Incident investigation (paired mode)",
+            TemplateType::Assess => "Analyze project and generate catalog-info.yaml",
+            TemplateType::Sync => "Refresh Backstage catalog entries",
+            TemplateType::Init => "Initialize Backstage in workspace (paired mode)",
         }
     }
 
@@ -103,6 +156,9 @@ impl TemplateType {
             TemplateType::Task => include_str!("task.md"),
             TemplateType::Spike => include_str!("spike.md"),
             TemplateType::Investigation => include_str!("investigation.md"),
+            TemplateType::Assess => include_str!("assess.md"),
+            TemplateType::Sync => include_str!("sync.md"),
+            TemplateType::Init => include_str!("init.md"),
         }
     }
 
@@ -114,19 +170,29 @@ impl TemplateType {
             TemplateType::Task => include_str!("task.json"),
             TemplateType::Spike => include_str!("spike.json"),
             TemplateType::Investigation => include_str!("investigation.json"),
+            TemplateType::Assess => include_str!("assess.json"),
+            TemplateType::Sync => include_str!("sync.json"),
+            TemplateType::Init => include_str!("init.json"),
         }
     }
 
     /// Returns true if this template type requires paired mode (human interaction)
     pub fn is_paired(&self) -> bool {
-        matches!(self, TemplateType::Spike | TemplateType::Investigation)
+        matches!(
+            self,
+            TemplateType::Spike | TemplateType::Investigation | TemplateType::Init
+        )
     }
 
     /// Returns true if project is optional for this template type
     pub fn project_optional(&self) -> bool {
         matches!(
             self,
-            TemplateType::Spike | TemplateType::Investigation | TemplateType::Task
+            TemplateType::Spike
+                | TemplateType::Investigation
+                | TemplateType::Task
+                | TemplateType::Sync
+                | TemplateType::Init
         )
     }
 
@@ -138,6 +204,9 @@ impl TemplateType {
             TemplateType::Task => "task",
             TemplateType::Spike => "spike",
             TemplateType::Investigation => "investigation",
+            TemplateType::Assess => "assess",
+            TemplateType::Sync => "sync",
+            TemplateType::Init => "init",
         }
     }
 
@@ -149,6 +218,9 @@ impl TemplateType {
             TemplateType::Task => "analyze",
             TemplateType::Spike => "explore",
             TemplateType::Investigation => "triage",
+            TemplateType::Assess => "analyze",
+            TemplateType::Sync => "scan",
+            TemplateType::Init => "scaffold",
         }
     }
 
@@ -160,6 +232,9 @@ impl TemplateType {
             "TASK" => Some(TemplateType::Task),
             "SPIKE" => Some(TemplateType::Spike),
             "INV" => Some(TemplateType::Investigation),
+            "ASSESS" => Some(TemplateType::Assess),
+            "SYNC" => Some(TemplateType::Sync),
+            "INIT" => Some(TemplateType::Init),
             _ => None,
         }
     }

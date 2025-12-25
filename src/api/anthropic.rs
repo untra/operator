@@ -1,6 +1,18 @@
-#![allow(dead_code)]
+//! # DEPRECATED: Legacy Anthropic API Client
+//!
+//! **Status**: Superseded by `api/providers/ai/anthropic.rs`
+//!
+//! This file is the original Anthropic API client, kept for reference during
+//! migration to the new provider-based architecture. The new implementation
+//! follows the `AiProvider` trait pattern.
+//!
+//! **Migration Path**:
+//! - New code should use `crate::api::providers::ai::AnthropicProvider`
+//! - This file can be removed once migration is verified complete
+//!
+//! **Original Purpose**: Rate limit monitoring for Anthropic API
 
-//! Anthropic API client for rate limit monitoring
+#![allow(dead_code)] // DEPRECATED: Use api/providers/ai/anthropic.rs instead
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

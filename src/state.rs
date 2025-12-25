@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code)] // Active module - core state management, some fields reserved for future persistence
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};

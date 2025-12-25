@@ -1,0 +1,46 @@
+name: Backstage Build
+
+on:
+  push:
+    paths:
+      - '.tickets/operator/backstage/**'
+      - '!.tickets/operator/backstage/node_modules/**'
+      - '.github/workflows/backstage.yaml'
+  pull_request:
+    paths:
+      - '.tickets/operator/backstage/**'
+      - '.github/workflows/backstage.yaml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .tickets/operator/backstage
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: bun run tsc --noEmit
+
+      - name: Build frontend
+        run: bun run build:frontend
+
+      - name: Verify frontend dist exists
+        run: test -d packages/app/dist
+
+      - name: Upload frontend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backstage-frontend
+          path: .tickets/operator/backstage/packages/app/dist
+          retention-days: 7

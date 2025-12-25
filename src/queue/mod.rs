@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code)] // Active module - some queue methods reserved for future workflow features
 #![allow(unused_imports)]
 
 pub mod creator;
@@ -6,7 +6,7 @@ mod ticket;
 mod watcher;
 
 pub use creator::TicketCreator;
-pub use ticket::Ticket;
+pub use ticket::{LlmTask, Ticket};
 pub use watcher::QueueWatcher;
 
 use anyhow::{Context, Result};

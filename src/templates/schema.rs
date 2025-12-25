@@ -4,6 +4,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::permissions::{ProviderCliArgs, StepPermissions};
+
 /// Schema definition for an issuetype template
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateSchema {
@@ -142,6 +144,21 @@ pub struct StepSchema {
     /// Name of the next step (None for final step)
     #[serde(default)]
     pub next_step: Option<String>,
+    /// Provider-agnostic permissions for this step
+    #[serde(default)]
+    pub permissions: Option<StepPermissions>,
+    /// Arbitrary CLI arguments per provider
+    #[serde(default)]
+    pub cli_args: Option<ProviderCliArgs>,
+    /// Preferred LLM permission mode for this step
+    #[serde(default)]
+    pub permission_mode: PermissionMode,
+    /// Inline JSON schema for structured output (Claude-specific)
+    #[serde(default, rename = "jsonSchema")]
+    pub json_schema: Option<serde_json::Value>,
+    /// Path to JSON schema file for structured output (Claude-specific)
+    #[serde(default, rename = "jsonSchemaFile")]
+    pub json_schema_file: Option<String>,
 }
 
 /// Status category for a step
@@ -182,6 +199,21 @@ pub struct OnReject {
     pub goto_step: String,
     /// Prompt to use when restarting after rejection
     pub prompt: String,
+}
+
+/// Permission mode for LLM interaction
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum PermissionMode {
+    /// Default permission mode - standard interactive behavior
+    #[default]
+    Default,
+    /// Plan mode - read-only exploration before implementation
+    Plan,
+    /// Accept edits mode - auto-approve file edits
+    AcceptEdits,
+    /// Delegate mode - task delegation with DAG management
+    Delegate,
 }
 
 impl TemplateSchema {
@@ -428,5 +460,210 @@ mod tests {
         assert!(result.is_err());
         let errors = result.unwrap_err();
         assert!(errors[0].contains("unknown next_step"));
+    }
+
+    #[test]
+    fn test_permission_mode_default() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "plan",
+                    "outputs": ["plan"],
+                    "prompt": "Plan it",
+                    "allowed_tools": ["Read"]
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert_eq!(schema.steps[0].permission_mode, PermissionMode::Default);
+    }
+
+    #[test]
+    fn test_permission_mode_plan() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "plan",
+                    "outputs": ["plan"],
+                    "prompt": "Plan it",
+                    "allowed_tools": ["Read"],
+                    "permission_mode": "plan"
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert_eq!(schema.steps[0].permission_mode, PermissionMode::Plan);
+    }
+
+    #[test]
+    fn test_permission_mode_delegate() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "build",
+                    "outputs": ["code"],
+                    "prompt": "Build it",
+                    "allowed_tools": ["Read", "Write"],
+                    "permission_mode": "delegate"
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert_eq!(schema.steps[0].permission_mode, PermissionMode::Delegate);
+    }
+
+    #[test]
+    fn test_json_schema_inline() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "analyze",
+                    "outputs": ["report"],
+                    "prompt": "Analyze it",
+                    "allowed_tools": ["Read"],
+                    "jsonSchema": {
+                        "type": "object",
+                        "properties": {
+                            "summary": { "type": "string" },
+                            "score": { "type": "number" }
+                        },
+                        "required": ["summary"]
+                    }
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert!(schema.steps[0].json_schema.is_some());
+        let json_schema = schema.steps[0].json_schema.as_ref().unwrap();
+        assert_eq!(json_schema["type"], "object");
+        assert!(json_schema["properties"]["summary"].is_object());
+    }
+
+    #[test]
+    fn test_json_schema_file() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "analyze",
+                    "outputs": ["report"],
+                    "prompt": "Analyze it",
+                    "allowed_tools": ["Read"],
+                    "jsonSchemaFile": "schemas/report.schema.json"
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert!(schema.steps[0].json_schema_file.is_some());
+        assert_eq!(
+            schema.steps[0].json_schema_file.as_ref().unwrap(),
+            "schemas/report.schema.json"
+        );
+    }
+
+    #[test]
+    fn test_json_schema_default_none() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "build",
+                    "outputs": ["code"],
+                    "prompt": "Build it",
+                    "allowed_tools": ["Read", "Write"]
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert!(schema.steps[0].json_schema.is_none());
+        assert!(schema.steps[0].json_schema_file.is_none());
     }
 }

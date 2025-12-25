@@ -1,0 +1,93 @@
+{
+  "$schema": "./issuetype_schema.json",
+  "key": "ASSESS",
+  "name": "Project Assessment",
+  "description": "Analyze project structure and generate Backstage catalog-info.yaml",
+  "mode": "autonomous",
+  "glyph": "~",
+  "color": "magenta",
+  "branch_prefix": "assess",
+  "project_required": true,
+  "agent_prompt": "Review this project to create an agent for Backstage catalog assessment. The agent analyzes project structure, detects the project Kind from file patterns (using the 24-Kind taxonomy), and generates a catalog-info.yaml file. It reads existing files, matches patterns to determine project type, and outputs structured catalog metadata. Output ONLY the agent system prompt.",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "project",
+      "description": "Target project to assess",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Project directory name",
+      "display_order": 1
+    },
+    {
+      "name": "status",
+      "description": "Ticket status",
+      "type": "string",
+      "required": true,
+      "auto": "status",
+      "default": "queued",
+      "display_order": 2,
+      "user_editable": false
+    },
+    {
+      "name": "created",
+      "description": "Creation date",
+      "type": "date",
+      "required": true,
+      "auto": "date",
+      "display_order": 3,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Assessment description",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Assess project for Backstage catalog",
+      "max_length": 120,
+      "display_order": 4
+    },
+    {
+      "name": "kind_override",
+      "description": "Override detected Kind (optional)",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "placeholder": "e.g., microservice, infrastructure",
+      "display_order": 5
+    }
+  ],
+  "steps": [
+    {
+      "name": "analyze",
+      "display_name": "Analyzing",
+      "outputs": ["report"],
+      "prompt": "Analyze the project structure to determine its Kind:\n\n1. Read project files: CLAUDE.md, package.json, Cargo.toml, etc.\n2. Match file patterns against the 24-Kind taxonomy:\n   - Foundation: infrastructure, identity-access, config-policy, monorepo-meta\n   - Standards: design-system, software-library, proto-sdk, blueprint, security-tooling, compliance-audit\n   - Engines: ml-model, data-etl, microservice, api-gateway, ui-frontend, internal-tool\n   - Ecosystem: build-tool, e2e-test, docs-site, playbook, reference-example, cli-devtool, experiment-sandbox, archival-fork\n3. Score matches and select the best-fit Kind\n4. Document analysis in `.tickets/assessments/{{ id }}.md`\n\nIf kind_override is set, use that instead of auto-detection.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write"],
+      "requires_review": false,
+      "next_step": "generate"
+    },
+    {
+      "name": "generate",
+      "display_name": "Generating",
+      "outputs": ["code"],
+      "prompt": "Generate the catalog-info.yaml based on analysis:\n\n1. Create `catalog-info.yaml` in project root with:\n   ```yaml\n   apiVersion: backstage.io/v1alpha1\n   kind: Component\n   metadata:\n     name: {{ project }}\n     description: <from CLAUDE.md or package.json>\n     annotations:\n       backstage.io/techdocs-ref: dir:.\n   spec:\n     type: <detected-kind>\n     lifecycle: production\n     owner: <from config>\n   ```\n2. Add any detected dependencies as relations\n3. Validate YAML syntax\n4. Update assessment doc with final Kind and confidence score",
+      "allowed_tools": ["Read", "Write", "Edit"],
+      "requires_review": true,
+      "on_reject": {
+        "goto_step": "analyze",
+        "prompt": "Re-analyze the project with feedback: {{ rejection_reason }}"
+      }
+    }
+  ]
+}

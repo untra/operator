@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
-//! Agent ticket creator for operator-managed projects
+//! Agent and project ticket creators for operator-managed projects
 //!
 //! Creates TASK tickets for generating Claude Code agent files in a project's
-//! `.claude/agents/` directory. These tickets can then be launched via the
-//! normal operator workflow.
+//! `.claude/agents/` directory, and ASSESS tickets for Backstage catalog
+//! assessment. These tickets can then be launched via the normal operator workflow.
 
 use anyhow::{Context, Result};
 use chrono::Local;
@@ -152,6 +152,74 @@ Create the {key_lower}-operator agent for {project_name} project.
         fs::write(&ticket_path, content).context(format!("Failed to write ticket {}", filename))?;
 
         Ok(id)
+    }
+}
+
+/// Result of creating an assessment ticket
+#[derive(Debug, Clone)]
+pub struct AssessTicketResult {
+    /// Ticket ID that was created
+    pub ticket_id: String,
+    /// Project that was assessed
+    pub project: String,
+}
+
+/// Creates ASSESS tickets for Backstage catalog assessment
+pub struct AssessTicketCreator;
+
+impl AssessTicketCreator {
+    /// Create an ASSESS ticket for a project
+    pub fn create_assess_ticket(
+        project_path: &Path,
+        project_name: &str,
+        config: &Config,
+    ) -> Result<AssessTicketResult> {
+        // Ensure queue directory exists
+        let queue_dir = config.tickets_path().join("queue");
+        fs::create_dir_all(&queue_dir).context("Failed to create queue directory")?;
+
+        let now = Local::now();
+        let timestamp = now.format("%Y%m%d-%H%M").to_string();
+        let datetime = now.format("%Y-%m-%d %H:%M").to_string();
+
+        // Unique ticket ID
+        let id = format!("ASSESS-{}-{}", project_name, timestamp);
+
+        // Filename: YYYYMMDD-HHMM-ASSESS-project.md
+        let filename = format!("{}-ASSESS-{}.md", timestamp, project_name);
+
+        // Check if catalog-info.yaml already exists
+        let catalog_exists = project_path.join("catalog-info.yaml").exists();
+        let action = if catalog_exists { "Update" } else { "Generate" };
+
+        // Build ticket content using the ASSESS template format
+        let content = format!(
+            r#"---
+id: {id}
+step: analyze
+project: {project}
+status: queued
+created: {datetime}
+---
+
+# Assessment: {action} catalog-info.yaml for {project}
+
+## Project
+{project}
+"#,
+            id = id,
+            project = project_name,
+            datetime = datetime,
+            action = action,
+        );
+
+        let ticket_path = queue_dir.join(&filename);
+        fs::write(&ticket_path, content).context(format!("Failed to write ticket {}", filename))?;
+
+        Ok(AssessTicketResult {
+            ticket_id: id,
+            project: project_name.to_string(),
+        })
     }
 }
 

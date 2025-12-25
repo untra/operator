@@ -4,9 +4,12 @@ use std::path::PathBuf;
 
 mod api;
 mod app;
+mod backstage;
 mod config;
+mod issuetypes;
 mod llm;
 mod logging;
+mod permissions;
 mod pr_config;
 mod projects;
 mod state;
@@ -14,6 +17,7 @@ mod steps;
 mod templates;
 
 mod agents;
+mod docs_gen;
 mod notifications;
 mod queue;
 mod ui;
@@ -153,6 +157,17 @@ enum Commands {
         #[arg(short, long)]
         project: Option<String>,
     },
+
+    /// Generate documentation from source-of-truth files
+    Docs {
+        /// Output directory (default: docs/)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Only generate specific docs (taxonomy, issuetype, metadata)
+        #[arg(short, long)]
+        only: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -197,6 +212,9 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Create { template, project }) => {
             cmd_create(&config, template, project).await?;
+        }
+        Some(Commands::Docs { output, only }) => {
+            cmd_docs(&config, output, only)?;
         }
         None => {
             // No subcommand = launch TUI dashboard
@@ -469,5 +487,54 @@ async fn cmd_create(
 
     println!("Created ticket: {}", filepath.display());
 
+    Ok(())
+}
+
+fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
+    use docs_gen::{issuetype, metadata, taxonomy, DocGenerator};
+    use std::path::PathBuf;
+
+    // Determine output directory (default: ./docs relative to current directory)
+    let docs_dir = match output {
+        Some(path) => PathBuf::from(path),
+        None => std::env::current_dir().unwrap_or_default().join("docs"),
+    };
+
+    println!("Generating documentation to: {}", docs_dir.display());
+
+    // Build list of generators based on --only filter
+    let generators: Vec<Box<dyn DocGenerator>> = match only.as_deref() {
+        Some("taxonomy") => {
+            vec![Box::new(taxonomy::TaxonomyDocGenerator)]
+        }
+        Some("issuetype") => {
+            vec![Box::new(issuetype::IssuetypeSchemaDocGenerator)]
+        }
+        Some("metadata") => {
+            vec![Box::new(metadata::MetadataSchemaDocGenerator)]
+        }
+        Some(other) => {
+            println!(
+                "Unknown generator: {}. Use: taxonomy, issuetype, metadata",
+                other
+            );
+            return Ok(());
+        }
+        None => {
+            // Generate all
+            vec![
+                Box::new(taxonomy::TaxonomyDocGenerator),
+                Box::new(issuetype::IssuetypeSchemaDocGenerator),
+                Box::new(metadata::MetadataSchemaDocGenerator),
+            ]
+        }
+    };
+
+    for generator in generators {
+        generator.write(&docs_dir)?;
+        println!("  ✓ {} → {}", generator.name(), generator.output_path());
+    }
+
+    println!("\nDocumentation generation complete.");
     Ok(())
 }

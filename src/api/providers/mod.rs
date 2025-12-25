@@ -6,11 +6,13 @@
 //! This module defines the trait interfaces for different provider categories:
 //! - AI providers (Anthropic, OpenAI, Gemini)
 //! - Repository providers (GitHub, GitLab, Azure Repos)
-//! - Project management providers (Jira, Notion, GitHub Projects)
+//! - Kanban providers (Jira, Linear) for importing issue types
 
 pub mod ai;
+pub mod kanban;
 pub mod repo;
 
 // Re-export commonly used types
 pub use ai::{AiProvider, RateLimitInfo};
+pub use kanban::{ExternalIssueType, KanbanProvider, ProjectInfo};
 pub use repo::{PrStatus, RepoProvider};

@@ -1,6 +1,18 @@
-#![allow(dead_code)]
+//! # DEPRECATED: Legacy GitHub API Client
+//!
+//! **Status**: Superseded by `api/providers/repo/github.rs`
+//!
+//! This file is the original GitHub API client, kept for reference during
+//! migration to the new provider-based architecture. The new implementation
+//! follows the `RepoProvider` trait pattern.
+//!
+//! **Migration Path**:
+//! - New code should use `crate::api::providers::repo::GitHubProvider`
+//! - This file can be removed once migration is verified complete
+//!
+//! **Original Purpose**: PR and issue status tracking for GitHub
 
-//! GitHub API client for PR and issue status tracking
+#![allow(dead_code)] // DEPRECATED: Use api/providers/repo/github.rs instead
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

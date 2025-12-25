@@ -1,0 +1,503 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gbqr.us/operator/project-analysis.schema.json",
+  "title": "Project Analysis Schema",
+  "description": "Structured output schema for project assessment analysis. Used by the ASSESS issuetype's analyze step with Claude's --json-schema mode.",
+  "type": "object",
+  "required": [
+    "project_name",
+    "project_path",
+    "analyzed_at",
+    "kind_assessment",
+    "languages",
+    "frameworks",
+    "databases",
+    "docker",
+    "ports",
+    "testing",
+    "file_stats"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "project_name": {
+      "type": "string",
+      "description": "Project directory name",
+      "minLength": 1
+    },
+    "project_path": {
+      "type": "string",
+      "description": "Absolute path to project root"
+    },
+    "analyzed_at": {
+      "type": "string",
+      "description": "ISO 8601 timestamp of analysis",
+      "examples": ["2024-12-25T00:00:00Z"]
+    },
+    "kind_assessment": {
+      "$ref": "#/definitions/kindAssessment"
+    },
+    "languages": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/languageDetection" },
+      "description": "Detected programming languages, sorted by confidence descending"
+    },
+    "frameworks": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/frameworkDetection" },
+      "description": "Detected frameworks and libraries"
+    },
+    "databases": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/databaseDetection" },
+      "description": "Detected database systems"
+    },
+    "docker": {
+      "$ref": "#/definitions/dockerDetection"
+    },
+    "ports": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/portDetection" },
+      "description": "Detected port configurations"
+    },
+    "testing": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/testDetection" },
+      "description": "Detected test frameworks"
+    },
+    "file_stats": {
+      "$ref": "#/definitions/fileStats"
+    }
+  },
+  "definitions": {
+    "kindAssessment": {
+      "type": "object",
+      "description": "Assessment of project Kind from the 24-Kind taxonomy",
+      "required": ["primary_kind", "confidence", "tier", "matching_files"],
+      "additionalProperties": false,
+      "properties": {
+        "primary_kind": {
+          "description": "Primary Kind key from taxonomy (24 Kinds across 4 tiers)",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "infrastructure",
+                "identity-access",
+                "config-policy",
+                "monorepo-meta",
+                "design-system",
+                "software-library",
+                "proto-sdk",
+                "blueprint",
+                "security-tooling",
+                "compliance-audit",
+                "ml-model",
+                "data-etl",
+                "microservice",
+                "api-gateway",
+                "ui-frontend",
+                "internal-tool",
+                "build-tool",
+                "e2e-test",
+                "docs-site",
+                "playbook",
+                "reference-example",
+                "cli-devtool",
+                "experiment-sandbox",
+                "archival-fork"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$",
+              "description": "Custom Kind key (lowercase with hyphens)"
+            }
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence score 0.0-1.0"
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["foundation", "standards", "engines", "ecosystem"],
+          "description": "Taxonomy tier"
+        },
+        "matching_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files that matched Kind patterns (relative paths)"
+        },
+        "alternatives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "confidence", "match_count"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "type": "string" },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "match_count": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "description": "Alternative Kind candidates sorted by confidence"
+        }
+      }
+    },
+    "languageDetection": {
+      "type": "object",
+      "description": "Detected programming language",
+      "required": ["language", "display_name", "confidence", "is_primary", "file_count", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "description": "Language identifier",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "rust", "typescript", "javascript", "python", "go", "java",
+                "kotlin", "ruby", "php", "swift", "c", "cpp", "csharp",
+                "scala", "haskell", "elixir", "erlang", "clojure", "dart",
+                "lua", "perl", "r", "julia", "zig", "nim", "ocaml", "fsharp"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "description": "Custom/unknown language identifier"
+            }
+          ]
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable language name"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "is_primary": {
+          "type": "boolean",
+          "description": "Whether this is the primary/dominant language"
+        },
+        "file_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of files in this language"
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/evidence" }
+        }
+      }
+    },
+    "frameworkDetection": {
+      "type": "object",
+      "description": "Detected framework or library",
+      "required": ["framework", "display_name", "category", "confidence", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "framework": {
+          "description": "Framework identifier",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "axum", "actix-web", "rocket", "warp", "tonic", "diesel", "sqlx", "tokio",
+                "react", "vue", "angular", "svelte", "nextjs", "nuxt", "remix", "astro",
+                "express", "fastify", "nestjs", "koa", "hono",
+                "django", "flask", "fastapi", "starlette",
+                "rails", "sinatra", "hanami",
+                "spring", "quarkus", "micronaut",
+                "gin", "echo", "fiber", "chi",
+                "prisma", "typeorm", "sequelize", "drizzle", "mongoose",
+                "jest", "vitest", "mocha", "playwright", "cypress", "pytest", "rspec",
+                "webpack", "vite", "esbuild", "rollup", "parcel", "turbopack",
+                "tailwindcss", "bootstrap", "mui", "chakra-ui",
+                "graphql", "apollo", "trpc", "grpc-web",
+                "redux", "zustand", "jotai", "mobx", "pinia", "vuex",
+                "serde", "clap", "tracing", "anyhow", "thiserror"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "description": "Custom/unknown framework identifier"
+            }
+          ]
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable framework name"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["web", "orm", "testing", "build", "logging", "serialization", "cli", "async", "api", "ui", "other"],
+          "description": "Framework category"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Version if detected (e.g., '0.7.5', '^18.2.0')"
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/evidence" }
+        }
+      }
+    },
+    "databaseDetection": {
+      "type": "object",
+      "description": "Detected database system",
+      "required": ["database", "display_name", "category", "confidence", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "database": {
+          "description": "Database identifier",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "postgres", "mysql", "mariadb", "sqlite", "mssql", "oracle",
+                "mongodb", "couchdb", "dynamodb", "firestore",
+                "redis", "memcached", "valkey",
+                "elasticsearch", "opensearch", "meilisearch", "typesense", "algolia",
+                "neo4j", "arangodb", "dgraph",
+                "influxdb", "timescaledb", "questdb",
+                "rabbitmq", "kafka", "nats", "pulsar", "sqs", "pubsub",
+                "cockroachdb", "yugabyte", "planetscale", "supabase", "neon"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "description": "Custom/unknown database identifier"
+            }
+          ]
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable database name"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["relational", "document", "key_value", "graph", "time_series", "message_queue", "search", "cache"],
+          "description": "Database category"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Database port if detected"
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/evidence" }
+        }
+      }
+    },
+    "dockerDetection": {
+      "type": "object",
+      "description": "Docker configuration detection",
+      "required": ["has_dockerfile", "has_compose", "base_images", "compose_services", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "has_dockerfile": {
+          "type": "boolean",
+          "description": "Whether Dockerfile exists"
+        },
+        "has_compose": {
+          "type": "boolean",
+          "description": "Whether docker-compose.yml/yaml exists"
+        },
+        "base_images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["image"],
+            "additionalProperties": false,
+            "properties": {
+              "image": {
+                "type": "string",
+                "description": "Base image name (e.g., 'rust', 'node', 'python')"
+              },
+              "tag": {
+                "type": "string",
+                "description": "Image tag (e.g., '1.75-alpine', '20-slim')"
+              },
+              "stage": {
+                "type": "string",
+                "description": "Build stage name for multi-stage builds"
+              }
+            }
+          },
+          "description": "Base images from Dockerfile(s)"
+        },
+        "compose_services": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Service names defined in docker-compose"
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/evidence" }
+        }
+      }
+    },
+    "portDetection": {
+      "type": "object",
+      "description": "Detected port configuration",
+      "required": ["port_type", "confidence", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "port_type": {
+          "type": "string",
+          "enum": ["http", "https", "grpc", "database", "redis", "rabbitmq", "websocket", "metrics", "debug", "other"],
+          "description": "Port type category"
+        },
+        "port_number": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Actual port number if detected"
+        },
+        "env_var": {
+          "type": "string",
+          "description": "Environment variable name if port is configured via env"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/evidence" }
+        }
+      }
+    },
+    "testDetection": {
+      "type": "object",
+      "description": "Detected test framework",
+      "required": ["framework", "display_name", "category", "confidence", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "framework": {
+          "description": "Test framework identifier",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "cargo_test", "jest", "vitest", "mocha", "jasmine", "ava",
+                "playwright", "cypress", "puppeteer", "selenium", "webdriverio",
+                "pytest", "unittest", "nose2",
+                "rspec", "minitest",
+                "junit", "testng", "spock",
+                "go_test", "testify",
+                "phpunit", "pest",
+                "xctest", "quick",
+                "criterion", "proptest", "nextest",
+                "k6", "artillery", "locust", "gatling"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "description": "Custom/unknown test framework identifier"
+            }
+          ]
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable framework name"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["unit", "integration", "e2e", "performance", "security", "mixed"],
+          "description": "Test category"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/evidence" }
+        }
+      }
+    },
+    "fileStats": {
+      "type": "object",
+      "description": "File statistics for analysis context",
+      "required": ["total_files", "by_extension", "directories", "excluded_files"],
+      "additionalProperties": false,
+      "properties": {
+        "total_files": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total files analyzed"
+        },
+        "by_extension": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 },
+          "description": "File count by extension (e.g., {'rs': 42, 'toml': 5})"
+        },
+        "directories": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Directories traversed"
+        },
+        "excluded_files": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Files excluded (node_modules, target, etc.)"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Evidence supporting a detection",
+      "required": ["evidence_type"],
+      "additionalProperties": false,
+      "properties": {
+        "evidence_type": {
+          "type": "string",
+          "enum": ["file_exists", "file_pattern", "content_match", "config_key", "dependency", "import", "extension"],
+          "description": "Type of evidence"
+        },
+        "file_path": {
+          "type": "string",
+          "description": "Relative path from project root"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Pattern that matched (glob or regex)"
+        },
+        "matched_content": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Content excerpt (max 200 chars)"
+        },
+        "line_number": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Line number if applicable"
+        }
+      }
+    }
+  }
+}

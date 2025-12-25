@@ -10,8 +10,11 @@ use std::io;
 use std::time::Duration;
 
 use crate::agents::tmux::SystemTmuxClient;
-use crate::agents::{AgentTicketCreator, Launcher, SessionMonitor, TicketSessionSync};
+use crate::agents::{
+    AgentTicketCreator, AssessTicketCreator, Launcher, SessionMonitor, TicketSessionSync,
+};
 use crate::api::Capabilities;
+use crate::backstage::BackstageServer;
 use crate::config::Config;
 use crate::notifications;
 use crate::queue::{Queue, TicketCreator};
@@ -51,6 +54,8 @@ pub struct App {
     rate_limit_syncing: bool,
     /// Last sync status message for display
     sync_status_message: Option<String>,
+    /// Backstage server lifecycle manager
+    backstage_server: BackstageServer,
 }
 
 impl App {
@@ -163,6 +168,10 @@ impl App {
             );
         }
 
+        // Initialize Backstage server lifecycle manager
+        let backstage_server =
+            BackstageServer::with_system_client(config.backstage_path(), config.backstage.port);
+
         Ok(Self {
             config,
             dashboard,
@@ -179,6 +188,7 @@ impl App {
             capabilities,
             rate_limit_syncing: false,
             sync_status_message: None,
+            backstage_server,
         })
     }
 
@@ -272,6 +282,11 @@ impl App {
             .cloned()
             .collect();
         self.dashboard.update_completed(completed);
+
+        // Update Backstage server status
+        self.backstage_server.refresh_status();
+        self.dashboard
+            .update_backstage_status(self.backstage_server.status());
 
         Ok(())
     }
@@ -693,6 +708,17 @@ impl App {
                 self.run_manual_sync()?;
                 self.sync_rate_limits().await;
             }
+            KeyCode::Char('W') | KeyCode::Char('w') => {
+                // Toggle Backstage server and open browser if starting
+                if let Err(e) = self.backstage_server.toggle() {
+                    tracing::error!("Backstage toggle failed: {}", e);
+                }
+                if self.backstage_server.is_running() {
+                    if let Err(e) = self.backstage_server.open_browser() {
+                        tracing::warn!("Failed to open browser: {}", e);
+                    }
+                }
+            }
             _ => {}
         }
 
@@ -947,6 +973,9 @@ impl App {
                 TemplateType::Task => "task.md",
                 TemplateType::Spike => "spike.md",
                 TemplateType::Investigation => "investigation.md",
+                TemplateType::Assess => "assess.md",
+                TemplateType::Sync => "sync.md",
+                TemplateType::Init => "init.md",
             };
             let filepath = tickets_path.join("templates").join(filename);
             fs::write(&filepath, template_type.template_content())?;
@@ -958,6 +987,9 @@ impl App {
                 TemplateType::Task => "task.json",
                 TemplateType::Spike => "spike.json",
                 TemplateType::Investigation => "investigation.json",
+                TemplateType::Assess => "assess.json",
+                TemplateType::Sync => "sync.json",
+                TemplateType::Init => "init.json",
             };
             let schema_filepath = tickets_path.join("templates").join(schema_filename);
             fs::write(&schema_filepath, template_type.schema())?;
@@ -1057,6 +1089,30 @@ impl App {
                 // Update dialog with result
                 match ticket_result {
                     Ok(agent_result) => {
+                        self.projects_dialog.set_creation_result(Ok(agent_result));
+                    }
+                    Err(e) => {
+                        self.projects_dialog.set_creation_result(Err(e.to_string()));
+                    }
+                }
+            }
+            ProjectAction::AssessProject => {
+                // Create ASSESS ticket for Backstage catalog assessment
+                let ticket_result = AssessTicketCreator::create_assess_ticket(
+                    &result.project_path,
+                    &result.project,
+                    &self.config,
+                );
+
+                // Convert to AgentTicketResult format for display
+                match ticket_result {
+                    Ok(assess_result) => {
+                        use crate::agents::AgentTicketResult;
+                        let agent_result = AgentTicketResult {
+                            created: vec![assess_result.ticket_id],
+                            skipped: vec![],
+                            errors: vec![],
+                        };
                         self.projects_dialog.set_creation_result(Ok(agent_result));
                     }
                     Err(e) => {

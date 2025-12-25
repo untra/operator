@@ -6,12 +6,18 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'src/docs_gen/**'
+      - 'src/backstage/taxonomy.toml'
+      - 'src/templates/*.json'
       - '.github/workflows/docs.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'docs/**'
+      - 'src/docs_gen/**'
+      - 'src/backstage/taxonomy.toml'
+      - 'src/templates/*.json'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -30,6 +36,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Install Rust toolchain for docs generation
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      # Cache cargo for faster builds
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-docs-
+
+      # Generate reference documentation from source-of-truth files
+      - name: Generate reference docs
+        run: cargo run -- docs
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1

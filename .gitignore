@@ -20,3 +20,4 @@
 
 # Operator runtime state
 .operator/
+.tickets/operator

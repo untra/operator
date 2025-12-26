@@ -1,9 +1,10 @@
-//! Backstage server lifecycle management using Bun.
+//! Backstage server lifecycle management.
 //!
-//! Provides a trait-based abstraction over Bun operations to enable:
-//! - Unit testing without real Bun
+//! Provides a trait-based abstraction over server operations to enable:
+//! - Unit testing without real binaries
 //! - Mocking server behavior
-//! - Graceful handling when Bun is unavailable
+//! - Compiled binary mode (no Bun required)
+//! - Development mode with Bun
 
 // M6 TUI integration complete - some methods still reserved for future Backstage API
 #![allow(dead_code)]
@@ -13,7 +14,9 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
-/// Errors specific to Bun/Backstage operations
+use super::runtime::{BackstageRuntime, RuntimeError};
+
+/// Errors specific to Backstage operations
 #[derive(Error, Debug)]
 pub enum BackstageError {
     #[error("bun is not installed or not in PATH")]
@@ -40,6 +43,9 @@ pub enum BackstageError {
 
     #[error("bun command failed: {0}")]
     CommandFailed(String),
+
+    #[error("runtime error: {0}")]
+    Runtime(#[from] RuntimeError),
 }
 
 /// Version information for Bun
@@ -91,6 +97,7 @@ impl std::fmt::Display for BunVersion {
 pub enum ServerStatus {
     Stopped,
     Starting,
+    Stopping,
     Running {
         port: u16,
         pid: u32,
@@ -224,6 +231,80 @@ impl BunClient for SystemBunClient {
     }
 }
 
+/// Client that uses a pre-compiled backstage-server binary.
+///
+/// Downloads the platform-specific binary on first use and executes it directly.
+/// This eliminates the need for users to have Bun/Node installed.
+pub struct RuntimeBinaryClient {
+    runtime: BackstageRuntime,
+}
+
+impl RuntimeBinaryClient {
+    /// Create a new runtime binary client.
+    ///
+    /// # Arguments
+    /// * `state_path` - Directory to store the binary (e.g., .tickets/operator)
+    /// * `release_url` - Base URL for downloading binaries
+    pub fn new(state_path: PathBuf, release_url: String) -> Result<Self, RuntimeError> {
+        let runtime = BackstageRuntime::new(state_path, release_url)?;
+        Ok(Self { runtime })
+    }
+}
+
+impl BunClient for RuntimeBinaryClient {
+    fn check_available(&self) -> Result<BunVersion, BackstageError> {
+        // For compiled binary, we return a synthetic version indicating binary mode
+        // The binary is self-contained and doesn't need Bun
+        Ok(BunVersion {
+            major: 0,
+            minor: 0,
+            patch: 0,
+            raw: "compiled-binary".to_string(),
+        })
+    }
+
+    fn check_dependencies(&self, _scaffold_path: &Path) -> Result<bool, BackstageError> {
+        // For compiled binary, dependencies are bundled in the binary
+        // We just need to ensure the binary exists
+        Ok(self.runtime.binary_exists())
+    }
+
+    fn install_dependencies(&self, _scaffold_path: &Path) -> Result<(), BackstageError> {
+        // "Installing dependencies" means downloading the binary
+        self.runtime.ensure_binary()?;
+        Ok(())
+    }
+
+    fn start_server(&self, _scaffold_path: &Path, port: u16) -> Result<Child, BackstageError> {
+        // Ensure binary is available
+        let binary_path = self.runtime.ensure_binary()?;
+
+        tracing::info!(
+            binary = %binary_path.display(),
+            port = port,
+            platform = %self.runtime.platform().display_name(),
+            "Starting backstage-server binary"
+        );
+
+        // Start the compiled binary
+        let child = Command::new(&binary_path)
+            .env("PORT", port.to_string())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| BackstageError::StartFailed(e.to_string()))?;
+
+        Ok(child)
+    }
+
+    fn is_process_running(&self, pid: u32) -> bool {
+        use sysinfo::System;
+        let mut sys = System::new();
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+        sys.process(sysinfo::Pid::from_u32(pid)).is_some()
+    }
+}
+
 /// Backstage server handle for lifecycle management
 pub struct BackstageServer {
     client: Arc<dyn BunClient>,
@@ -245,9 +326,27 @@ impl BackstageServer {
         }
     }
 
-    /// Create with system Bun client
+    /// Create with system Bun client (development mode)
     pub fn with_system_client(scaffold_path: PathBuf, port: u16) -> Self {
         Self::new(Arc::new(SystemBunClient::new()), scaffold_path, port)
+    }
+
+    /// Create with compiled binary client (production mode).
+    ///
+    /// Downloads and uses a pre-compiled backstage-server binary that doesn't
+    /// require Bun/Node to be installed. The binary is downloaded on first use.
+    ///
+    /// # Arguments
+    /// * `state_path` - Directory to store the binary (e.g., .tickets/operator)
+    /// * `release_url` - Base URL for downloading binaries
+    /// * `port` - Port to run the server on
+    pub fn with_compiled_binary(
+        state_path: PathBuf,
+        release_url: String,
+        port: u16,
+    ) -> Result<Self, BackstageError> {
+        let client = RuntimeBinaryClient::new(state_path.clone(), release_url)?;
+        Ok(Self::new(Arc::new(client), state_path, port))
     }
 
     /// Get current server status
@@ -285,8 +384,29 @@ impl BackstageServer {
 
         // Start server
         *self.status.lock().unwrap() = ServerStatus::Starting;
-        let child = self.client.start_server(&self.scaffold_path, self.port)?;
+        let mut child = self.client.start_server(&self.scaffold_path, self.port)?;
         let pid = child.id();
+
+        // Spawn threads to forward stdout/stderr to tracing
+        if let Some(stdout) = child.stdout.take() {
+            std::thread::spawn(move || {
+                use std::io::{BufRead, BufReader};
+                let reader = BufReader::new(stdout);
+                for line in reader.lines().map_while(Result::ok) {
+                    tracing::info!(target: "backstage", "{}", line);
+                }
+            });
+        }
+
+        if let Some(stderr) = child.stderr.take() {
+            std::thread::spawn(move || {
+                use std::io::{BufRead, BufReader};
+                let reader = BufReader::new(stderr);
+                for line in reader.lines().map_while(Result::ok) {
+                    tracing::warn!(target: "backstage", "{}", line);
+                }
+            });
+        }
 
         *self.process.lock().unwrap() = Some(child);
         *self.status.lock().unwrap() = ServerStatus::Running {
@@ -304,6 +424,9 @@ impl BackstageServer {
         let mut process_guard = self.process.lock().unwrap();
 
         if let Some(ref mut child) = *process_guard {
+            // Set stopping status first for visual feedback
+            *self.status.lock().unwrap() = ServerStatus::Stopping;
+
             child
                 .kill()
                 .map_err(|e| BackstageError::StopFailed(e.to_string()))?;
@@ -329,6 +452,9 @@ impl BackstageServer {
     }
 
     /// Open Backstage in default browser
+    ///
+    /// Checks `$BROWSER` environment variable first, then falls back to
+    /// platform-specific defaults (`open` on macOS, `xdg-open` on Linux).
     pub fn open_browser(&self) -> Result<(), BackstageError> {
         if !self.is_running() {
             return Err(BackstageError::ServerNotRunning);
@@ -336,6 +462,13 @@ impl BackstageServer {
 
         let url = format!("http://localhost:{}", self.port);
 
+        // Check $BROWSER environment variable first
+        if let Ok(browser) = std::env::var("BROWSER") {
+            let _ = Command::new(&browser).arg(&url).spawn();
+            return Ok(());
+        }
+
+        // Fall back to platform-specific defaults
         #[cfg(target_os = "macos")]
         {
             let _ = Command::new("open").arg(&url).spawn();
@@ -586,6 +719,7 @@ mod tests {
     fn test_server_status_is_running() {
         assert!(!ServerStatus::Stopped.is_running());
         assert!(!ServerStatus::Starting.is_running());
+        assert!(!ServerStatus::Stopping.is_running());
         assert!(ServerStatus::Running {
             port: 7007,
             pid: 123

@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::backstage::ServerStatus;
 use crate::queue::Ticket;
+use crate::rest::RestApiStatus;
 use crate::state::{AgentState, CompletedTicket, OrphanSession};
 use crate::templates::{color_for_key, glyph_for_key};
 
@@ -378,10 +379,27 @@ pub struct StatusBar {
     pub agent_count: usize,
     pub max_agents: usize,
     pub backstage_status: ServerStatus,
+    pub rest_api_status: RestApiStatus,
+    pub exit_confirmation_mode: bool,
 }
 
 impl StatusBar {
     pub fn render(&self, frame: &mut Frame, area: Rect) {
+        // Exit confirmation mode - show only the exit message
+        if self.exit_confirmation_mode {
+            let content = Line::from(vec![Span::styled(
+                "  Press Ctrl+C again to exit",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]);
+
+            let bar = Paragraph::new(content).block(Block::default().borders(Borders::TOP));
+            frame.render_widget(bar, area);
+            return;
+        }
+
+        // Normal mode - show regular status bar
         let status = if self.paused {
             Span::styled("⏸ PAUSED", Style::default().fg(Color::Yellow))
         } else {
@@ -393,19 +411,27 @@ impl StatusBar {
             Style::default().fg(Color::Gray),
         );
 
-        // Backstage server indicator
-        let backstage = match &self.backstage_status {
-            ServerStatus::Running { port, .. } => Span::styled(
+        // Web server indicator - shows combined status of both servers
+        // ● green = both running, ● yellow = starting/stopping, ● red = error, ○ white = stopped
+        let web_indicator = match (&self.backstage_status, &self.rest_api_status) {
+            // Both running - green filled circle with port
+            (ServerStatus::Running { port, .. }, RestApiStatus::Running { .. }) => Span::styled(
                 format!("  [W]eb ●:{}", port),
                 Style::default().fg(Color::Green),
             ),
-            ServerStatus::Starting => {
-                Span::styled("  [W]eb ...", Style::default().fg(Color::Yellow))
+            // Either starting or stopping - yellow filled circle
+            (ServerStatus::Starting, _)
+            | (_, RestApiStatus::Starting)
+            | (ServerStatus::Stopping, _)
+            | (_, RestApiStatus::Stopping) => {
+                Span::styled("  [W]eb ●", Style::default().fg(Color::Yellow))
             }
-            ServerStatus::Stopped => {
-                Span::styled("  [W]eb ○", Style::default().fg(Color::DarkGray))
+            // Either errored - red filled circle
+            (ServerStatus::Error(_), _) | (_, RestApiStatus::Error(_)) => {
+                Span::styled("  [W]eb ●", Style::default().fg(Color::Red))
             }
-            ServerStatus::Error(_) => Span::styled("  [W]eb !", Style::default().fg(Color::Red)),
+            // Both stopped - white hollow circle
+            _ => Span::styled("  [W]eb ○", Style::default().fg(Color::White)),
         };
 
         let help = Span::styled(
@@ -413,7 +439,7 @@ impl StatusBar {
             Style::default().fg(Color::DarkGray),
         );
 
-        let content = Line::from(vec![status, agents, backstage, help]);
+        let content = Line::from(vec![status, agents, web_indicator, help]);
 
         let bar = Paragraph::new(content).block(Block::default().borders(Borders::TOP));
 

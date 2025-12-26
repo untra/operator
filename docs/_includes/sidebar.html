@@ -4,7 +4,7 @@
   <div class="sidebar-header">
     <a href="{{ '/' | relative_url }}" class="sidebar-title">Operator!</a>
     <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.</p>
-    <p class="sidebar-tagline">A project by <b><a href="{{ site.github.author }}" target="_blank">@untra</a></b></p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="{{ site.github.author }}" target="_blank">@untra</a></b></p>
   </div>
 
   <ul class="sidebar-nav">
@@ -30,6 +30,7 @@
       </details>
     </li>
     {% endfor %}
+    <li class="downloads-link"><a href="{{ '/downloads/' | relative_url }}" {% if page.url contains '/downloads/' %}class="active"{% endif %}>Downloads</a></li>
   </ul>
 
   <div class="sidebar-footer">

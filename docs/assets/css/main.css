@@ -193,6 +193,25 @@ details[open] .nav-parent::before {
   background-color: var(--color-green-l3);
 }
 
+/* Downloads nav link - highlighted */
+.sidebar-nav .downloads-link {
+  margin-top: 16px;
+}
+
+.sidebar-nav .downloads-link a {
+  background: var(--color-salmon);
+  color: var(--color-cream);
+  font-weight: 600;
+}
+
+.sidebar-nav .downloads-link a:hover {
+  background: var(--color-salmon-dark);
+}
+
+.sidebar-nav .downloads-link a.active {
+  background: var(--color-green-l3);
+}
+
 .sidebar-footer {
   margin-top: 32px;
   padding-top: 16px;
@@ -321,6 +340,35 @@ th {
 
 tr:hover {
   background-color: var(--color-cream);
+}
+
+/* Downloads page */
+.recommended-box {
+  background: var(--color-cream);
+  border: 2px solid var(--color-salmon);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0 2rem;
+}
+
+.recommended-box p {
+  margin: 0 0 0.75rem;
+}
+
+.download-button {
+  display: inline-block;
+  background: var(--color-salmon);
+  color: var(--color-cream);
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.download-button:hover {
+  background: var(--color-salmon-dark);
+  color: var(--color-cream);
+  text-decoration: none;
 }
 
 /* Responsive */

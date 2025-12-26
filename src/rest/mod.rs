@@ -17,9 +17,11 @@ pub mod dto;
 pub mod error;
 pub mod openapi;
 pub mod routes;
+pub mod server;
 pub mod state;
 
 pub use openapi::ApiDoc;
+pub use server::{RestApiServer, RestApiStatus};
 pub use state::ApiState;
 
 /// Default port for the REST API server

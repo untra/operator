@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REST API | Operator Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>REST API | Operator Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="REST API" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/schemas/api/" />
+<meta property="og:url" content="https://operator.untra.io/schemas/api/" />
+<meta property="og:site_name" content="Operator Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="REST API" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"REST API","url":"https://operator.untra.io/schemas/api/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.</p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra" target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    <li><a href="/getting-started/" >Getting Started</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/kanban/" >Kanban</a>
+          </li>
+          
+          <li>
+            <a href="/issue-types/" >Issue Types</a>
+          </li>
+          
+          <li>
+            <a href="/tickets/" >Tickets</a>
+          </li>
+          
+          <li>
+            <a href="/agents/" >Agents</a>
+          </li>
+          
+          <li>
+            <a href="/tmux/" >Tmux</a>
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/cli/" >CLI</a>
+          </li>
+          
+          <li>
+            <a href="/llm-tools/" >LLM Tools</a>
+          </li>
+          
+          <li>
+            <a href="/configuration/" >Configuration</a>
+          </li>
+          
+          <li>
+            <a href="/shortcuts/" >Shortcuts</a>
+          </li>
+          
+          <li>
+            <a href="/backstage/" >Backstage</a>
+          </li>
+          
+          <li>
+            <a href="/schemas/" class="active">Schemas</a>
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><b>Operator!</b> GitHub project</a></p>
+    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/schemas/api.md"><small>View this page source on Github</small></a></p>
+    <small class="sidebar-nav-item">currently v0.1.6</small>
+  </div>
+</nav>
+
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">REST API</h1>
+  
+
+  <h1 id="operator-rest-api">Operator REST API</h1>
+
+<p>Interactive API documentation powered by Swagger UI.</p>
+
+<p>The Operator REST API provides endpoints for managing issue types and collections programmatically.</p>
+
+<h2 id="quick-links">Quick Links</h2>
+
+<ul>
+  <li><strong>Base URL</strong>: <code class="language-plaintext highlighter-rouge">http://localhost:7008/api/v1</code></li>
+  <li><strong>Health Check</strong>: <code class="language-plaintext highlighter-rouge">GET /api/v1/health</code></li>
+  <li><strong>Status</strong>: <code class="language-plaintext highlighter-rouge">GET /api/v1/status</code></li>
+</ul>
+
+<h2 id="starting-the-api-server">Starting the API Server</h2>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Start with default port (7008)</span>
+cargo run <span class="nt">--</span> api
+
+<span class="c"># Start with custom port</span>
+cargo run <span class="nt">--</span> api <span class="nt">--port</span> 8080
+</code></pre></div></div>
+
+<h2 id="interactive-documentation">Interactive Documentation</h2>
+
+<div id="swagger-ui"></div>
+
+<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+
+<script>
+window.onload = () => {
+  SwaggerUIBundle({
+    url: "/schemas/openapi.json",
+    dom_id: '#swagger-ui',
+    presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+    layout: "BaseLayout",
+    deepLinking: true,
+    showExtensions: true,
+    showCommonExtensions: true
+  });
+};
+</script>
+
+<h2 id="regenerating-the-spec">Regenerating the Spec</h2>
+
+<p>The OpenAPI specification is auto-generated from source code annotations:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Generate just the OpenAPI spec</span>
+cargo run <span class="nt">--</span> docs <span class="nt">--only</span> openapi
+
+<span class="c"># Generate all documentation</span>
+cargo run <span class="nt">--</span> docs
+</code></pre></div></div>
+
+<p>The spec is written to <code class="language-plaintext highlighter-rouge">docs/schemas/openapi.json</code>.</p>
+
+</article>
+
+  </main>
+</body>
+</html>

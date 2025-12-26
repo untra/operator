@@ -170,6 +170,9 @@ pub struct BackstageConfig {
     /// Subdirectory within backstage path for branding customization
     #[serde(default = "default_branding_subpath")]
     pub branding_subpath: String,
+    /// Base URL for downloading backstage-server binary
+    #[serde(default = "default_backstage_release_url")]
+    pub release_url: String,
 }
 
 fn default_backstage_enabled() -> bool {
@@ -188,6 +191,10 @@ fn default_branding_subpath() -> String {
     "branding".to_string()
 }
 
+fn default_backstage_release_url() -> String {
+    "https://github.com/untra/operator/releases/latest/download".to_string()
+}
+
 impl Default for BackstageConfig {
     fn default() -> Self {
         Self {
@@ -196,6 +203,7 @@ impl Default for BackstageConfig {
             auto_start: false,
             subpath: default_backstage_subpath(),
             branding_subpath: default_branding_subpath(),
+            release_url: default_backstage_release_url(),
         }
     }
 }

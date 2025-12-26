@@ -124,11 +124,12 @@ jobs:
           bun install
 
       # Compile backstage-server binary for target architecture
+      # Uses standalone.ts (Hono-based) which is compatible with bun build --compile
       - name: Build backstage binary
         if: steps.backstage.outputs.exists == 'true'
         run: |
           cd backstage-server
-          bun build --compile --minify src/index.ts \
+          bun build --compile --minify src/standalone.ts \
             --outfile ../target/backstage-server-${{ matrix.bun_target }}
           ls -la ../target/backstage-server-*
 
@@ -144,6 +145,14 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}
+
+      # Upload backstage binary artifact
+      - name: Upload backstage artifact
+        if: steps.backstage.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backstage-server-${{ matrix.bun_target }}
+          path: target/backstage-server-${{ matrix.bun_target }}
 
   release:
     needs: build
@@ -195,7 +204,10 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
+          # Copy operator binaries
           find artifacts -type f -name 'operator-*' -exec cp {} release-assets/ \;
+          # Copy backstage-server binaries (if built)
+          find artifacts -type f -name 'backstage-server-*' -exec cp {} release-assets/ \; 2>/dev/null || true
           chmod +x release-assets/*
           ls -la release-assets/
 

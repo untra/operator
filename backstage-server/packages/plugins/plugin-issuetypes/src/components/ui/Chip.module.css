@@ -1,0 +1,30 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.default {
+  background-color: #e0e0e0;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.primary {
+  background-color: #1976d2;
+  color: #fff;
+}
+
+.secondary {
+  background-color: #dc004e;
+  color: #fff;
+}
+
+.small {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}

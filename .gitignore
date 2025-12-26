@@ -20,4 +20,8 @@
 
 # Operator runtime state
 .operator/
-.tickets/operator
+/.tickets/operator
+
+# typescript/node build artifacts
+dist/
+node_modules/

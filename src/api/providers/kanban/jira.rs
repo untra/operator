@@ -108,23 +108,23 @@ fn simple_base64_encode(data: &[u8]) -> String {
 
     for chunk in chunks.by_ref() {
         let n = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | (chunk[2] as u32);
-        result.push(ALPHABET[(n >> 18 & 0x3F) as usize] as char);
-        result.push(ALPHABET[(n >> 12 & 0x3F) as usize] as char);
-        result.push(ALPHABET[(n >> 6 & 0x3F) as usize] as char);
+        result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
+        result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
+        result.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
         result.push(ALPHABET[(n & 0x3F) as usize] as char);
     }
 
     let remainder = chunks.remainder();
     if remainder.len() == 1 {
         let n = (remainder[0] as u32) << 16;
-        result.push(ALPHABET[(n >> 18 & 0x3F) as usize] as char);
-        result.push(ALPHABET[(n >> 12 & 0x3F) as usize] as char);
+        result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
+        result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
         result.push_str("==");
     } else if remainder.len() == 2 {
         let n = ((remainder[0] as u32) << 16) | ((remainder[1] as u32) << 8);
-        result.push(ALPHABET[(n >> 18 & 0x3F) as usize] as char);
-        result.push(ALPHABET[(n >> 12 & 0x3F) as usize] as char);
-        result.push(ALPHABET[(n >> 6 & 0x3F) as usize] as char);
+        result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
+        result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
+        result.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
         result.push('=');
     }
 

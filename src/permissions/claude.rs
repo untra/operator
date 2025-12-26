@@ -88,8 +88,7 @@ impl PermissionTranslator for ClaudeTranslator {
 mod tests {
     use super::*;
     use crate::permissions::{
-        DirectoryPermissions, McpServerPermissions, ProviderCliArgs, StepPermissions,
-        ToolPermissions,
+        DirectoryPermissions, ProviderCliArgs, StepPermissions, ToolPermissions,
     };
 
     #[test]

@@ -16,9 +16,15 @@
     "build:plugin": "cd packages/plugins/plugin-issuetypes && backstage-cli package build",
     "lint": "eslint packages/*/src packages/plugins/*/src src --ext .ts,.tsx",
     "lint:fix": "eslint packages/*/src packages/plugins/*/src src --ext .ts,.tsx --fix",
+    "lint:app": "eslint packages/app/src --ext .ts,.tsx",
+    "lint:backend": "eslint packages/backend/src --ext .ts,.tsx",
+    "lint:plugins": "eslint packages/plugins/*/src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:ci": "bun test --coverage",
+    "test:app": "bun test packages/app",
+    "test:backend": "bun test packages/backend",
+    "test:plugins": "bun test packages/plugins",
     "knip": "knip"
   },
   "workspaces": {

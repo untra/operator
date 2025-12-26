@@ -3,7 +3,7 @@ title: Issue Types
 layout: doc
 ---
 
-Operator supports five built-in issue types, organized into collections for different workflows. You can also define custom issue types and import from external kanban systems.
+<span class="operator-brand">Operator!</span> supports five built-in issue types, organized into collections for different workflows. You can also define custom issue types and import from external kanban systems.
 
 ## Built-in Issue Types
 
@@ -276,7 +276,7 @@ All generated configs are stored for auditing at:
 
 ## Validation
 
-When loading collections, Operator validates that all referenced issue types exist. Missing types are logged as warnings and skipped:
+When loading collections, <span class="operator-brand">Operator!</span> validates that all referenced issue types exist. Missing types are logged as warnings and skipped:
 
 ```
 WARN: Collection 'agile' references unknown type 'STORY', skipping

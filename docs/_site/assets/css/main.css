@@ -10,6 +10,12 @@
  * - Midnight:      #082226 (L4 - darkest)
  */
 
+/* Brand styling for inline Operator! mentions */
+.operator-brand {
+  color: var(--color-salmon);
+  font-weight: 700;
+}
+
 :root {
   --color-salmon: #E05D44;
   --color-salmon-dark: #6688AA;

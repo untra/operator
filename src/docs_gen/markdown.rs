@@ -55,29 +55,38 @@ pub fn inline_code(text: &str) -> String {
 
 /// Format a bullet list
 pub fn bullet_list(items: &[String]) -> String {
-    items
-        .iter()
-        .map(|item| format!("- {}\n", item))
-        .collect::<String>()
-        + "\n"
+    use std::fmt::Write;
+    let mut result = items.iter().fold(String::new(), |mut acc, item| {
+        let _ = writeln!(acc, "- {}", item);
+        acc
+    });
+    result.push('\n');
+    result
 }
 
 /// Format a numbered list
 pub fn numbered_list(items: &[String]) -> String {
-    items
+    use std::fmt::Write;
+    let mut result = items
         .iter()
         .enumerate()
-        .map(|(i, item)| format!("{}. {}\n", i + 1, item))
-        .collect::<String>()
-        + "\n"
+        .fold(String::new(), |mut acc, (i, item)| {
+            let _ = writeln!(acc, "{}. {}", i + 1, item);
+            acc
+        });
+    result.push('\n');
+    result
 }
 
 /// Format a blockquote
 pub fn blockquote(text: &str) -> String {
-    text.lines()
-        .map(|line| format!("> {}\n", line))
-        .collect::<String>()
-        + "\n"
+    use std::fmt::Write;
+    let mut result = text.lines().fold(String::new(), |mut acc, line| {
+        let _ = writeln!(acc, "> {}", line);
+        acc
+    });
+    result.push('\n');
+    result
 }
 
 /// Format bold text

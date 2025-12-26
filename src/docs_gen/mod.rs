@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 #![allow(clippy::redundant_closure)]
-#![allow(clippy::double_ended_iterator_last)]
 
 //! Documentation generation from code and schema sources.
 //!

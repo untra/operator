@@ -28,6 +28,7 @@ pub enum KindTier {
     Standards,
     Engines,
     Ecosystem,
+    Noncurrent,
 }
 
 #[allow(dead_code)]
@@ -39,6 +40,7 @@ impl KindTier {
             KindTier::Standards,
             KindTier::Engines,
             KindTier::Ecosystem,
+            KindTier::Noncurrent,
         ]
     }
 
@@ -49,6 +51,7 @@ impl KindTier {
             KindTier::Standards => "standards",
             KindTier::Engines => "engines",
             KindTier::Ecosystem => "ecosystem",
+            KindTier::Noncurrent => "noncurrent",
         }
     }
 
@@ -59,6 +62,7 @@ impl KindTier {
             "standards" => Some(KindTier::Standards),
             "engines" => Some(KindTier::Engines),
             "ecosystem" => Some(KindTier::Ecosystem),
+            "noncurrent" => Some(KindTier::Noncurrent),
             _ => None,
         }
     }
@@ -71,6 +75,7 @@ impl std::fmt::Display for KindTier {
             KindTier::Standards => "Standards",
             KindTier::Engines => "Engines",
             KindTier::Ecosystem => "Ecosystem",
+            KindTier::Noncurrent => "Noncurrent",
         };
         write!(f, "{}", name)
     }
@@ -91,7 +96,9 @@ pub struct Tier {
     pub id: u8,
     pub key: String,
     pub name: String,
-    pub range: (u8, u8),
+    /// Optional ID range hint for documentation (not enforced - use Kind.tier field)
+    #[serde(default)]
+    pub range: Option<(u8, u8)>,
     pub description: String,
     /// Icon identifier for sidebar navigation
     #[serde(default)]
@@ -102,6 +109,15 @@ pub struct Tier {
     /// Optional override label for sidebar display
     #[serde(default)]
     pub sidebar_label: Option<String>,
+    /// Whether to assess for frameworks in this tier
+    #[serde(default)]
+    pub assess_frameworks: bool,
+    /// Whether to assess for databases in this tier
+    #[serde(default)]
+    pub assess_databases: bool,
+    /// Whether to assess for testing frameworks in this tier
+    #[serde(default)]
+    pub assess_testing: bool,
 }
 
 #[allow(dead_code)]
@@ -111,9 +127,13 @@ impl Tier {
         KindTier::from_key(&self.key)
     }
 
-    /// Check if a Kind ID falls within this tier's range
+    /// Check if a Kind ID falls within this tier's range hint.
+    /// Note: This is for documentation only. The Kind.tier field is the source of truth.
+    #[deprecated(note = "Use Kind.tier field instead - range is only a documentation hint")]
     pub fn contains_id(&self, id: u8) -> bool {
-        id >= self.range.0 && id <= self.range.1
+        self.range
+            .map(|(start, end)| id >= start && id <= end)
+            .unwrap_or(false)
     }
 
     /// Get sidebar label (falls back to name)
@@ -129,6 +149,21 @@ impl Tier {
     /// Get icon (returns None if not set)
     pub fn icon(&self) -> Option<&str> {
         self.icon.as_deref()
+    }
+
+    /// Whether framework detection should run for this tier
+    pub fn should_assess_frameworks(&self) -> bool {
+        self.assess_frameworks
+    }
+
+    /// Whether database detection should run for this tier
+    pub fn should_assess_databases(&self) -> bool {
+        self.assess_databases
+    }
+
+    /// Whether testing framework detection should run for this tier
+    pub fn should_assess_testing(&self) -> bool {
+        self.assess_testing
     }
 }
 
@@ -293,37 +328,30 @@ mod tests {
     }
 
     #[test]
-    fn test_exactly_24_kinds() {
+    fn test_kind_ids_unique() {
         let t = Taxonomy::load();
-        assert_eq!(
-            t.kinds.len(),
-            24,
-            "Taxonomy must have exactly 24 kinds, found {}",
-            t.kinds.len()
-        );
+        let ids: HashSet<u8> = t.kinds.iter().map(|k| k.id).collect();
+        assert_eq!(ids.len(), t.kinds.len(), "Kind IDs must be unique");
     }
 
     #[test]
-    fn test_exactly_4_tiers() {
+    fn test_tier_ids_unique() {
         let t = Taxonomy::load();
-        assert_eq!(
-            t.tiers.len(),
-            4,
-            "Taxonomy must have exactly 4 tiers, found {}",
-            t.tiers.len()
-        );
+        let ids: HashSet<u8> = t.tiers.iter().map(|t| t.id).collect();
+        assert_eq!(ids.len(), t.tiers.len(), "Tier IDs must be unique");
     }
 
     #[test]
-    fn test_kind_ids_unique_and_sequential() {
+    fn test_each_tier_has_at_least_one_kind() {
         let t = Taxonomy::load();
-        let ids: Vec<u8> = t.kinds.iter().map(|k| k.id).collect();
-        let expected: Vec<u8> = (1..=24).collect();
-        assert_eq!(
-            ids, expected,
-            "Kind IDs must be sequential from 1 to 24, got {:?}",
-            ids
-        );
+        for tier_enum in KindTier::all() {
+            let kinds = t.kinds_by_tier(*tier_enum);
+            assert!(
+                !kinds.is_empty(),
+                "{} tier should have at least one kind",
+                tier_enum
+            );
+        }
     }
 
     #[test]
@@ -348,29 +376,6 @@ mod tests {
                 "Kind {} has invalid tier: {}",
                 kind.key,
                 kind.tier
-            );
-        }
-    }
-
-    #[test]
-    fn test_kind_ids_within_tier_ranges() {
-        let t = Taxonomy::load();
-        for kind in &t.kinds {
-            let tier = t.tiers.iter().find(|t| t.key == kind.tier);
-            assert!(
-                tier.is_some(),
-                "Kind {} references unknown tier: {}",
-                kind.key,
-                kind.tier
-            );
-            let tier = tier.unwrap();
-            assert!(
-                tier.contains_id(kind.id),
-                "Kind {} (id={}) is outside tier {} range {:?}",
-                kind.key,
-                kind.id,
-                tier.key,
-                tier.range
             );
         }
     }
@@ -413,31 +418,6 @@ mod tests {
     }
 
     #[test]
-    fn test_tier_ranges_cover_all_ids() {
-        let t = Taxonomy::load();
-        for id in 1..=24u8 {
-            let tier = t.tiers.iter().find(|t| t.contains_id(id));
-            assert!(tier.is_some(), "ID {} is not covered by any tier range", id);
-        }
-    }
-
-    #[test]
-    fn test_tier_ranges_no_overlap() {
-        let t = Taxonomy::load();
-        for (i, tier_a) in t.tiers.iter().enumerate() {
-            for tier_b in t.tiers.iter().skip(i + 1) {
-                let overlap = (tier_a.range.0..=tier_a.range.1)
-                    .any(|id| tier_b.range.0 <= id && id <= tier_b.range.1);
-                assert!(
-                    !overlap,
-                    "Tier {} ({:?}) overlaps with tier {} ({:?})",
-                    tier_a.key, tier_a.range, tier_b.key, tier_b.range
-                );
-            }
-        }
-    }
-
-    #[test]
     fn test_kind_by_key() {
         let t = Taxonomy::load();
         let kind = t.kind_by_key("microservice");
@@ -456,29 +436,20 @@ mod tests {
     #[test]
     fn test_kinds_by_tier() {
         let t = Taxonomy::load();
-        let foundation_kinds = t.kinds_by_tier(KindTier::Foundation);
-        assert_eq!(
-            foundation_kinds.len(),
-            4,
-            "Foundation tier should have 4 kinds"
-        );
-
-        let standards_kinds = t.kinds_by_tier(KindTier::Standards);
-        assert_eq!(
-            standards_kinds.len(),
-            6,
-            "Standards tier should have 6 kinds"
-        );
-
-        let engines_kinds = t.kinds_by_tier(KindTier::Engines);
-        assert_eq!(engines_kinds.len(), 6, "Engines tier should have 6 kinds");
-
-        let ecosystem_kinds = t.kinds_by_tier(KindTier::Ecosystem);
-        assert_eq!(
-            ecosystem_kinds.len(),
-            8,
-            "Ecosystem tier should have 8 kinds"
-        );
+        // Verify each tier returns kinds and they all reference the correct tier
+        for tier_enum in KindTier::all() {
+            let kinds = t.kinds_by_tier(*tier_enum);
+            assert!(!kinds.is_empty(), "{} tier should have kinds", tier_enum);
+            for kind in &kinds {
+                assert_eq!(
+                    kind.tier,
+                    tier_enum.as_str(),
+                    "Kind {} should be in {} tier",
+                    kind.key,
+                    tier_enum
+                );
+            }
+        }
     }
 
     #[test]
@@ -532,8 +503,8 @@ mod tests {
             // display_order should fall back to id if not set
             let order = tier.display_order();
             assert!(
-                order >= 1 && order <= 4,
-                "Tier {} display_order {} should be 1-4",
+                order >= 1,
+                "Tier {} display_order {} should be positive",
                 tier.key,
                 order
             );
@@ -558,22 +529,30 @@ mod tests {
     fn test_tiers_by_display_order() {
         let t = Taxonomy::load();
         let ordered = t.tiers_by_display_order();
-        assert_eq!(ordered.len(), 4);
-        // First tier should be Foundation (display_order 1 or id 1)
-        assert_eq!(ordered[0].key, "foundation");
+        assert!(!ordered.is_empty(), "Should have tiers");
+        // Verify tiers are sorted by display_order
+        for i in 1..ordered.len() {
+            assert!(
+                ordered[i - 1].display_order() <= ordered[i].display_order(),
+                "Tiers should be sorted by display_order"
+            );
+        }
     }
 
     #[test]
     fn test_kinds_by_tier_ordered() {
         let t = Taxonomy::load();
-        let foundation_kinds = t.kinds_by_tier_ordered(KindTier::Foundation);
-        assert_eq!(foundation_kinds.len(), 4, "Foundation should have 4 kinds");
-        // Kinds should be sorted by display_order (falls back to id)
-        for i in 1..foundation_kinds.len() {
-            assert!(
-                foundation_kinds[i - 1].display_order() <= foundation_kinds[i].display_order(),
-                "Kinds should be sorted by display_order"
-            );
+        // Test ordering for each tier
+        for tier_enum in KindTier::all() {
+            let kinds = t.kinds_by_tier_ordered(*tier_enum);
+            // Kinds should be sorted by display_order (falls back to id)
+            for i in 1..kinds.len() {
+                assert!(
+                    kinds[i - 1].display_order() <= kinds[i].display_order(),
+                    "Kinds in {} should be sorted by display_order",
+                    tier_enum
+                );
+            }
         }
     }
 
@@ -584,11 +563,72 @@ mod tests {
             // display_order should fall back to id if not set
             let order = kind.display_order();
             assert!(
-                order >= 1 && order <= 24,
-                "Kind {} display_order {} should be 1-24",
+                order >= 1,
+                "Kind {} display_order {} should be positive",
                 kind.key,
                 order
             );
         }
+    }
+
+    #[test]
+    fn test_tier_assessment_scope_flags() {
+        let t = Taxonomy::load();
+
+        // Foundation: no assessments
+        let foundation = t.tier_def(KindTier::Foundation).unwrap();
+        assert!(!foundation.should_assess_frameworks());
+        assert!(!foundation.should_assess_databases());
+        assert!(!foundation.should_assess_testing());
+
+        // Standards: frameworks and testing only
+        let standards = t.tier_def(KindTier::Standards).unwrap();
+        assert!(standards.should_assess_frameworks());
+        assert!(!standards.should_assess_databases());
+        assert!(standards.should_assess_testing());
+
+        // Engines: all assessments
+        let engines = t.tier_def(KindTier::Engines).unwrap();
+        assert!(engines.should_assess_frameworks());
+        assert!(engines.should_assess_databases());
+        assert!(engines.should_assess_testing());
+
+        // Ecosystem: all assessments
+        let ecosystem = t.tier_def(KindTier::Ecosystem).unwrap();
+        assert!(ecosystem.should_assess_frameworks());
+        assert!(ecosystem.should_assess_databases());
+        assert!(ecosystem.should_assess_testing());
+
+        // Noncurrent: no assessments
+        let noncurrent = t.tier_def(KindTier::Noncurrent).unwrap();
+        assert!(!noncurrent.should_assess_frameworks());
+        assert!(!noncurrent.should_assess_databases());
+        assert!(!noncurrent.should_assess_testing());
+    }
+
+    #[test]
+    fn test_noncurrent_tier_kinds() {
+        let t = Taxonomy::load();
+        let noncurrent_kinds = t.kinds_by_tier(KindTier::Noncurrent);
+
+        let keys: Vec<&str> = noncurrent_kinds.iter().map(|k| k.key.as_str()).collect();
+        assert!(keys.contains(&"reference-example"));
+        assert!(keys.contains(&"experiment-sandbox"));
+        assert!(keys.contains(&"archival-fork"));
+        assert!(keys.contains(&"test-data-fixtures"));
+    }
+
+    #[test]
+    fn test_test_data_fixtures_kind() {
+        let t = Taxonomy::load();
+        let kind = t.kind_by_key("test-data-fixtures");
+        assert!(kind.is_some(), "Should find 'test-data-fixtures' kind");
+
+        let kind = kind.unwrap();
+        assert_eq!(kind.tier, "noncurrent");
+        assert_eq!(kind.backstage_type, "resource");
+        assert!(kind.matches_pattern("fixtures/users.json"));
+        assert!(kind.matches_pattern("testdata/sample.csv"));
+        assert!(kind.matches_pattern("db/seeds/users.sql"));
     }
 }

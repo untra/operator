@@ -41,29 +41,72 @@
 
   <ul class="sidebar-nav">
     <li><a href="/" >Home</a></li>
+    <li><a href="/getting-started/" >Getting Started</a></li>
     
-    <li>
-      <a href="/kanban/" >Kanban</a>
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/kanban/" >Kanban</a>
+          </li>
+          
+          <li>
+            <a href="/issue-types/" class="active">Issue Types</a>
+          </li>
+          
+          <li>
+            <a href="/tickets/" >Tickets</a>
+          </li>
+          
+          <li>
+            <a href="/agents/" >Agents</a>
+          </li>
+          
+          <li>
+            <a href="/tmux/" >Tmux</a>
+          </li>
+          
+        </ul>
+      </details>
     </li>
     
-    <li>
-      <a href="/issue-types/" class="active">Issue Types</a>
-    </li>
-    
-    <li>
-      <a href="/llm-tools/" >LLM Tools</a>
-    </li>
-    
-    <li>
-      <a href="/tickets/" >Tickets</a>
-    </li>
-    
-    <li>
-      <a href="/agents/" >Agents</a>
-    </li>
-    
-    <li>
-      <a href="/tmux/" >Tmux</a>
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/cli/" >CLI</a>
+          </li>
+          
+          <li>
+            <a href="/llm-tools/" >LLM Tools</a>
+          </li>
+          
+          <li>
+            <a href="/configuration/" >Configuration</a>
+          </li>
+          
+          <li>
+            <a href="/shortcuts/" >Shortcuts</a>
+          </li>
+          
+          <li>
+            <a href="/backstage/" >Backstage</a>
+          </li>
+          
+          <li>
+            <a href="/schemas/" >Schemas</a>
+          </li>
+          
+        </ul>
+      </details>
     </li>
     
   </ul>
@@ -71,7 +114,7 @@
   <div class="sidebar-footer">
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><b>Operator!</b> GitHub project</a></p>
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/issue-types/index.md"><small>View this page source on Github</small></a></p>
-    <small class="sidebar-nav-item">currently v0.1.5</small>
+    <small class="sidebar-nav-item">currently v0.1.6</small>
   </div>
 </nav>
 
@@ -82,18 +125,9 @@
   <h1 class="doc-title">Issue Types</h1>
   
 
-  <p>Operator supports four issue types, each with different priority levels and execution modes.</p>
+  <p>Operator supports five built-in issue types, organized into collections for different workflows. You can also define custom issue types and import from external kanban systems.</p>
 
-<h2 id="priority-order">Priority Order</h2>
-
-<ol>
-  <li><strong>INV</strong> (Investigation) - Highest priority</li>
-  <li><strong>FIX</strong> - Bug fixes</li>
-  <li><strong>FEAT</strong> - Features</li>
-  <li><strong>SPIKE</strong> - Research (lowest priority)</li>
-</ol>
-
-<h2 id="issue-type-details">Issue Type Details</h2>
+<h2 id="built-in-issue-types">Built-in Issue Types</h2>
 
 <h3 id="inv---investigation">INV - Investigation</h3>
 
@@ -127,7 +161,7 @@
 
 <h3 id="spike---research">SPIKE - Research</h3>
 
-<p><strong>Priority:</strong> 4 (lowest)
+<p><strong>Priority:</strong> 4
 <strong>Mode:</strong> Paired</p>
 
 <p>Spikes are for research, exploration, and proof-of-concept work. They require human interaction and discussion.</p>
@@ -135,9 +169,159 @@
 <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SPIKE-007-project-evaluate-new-framework.md
 </code></pre></div></div>
 
+<h3 id="task---general-task">TASK - General Task</h3>
+
+<p><strong>Priority:</strong> 5 (lowest)
+<strong>Mode:</strong> Autonomous</p>
+
+<p>Tasks are general work items that don’t fit other categories. Used in simple workflows or as a catch-all.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>TASK-099-project-update-dependencies.md
+</code></pre></div></div>
+
+<h2 id="collections">Collections</h2>
+
+<p>Collections are named groupings of issue types that define which types are available and their priority order. This allows teams to customize their workflow.</p>
+
+<h3 id="built-in-presets">Built-in Presets</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Preset</th>
+      <th>Issue Types</th>
+      <th>Priority Order</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">simple</code></td>
+      <td>TASK</td>
+      <td>TASK</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">dev_kanban</code></td>
+      <td>TASK, FEAT, FIX</td>
+      <td>FIX, FEAT, TASK</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">devops_kanban</code></td>
+      <td>TASK, SPIKE, INV, FEAT, FIX</td>
+      <td>INV, FIX, FEAT, SPIKE, TASK</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The default collection is <code class="language-plaintext highlighter-rouge">devops_kanban</code>.</p>
+
+<h3 id="using-collections">Using Collections</h3>
+
+<p>Collections can be activated via configuration:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># config.toml</span>
+<span class="k">[</span><span class="n">templates</span><span class="k">]</span>
+<span class="n">active_collection</span> <span class="o">=</span><span class="w"> </span><span class="s">"dev_kanban"</span>
+</code></pre></div></div>
+
+<p>Or create a custom collection in <code class="language-plaintext highlighter-rouge">.tickets/operator/issuetypes/collections.toml</code>:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">collections</span><span class="k">.</span><span class="n">agile</span><span class="k">]</span>
+<span class="n">name</span> <span class="o">=</span><span class="w"> </span><span class="s">"agile"</span>
+<span class="n">description</span> <span class="o">=</span><span class="w"> </span><span class="s">"Agile development workflow"</span>
+<span class="n">types</span> <span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">"STORY"</span><span class="p">,</span> <span class="s">"BUG"</span><span class="p">,</span> <span class="s">"TASK"</span><span class="p">,</span> <span class="s">"SPIKE"</span><span class="p">]</span>
+<span class="n">priority_order</span> <span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">"BUG"</span><span class="p">,</span> <span class="s">"STORY"</span><span class="p">,</span> <span class="s">"TASK"</span><span class="p">,</span> <span class="s">"SPIKE"</span><span class="p">]</span>
+</code></pre></div></div>
+
+<h2 id="custom-issue-types">Custom Issue Types</h2>
+
+<p>Define custom issue types in <code class="language-plaintext highlighter-rouge">.tickets/operator/issuetypes/</code>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.tickets/operator/issuetypes/
+  STORY.json           # User-defined type
+  BUG.json             # User-defined type
+  collections.toml     # Collection definitions
+  imports/             # Imported types from Jira/Linear
+</code></pre></div></div>
+
+<h3 id="issue-type-schema">Issue Type Schema</h3>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"STORY"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"User Story"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"A user-facing feature from the user's perspective"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"autonomous"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"glyph"</span><span class="p">:</span><span class="w"> </span><span class="s2">"S"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"color"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cyan"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"branch_prefix"</span><span class="p">:</span><span class="w"> </span><span class="s2">"story"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"project_required"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"fields"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"id"</span><span class="p">,</span><span class="w"> </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span><span class="p">,</span><span class="w"> </span><span class="nl">"required"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nl">"auto"</span><span class="p">:</span><span class="w"> </span><span class="s2">"id"</span><span class="p">},</span><span class="w">
+    </span><span class="p">{</span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"summary"</span><span class="p">,</span><span class="w"> </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span><span class="p">,</span><span class="w"> </span><span class="nl">"required"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nl">"default"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="p">},</span><span class="w">
+    </span><span class="p">{</span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"acceptance_criteria"</span><span class="p">,</span><span class="w"> </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span><span class="p">,</span><span class="w"> </span><span class="nl">"required"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">}</span><span class="w">
+  </span><span class="p">],</span><span class="w">
+  </span><span class="nl">"steps"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"plan"</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"outputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"acceptance_criteria"</span><span class="p">],</span><span class="w">
+      </span><span class="nl">"prompt"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Create a plan for this user story"</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"allowed_tools"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Read"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Grep"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Glob"</span><span class="p">]</span><span class="w">
+    </span><span class="p">},</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"implement"</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"outputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"code"</span><span class="p">],</span><span class="w">
+      </span><span class="nl">"prompt"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Implement the user story"</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"allowed_tools"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"*"</span><span class="p">]</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h2 id="importing-from-kanban-systems">Importing from Kanban Systems</h2>
+
+<p>Import issue types from Jira or Linear to use their type definitions locally.</p>
+
+<h3 id="environment-variables">Environment Variables</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Jira</span>
+<span class="nb">export </span><span class="nv">OPERATOR_JIRA_DOMAIN</span><span class="o">=</span>your-domain.atlassian.net
+<span class="nb">export </span><span class="nv">OPERATOR_JIRA_EMAIL</span><span class="o">=</span>you@example.com
+<span class="nb">export </span><span class="nv">OPERATOR_JIRA_TOKEN</span><span class="o">=</span>your-api-token
+
+<span class="c"># Linear</span>
+<span class="nb">export </span><span class="nv">OPERATOR_LINEAR_API_KEY</span><span class="o">=</span>lin_api_xxxxx
+</code></pre></div></div>
+
+<h3 id="imported-type-structure">Imported Type Structure</h3>
+
+<p>Imported types have fields from the external system but use a single default step:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"STORY"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Story"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Imported from Jira"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"autonomous"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"glyph"</span><span class="p">:</span><span class="w"> </span><span class="s2">"S"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"fields"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"id"</span><span class="p">,</span><span class="w"> </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span><span class="p">,</span><span class="w"> </span><span class="nl">"required"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nl">"auto"</span><span class="p">:</span><span class="w"> </span><span class="s2">"id"</span><span class="p">},</span><span class="w">
+    </span><span class="p">{</span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"summary"</span><span class="p">,</span><span class="w"> </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span><span class="p">,</span><span class="w"> </span><span class="nl">"required"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nl">"default"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="p">}</span><span class="w">
+  </span><span class="p">],</span><span class="w">
+  </span><span class="nl">"steps"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"execute"</span><span class="p">,</span><span class="w"> </span><span class="nl">"outputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w"> </span><span class="nl">"prompt"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Execute this task"</span><span class="p">,</span><span class="w"> </span><span class="nl">"allowed_tools"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"*"</span><span class="p">]}</span><span class="w">
+  </span><span class="p">],</span><span class="w">
+  </span><span class="nl">"source"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nl">"import"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nl">"provider"</span><span class="p">:</span><span class="w"> </span><span class="s2">"jira"</span><span class="p">,</span><span class="w"> </span><span class="nl">"project"</span><span class="p">:</span><span class="w"> </span><span class="s2">"MYPROJECT"</span><span class="p">}},</span><span class="w">
+  </span><span class="nl">"external_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"10001"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>Imported types are stored in:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.tickets/operator/issuetypes/imports/{provider}/{project}/
+  Story.json
+  Bug.json
+</code></pre></div></div>
+
 <h2 id="agent-modes">Agent Modes</h2>
 
-<h3 id="autonomous-mode-feat-fix">Autonomous Mode (FEAT, FIX)</h3>
+<h3 id="autonomous-mode-feat-fix-task">Autonomous Mode (FEAT, FIX, TASK)</h3>
 
 <ul>
   <li>Launch and monitor progress</li>
@@ -152,6 +336,108 @@
   <li>Tracks “awaiting input” states</li>
   <li>One paired agent at a time per operator</li>
 </ul>
+
+<h2 id="step-permissions">Step Permissions</h2>
+
+<p>Each step in an issue type can define permissions that control the LLM agent’s access to tools, directories, and MCP servers. Permissions are provider-agnostic and translated to the appropriate format for Claude, Gemini, or Codex at runtime.</p>
+
+<h3 id="permission-fields">Permission Fields</h3>
+
+<p>Steps can include these optional permission fields:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"build"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"outputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"code"</span><span class="p">],</span><span class="w">
+  </span><span class="nl">"prompt"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Implement the feature..."</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"allowed_tools"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Read"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Write"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Edit"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Bash"</span><span class="p">],</span><span class="w">
+  </span><span class="nl">"permissions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"tools"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"allow"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w"> </span><span class="nl">"tool"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Bash"</span><span class="p">,</span><span class="w"> </span><span class="nl">"pattern"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cargo:*"</span><span class="w"> </span><span class="p">},</span><span class="w">
+        </span><span class="p">{</span><span class="w"> </span><span class="nl">"tool"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Bash"</span><span class="p">,</span><span class="w"> </span><span class="nl">"pattern"</span><span class="p">:</span><span class="w"> </span><span class="s2">"npm:*"</span><span class="w"> </span><span class="p">}</span><span class="w">
+      </span><span class="p">],</span><span class="w">
+      </span><span class="nl">"deny"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w"> </span><span class="nl">"tool"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Bash"</span><span class="p">,</span><span class="w"> </span><span class="nl">"pattern"</span><span class="p">:</span><span class="w"> </span><span class="s2">"rm -rf:*"</span><span class="w"> </span><span class="p">},</span><span class="w">
+        </span><span class="p">{</span><span class="w"> </span><span class="nl">"tool"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Bash"</span><span class="p">,</span><span class="w"> </span><span class="nl">"pattern"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sudo:*"</span><span class="w"> </span><span class="p">}</span><span class="w">
+      </span><span class="p">]</span><span class="w">
+    </span><span class="p">},</span><span class="w">
+    </span><span class="nl">"directories"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"allow"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"../shared-libs/"</span><span class="p">],</span><span class="w">
+      </span><span class="nl">"deny"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"./.env"</span><span class="p">,</span><span class="w"> </span><span class="s2">"./secrets/"</span><span class="p">]</span><span class="w">
+    </span><span class="p">},</span><span class="w">
+    </span><span class="nl">"mcp_servers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"enable"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"memory"</span><span class="p">],</span><span class="w">
+      </span><span class="nl">"disable"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"filesystem"</span><span class="p">]</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"cli_args"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"claude"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"--output-format"</span><span class="p">,</span><span class="w"> </span><span class="s2">"json"</span><span class="p">],</span><span class="w">
+    </span><span class="nl">"gemini"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"--sandbox"</span><span class="p">,</span><span class="w"> </span><span class="s2">"docker"</span><span class="p">],</span><span class="w">
+    </span><span class="nl">"codex"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"--approval-policy"</span><span class="p">,</span><span class="w"> </span><span class="s2">"on-failure"</span><span class="p">]</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h3 id="permission-composition">Permission Composition</h3>
+
+<p>Step permissions are <strong>additive</strong> with project-level permissions:</p>
+
+<ol>
+  <li>Project permissions are loaded from <code class="language-plaintext highlighter-rouge">.operator/permissions.json</code></li>
+  <li>Step permissions are added to project permissions</li>
+  <li>Both allow and deny lists are concatenated</li>
+  <li>Custom flags: step values override project values for the same key</li>
+</ol>
+
+<h3 id="provider-translation">Provider Translation</h3>
+
+<p>Permissions are automatically translated to each provider’s format:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Provider</th>
+      <th>Config Format</th>
+      <th>Tool Syntax</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Claude</td>
+      <td>CLI flags</td>
+      <td><code class="language-plaintext highlighter-rouge">--allowedTools "Bash(cargo:*)"</code></td>
+    </tr>
+    <tr>
+      <td>Gemini</td>
+      <td><code class="language-plaintext highlighter-rouge">.gemini/settings.json</code></td>
+      <td><code class="language-plaintext highlighter-rouge">"ShellTool(cargo:*)"</code></td>
+    </tr>
+    <tr>
+      <td>Codex</td>
+      <td><code class="language-plaintext highlighter-rouge">.codex/config.toml</code></td>
+      <td><code class="language-plaintext highlighter-rouge">[tools.exec].allow_patterns</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="session-config-persistence">Session Config Persistence</h3>
+
+<p>All generated configs are stored for auditing at:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.tickets/operator/sessions/{ticket-id}/
+  claude-audit.txt
+  settings.json        # Gemini config
+  config.toml          # Codex config
+  launch-command.txt   # Full command used
+</code></pre></div></div>
+
+<h2 id="validation">Validation</h2>
+
+<p>When loading collections, Operator validates that all referenced issue types exist. Missing types are logged as warnings and skipped:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>WARN: Collection 'agile' references unknown type 'STORY', skipping
+</code></pre></div></div>
+
+<p>This allows collections to reference types that may not yet be defined, enabling gradual adoption.</p>
 
 </article>
 

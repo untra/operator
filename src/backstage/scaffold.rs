@@ -155,7 +155,8 @@ impl ScaffoldFile for PackageJsonGenerator {
   }},
   "workspaces": {{
     "packages": [
-      "packages/*"
+      "packages/*",
+      "packages/plugins/*"
     ]
   }},
   "devDependencies": {{
@@ -211,6 +212,12 @@ auth:
   providers:
     guest:
       dangerouslyAllowOutsideDevelopment: true
+
+# Proxy configuration for Operator REST API
+proxy:
+  '/operator':
+    target: 'http://localhost:7008'
+    changeOrigin: true
 
 catalog:
   rules:
@@ -497,6 +504,7 @@ impl ScaffoldFile for BackendPackageGenerator {
     "@backstage/plugin-auth-backend-module-guest-provider": "^0.1.0",
     "@backstage/plugin-catalog-backend": "^1.24.0",
     "@backstage/plugin-catalog-backend-module-scaffolder-entity-model": "^0.1.0",
+    "@backstage/plugin-proxy-backend": "^0.5.0",
     "better-sqlite3": "^9.0.0"
   },
   "devDependencies": {
@@ -533,24 +541,45 @@ impl ScaffoldFile for AppTsxGenerator {
         Ok(r#"/**
  * Operator Backstage Frontend
  *
- * Minimal catalog browser for local development.
+ * Catalog browser with issue types management.
  */
 
 import React from 'react';
-import { createApp } from '@backstage/app-defaults';
+import { Route } from 'react-router-dom';
+import { createApp, FlatRoutes } from '@backstage/app-defaults';
 import { catalogPlugin } from '@backstage/plugin-catalog';
+import {
+  issueTypesPlugin,
+  IssueTypesPage,
+  IssueTypeDetailPage,
+  IssueTypeFormPage,
+  CollectionsPage,
+} from '@operator/plugin-issuetypes';
 
 const app = createApp({
-  plugins: [catalogPlugin],
+  plugins: [catalogPlugin, issueTypesPlugin],
 });
 
 const AppProvider = app.getProvider();
 const AppRouter = app.getRouter();
 
+const routes = (
+  <FlatRoutes>
+    <Route path="/issuetypes" element={<IssueTypesPage />}>
+      <Route path="new" element={<IssueTypeFormPage />} />
+      <Route path="collections" element={<CollectionsPage />} />
+      <Route path=":key" element={<IssueTypeDetailPage />} />
+      <Route path=":key/edit" element={<IssueTypeFormPage />} />
+    </Route>
+  </FlatRoutes>
+);
+
 export default function App() {
   return (
     <AppProvider>
-      <AppRouter />
+      <AppRouter>
+        {routes}
+      </AppRouter>
     </AppProvider>
   );
 }
@@ -603,16 +632,19 @@ impl ScaffoldFile for BackendIndexTsGenerator {
  * Operator Backstage Backend
  *
  * Minimal Bun-based backend for local catalog browsing.
- * Stripped of enterprise features (techdocs, search, permissions).
+ * Includes proxy for Operator API integration.
  */
 
 import { createBackend } from '@backstage/backend-defaults';
 
 const backend = createBackend();
 
-// Core plugins only
+// Core plugins
 backend.add(import('@backstage/plugin-app-backend'));
 backend.add(import('@backstage/plugin-catalog-backend'));
+
+// Proxy for Operator REST API
+backend.add(import('@backstage/plugin-proxy-backend'));
 
 // Start the backend
 backend.start();
@@ -690,10 +722,43 @@ save = true
 // SCAFFOLD ORCHESTRATOR
 // =============================================================================
 
+/// Copy a directory recursively.
+fn copy_dir_recursive(src: &Path, dst: &Path, force: bool) -> Result<Vec<PathBuf>> {
+    let mut copied = Vec::new();
+
+    if !src.exists() {
+        return Ok(copied);
+    }
+
+    fs::create_dir_all(dst)?;
+
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+
+        if src_path.is_dir() {
+            let sub_copied = copy_dir_recursive(&src_path, &dst_path, force)?;
+            copied.extend(sub_copied);
+        } else {
+            // Skip if exists and not forcing
+            if dst_path.exists() && !force {
+                continue;
+            }
+            fs::copy(&src_path, &dst_path)?;
+            copied.push(dst_path);
+        }
+    }
+
+    Ok(copied)
+}
+
 /// The main scaffold generator.
 pub struct BackstageScaffold {
     output_dir: PathBuf,
     options: ScaffoldOptions,
+    /// Path to the operator source plugins directory (for copying)
+    plugins_source: Option<PathBuf>,
 }
 
 impl BackstageScaffold {
@@ -702,6 +767,20 @@ impl BackstageScaffold {
         Self {
             output_dir,
             options,
+            plugins_source: None,
+        }
+    }
+
+    /// Create a new scaffold generator with plugin source path.
+    pub fn with_plugins_source(
+        output_dir: PathBuf,
+        options: ScaffoldOptions,
+        plugins_source: PathBuf,
+    ) -> Self {
+        Self {
+            output_dir,
+            options,
+            plugins_source: Some(plugins_source),
         }
     }
 
@@ -729,6 +808,24 @@ impl BackstageScaffold {
             Box::new(TsConfigGenerator),
             Box::new(BunfigGenerator),
         ]
+    }
+
+    /// Copy plugins from source directory to scaffold output.
+    fn copy_plugins(&self, result: &mut ScaffoldResult) {
+        if let Some(plugins_source) = &self.plugins_source {
+            let plugins_dest = self.output_dir.join("packages/plugins");
+
+            match copy_dir_recursive(plugins_source, &plugins_dest, self.options.force) {
+                Ok(copied) => {
+                    result.created.extend(copied);
+                }
+                Err(e) => {
+                    result
+                        .errors
+                        .push((plugins_dest, format!("Failed to copy plugins: {}", e)));
+                }
+            }
+        }
     }
 
     /// Generate all scaffold files.
@@ -783,6 +880,9 @@ impl BackstageScaffold {
                 }
             }
         }
+
+        // Copy plugins directory if source is provided
+        self.copy_plugins(&mut result);
 
         Ok(result)
     }
@@ -851,13 +951,13 @@ mod tests {
     }
 
     #[test]
-    fn test_app_config_includes_all_24_kinds() {
+    fn test_app_config_includes_all_kinds() {
         let gen = AppConfigGenerator;
         let content = gen.generate(&ScaffoldOptions::default()).unwrap();
 
-        // Verify all 24 kinds are present
+        // Verify all kinds are present (flexible - works with any number)
         let taxonomy = Taxonomy::load();
-        assert_eq!(taxonomy.kinds.len(), 24);
+        assert!(!taxonomy.kinds.is_empty(), "Should have kinds");
         for kind in &taxonomy.kinds {
             assert!(content.contains(&kind.key), "Missing kind: {}", kind.key);
         }

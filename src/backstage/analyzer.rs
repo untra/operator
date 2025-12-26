@@ -77,13 +77,24 @@ pub struct ProjectAnalysis {
     pub file_stats: FileStats,
 }
 
-/// Kind assessment from the 24-Kind taxonomy.
+/// Kind assessment from the 25-Kind taxonomy.
 ///
 /// Maps to one of the Kinds defined in `taxonomy.toml`:
 /// - Foundation (1-4): infrastructure, identity-access, config-policy, monorepo-meta
 /// - Standards (5-10): design-system, software-library, proto-sdk, blueprint, security-tooling, compliance-audit
 /// - Engines (11-16): ml-model, data-etl, microservice, api-gateway, ui-frontend, internal-tool
-/// - Ecosystem (17-24): build-tool, e2e-test, docs-site, playbook, reference-example, cli-devtool, experiment-sandbox, archival-fork
+/// - Ecosystem (17-21): build-tool, e2e-test, docs-site, playbook, cli-devtool
+/// - Noncurrent (22-25): reference-example, experiment-sandbox, archival-fork, test-data-fixtures
+///
+/// ## Tier-Based Assessment Scoping
+///
+/// Not all assessment types apply to all tiers:
+/// - **Frameworks**: Assessed for Standards, Engines, Ecosystem (not Foundation, Noncurrent)
+/// - **Databases**: Assessed for Engines, Ecosystem (not Foundation, Standards, Noncurrent)
+/// - **Testing**: Assessed for Standards, Engines, Ecosystem (not Foundation, Noncurrent)
+///
+/// Foundation tier projects are pure infrastructure with no application-level code.
+/// Noncurrent tier projects are low-importance repos where detailed analysis is skipped.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct KindAssessment {
     /// Primary detected Kind key (e.g., "microservice", "ui-frontend")
@@ -463,7 +474,7 @@ impl ProjectAnalyzer {
             kind_assessment: KindAssessment {
                 primary_kind: "experiment-sandbox".to_string(),
                 confidence: 0.1,
-                tier: "ecosystem".to_string(),
+                tier: "noncurrent".to_string(),
                 matching_files: vec![],
                 alternatives: vec![],
             },
@@ -789,6 +800,7 @@ mod tests {
         let analysis = result.unwrap();
         assert_eq!(analysis.project_name, "test-project");
         assert_eq!(analysis.kind_assessment.primary_kind, "experiment-sandbox");
+        assert_eq!(analysis.kind_assessment.tier, "noncurrent");
         assert!(analysis.kind_assessment.confidence < 0.2);
     }
 

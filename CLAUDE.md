@@ -178,3 +178,49 @@ On startup, operator scans the configured projects directory for subdirectories 
 1. Run full validation: `cargo fmt && cargo clippy -- -D warnings && cargo test`
 2. Ensure all tests pass and no clippy warnings
 3. Commit with message: `{type}({project}): {summary}\n\nTicket: {ID}\n`
+
+## Auto-Documentation System
+
+Operator uses a schema-driven, code-derived documentation strategy to reduce maintenance burden. Documentation is auto-generated from structured source-of-truth files, ensuring docs stay in sync with code.
+
+### Source-of-Truth Files
+
+| File | Generates | Purpose |
+|------|-----------|---------|
+| `src/backstage/taxonomy.toml` | `docs/backstage/taxonomy.md` | 25 project Kinds across 5 tiers |
+| `src/templates/issuetype_schema.json` | `docs/schemas/issuetype.md` | Issue type structure (key, mode, fields, steps) |
+| `src/templates/ticket_metadata.schema.json` | `docs/schemas/metadata.md` | Ticket YAML frontmatter format |
+| `src/ui/keybindings.rs` | `docs/shortcuts/index.md` | Keyboard shortcuts by context |
+| `src/main.rs` + `src/env_vars.rs` | `docs/cli/index.md` | CLI commands and env vars |
+| `src/config.rs` | `docs/configuration/index.md` | Config structure (via schemars) |
+| `src/rest/` | `docs/schemas/openapi.json` | REST API spec (via utoipa) |
+
+### Regenerating Documentation
+
+```bash
+# Generate all documentation
+cargo run -- docs
+
+# Generate specific docs only
+cargo run -- docs --only taxonomy
+cargo run -- docs --only openapi
+cargo run -- docs --only config
+
+# Available generators: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi
+```
+
+### Auto-Generated File Headers
+
+All generated files include a header warning:
+
+```markdown
+<!-- AUTO-GENERATED FROM {source} - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+```
+
+### Adding New Generators
+
+1. Create a struct implementing `DocGenerator` trait in `src/docs_gen/`
+2. Implement `name()`, `source()`, `output_path()`, and `generate()`
+3. Register in `src/docs_gen/mod.rs` `generate_all()` function
+4. Add to CLI match in `src/main.rs` `cmd_docs()`

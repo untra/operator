@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keyboard Shortcuts | Operator Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Keyboard Shortcuts | Operator Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Keyboard Shortcuts" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="http://localhost:4000/shortcuts/" />
+<meta property="og:url" content="http://localhost:4000/shortcuts/" />
+<meta property="og:site_name" content="Operator Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Keyboard Shortcuts" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Keyboard Shortcuts","url":"http://localhost:4000/shortcuts/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.</p>
+    <p class="sidebar-tagline">A project by <b><a href="https://github.com/untra" target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    <li><a href="/getting-started/" >Getting Started</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/kanban/" >Kanban</a>
+          </li>
+          
+          <li>
+            <a href="/issue-types/" >Issue Types</a>
+          </li>
+          
+          <li>
+            <a href="/tickets/" >Tickets</a>
+          </li>
+          
+          <li>
+            <a href="/agents/" >Agents</a>
+          </li>
+          
+          <li>
+            <a href="/tmux/" >Tmux</a>
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/cli/" >CLI</a>
+          </li>
+          
+          <li>
+            <a href="/llm-tools/" >LLM Tools</a>
+          </li>
+          
+          <li>
+            <a href="/configuration/" >Configuration</a>
+          </li>
+          
+          <li>
+            <a href="/shortcuts/" class="active">Shortcuts</a>
+          </li>
+          
+          <li>
+            <a href="/backstage/" >Backstage</a>
+          </li>
+          
+          <li>
+            <a href="/schemas/" >Schemas</a>
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><b>Operator!</b> GitHub project</a></p>
+    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/shortcuts/index.md"><small>View this page source on Github</small></a></p>
+    <small class="sidebar-nav-item">currently v0.1.6</small>
+  </div>
+</nav>
+
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Keyboard Shortcuts</h1>
+  
+
+  <!-- AUTO-GENERATED FROM src/ui/keybindings.rs - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+<h1 id="keyboard-shortcuts">Keyboard Shortcuts</h1>
+
+<p>Operator uses vim-style keybindings for navigation and actions. This reference documents all available keyboard shortcuts.</p>
+
+<h2 id="quick-reference">Quick Reference</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+      <th>Context</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">q</code></td>
+      <td>Quit Operator</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">?</code></td>
+      <td>Toggle help</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Tab</code></td>
+      <td>Switch between panels</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">j/↓</code></td>
+      <td>Move down</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">k/↑</code></td>
+      <td>Move up</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Q</code></td>
+      <td>Focus Queue panel</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">A/a</code></td>
+      <td>Focus Agents panel</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Enter</code></td>
+      <td>Select / Confirm</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Esc</code></td>
+      <td>Cancel / Close</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">L/l</code></td>
+      <td>Launch selected ticket</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">P/p</code></td>
+      <td>Pause queue processing</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">R/r</code></td>
+      <td>Resume queue processing</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">S</code></td>
+      <td>Manual sync (rate limits + sessions)</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">W/w</code></td>
+      <td>Toggle Backstage server</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">V/v</code></td>
+      <td>Show session preview</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">C</code></td>
+      <td>Create new ticket</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">J</code></td>
+      <td>Open Projects menu</td>
+      <td>Dashboard</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">g</code></td>
+      <td>Scroll to top</td>
+      <td>Session Preview</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">G</code></td>
+      <td>Scroll to bottom</td>
+      <td>Session Preview</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">PgUp</code></td>
+      <td>Page up</td>
+      <td>Session Preview</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">PgDn</code></td>
+      <td>Page down</td>
+      <td>Session Preview</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Esc/q</code></td>
+      <td>Close preview</td>
+      <td>Session Preview</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Y/y</code></td>
+      <td>Launch agent</td>
+      <td>Launch Dialog</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">V/v</code></td>
+      <td>View ticket ($VISUAL or open)</td>
+      <td>Launch Dialog</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">E/e</code></td>
+      <td>Edit ticket ($EDITOR)</td>
+      <td>Launch Dialog</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">N/n</code></td>
+      <td>Cancel</td>
+      <td>Launch Dialog</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="dashboard">Dashboard</h2>
+
+<p>These shortcuts are available in the main dashboard view.</p>
+
+<h3 id="general">General</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">q</code></td>
+      <td>Quit Operator</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">?</code></td>
+      <td>Toggle help</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="navigation">Navigation</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Tab</code></td>
+      <td>Switch between panels</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">j/↓</code></td>
+      <td>Move down</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">k/↑</code></td>
+      <td>Move up</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Q</code></td>
+      <td>Focus Queue panel</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">A/a</code></td>
+      <td>Focus Agents panel</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="actions">Actions</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Enter</code></td>
+      <td>Select / Confirm</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Esc</code></td>
+      <td>Cancel / Close</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">L/l</code></td>
+      <td>Launch selected ticket</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">P/p</code></td>
+      <td>Pause queue processing</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">R/r</code></td>
+      <td>Resume queue processing</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">S</code></td>
+      <td>Manual sync (rate limits + sessions)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">W/w</code></td>
+      <td>Toggle Backstage server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">V/v</code></td>
+      <td>Show session preview</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="dialogs">Dialogs</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">C</code></td>
+      <td>Create new ticket</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">J</code></td>
+      <td>Open Projects menu</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="session-preview">Session Preview</h2>
+
+<p>These shortcuts are available when viewing a session preview.</p>
+
+<h3 id="navigation-1">Navigation</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">g</code></td>
+      <td>Scroll to top</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">G</code></td>
+      <td>Scroll to bottom</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">PgUp</code></td>
+      <td>Page up</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">PgDn</code></td>
+      <td>Page down</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="actions-1">Actions</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Esc/q</code></td>
+      <td>Close preview</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="launch-dialog">Launch Dialog</h2>
+
+<p>These shortcuts are available in the ticket launch confirmation dialog.</p>
+
+<h3 id="actions-2">Actions</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Y/y</code></td>
+      <td>Launch agent</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">V/v</code></td>
+      <td>View ticket ($VISUAL or open)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">E/e</code></td>
+      <td>Edit ticket ($EDITOR)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">N/n</code></td>
+      <td>Cancel</td>
+    </tr>
+  </tbody>
+</table>
+
+
+</article>
+
+  </main>
+</body>
+</html>

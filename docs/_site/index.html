@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Home | Operator Documentation</title>
+  <title>Operator! | Operator Documentation</title>
   <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
 
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/syntax.css">
 
   <!-- Begin Jekyll SEO tag v2.8.0 -->
-<title>Home | Operator Documentation</title>
+<title>Operator! | Operator Documentation</title>
 <meta name="generator" content="Jekyll v4.4.1" />
-<meta property="og:title" content="Home" />
+<meta property="og:title" content="Operator!" />
 <meta property="og:locale" content="en_US" />
 <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
 <meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
@@ -21,9 +21,9 @@
 <meta property="og:site_name" content="Operator Documentation" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary" />
-<meta property="twitter:title" content="Home" />
+<meta property="twitter:title" content="Operator!" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebSite","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Home","name":"Operator Documentation","url":"http://localhost:4000/"}</script>
+{"@context":"https://schema.org","@type":"WebSite","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Operator!","name":"Operator Documentation","url":"http://localhost:4000/"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -41,29 +41,72 @@
 
   <ul class="sidebar-nav">
     <li><a href="/" class="active">Home</a></li>
+    <li><a href="/getting-started/" >Getting Started</a></li>
     
-    <li>
-      <a href="/kanban/" >Kanban</a>
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/kanban/" >Kanban</a>
+          </li>
+          
+          <li>
+            <a href="/issue-types/" >Issue Types</a>
+          </li>
+          
+          <li>
+            <a href="/tickets/" >Tickets</a>
+          </li>
+          
+          <li>
+            <a href="/agents/" >Agents</a>
+          </li>
+          
+          <li>
+            <a href="/tmux/" >Tmux</a>
+          </li>
+          
+        </ul>
+      </details>
     </li>
     
-    <li>
-      <a href="/issue-types/" >Issue Types</a>
-    </li>
-    
-    <li>
-      <a href="/llm-tools/" >LLM Tools</a>
-    </li>
-    
-    <li>
-      <a href="/tickets/" >Tickets</a>
-    </li>
-    
-    <li>
-      <a href="/agents/" >Agents</a>
-    </li>
-    
-    <li>
-      <a href="/tmux/" >Tmux</a>
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/cli/" >CLI</a>
+          </li>
+          
+          <li>
+            <a href="/llm-tools/" >LLM Tools</a>
+          </li>
+          
+          <li>
+            <a href="/configuration/" >Configuration</a>
+          </li>
+          
+          <li>
+            <a href="/shortcuts/" >Shortcuts</a>
+          </li>
+          
+          <li>
+            <a href="/backstage/" >Backstage</a>
+          </li>
+          
+          <li>
+            <a href="/schemas/" >Schemas</a>
+          </li>
+          
+        </ul>
+      </details>
     </li>
     
   </ul>
@@ -71,7 +114,7 @@
   <div class="sidebar-footer">
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><b>Operator!</b> GitHub project</a></p>
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/index.md"><small>View this page source on Github</small></a></p>
-    <small class="sidebar-nav-item">currently v0.1.5</small>
+    <small class="sidebar-nav-item">currently v0.1.6</small>
   </div>
 </nav>
 
@@ -79,12 +122,10 @@
   <main class="content">
     <article class="doc">
   
-  <h1 class="doc-title">Home</h1>
+  <h1 class="doc-title">Operator!</h1>
   
 
-  <p>Welcome to the <strong>Operator</strong> documentation.</p>
-
-<p>Operator is a Rust TUI application for orchestrating Claude Code agents across multi-project codebases. It combines kanban-style ticket management with LLM tools and tmux terminals to create a powerful workflow for managing AI-assisted development.</p>
+  <p>Welcome friend! <strong>Operator!</strong> is a Rust TUI application for orchestrating Claude Code (and other llms) agents across multi-project codebases. It combines kanban-style ticket management with LLM tools and tmux terminals to create a powerful workflow for managing AI-assisted development.</p>
 
 <h2 id="what-is-operator">What is Operator?</h2>
 
@@ -95,15 +136,18 @@
   <li><strong>Launch LLM agents</strong> - Start Claude Code sessions with context from tickets</li>
   <li><strong>Track progress</strong> - Monitor agent status and completion in real-time</li>
   <li><strong>Coordinate work</strong> - Handle parallelism rules and project dependencies</li>
+  <li><strong>Enforce Standards</strong> - Define how work gets done, across your many software services</li>
+  <li><strong>Catalog your Code</strong> - Get the overview of your codebase, composed from project files</li>
 </ul>
 
 <h2 id="getting-started">Getting Started</h2>
 
 <ol>
-  <li>Install Operator</li>
-  <li>Configure your projects</li>
-  <li>Create tickets in <code class="language-plaintext highlighter-rouge">.tickets/queue/</code></li>
-  <li>Launch agents and watch them work</li>
+  <li>Install <code class="language-plaintext highlighter-rouge">Operator</code> (downloads page)</li>
+  <li>Configure your projects (J - project tasks)</li>
+  <li>Create issuetypes to make new work (w - ui from portal)</li>
+  <li>Create tickets in <code class="language-plaintext highlighter-rouge">.tickets/queue/</code> (kanban connectors)</li>
+  <li>Launch agents and watch them work (measuring success)</li>
 </ol>
 
 <h2 id="quick-links">Quick Links</h2>

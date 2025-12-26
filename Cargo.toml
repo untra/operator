@@ -31,6 +31,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 toml = "0.8"
+schemars = "0.8"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -59,6 +60,15 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 
 # Async traits
 async-trait = "0.1"
+
+# REST API
+axum = { version = "0.7", features = ["macros", "tokio", "tracing"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+http-body-util = "0.1"
+
+# OpenAPI documentation
+utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
 
 [dev-dependencies]
 tempfile = "3"

@@ -124,6 +124,75 @@ body {
   color: var(--color-cream);
 }
 
+/* Collapsible nav sections */
+.nav-section {
+  margin-bottom: 4px;
+}
+
+.nav-section details {
+  margin: 0;
+}
+
+.nav-parent {
+  display: block;
+  padding: 8px 12px;
+  background-color: var(--color-green-l1);
+  color: var(--color-cream);
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 4px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.nav-parent::-webkit-details-marker {
+  display: none;
+}
+
+.nav-parent:hover {
+  background-color: var(--color-green-l2);
+}
+
+.nav-parent::before {
+  content: "▸";
+  margin-right: 8px;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+details[open] .nav-parent::before {
+  transform: rotate(90deg);
+}
+
+.nav-children {
+  list-style: none;
+  padding: 4px 0 4px 12px;
+  margin: 0;
+}
+
+.nav-children li {
+  margin-bottom: 2px;
+}
+
+.nav-children a {
+  display: block;
+  padding: 6px 12px;
+  background-color: var(--color-green-l1);
+  color: var(--color-cream);
+  font-size: 0.875rem;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.nav-children a:hover {
+  background-color: var(--color-green-l2);
+}
+
+.nav-children a.active {
+  background-color: var(--color-green-l3);
+}
+
 .sidebar-footer {
   margin-top: 32px;
   padding-top: 16px;

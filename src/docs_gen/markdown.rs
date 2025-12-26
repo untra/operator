@@ -31,6 +31,8 @@ pub fn table(headers: &[&str], rows: &[Vec<String>]) -> String {
         output.push_str(" |\n");
     }
 
+    // Add trailing blank line for proper markdown block separation
+    output.push('\n');
     output
 }
 

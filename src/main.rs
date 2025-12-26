@@ -18,8 +18,10 @@ mod templates;
 
 mod agents;
 mod docs_gen;
+pub mod env_vars;
 mod notifications;
 mod queue;
+mod rest;
 mod ui;
 
 use agents::tmux::{SystemTmuxClient, TmuxClient, TmuxError};
@@ -80,7 +82,7 @@ fn print_tmux_error(err: &TmuxError) {
 #[command(name = "operator")]
 #[command(about = "Multi-agent orchestration dashboard for gbqr.us")]
 #[command(version)]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 
@@ -165,8 +167,15 @@ enum Commands {
         output: Option<String>,
 
         /// Only generate specific docs (taxonomy, issuetype, metadata)
-        #[arg(short, long)]
+        #[arg(short = 'g', long)]
         only: Option<String>,
+    },
+
+    /// Start the REST API server for issue type management
+    Api {
+        /// Port to listen on (default: 7008)
+        #[arg(short, long)]
+        port: Option<u16>,
     },
 }
 
@@ -215,6 +224,9 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Docs { output, only }) => {
             cmd_docs(&config, output, only)?;
+        }
+        Some(Commands::Api { port }) => {
+            cmd_api(&config, port).await?;
         }
         None => {
             // No subcommand = launch TUI dashboard
@@ -491,7 +503,7 @@ async fn cmd_create(
 }
 
 fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
-    use docs_gen::{issuetype, metadata, taxonomy, DocGenerator};
+    use docs_gen::{cli, config, issuetype, metadata, openapi, shortcuts, taxonomy, DocGenerator};
     use std::path::PathBuf;
 
     // Determine output directory (default: ./docs relative to current directory)
@@ -513,9 +525,21 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
         Some("metadata") => {
             vec![Box::new(metadata::MetadataSchemaDocGenerator)]
         }
+        Some("shortcuts") => {
+            vec![Box::new(shortcuts::ShortcutsDocGenerator)]
+        }
+        Some("cli") => {
+            vec![Box::new(cli::CliDocGenerator)]
+        }
+        Some("config") => {
+            vec![Box::new(config::ConfigDocGenerator)]
+        }
+        Some("openapi") => {
+            vec![Box::new(openapi::OpenApiDocGenerator)]
+        }
         Some(other) => {
             println!(
-                "Unknown generator: {}. Use: taxonomy, issuetype, metadata",
+                "Unknown generator: {}. Use: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi",
                 other
             );
             return Ok(());
@@ -526,6 +550,10 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
                 Box::new(taxonomy::TaxonomyDocGenerator),
                 Box::new(issuetype::IssuetypeSchemaDocGenerator),
                 Box::new(metadata::MetadataSchemaDocGenerator),
+                Box::new(shortcuts::ShortcutsDocGenerator),
+                Box::new(cli::CliDocGenerator),
+                Box::new(config::ConfigDocGenerator),
+                Box::new(openapi::OpenApiDocGenerator),
             ]
         }
     };
@@ -536,5 +564,26 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
     }
 
     println!("\nDocumentation generation complete.");
+    Ok(())
+}
+
+async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
+    let port = port.unwrap_or(config.rest_api.port);
+
+    println!("Starting REST API server...");
+    println!("  Port: {}", port);
+    println!("  Endpoints:");
+    println!("    GET  /api/v1/health           Health check");
+    println!("    GET  /api/v1/status           Server status");
+    println!("    GET  /api/v1/issuetypes       List issue types");
+    println!("    GET  /api/v1/issuetypes/:key  Get issue type");
+    println!("    POST /api/v1/issuetypes       Create issue type");
+    println!("    PUT  /api/v1/issuetypes/:key  Update issue type");
+    println!("    GET  /api/v1/collections      List collections");
+    println!();
+
+    let state = rest::ApiState::new(config.clone(), config.tickets_path());
+    rest::serve(state, port).await?;
+
     Ok(())
 }

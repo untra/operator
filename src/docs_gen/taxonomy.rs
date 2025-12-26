@@ -97,10 +97,12 @@ impl TaxonomyDocGenerator {
         let mut output = String::new();
 
         if let Some(t) = tier_def {
-            output.push_str(&heading(
-                2,
-                &format!("Tier: {} (Kinds {}-{})", t.name, t.range.0, t.range.1),
-            ));
+            let heading_text = if let Some((start, end)) = t.range {
+                format!("Tier: {} (Kinds {}-{})", t.name, start, end)
+            } else {
+                format!("Tier: {}", t.name)
+            };
+            output.push_str(&heading(2, &heading_text));
             output.push_str(&format!("{}\n\n", t.description));
         } else {
             output.push_str(&heading(2, &format!("Tier: {}", tier)));
@@ -232,14 +234,18 @@ mod tests {
         // Should have the main heading
         assert!(result.contains("# Project Taxonomy"));
 
-        // Should mention 24 kinds
-        assert!(result.contains("24 project Kinds"));
+        // Should mention project Kinds (flexible - any count)
+        assert!(result.contains("project Kinds"));
 
-        // Should have all tier headings
-        assert!(result.contains("## Tier: Foundation"));
-        assert!(result.contains("## Tier: Standards"));
-        assert!(result.contains("## Tier: Engines"));
-        assert!(result.contains("## Tier: Ecosystem"));
+        // Should have tier headings for each tier
+        let taxonomy = Taxonomy::load();
+        for tier in &taxonomy.tiers {
+            assert!(
+                result.contains(&format!("## Tier: {}", tier.name)),
+                "Missing tier heading for {}",
+                tier.name
+            );
+        }
 
         // Should have the quick reference table
         assert!(result.contains("## Quick Reference"));
@@ -252,8 +258,16 @@ mod tests {
         let taxonomy = Taxonomy::load();
         let table = generator.generate_summary_table(taxonomy);
 
-        // Should have 24 data rows plus header and separator
-        let line_count = table.lines().count();
-        assert_eq!(line_count, 26); // 1 header + 1 separator + 24 data rows
+        // Should have header + separator + data rows
+        // Count non-empty lines (excludes trailing blank line)
+        let line_count = table.lines().filter(|l| !l.is_empty()).count();
+        // At least: 1 header + 1 separator + number of kinds
+        let expected_min = 2 + taxonomy.kinds.len();
+        assert_eq!(
+            line_count,
+            expected_min,
+            "Table should have header + separator + {} data rows",
+            taxonomy.kinds.len()
+        );
     }
 }

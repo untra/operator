@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Taxonomy | Operator Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Project Taxonomy | Operator Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Project Taxonomy" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="http://localhost:4000/backstage/taxonomy/" />
+<meta property="og:url" content="http://localhost:4000/backstage/taxonomy/" />
+<meta property="og:site_name" content="Operator Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Project Taxonomy" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Project Taxonomy","url":"http://localhost:4000/backstage/taxonomy/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.</p>
+    <p class="sidebar-tagline">A project by <b><a href="https://github.com/untra" target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    <li><a href="/getting-started/" >Getting Started</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/kanban/" >Kanban</a>
+          </li>
+          
+          <li>
+            <a href="/issue-types/" >Issue Types</a>
+          </li>
+          
+          <li>
+            <a href="/tickets/" >Tickets</a>
+          </li>
+          
+          <li>
+            <a href="/agents/" >Agents</a>
+          </li>
+          
+          <li>
+            <a href="/tmux/" >Tmux</a>
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/cli/" >CLI</a>
+          </li>
+          
+          <li>
+            <a href="/llm-tools/" >LLM Tools</a>
+          </li>
+          
+          <li>
+            <a href="/configuration/" >Configuration</a>
+          </li>
+          
+          <li>
+            <a href="/shortcuts/" >Shortcuts</a>
+          </li>
+          
+          <li>
+            <a href="/backstage/" class="active">Backstage</a>
+          </li>
+          
+          <li>
+            <a href="/schemas/" >Schemas</a>
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><b>Operator!</b> GitHub project</a></p>
+    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/backstage/taxonomy.md"><small>View this page source on Github</small></a></p>
+    <small class="sidebar-nav-item">currently v0.1.6</small>
+  </div>
+</nav>
+
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Project Taxonomy</h1>
+  
+
+  <!-- AUTO-GENERATED FROM src/backstage/taxonomy.toml - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+<h1 id="project-taxonomy">Project Taxonomy</h1>
+
+<p>This document defines the <strong>25 project Kinds</strong> organized into <strong>5 tiers</strong>.</p>
+
+<p>Each Kind represents a category of project that can be cataloged in Backstage. The taxonomy is used by the <code class="language-plaintext highlighter-rouge">ASSESS</code> issue type to classify projects and generate <code class="language-plaintext highlighter-rouge">catalog-info.yaml</code> files.</p>
+
+<h2 id="version">Version</h2>
+
+<ul>
+  <li><strong>Version</strong>: <code class="language-plaintext highlighter-rouge">1.0.0</code></li>
+  <li><strong>Description</strong>: Operator project taxonomy for Backstage catalog</li>
+</ul>
+
+<h2 id="quick-reference">Quick Reference</h2>
+
+<p>All 24 Kinds at a glance:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Key</th>
+      <th>Name</th>
+      <th>Tier</th>
+      <th>Backstage Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><code class="language-plaintext highlighter-rouge">infrastructure</code></td>
+      <td>Infrastructure (IaC)</td>
+      <td>foundation</td>
+      <td><code class="language-plaintext highlighter-rouge">resource</code></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><code class="language-plaintext highlighter-rouge">identity-access</code></td>
+      <td>Identity &amp; Access (IAM)</td>
+      <td>foundation</td>
+      <td><code class="language-plaintext highlighter-rouge">resource</code></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><code class="language-plaintext highlighter-rouge">config-policy</code></td>
+      <td>Config &amp; Policy</td>
+      <td>foundation</td>
+      <td><code class="language-plaintext highlighter-rouge">resource</code></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><code class="language-plaintext highlighter-rouge">monorepo-meta</code></td>
+      <td>Monorepo / Meta</td>
+      <td>foundation</td>
+      <td><code class="language-plaintext highlighter-rouge">system</code></td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><code class="language-plaintext highlighter-rouge">design-system</code></td>
+      <td>Design Systems</td>
+      <td>standards</td>
+      <td><code class="language-plaintext highlighter-rouge">library</code></td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><code class="language-plaintext highlighter-rouge">software-library</code></td>
+      <td>Software Libraries</td>
+      <td>standards</td>
+      <td><code class="language-plaintext highlighter-rouge">library</code></td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td><code class="language-plaintext highlighter-rouge">proto-sdk</code></td>
+      <td>Proto / SDK</td>
+      <td>standards</td>
+      <td><code class="language-plaintext highlighter-rouge">api</code></td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td><code class="language-plaintext highlighter-rouge">blueprint</code></td>
+      <td>Blueprints</td>
+      <td>standards</td>
+      <td><code class="language-plaintext highlighter-rouge">template</code></td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td><code class="language-plaintext highlighter-rouge">security-tooling</code></td>
+      <td>Security Tooling</td>
+      <td>standards</td>
+      <td><code class="language-plaintext highlighter-rouge">tool</code></td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td><code class="language-plaintext highlighter-rouge">compliance-audit</code></td>
+      <td>Compliance / Audit</td>
+      <td>standards</td>
+      <td><code class="language-plaintext highlighter-rouge">documentation</code></td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td><code class="language-plaintext highlighter-rouge">ml-model</code></td>
+      <td>ML / Models</td>
+      <td>engines</td>
+      <td><code class="language-plaintext highlighter-rouge">service</code></td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td><code class="language-plaintext highlighter-rouge">data-etl</code></td>
+      <td>Data / ETL</td>
+      <td>engines</td>
+      <td><code class="language-plaintext highlighter-rouge">service</code></td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td><code class="language-plaintext highlighter-rouge">microservice</code></td>
+      <td>Microservices</td>
+      <td>engines</td>
+      <td><code class="language-plaintext highlighter-rouge">service</code></td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td><code class="language-plaintext highlighter-rouge">api-gateway</code></td>
+      <td>APIs / Gateways</td>
+      <td>engines</td>
+      <td><code class="language-plaintext highlighter-rouge">api</code></td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td><code class="language-plaintext highlighter-rouge">ui-frontend</code></td>
+      <td>UIs / Frontends</td>
+      <td>engines</td>
+      <td><code class="language-plaintext highlighter-rouge">website</code></td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td><code class="language-plaintext highlighter-rouge">internal-tool</code></td>
+      <td>Internal Tooling</td>
+      <td>engines</td>
+      <td><code class="language-plaintext highlighter-rouge">service</code></td>
+    </tr>
+    <tr>
+      <td>17</td>
+      <td><code class="language-plaintext highlighter-rouge">build-tool</code></td>
+      <td>Build Tools</td>
+      <td>ecosystem</td>
+      <td><code class="language-plaintext highlighter-rouge">tool</code></td>
+    </tr>
+    <tr>
+      <td>18</td>
+      <td><code class="language-plaintext highlighter-rouge">e2e-test</code></td>
+      <td>E2E Test Suites</td>
+      <td>ecosystem</td>
+      <td><code class="language-plaintext highlighter-rouge">tool</code></td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td><code class="language-plaintext highlighter-rouge">docs-site</code></td>
+      <td>Docs Sites</td>
+      <td>ecosystem</td>
+      <td><code class="language-plaintext highlighter-rouge">website</code></td>
+    </tr>
+    <tr>
+      <td>20</td>
+      <td><code class="language-plaintext highlighter-rouge">playbook</code></td>
+      <td>Internal Playbooks</td>
+      <td>ecosystem</td>
+      <td><code class="language-plaintext highlighter-rouge">documentation</code></td>
+    </tr>
+    <tr>
+      <td>21</td>
+      <td><code class="language-plaintext highlighter-rouge">cli-devtool</code></td>
+      <td>CLIs / Developer Tools</td>
+      <td>ecosystem</td>
+      <td><code class="language-plaintext highlighter-rouge">tool</code></td>
+    </tr>
+    <tr>
+      <td>22</td>
+      <td><code class="language-plaintext highlighter-rouge">reference-example</code></td>
+      <td>Reference / Example</td>
+      <td>noncurrent</td>
+      <td><code class="language-plaintext highlighter-rouge">documentation</code></td>
+    </tr>
+    <tr>
+      <td>23</td>
+      <td><code class="language-plaintext highlighter-rouge">experiment-sandbox</code></td>
+      <td>Experiment / Sandbox</td>
+      <td>noncurrent</td>
+      <td><code class="language-plaintext highlighter-rouge">service</code></td>
+    </tr>
+    <tr>
+      <td>24</td>
+      <td><code class="language-plaintext highlighter-rouge">archival-fork</code></td>
+      <td>Archival / Forks</td>
+      <td>noncurrent</td>
+      <td><code class="language-plaintext highlighter-rouge">library</code></td>
+    </tr>
+    <tr>
+      <td>25</td>
+      <td><code class="language-plaintext highlighter-rouge">test-data-fixtures</code></td>
+      <td>Test Data / Fixtures</td>
+      <td>noncurrent</td>
+      <td><code class="language-plaintext highlighter-rouge">resource</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="tier-foundation-kinds-1-4">Tier: Foundation (Kinds 1-4)</h2>
+
+<p>Infrastructure and platform foundations</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Key</th>
+      <th>Name</th>
+      <th>Stakeholder</th>
+      <th>Output</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><code class="language-plaintext highlighter-rouge">infrastructure</code></td>
+      <td>Infrastructure (IaC)</td>
+      <td>Platform/DevOps</td>
+      <td>Cloud Environment</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><code class="language-plaintext highlighter-rouge">identity-access</code></td>
+      <td>Identity &amp; Access (IAM)</td>
+      <td>SDET/SecOps</td>
+      <td>Permissions/Tokens</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><code class="language-plaintext highlighter-rouge">config-policy</code></td>
+      <td>Config &amp; Policy</td>
+      <td>Platform/DevOps</td>
+      <td>Runtime Behavior</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><code class="language-plaintext highlighter-rouge">monorepo-meta</code></td>
+      <td>Monorepo / Meta</td>
+      <td>Architect/Lead</td>
+      <td>Project Standards</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="1---infrastructure-iac">1 - Infrastructure (IaC)</h3>
+
+<p>Cloud resources and network (Terraform/CDK)</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">infrastructure</code></li>
+  <li><strong>Stakeholder</strong>: Platform/DevOps</li>
+  <li><strong>Primary Output</strong>: Cloud Environment</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">resource</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">*.tf</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.tfvars</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cdk.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cdk.context.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pulumi.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Pulumi.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cloudformation.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cloudformation.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">serverless.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">terraform.tfstate</code></li>
+</ul>
+
+<h3 id="2---identity--access-iam">2 - Identity &amp; Access (IAM)</h3>
+
+<p>Service accounts, secrets, and RBAC policies</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">identity-access</code></li>
+  <li><strong>Stakeholder</strong>: SDET/SecOps</li>
+  <li><strong>Primary Output</strong>: Permissions/Tokens</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">resource</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">iam-*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">iam-*.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">rbac*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">rbac*.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">policies/*.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">policies/*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">service-account*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.vault/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">vault-*.hcl</code></li>
+</ul>
+
+<h3 id="3---config--policy">3 - Config &amp; Policy</h3>
+
+<p>Global feature flags and environment manifests</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">config-policy</code></li>
+  <li><strong>Stakeholder</strong>: Platform/DevOps</li>
+  <li><strong>Primary Output</strong>: Runtime Behavior</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">resource</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">config/*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">config/*.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">config/*.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">environments/*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">environments/*.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.env.example</code></li>
+  <li><code class="language-plaintext highlighter-rouge">feature-flags.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">feature-flags.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">launchdarkly*.yaml</code></li>
+</ul>
+
+<h3 id="4---monorepo--meta">4 - Monorepo / Meta</h3>
+
+<p>Orchestration for projects and root standards</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">monorepo-meta</code></li>
+  <li><strong>Stakeholder</strong>: Architect/Lead</li>
+  <li><strong>Primary Output</strong>: Project Standards</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">system</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">nx.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">turbo.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">lerna.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pnpm-workspace.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">rush.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Cargo.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.github/CODEOWNERS</code></li>
+  <li><code class="language-plaintext highlighter-rouge">CLAUDE.md</code></li>
+  <li><code class="language-plaintext highlighter-rouge">CONTRIBUTING.md</code></li>
+</ul>
+
+<h2 id="tier-standards-kinds-5-10">Tier: Standards (Kinds 5-10)</h2>
+
+<p>Shared components and specifications</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Key</th>
+      <th>Name</th>
+      <th>Stakeholder</th>
+      <th>Output</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>5</td>
+      <td><code class="language-plaintext highlighter-rouge">design-system</code></td>
+      <td>Design Systems</td>
+      <td>Product/UX</td>
+      <td>Component Libraries</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><code class="language-plaintext highlighter-rouge">software-library</code></td>
+      <td>Software Libraries</td>
+      <td>Engineering</td>
+      <td>Versioned Packages</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td><code class="language-plaintext highlighter-rouge">proto-sdk</code></td>
+      <td>Proto / SDK</td>
+      <td>Engineering</td>
+      <td>Contract Libraries</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td><code class="language-plaintext highlighter-rouge">blueprint</code></td>
+      <td>Blueprints</td>
+      <td>Architect/Lead</td>
+      <td>Project Templates</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td><code class="language-plaintext highlighter-rouge">security-tooling</code></td>
+      <td>Security Tooling</td>
+      <td>SDET/SecOps</td>
+      <td>Security Reports</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td><code class="language-plaintext highlighter-rouge">compliance-audit</code></td>
+      <td>Compliance / Audit</td>
+      <td>SDET/SecOps</td>
+      <td>Compliance Proofs</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="5---design-systems">5 - Design Systems</h3>
+
+<p>Reusable UI components and brand tokens</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">design-system</code></li>
+  <li><strong>Stakeholder</strong>: Product/UX</li>
+  <li><strong>Primary Output</strong>: Component Libraries</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">library</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">tokens/*.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tokens/*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">design-tokens/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.storybook/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">stories/*.stories.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">components/*.stories.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">figma-tokens.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">style-dictionary.config.*</code></li>
+</ul>
+
+<h3 id="6---software-libraries">6 - Software Libraries</h3>
+
+<p>Reusable internal logic packages (Shared Utils)</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">software-library</code></li>
+  <li><strong>Stakeholder</strong>: Engineering</li>
+  <li><strong>Primary Output</strong>: Versioned Packages</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">library</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">lib/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">packages/*/package.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">crates/*/Cargo.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/lib.rs</code></li>
+  <li><code class="language-plaintext highlighter-rouge">index.ts</code></li>
+  <li><code class="language-plaintext highlighter-rouge">index.js</code></li>
+  <li><code class="language-plaintext highlighter-rouge">setup.py</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pyproject.toml</code></li>
+</ul>
+
+<h3 id="7---proto--sdk">7 - Proto / SDK</h3>
+
+<p>API contracts and generated client libraries</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">proto-sdk</code></li>
+  <li><strong>Stakeholder</strong>: Engineering</li>
+  <li><strong>Primary Output</strong>: Contract Libraries</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">api</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">*.proto</code></li>
+  <li><code class="language-plaintext highlighter-rouge">proto/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">protos/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">openapi.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">openapi.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">swagger.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">swagger.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">graphql.schema</code></li>
+  <li><code class="language-plaintext highlighter-rouge">schema.graphql</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.thrift</code></li>
+  <li><code class="language-plaintext highlighter-rouge">buf.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">buf.gen.yaml</code></li>
+</ul>
+
+<h3 id="8---blueprints">8 - Blueprints</h3>
+
+<p>Scaffolding templates for bootstrapping repos</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">blueprint</code></li>
+  <li><strong>Stakeholder</strong>: Architect/Lead</li>
+  <li><strong>Primary Output</strong>: Project Templates</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">template</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">template.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cookiecutter.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">copier.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">copier.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">yeoman-generator/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">skeleton/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">blueprint/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.scaffold/*</code></li>
+</ul>
+
+<h3 id="9---security-tooling">9 - Security Tooling</h3>
+
+<p>Custom scanners, audit scripts, and honeytokens</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">security-tooling</code></li>
+  <li><strong>Stakeholder</strong>: SDET/SecOps</li>
+  <li><strong>Primary Output</strong>: Security Reports</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">tool</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">security/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">audit/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">scanners/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.snyk</code></li>
+  <li><code class="language-plaintext highlighter-rouge">trivy.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">semgrep.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">semgrep.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.gitleaks.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">bandit.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">safety/*</code></li>
+</ul>
+
+<h3 id="10---compliance--audit">10 - Compliance / Audit</h3>
+
+<p>Evidence, snapshots, and regulatory reports</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">compliance-audit</code></li>
+  <li><strong>Stakeholder</strong>: SDET/SecOps</li>
+  <li><strong>Primary Output</strong>: Compliance Proofs</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">documentation</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">compliance/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">audit-logs/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">evidence/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">soc2/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">hipaa/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">gdpr/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pci-dss/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">attestations/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">controls/*.yaml</code></li>
+</ul>
+
+<h2 id="tier-engines-kinds-11-16">Tier: Engines (Kinds 11-16)</h2>
+
+<p>Core business logic and services</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Key</th>
+      <th>Name</th>
+      <th>Stakeholder</th>
+      <th>Output</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>11</td>
+      <td><code class="language-plaintext highlighter-rouge">ml-model</code></td>
+      <td>ML / Models</td>
+      <td>Data/ML</td>
+      <td>Model Artifacts</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td><code class="language-plaintext highlighter-rouge">data-etl</code></td>
+      <td>Data / ETL</td>
+      <td>Data/ML</td>
+      <td>Clean Datasets</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td><code class="language-plaintext highlighter-rouge">microservice</code></td>
+      <td>Microservices</td>
+      <td>Engineering</td>
+      <td>Running Binaries</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td><code class="language-plaintext highlighter-rouge">api-gateway</code></td>
+      <td>APIs / Gateways</td>
+      <td>Engineering</td>
+      <td>Network Endpoints</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td><code class="language-plaintext highlighter-rouge">ui-frontend</code></td>
+      <td>UIs / Frontends</td>
+      <td>Engineering</td>
+      <td>Web/Mobile Assets</td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td><code class="language-plaintext highlighter-rouge">internal-tool</code></td>
+      <td>Internal Tooling</td>
+      <td>Engineering</td>
+      <td>Operational Apps</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="11---ml--models">11 - ML / Models</h3>
+
+<p>Training scripts and model weight artifacts</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">ml-model</code></li>
+  <li><strong>Stakeholder</strong>: Data/ML</li>
+  <li><strong>Primary Output</strong>: Model Artifacts</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">service</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">model/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">models/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">training/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.h5</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.pt</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.pth</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.onnx</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.pkl</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mlflow.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">MLproject</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dvc.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dvc.lock</code></li>
+</ul>
+
+<h3 id="12---data--etl">12 - Data / ETL</h3>
+
+<p>Data transformation logic and SQL models</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">data-etl</code></li>
+  <li><strong>Stakeholder</strong>: Data/ML</li>
+  <li><strong>Primary Output</strong>: Clean Datasets</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">service</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">dbt_project.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">models/*.sql</code></li>
+  <li><code class="language-plaintext highlighter-rouge">transforms/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pipelines/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">airflow/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dags/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">prefect.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dagster.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">fivetran/*</code></li>
+</ul>
+
+<h3 id="13---microservices">13 - Microservices</h3>
+
+<p>Backend business logic and domain units</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">microservice</code></li>
+  <li><strong>Stakeholder</strong>: Engineering</li>
+  <li><strong>Primary Output</strong>: Running Binaries</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">service</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">src/main.rs</code></li>
+  <li><code class="language-plaintext highlighter-rouge">main.go</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cmd/main.go</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/main/java/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">main.py</code></li>
+  <li><code class="language-plaintext highlighter-rouge">app.py</code></li>
+  <li><code class="language-plaintext highlighter-rouge">server.ts</code></li>
+  <li><code class="language-plaintext highlighter-rouge">server.js</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Dockerfile</code></li>
+  <li><code class="language-plaintext highlighter-rouge">docker-compose.yml</code></li>
+</ul>
+
+<h3 id="14---apis--gateways">14 - APIs / Gateways</h3>
+
+<p>Entry points that route and protect traffic</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">api-gateway</code></li>
+  <li><strong>Stakeholder</strong>: Engineering</li>
+  <li><strong>Primary Output</strong>: Network Endpoints</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">api</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">gateway/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">api-gateway/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">kong.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">kong.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">nginx.conf</code></li>
+  <li><code class="language-plaintext highlighter-rouge">envoy.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">traefik.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">traefik.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">routes/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">api/*.yaml</code></li>
+</ul>
+
+<h3 id="15---uis--frontends">15 - UIs / Frontends</h3>
+
+<p>Web or mobile apps for end-user interaction</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">ui-frontend</code></li>
+  <li><strong>Stakeholder</strong>: Engineering</li>
+  <li><strong>Primary Output</strong>: Web/Mobile Assets</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">website</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">src/App.tsx</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/App.jsx</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/App.vue</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/App.svelte</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pages/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">app/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">next.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">nuxt.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">vite.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">angular.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">expo/*</code></li>
+</ul>
+
+<h3 id="16---internal-tooling">16 - Internal Tooling</h3>
+
+<p>Private apps for internal business operations</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">internal-tool</code></li>
+  <li><strong>Stakeholder</strong>: Engineering</li>
+  <li><strong>Primary Output</strong>: Operational Apps</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">service</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">admin/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">backoffice/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">internal/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dashboard/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">retool/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">metabase/*</code></li>
+</ul>
+
+<h2 id="tier-ecosystem-kinds-17-21">Tier: Ecosystem (Kinds 17-21)</h2>
+
+<p>Supporting tools and utilities</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Key</th>
+      <th>Name</th>
+      <th>Stakeholder</th>
+      <th>Output</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>17</td>
+      <td><code class="language-plaintext highlighter-rouge">build-tool</code></td>
+      <td>Build Tools</td>
+      <td>Platform/DevOps</td>
+      <td>Automated Pipelines</td>
+    </tr>
+    <tr>
+      <td>18</td>
+      <td><code class="language-plaintext highlighter-rouge">e2e-test</code></td>
+      <td>E2E Test Suites</td>
+      <td>SDET/SecOps</td>
+      <td>Quality Reports</td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td><code class="language-plaintext highlighter-rouge">docs-site</code></td>
+      <td>Docs Sites</td>
+      <td>Product/UX</td>
+      <td>Static Support Sites</td>
+    </tr>
+    <tr>
+      <td>20</td>
+      <td><code class="language-plaintext highlighter-rouge">playbook</code></td>
+      <td>Internal Playbooks</td>
+      <td>Platform/DevOps</td>
+      <td>Operational Guides</td>
+    </tr>
+    <tr>
+      <td>21</td>
+      <td><code class="language-plaintext highlighter-rouge">cli-devtool</code></td>
+      <td>CLIs / Developer Tools</td>
+      <td>Platform/DevOps</td>
+      <td>Developer UX Tools</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="17---build-tools">17 - Build Tools</h3>
+
+<p>CI/CD actions and custom build logic</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">build-tool</code></li>
+  <li><strong>Stakeholder</strong>: Platform/DevOps</li>
+  <li><strong>Primary Output</strong>: Automated Pipelines</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">tool</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">.github/workflows/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.github/actions/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.gitlab-ci.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Jenkinsfile</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.circleci/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">azure-pipelines.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">buildkite/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.drone.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Makefile</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Taskfile.yml</code></li>
+</ul>
+
+<h3 id="18---e2e-test-suites">18 - E2E Test Suites</h3>
+
+<p>Integration tests and smoke test runners</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">e2e-test</code></li>
+  <li><strong>Stakeholder</strong>: SDET/SecOps</li>
+  <li><strong>Primary Output</strong>: Quality Reports</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">tool</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">e2e/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tests/e2e/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">integration/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tests/integration/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">playwright.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cypress.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cypress/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">playwright/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">k6/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">locust/*</code></li>
+</ul>
+
+<h3 id="19---docs-sites">19 - Docs Sites</h3>
+
+<p>Documentation, tutorials, and references</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">docs-site</code></li>
+  <li><strong>Stakeholder</strong>: Product/UX</li>
+  <li><strong>Primary Output</strong>: Static Support Sites</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">website</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">docs/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">docusaurus.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mkdocs.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mkdocs.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">_config.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">hugo.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">hugo.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sphinx/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">conf.py</code></li>
+  <li><code class="language-plaintext highlighter-rouge">book.toml</code></li>
+</ul>
+
+<h3 id="20---internal-playbooks">20 - Internal Playbooks</h3>
+
+<p>Incident response and on-call runbooks</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">playbook</code></li>
+  <li><strong>Stakeholder</strong>: Platform/DevOps</li>
+  <li><strong>Primary Output</strong>: Operational Guides</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">documentation</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">playbooks/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">runbooks/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">oncall/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">incidents/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">postmortems/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sops/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">procedures/*</code></li>
+</ul>
+
+<h3 id="21---clis--developer-tools">21 - CLIs / Developer Tools</h3>
+
+<p>Productivity scripts and developer utilities</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">cli-devtool</code></li>
+  <li><strong>Stakeholder</strong>: Platform/DevOps</li>
+  <li><strong>Primary Output</strong>: Developer UX Tools</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">tool</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">cli/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">bin/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">scripts/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tools/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">devtools/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.sh</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Justfile</code></li>
+</ul>
+
+<h2 id="tier-noncurrent-kinds-22-25">Tier: Noncurrent (Kinds 22-25)</h2>
+
+<p>Repos of little product or operational importance (test data, examples, archives, forks)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Key</th>
+      <th>Name</th>
+      <th>Stakeholder</th>
+      <th>Output</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>22</td>
+      <td><code class="language-plaintext highlighter-rouge">reference-example</code></td>
+      <td>Reference / Example</td>
+      <td>Architect/Lead</td>
+      <td>Educational Code</td>
+    </tr>
+    <tr>
+      <td>23</td>
+      <td><code class="language-plaintext highlighter-rouge">experiment-sandbox</code></td>
+      <td>Experiment / Sandbox</td>
+      <td>Engineering</td>
+      <td>Discardable Code</td>
+    </tr>
+    <tr>
+      <td>24</td>
+      <td><code class="language-plaintext highlighter-rouge">archival-fork</code></td>
+      <td>Archival / Forks</td>
+      <td>SDET/SecOps</td>
+      <td>Historical/Vendor Code</td>
+    </tr>
+    <tr>
+      <td>25</td>
+      <td><code class="language-plaintext highlighter-rouge">test-data-fixtures</code></td>
+      <td>Test Data / Fixtures</td>
+      <td>SDET/SecOps</td>
+      <td>Test Data Assets</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="22---reference--example">22 - Reference / Example</h3>
+
+<p>Best-practice implementation examples</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">reference-example</code></li>
+  <li><strong>Stakeholder</strong>: Architect/Lead</li>
+  <li><strong>Primary Output</strong>: Educational Code</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">documentation</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">examples/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">samples/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">demo/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tutorials/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">quickstart/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">getting-started/*</code></li>
+</ul>
+
+<h3 id="23---experiment--sandbox">23 - Experiment / Sandbox</h3>
+
+<p>Proof-of-concepts and R&amp;D “spikes”</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">experiment-sandbox</code></li>
+  <li><strong>Stakeholder</strong>: Engineering</li>
+  <li><strong>Primary Output</strong>: Discardable Code</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">service</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">experiments/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sandbox/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">spikes/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">poc/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">proof-of-concept/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">scratch/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">playground/*</code></li>
+</ul>
+
+<h3 id="24---archival--forks">24 - Archival / Forks</h3>
+
+<p>Legacy code and forks of 3rd party repos</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">archival-fork</code></li>
+  <li><strong>Stakeholder</strong>: SDET/SecOps</li>
+  <li><strong>Primary Output</strong>: Historical/Vendor Code</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">library</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">vendor/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">third-party/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">3rdparty/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">external/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">archive/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">legacy/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">deprecated/*</code></li>
+</ul>
+
+<h3 id="25---test-data--fixtures">25 - Test Data / Fixtures</h3>
+
+<p>Repositories containing test data, fixtures, seed data, and mock datasets</p>
+
+<ul>
+  <li><strong>Key</strong>: <code class="language-plaintext highlighter-rouge">test-data-fixtures</code></li>
+  <li><strong>Stakeholder</strong>: SDET/SecOps</li>
+  <li><strong>Primary Output</strong>: Test Data Assets</li>
+  <li><strong>Backstage Type</strong>: <code class="language-plaintext highlighter-rouge">resource</code></li>
+</ul>
+
+<p><strong>Detection</strong> File Patterns:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">fixtures/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">testdata/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">test-data/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">seeds/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">seed-data/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mocks/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mock-data/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sample-data/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.fixtures.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.fixture.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.seed.sql</code></li>
+  <li><code class="language-plaintext highlighter-rouge">db/seeds/*</code></li>
+</ul>
+
+<h2 id="file-pattern-detection">File Pattern Detection</h2>
+
+<p>The taxonomy uses file pattern matching to suggest project Kinds. When analyzing a project, patterns are matched against file paths, and the Kind with the most matches is suggested.</p>
+
+<h3 id="pattern-syntax">Pattern Syntax</h3>
+
+<p>Patterns use glob syntax:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">*</code> - Match any characters except <code class="language-plaintext highlighter-rouge">/</code></li>
+  <li><code class="language-plaintext highlighter-rouge">**</code> - Match any characters including <code class="language-plaintext highlighter-rouge">/</code></li>
+  <li><code class="language-plaintext highlighter-rouge">?</code> - Match any single character</li>
+  <li><code class="language-plaintext highlighter-rouge">[abc]</code> - Match any character in brackets</li>
+</ul>
+
+<h3 id="all-patterns-by-kind">All Patterns by Kind</h3>
+
+<p><strong>Infrastructure (IaC)</strong> (<code class="language-plaintext highlighter-rouge">infrastructure</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">*.tf</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.tfvars</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cdk.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cdk.context.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pulumi.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Pulumi.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cloudformation.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cloudformation.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">serverless.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">terraform.tfstate</code></li>
+</ul>
+
+<p><strong>Identity &amp; Access (IAM)</strong> (<code class="language-plaintext highlighter-rouge">identity-access</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">iam-*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">iam-*.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">rbac*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">rbac*.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">policies/*.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">policies/*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">service-account*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.vault/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">vault-*.hcl</code></li>
+</ul>
+
+<p><strong>Config &amp; Policy</strong> (<code class="language-plaintext highlighter-rouge">config-policy</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">config/*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">config/*.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">config/*.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">environments/*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">environments/*.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.env.example</code></li>
+  <li><code class="language-plaintext highlighter-rouge">feature-flags.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">feature-flags.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">launchdarkly*.yaml</code></li>
+</ul>
+
+<p><strong>Monorepo / Meta</strong> (<code class="language-plaintext highlighter-rouge">monorepo-meta</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">nx.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">turbo.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">lerna.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pnpm-workspace.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">rush.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Cargo.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.github/CODEOWNERS</code></li>
+  <li><code class="language-plaintext highlighter-rouge">CLAUDE.md</code></li>
+  <li><code class="language-plaintext highlighter-rouge">CONTRIBUTING.md</code></li>
+</ul>
+
+<p><strong>Design Systems</strong> (<code class="language-plaintext highlighter-rouge">design-system</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">tokens/*.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tokens/*.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">design-tokens/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.storybook/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">stories/*.stories.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">components/*.stories.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">figma-tokens.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">style-dictionary.config.*</code></li>
+</ul>
+
+<p><strong>Software Libraries</strong> (<code class="language-plaintext highlighter-rouge">software-library</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">lib/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">packages/*/package.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">crates/*/Cargo.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/lib.rs</code></li>
+  <li><code class="language-plaintext highlighter-rouge">index.ts</code></li>
+  <li><code class="language-plaintext highlighter-rouge">index.js</code></li>
+  <li><code class="language-plaintext highlighter-rouge">setup.py</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pyproject.toml</code></li>
+</ul>
+
+<p><strong>Proto / SDK</strong> (<code class="language-plaintext highlighter-rouge">proto-sdk</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">*.proto</code></li>
+  <li><code class="language-plaintext highlighter-rouge">proto/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">protos/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">openapi.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">openapi.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">swagger.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">swagger.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">graphql.schema</code></li>
+  <li><code class="language-plaintext highlighter-rouge">schema.graphql</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.thrift</code></li>
+  <li><code class="language-plaintext highlighter-rouge">buf.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">buf.gen.yaml</code></li>
+</ul>
+
+<p><strong>Blueprints</strong> (<code class="language-plaintext highlighter-rouge">blueprint</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">template.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cookiecutter.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">copier.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">copier.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">yeoman-generator/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">skeleton/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">blueprint/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.scaffold/*</code></li>
+</ul>
+
+<p><strong>Security Tooling</strong> (<code class="language-plaintext highlighter-rouge">security-tooling</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">security/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">audit/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">scanners/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.snyk</code></li>
+  <li><code class="language-plaintext highlighter-rouge">trivy.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">semgrep.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">semgrep.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.gitleaks.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">bandit.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">safety/*</code></li>
+</ul>
+
+<p><strong>Compliance / Audit</strong> (<code class="language-plaintext highlighter-rouge">compliance-audit</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">compliance/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">audit-logs/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">evidence/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">soc2/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">hipaa/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">gdpr/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pci-dss/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">attestations/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">controls/*.yaml</code></li>
+</ul>
+
+<p><strong>ML / Models</strong> (<code class="language-plaintext highlighter-rouge">ml-model</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">model/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">models/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">training/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.h5</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.pt</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.pth</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.onnx</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.pkl</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mlflow.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">MLproject</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dvc.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dvc.lock</code></li>
+</ul>
+
+<p><strong>Data / ETL</strong> (<code class="language-plaintext highlighter-rouge">data-etl</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">dbt_project.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">models/*.sql</code></li>
+  <li><code class="language-plaintext highlighter-rouge">transforms/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pipelines/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">airflow/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dags/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">prefect.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dagster.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">fivetran/*</code></li>
+</ul>
+
+<p><strong>Microservices</strong> (<code class="language-plaintext highlighter-rouge">microservice</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">src/main.rs</code></li>
+  <li><code class="language-plaintext highlighter-rouge">main.go</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cmd/main.go</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/main/java/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">main.py</code></li>
+  <li><code class="language-plaintext highlighter-rouge">app.py</code></li>
+  <li><code class="language-plaintext highlighter-rouge">server.ts</code></li>
+  <li><code class="language-plaintext highlighter-rouge">server.js</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Dockerfile</code></li>
+  <li><code class="language-plaintext highlighter-rouge">docker-compose.yml</code></li>
+</ul>
+
+<p><strong>APIs / Gateways</strong> (<code class="language-plaintext highlighter-rouge">api-gateway</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">gateway/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">api-gateway/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">kong.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">kong.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">nginx.conf</code></li>
+  <li><code class="language-plaintext highlighter-rouge">envoy.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">traefik.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">traefik.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">routes/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">api/*.yaml</code></li>
+</ul>
+
+<p><strong>UIs / Frontends</strong> (<code class="language-plaintext highlighter-rouge">ui-frontend</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">src/App.tsx</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/App.jsx</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/App.vue</code></li>
+  <li><code class="language-plaintext highlighter-rouge">src/App.svelte</code></li>
+  <li><code class="language-plaintext highlighter-rouge">pages/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">app/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">next.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">nuxt.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">vite.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">angular.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">expo/*</code></li>
+</ul>
+
+<p><strong>Internal Tooling</strong> (<code class="language-plaintext highlighter-rouge">internal-tool</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">admin/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">backoffice/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">internal/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">dashboard/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">retool/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">metabase/*</code></li>
+</ul>
+
+<p><strong>Build Tools</strong> (<code class="language-plaintext highlighter-rouge">build-tool</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">.github/workflows/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.github/actions/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.gitlab-ci.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Jenkinsfile</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.circleci/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">azure-pipelines.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">buildkite/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">.drone.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Makefile</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Taskfile.yml</code></li>
+</ul>
+
+<p><strong>E2E Test Suites</strong> (<code class="language-plaintext highlighter-rouge">e2e-test</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">e2e/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tests/e2e/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">integration/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tests/integration/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">playwright.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cypress.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">cypress/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">playwright/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">k6/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">locust/*</code></li>
+</ul>
+
+<p><strong>Docs Sites</strong> (<code class="language-plaintext highlighter-rouge">docs-site</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">docs/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">docusaurus.config.*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mkdocs.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mkdocs.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">_config.yml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">hugo.toml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">hugo.yaml</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sphinx/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">conf.py</code></li>
+  <li><code class="language-plaintext highlighter-rouge">book.toml</code></li>
+</ul>
+
+<p><strong>Internal Playbooks</strong> (<code class="language-plaintext highlighter-rouge">playbook</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">playbooks/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">runbooks/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">oncall/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">incidents/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">postmortems/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sops/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">procedures/*</code></li>
+</ul>
+
+<p><strong>CLIs / Developer Tools</strong> (<code class="language-plaintext highlighter-rouge">cli-devtool</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">cli/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">bin/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">scripts/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tools/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">devtools/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.sh</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Justfile</code></li>
+</ul>
+
+<p><strong>Reference / Example</strong> (<code class="language-plaintext highlighter-rouge">reference-example</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">examples/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">samples/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">demo/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">tutorials/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">quickstart/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">getting-started/*</code></li>
+</ul>
+
+<p><strong>Experiment / Sandbox</strong> (<code class="language-plaintext highlighter-rouge">experiment-sandbox</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">experiments/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sandbox/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">spikes/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">poc/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">proof-of-concept/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">scratch/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">playground/*</code></li>
+</ul>
+
+<p><strong>Archival / Forks</strong> (<code class="language-plaintext highlighter-rouge">archival-fork</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">vendor/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">third-party/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">3rdparty/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">external/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">archive/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">legacy/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">deprecated/*</code></li>
+</ul>
+
+<p><strong>Test Data / Fixtures</strong> (<code class="language-plaintext highlighter-rouge">test-data-fixtures</code>):</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">fixtures/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">testdata/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">test-data/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">seeds/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">seed-data/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mocks/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mock-data/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sample-data/*</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.fixtures.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.fixture.json</code></li>
+  <li><code class="language-plaintext highlighter-rouge">*.seed.sql</code></li>
+  <li><code class="language-plaintext highlighter-rouge">db/seeds/*</code></li>
+</ul>
+
+<h2 id="backstage-type-mapping">Backstage Type Mapping</h2>
+
+<p>Each Kind maps to a Backstage catalog type:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Backstage Type</th>
+      <th>Kinds</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">api</code></td>
+      <td><code class="language-plaintext highlighter-rouge">proto-sdk</code>, <code class="language-plaintext highlighter-rouge">api-gateway</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">documentation</code></td>
+      <td><code class="language-plaintext highlighter-rouge">compliance-audit</code>, <code class="language-plaintext highlighter-rouge">playbook</code>, <code class="language-plaintext highlighter-rouge">reference-example</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">library</code></td>
+      <td><code class="language-plaintext highlighter-rouge">design-system</code>, <code class="language-plaintext highlighter-rouge">software-library</code>, <code class="language-plaintext highlighter-rouge">archival-fork</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">resource</code></td>
+      <td><code class="language-plaintext highlighter-rouge">infrastructure</code>, <code class="language-plaintext highlighter-rouge">identity-access</code>, <code class="language-plaintext highlighter-rouge">config-policy</code>, <code class="language-plaintext highlighter-rouge">test-data-fixtures</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">service</code></td>
+      <td><code class="language-plaintext highlighter-rouge">ml-model</code>, <code class="language-plaintext highlighter-rouge">data-etl</code>, <code class="language-plaintext highlighter-rouge">microservice</code>, <code class="language-plaintext highlighter-rouge">internal-tool</code>, <code class="language-plaintext highlighter-rouge">experiment-sandbox</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">system</code></td>
+      <td><code class="language-plaintext highlighter-rouge">monorepo-meta</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">template</code></td>
+      <td><code class="language-plaintext highlighter-rouge">blueprint</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tool</code></td>
+      <td><code class="language-plaintext highlighter-rouge">security-tooling</code>, <code class="language-plaintext highlighter-rouge">build-tool</code>, <code class="language-plaintext highlighter-rouge">e2e-test</code>, <code class="language-plaintext highlighter-rouge">cli-devtool</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">website</code></td>
+      <td><code class="language-plaintext highlighter-rouge">ui-frontend</code>, <code class="language-plaintext highlighter-rouge">docs-site</code></td>
+    </tr>
+  </tbody>
+</table>
+
+
+</article>
+
+  </main>
+</body>
+</html>

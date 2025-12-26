@@ -71,12 +71,12 @@
   "definitions": {
     "kindAssessment": {
       "type": "object",
-      "description": "Assessment of project Kind from the 24-Kind taxonomy",
+      "description": "Assessment of project Kind from the 25-Kind taxonomy",
       "required": ["primary_kind", "confidence", "tier", "matching_files"],
       "additionalProperties": false,
       "properties": {
         "primary_kind": {
-          "description": "Primary Kind key from taxonomy (24 Kinds across 4 tiers)",
+          "description": "Primary Kind key from taxonomy (25 Kinds across 5 tiers)",
           "oneOf": [
             {
               "type": "string",
@@ -101,10 +101,11 @@
                 "e2e-test",
                 "docs-site",
                 "playbook",
-                "reference-example",
                 "cli-devtool",
+                "reference-example",
                 "experiment-sandbox",
-                "archival-fork"
+                "archival-fork",
+                "test-data-fixtures"
               ]
             },
             {
@@ -122,7 +123,7 @@
         },
         "tier": {
           "type": "string",
-          "enum": ["foundation", "standards", "engines", "ecosystem"],
+          "enum": ["foundation", "standards", "engines", "ecosystem", "noncurrent"],
           "description": "Taxonomy tier"
         },
         "matching_files": {

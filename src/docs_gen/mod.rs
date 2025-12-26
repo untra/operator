@@ -8,12 +8,19 @@
 //! - Project taxonomy (24 Kinds from taxonomy.toml)
 //! - Issue type schemas (from issuetype_schema.json)
 //! - Ticket metadata schema (from ticket_metadata.schema.json)
+//! - Keyboard shortcuts (from keybindings registry)
+//! - CLI reference (from clap definitions and env vars registry)
+//! - Configuration reference (from config.rs via schemars)
 //!
 //! Generated docs include a header warning and are written to `docs/`.
 
+pub mod cli;
+pub mod config;
 pub mod issuetype;
 pub mod markdown;
 pub mod metadata;
+pub mod openapi;
+pub mod shortcuts;
 pub mod taxonomy;
 
 use anyhow::Result;
@@ -70,6 +77,10 @@ pub fn generate_all(docs_dir: &Path) -> Result<()> {
         Box::new(taxonomy::TaxonomyDocGenerator),
         Box::new(issuetype::IssuetypeSchemaDocGenerator),
         Box::new(metadata::MetadataSchemaDocGenerator),
+        Box::new(shortcuts::ShortcutsDocGenerator),
+        Box::new(cli::CliDocGenerator),
+        Box::new(config::ConfigDocGenerator),
+        Box::new(openapi::OpenApiDocGenerator),
     ];
 
     for generator in generators {

@@ -1,9 +1,10 @@
 use anyhow::{Context, Result};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use sysinfo::System;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Config {
     /// List of projects operator can assign work to
     #[serde(default)]
@@ -25,9 +26,11 @@ pub struct Config {
     pub llm_tools: LlmToolsConfig,
     #[serde(default)]
     pub backstage: BackstageConfig,
+    #[serde(default)]
+    pub rest_api: RestApiConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentsConfig {
     pub max_parallel: usize,
     pub cores_reserved: usize,
@@ -62,7 +65,7 @@ fn default_silence_threshold() -> u64 {
     30 // 30 seconds
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct NotificationsConfig {
     pub enabled: bool,
     pub on_agent_start: bool,
@@ -73,21 +76,21 @@ pub struct NotificationsConfig {
     pub sound: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct QueueConfig {
     pub auto_assign: bool,
     pub priority_order: Vec<String>,
     pub poll_interval_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PathsConfig {
     pub tickets: String,
     pub projects: String,
     pub state: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UiConfig {
     pub refresh_rate_ms: u64,
     pub completed_history_hours: u64,
@@ -96,7 +99,7 @@ pub struct UiConfig {
     pub panel_names: PanelNamesConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PanelNamesConfig {
     #[serde(default = "default_todo_name")]
     pub queue: String,
@@ -135,14 +138,14 @@ impl Default for PanelNamesConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LaunchConfig {
     pub confirm_autonomous: bool,
     pub confirm_paired: bool,
     pub launch_delay_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 pub struct TmuxConfig {
     /// Whether custom tmux config has been generated
     #[serde(default)]
@@ -150,7 +153,7 @@ pub struct TmuxConfig {
 }
 
 /// Backstage integration configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BackstageConfig {
     /// Whether Backstage integration is enabled
     #[serde(default = "default_backstage_enabled")]
@@ -197,8 +200,40 @@ impl Default for BackstageConfig {
     }
 }
 
+/// REST API server configuration
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RestApiConfig {
+    /// Whether the REST API is enabled
+    #[serde(default = "default_rest_enabled")]
+    pub enabled: bool,
+    /// Port for the REST API server
+    #[serde(default = "default_rest_port")]
+    pub port: u16,
+    /// CORS allowed origins (empty = allow all)
+    #[serde(default)]
+    pub cors_origins: Vec<String>,
+}
+
+fn default_rest_enabled() -> bool {
+    true
+}
+
+fn default_rest_port() -> u16 {
+    7008
+}
+
+impl Default for RestApiConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_rest_enabled(),
+            port: default_rest_port(),
+            cors_origins: Vec::new(),
+        }
+    }
+}
+
 /// LLM CLI tools configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 pub struct LlmToolsConfig {
     /// Detected CLI tools (populated on first startup)
     #[serde(default)]
@@ -215,7 +250,7 @@ pub struct LlmToolsConfig {
 }
 
 /// A detected CLI tool (e.g., claude binary)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DetectedTool {
     /// Tool name (e.g., "claude")
     pub name: String,
@@ -234,7 +269,7 @@ pub struct DetectedTool {
 }
 
 /// Tool capabilities
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 pub struct ToolCapabilities {
     /// Whether the tool supports session continuity via UUID
     #[serde(default)]
@@ -245,7 +280,7 @@ pub struct ToolCapabilities {
 }
 
 /// A {tool, model} pair that can be selected when launching tickets
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct LlmProvider {
     /// CLI tool name (e.g., "claude")
     pub tool: String,
@@ -257,7 +292,7 @@ pub struct LlmProvider {
 }
 
 /// Predefined issue type collections
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CollectionPreset {
     /// Simple tasks only: TASK
@@ -301,7 +336,7 @@ impl CollectionPreset {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TemplatesConfig {
     /// Named preset for issue type collection
     /// Options: simple, dev_kanban, devops_kanban, custom
@@ -328,7 +363,7 @@ impl Default for TemplatesConfig {
 }
 
 /// Logging configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LoggingConfig {
     /// Log level filter (trace, debug, info, warn, error)
     #[serde(default = "default_log_level")]
@@ -357,7 +392,7 @@ impl Default for LoggingConfig {
 }
 
 /// API integrations configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ApiConfig {
     /// Interval in seconds between PR status checks (default: 60)
     #[serde(default = "default_pr_check_interval")]
@@ -592,6 +627,7 @@ impl Default for Config {
             tmux: TmuxConfig::default(),
             llm_tools: LlmToolsConfig::default(),
             backstage: BackstageConfig::default(),
+            rest_api: RestApiConfig::default(),
         }
     }
 }

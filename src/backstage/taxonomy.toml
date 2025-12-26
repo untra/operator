@@ -28,6 +28,10 @@ description = "Infrastructure and platform foundations"
 icon = "layers"
 display_order = 1
 sidebar_label = "Foundation"
+# Assessment scope: Foundation is pure infra, no application-level detection
+assess_frameworks = false
+assess_databases = false
+assess_testing = false
 
 [[tiers]]
 id = 2
@@ -38,6 +42,10 @@ description = "Shared components and specifications"
 icon = "library"
 display_order = 2
 sidebar_label = "Standards"
+# Assessment scope: Libraries have frameworks and tests, rarely direct DB access
+assess_frameworks = true
+assess_databases = false
+assess_testing = true
 
 [[tiers]]
 id = 3
@@ -48,16 +56,38 @@ description = "Core business logic and services"
 icon = "server"
 display_order = 3
 sidebar_label = "Engines"
+# Assessment scope: Full-stack services need all detection
+assess_frameworks = true
+assess_databases = true
+assess_testing = true
 
 [[tiers]]
 id = 4
 key = "ecosystem"
 name = "Ecosystem"
-range = [17, 24]
+range = [17, 21]
 description = "Supporting tools and utilities"
 icon = "tools"
 display_order = 4
 sidebar_label = "Ecosystem"
+# Assessment scope: Tools may use any detection
+assess_frameworks = true
+assess_databases = true
+assess_testing = true
+
+[[tiers]]
+id = 5
+key = "noncurrent"
+name = "Noncurrent"
+range = [22, 25]
+description = "Repos of little product or operational importance (test data, examples, archives, forks)"
+icon = "archive"
+display_order = 5
+sidebar_label = "Noncurrent"
+# Assessment scope: Low-importance repos, skip detailed analysis
+assess_frameworks = false
+assess_databases = false
+assess_testing = false
 
 # =============================================================================
 # FOUNDATION TIER (1-4)
@@ -417,7 +447,7 @@ file_patterns = [
 backstage_type = "service"
 
 # =============================================================================
-# ECOSYSTEM TIER (17-24)
+# ECOSYSTEM TIER (17-21)
 # Supporting tools and utilities
 # =============================================================================
 
@@ -508,24 +538,6 @@ backstage_type = "documentation"
 
 [[kinds]]
 id = 21
-key = "reference-example"
-name = "Reference / Example"
-tier = "ecosystem"
-description = "Best-practice implementation examples"
-stakeholder = "Architect/Lead"
-output = "Educational Code"
-file_patterns = [
-    "examples/*",
-    "samples/*",
-    "demo/*",
-    "tutorials/*",
-    "quickstart/*",
-    "getting-started/*",
-]
-backstage_type = "documentation"
-
-[[kinds]]
-id = 22
 key = "cli-devtool"
 name = "CLIs / Developer Tools"
 tier = "ecosystem"
@@ -543,11 +555,34 @@ file_patterns = [
 ]
 backstage_type = "tool"
 
+# =============================================================================
+# NONCURRENT TIER (22-25)
+# Repos of little product or operational importance
+# =============================================================================
+
+[[kinds]]
+id = 22
+key = "reference-example"
+name = "Reference / Example"
+tier = "noncurrent"
+description = "Best-practice implementation examples"
+stakeholder = "Architect/Lead"
+output = "Educational Code"
+file_patterns = [
+    "examples/*",
+    "samples/*",
+    "demo/*",
+    "tutorials/*",
+    "quickstart/*",
+    "getting-started/*",
+]
+backstage_type = "documentation"
+
 [[kinds]]
 id = 23
 key = "experiment-sandbox"
 name = "Experiment / Sandbox"
-tier = "ecosystem"
+tier = "noncurrent"
 description = "Proof-of-concepts and R&D \"spikes\""
 stakeholder = "Engineering"
 output = "Discardable Code"
@@ -566,7 +601,7 @@ backstage_type = "service"
 id = 24
 key = "archival-fork"
 name = "Archival / Forks"
-tier = "ecosystem"
+tier = "noncurrent"
 description = "Legacy code and forks of 3rd party repos"
 stakeholder = "SDET/SecOps"
 output = "Historical/Vendor Code"
@@ -580,3 +615,27 @@ file_patterns = [
     "deprecated/*",
 ]
 backstage_type = "library"
+
+[[kinds]]
+id = 25
+key = "test-data-fixtures"
+name = "Test Data / Fixtures"
+tier = "noncurrent"
+description = "Repositories containing test data, fixtures, seed data, and mock datasets"
+stakeholder = "SDET/SecOps"
+output = "Test Data Assets"
+file_patterns = [
+    "fixtures/*",
+    "testdata/*",
+    "test-data/*",
+    "seeds/*",
+    "seed-data/*",
+    "mocks/*",
+    "mock-data/*",
+    "sample-data/*",
+    "*.fixtures.json",
+    "*.fixture.json",
+    "*.seed.sql",
+    "db/seeds/*",
+]
+backstage_type = "resource"

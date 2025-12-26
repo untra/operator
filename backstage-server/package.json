@@ -1,0 +1,60 @@
+{
+  "name": "operator-backstage",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "bun run --hot src/standalone.ts",
+    "start": "bun run src/standalone.ts",
+    "build": "bun run build:standalone",
+    "build:standalone": "bun build --compile --minify src/standalone.ts --outfile dist/backstage-server",
+    "build:backstage": "bun run build:frontend && bun run build:backend && bun run build:plugin",
+    "build:frontend": "cd packages/app && backstage-cli package build",
+    "build:backend": "cd packages/backend && backstage-cli package build",
+    "build:plugin": "cd packages/plugins/plugin-issuetypes && backstage-cli package build",
+    "lint": "eslint packages/*/src packages/plugins/*/src src --ext .ts,.tsx",
+    "lint:fix": "eslint packages/*/src packages/plugins/*/src src --ext .ts,.tsx --fix",
+    "lint:app": "eslint packages/app/src --ext .ts,.tsx",
+    "lint:backend": "eslint packages/backend/src --ext .ts,.tsx",
+    "lint:plugins": "eslint packages/plugins/*/src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:ci": "bun test --coverage",
+    "test:app": "bun test packages/app",
+    "test:backend": "bun test packages/backend",
+    "test:plugins": "bun test packages/plugins",
+    "knip": "knip"
+  },
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "packages/plugins/*"
+    ]
+  },
+  "devDependencies": {
+    "@backstage/cli": "^0.27.0",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "bun-types": "^1.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "knip": "^5.0.0",
+    "typescript": "^5.0.0"
+  },
+  "resolutions": {
+    "@types/react": "^18"
+  },
+  "overrides": {
+    "better-sqlite3": "npm:empty-npm-package@1.0.0",
+    "isolated-vm": "npm:empty-npm-package@1.0.0"
+  },
+  "dependencies": {
+    "hono": "^4.11.2"
+  }
+}

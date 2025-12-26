@@ -3,7 +3,7 @@ title: Agents
 layout: doc
 ---
 
-Agents are LLM-powered workers that execute tickets. Operator manages their lifecycle and coordinates their work.
+Agents are LLM-powered workers that execute tickets. <span class="operator-brand">Operator!</span> manages their lifecycle and coordinates their work.
 
 ## Agent Lifecycle
 
@@ -44,7 +44,7 @@ Used for: **INV**, **SPIKE**
 
 ## Parallelism
 
-Operator enforces parallelism rules:
+<span class="operator-brand">Operator!</span> enforces parallelism rules:
 
 ```
 Max agents = min(configured_max, cpu_cores - reserved)
@@ -58,7 +58,7 @@ Max agents = min(configured_max, cpu_cores - reserved)
 
 ## Tracking
 
-Operator tracks agents in real-time:
+<span class="operator-brand">Operator!</span> tracks agents in real-time:
 
 ```json
 {

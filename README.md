@@ -261,6 +261,44 @@ cargo test
 cargo build --release
 ```
 
+## Documentation
+
+Reference documentation is auto-generated from source-of-truth files to minimize maintenance.
+
+### Available References
+
+| Reference | Location | Source |
+|-----------|----------|--------|
+| CLI Commands | `docs/cli/` | clap definitions in `src/main.rs` |
+| Configuration | `docs/configuration/` | `src/config.rs` via schemars |
+| Keyboard Shortcuts | `docs/shortcuts/` | `src/ui/keybindings.rs` |
+| REST API (OpenAPI) | `docs/schemas/openapi.json` | utoipa annotations in `src/rest/` |
+| Issue Type Schema | `docs/schemas/issuetype.md` | `src/templates/issuetype_schema.json` |
+| Ticket Metadata Schema | `docs/schemas/metadata.md` | `src/templates/ticket_metadata.schema.json` |
+| Project Taxonomy | `docs/backstage/taxonomy.md` | `src/backstage/taxonomy.toml` |
+
+### Viewing Documentation
+
+```bash
+# Serve docs locally with Jekyll
+cd docs && bundle install && bundle exec jekyll serve
+# Visit http://localhost:4000
+
+# View OpenAPI spec with Swagger UI
+# After starting Jekyll, visit http://localhost:4000/schemas/api/
+```
+
+### Regenerating Documentation
+
+```bash
+# Regenerate all auto-generated docs
+cargo run -- docs
+
+# Regenerate specific docs
+cargo run -- docs --only openapi
+cargo run -- docs --only config
+```
+
 ## TODO
 
 * [ ] `--setup jira` option for jira sync for workspace setup

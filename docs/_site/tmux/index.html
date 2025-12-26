@@ -3,27 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tmux Sessions | Operator Documentation</title>
+  <title>Tmux Sessions | Operator! Documentation</title>
   <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
 
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/syntax.css">
 
   <!-- Begin Jekyll SEO tag v2.8.0 -->
-<title>Tmux Sessions | Operator Documentation</title>
+<title>Tmux Sessions | Operator! Documentation</title>
 <meta name="generator" content="Jekyll v4.4.1" />
 <meta property="og:title" content="Tmux Sessions" />
 <meta property="og:locale" content="en_US" />
 <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
 <meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
-<link rel="canonical" href="http://localhost:4000/tmux/" />
-<meta property="og:url" content="http://localhost:4000/tmux/" />
-<meta property="og:site_name" content="Operator Documentation" />
+<link rel="canonical" href="https://operator.untra.io/tmux/" />
+<meta property="og:url" content="https://operator.untra.io/tmux/" />
+<meta property="og:site_name" content="Operator! Documentation" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="Tmux Sessions" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Tmux Sessions","url":"http://localhost:4000/tmux/"}</script>
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Tmux Sessions","url":"https://operator.untra.io/tmux/"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -36,42 +36,86 @@
   <div class="sidebar-header">
     <a href="/" class="sidebar-title">Operator!</a>
     <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.</p>
-    <p class="sidebar-tagline">A project by <b><a href="https://github.com/untra" target="_blank">@untra</a></b></p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra" target="_blank">@untra</a></b></p>
   </div>
 
   <ul class="sidebar-nav">
     <li><a href="/" >Home</a></li>
+    <li><a href="/getting-started/" >Getting Started</a></li>
     
-    <li>
-      <a href="/kanban/" >Kanban</a>
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/kanban/" >Kanban</a>
+          </li>
+          
+          <li>
+            <a href="/issue-types/" >Issue Types</a>
+          </li>
+          
+          <li>
+            <a href="/tickets/" >Tickets</a>
+          </li>
+          
+          <li>
+            <a href="/agents/" >Agents</a>
+          </li>
+          
+          <li>
+            <a href="/tmux/" class="active">Tmux</a>
+          </li>
+          
+        </ul>
+      </details>
     </li>
     
-    <li>
-      <a href="/issue-types/" >Issue Types</a>
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            <a href="/cli/" >CLI</a>
+          </li>
+          
+          <li>
+            <a href="/llm-tools/" >LLM Tools</a>
+          </li>
+          
+          <li>
+            <a href="/configuration/" >Configuration</a>
+          </li>
+          
+          <li>
+            <a href="/shortcuts/" >Shortcuts</a>
+          </li>
+          
+          <li>
+            <a href="/backstage/" >Backstage</a>
+          </li>
+          
+          <li>
+            <a href="/schemas/" >Schemas</a>
+          </li>
+          
+        </ul>
+      </details>
     </li>
     
-    <li>
-      <a href="/llm-tools/" >LLM Tools</a>
-    </li>
-    
-    <li>
-      <a href="/tickets/" >Tickets</a>
-    </li>
-    
-    <li>
-      <a href="/agents/" >Agents</a>
-    </li>
-    
-    <li>
-      <a href="/tmux/" class="active">Tmux</a>
-    </li>
-    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
   </ul>
 
   <div class="sidebar-footer">
-    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><b>Operator!</b> GitHub project</a></p>
+    <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub project</a></p>
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/tmux/index.md"><small>View this page source on Github</small></a></p>
-    <small class="sidebar-nav-item">currently v0.1.5</small>
+    <small class="sidebar-nav-item">currently v0.1.6</small>
   </div>
 </nav>
 
@@ -94,19 +138,18 @@
 
 <h2 id="custom-configuration">Custom Configuration</h2>
 
-<p>Operator generates a custom <code class="language-plaintext highlighter-rouge">.tmux.conf</code> for managed sessions with:</p>
+<p><span class="operator-brand">Operator!</span> generates a custom <code class="language-plaintext highlighter-rouge">.tmux.conf</code> for managed sessions with:</p>
 
 <ul>
   <li>Easy detach binding (Ctrl+a)</li>
-  <li>Mouse support</li>
   <li>Increased scrollback</li>
-  <li>Custom status bar with agent stats</li>
-  <li>Operator color theme</li>
+  <li>Custom status bar with agent stats to nudge ya</li>
+  <li><span class="operator-brand">Operator!</span> centric color theme</li>
 </ul>
 
 <h2 id="color-theme">Color Theme</h2>
 
-<p>The tmux theme uses Operator’s salmon-based palette:</p>
+<p>The tmux theme uses <span class="operator-brand">Operator!’s</span> salmon-based palette:</p>
 
 <table>
   <thead>

@@ -3,7 +3,7 @@ title: Tickets
 layout: doc
 ---
 
-Tickets are the core unit of work in Operator. They describe tasks for LLM agents to complete.
+Tickets are the core unit of work in <span class="operator-brand">Operator!</span>. They describe tasks for LLM agents to complete.
 
 ## Ticket Format
 
@@ -55,7 +55,7 @@ See design mockup in Figma: [link]
 2. Follow the naming convention
 3. Add ticket content
 
-### Using Operator CLI
+### Using <span class="operator-brand">Operator!</span> CLI
 
 ```bash
 # Show current queue

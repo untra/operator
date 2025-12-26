@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gbqr.us/operator/ticket-metadata.schema.json",
+  "title": "Ticket Metadata Schema",
+  "description": "Schema for operator-tracked ticket metadata in YAML frontmatter. This schema documents the structure of ticket files used by the operator TUI.",
+  "type": "object",
+  "required": ["id", "status"],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Kanban ticket ID (e.g., FEAT-1234). Also used for tmux session name derivation.",
+      "pattern": "^[A-Z]+-\\d+$",
+      "examples": ["FEAT-1234", "FIX-5678", "SPIKE-0001", "INV-0042", "TASK-9999"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "running", "awaiting", "completed"],
+      "description": "Operator workflow status",
+      "default": "queued"
+    },
+    "step": {
+      "type": "string",
+      "description": "Current workflow step name (e.g., plan, build, code, test, deploy)",
+      "examples": ["plan", "build", "code", "test", "deploy", "explore", "summarize"]
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["P0-critical", "P1-high", "P2-medium", "P3-low"],
+      "description": "Ticket priority level",
+      "default": "P2-medium"
+    },
+    "project": {
+      "type": "string",
+      "description": "Target project name (subdirectory in projects root)",
+      "examples": ["gamesvc", "operator", "www", "iac"]
+    },
+    "created": {
+      "type": "string",
+      "format": "date",
+      "description": "Creation date in YYYY-MM-DD format (legacy, prefer createdDatetime)"
+    },
+    "createdDatetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 datetime when the ticket was created",
+      "examples": ["2024-12-25T14:30:00Z", "2024-12-25T09:15:00-05:00"]
+    },
+    "startedDatetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 datetime when work began on the ticket (moved to running status)",
+      "examples": ["2024-12-25T15:00:00Z"]
+    },
+    "completedDatetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 datetime when the ticket was completed",
+      "examples": ["2024-12-25T17:30:00Z"]
+    },
+    "branch": {
+      "type": "string",
+      "description": "Git branch name for this ticket (auto-generated from type and summary)",
+      "examples": ["feature/FEAT-1234-add-user-auth", "fix/FIX-5678-login-timeout"]
+    },
+    "sessions": {
+      "type": "object",
+      "description": "Step name to LLM session UUID mapping. Each step gets its own session ID for continuity.",
+      "additionalProperties": {
+        "type": "string",
+        "format": "uuid",
+        "description": "UUID for the LLM session at this step"
+      },
+      "examples": [
+        {
+          "plan": "550e8400-e29b-41d4-a716-446655440000",
+          "build": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        }
+      ]
+    },
+    "llm_task": {
+      "type": "object",
+      "description": "LLM task metadata for delegate mode integration",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "LLM task ID (e.g., Claude delegate mode task UUID)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "resolved"],
+          "description": "LLM task status"
+        },
+        "blocked_by": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of task IDs that must resolve before this task can proceed"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "id_derivations": {
+      "description": "The ticket ID is used to derive other identifiers:",
+      "properties": {
+        "tmux_session_name": {
+          "description": "Derived as: op-{id} (e.g., op-FEAT-1234)",
+          "pattern": "^op-[A-Z]+-\\d+$"
+        },
+        "git_branch": {
+          "description": "Derived as: {branch_prefix}/{id}-{summary-slug} (e.g., feature/FEAT-1234-add-auth)"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "FEAT-1234",
+      "status": "running",
+      "step": "build",
+      "priority": "P2-medium",
+      "project": "gamesvc",
+      "createdDatetime": "2024-12-25T14:30:00Z",
+      "startedDatetime": "2024-12-25T15:00:00Z",
+      "branch": "feature/FEAT-1234-add-user-auth",
+      "sessions": {
+        "plan": "550e8400-e29b-41d4-a716-446655440000",
+        "build": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+      }
+    },
+    {
+      "id": "SPIKE-0042",
+      "status": "completed",
+      "step": "summarize",
+      "priority": "P2-medium",
+      "project": "operator",
+      "createdDatetime": "2024-12-25T09:00:00Z",
+      "startedDatetime": "2024-12-25T10:00:00Z",
+      "completedDatetime": "2024-12-25T12:30:00Z",
+      "sessions": {
+        "explore": "abc12345-6789-0abc-def0-123456789abc"
+      },
+      "llm_task": {
+        "id": "def67890-1234-5678-9abc-def012345678",
+        "status": "resolved",
+        "blocked_by": []
+      }
+    }
+  ]
+}

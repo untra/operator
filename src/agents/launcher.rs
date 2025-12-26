@@ -10,9 +10,25 @@ use uuid::Uuid;
 use super::tmux::{sanitize_session_name, SystemTmuxClient, TmuxClient, TmuxError};
 use crate::config::Config;
 use crate::notifications;
+use crate::permissions::{
+    PermissionSet, ProjectPermissions, ProviderCliArgs, StepPermissions, TranslatorManager,
+};
 use crate::queue::{Queue, Ticket};
 use crate::state::State;
-use crate::templates::{schema::TemplateSchema, TemplateType};
+use crate::templates::{
+    schema::{PermissionMode, TemplateSchema},
+    TemplateType,
+};
+
+/// Step configuration extracted from template schema
+#[derive(Debug, Default)]
+struct StepConfig {
+    permissions: StepPermissions,
+    cli_args: ProviderCliArgs,
+    permission_mode: PermissionMode,
+    json_schema: Option<serde_json::Value>,
+    json_schema_file: Option<String>,
+}
 
 /// Session name prefix for operator-managed tmux sessions
 pub const SESSION_PREFIX: &str = "op-";
@@ -363,8 +379,14 @@ When done, move the ticket to completed."#,
         // Write prompt to file (avoids newline issues with tmux send-keys)
         let prompt_file = write_prompt_file(&self.config, &session_uuid, &full_prompt)?;
 
-        // Build command using the detected tool's template
-        let llm_cmd = self.build_llm_command(&model, &session_uuid, &prompt_file)?;
+        // Build command using the detected tool's template (with permissions)
+        let llm_cmd = self.build_llm_command_with_permissions(
+            &model,
+            &session_uuid,
+            &prompt_file,
+            Some(ticket),
+            Some(project_path),
+        )?;
 
         // Send the LLM command to the session
         if let Err(e) = self.tmux.send_keys(&session_name, &llm_cmd, true) {
@@ -450,24 +472,177 @@ When done, move the ticket to completed."#,
         session_id: &str,
         prompt_file: &std::path::Path,
     ) -> Result<String> {
+        self.build_llm_command_with_permissions(model, session_id, prompt_file, None, None)
+    }
+
+    /// Build the LLM command with optional step permissions
+    fn build_llm_command_with_permissions(
+        &self,
+        model: &str,
+        session_id: &str,
+        prompt_file: &std::path::Path,
+        ticket: Option<&Ticket>,
+        project_path: Option<&str>,
+    ) -> Result<String> {
         // Find the first detected tool (default to claude for backwards compatibility)
         let tool = self.config.llm_tools.detected.first().ok_or_else(|| {
             anyhow::anyhow!("No LLM tool detected. Install claude, gemini, or codex CLI.")
         })?;
 
         // Build model flag based on tool's arg_mapping
-        // For now, use a simple pattern - could be enhanced to use arg_mapping from config
         let model_flag = format!("--model {} ", model);
+
+        // Generate config flags from permissions
+        let config_flags = if let (Some(ticket), Some(project_path)) = (ticket, project_path) {
+            self.generate_config_flags(&tool.name, ticket, project_path, session_id)?
+        } else {
+            String::new()
+        };
 
         // Build command from template
         let cmd = tool
             .command_template
+            .replace("{{config_flags}}", &config_flags)
             .replace("{{model_flag}}", &model_flag)
             .replace("{{model}}", model)
             .replace("{{session_id}}", session_id)
             .replace("{{prompt_file}}", &prompt_file.display().to_string());
 
         Ok(cmd)
+    }
+
+    /// Generate config flags for the LLM command based on step permissions
+    fn generate_config_flags(
+        &self,
+        provider: &str,
+        ticket: &Ticket,
+        project_path: &str,
+        session_id: &str,
+    ) -> Result<String> {
+        // Load project permissions
+        let project_perms = self.load_project_permissions(project_path)?;
+
+        // Get step configuration from template
+        let step_config = self.get_step_config(ticket)?;
+
+        // Merge permissions (additive)
+        let merged = PermissionSet::merge(
+            &project_perms,
+            &step_config.permissions,
+            &step_config.cli_args,
+        );
+
+        // Create session directory for storing configs
+        let session_dir = self
+            .config
+            .tickets_path()
+            .join("operator")
+            .join("sessions")
+            .join(&ticket.id);
+        fs::create_dir_all(&session_dir)
+            .with_context(|| format!("Failed to create session dir: {:?}", session_dir))?;
+
+        // Generate config using translator
+        let translator = TranslatorManager::new();
+        let generated = translator.generate_config(provider, &merged, &session_dir)?;
+
+        // Save audit info
+        let audit_command = format!("Session: {}\nTicket: {}\n", session_id, ticket.id);
+        TranslatorManager::save_audit_info(&session_dir, provider, &generated, &audit_command)?;
+
+        // Build CLI flags
+        let mut cli_flags = generated.cli_flags;
+
+        // Claude-specific flags
+        if provider == "claude" {
+            // Add permission mode flag (if not default)
+            if step_config.permission_mode != PermissionMode::Default {
+                let mode_str = match step_config.permission_mode {
+                    PermissionMode::Default => "default",
+                    PermissionMode::Plan => "plan",
+                    PermissionMode::AcceptEdits => "acceptEdits",
+                    PermissionMode::Delegate => "delegate",
+                };
+                cli_flags.push("--permission-mode".to_string());
+                cli_flags.push(mode_str.to_string());
+            }
+
+            // Add JSON schema flag for structured output
+            // Inline jsonSchema takes precedence over jsonSchemaFile
+            if let Some(ref schema) = step_config.json_schema {
+                let schema_str =
+                    serde_json::to_string(schema).context("Failed to serialize JSON schema")?;
+                cli_flags.push("--json-schema".to_string());
+                cli_flags.push(schema_str);
+            } else if let Some(ref schema_file) = step_config.json_schema_file {
+                // Resolve path relative to project root
+                let schema_path = PathBuf::from(project_path).join(schema_file);
+                let schema_content = fs::read_to_string(&schema_path).with_context(|| {
+                    format!("Failed to read JSON schema file: {:?}", schema_path)
+                })?;
+                cli_flags.push("--json-schema".to_string());
+                cli_flags.push(schema_content);
+            }
+        }
+
+        // Format CLI flags as a space-separated string (with trailing space if non-empty)
+        if cli_flags.is_empty() {
+            Ok(String::new())
+        } else {
+            Ok(format!("{} ", cli_flags.join(" ")))
+        }
+    }
+
+    /// Load project-level permission settings from .operator/permissions.json
+    fn load_project_permissions(&self, project_path: &str) -> Result<StepPermissions> {
+        let permissions_path = PathBuf::from(project_path)
+            .join(".operator")
+            .join("permissions.json");
+
+        if permissions_path.exists() {
+            let content = fs::read_to_string(&permissions_path).with_context(|| {
+                format!("Failed to read permissions file: {:?}", permissions_path)
+            })?;
+            let proj_perms: ProjectPermissions =
+                serde_json::from_str(&content).with_context(|| {
+                    format!("Failed to parse permissions file: {:?}", permissions_path)
+                })?;
+            Ok(proj_perms.base)
+        } else {
+            // No project permissions file, use empty defaults
+            Ok(StepPermissions::default())
+        }
+    }
+
+    /// Get step-level configuration from the template schema
+    fn get_step_config(&self, ticket: &Ticket) -> Result<StepConfig> {
+        // Try to load template and get step configuration
+        let template = TemplateType::from_key(&ticket.ticket_type)
+            .and_then(|tt| TemplateSchema::from_json(tt.schema()).ok());
+
+        if let Some(schema) = template {
+            // Get the step name (use first step if not specified)
+            let step_name = if ticket.step.is_empty() {
+                schema.steps.first().map(|s| s.name.clone())
+            } else {
+                Some(ticket.step.clone())
+            };
+
+            if let Some(step_name) = step_name {
+                if let Some(step) = schema.get_step(&step_name) {
+                    return Ok(StepConfig {
+                        permissions: step.permissions.clone().unwrap_or_default(),
+                        cli_args: step.cli_args.clone().unwrap_or_default(),
+                        permission_mode: step.permission_mode.clone(),
+                        json_schema: step.json_schema.clone(),
+                        json_schema_file: step.json_schema_file.clone(),
+                    });
+                }
+            }
+        }
+
+        // No template or step found, use defaults
+        Ok(StepConfig::default())
     }
 }
 

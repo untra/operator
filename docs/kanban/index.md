@@ -3,7 +3,7 @@ title: Kanban Workflow
 layout: doc
 ---
 
-Operator uses a kanban-style workflow to manage tickets through their lifecycle.
+<span class="operator-brand">Operator!</span> uses a kanban-style workflow to manage tickets through their lifecycle.
 
 ## Ticket Lifecycle
 
@@ -25,7 +25,7 @@ New tickets are created in `.tickets/queue/`. They are sorted by:
 
 ### 2. Assignment
 
-When an agent slot is available, Operator:
+When an agent slot is available, <span class="operator-brand">Operator!</span>:
 1. Selects the next ticket by priority
 2. Prompts for launch confirmation
 3. Moves ticket to `in-progress/`
@@ -35,7 +35,7 @@ When an agent slot is available, Operator:
 While work is in progress:
 - Agent status is tracked
 - Progress notifications are sent
-- Operator monitors for completion or awaiting input
+- <span class="operator-brand">Operator!</span> monitors for completion or awaiting input
 
 ### 4. Completion
 
@@ -46,7 +46,7 @@ When work finishes:
 
 ## Parallelism Rules
 
-Operator enforces these rules for concurrent work:
+<span class="operator-brand">Operator!</span> enforces these rules for concurrent work:
 
 - **Max agents** = min(configured_max, cpu_cores - reserved_cores)
 - **Autonomous agents** (FEAT, FIX) can run in parallel on different projects

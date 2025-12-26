@@ -9,6 +9,7 @@ use ratatui::{
 };
 
 use crate::queue::Ticket;
+use crate::ui::keybindings::{shortcuts_by_category_for_context, ShortcutContext};
 
 /// Selection state for the confirm dialog
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -427,10 +428,10 @@ impl HelpDialog {
             return;
         }
 
-        let area = centered_rect(70, 70, frame.area());
+        let area = centered_rect(70, 80, frame.area());
         frame.render_widget(Clear, area);
 
-        let help_text = vec![
+        let mut help_text = vec![
             Line::from(Span::styled(
                 "Keyboard Shortcuts",
                 Style::default()
@@ -438,80 +439,74 @@ impl HelpDialog {
                     .fg(Color::Cyan),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("q      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Quit Operator"),
-            ]),
-            Line::from(vec![
-                Span::styled("Tab    ", Style::default().fg(Color::Yellow)),
-                Span::raw("Switch between panels"),
-            ]),
-            Line::from(vec![
-                Span::styled("j/k    ", Style::default().fg(Color::Yellow)),
-                Span::raw("Navigate within panel"),
-            ]),
-            Line::from(vec![
-                Span::styled("Enter  ", Style::default().fg(Color::Yellow)),
-                Span::raw("Select / confirm"),
-            ]),
-            Line::from(vec![
-                Span::styled("Esc    ", Style::default().fg(Color::Yellow)),
-                Span::raw("Cancel / close dialog"),
-            ]),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled("L      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Launch selected ticket"),
-            ]),
-            Line::from(vec![
-                Span::styled("C      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Create new ticket"),
-            ]),
-            Line::from(vec![
-                Span::styled("J      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Open Projects menu"),
-            ]),
-            Line::from(vec![
-                Span::styled("P      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Pause queue processing"),
-            ]),
-            Line::from(vec![
-                Span::styled("R      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Resume queue processing"),
-            ]),
-            Line::from(vec![
-                Span::styled("?      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Toggle this help"),
-            ]),
-            Line::from(""),
-            Line::from(Span::styled(
-                "In Launch Dialog:",
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Cyan),
-            )),
-            Line::from(vec![
-                Span::styled("Y      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Launch agent"),
-            ]),
-            Line::from(vec![
-                Span::styled("V      ", Style::default().fg(Color::Yellow)),
-                Span::raw("View ticket ($VISUAL or open)"),
-            ]),
-            Line::from(vec![
-                Span::styled("E      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Edit ticket ($EDITOR)"),
-            ]),
-            Line::from(vec![
-                Span::styled("N      ", Style::default().fg(Color::Yellow)),
-                Span::raw("Cancel"),
-            ]),
-            Line::from(""),
-            Line::from(Span::styled(
-                "Press any key to close",
-                Style::default().fg(Color::Gray),
-            )),
         ];
+
+        // Add global shortcuts grouped by category
+        for (category, shortcuts) in shortcuts_by_category_for_context(ShortcutContext::Global) {
+            // Add category header (skip for first category to keep it compact)
+            if category != crate::ui::keybindings::ShortcutCategory::General {
+                help_text.push(Line::from(""));
+            }
+
+            for shortcut in shortcuts {
+                help_text.push(Line::from(vec![
+                    Span::styled(
+                        shortcut.key_display_padded(),
+                        Style::default().fg(Color::Yellow),
+                    ),
+                    Span::raw(shortcut.description),
+                ]));
+            }
+        }
+
+        // Add Launch Dialog section
+        help_text.push(Line::from(""));
+        help_text.push(Line::from(Span::styled(
+            "In Launch Dialog:",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Cyan),
+        )));
+
+        for (_, shortcuts) in shortcuts_by_category_for_context(ShortcutContext::LaunchDialog) {
+            for shortcut in shortcuts {
+                help_text.push(Line::from(vec![
+                    Span::styled(
+                        shortcut.key_display_padded(),
+                        Style::default().fg(Color::Yellow),
+                    ),
+                    Span::raw(shortcut.description),
+                ]));
+            }
+        }
+
+        // Add Session Preview section
+        help_text.push(Line::from(""));
+        help_text.push(Line::from(Span::styled(
+            "In Session Preview:",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Cyan),
+        )));
+
+        for (_, shortcuts) in shortcuts_by_category_for_context(ShortcutContext::Preview) {
+            for shortcut in shortcuts {
+                help_text.push(Line::from(vec![
+                    Span::styled(
+                        shortcut.key_display_padded(),
+                        Style::default().fg(Color::Yellow),
+                    ),
+                    Span::raw(shortcut.description),
+                ]));
+            }
+        }
+
+        // Footer
+        help_text.push(Line::from(""));
+        help_text.push(Line::from(Span::styled(
+            "Press any key to close",
+            Style::default().fg(Color::Gray),
+        )));
 
         let help = Paragraph::new(help_text)
             .block(

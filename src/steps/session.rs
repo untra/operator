@@ -271,6 +271,7 @@ mod tests {
             step: "plan".to_string(),
             content: "Test content".to_string(),
             sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
         }
     }
 
@@ -284,6 +285,11 @@ mod tests {
             requires_review: false,
             on_reject: None,
             next_step: Some("implement".to_string()),
+            permissions: None,
+            cli_args: None,
+            permission_mode: crate::templates::schema::PermissionMode::Default,
+            json_schema: None,
+            json_schema_file: None,
         }
     }
 

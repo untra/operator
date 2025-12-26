@@ -1,6 +1,47 @@
-#![allow(dead_code)]
+//! # Deferred Module: PR Workflow Configuration
+//!
+//! **Status**: Complete implementation, not yet integrated into main application
+//!
+//! **Purpose**: Per-project PR configuration including branch naming patterns,
+//! PR title templates, merge strategies, and GitHub integration settings.
+//!
+//! **Integration Point**: Future `PRCreator` service that automates ticket→PR workflow
+//!
+//! **Milestone**: TBD - After ticket→PR automation workflow is defined
+//!
+//! ## Features
+//!
+//! - Branch pattern templates: `{type}/{id}-{slug}`
+//! - PR title formatting with ticket metadata
+//! - Handlebars-based PR body templates
+//! - Merge strategy configuration (squash, merge, rebase)
+//! - GitHub label and reviewer automation
+//! - `gh pr create` command generation
+//!
+//! ## Configuration File
+//!
+//! Projects define `.operator/pr-config.toml`:
+//!
+//! ```toml
+//! branch_pattern = "{type}/{id}-{slug}"
+//! title_format = "{type}({project}): {summary}"
+//! base_branch = "main"
+//! merge_strategy = "squash"
+//! labels = ["automated"]
+//! reviewers = ["teammate"]
+//! ```
+//!
+//! ## Usage When Integrated
+//!
+//! ```rust,ignore
+//! use crate::pr_config::PrConfig;
+//!
+//! let config = PrConfig::load_or_default(project_path);
+//! let branch = config.generate_branch_name(&ticket);
+//! let args = config.gh_create_args(&ticket, project_path)?;
+//! ```
 
-//! PR configuration module for project-specific pull request workflows
+#![allow(dead_code)] // DEFERRED: See module docs for integration plan
 
 use anyhow::{Context, Result};
 use handlebars::Handlebars;

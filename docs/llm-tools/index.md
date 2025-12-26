@@ -3,7 +3,7 @@ title: LLM Tools
 layout: doc
 ---
 
-Operator integrates with LLM tools like Claude Code to power AI-assisted development.
+<span class="operator-brand">Operator!</span> integrates with LLM tools like Claude Code to power AI-assisted development.
 
 ## Supported Tools
 
@@ -21,7 +21,7 @@ The primary LLM tool supported by Operator. Claude Code is a CLI tool that provi
 
 ### Launching Agents
 
-Operator launches Claude Code with project context:
+<span class="operator-brand">Operator!</span> launches Claude Code with project context:
 
 ```bash
 # macOS launch command
@@ -38,7 +38,7 @@ Tickets provide context to agents through:
 
 ### Monitoring
 
-Operator tracks agent status:
+<span class="operator-brand">Operator!</span> tracks agent status:
 
 - **Running** - Agent is actively working
 - **Awaiting Input** - Agent needs human response
@@ -47,7 +47,7 @@ Operator tracks agent status:
 
 ## Configuration
 
-Configure LLM tool settings in your Operator config:
+Configure LLM tool settings in your <span class="operator-brand">Operator!</span> config:
 
 ```toml
 [llm]

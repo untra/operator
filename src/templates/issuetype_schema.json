@@ -219,6 +219,146 @@
         "next_step": {
           "type": ["string", "null"],
           "description": "Name of the next step (null for final step)"
+        },
+        "permissions": {
+          "$ref": "#/definitions/stepPermissions",
+          "description": "Provider-agnostic permissions for this step, merged additively with project settings"
+        },
+        "cli_args": {
+          "$ref": "#/definitions/providerCliArgs",
+          "description": "Arbitrary CLI arguments per provider"
+        },
+        "permission_mode": {
+          "type": "string",
+          "enum": ["default", "plan", "acceptEdits", "delegate"],
+          "default": "default",
+          "description": "Preferred LLM permission mode for this step. Only applies to providers that support it (e.g., Claude). No-op for unsupported providers."
+        },
+        "jsonSchema": {
+          "type": "object",
+          "description": "Inline JSON schema for structured output. Claude-specific: sets --json-schema flag. Takes precedence over jsonSchemaFile if both are defined."
+        },
+        "jsonSchemaFile": {
+          "type": "string",
+          "description": "Path to a local JSON schema file for structured output, relative to the project root. Claude-specific: sets --json-schema flag."
+        }
+      }
+    },
+    "stepPermissions": {
+      "type": "object",
+      "description": "Provider-agnostic permissions for a step",
+      "additionalProperties": false,
+      "properties": {
+        "tools": {
+          "type": "object",
+          "description": "Tool-level allow/deny lists",
+          "additionalProperties": false,
+          "properties": {
+            "allow": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/toolPattern" },
+              "description": "Tools/patterns to allow (additive to project settings)"
+            },
+            "deny": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/toolPattern" },
+              "description": "Tools/patterns to deny (additive to project settings)"
+            }
+          }
+        },
+        "directories": {
+          "type": "object",
+          "description": "Directory-level allow/deny lists",
+          "additionalProperties": false,
+          "properties": {
+            "allow": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Additional directories to allow access to (glob patterns)"
+            },
+            "deny": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Directories to deny access to (glob patterns)"
+            }
+          }
+        },
+        "mcp_servers": {
+          "type": "object",
+          "description": "MCP server enable/disable configuration",
+          "additionalProperties": false,
+          "properties": {
+            "enable": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "MCP servers to enable for this step"
+            },
+            "disable": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "MCP servers to disable for this step"
+            }
+          }
+        },
+        "custom_flags": {
+          "type": "object",
+          "description": "Per-provider custom configuration flags",
+          "additionalProperties": false,
+          "properties": {
+            "claude": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Claude-specific configuration flags"
+            },
+            "gemini": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Gemini-specific configuration flags"
+            },
+            "codex": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Codex-specific configuration flags"
+            }
+          }
+        }
+      }
+    },
+    "toolPattern": {
+      "type": "object",
+      "description": "Provider-agnostic tool permission pattern",
+      "required": ["tool"],
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "type": "string",
+          "description": "Tool name: Read, Write, Edit, Bash, Glob, Grep, WebFetch, etc."
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Optional pattern for tool arguments (e.g., 'cargo test:*' for Bash)"
+        }
+      }
+    },
+    "providerCliArgs": {
+      "type": "object",
+      "description": "Arbitrary CLI arguments per provider",
+      "additionalProperties": false,
+      "properties": {
+        "claude": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "CLI arguments for Claude"
+        },
+        "gemini": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "CLI arguments for Gemini"
+        },
+        "codex": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "CLI arguments for Codex"
         }
       }
     }

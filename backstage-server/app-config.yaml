@@ -1,0 +1,45 @@
+app:
+  title: Operator Portal
+  baseUrl: http://localhost:7007
+
+organization:
+  name: Operator
+
+backend:
+  baseUrl: http://localhost:7007
+  listen:
+    port: ${PORT:-7007}
+  # Database disabled - using file-based catalog only
+  # database:
+  #   client: better-sqlite3
+  #   connection: ':memory:'
+
+auth:
+  providers:
+    guest:
+      dangerouslyAllowOutsideDevelopment: true
+
+# Proxy configuration for Operator REST API
+proxy:
+  '/operator':
+    target: 'http://localhost:7008'
+    changeOrigin: true
+
+catalog:
+  rules:
+    - allow:
+        - Component
+        - API
+        - Resource
+        - System
+        - Domain
+        - Location
+        - Template
+        - Group
+        - User
+  locations:
+    # Scan workspace for catalog-info.yaml files
+    - type: file
+      target: ../../**/catalog-info.yaml
+      rules:
+        - allow: [Component, API, Resource, System, Domain]

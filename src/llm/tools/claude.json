@@ -4,13 +4,19 @@
   "version_command": "claude --version",
   "capabilities": {
     "supports_sessions": true,
-    "supports_headless": false
+    "supports_headless": false,
+    "supports_config_override": true,
+    "supports_permission_mode": true,
+    "supports_json_schema": true
   },
   "model_aliases": ["opus", "sonnet", "haiku"],
   "arg_mapping": {
     "prompt": "-p",
     "model": "--model",
-    "session_id": "--session-id"
+    "session_id": "--session-id",
+    "permission_mode": "--permission-mode",
+    "json_schema": "--json-schema"
   },
-  "command_template": "claude {{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\""
+  "permission_modes": ["default", "plan", "acceptEdits", "delegate"],
+  "command_template": "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\""
 }

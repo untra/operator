@@ -338,6 +338,7 @@ mod tests {
             step: "plan".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
@@ -368,6 +369,7 @@ mod tests {
             step: "plan".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
@@ -398,6 +400,7 @@ mod tests {
             step: "implement".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-456", &health);
@@ -430,6 +433,7 @@ mod tests {
             step: "test".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-789", &health);

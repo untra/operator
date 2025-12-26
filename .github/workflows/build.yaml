@@ -26,6 +26,7 @@ env:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   lint-test:
@@ -65,15 +66,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            bun_target: bun-linux-x64
             artifact_name: operator-linux-x86_64
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
+            bun_target: bun-linux-arm64
             artifact_name: operator-linux-arm64
           - os: macos-15-intel
             target: x86_64-apple-darwin
+            bun_target: bun-darwin-x64
             artifact_name: operator-macos-x86_64
           - os: macos-14
             target: aarch64-apple-darwin
+            bun_target: bun-darwin-arm64
             artifact_name: operator-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
@@ -94,6 +99,40 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
 
+      # Check if backstage-server exists (Milestone 6)
+      - name: Check for backstage-server
+        id: backstage
+        run: |
+          if [ -d "backstage-server" ] && [ -f "backstage-server/package.json" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Install Bun (only if backstage-server exists)
+      - name: Install Bun
+        if: steps.backstage.outputs.exists == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Install backstage-server dependencies
+      - name: Install backstage dependencies
+        if: steps.backstage.outputs.exists == 'true'
+        run: |
+          cd backstage-server
+          bun install
+
+      # Compile backstage-server binary for target architecture
+      # Uses standalone.ts (Hono-based) which is compatible with bun build --compile
+      - name: Build backstage binary
+        if: steps.backstage.outputs.exists == 'true'
+        run: |
+          cd backstage-server
+          bun build --compile --minify src/standalone.ts \
+            --outfile ../target/backstage-server-${{ matrix.bun_target }}
+          ls -la ../target/backstage-server-*
+
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
 
@@ -106,6 +145,14 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}
+
+      # Upload backstage binary artifact
+      - name: Upload backstage artifact
+        if: steps.backstage.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backstage-server-${{ matrix.bun_target }}
+          path: target/backstage-server-${{ matrix.bun_target }}
 
   release:
     needs: build
@@ -157,7 +204,10 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
+          # Copy operator binaries
           find artifacts -type f -name 'operator-*' -exec cp {} release-assets/ \;
+          # Copy backstage-server binaries (if built)
+          find artifacts -type f -name 'backstage-server-*' -exec cp {} release-assets/ \; 2>/dev/null || true
           chmod +x release-assets/*
           ls -la release-assets/
 
@@ -169,3 +219,18 @@ jobs:
             --title "v${{ steps.version.outputs.version }}" \
             --generate-notes \
             release-assets/*
+
+  deploy-docs:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger docs workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'docs.yml',
+              ref: 'main'
+            })

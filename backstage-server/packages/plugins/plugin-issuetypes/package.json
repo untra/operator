@@ -1,0 +1,28 @@
+{
+  "name": "@operator/plugin-issuetypes",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "backstage": {
+    "role": "frontend-plugin"
+  },
+  "scripts": {
+    "start": "backstage-cli package start",
+    "build": "backstage-cli package build"
+  },
+  "dependencies": {
+    "@backstage/core-components": "^0.14.0",
+    "@backstage/core-plugin-api": "^1.9.0",
+    "@backstage/theme": "^0.5.0",
+    "react": "^18.2.0",
+    "react-router-dom": "^6.0.0"
+  },
+  "devDependencies": {
+    "@backstage/cli": "^0.27.0",
+    "@types/react": "^18"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
+  }
+}

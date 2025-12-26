@@ -1,0 +1,106 @@
+{
+  "$schema": "./issuetype_schema.json",
+  "key": "INIT",
+  "name": "Backstage Init",
+  "description": "Initialize Backstage deployment in workspace",
+  "mode": "paired",
+  "glyph": "%",
+  "color": "green",
+  "branch_prefix": "init",
+  "project_required": false,
+  "agent_prompt": "Review this workspace to create an agent for Backstage initialization. The agent scaffolds the Backstage directory structure in .tickets/operator/backstage/, configures app-config.yaml with project locations and guest authentication, and verifies Bun installation. It works in paired mode with the operator for configuration decisions. Output ONLY the agent system prompt.",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "workspace",
+      "description": "Workspace root path",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Path to workspace root",
+      "display_order": 1
+    },
+    {
+      "name": "branding_name",
+      "description": "Custom branding name for Backstage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "placeholder": "e.g., My Company Portal",
+      "display_order": 2
+    },
+    {
+      "name": "status",
+      "description": "Ticket status",
+      "type": "string",
+      "required": true,
+      "auto": "status",
+      "default": "queued",
+      "display_order": 3,
+      "user_editable": false
+    },
+    {
+      "name": "created",
+      "description": "Creation date",
+      "type": "date",
+      "required": true,
+      "auto": "date",
+      "display_order": 4,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Initialization description",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Initialize Backstage in workspace",
+      "max_length": 120,
+      "display_order": 5
+    }
+  ],
+  "steps": [
+    {
+      "name": "scaffold",
+      "display_name": "Scaffolding",
+      "outputs": ["code"],
+      "prompt": "Create the Backstage directory structure:\n\n1. Create `.tickets/operator/backstage/` directory\n2. Generate minimal `package.json` for Bun:\n   ```json\n   {\n     \"name\": \"backstage-local\",\n     \"scripts\": {\n       \"dev\": \"backstage-cli dev\",\n       \"start\": \"backstage-cli start\"\n     }\n   }\n   ```\n3. Create `packages/` directory structure\n4. Set up branding directory with defaults\n\nAsk operator for branding preferences if not specified.",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "requires_review": false,
+      "next_step": "configure"
+    },
+    {
+      "name": "configure",
+      "display_name": "Configuring",
+      "outputs": ["code"],
+      "prompt": "Configure Backstage for local development:\n\n1. Generate `app-config.yaml` with:\n   - Guest authentication (no login required)\n   - File-based catalog locations\n   - Local database (SQLite)\n2. Scan workspace for existing catalog-info.yaml files\n3. Add all discovered locations to config\n4. Configure branding if branding_name is set\n\nReview configuration with operator before proceeding.",
+      "allowed_tools": ["Read", "Write", "Glob"],
+      "requires_review": true,
+      "on_reject": {
+        "goto_step": "configure",
+        "prompt": "Revise configuration based on feedback: {{ rejection_reason }}"
+      },
+      "next_step": "verify"
+    },
+    {
+      "name": "verify",
+      "display_name": "Verifying",
+      "outputs": ["report"],
+      "prompt": "Verify the Backstage setup:\n\n1. Check Bun is installed: `bun --version`\n2. Install dependencies: `bun install`\n3. Verify configuration is valid\n4. Document setup in `.tickets/operator/backstage/README.md`\n5. Provide instructions for starting: `bun run dev`\n\nReport any issues that need manual resolution.",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "requires_review": true,
+      "on_reject": {
+        "goto_step": "scaffold",
+        "prompt": "Setup verification failed. Re-scaffold with feedback: {{ rejection_reason }}"
+      }
+    }
+  ]
+}

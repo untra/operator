@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/standalone.ts"],
+  "workspaces": {
+    "packages/app": {
+      "entry": ["src/index.tsx"]
+    },
+    "packages/backend": {
+      "entry": ["src/index.ts"]
+    },
+    "packages/plugins/plugin-issuetypes": {}
+  },
+  "ignore": [
+    "**/*.d.ts",
+    "**/dist/**"
+  ],
+  "ignoreDependencies": [
+    "@backstage/*"
+  ],
+  "ignoreExportsUsedInFile": true
+}

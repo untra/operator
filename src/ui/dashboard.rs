@@ -7,8 +7,10 @@ use ratatui::{
 
 use super::panels::{AgentsPanel, AwaitingPanel, CompletedPanel, HeaderBar, QueuePanel, StatusBar};
 use crate::api::RateLimitInfo;
+use crate::backstage::ServerStatus;
 use crate::config::Config;
 use crate::queue::Ticket;
+use crate::rest::RestApiStatus;
 use crate::state::{AgentState, CompletedTicket, OrphanSession};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +31,12 @@ pub struct Dashboard {
     pub max_agents: usize,
     /// Current rate limit info from AI provider
     pub rate_limit: Option<RateLimitInfo>,
+    /// Backstage server status
+    pub backstage_status: ServerStatus,
+    /// REST API server status
+    pub rest_api_status: RestApiStatus,
+    /// Exit confirmation mode (first Ctrl+C pressed)
+    pub exit_confirmation_mode: bool,
 }
 
 impl Dashboard {
@@ -42,11 +50,26 @@ impl Dashboard {
             paused: false,
             max_agents: config.effective_max_agents(),
             rate_limit: None,
+            backstage_status: ServerStatus::Stopped,
+            rest_api_status: RestApiStatus::Stopped,
+            exit_confirmation_mode: false,
         }
     }
 
     pub fn update_rate_limit(&mut self, rate_limit: Option<RateLimitInfo>) {
         self.rate_limit = rate_limit;
+    }
+
+    pub fn update_backstage_status(&mut self, status: ServerStatus) {
+        self.backstage_status = status;
+    }
+
+    pub fn update_rest_api_status(&mut self, status: RestApiStatus) {
+        self.rest_api_status = status;
+    }
+
+    pub fn update_exit_confirmation_mode(&mut self, mode: bool) {
+        self.exit_confirmation_mode = mode;
     }
 
     pub fn update_queue(&mut self, tickets: Vec<Ticket>) {
@@ -83,7 +106,7 @@ impl Dashboard {
 
         // Header with rate limit meter
         let header = HeaderBar {
-            version: "0.1.0",
+            version: env!("CARGO_PKG_VERSION"),
             rate_limit: self.rate_limit.as_ref(),
         };
         header.render(frame, chunks[0]);
@@ -127,6 +150,9 @@ impl Dashboard {
             paused: self.paused,
             agent_count: self.agents_panel.agents.len() + self.awaiting_panel.agents.len(),
             max_agents: self.max_agents,
+            backstage_status: self.backstage_status.clone(),
+            rest_api_status: self.rest_api_status.clone(),
+            exit_confirmation_mode: self.exit_confirmation_mode,
         };
         status.render(frame, chunks[2]);
     }
@@ -287,5 +313,32 @@ impl Dashboard {
     /// Get the selected orphan session (from agents panel, below the fold)
     pub fn selected_orphan(&self) -> Option<&OrphanSession> {
         self.agents_panel.selected_orphan()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_version_matches_cargo_toml() {
+        // env! is evaluated at compile time from Cargo.toml
+        let version = env!("CARGO_PKG_VERSION");
+        assert!(!version.is_empty(), "Version should not be empty");
+
+        // Verify semver format (major.minor.patch)
+        let parts: Vec<&str> = version.split('.').collect();
+        assert!(
+            parts.len() >= 2,
+            "Version should have at least major.minor format"
+        );
+
+        // All parts should be numeric (except possible pre-release suffix)
+        for part in parts.iter().take(3) {
+            let numeric_part: &str = part.split('-').next().unwrap_or(part);
+            assert!(
+                numeric_part.parse::<u32>().is_ok(),
+                "Version component '{}' should be numeric",
+                part
+            );
+        }
     }
 }

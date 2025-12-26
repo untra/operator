@@ -1,9 +1,10 @@
 use anyhow::{Context, Result};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use sysinfo::System;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Config {
     /// List of projects operator can assign work to
     #[serde(default)]
@@ -23,9 +24,13 @@ pub struct Config {
     pub tmux: TmuxConfig,
     #[serde(default)]
     pub llm_tools: LlmToolsConfig,
+    #[serde(default)]
+    pub backstage: BackstageConfig,
+    #[serde(default)]
+    pub rest_api: RestApiConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentsConfig {
     pub max_parallel: usize,
     pub cores_reserved: usize,
@@ -60,7 +65,7 @@ fn default_silence_threshold() -> u64 {
     30 // 30 seconds
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct NotificationsConfig {
     pub enabled: bool,
     pub on_agent_start: bool,
@@ -71,21 +76,21 @@ pub struct NotificationsConfig {
     pub sound: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct QueueConfig {
     pub auto_assign: bool,
     pub priority_order: Vec<String>,
     pub poll_interval_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PathsConfig {
     pub tickets: String,
     pub projects: String,
     pub state: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UiConfig {
     pub refresh_rate_ms: u64,
     pub completed_history_hours: u64,
@@ -94,7 +99,7 @@ pub struct UiConfig {
     pub panel_names: PanelNamesConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PanelNamesConfig {
     #[serde(default = "default_todo_name")]
     pub queue: String,
@@ -133,22 +138,110 @@ impl Default for PanelNamesConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LaunchConfig {
     pub confirm_autonomous: bool,
     pub confirm_paired: bool,
     pub launch_delay_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 pub struct TmuxConfig {
     /// Whether custom tmux config has been generated
     #[serde(default)]
     pub config_generated: bool,
 }
 
+/// Backstage integration configuration
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct BackstageConfig {
+    /// Whether Backstage integration is enabled
+    #[serde(default = "default_backstage_enabled")]
+    pub enabled: bool,
+    /// Port for the Backstage server
+    #[serde(default = "default_backstage_port")]
+    pub port: u16,
+    /// Auto-start Backstage server when TUI launches
+    #[serde(default)]
+    pub auto_start: bool,
+    /// Subdirectory within state_path for Backstage installation
+    #[serde(default = "default_backstage_subpath")]
+    pub subpath: String,
+    /// Subdirectory within backstage path for branding customization
+    #[serde(default = "default_branding_subpath")]
+    pub branding_subpath: String,
+    /// Base URL for downloading backstage-server binary
+    #[serde(default = "default_backstage_release_url")]
+    pub release_url: String,
+}
+
+fn default_backstage_enabled() -> bool {
+    true
+}
+
+fn default_backstage_port() -> u16 {
+    7007
+}
+
+fn default_backstage_subpath() -> String {
+    "backstage".to_string()
+}
+
+fn default_branding_subpath() -> String {
+    "branding".to_string()
+}
+
+fn default_backstage_release_url() -> String {
+    "https://github.com/untra/operator/releases/latest/download".to_string()
+}
+
+impl Default for BackstageConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_backstage_enabled(),
+            port: default_backstage_port(),
+            auto_start: false,
+            subpath: default_backstage_subpath(),
+            branding_subpath: default_branding_subpath(),
+            release_url: default_backstage_release_url(),
+        }
+    }
+}
+
+/// REST API server configuration
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RestApiConfig {
+    /// Whether the REST API is enabled
+    #[serde(default = "default_rest_enabled")]
+    pub enabled: bool,
+    /// Port for the REST API server
+    #[serde(default = "default_rest_port")]
+    pub port: u16,
+    /// CORS allowed origins (empty = allow all)
+    #[serde(default)]
+    pub cors_origins: Vec<String>,
+}
+
+fn default_rest_enabled() -> bool {
+    true
+}
+
+fn default_rest_port() -> u16 {
+    7008
+}
+
+impl Default for RestApiConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_rest_enabled(),
+            port: default_rest_port(),
+            cors_origins: Vec::new(),
+        }
+    }
+}
+
 /// LLM CLI tools configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 pub struct LlmToolsConfig {
     /// Detected CLI tools (populated on first startup)
     #[serde(default)]
@@ -165,7 +258,7 @@ pub struct LlmToolsConfig {
 }
 
 /// A detected CLI tool (e.g., claude binary)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DetectedTool {
     /// Tool name (e.g., "claude")
     pub name: String,
@@ -184,7 +277,7 @@ pub struct DetectedTool {
 }
 
 /// Tool capabilities
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 pub struct ToolCapabilities {
     /// Whether the tool supports session continuity via UUID
     #[serde(default)]
@@ -195,7 +288,7 @@ pub struct ToolCapabilities {
 }
 
 /// A {tool, model} pair that can be selected when launching tickets
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct LlmProvider {
     /// CLI tool name (e.g., "claude")
     pub tool: String,
@@ -207,7 +300,7 @@ pub struct LlmProvider {
 }
 
 /// Predefined issue type collections
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CollectionPreset {
     /// Simple tasks only: TASK
@@ -251,7 +344,7 @@ impl CollectionPreset {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TemplatesConfig {
     /// Named preset for issue type collection
     /// Options: simple, dev_kanban, devops_kanban, custom
@@ -261,6 +354,10 @@ pub struct TemplatesConfig {
     /// List of issue type keys: TASK, FEAT, FIX, SPIKE, INV
     #[serde(default)]
     pub collection: Vec<String>,
+    /// Active collection name (overrides preset if set)
+    /// Can be a builtin preset name or a user-defined collection
+    #[serde(default)]
+    pub active_collection: Option<String>,
 }
 
 impl Default for TemplatesConfig {
@@ -268,12 +365,13 @@ impl Default for TemplatesConfig {
         Self {
             preset: CollectionPreset::DevopsKanban,
             collection: Vec::new(),
+            active_collection: None,
         }
     }
 }
 
 /// Logging configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LoggingConfig {
     /// Log level filter (trace, debug, info, warn, error)
     #[serde(default = "default_log_level")]
@@ -302,7 +400,7 @@ impl Default for LoggingConfig {
 }
 
 /// API integrations configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ApiConfig {
     /// Interval in seconds between PR status checks (default: 60)
     #[serde(default = "default_pr_check_interval")]
@@ -456,6 +554,17 @@ impl Config {
         self.tickets_path().join("operator").join("tmux-status.sh")
     }
 
+    /// Get absolute path to Backstage installation directory
+    pub fn backstage_path(&self) -> PathBuf {
+        self.state_path().join(&self.backstage.subpath)
+    }
+
+    /// Get absolute path to Backstage branding directory
+    #[allow(dead_code)]
+    pub fn backstage_branding_path(&self) -> PathBuf {
+        self.backstage_path().join(&self.backstage.branding_subpath)
+    }
+
     /// Get priority index for a ticket type (lower = higher priority)
     pub fn priority_index(&self, ticket_type: &str) -> usize {
         self.queue
@@ -525,6 +634,8 @@ impl Default for Config {
             logging: LoggingConfig::default(),
             tmux: TmuxConfig::default(),
             llm_tools: LlmToolsConfig::default(),
+            backstage: BackstageConfig::default(),
+            rest_api: RestApiConfig::default(),
         }
     }
 }

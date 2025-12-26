@@ -1,0 +1,641 @@
+# Project Taxonomy - Single Source of Truth
+#
+# This file defines the 24-Kind project taxonomy used by:
+# - Rust code (parsed at compile time)
+# - Documentation generation
+# - Backstage catalog schema extension
+# - Project assessment and Kind detection
+#
+# To add a new Kind:
+# 1. Add a [[kinds]] entry with the next available ID
+# 2. Ensure the ID falls within the appropriate tier range
+# 3. Run `cargo test taxonomy` to validate
+# 4. Run the doc generator to update documentation
+
+[meta]
+version = "1.0.0"
+description = "Operator project taxonomy for Backstage catalog"
+
+# Tiers organize Kinds into logical groups
+# Each tier has an ID range for its Kinds
+
+[[tiers]]
+id = 1
+key = "foundation"
+name = "Foundation"
+range = [1, 4]
+description = "Infrastructure and platform foundations"
+icon = "layers"
+display_order = 1
+sidebar_label = "Foundation"
+# Assessment scope: Foundation is pure infra, no application-level detection
+assess_frameworks = false
+assess_databases = false
+assess_testing = false
+
+[[tiers]]
+id = 2
+key = "standards"
+name = "Standards"
+range = [5, 10]
+description = "Shared components and specifications"
+icon = "library"
+display_order = 2
+sidebar_label = "Standards"
+# Assessment scope: Libraries have frameworks and tests, rarely direct DB access
+assess_frameworks = true
+assess_databases = false
+assess_testing = true
+
+[[tiers]]
+id = 3
+key = "engines"
+name = "Engines"
+range = [11, 16]
+description = "Core business logic and services"
+icon = "server"
+display_order = 3
+sidebar_label = "Engines"
+# Assessment scope: Full-stack services need all detection
+assess_frameworks = true
+assess_databases = true
+assess_testing = true
+
+[[tiers]]
+id = 4
+key = "ecosystem"
+name = "Ecosystem"
+range = [17, 21]
+description = "Supporting tools and utilities"
+icon = "tools"
+display_order = 4
+sidebar_label = "Ecosystem"
+# Assessment scope: Tools may use any detection
+assess_frameworks = true
+assess_databases = true
+assess_testing = true
+
+[[tiers]]
+id = 5
+key = "noncurrent"
+name = "Noncurrent"
+range = [22, 25]
+description = "Repos of little product or operational importance (test data, examples, archives, forks)"
+icon = "archive"
+display_order = 5
+sidebar_label = "Noncurrent"
+# Assessment scope: Low-importance repos, skip detailed analysis
+assess_frameworks = false
+assess_databases = false
+assess_testing = false
+
+# =============================================================================
+# FOUNDATION TIER (1-4)
+# Infrastructure and platform foundations
+# =============================================================================
+
+[[kinds]]
+id = 1
+key = "infrastructure"
+name = "Infrastructure (IaC)"
+tier = "foundation"
+description = "Cloud resources and network (Terraform/CDK)"
+stakeholder = "Platform/DevOps"
+output = "Cloud Environment"
+file_patterns = [
+    "*.tf",
+    "*.tfvars",
+    "cdk.json",
+    "cdk.context.json",
+    "pulumi.yaml",
+    "Pulumi.yaml",
+    "cloudformation.yaml",
+    "cloudformation.yml",
+    "serverless.yml",
+    "terraform.tfstate",
+]
+backstage_type = "resource"
+
+[[kinds]]
+id = 2
+key = "identity-access"
+name = "Identity & Access (IAM)"
+tier = "foundation"
+description = "Service accounts, secrets, and RBAC policies"
+stakeholder = "SDET/SecOps"
+output = "Permissions/Tokens"
+file_patterns = [
+    "iam-*.yaml",
+    "iam-*.yml",
+    "rbac*.yaml",
+    "rbac*.yml",
+    "policies/*.json",
+    "policies/*.yaml",
+    "service-account*.yaml",
+    ".vault/*",
+    "vault-*.hcl",
+]
+backstage_type = "resource"
+
+[[kinds]]
+id = 3
+key = "config-policy"
+name = "Config & Policy"
+tier = "foundation"
+description = "Global feature flags and environment manifests"
+stakeholder = "Platform/DevOps"
+output = "Runtime Behavior"
+file_patterns = [
+    "config/*.yaml",
+    "config/*.yml",
+    "config/*.toml",
+    "environments/*.yaml",
+    "environments/*.yml",
+    ".env.example",
+    "feature-flags.yaml",
+    "feature-flags.json",
+    "launchdarkly*.yaml",
+]
+backstage_type = "resource"
+
+[[kinds]]
+id = 4
+key = "monorepo-meta"
+name = "Monorepo / Meta"
+tier = "foundation"
+description = "Orchestration for projects and root standards"
+stakeholder = "Architect/Lead"
+output = "Project Standards"
+file_patterns = [
+    "nx.json",
+    "turbo.json",
+    "lerna.json",
+    "pnpm-workspace.yaml",
+    "rush.json",
+    "Cargo.toml",  # workspace root
+    ".github/CODEOWNERS",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+]
+backstage_type = "system"
+
+# =============================================================================
+# STANDARDS TIER (5-10)
+# Shared components and specifications
+# =============================================================================
+
+[[kinds]]
+id = 5
+key = "design-system"
+name = "Design Systems"
+tier = "standards"
+description = "Reusable UI components and brand tokens"
+stakeholder = "Product/UX"
+output = "Component Libraries"
+file_patterns = [
+    "tokens/*.json",
+    "tokens/*.yaml",
+    "design-tokens/*",
+    ".storybook/*",
+    "stories/*.stories.*",
+    "components/*.stories.*",
+    "figma-tokens.json",
+    "style-dictionary.config.*",
+]
+backstage_type = "library"
+
+[[kinds]]
+id = 6
+key = "software-library"
+name = "Software Libraries"
+tier = "standards"
+description = "Reusable internal logic packages (Shared Utils)"
+stakeholder = "Engineering"
+output = "Versioned Packages"
+file_patterns = [
+    "lib/*",
+    "packages/*/package.json",
+    "crates/*/Cargo.toml",
+    "src/lib.rs",
+    "index.ts",
+    "index.js",
+    "setup.py",
+    "pyproject.toml",
+]
+backstage_type = "library"
+
+[[kinds]]
+id = 7
+key = "proto-sdk"
+name = "Proto / SDK"
+tier = "standards"
+description = "API contracts and generated client libraries"
+stakeholder = "Engineering"
+output = "Contract Libraries"
+file_patterns = [
+    "*.proto",
+    "proto/*",
+    "protos/*",
+    "openapi.yaml",
+    "openapi.json",
+    "swagger.yaml",
+    "swagger.json",
+    "graphql.schema",
+    "schema.graphql",
+    "*.thrift",
+    "buf.yaml",
+    "buf.gen.yaml",
+]
+backstage_type = "api"
+
+[[kinds]]
+id = 8
+key = "blueprint"
+name = "Blueprints"
+tier = "standards"
+description = "Scaffolding templates for bootstrapping repos"
+stakeholder = "Architect/Lead"
+output = "Project Templates"
+file_patterns = [
+    "template.yaml",
+    "cookiecutter.json",
+    "copier.yaml",
+    "copier.yml",
+    "yeoman-generator/*",
+    "skeleton/*",
+    "blueprint/*",
+    ".scaffold/*",
+]
+backstage_type = "template"
+
+[[kinds]]
+id = 9
+key = "security-tooling"
+name = "Security Tooling"
+tier = "standards"
+description = "Custom scanners, audit scripts, and honeytokens"
+stakeholder = "SDET/SecOps"
+output = "Security Reports"
+file_patterns = [
+    "security/*",
+    "audit/*",
+    "scanners/*",
+    ".snyk",
+    "trivy.yaml",
+    "semgrep.yaml",
+    "semgrep.yml",
+    ".gitleaks.toml",
+    "bandit.yaml",
+    "safety/*",
+]
+backstage_type = "tool"
+
+[[kinds]]
+id = 10
+key = "compliance-audit"
+name = "Compliance / Audit"
+tier = "standards"
+description = "Evidence, snapshots, and regulatory reports"
+stakeholder = "SDET/SecOps"
+output = "Compliance Proofs"
+file_patterns = [
+    "compliance/*",
+    "audit-logs/*",
+    "evidence/*",
+    "soc2/*",
+    "hipaa/*",
+    "gdpr/*",
+    "pci-dss/*",
+    "attestations/*",
+    "controls/*.yaml",
+]
+backstage_type = "documentation"
+
+# =============================================================================
+# ENGINES TIER (11-16)
+# Core business logic and services
+# =============================================================================
+
+[[kinds]]
+id = 11
+key = "ml-model"
+name = "ML / Models"
+tier = "engines"
+description = "Training scripts and model weight artifacts"
+stakeholder = "Data/ML"
+output = "Model Artifacts"
+file_patterns = [
+    "model/*",
+    "models/*",
+    "training/*",
+    "*.h5",
+    "*.pt",
+    "*.pth",
+    "*.onnx",
+    "*.pkl",
+    "mlflow.yaml",
+    "MLproject",
+    "dvc.yaml",
+    "dvc.lock",
+]
+backstage_type = "service"
+
+[[kinds]]
+id = 12
+key = "data-etl"
+name = "Data / ETL"
+tier = "engines"
+description = "Data transformation logic and SQL models"
+stakeholder = "Data/ML"
+output = "Clean Datasets"
+file_patterns = [
+    "dbt_project.yml",
+    "models/*.sql",
+    "transforms/*",
+    "pipelines/*",
+    "airflow/*",
+    "dags/*",
+    "prefect.yaml",
+    "dagster.yaml",
+    "fivetran/*",
+]
+backstage_type = "service"
+
+[[kinds]]
+id = 13
+key = "microservice"
+name = "Microservices"
+tier = "engines"
+description = "Backend business logic and domain units"
+stakeholder = "Engineering"
+output = "Running Binaries"
+file_patterns = [
+    "src/main.rs",
+    "main.go",
+    "cmd/main.go",
+    "src/main/java/*",
+    "main.py",
+    "app.py",
+    "server.ts",
+    "server.js",
+    "Dockerfile",
+    "docker-compose.yml",
+]
+backstage_type = "service"
+
+[[kinds]]
+id = 14
+key = "api-gateway"
+name = "APIs / Gateways"
+tier = "engines"
+description = "Entry points that route and protect traffic"
+stakeholder = "Engineering"
+output = "Network Endpoints"
+file_patterns = [
+    "gateway/*",
+    "api-gateway/*",
+    "kong.yaml",
+    "kong.yml",
+    "nginx.conf",
+    "envoy.yaml",
+    "traefik.yaml",
+    "traefik.yml",
+    "routes/*",
+    "api/*.yaml",
+]
+backstage_type = "api"
+
+[[kinds]]
+id = 15
+key = "ui-frontend"
+name = "UIs / Frontends"
+tier = "engines"
+description = "Web or mobile apps for end-user interaction"
+stakeholder = "Engineering"
+output = "Web/Mobile Assets"
+file_patterns = [
+    "src/App.tsx",
+    "src/App.jsx",
+    "src/App.vue",
+    "src/App.svelte",
+    "pages/*",
+    "app/*",
+    "next.config.*",
+    "nuxt.config.*",
+    "vite.config.*",
+    "angular.json",
+    "expo/*",
+]
+backstage_type = "website"
+
+[[kinds]]
+id = 16
+key = "internal-tool"
+name = "Internal Tooling"
+tier = "engines"
+description = "Private apps for internal business operations"
+stakeholder = "Engineering"
+output = "Operational Apps"
+file_patterns = [
+    "admin/*",
+    "backoffice/*",
+    "internal/*",
+    "dashboard/*",
+    "retool/*",
+    "metabase/*",
+]
+backstage_type = "service"
+
+# =============================================================================
+# ECOSYSTEM TIER (17-21)
+# Supporting tools and utilities
+# =============================================================================
+
+[[kinds]]
+id = 17
+key = "build-tool"
+name = "Build Tools"
+tier = "ecosystem"
+description = "CI/CD actions and custom build logic"
+stakeholder = "Platform/DevOps"
+output = "Automated Pipelines"
+file_patterns = [
+    ".github/workflows/*",
+    ".github/actions/*",
+    ".gitlab-ci.yml",
+    "Jenkinsfile",
+    ".circleci/*",
+    "azure-pipelines.yml",
+    "buildkite/*",
+    ".drone.yml",
+    "Makefile",
+    "Taskfile.yml",
+]
+backstage_type = "tool"
+
+[[kinds]]
+id = 18
+key = "e2e-test"
+name = "E2E Test Suites"
+tier = "ecosystem"
+description = "Integration tests and smoke test runners"
+stakeholder = "SDET/SecOps"
+output = "Quality Reports"
+file_patterns = [
+    "e2e/*",
+    "tests/e2e/*",
+    "integration/*",
+    "tests/integration/*",
+    "playwright.config.*",
+    "cypress.config.*",
+    "cypress/*",
+    "playwright/*",
+    "k6/*",
+    "locust/*",
+]
+backstage_type = "tool"
+
+[[kinds]]
+id = 19
+key = "docs-site"
+name = "Docs Sites"
+tier = "ecosystem"
+description = "Documentation, tutorials, and references"
+stakeholder = "Product/UX"
+output = "Static Support Sites"
+file_patterns = [
+    "docs/*",
+    "docusaurus.config.*",
+    "mkdocs.yml",
+    "mkdocs.yaml",
+    "_config.yml",  # Jekyll
+    "hugo.toml",
+    "hugo.yaml",
+    "sphinx/*",
+    "conf.py",  # Sphinx
+    "book.toml",  # mdBook
+]
+backstage_type = "website"
+
+[[kinds]]
+id = 20
+key = "playbook"
+name = "Internal Playbooks"
+tier = "ecosystem"
+description = "Incident response and on-call runbooks"
+stakeholder = "Platform/DevOps"
+output = "Operational Guides"
+file_patterns = [
+    "playbooks/*",
+    "runbooks/*",
+    "oncall/*",
+    "incidents/*",
+    "postmortems/*",
+    "sops/*",
+    "procedures/*",
+]
+backstage_type = "documentation"
+
+[[kinds]]
+id = 21
+key = "cli-devtool"
+name = "CLIs / Developer Tools"
+tier = "ecosystem"
+description = "Productivity scripts and developer utilities"
+stakeholder = "Platform/DevOps"
+output = "Developer UX Tools"
+file_patterns = [
+    "cli/*",
+    "bin/*",
+    "scripts/*",
+    "tools/*",
+    "devtools/*",
+    "*.sh",
+    "Justfile",
+]
+backstage_type = "tool"
+
+# =============================================================================
+# NONCURRENT TIER (22-25)
+# Repos of little product or operational importance
+# =============================================================================
+
+[[kinds]]
+id = 22
+key = "reference-example"
+name = "Reference / Example"
+tier = "noncurrent"
+description = "Best-practice implementation examples"
+stakeholder = "Architect/Lead"
+output = "Educational Code"
+file_patterns = [
+    "examples/*",
+    "samples/*",
+    "demo/*",
+    "tutorials/*",
+    "quickstart/*",
+    "getting-started/*",
+]
+backstage_type = "documentation"
+
+[[kinds]]
+id = 23
+key = "experiment-sandbox"
+name = "Experiment / Sandbox"
+tier = "noncurrent"
+description = "Proof-of-concepts and R&D \"spikes\""
+stakeholder = "Engineering"
+output = "Discardable Code"
+file_patterns = [
+    "experiments/*",
+    "sandbox/*",
+    "spikes/*",
+    "poc/*",
+    "proof-of-concept/*",
+    "scratch/*",
+    "playground/*",
+]
+backstage_type = "service"
+
+[[kinds]]
+id = 24
+key = "archival-fork"
+name = "Archival / Forks"
+tier = "noncurrent"
+description = "Legacy code and forks of 3rd party repos"
+stakeholder = "SDET/SecOps"
+output = "Historical/Vendor Code"
+file_patterns = [
+    "vendor/*",
+    "third-party/*",
+    "3rdparty/*",
+    "external/*",
+    "archive/*",
+    "legacy/*",
+    "deprecated/*",
+]
+backstage_type = "library"
+
+[[kinds]]
+id = 25
+key = "test-data-fixtures"
+name = "Test Data / Fixtures"
+tier = "noncurrent"
+description = "Repositories containing test data, fixtures, seed data, and mock datasets"
+stakeholder = "SDET/SecOps"
+output = "Test Data Assets"
+file_patterns = [
+    "fixtures/*",
+    "testdata/*",
+    "test-data/*",
+    "seeds/*",
+    "seed-data/*",
+    "mocks/*",
+    "mock-data/*",
+    "sample-data/*",
+    "*.fixtures.json",
+    "*.fixture.json",
+    "*.seed.sql",
+    "db/seeds/*",
+]
+backstage_type = "resource"

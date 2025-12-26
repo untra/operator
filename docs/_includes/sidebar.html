@@ -4,20 +4,37 @@
   <div class="sidebar-header">
     <a href="{{ '/' | relative_url }}" class="sidebar-title">Operator!</a>
     <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.</p>
-    <p class="sidebar-tagline">A project by <b><a href="{{ site.github.author }}" target="_blank">@untra</a></b></p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="{{ site.github.author }}" target="_blank">@untra</a></b></p>
   </div>
 
   <ul class="sidebar-nav">
     <li><a href="{{ '/' | relative_url }}" {% if page.url == '/' %}class="active"{% endif %}>Home</a></li>
-    {% for item in site.data.navigation.docs %}
-    <li>
-      <a href="{{ item.url | relative_url }}" {% if page.url contains item.url %}class="active"{% endif %}>{{ item.title }}</a>
+    <li><a href="{{ '/getting-started/' | relative_url }}" {% if page.url contains '/getting-started/' %}class="active"{% endif %}>Getting Started</a></li>
+    {% for section in site.data.navigation.docs %}
+    <li class="nav-section">
+      {% assign section_active = false %}
+      {% for item in section.children %}
+        {% if page.url contains item.url %}
+          {% assign section_active = true %}
+        {% endif %}
+      {% endfor %}
+      <details {% if section_active %}open{% endif %}>
+        <summary class="nav-parent">{{ section.title }}</summary>
+        <ul class="nav-children">
+          {% for item in section.children %}
+          <li>
+            <a href="{{ item.url | relative_url }}" {% if page.url contains item.url %}class="active"{% endif %}>{{ item.title }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </details>
     </li>
     {% endfor %}
+    <li class="downloads-link"><a href="{{ '/downloads/' | relative_url }}" {% if page.url contains '/downloads/' %}class="active"{% endif %}>Downloads</a></li>
   </ul>
 
   <div class="sidebar-footer">
-    <p><a class="sidebar-nav-item" href="{{ site.github.repo }}"><b>Operator!</b> GitHub project</a></p>
+    <p><a class="sidebar-nav-item" href="{{ site.github.repo }}"><span class="operator-brand">Operator!</span> GitHub project</a></p>
     <p><a class="sidebar-nav-item" href="{{ site.github.repo }}/tree/main/docs/{{ page.path }}"><small>View this page source on Github</small></a></p>
     <small class="sidebar-nav-item">currently v{{ site.version }}</small>
   </div>

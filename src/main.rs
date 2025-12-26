@@ -4,9 +4,12 @@ use std::path::PathBuf;
 
 mod api;
 mod app;
+mod backstage;
 mod config;
+mod issuetypes;
 mod llm;
 mod logging;
+mod permissions;
 mod pr_config;
 mod projects;
 mod state;
@@ -14,8 +17,11 @@ mod steps;
 mod templates;
 
 mod agents;
+mod docs_gen;
+pub mod env_vars;
 mod notifications;
 mod queue;
+mod rest;
 mod ui;
 
 use agents::tmux::{SystemTmuxClient, TmuxClient, TmuxError};
@@ -76,7 +82,7 @@ fn print_tmux_error(err: &TmuxError) {
 #[command(name = "operator")]
 #[command(about = "Multi-agent orchestration dashboard for gbqr.us")]
 #[command(version)]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 
@@ -153,6 +159,24 @@ enum Commands {
         #[arg(short, long)]
         project: Option<String>,
     },
+
+    /// Generate documentation from source-of-truth files
+    Docs {
+        /// Output directory (default: docs/)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Only generate specific docs (taxonomy, issuetype, metadata)
+        #[arg(short = 'g', long)]
+        only: Option<String>,
+    },
+
+    /// Start the REST API server for issue type management
+    Api {
+        /// Port to listen on (default: 7008)
+        #[arg(short, long)]
+        port: Option<u16>,
+    },
 }
 
 #[tokio::main]
@@ -197,6 +221,12 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Create { template, project }) => {
             cmd_create(&config, template, project).await?;
+        }
+        Some(Commands::Docs { output, only }) => {
+            cmd_docs(&config, output, only)?;
+        }
+        Some(Commands::Api { port }) => {
+            cmd_api(&config, port).await?;
         }
         None => {
             // No subcommand = launch TUI dashboard
@@ -468,6 +498,92 @@ async fn cmd_create(
     let filepath = creator.create_ticket(template_type, &project)?;
 
     println!("Created ticket: {}", filepath.display());
+
+    Ok(())
+}
+
+fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
+    use docs_gen::{cli, config, issuetype, metadata, openapi, shortcuts, taxonomy, DocGenerator};
+    use std::path::PathBuf;
+
+    // Determine output directory (default: ./docs relative to current directory)
+    let docs_dir = match output {
+        Some(path) => PathBuf::from(path),
+        None => std::env::current_dir().unwrap_or_default().join("docs"),
+    };
+
+    println!("Generating documentation to: {}", docs_dir.display());
+
+    // Build list of generators based on --only filter
+    let generators: Vec<Box<dyn DocGenerator>> = match only.as_deref() {
+        Some("taxonomy") => {
+            vec![Box::new(taxonomy::TaxonomyDocGenerator)]
+        }
+        Some("issuetype") => {
+            vec![Box::new(issuetype::IssuetypeSchemaDocGenerator)]
+        }
+        Some("metadata") => {
+            vec![Box::new(metadata::MetadataSchemaDocGenerator)]
+        }
+        Some("shortcuts") => {
+            vec![Box::new(shortcuts::ShortcutsDocGenerator)]
+        }
+        Some("cli") => {
+            vec![Box::new(cli::CliDocGenerator)]
+        }
+        Some("config") => {
+            vec![Box::new(config::ConfigDocGenerator)]
+        }
+        Some("openapi") => {
+            vec![Box::new(openapi::OpenApiDocGenerator)]
+        }
+        Some(other) => {
+            println!(
+                "Unknown generator: {}. Use: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi",
+                other
+            );
+            return Ok(());
+        }
+        None => {
+            // Generate all
+            vec![
+                Box::new(taxonomy::TaxonomyDocGenerator),
+                Box::new(issuetype::IssuetypeSchemaDocGenerator),
+                Box::new(metadata::MetadataSchemaDocGenerator),
+                Box::new(shortcuts::ShortcutsDocGenerator),
+                Box::new(cli::CliDocGenerator),
+                Box::new(config::ConfigDocGenerator),
+                Box::new(openapi::OpenApiDocGenerator),
+            ]
+        }
+    };
+
+    for generator in generators {
+        generator.write(&docs_dir)?;
+        println!("  ✓ {} → {}", generator.name(), generator.output_path());
+    }
+
+    println!("\nDocumentation generation complete.");
+    Ok(())
+}
+
+async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
+    let port = port.unwrap_or(config.rest_api.port);
+
+    println!("Starting REST API server...");
+    println!("  Port: {}", port);
+    println!("  Endpoints:");
+    println!("    GET  /api/v1/health           Health check");
+    println!("    GET  /api/v1/status           Server status");
+    println!("    GET  /api/v1/issuetypes       List issue types");
+    println!("    GET  /api/v1/issuetypes/:key  Get issue type");
+    println!("    POST /api/v1/issuetypes       Create issue type");
+    println!("    PUT  /api/v1/issuetypes/:key  Update issue type");
+    println!("    GET  /api/v1/collections      List collections");
+    println!();
+
+    let state = rest::ApiState::new(config.clone(), config.tickets_path());
+    rest::serve(state, port).await?;
 
     Ok(())
 }

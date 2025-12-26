@@ -1,6 +1,8 @@
 use anyhow::Result;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -10,11 +12,16 @@ use std::io;
 use std::time::Duration;
 
 use crate::agents::tmux::SystemTmuxClient;
-use crate::agents::{AgentTicketCreator, Launcher, SessionMonitor, TicketSessionSync};
+use crate::agents::{
+    AgentTicketCreator, AssessTicketCreator, Launcher, SessionMonitor, TicketSessionSync,
+};
 use crate::api::Capabilities;
+use crate::backstage::scaffold::{BackstageScaffold, ScaffoldOptions};
+use crate::backstage::BackstageServer;
 use crate::config::Config;
 use crate::notifications;
 use crate::queue::{Queue, TicketCreator};
+use crate::rest::RestApiServer;
 use crate::state::State;
 use crate::templates::TemplateType;
 use crate::ui::create_dialog::{CreateDialog, CreateDialogResult};
@@ -51,6 +58,14 @@ pub struct App {
     rate_limit_syncing: bool,
     /// Last sync status message for display
     sync_status_message: Option<String>,
+    /// Backstage server lifecycle manager
+    backstage_server: BackstageServer,
+    /// REST API server lifecycle manager
+    rest_api_server: RestApiServer,
+    /// Exit confirmation mode (first Ctrl+C pressed)
+    exit_confirmation_mode: bool,
+    /// Time when exit confirmation mode was entered
+    exit_confirmation_time: Option<std::time::Instant>,
 }
 
 impl App {
@@ -163,6 +178,17 @@ impl App {
             );
         }
 
+        // Initialize Backstage server lifecycle manager using compiled binary mode
+        let backstage_server = BackstageServer::with_compiled_binary(
+            config.state_path(),
+            config.backstage.release_url.clone(),
+            config.backstage.port,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to initialize backstage server: {}", e))?;
+
+        // Initialize REST API server lifecycle manager
+        let rest_api_server = RestApiServer::new(config.clone(), config.rest_api.port);
+
         Ok(Self {
             config,
             dashboard,
@@ -179,6 +205,10 @@ impl App {
             capabilities,
             rate_limit_syncing: false,
             sync_status_message: None,
+            backstage_server,
+            rest_api_server,
+            exit_confirmation_mode: false,
+            exit_confirmation_time: None,
         })
     }
 
@@ -200,6 +230,21 @@ impl App {
         let tick_rate = Duration::from_millis(self.config.ui.refresh_rate_ms);
 
         while !self.should_quit {
+            if self.exit_confirmation_mode {
+                if let Some(start_time) = self.exit_confirmation_time {
+                    if start_time.elapsed() > Duration::from_secs(1) {
+                        self.exit_confirmation_mode = false;
+                        self.exit_confirmation_time = None;
+                    }
+                }
+            }
+
+            // Update dashboard with server statuses and exit confirmation mode
+            self.dashboard
+                .update_rest_api_status(self.rest_api_server.status());
+            self.dashboard
+                .update_exit_confirmation_mode(self.exit_confirmation_mode);
+
             // Draw
             terminal.draw(|f| {
                 if let Some(ref mut setup) = self.setup_screen {
@@ -218,7 +263,19 @@ impl App {
             if event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
                     if key.kind == KeyEventKind::Press {
-                        self.handle_key(key.code, &mut terminal).await?;
+                        // Handle Ctrl+C for graceful shutdown
+                        if key.code == KeyCode::Char('c')
+                            && key.modifiers.contains(KeyModifiers::CONTROL)
+                        {
+                            self.handle_ctrl_c();
+                        } else {
+                            // Reset exit confirmation if any other key is pressed
+                            if self.exit_confirmation_mode {
+                                self.exit_confirmation_mode = false;
+                                self.exit_confirmation_time = None;
+                            }
+                            self.handle_key(key.code, &mut terminal).await?;
+                        }
                     }
                 }
             }
@@ -272,6 +329,11 @@ impl App {
             .cloned()
             .collect();
         self.dashboard.update_completed(completed);
+
+        // Update Backstage server status
+        self.backstage_server.refresh_status();
+        self.dashboard
+            .update_backstage_status(self.backstage_server.status());
 
         Ok(())
     }
@@ -632,6 +694,11 @@ impl App {
         // Normal mode
         match key {
             KeyCode::Char('q') => {
+                // Stop servers if running before exiting
+                if self.rest_api_server.is_running() || self.backstage_server.is_running() {
+                    self.rest_api_server.stop();
+                    let _ = self.backstage_server.stop();
+                }
                 self.should_quit = true;
             }
             KeyCode::Char('?') => {
@@ -693,10 +760,56 @@ impl App {
                 self.run_manual_sync()?;
                 self.sync_rate_limits().await;
             }
+            KeyCode::Char('W') | KeyCode::Char('w') => {
+                // Toggle both REST API and Backstage servers together
+                let backstage_running = self.backstage_server.is_running();
+                let rest_running = self.rest_api_server.is_running();
+
+                if backstage_running && rest_running {
+                    // Both running - stop both
+                    self.rest_api_server.stop();
+                    if let Err(e) = self.backstage_server.stop() {
+                        tracing::error!("Backstage stop failed: {}", e);
+                    }
+                } else {
+                    // Start both if not running
+                    if !rest_running {
+                        if let Err(e) = self.rest_api_server.start() {
+                            tracing::error!("REST API start failed: {}", e);
+                        }
+                    }
+                    if !backstage_running {
+                        if let Err(e) = self.backstage_server.start() {
+                            tracing::error!("Backstage start failed: {}", e);
+                        }
+                    }
+                    // Open browser when Backstage is ready
+                    if self.backstage_server.is_running() {
+                        if let Err(e) = self.backstage_server.open_browser() {
+                            tracing::warn!("Failed to open browser: {}", e);
+                        }
+                    }
+                }
+            }
             _ => {}
         }
 
         Ok(())
+    }
+
+    /// Handle Ctrl+C for graceful two-stage exit
+    fn handle_ctrl_c(&mut self) {
+        if self.exit_confirmation_mode {
+            // Second Ctrl+C - exit immediately
+            self.should_quit = true;
+        } else {
+            // First Ctrl+C - stop servers and enter confirmation mode
+            self.rest_api_server.stop();
+            let _ = self.backstage_server.stop();
+
+            self.exit_confirmation_mode = true;
+            self.exit_confirmation_time = Some(std::time::Instant::now());
+        }
     }
 
     fn try_launch(&mut self) -> Result<()> {
@@ -947,6 +1060,9 @@ impl App {
                 TemplateType::Task => "task.md",
                 TemplateType::Spike => "spike.md",
                 TemplateType::Investigation => "investigation.md",
+                TemplateType::Assess => "assess.md",
+                TemplateType::Sync => "sync.md",
+                TemplateType::Init => "init.md",
             };
             let filepath = tickets_path.join("templates").join(filename);
             fs::write(&filepath, template_type.template_content())?;
@@ -958,6 +1074,9 @@ impl App {
                 TemplateType::Task => "task.json",
                 TemplateType::Spike => "spike.json",
                 TemplateType::Investigation => "investigation.json",
+                TemplateType::Assess => "assess.json",
+                TemplateType::Sync => "sync.json",
+                TemplateType::Init => "init.json",
             };
             let schema_filepath = tickets_path.join("templates").join(schema_filename);
             fs::write(&schema_filepath, template_type.schema())?;
@@ -975,6 +1094,26 @@ impl App {
 
         // Update the create dialog with discovered projects
         self.create_dialog.set_projects(discovered_projects);
+
+        // Generate Backstage scaffold
+        let backstage_path = self.config.backstage_path();
+        if !BackstageScaffold::exists(&backstage_path) {
+            let options = ScaffoldOptions::from_config(&self.config);
+            let scaffold = BackstageScaffold::new(backstage_path, options);
+            match scaffold.generate() {
+                Ok(result) => {
+                    tracing::info!(
+                        created = result.created.len(),
+                        skipped = result.skipped.len(),
+                        "Generated Backstage scaffold: {}",
+                        result.summary()
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to generate Backstage scaffold: {}", e);
+                }
+            }
+        }
 
         Ok(())
     }
@@ -1057,6 +1196,30 @@ impl App {
                 // Update dialog with result
                 match ticket_result {
                     Ok(agent_result) => {
+                        self.projects_dialog.set_creation_result(Ok(agent_result));
+                    }
+                    Err(e) => {
+                        self.projects_dialog.set_creation_result(Err(e.to_string()));
+                    }
+                }
+            }
+            ProjectAction::AssessProject => {
+                // Create ASSESS ticket for Backstage catalog assessment
+                let ticket_result = AssessTicketCreator::create_assess_ticket(
+                    &result.project_path,
+                    &result.project,
+                    &self.config,
+                );
+
+                // Convert to AgentTicketResult format for display
+                match ticket_result {
+                    Ok(assess_result) => {
+                        use crate::agents::AgentTicketResult;
+                        let agent_result = AgentTicketResult {
+                            created: vec![assess_result.ticket_id],
+                            skipped: vec![],
+                            errors: vec![],
+                        };
                         self.projects_dialog.set_creation_result(Ok(agent_result));
                     }
                     Err(e) => {

@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code)] // Active module - some methods reserved for future agent lifecycle features
 #![allow(unused_imports)]
 
 mod generator;
@@ -9,7 +9,9 @@ mod sync;
 pub mod tmux;
 pub mod tmux_config;
 
-pub use generator::{AgentTicketCreator, AgentTicketResult, AGENT_TOOLS};
+pub use generator::{
+    AgentTicketCreator, AgentTicketResult, AssessTicketCreator, AssessTicketResult, AGENT_TOOLS,
+};
 pub use launcher::Launcher;
 pub use monitor::{HealthCheckResult, ReconciliationResult, SessionMonitor};
 pub use session::Session;

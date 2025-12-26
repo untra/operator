@@ -4,6 +4,7 @@ pub mod create_dialog;
 pub mod dashboard;
 pub mod dialogs;
 pub mod form_field;
+pub mod keybindings;
 mod panels;
 pub mod projects_dialog;
 pub mod session_preview;

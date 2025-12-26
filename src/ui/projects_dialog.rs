@@ -28,18 +28,23 @@ pub enum ProjectsDialogStep {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProjectAction {
     AddOperatorAgents,
+    AssessProject,
 }
 
 impl ProjectAction {
     /// Returns all available actions
     pub fn all() -> &'static [ProjectAction] {
-        &[ProjectAction::AddOperatorAgents]
+        &[
+            ProjectAction::AddOperatorAgents,
+            ProjectAction::AssessProject,
+        ]
     }
 
     /// Returns the display label for this action
     pub fn label(&self) -> &'static str {
         match self {
             ProjectAction::AddOperatorAgents => "Add Operator agents",
+            ProjectAction::AssessProject => "Assess for Backstage",
         }
     }
 
@@ -47,6 +52,7 @@ impl ProjectAction {
     pub fn description(&self) -> &'static str {
         match self {
             ProjectAction::AddOperatorAgents => "Create TASK tickets for missing agent files",
+            ProjectAction::AssessProject => "Analyze project and generate catalog-info.yaml",
         }
     }
 }

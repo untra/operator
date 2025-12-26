@@ -15,17 +15,16 @@ tmux - and any programs running inside it - may be detached from the terminal wh
 
 ## Custom Configuration
 
-Operator generates a custom `.tmux.conf` for managed sessions with:
+<span class="operator-brand">Operator!</span> generates a custom `.tmux.conf` for managed sessions with:
 
 - Easy detach binding (Ctrl+a)
-- Mouse support
 - Increased scrollback
-- Custom status bar with agent stats
-- Operator color theme
+- Custom status bar with agent stats to nudge ya
+- <span class="operator-brand">Operator!</span> centric color theme
 
 ## Color Theme
 
-The tmux theme uses Operator's salmon-based palette:
+The tmux theme uses <span class="operator-brand">Operator!'s</span> salmon-based palette:
 
 | Element | Color | Hex |
 |---------|-------|-----|

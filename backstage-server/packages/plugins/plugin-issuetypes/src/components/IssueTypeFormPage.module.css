@@ -1,0 +1,12 @@
+.body1 {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.body2 {
+  font-size: 0.875rem;
+  line-height: 1.43;
+  color: rgba(0, 0, 0, 0.6);
+  margin-top: 16px;
+}

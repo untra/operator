@@ -1,13 +1,27 @@
 docs:
-  - title: Kanban
-    url: /kanban/
-  - title: Issue Types
-    url: /issue-types/
-  - title: LLM Tools
-    url: /llm-tools/
-  - title: Tickets
-    url: /tickets/
-  - title: Agents
-    url: /agents/
-  - title: Tmux
-    url: /tmux/
+  - title: Core
+    children:
+      - title: Kanban
+        url: /kanban/
+      - title: Issue Types
+        url: /issue-types/
+      - title: Tickets
+        url: /tickets/
+      - title: Agents
+        url: /agents/
+      - title: Tmux
+        url: /tmux/
+  - title: Reference
+    children:
+      - title: CLI
+        url: /cli/
+      - title: LLM Tools
+        url: /llm-tools/
+      - title: Configuration
+        url: /configuration/
+      - title: Shortcuts
+        url: /shortcuts/
+      - title: Backstage
+        url: /backstage/
+      - title: Schemas
+        url: /schemas/

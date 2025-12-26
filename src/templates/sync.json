@@ -1,0 +1,102 @@
+{
+  "$schema": "./issuetype_schema.json",
+  "key": "SYNC",
+  "name": "Catalog Sync",
+  "description": "Refresh Backstage catalog entries from projects",
+  "mode": "autonomous",
+  "glyph": "@",
+  "color": "blue",
+  "branch_prefix": "sync",
+  "project_required": false,
+  "agent_prompt": "Review this workspace to create an agent for Backstage catalog synchronization. The agent discovers all projects with catalog-info.yaml files, validates them against the Backstage schema, checks for inconsistencies, and updates catalog entries as needed. It can run across the entire workspace or target specific projects. Output ONLY the agent system prompt.",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "scope",
+      "description": "Sync scope",
+      "type": "enum",
+      "required": false,
+      "default": "all",
+      "options": ["all", "changed", "project"],
+      "display_order": 1
+    },
+    {
+      "name": "project",
+      "description": "Specific project to sync (when scope=project)",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "placeholder": "Project name (optional)",
+      "display_order": 2
+    },
+    {
+      "name": "status",
+      "description": "Ticket status",
+      "type": "string",
+      "required": true,
+      "auto": "status",
+      "default": "queued",
+      "display_order": 3,
+      "user_editable": false
+    },
+    {
+      "name": "created",
+      "description": "Creation date",
+      "type": "date",
+      "required": true,
+      "auto": "date",
+      "display_order": 4,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Sync description",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Sync catalog entries",
+      "max_length": 120,
+      "display_order": 5
+    }
+  ],
+  "steps": [
+    {
+      "name": "scan",
+      "display_name": "Scanning",
+      "outputs": ["report"],
+      "prompt": "Discover all catalog entries in the workspace:\n\n1. Find all catalog-info.yaml files in projects\n2. Parse each file and validate structure\n3. Build a dependency graph from relations\n4. Identify:\n   - New entries (not in Backstage)\n   - Changed entries (modified since last sync)\n   - Removed entries (catalog-info.yaml deleted)\n5. Document findings in `.tickets/syncs/{{ id }}.md`",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write"],
+      "requires_review": false,
+      "next_step": "validate"
+    },
+    {
+      "name": "validate",
+      "display_name": "Validating",
+      "outputs": ["report"],
+      "prompt": "Validate all catalog entries:\n\n1. Check each catalog-info.yaml against schema\n2. Verify all referenced entities exist\n3. Check for circular dependencies\n4. Validate owner references\n5. Report any validation errors\n\nUpdate `.tickets/syncs/{{ id }}.md` with validation results.",
+      "allowed_tools": ["Read", "Write"],
+      "requires_review": false,
+      "next_step": "update"
+    },
+    {
+      "name": "update",
+      "display_name": "Updating",
+      "outputs": ["report"],
+      "prompt": "Update the Backstage catalog:\n\n1. If Backstage server is running, trigger catalog refresh\n2. If file-based, update the locations config\n3. Log all changes made\n4. Verify catalog is consistent after update\n\nComplete the sync report in `.tickets/syncs/{{ id }}.md`.",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "requires_review": true,
+      "on_reject": {
+        "goto_step": "validate",
+        "prompt": "Re-validate with feedback: {{ rejection_reason }}"
+      }
+    }
+  ]
+}

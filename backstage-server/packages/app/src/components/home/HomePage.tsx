@@ -42,7 +42,7 @@ function QuickLinkCard({ to, icon, title, description }: QuickLinkProps) {
   );
 }
 
-export function HomePage() {
+function HomePage() {
   return (
     <Page themeId="home">
       <Header title="Operator! Portal" subtitle="Developer portal and ticket management" />
@@ -107,4 +107,5 @@ export function HomePage() {
   );
 }
 
+export { HomePage };
 export default HomePage;

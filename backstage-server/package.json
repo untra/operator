@@ -48,7 +48,6 @@
     "eslint-plugin-react": "^7.34.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "knip": "^5.0.0",
-    "raw-loader": "^4.0.2",
     "typescript": "^5.0.0"
   },
   "resolutions": {

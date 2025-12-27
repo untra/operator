@@ -102,11 +102,3 @@ export function TierDisplay({ tier, className }: TierDisplayProps) {
     </div>
   );
 }
-
-// Get all tier keys for filter dropdown
-export function getTierOptions(): Array<{ value: string; label: string }> {
-  return Object.entries(TIER_CONFIG).map(([key, config]) => ({
-    value: key,
-    label: config.label,
-  }));
-}

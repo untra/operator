@@ -26,7 +26,7 @@ import { Root } from './components/Root/Root';
 import { HomePage } from './components/home/HomePage';
 import { entityPage } from './components/catalog/EntityPage';
 import { OperatorCatalogPage } from './components/catalog/OperatorCatalogPage';
-import { apis } from './apis';
+import apis from './apis';
 import { OperatorThemeProvider } from './theme';
 
 const app = createApp({

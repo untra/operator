@@ -47,18 +47,6 @@ export interface Location {
   target: string;
 }
 
-// Standard Backstage entity kinds
-export type EntityKind =
-  | 'Component'
-  | 'API'
-  | 'Resource'
-  | 'System'
-  | 'Domain'
-  | 'Group'
-  | 'User'
-  | 'Location'
-  | 'Template';
-
 // Entity reference format: [kind:]namespace/name
 export function parseEntityRef(ref: string): {
   kind?: string;

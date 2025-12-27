@@ -10,19 +10,19 @@
  *   const { getByText } = renderWithProviders(<MyComponent />, { route: '/issuetypes' });
  */
 
-import React from 'react';
+import type React from 'react';
 
 /**
  * Type definitions for test utilities.
  * These mirror the APIs from @testing-library/react and @backstage/test-utils.
  */
-export interface RenderOptions {
+interface RenderOptions {
   route?: string;
   mockApi?: unknown;
   routes?: React.ReactNode;
 }
 
-export interface RenderResult {
+interface RenderResult {
   container: HTMLElement;
   getByText: (text: string) => HTMLElement;
   queryByText: (text: string) => HTMLElement | null;
@@ -36,7 +36,7 @@ export interface RenderResult {
  * Install them to enable integration testing:
  *   bun add -d @testing-library/react @backstage/test-utils
  */
-export function renderWithProviders(
+function renderWithProviders(
   _ui: React.ReactElement,
   _options: RenderOptions = {},
 ): RenderResult {
@@ -51,7 +51,7 @@ export function renderWithProviders(
  *
  * This function requires @testing-library/react and @backstage/test-utils.
  */
-export function renderWithRoutes(
+function renderWithRoutes(
   _routeConfig: Array<{ path: string; element: React.ReactElement }>,
   _options: Omit<RenderOptions, 'routes'> = {},
 ): RenderResult {
@@ -60,3 +60,6 @@ export function renderWithRoutes(
       'Install them with: bun add -d @testing-library/react @backstage/test-utils',
   );
 }
+
+export { renderWithProviders, renderWithRoutes };
+export type { RenderOptions, RenderResult };

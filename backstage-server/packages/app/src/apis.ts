@@ -13,7 +13,7 @@ import {
 import { catalogApiRef } from '@backstage/plugin-catalog-react';
 import { CatalogClient } from '@backstage/catalog-client';
 
-export const apis: AnyApiFactory[] = [
+const apis: AnyApiFactory[] = [
   // Catalog API - uses our Hono backend
   createApiFactory({
     api: catalogApiRef,

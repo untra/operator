@@ -287,8 +287,8 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     // === Launch Dialog Context ===
     Shortcut {
-        key: KeyCode::Char('Y'),
-        alt_key: Some(KeyCode::Char('y')),
+        key: KeyCode::Char('L'),
+        alt_key: Some(KeyCode::Char('l')),
         description: "Launch agent",
         category: ShortcutCategory::Actions,
         context: ShortcutContext::LaunchDialog,
@@ -311,6 +311,27 @@ pub static SHORTCUTS: &[Shortcut] = &[
         key: KeyCode::Char('N'),
         alt_key: Some(KeyCode::Char('n')),
         description: "Cancel",
+        category: ShortcutCategory::Actions,
+        context: ShortcutContext::LaunchDialog,
+    },
+    Shortcut {
+        key: KeyCode::Char('M'),
+        alt_key: Some(KeyCode::Char('m')),
+        description: "Cycle provider/model",
+        category: ShortcutCategory::Actions,
+        context: ShortcutContext::LaunchDialog,
+    },
+    Shortcut {
+        key: KeyCode::Char('D'),
+        alt_key: Some(KeyCode::Char('d')),
+        description: "Toggle Docker mode",
+        category: ShortcutCategory::Actions,
+        context: ShortcutContext::LaunchDialog,
+    },
+    Shortcut {
+        key: KeyCode::Char('Y'),
+        alt_key: Some(KeyCode::Char('y')),
+        description: "Toggle Auto-accept (YOLO)",
         category: ShortcutCategory::Actions,
         context: ShortcutContext::LaunchDialog,
     },

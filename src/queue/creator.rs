@@ -85,7 +85,7 @@ impl TicketCreator {
         let datetime = now.format("%Y-%m-%d %H:%M").to_string();
         let id = format!("{:04}", now.timestamp() % 10000);
         let type_str = template_type.as_str();
-        let branch_prefix = template_type.branch_prefix();
+        let branch_prefix = type_str.to_lowercase();
 
         let mut values = HashMap::new();
         values.insert("id".to_string(), format!("{}-{}", type_str, id));
@@ -209,7 +209,7 @@ mod tests {
         assert!(values.get("id").unwrap().starts_with("FEAT-"));
         assert_eq!(values.get("project").unwrap(), "myproject");
         assert_eq!(values.get("status").unwrap(), "queued");
-        assert!(values.get("branch").unwrap().starts_with("feature/FEAT-"));
+        assert!(values.get("branch").unwrap().starts_with("feat/FEAT-"));
         assert!(values.contains_key("created"));
     }
 

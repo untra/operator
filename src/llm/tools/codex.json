@@ -15,5 +15,6 @@
     "session_id": "--resume",
     "quiet": "-q"
   },
-  "command_template": "codex exec {{config_flags}}-m {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\""
+  "command_template": "codex exec {{config_flags}}-m {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
+  "yolo_flags": ["--full-auto"]
 }

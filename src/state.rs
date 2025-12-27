@@ -60,6 +60,12 @@ pub struct AgentState {
     /// Completed steps for this ticket
     #[serde(default)]
     pub completed_steps: Vec<String>,
+    /// LLM tool used (e.g., "claude", "gemini", "codex")
+    #[serde(default)]
+    pub llm_tool: Option<String>,
+    /// Launch mode: "default", "yolo", "docker", "docker-yolo"
+    #[serde(default)]
+    pub launch_mode: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -138,6 +144,19 @@ impl State {
         project: String,
         paired: bool,
     ) -> Result<String> {
+        self.add_agent_with_options(ticket_id, ticket_type, project, paired, None, None)
+    }
+
+    /// Add an agent with launch options (llm_tool and launch_mode)
+    pub fn add_agent_with_options(
+        &mut self,
+        ticket_id: String,
+        ticket_type: String,
+        project: String,
+        paired: bool,
+        llm_tool: Option<String>,
+        launch_mode: Option<String>,
+    ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = Utc::now();
 
@@ -161,6 +180,8 @@ impl State {
             github_repo: None,
             pr_status: None,
             completed_steps: Vec::new(),
+            llm_tool,
+            launch_mode,
         });
 
         self.save()?;

@@ -6,6 +6,20 @@
   <title>Configuration | Operator! Documentation</title>
   <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
 
+  <link rel="icon" type="image/png" href="/assets/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/syntax.css">
 
@@ -22,6 +36,7 @@
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="Configuration" />
+<meta name="twitter:site" content="@" />
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Configuration","url":"https://operator.untra.io/configuration/"}</script>
 <!-- End Jekyll SEO tag -->
@@ -51,23 +66,33 @@
         <ul class="nav-children">
           
           <li>
-            <a href="/kanban/" >Kanban</a>
+            
+              <a href="/kanban/" >Kanban</a>
+            
           </li>
           
           <li>
-            <a href="/issue-types/" >Issue Types</a>
+            
+              <a href="/issue-types/" >Issue Types</a>
+            
           </li>
           
           <li>
-            <a href="/tickets/" >Tickets</a>
+            
+              <a href="/tickets/" >Tickets</a>
+            
           </li>
           
           <li>
-            <a href="/agents/" >Agents</a>
+            
+              <a href="/agents/" >Agents</a>
+            
           </li>
           
           <li>
-            <a href="/tmux/" >Tmux</a>
+            
+              <a href="/tmux/" >Tmux</a>
+            
           </li>
           
         </ul>
@@ -82,27 +107,69 @@
         <ul class="nav-children">
           
           <li>
-            <a href="/cli/" >CLI</a>
+            
+              <a href="/cli/" >CLI</a>
+            
           </li>
           
           <li>
-            <a href="/llm-tools/" >LLM Tools</a>
+            
+              <a href="/llm-tools/" >LLM Tools</a>
+            
           </li>
           
           <li>
-            <a href="/configuration/" class="active">Configuration</a>
+            
+              <a href="/configuration/" class="active">Configuration</a>
+            
           </li>
           
           <li>
-            <a href="/shortcuts/" >Shortcuts</a>
+            
+              <a href="/shortcuts/" >Shortcuts</a>
+            
           </li>
           
           <li>
-            <a href="/backstage/" >Backstage</a>
+            
+              
+              
+              <details >
+                <summary>Backstage</summary>
+                <ul class="nav-grandchildren">
+                  
+                  <li>
+                    <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                  </li>
+                  
+                </ul>
+              </details>
+            
           </li>
           
           <li>
-            <a href="/schemas/" >Schemas</a>
+            
+              
+              
+              <details >
+                <summary>Schemas</summary>
+                <ul class="nav-grandchildren">
+                  
+                  <li>
+                    <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                  </li>
+                  
+                  <li>
+                    <a href="/schemas/metadata/" >Ticket Metadata</a>
+                  </li>
+                  
+                  <li>
+                    <a href="/schemas/api/" >REST API</a>
+                  </li>
+                  
+                </ul>
+              </details>
+            
           </li>
           
         </ul>
@@ -113,9 +180,16 @@
   </ul>
 
   <div class="sidebar-footer">
+    <div class="theme-switcher">
+      <button id="theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon-light">☀️</span>
+        <span class="theme-icon-dark">🌙</span>
+      </button>
+    </div>
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub project</a></p>
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/configuration/index.md"><small>View this page source on Github</small></a></p>
-    <small class="sidebar-nav-item">currently v0.1.6</small>
+    <small class="sidebar-nav-item">Currently v0.1.7</small>
+    <small class="sidebar-nav-item"><i>Last updated 2025-12-26</i></small>
   </div>
 </nav>
 
@@ -450,10 +524,22 @@
       <td> </td>
     </tr>
     <tr>
+      <td><code class="language-plaintext highlighter-rouge">docker</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">DockerConfig</code></td>
+      <td>-</td>
+      <td>Docker execution configuration</td>
+    </tr>
+    <tr>
       <td><code class="language-plaintext highlighter-rouge">launch_delay_ms</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">integer</code></td>
       <td>2000</td>
       <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">yolo</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">YoloConfig</code></td>
+      <td>-</td>
+      <td>YOLO (auto-accept) mode configuration</td>
     </tr>
   </tbody>
 </table>
@@ -601,6 +687,12 @@
       <td>Auto-start Backstage server when TUI launches</td>
     </tr>
     <tr>
+      <td><code class="language-plaintext highlighter-rouge">branding</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">BrandingConfig</code></td>
+      <td>-</td>
+      <td>Branding and theming configuration</td>
+    </tr>
+    <tr>
       <td><code class="language-plaintext highlighter-rouge">branding_subpath</code></td>
       <td><code class="language-plaintext highlighter-rouge">string</code></td>
       <td>branding</td>
@@ -613,10 +705,22 @@
       <td>Whether Backstage integration is enabled</td>
     </tr>
     <tr>
+      <td><code class="language-plaintext highlighter-rouge">local_binary_path</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>-</td>
+      <td>Optional local path to backstage-server binary If set, this is used instead of downloading from release_url</td>
+    </tr>
+    <tr>
       <td><code class="language-plaintext highlighter-rouge">port</code></td>
       <td><code class="language-plaintext highlighter-rouge">integer</code></td>
       <td>7007</td>
       <td>Port for the Backstage server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">release_url</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>-</td>
+      <td>Base URL for downloading backstage-server binary</td>
     </tr>
     <tr>
       <td><code class="language-plaintext highlighter-rouge">subpath</code></td>
@@ -716,6 +820,16 @@
 <span class="n">confirm_paired</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 <span class="n">launch_delay_ms</span> <span class="o">=</span><span class="w"> </span><span class="mi">2000</span>
 
+<span class="k">[</span><span class="n">launch</span><span class="k">.</span><span class="n">docker</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">image</span> <span class="o">=</span><span class="w"> </span><span class="s">""</span>
+<span class="n">extra_args</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+<span class="n">mount_path</span> <span class="o">=</span><span class="w"> </span><span class="s">"/workspace"</span>
+<span class="n">env_vars</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+
+<span class="k">[</span><span class="n">launch</span><span class="k">.</span><span class="n">yolo</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+
 <span class="k">[</span><span class="n">templates</span><span class="k">]</span>
 <span class="n">preset</span> <span class="o">=</span><span class="w"> </span><span class="s">"devops_kanban"</span>
 <span class="n">collection</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
@@ -743,6 +857,24 @@
 <span class="n">auto_start</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 <span class="n">subpath</span> <span class="o">=</span><span class="w"> </span><span class="s">"backstage"</span>
 <span class="n">branding_subpath</span> <span class="o">=</span><span class="w"> </span><span class="s">"branding"</span>
+<span class="n">release_url</span> <span class="o">=</span><span class="w"> </span><span class="s">"https://github.com/untra/operator/releases/latest/download"</span>
+
+<span class="k">[</span><span class="n">backstage</span><span class="k">.</span><span class="n">branding</span><span class="k">]</span>
+<span class="n">app_title</span> <span class="o">=</span><span class="w"> </span><span class="s">"Operator Portal"</span>
+<span class="n">org_name</span> <span class="o">=</span><span class="w"> </span><span class="s">"Operator"</span>
+<span class="n">logo_path</span> <span class="o">=</span><span class="w"> </span><span class="s">"logo.svg"</span>
+
+<span class="k">[</span><span class="n">backstage</span><span class="k">.</span><span class="n">branding</span><span class="k">.</span><span class="n">colors</span><span class="k">]</span>
+<span class="n">primary</span> <span class="o">=</span><span class="w"> </span><span class="s">"#cc6c55"</span>
+<span class="n">secondary</span> <span class="o">=</span><span class="w"> </span><span class="s">"#114145"</span>
+<span class="n">accent</span> <span class="o">=</span><span class="w"> </span><span class="s">"#f4dbb7"</span>
+<span class="n">warning</span> <span class="o">=</span><span class="w"> </span><span class="s">"#d46048"</span>
+<span class="n">muted</span> <span class="o">=</span><span class="w"> </span><span class="s">"#8a4a3a"</span>
+
+<span class="k">[</span><span class="n">rest_api</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">port</span> <span class="o">=</span><span class="w"> </span><span class="mi">7008</span>
+<span class="n">cors_origins</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
 
 </code></pre></div></div>
 
@@ -775,5 +907,29 @@
 </article>
 
   </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+  </script>
 </body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
 </html>

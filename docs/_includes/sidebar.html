@@ -14,7 +14,13 @@
     <li class="nav-section">
       {% assign section_active = false %}
       {% for item in section.children %}
-        {% if page.url contains item.url %}
+        {% if item.children %}
+          {% for grandchild in item.children %}
+            {% if page.url contains grandchild.url %}
+              {% assign section_active = true %}
+            {% endif %}
+          {% endfor %}
+        {% elsif page.url contains item.url %}
           {% assign section_active = true %}
         {% endif %}
       {% endfor %}
@@ -23,7 +29,26 @@
         <ul class="nav-children">
           {% for item in section.children %}
           <li>
-            <a href="{{ item.url | relative_url }}" {% if page.url contains item.url %}class="active"{% endif %}>{{ item.title }}</a>
+            {% if item.children %}
+              {% assign item_active = false %}
+              {% for grandchild in item.children %}
+                {% if page.url contains grandchild.url %}
+                  {% assign item_active = true %}
+                {% endif %}
+              {% endfor %}
+              <details {% if item_active %}open{% endif %}>
+                <summary>{{ item.title }}</summary>
+                <ul class="nav-grandchildren">
+                  {% for grandchild in item.children %}
+                  <li>
+                    <a href="{{ grandchild.url | relative_url }}" {% if page.url contains grandchild.url %}class="active"{% endif %}>{{ grandchild.title }}</a>
+                  </li>
+                  {% endfor %}
+                </ul>
+              </details>
+            {% else %}
+              <a href="{{ item.url | relative_url }}" {% if page.url contains item.url %}class="active"{% endif %}>{{ item.title }}</a>
+            {% endif %}
           </li>
           {% endfor %}
         </ul>
@@ -34,8 +59,15 @@
   </ul>
 
   <div class="sidebar-footer">
+    <div class="theme-switcher">
+      <button id="theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon-light">☀️</span>
+        <span class="theme-icon-dark">🌙</span>
+      </button>
+    </div>
     <p><a class="sidebar-nav-item" href="{{ site.github.repo }}"><span class="operator-brand">Operator!</span> GitHub project</a></p>
     <p><a class="sidebar-nav-item" href="{{ site.github.repo }}/tree/main/docs/{{ page.path }}"><small>View this page source on Github</small></a></p>
-    <small class="sidebar-nav-item">currently v{{ site.version }}</small>
+    <small class="sidebar-nav-item">Currently v{{ site.version }}</small>
+    <small class="sidebar-nav-item"><i>Last updated {{ "now" | date: "%Y-%m-%d" }}</i></small>
   </div>
 </nav>

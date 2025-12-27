@@ -49,6 +49,9 @@ pub struct ToolConfig {
     /// Template for building the CLI command
     /// Variables: {{model}}, {{model_flag}}, {{session_id}}, {{prompt_file}}
     pub command_template: String,
+    /// CLI flags for YOLO (auto-accept) mode
+    #[serde(default)]
+    pub yolo_flags: Vec<String>,
 }
 
 impl ToolConfig {

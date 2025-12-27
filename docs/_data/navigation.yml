@@ -22,6 +22,14 @@ docs:
       - title: Shortcuts
         url: /shortcuts/
       - title: Backstage
-        url: /backstage/
+        children:
+          - title: Project Taxonomy
+            url: /backstage/taxonomy/
       - title: Schemas
-        url: /schemas/
+        children:
+          - title: Issue Type Schema
+            url: /schemas/issuetype/
+          - title: Ticket Metadata
+            url: /schemas/metadata/
+          - title: REST API
+            url: /schemas/api/

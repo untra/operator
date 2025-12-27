@@ -25,7 +25,6 @@ pub struct IssueTypeResponse {
     pub glyph: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
-    pub branch_prefix: String,
     pub project_required: bool,
     pub source: String,
     pub fields: Vec<FieldResponse>,
@@ -44,7 +43,6 @@ impl From<&IssueType> for IssueTypeResponse {
             },
             glyph: it.glyph.clone(),
             color: it.color.clone(),
-            branch_prefix: it.branch_prefix.clone(),
             project_required: it.project_required,
             source: it.source_display(),
             fields: it.fields.iter().map(FieldResponse::from).collect(),
@@ -93,8 +91,6 @@ pub struct CreateIssueTypeRequest {
     pub glyph: String,
     #[serde(default)]
     pub color: Option<String>,
-    #[serde(default = "default_branch_prefix")]
-    pub branch_prefix: String,
     #[serde(default = "default_true")]
     pub project_required: bool,
     #[serde(default)]
@@ -104,10 +100,6 @@ pub struct CreateIssueTypeRequest {
 
 fn default_mode() -> String {
     "autonomous".to_string()
-}
-
-fn default_branch_prefix() -> String {
-    "task".to_string()
 }
 
 fn default_true() -> bool {
@@ -128,7 +120,6 @@ impl CreateIssueTypeRequest {
             },
             glyph: self.glyph,
             color: self.color,
-            branch_prefix: self.branch_prefix,
             project_required: self.project_required,
             fields: self.fields.into_iter().map(|f| f.into()).collect(),
             steps: self.steps.into_iter().map(|s| s.into()).collect(),
@@ -152,8 +143,6 @@ pub struct UpdateIssueTypeRequest {
     pub glyph: Option<String>,
     #[serde(default)]
     pub color: Option<String>,
-    #[serde(default)]
-    pub branch_prefix: Option<String>,
     #[serde(default)]
     pub project_required: Option<bool>,
     #[serde(default)]
@@ -450,7 +439,6 @@ mod tests {
             mode: "autonomous".to_string(),
             glyph: "T".to_string(),
             color: None,
-            branch_prefix: "test".to_string(),
             project_required: true,
             fields: vec![],
             steps: vec![CreateStepRequest {

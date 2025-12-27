@@ -52,6 +52,7 @@ fn detect_tool(config: &ToolConfig) -> Option<DetectedTool> {
             supports_sessions: config.capabilities.supports_sessions,
             supports_headless: config.capabilities.supports_headless,
         },
+        yolo_flags: config.yolo_flags.clone(),
     })
 }
 

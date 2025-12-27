@@ -164,9 +164,6 @@ pub async fn update(
     if let Some(color) = request.color {
         issue_type.color = Some(color);
     }
-    if let Some(branch_prefix) = request.branch_prefix {
-        issue_type.branch_prefix = branch_prefix;
-    }
     if let Some(project_required) = request.project_required {
         issue_type.project_required = project_required;
     }

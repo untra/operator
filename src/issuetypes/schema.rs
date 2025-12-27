@@ -41,9 +41,6 @@ pub struct IssueType {
     /// Optional color for glyph display in TUI
     #[serde(default)]
     pub color: Option<String>,
-    /// Git branch prefix for this issue type
-    #[serde(default = "default_branch_prefix")]
-    pub branch_prefix: String,
     /// Whether a project must be specified for this issue type
     #[serde(default = "default_true")]
     pub project_required: bool,
@@ -60,10 +57,6 @@ pub struct IssueType {
     /// Original external ID (for imported types)
     #[serde(default)]
     pub external_id: Option<String>,
-}
-
-fn default_branch_prefix() -> String {
-    "task".to_string()
 }
 
 fn default_true() -> bool {
@@ -128,7 +121,6 @@ impl IssueType {
             mode: ExecutionMode::Autonomous,
             glyph: key.chars().next().unwrap_or('?').to_string(),
             color: None,
-            branch_prefix: key.to_lowercase(),
             project_required: true,
             fields: vec![
                 FieldSchema {
@@ -309,7 +301,6 @@ mod tests {
             mode: ExecutionMode::Autonomous,
             glyph: "T".to_string(),
             color: Some("cyan".to_string()),
-            branch_prefix: "test".to_string(),
             project_required: true,
             fields: vec![FieldSchema {
                 name: "id".to_string(),
@@ -469,7 +460,6 @@ mod tests {
 
         assert_eq!(issue_type.key, "BUG");
         assert_eq!(issue_type.glyph, "B");
-        assert_eq!(issue_type.branch_prefix, "bug");
         assert!(issue_type.is_autonomous());
         assert_eq!(issue_type.steps.len(), 1);
         assert_eq!(issue_type.steps[0].name, "execute");
@@ -506,7 +496,6 @@ mod tests {
             "mode": "autonomous",
             "glyph": "S",
             "color": "cyan",
-            "branch_prefix": "story",
             "project_required": true,
             "fields": [
                 {

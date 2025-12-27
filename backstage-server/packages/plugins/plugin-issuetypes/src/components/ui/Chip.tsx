@@ -5,12 +5,14 @@ export interface ChipProps {
   label: string;
   variant?: 'default' | 'primary' | 'secondary';
   size?: 'small' | 'medium';
+  style?: React.CSSProperties;
 }
 
 export const Chip: React.FC<ChipProps> = ({
   label,
   variant = 'default',
   size = 'medium',
+  style,
 }) => {
   const classNames = [
     styles.chip,
@@ -20,5 +22,9 @@ export const Chip: React.FC<ChipProps> = ({
     .filter(Boolean)
     .join(' ');
 
-  return <span className={classNames}>{label}</span>;
+  return (
+    <span className={classNames} style={style}>
+      {label}
+    </span>
+  );
 };

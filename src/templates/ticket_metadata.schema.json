@@ -112,7 +112,7 @@
           "pattern": "^op-[A-Z]+-\\d+$"
         },
         "git_branch": {
-          "description": "Derived as: {branch_prefix}/{id}-{summary-slug} (e.g., feature/FEAT-1234-add-auth)"
+          "description": "Derived as: {key.lowercase}/{id}-{summary-slug} (e.g., feat/FEAT-1234-add-auth)"
         }
       }
     }

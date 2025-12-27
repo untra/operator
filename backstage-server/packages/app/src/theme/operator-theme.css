@@ -1,0 +1,213 @@
+/**
+ * Operator Portal Theme - BUI CSS Variables
+ * Based on docs/assets/css/main.css color palette
+ *
+ * Color Reference:
+ * - Terracotta:    #E05D44 (primary, actions)
+ * - Cornflower:    #6688AA (muted text)
+ * - Cream:         #F2EAC9 (accent, sidebar)
+ * - Sage:          #66AA99 (nav buttons)
+ * - Teal:          #448880 (hover)
+ * - Deep Pine:     #115566 (text, selected)
+ * - Midnight:      #082226 (dark mode bg)
+ */
+
+/* Light Mode */
+[data-theme-mode='light'], :root {
+  /* Core backgrounds */
+  --bui-bg: #faf8f5;
+  --bui-bg-surface-1: #ffffff;
+  --bui-bg-surface-2: #F2EAC9;
+  --bui-bg-solid: #E05D44;
+
+  /* Foregrounds */
+  --bui-fg-primary: #115566;
+  --bui-fg-secondary: #6688AA;
+  --bui-fg-muted: #6688AA;
+
+  /* Brand colors */
+  --bui-primary: #E05D44;
+  --bui-secondary: #115566;
+  --bui-accent: #F2EAC9;
+
+  /* Borders */
+  --bui-border: rgba(17, 85, 102, 0.15);
+
+  /* Navigation sidebar (Light Cream) */
+  --bui-sidebar-bg: #F2EAC9;
+  --bui-sidebar-fg: #115566;
+  --bui-sidebar-hover: #66AA99;
+  --bui-sidebar-selected: #115566;
+  --bui-sidebar-selected-bg: #66AA99;
+
+  /* Radius - subtle rounding */
+  --bui-radius-1: 4px;
+  --bui-radius-2: 6px;
+  --bui-radius-3: 8px;
+
+  /* Gray scale (for compatibility) */
+  --bui-gray-1: #faf8f5;
+  --bui-gray-2: #F2EAC9;
+  --bui-gray-3: #e0d9c0;
+  --bui-gray-4: #c5bda5;
+  --bui-gray-5: #6688AA;
+  --bui-gray-6: #448880;
+  --bui-gray-7: #115566;
+  --bui-gray-8: #082226;
+}
+
+/* Dark Mode */
+[data-theme-mode='dark'] {
+  --bui-bg: #082226;
+  --bui-bg-surface-1: #115566;
+  --bui-bg-surface-2: #448880;
+  --bui-bg-solid: #E05D44;
+
+  --bui-fg-primary: #F2EAC9;
+  --bui-fg-secondary: #66AA99;
+  --bui-fg-muted: #6688AA;
+
+  --bui-primary: #E05D44;
+  --bui-border: rgba(242, 234, 201, 0.2);
+
+  /* Dark sidebar */
+  --bui-sidebar-bg: #082226;
+  --bui-sidebar-fg: #F2EAC9;
+  --bui-sidebar-hover: #448880;
+  --bui-sidebar-selected-bg: #115566;
+
+  /* Gray scale inverted */
+  --bui-gray-1: #082226;
+  --bui-gray-2: #115566;
+  --bui-gray-3: #448880;
+  --bui-gray-4: #66AA99;
+  --bui-gray-5: #6688AA;
+  --bui-gray-6: #c5bda5;
+  --bui-gray-7: #F2EAC9;
+  --bui-gray-8: #faf8f5;
+}
+
+/* ============================================
+ * BUI Component Overrides
+ * ============================================ */
+
+.bui-Button {
+  border-radius: var(--bui-radius-1);
+  text-transform: none;
+}
+
+.bui-Card {
+  border-radius: var(--bui-radius-2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ============================================
+ * Backstage Sidebar Overrides (Light Cream)
+ * ============================================ */
+
+/* Main sidebar container */
+[data-testid="sidebar-root"],
+nav[aria-label="sidebar nav"] > div {
+  background-color: var(--bui-sidebar-bg) !important;
+  color: var(--bui-sidebar-fg) !important;
+}
+
+/* Sidebar title/logo text */
+nav[aria-label="sidebar nav"] span {
+  color: var(--bui-sidebar-fg) !important;
+}
+
+/* Sidebar nav items */
+nav[aria-label="sidebar nav"] a,
+nav[aria-label="sidebar nav"] button {
+  color: var(--bui-sidebar-fg) !important;
+}
+
+/* Sidebar item hover */
+nav[aria-label="sidebar nav"] a:hover,
+nav[aria-label="sidebar nav"] button:hover {
+  background-color: var(--bui-sidebar-hover) !important;
+  color: #ffffff !important;
+}
+
+/* Active/selected sidebar item */
+nav[aria-label="sidebar nav"] a[aria-current="page"] {
+  background-color: var(--bui-sidebar-selected-bg) !important;
+  color: #ffffff !important;
+}
+
+/* Sidebar dividers */
+nav[aria-label="sidebar nav"] hr {
+  border-color: var(--bui-sidebar-fg) !important;
+  opacity: 0.2;
+}
+
+/* Sidebar icons */
+nav[aria-label="sidebar nav"] svg {
+  fill: currentColor !important;
+}
+
+/* ============================================
+ * Main Content Area
+ * ============================================ */
+
+/* Main background */
+main {
+  background-color: var(--bui-bg) !important;
+}
+
+/* Page headers */
+header {
+  background: linear-gradient(135deg, var(--bui-primary) 0%, var(--bui-secondary) 100%) !important;
+  color: #ffffff !important;
+}
+
+header h1,
+header span {
+  color: #ffffff !important;
+}
+
+/* ============================================
+ * MUI Component Overrides (Legacy Support)
+ * ============================================ */
+
+/* Cards */
+.MuiCard-root,
+.MuiPaper-root {
+  background-color: var(--bui-bg-surface-1) !important;
+  border-radius: var(--bui-radius-2) !important;
+}
+
+/* Typography */
+.MuiTypography-root {
+  color: var(--bui-fg-primary);
+}
+
+.MuiTypography-colorTextSecondary {
+  color: var(--bui-fg-secondary) !important;
+}
+
+/* Buttons */
+.MuiButton-root {
+  border-radius: var(--bui-radius-1) !important;
+  text-transform: none !important;
+}
+
+.MuiButton-containedPrimary {
+  background-color: var(--bui-primary) !important;
+}
+
+/* Icons */
+.MuiSvgIcon-root {
+  color: var(--bui-primary);
+}
+
+/* Text fields */
+.MuiOutlinedInput-root {
+  border-radius: var(--bui-radius-1) !important;
+}
+
+/* Chips */
+.MuiChip-root {
+  border-radius: var(--bui-radius-1) !important;
+}

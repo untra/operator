@@ -1,5 +1,6 @@
 ---
 title: "REST API"
+description: "Interactive Swagger UI documentation for the Operator! REST API for issue type management."
 layout: doc
 ---
 

@@ -421,7 +421,7 @@ impl CreateDialog {
         let datetime = now.format("%Y-%m-%d %H:%M").to_string();
         let id = format!("{:04}", now.timestamp() % 10000);
         let type_str = template_type.as_str();
-        let branch_prefix = template_type.branch_prefix();
+        let branch_prefix = type_str.to_lowercase();
 
         let mut values = HashMap::new();
         values.insert("id".to_string(), format!("{}-{}", type_str, id));

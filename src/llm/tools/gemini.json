@@ -15,5 +15,6 @@
     "session_id": "--resume",
     "quiet": "--output-format json"
   },
-  "command_template": "gemini {{config_flags}}--model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\""
+  "command_template": "gemini {{config_flags}}--model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
+  "yolo_flags": ["--auto-approve", "-y"]
 }

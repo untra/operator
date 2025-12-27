@@ -18,5 +18,6 @@
     "json_schema": "--json-schema"
   },
   "permission_modes": ["default", "plan", "acceptEdits", "delegate"],
-  "command_template": "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\""
+  "command_template": "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
+  "yolo_flags": ["--dangerously-skip-permissions"]
 }

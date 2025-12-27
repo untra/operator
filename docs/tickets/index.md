@@ -1,5 +1,6 @@
 ---
 title: Tickets
+description: "Create and manage tickets with markdown format, naming conventions, and best practices for LLM agents."
 layout: doc
 ---
 

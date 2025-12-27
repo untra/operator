@@ -123,14 +123,16 @@ jobs:
           cd backstage-server
           bun install
 
-      # Compile backstage-server binary for target architecture
-      # Uses standalone.ts (Hono-based) which is compatible with bun build --compile
+      # Build backstage frontend and compile binary
+      # This builds the React frontend, generates embedded assets, then compiles
       - name: Build backstage binary
         if: steps.backstage.outputs.exists == 'true'
         run: |
           cd backstage-server
-          bun build --compile --minify src/standalone.ts \
-            --outfile ../target/backstage-server-${{ matrix.bun_target }}
+          # Build frontend, generate embeds, compile binary
+          bun run build
+          # Move binary to target directory with platform suffix
+          mv dist/backstage-server ../target/backstage-server-${{ matrix.bun_target }}
           ls -la ../target/backstage-server-*
 
       - name: Build release

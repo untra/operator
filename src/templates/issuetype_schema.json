@@ -19,8 +19,8 @@
     },
     "name": {
       "type": "string",
-      "minLength": 1,
-      "description": "Human-readable name of the issuetype"
+      "minLength": 3,
+      "description": "Human-readable name of the issuetype, eg. bug, feature, task, chore, spike, etc."
     },
     "description": {
       "type": "string",
@@ -29,7 +29,8 @@
     "mode": {
       "type": "string",
       "enum": ["autonomous", "paired"],
-      "description": "Whether this issuetype runs autonomously or requires human pairing"
+      "description": "Whether this issuetype work runs autonomously or requires human pairing",
+      "default": "paired"
     },
     "glyph": {
       "type": "string",
@@ -42,11 +43,6 @@
       "type": "string",
       "enum": ["blue", "cyan", "green", "yellow", "magenta", "red"],
       "description": "Optional color for the glyph in TUI display"
-    },
-    "branch_prefix": {
-      "type": "string",
-      "description": "Git branch prefix for this issuetype (e.g., 'feature', 'fix')",
-      "default": "task"
     },
     "project_required": {
       "type": "boolean",

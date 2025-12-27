@@ -6,6 +6,20 @@
   <title>CLI Reference | Operator! Documentation</title>
   <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
 
+  <link rel="icon" type="image/png" href="/assets/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/syntax.css">
 
@@ -22,6 +36,7 @@
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="CLI Reference" />
+<meta name="twitter:site" content="@" />
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"CLI Reference","url":"https://operator.untra.io/cli/"}</script>
 <!-- End Jekyll SEO tag -->
@@ -51,23 +66,33 @@
         <ul class="nav-children">
           
           <li>
-            <a href="/kanban/" >Kanban</a>
+            
+              <a href="/kanban/" >Kanban</a>
+            
           </li>
           
           <li>
-            <a href="/issue-types/" >Issue Types</a>
+            
+              <a href="/issue-types/" >Issue Types</a>
+            
           </li>
           
           <li>
-            <a href="/tickets/" >Tickets</a>
+            
+              <a href="/tickets/" >Tickets</a>
+            
           </li>
           
           <li>
-            <a href="/agents/" >Agents</a>
+            
+              <a href="/agents/" >Agents</a>
+            
           </li>
           
           <li>
-            <a href="/tmux/" >Tmux</a>
+            
+              <a href="/tmux/" >Tmux</a>
+            
           </li>
           
         </ul>
@@ -82,27 +107,69 @@
         <ul class="nav-children">
           
           <li>
-            <a href="/cli/" class="active">CLI</a>
+            
+              <a href="/cli/" class="active">CLI</a>
+            
           </li>
           
           <li>
-            <a href="/llm-tools/" >LLM Tools</a>
+            
+              <a href="/llm-tools/" >LLM Tools</a>
+            
           </li>
           
           <li>
-            <a href="/configuration/" >Configuration</a>
+            
+              <a href="/configuration/" >Configuration</a>
+            
           </li>
           
           <li>
-            <a href="/shortcuts/" >Shortcuts</a>
+            
+              <a href="/shortcuts/" >Shortcuts</a>
+            
           </li>
           
           <li>
-            <a href="/backstage/" >Backstage</a>
+            
+              
+              
+              <details >
+                <summary>Backstage</summary>
+                <ul class="nav-grandchildren">
+                  
+                  <li>
+                    <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                  </li>
+                  
+                </ul>
+              </details>
+            
           </li>
           
           <li>
-            <a href="/schemas/" >Schemas</a>
+            
+              
+              
+              <details >
+                <summary>Schemas</summary>
+                <ul class="nav-grandchildren">
+                  
+                  <li>
+                    <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                  </li>
+                  
+                  <li>
+                    <a href="/schemas/metadata/" >Ticket Metadata</a>
+                  </li>
+                  
+                  <li>
+                    <a href="/schemas/api/" >REST API</a>
+                  </li>
+                  
+                </ul>
+              </details>
+            
           </li>
           
         </ul>
@@ -113,9 +180,16 @@
   </ul>
 
   <div class="sidebar-footer">
+    <div class="theme-switcher">
+      <button id="theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon-light">☀️</span>
+        <span class="theme-icon-dark">🌙</span>
+      </button>
+    </div>
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub project</a></p>
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/cli/index.md"><small>View this page source on Github</small></a></p>
-    <small class="sidebar-nav-item">currently v0.1.6</small>
+    <small class="sidebar-nav-item">Currently v0.1.7</small>
+    <small class="sidebar-nav-item"><i>Last updated 2025-12-26</i></small>
   </div>
 </nav>
 
@@ -310,6 +384,56 @@
     <tr>
       <td><code class="language-plaintext highlighter-rouge">-g, --only</code></td>
       <td>Only generate specific docs (taxonomy, issuetype, metadata)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="api"><code class="language-plaintext highlighter-rouge">api</code></h3>
+
+<p>Start the REST API server for issue type management</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Argument/Option</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">-p, --port</code></td>
+      <td>Port to listen on (default: 7008)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="setup"><code class="language-plaintext highlighter-rouge">setup</code></h3>
+
+<p>Initialize operator workspace (non-interactive by default)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Argument/Option</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">-i, --interactive</code></td>
+      <td>Launch TUI setup wizard instead of non-interactive setup</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">-C, --collection</code></td>
+      <td>Collection preset: simple, dev-kanban, devops-kanban (default: simple)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--backstage</code></td>
+      <td>Enable backstage configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">-f, --force</code></td>
+      <td>Overwrite existing files</td>
     </tr>
   </tbody>
 </table>
@@ -820,5 +944,29 @@
 </article>
 
   </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+  </script>
 </body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
 </html>

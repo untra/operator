@@ -325,12 +325,6 @@ export function IssueTypeDetailPage() {
                 </div>
                 <div className={classes.metadataRow}>
                   <Typography className={classes.metadataLabel}>
-                    Branch Prefix:
-                  </Typography>
-                  <Typography>{issueType.branch_prefix}</Typography>
-                </div>
-                <div className={classes.metadataRow}>
-                  <Typography className={classes.metadataLabel}>
                     Project Required:
                   </Typography>
                   <Typography>

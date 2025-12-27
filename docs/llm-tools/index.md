@@ -1,5 +1,6 @@
 ---
 title: LLM Tools
+description: "Configure Claude Code and other LLM tools for AI-powered agent integration with Operator!."
 layout: doc
 ---
 

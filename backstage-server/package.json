@@ -8,8 +8,11 @@
   "scripts": {
     "dev": "bun run --hot src/standalone.ts",
     "start": "bun run src/standalone.ts",
-    "build": "bun run build:standalone",
-    "build:standalone": "bun build --compile --minify src/standalone.ts --outfile dist/backstage-server",
+    "build": "bun run build:frontend && bun run build:embeds && bun run build:standalone",
+    "build:dev": "bun run build:frontend && bun run build:embeds && bun run build:standalone:dev",
+    "build:embeds": "bun run scripts/generate-embeds.ts",
+    "build:standalone": "bun build --compile --minify --asset-naming '[dir]/[name].[ext]' src/standalone.ts --outfile dist/backstage-server",
+    "build:standalone:dev": "bun build --compile --asset-naming '[dir]/[name].[ext]' src/standalone.ts --outfile dist/backstage-server",
     "build:backstage": "bun run build:frontend && bun run build:backend && bun run build:plugin",
     "build:frontend": "cd packages/app && backstage-cli package build",
     "build:backend": "cd packages/backend && backstage-cli package build",

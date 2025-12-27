@@ -1,7 +1,6 @@
 ---
 id: {{ id }}
 {{#if step }}step: {{ step }}
-{{/if}}{{#if project }}project: {{ project }}
 {{/if}}{{#if scope }}scope: {{ scope }}
 {{/if}}status: {{ status }}
 created: {{ created_datetime }}

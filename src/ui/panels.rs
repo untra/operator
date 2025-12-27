@@ -141,6 +141,53 @@ impl AgentsPanel {
                     _ => Color::Gray,
                 };
 
+                // Tool indicator (A=Anthropic/Claude, G=Gemini, O=OpenAI/Codex)
+                // Colors: Claude=#C15F3C (rust), Gemini=#6F42C1 (purple), Codex=Green
+                let tool_indicator = match a.llm_tool.as_deref() {
+                    Some("claude") => ("A", Color::Rgb(193, 95, 60)), // #C15F3C
+                    Some("gemini") => ("G", Color::Rgb(111, 66, 193)), // #6F42C1
+                    Some("codex") => ("O", Color::Green),
+                    _ => (" ", Color::Reset),
+                };
+
+                // Check launch mode for docker and yolo
+                let is_docker = a
+                    .launch_mode
+                    .as_ref()
+                    .map(|m| m.contains("docker"))
+                    .unwrap_or(false);
+                let is_yolo = a
+                    .launch_mode
+                    .as_ref()
+                    .map(|m| m.contains("yolo"))
+                    .unwrap_or(false);
+
+                // YOLO indicator with rainbow animation (6-second cycle: R -> G -> B)
+                let yolo_indicator = if is_yolo {
+                    // Cycle R -> G -> B every 2 seconds (6 second full cycle)
+                    let phase = (chrono::Utc::now().timestamp() / 2) % 3;
+                    let color = match phase {
+                        0 => Color::Red,
+                        1 => Color::Green,
+                        _ => Color::Blue,
+                    };
+                    ("Y", color)
+                } else {
+                    (" ", Color::Reset)
+                };
+
+                // Docker indicator (D on gray background)
+                let docker_indicator = if is_docker {
+                    ("D", Color::White)
+                } else {
+                    (" ", Color::Reset)
+                };
+                let docker_bg = if is_docker {
+                    Color::DarkGray
+                } else {
+                    Color::Reset
+                };
+
                 // Get the current step display text
                 let step_display = a
                     .current_step
@@ -160,14 +207,36 @@ impl AgentsPanel {
                     format!("{}s", elapsed)
                 };
 
+                // Build the first line with tool indicators
+                let mut line1_spans = vec![Span::styled(
+                    tool_indicator.0,
+                    Style::default().fg(tool_indicator.1),
+                )];
+
+                // Add YOLO indicator (with or without docker background)
+                if is_yolo {
+                    line1_spans.push(Span::styled(
+                        yolo_indicator.0,
+                        Style::default().fg(yolo_indicator.1).bg(docker_bg),
+                    ));
+                } else if is_docker {
+                    // Docker without YOLO - show D
+                    line1_spans.push(Span::styled(
+                        docker_indicator.0,
+                        Style::default().fg(docker_indicator.1).bg(docker_bg),
+                    ));
+                }
+
+                line1_spans.extend(vec![
+                    Span::styled(status_icon, Style::default().fg(status_color)),
+                    Span::raw(" "),
+                    Span::styled(&a.project, Style::default().add_modifier(Modifier::BOLD)),
+                    Span::raw(" "),
+                    Span::styled(step_display, Style::default().fg(Color::Cyan)),
+                ]);
+
                 let lines = vec![
-                    Line::from(vec![
-                        Span::styled(status_icon, Style::default().fg(status_color)),
-                        Span::raw(" "),
-                        Span::styled(&a.project, Style::default().add_modifier(Modifier::BOLD)),
-                        Span::raw(" "),
-                        Span::styled(step_display, Style::default().fg(Color::Cyan)),
-                    ]),
+                    Line::from(line1_spans),
                     Line::from(vec![
                         Span::raw("  "),
                         Span::styled(

@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use uuid::Uuid;
 
 use super::tmux::{sanitize_session_name, SystemTmuxClient, TmuxClient, TmuxError};
-use crate::config::Config;
+use crate::config::{Config, DetectedTool, LlmProvider};
 use crate::notifications;
 use crate::permissions::{
     PermissionSet, ProjectPermissions, ProviderCliArgs, StepPermissions, TranslatorManager,
@@ -28,6 +28,29 @@ struct StepConfig {
     permission_mode: PermissionMode,
     json_schema: Option<serde_json::Value>,
     json_schema_file: Option<String>,
+}
+
+/// Launch options for starting an agent with specific provider and mode settings
+#[derive(Debug, Clone, Default)]
+pub struct LaunchOptions {
+    /// LLM provider to use (if None, use default)
+    pub provider: Option<LlmProvider>,
+    /// Run in docker container
+    pub docker_mode: bool,
+    /// Run in YOLO (auto-accept) mode
+    pub yolo_mode: bool,
+}
+
+impl LaunchOptions {
+    /// Get the launch mode string for state tracking
+    pub fn launch_mode_string(&self) -> String {
+        match (self.docker_mode, self.yolo_mode) {
+            (true, true) => "docker-yolo".to_string(),
+            (true, false) => "docker".to_string(),
+            (false, true) => "yolo".to_string(),
+            (false, false) => "default".to_string(),
+        }
+    }
 }
 
 /// Session name prefix for operator-managed tmux sessions
@@ -93,6 +116,16 @@ impl Launcher {
 
     /// Launch a Claude agent in a tmux session for the given ticket
     pub async fn launch(&self, ticket: &Ticket) -> Result<String> {
+        self.launch_with_options(ticket, LaunchOptions::default())
+            .await
+    }
+
+    /// Launch an agent with specific launch options
+    pub async fn launch_with_options(
+        &self,
+        ticket: &Ticket,
+        options: LaunchOptions,
+    ) -> Result<String> {
         // Move ticket to in-progress
         let queue = Queue::new(&self.config)?;
         queue.claim_ticket(ticket)?;
@@ -104,15 +137,31 @@ impl Launcher {
         let initial_prompt = self.generate_prompt(ticket);
 
         // Launch in tmux session
-        let session_name = self.launch_in_tmux(ticket, &project_path, &initial_prompt)?;
+        let session_name =
+            self.launch_in_tmux_with_options(ticket, &project_path, &initial_prompt, &options)?;
 
-        // Update state
+        // Determine tool name from options or default
+        let llm_tool = options
+            .provider
+            .as_ref()
+            .map(|p| p.tool.clone())
+            .or_else(|| {
+                self.config
+                    .llm_tools
+                    .detected
+                    .first()
+                    .map(|t| t.name.clone())
+            });
+
+        // Update state with launch options
         let mut state = State::load(&self.config)?;
-        let agent_id = state.add_agent(
+        let agent_id = state.add_agent_with_options(
             ticket.id.clone(),
             ticket.ticket_type.clone(),
             ticket.project.clone(),
             ticket.is_paired(),
+            llm_tool,
+            Some(options.launch_mode_string()),
         )?;
 
         // Store session name in state for later recovery
@@ -125,11 +174,17 @@ impl Launcher {
 
         // Send notification
         if self.config.notifications.enabled && self.config.notifications.on_agent_start {
+            let mode_suffix = match (options.docker_mode, options.yolo_mode) {
+                (true, true) => " [docker-yolo]",
+                (true, false) => " [docker]",
+                (false, true) => " [yolo]",
+                (false, false) => "",
+            };
             notifications::send(
                 "Agent Started",
                 &format!(
-                    "{} - {} (tmux: {})",
-                    ticket.project, ticket.ticket_type, session_name
+                    "{} - {} (tmux: {}){}",
+                    ticket.project, ticket.ticket_type, session_name, mode_suffix
                 ),
                 &ticket.summary,
                 self.config.notifications.sound,
@@ -261,12 +316,28 @@ When done, move the ticket to completed."#,
         }
     }
 
-    /// Launch Claude in a tmux session
+    /// Launch Claude in a tmux session (with default options)
     fn launch_in_tmux(
         &self,
         ticket: &Ticket,
         project_path: &str,
         initial_prompt: &str,
+    ) -> Result<String> {
+        self.launch_in_tmux_with_options(
+            ticket,
+            project_path,
+            initial_prompt,
+            &LaunchOptions::default(),
+        )
+    }
+
+    /// Launch Claude in a tmux session with specific options
+    fn launch_in_tmux_with_options(
+        &self,
+        ticket: &Ticket,
+        project_path: &str,
+        initial_prompt: &str,
+        options: &LaunchOptions,
     ) -> Result<String> {
         // Create session name from ticket ID (sanitize for tmux)
         let session_name = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
@@ -355,10 +426,22 @@ When done, move the ticket to completed."#,
             }
         }
 
-        // Get the model from first available provider (default to "sonnet" if none)
-        let model = self
-            .get_default_model()
-            .unwrap_or_else(|| "sonnet".to_string());
+        // Get the model and tool from options or use defaults
+        let (tool_name, model) = if let Some(ref provider) = options.provider {
+            (provider.tool.clone(), provider.model.clone())
+        } else {
+            let default_tool = self
+                .config
+                .llm_tools
+                .detected
+                .first()
+                .map(|t| t.name.clone())
+                .unwrap_or_else(|| "claude".to_string());
+            let default_model = self
+                .get_default_model()
+                .unwrap_or_else(|| "sonnet".to_string());
+            (default_tool, default_model)
+        };
 
         // Build the full prompt based on whether template has agent_prompt
         let full_prompt = if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
@@ -380,13 +463,24 @@ When done, move the ticket to completed."#,
         let prompt_file = write_prompt_file(&self.config, &session_uuid, &full_prompt)?;
 
         // Build command using the detected tool's template (with permissions)
-        let llm_cmd = self.build_llm_command_with_permissions(
+        let mut llm_cmd = self.build_llm_command_with_permissions_for_tool(
+            &tool_name,
             &model,
             &session_uuid,
             &prompt_file,
             Some(ticket),
             Some(project_path),
         )?;
+
+        // Apply YOLO flags if enabled
+        if options.yolo_mode {
+            llm_cmd = self.apply_yolo_flags(&llm_cmd, &tool_name);
+        }
+
+        // Wrap in docker command if docker mode is enabled
+        if options.docker_mode {
+            llm_cmd = self.build_docker_command(&llm_cmd, project_path)?;
+        }
 
         // Send the LLM command to the session
         if let Err(e) = self.tmux.send_keys(&session_name, &llm_cmd, true) {
@@ -401,6 +495,8 @@ When done, move the ticket to completed."#,
             project = %ticket.project,
             ticket = %ticket.id,
             step = %step_name,
+            tool = %tool_name,
+            launch_mode = %options.launch_mode_string(),
             "Launched agent in tmux session"
         );
 
@@ -489,6 +585,34 @@ When done, move the ticket to completed."#,
             anyhow::anyhow!("No LLM tool detected. Install claude, gemini, or codex CLI.")
         })?;
 
+        self.build_llm_command_with_permissions_for_tool(
+            &tool.name.clone(),
+            model,
+            session_id,
+            prompt_file,
+            ticket,
+            project_path,
+        )
+    }
+
+    /// Build the LLM command for a specific tool with optional step permissions
+    fn build_llm_command_with_permissions_for_tool(
+        &self,
+        tool_name: &str,
+        model: &str,
+        session_id: &str,
+        prompt_file: &std::path::Path,
+        ticket: Option<&Ticket>,
+        project_path: Option<&str>,
+    ) -> Result<String> {
+        // Find the specified tool
+        let tool = self.get_detected_tool(tool_name).ok_or_else(|| {
+            anyhow::anyhow!(
+                "LLM tool '{}' not detected. Install it or choose a different provider.",
+                tool_name
+            )
+        })?;
+
         // Build model flag based on tool's arg_mapping
         let model_flag = format!("--model {} ", model);
 
@@ -509,6 +633,68 @@ When done, move the ticket to completed."#,
             .replace("{{prompt_file}}", &prompt_file.display().to_string());
 
         Ok(cmd)
+    }
+
+    /// Apply YOLO (auto-accept) flags to the command for the given tool
+    fn apply_yolo_flags(&self, cmd: &str, tool_name: &str) -> String {
+        if let Some(tool) = self.get_detected_tool(tool_name) {
+            if !tool.yolo_flags.is_empty() {
+                // Insert YOLO flags after the tool name
+                let yolo_flags_str = tool.yolo_flags.join(" ");
+                // Find the tool name in the command and insert flags after it
+                if let Some(pos) = cmd.find(tool_name) {
+                    let insert_pos = pos + tool_name.len();
+                    let mut result = cmd.to_string();
+                    result.insert_str(insert_pos, &format!(" {}", yolo_flags_str));
+                    return result;
+                }
+            }
+        }
+        cmd.to_string()
+    }
+
+    /// Build a docker command that wraps the LLM command
+    fn build_docker_command(&self, inner_cmd: &str, project_path: &str) -> Result<String> {
+        let docker_config = &self.config.launch.docker;
+
+        if docker_config.image.is_empty() {
+            anyhow::bail!(
+                "Docker mode is enabled but no image is configured. \
+                 Set launch.docker.image in your config."
+            );
+        }
+
+        let mut docker_args = vec![
+            "docker".to_string(),
+            "run".to_string(),
+            "--rm".to_string(),
+            "-it".to_string(),
+            "-v".to_string(),
+            format!("{}:{}:rw", project_path, docker_config.mount_path),
+            "-w".to_string(),
+            docker_config.mount_path.clone(),
+        ];
+
+        // Add environment variables
+        for env_var in &docker_config.env_vars {
+            docker_args.push("-e".to_string());
+            docker_args.push(env_var.clone());
+        }
+
+        // Add extra args from config
+        for arg in &docker_config.extra_args {
+            docker_args.push(arg.clone());
+        }
+
+        // Add the image
+        docker_args.push(docker_config.image.clone());
+
+        // Add the inner command (use sh -c to handle complex commands)
+        docker_args.push("sh".to_string());
+        docker_args.push("-c".to_string());
+        docker_args.push(inner_cmd.to_string());
+
+        Ok(docker_args.join(" "))
     }
 
     /// Generate config flags for the LLM command based on step permissions

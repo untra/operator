@@ -6,7 +6,6 @@
   "mode": "autonomous",
   "glyph": "~",
   "color": "magenta",
-  "branch_prefix": "assess",
   "project_required": true,
   "agent_prompt": "Review this project to create an agent for Backstage catalog assessment. The agent analyzes project structure, detects the project Kind from file patterns (using the 24-Kind taxonomy), and generates a catalog-info.yaml file. It reads existing files, matches patterns to determine project type, and outputs structured catalog metadata. Output ONLY the agent system prompt.",
   "fields": [
@@ -20,34 +19,6 @@
       "user_editable": false
     },
     {
-      "name": "project",
-      "description": "Target project to assess",
-      "type": "string",
-      "required": true,
-      "default": "",
-      "placeholder": "Project directory name",
-      "display_order": 1
-    },
-    {
-      "name": "status",
-      "description": "Ticket status",
-      "type": "string",
-      "required": true,
-      "auto": "status",
-      "default": "queued",
-      "display_order": 2,
-      "user_editable": false
-    },
-    {
-      "name": "created",
-      "description": "Creation date",
-      "type": "date",
-      "required": true,
-      "auto": "date",
-      "display_order": 3,
-      "user_editable": false
-    },
-    {
       "name": "summary",
       "description": "Assessment description",
       "type": "string",
@@ -55,7 +26,7 @@
       "default": "",
       "placeholder": "Assess project for Backstage catalog",
       "max_length": 120,
-      "display_order": 4
+      "display_order": 1
     },
     {
       "name": "kind_override",
@@ -64,7 +35,7 @@
       "required": false,
       "default": "",
       "placeholder": "e.g., microservice, infrastructure",
-      "display_order": 5
+      "display_order": 2
     }
   ],
   "steps": [

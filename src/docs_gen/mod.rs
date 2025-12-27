@@ -16,6 +16,7 @@
 pub mod cli;
 pub mod config;
 pub mod issuetype;
+pub mod llm_tools;
 pub mod markdown;
 pub mod metadata;
 pub mod openapi;
@@ -80,6 +81,7 @@ pub fn generate_all(docs_dir: &Path) -> Result<()> {
         Box::new(cli::CliDocGenerator),
         Box::new(config::ConfigDocGenerator),
         Box::new(openapi::OpenApiDocGenerator),
+        Box::new(llm_tools::LlmToolsDocGenerator),
     ];
 
     for generator in generators {

@@ -4,7 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Downloads | Operator! Documentation</title>
-  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+  <meta name="description" content="Download Operator! binaries for macOS and Linux, including the optional Backstage server.">
+
+  <link rel="icon" type="image/png" href="/assets/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
 
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/syntax.css">
@@ -14,16 +28,17 @@
 <meta name="generator" content="Jekyll v4.4.1" />
 <meta property="og:title" content="Downloads" />
 <meta property="og:locale" content="en_US" />
-<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
-<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta name="description" content="Download Operator! binaries for macOS and Linux, including the optional Backstage server." />
+<meta property="og:description" content="Download Operator! binaries for macOS and Linux, including the optional Backstage server." />
 <link rel="canonical" href="https://operator.untra.io/downloads/" />
 <meta property="og:url" content="https://operator.untra.io/downloads/" />
 <meta property="og:site_name" content="Operator! Documentation" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary" />
 <meta property="twitter:title" content="Downloads" />
+<meta name="twitter:site" content="@" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Downloads","url":"https://operator.untra.io/downloads/"}</script>
+{"@context":"https://schema.org","@type":"WebPage","description":"Download Operator! binaries for macOS and Linux, including the optional Backstage server.","headline":"Downloads","url":"https://operator.untra.io/downloads/"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -51,23 +66,33 @@
         <ul class="nav-children">
           
           <li>
-            <a href="/kanban/" >Kanban</a>
+            
+              <a href="/kanban/" >Kanban</a>
+            
           </li>
           
           <li>
-            <a href="/issue-types/" >Issue Types</a>
+            
+              <a href="/issue-types/" >Issue Types</a>
+            
           </li>
           
           <li>
-            <a href="/tickets/" >Tickets</a>
+            
+              <a href="/tickets/" >Tickets</a>
+            
           </li>
           
           <li>
-            <a href="/agents/" >Agents</a>
+            
+              <a href="/agents/" >Agents</a>
+            
           </li>
           
           <li>
-            <a href="/tmux/" >Tmux</a>
+            
+              <a href="/tmux/" >Tmux</a>
+            
           </li>
           
         </ul>
@@ -82,27 +107,69 @@
         <ul class="nav-children">
           
           <li>
-            <a href="/cli/" >CLI</a>
+            
+              <a href="/cli/" >CLI</a>
+            
           </li>
           
           <li>
-            <a href="/llm-tools/" >LLM Tools</a>
+            
+              <a href="/llm-tools/" >LLM Tools</a>
+            
           </li>
           
           <li>
-            <a href="/configuration/" >Configuration</a>
+            
+              <a href="/configuration/" >Configuration</a>
+            
           </li>
           
           <li>
-            <a href="/shortcuts/" >Shortcuts</a>
+            
+              <a href="/shortcuts/" >Shortcuts</a>
+            
           </li>
           
           <li>
-            <a href="/backstage/" >Backstage</a>
+            
+              
+              
+              <details >
+                <summary>Backstage</summary>
+                <ul class="nav-grandchildren">
+                  
+                  <li>
+                    <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                  </li>
+                  
+                </ul>
+              </details>
+            
           </li>
           
           <li>
-            <a href="/schemas/" >Schemas</a>
+            
+              
+              
+              <details >
+                <summary>Schemas</summary>
+                <ul class="nav-grandchildren">
+                  
+                  <li>
+                    <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                  </li>
+                  
+                  <li>
+                    <a href="/schemas/metadata/" >Ticket Metadata</a>
+                  </li>
+                  
+                  <li>
+                    <a href="/schemas/api/" >REST API</a>
+                  </li>
+                  
+                </ul>
+              </details>
+            
           </li>
           
         </ul>
@@ -113,9 +180,16 @@
   </ul>
 
   <div class="sidebar-footer">
+    <div class="theme-switcher">
+      <button id="theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon-light">☀️</span>
+        <span class="theme-icon-dark">🌙</span>
+      </button>
+    </div>
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub project</a></p>
     <p><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/downloads/index.md"><small>View this page source on Github</small></a></p>
-    <small class="sidebar-nav-item">currently v0.1.6</small>
+    <small class="sidebar-nav-item">Currently v0.1.7</small>
+    <small class="sidebar-nav-item"><i>Last updated 2025-12-26</i></small>
   </div>
 </nav>
 
@@ -126,12 +200,12 @@
   <h1 class="doc-title">Downloads</h1>
   
 
-  <h1 id="downloads">Downloads</h1>
+  <h1 id="operator-artifact-downloads">Operator artifact Downloads</h1>
 
-<p>Download <span class="operator-brand">Operator!</span> for your platform. Current version: <strong>v0.1.6</strong></p>
+<p>Download <span class="operator-brand">Operator!</span> for your platform. Current version: <strong>v0.1.7</strong></p>
 
 <blockquote>
-  <p><strong>Note:</strong> <span class="operator-brand">Operator!</span> is currently available for <strong>macOS and Linux only</strong>. Windows support is not yet available.</p>
+  <p><strong>Note:</strong> Operator is currently available for <strong>macOS and Linux only</strong>. Windows support is not yet available.</p>
 </blockquote>
 
 <div id="recommended-download">
@@ -152,22 +226,22 @@
     <tr>
       <td>macOS</td>
       <td>ARM64 (Apple Silicon)</td>
-      <td><a href="https://github.com/untra/operator/releases/download/v0.1.6/operator-macos-arm64">operator-macos-arm64</a></td>
+      <td><a href="https://github.com/untra/operator/releases/download/v0.1.7/operator-macos-arm64">operator-macos-arm64</a></td>
     </tr>
     <tr>
       <td>macOS</td>
       <td>x86_64 (Intel)</td>
-      <td><a href="https://github.com/untra/operator/releases/download/v0.1.6/operator-macos-x86_64">operator-macos-x86_64</a></td>
+      <td><a href="https://github.com/untra/operator/releases/download/v0.1.7/operator-macos-x86_64">operator-macos-x86_64</a></td>
     </tr>
     <tr>
       <td>Linux</td>
       <td>ARM64</td>
-      <td><a href="https://github.com/untra/operator/releases/download/v0.1.6/operator-linux-arm64">operator-linux-arm64</a></td>
+      <td><a href="https://github.com/untra/operator/releases/download/v0.1.7/operator-linux-arm64">operator-linux-arm64</a></td>
     </tr>
     <tr>
       <td>Linux</td>
       <td>x86_64</td>
-      <td><a href="https://github.com/untra/operator/releases/download/v0.1.6/operator-linux-x86_64">operator-linux-x86_64</a></td>
+      <td><a href="https://github.com/untra/operator/releases/download/v0.1.7/operator-linux-x86_64">operator-linux-x86_64</a></td>
     </tr>
   </tbody>
 </table>
@@ -188,22 +262,22 @@
     <tr>
       <td>macOS</td>
       <td>ARM64</td>
-      <td><a href="https://github.com/untra/operator/releases/download/v0.1.6/backstage-server-bun-darwin-arm64">backstage-server-bun-darwin-arm64</a></td>
+      <td><a href="https://github.com/untra/operator/releases/download/v0.1.7/backstage-server-bun-darwin-arm64">backstage-server-bun-darwin-arm64</a></td>
     </tr>
     <tr>
       <td>macOS</td>
       <td>x64</td>
-      <td><a href="https://github.com/untra/operator/releases/download/v0.1.6/backstage-server-bun-darwin-x64">backstage-server-bun-darwin-x64</a></td>
+      <td><a href="https://github.com/untra/operator/releases/download/v0.1.7/backstage-server-bun-darwin-x64">backstage-server-bun-darwin-x64</a></td>
     </tr>
     <tr>
       <td>Linux</td>
       <td>ARM64</td>
-      <td><a href="https://github.com/untra/operator/releases/download/v0.1.6/backstage-server-bun-linux-arm64">backstage-server-bun-linux-arm64</a></td>
+      <td><a href="https://github.com/untra/operator/releases/download/v0.1.7/backstage-server-bun-linux-arm64">backstage-server-bun-linux-arm64</a></td>
     </tr>
     <tr>
       <td>Linux</td>
       <td>x64</td>
-      <td><a href="https://github.com/untra/operator/releases/download/v0.1.6/backstage-server-bun-linux-x64">backstage-server-bun-linux-x64</a></td>
+      <td><a href="https://github.com/untra/operator/releases/download/v0.1.7/backstage-server-bun-linux-x64">backstage-server-bun-linux-x64</a></td>
     </tr>
   </tbody>
 </table>
@@ -239,7 +313,7 @@
     }
 
     var artifactName = 'operator-' + os + '-' + arch;
-    var url = 'https://github.com/untra/operator/releases/download/v0.1.6/' + artifactName;
+    var url = 'https://github.com/untra/operator/releases/download/v0.1.7/' + artifactName;
     var label = os === 'macos' ? 'macOS' : 'Linux';
     var archLabel = arch === 'arm64' ? (os === 'macos' ? 'Apple Silicon' : 'ARM64') : 'x86_64';
 
@@ -296,5 +370,29 @@
 </article>
 
   </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+  </script>
 </body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
 </html>

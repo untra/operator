@@ -93,6 +93,25 @@ Generate documentation from source-of-truth files
 | `-o, --output` | Output directory (default: docs/) |
 | `-g, --only` | Only generate specific docs (taxonomy, issuetype, metadata) |
 
+### `api`
+
+Start the REST API server for issue type management
+
+| Argument/Option | Description |
+| --- | --- |
+| `-p, --port` | Port to listen on (default: 7008) |
+
+### `setup`
+
+Initialize operator workspace (non-interactive by default)
+
+| Argument/Option | Description |
+| --- | --- |
+| `-i, --interactive` | Launch TUI setup wizard instead of non-interactive setup |
+| `-C, --collection` | Collection preset: simple, dev-kanban, devops-kanban (default: simple) |
+| `--backstage` | Enable backstage configuration |
+| `-f, --force` | Overwrite existing files |
+
 ## Environment Variables
 
 All configuration can be overridden via environment variables using the `OPERATOR_` prefix with `__` as the separator for nested config paths.

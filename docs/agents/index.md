@@ -1,5 +1,6 @@
 ---
 title: Agents
+description: "Understand agent lifecycle, states, autonomous vs paired modes, parallelism rules, and session tracking."
 layout: doc
 ---
 

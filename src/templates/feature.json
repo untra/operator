@@ -6,7 +6,6 @@
   "mode": "autonomous",
   "glyph": "*",
   "color": "green",
-  "branch_prefix": "feature",
   "project_required": true,
   "agent_prompt": "Review this project and prepare to create an agent for implementing new features. The agent should read tickets from .tickets/, create feature branches, implement code following existing patterns, run tests and linting, and create PRs. Output ONLY the agent system prompt.",
   "fields": [
@@ -20,40 +19,13 @@
       "user_editable": false
     },
     {
-      "name": "project",
-      "description": "Target project for this feature",
-      "type": "string",
-      "required": false,
-      "default": "",
-      "display_order": 1
-    },
-    {
       "name": "priority",
       "description": "Ticket priority level",
       "type": "enum",
       "required": false,
       "default": "P2-medium",
       "options": ["P0-critical", "P1-high", "P2-medium", "P3-low"],
-      "display_order": 2
-    },
-    {
-      "name": "status",
-      "description": "Ticket status",
-      "type": "string",
-      "required": true,
-      "auto": "status",
-      "default": "queued",
-      "display_order": 3,
-      "user_editable": false
-    },
-    {
-      "name": "created",
-      "description": "Creation date",
-      "type": "date",
-      "required": true,
-      "auto": "date",
-      "display_order": 4,
-      "user_editable": false
+      "display_order": 1
     },
     {
       "name": "branch",
@@ -61,7 +33,7 @@
       "type": "string",
       "required": true,
       "auto": "branch",
-      "display_order": 5,
+      "display_order": 2,
       "user_editable": false
     },
     {
@@ -72,7 +44,7 @@
       "default": "",
       "placeholder": "Brief description of the feature",
       "max_length": 120,
-      "display_order": 6
+      "display_order": 3
     },
     {
       "name": "context",
@@ -81,7 +53,7 @@
       "required": false,
       "default": "",
       "placeholder": "As a USER, I want to X, so I can Y",
-      "display_order": 7
+      "display_order": 4
     }
   ],
   "steps": [

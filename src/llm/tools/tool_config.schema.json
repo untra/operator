@@ -1,0 +1,176 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gbqr.us/operator/tool-config.schema.json",
+  "title": "LLM Tool Configuration Schema",
+  "description": "Schema for configuring LLM CLI tools in Operator. Each tool config defines how Operator detects, invokes, and manages an LLM CLI tool like Claude Code, Gemini CLI, or OpenAI Codex.",
+  "type": "object",
+  "required": [
+    "tool_name",
+    "version_command",
+    "capabilities",
+    "model_aliases",
+    "arg_mapping",
+    "command_template"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for validation"
+    },
+    "tool_name": {
+      "type": "string",
+      "description": "The binary/command name used to invoke this tool. Must match the executable name in PATH.",
+      "examples": ["claude", "gemini", "codex"]
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable name shown in the UI. If omitted, tool_name is used.",
+      "examples": ["Claude Code", "Google Gemini", "OpenAI Codex"]
+    },
+    "version_command": {
+      "type": "string",
+      "description": "Shell command to retrieve the tool's version. Used during detection to verify the tool is installed and working.",
+      "examples": ["claude --version", "gemini --version", "codex --version"]
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "Declares what features this tool supports. Operator uses these to determine available functionality.",
+      "required": ["supports_sessions"],
+      "additionalProperties": true,
+      "properties": {
+        "supports_sessions": {
+          "type": "boolean",
+          "description": "Whether the tool supports session continuity via a session ID. Enables resuming interrupted work."
+        },
+        "supports_headless": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the tool can run in non-interactive/headless mode without a TTY."
+        },
+        "supports_config_override": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the tool supports runtime configuration overrides via CLI flags."
+        },
+        "supports_permission_mode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the tool supports permission modes (e.g., plan, acceptEdits, delegate). Claude-specific."
+        },
+        "supports_json_schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the tool supports structured output via JSON schema constraints."
+        }
+      }
+    },
+    "model_aliases": {
+      "type": "array",
+      "description": "List of model names/aliases this tool supports. These appear in the provider selection UI.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "examples": [
+        ["opus", "sonnet", "haiku"],
+        ["pro", "flash", "ultra"],
+        ["gpt-4o", "o1", "o3"]
+      ]
+    },
+    "arg_mapping": {
+      "type": "object",
+      "description": "Maps logical argument names to the tool's actual CLI flags. Used when building commands.",
+      "required": ["model"],
+      "additionalProperties": true,
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "Flag for passing the prompt/instruction text.",
+          "examples": ["-p", "--prompt"]
+        },
+        "model": {
+          "type": "string",
+          "description": "Flag for selecting the model to use.",
+          "examples": ["--model", "-m"]
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Flag for specifying session ID for continuity.",
+          "examples": ["--session-id", "--resume"]
+        },
+        "quiet": {
+          "type": "string",
+          "description": "Flag for quiet/non-interactive output mode.",
+          "examples": ["-q", "--output-format json"]
+        },
+        "permission_mode": {
+          "type": "string",
+          "description": "Flag for setting permission mode. Claude-specific.",
+          "examples": ["--permission-mode"]
+        },
+        "json_schema": {
+          "type": "string",
+          "description": "Flag for providing JSON schema for structured output.",
+          "examples": ["--json-schema"]
+        }
+      }
+    },
+    "command_template": {
+      "type": "string",
+      "description": "Template string for building the full command. Use placeholders: {{model}}, {{model_flag}}, {{session_id}}, {{prompt_file}}, {{config_flags}}",
+      "examples": [
+        "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
+        "gemini {{config_flags}}--model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
+        "codex exec {{config_flags}}-m {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\""
+      ]
+    },
+    "permission_modes": {
+      "type": "array",
+      "description": "List of supported permission modes. Only relevant if capabilities.supports_permission_mode is true.",
+      "items": {
+        "type": "string",
+        "enum": ["default", "plan", "acceptEdits", "delegate"]
+      },
+      "examples": [["default", "plan", "acceptEdits", "delegate"]]
+    },
+    "yolo_flags": {
+      "type": "array",
+      "description": "CLI flags to enable YOLO (auto-accept) mode. These flags bypass confirmation prompts for fully autonomous execution.",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "examples": [
+        ["--dangerously-skip-permissions"],
+        ["--auto-approve", "-y"],
+        ["--full-auto"]
+      ]
+    }
+  },
+  "examples": [
+    {
+      "tool_name": "claude",
+      "display_name": "Claude Code",
+      "version_command": "claude --version",
+      "capabilities": {
+        "supports_sessions": true,
+        "supports_headless": false,
+        "supports_config_override": true,
+        "supports_permission_mode": true,
+        "supports_json_schema": true
+      },
+      "model_aliases": ["opus", "sonnet", "haiku"],
+      "arg_mapping": {
+        "prompt": "-p",
+        "model": "--model",
+        "session_id": "--session-id",
+        "permission_mode": "--permission-mode",
+        "json_schema": "--json-schema"
+      },
+      "permission_modes": ["default", "plan", "acceptEdits", "delegate"],
+      "command_template": "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
+      "yolo_flags": ["--dangerously-skip-permissions"]
+    }
+  ]
+}

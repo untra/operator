@@ -22,9 +22,6 @@ pub struct TemplateSchema {
     /// Optional color for glyph display in TUI
     #[serde(default)]
     pub color: Option<String>,
-    /// Git branch prefix for this issuetype
-    #[serde(default = "default_branch_prefix")]
-    pub branch_prefix: String,
     /// Whether a project must be specified for this issuetype
     #[serde(default = "default_true")]
     pub project_required: bool,
@@ -35,10 +32,6 @@ pub struct TemplateSchema {
     /// Prompt for generating this issue type's operator agent via `claude -p`
     #[serde(default)]
     pub agent_prompt: Option<String>,
-}
-
-fn default_branch_prefix() -> String {
-    "task".to_string()
 }
 
 fn default_true() -> bool {
@@ -332,7 +325,6 @@ mod tests {
             "description": "Test template",
             "mode": "autonomous",
             "glyph": "*",
-            "branch_prefix": "test",
             "project_required": true,
             "fields": [
                 {

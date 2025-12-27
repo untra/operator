@@ -143,6 +143,60 @@ pub struct LaunchConfig {
     pub confirm_autonomous: bool,
     pub confirm_paired: bool,
     pub launch_delay_ms: u64,
+    /// Docker execution configuration
+    #[serde(default)]
+    pub docker: DockerConfig,
+    /// YOLO (auto-accept) mode configuration
+    #[serde(default)]
+    pub yolo: YoloConfig,
+}
+
+/// Docker execution configuration for running agents in containers
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DockerConfig {
+    /// Whether docker mode option is available in launch dialog
+    #[serde(default)]
+    pub enabled: bool,
+    /// Docker image to use (required if enabled)
+    #[serde(default = "default_docker_image")]
+    pub image: String,
+    /// Additional docker run arguments
+    #[serde(default)]
+    pub extra_args: Vec<String>,
+    /// Container mount path for the project (default: /workspace)
+    #[serde(default = "default_mount_path")]
+    pub mount_path: String,
+    /// Environment variables to pass through to the container
+    #[serde(default)]
+    pub env_vars: Vec<String>,
+}
+
+fn default_docker_image() -> String {
+    String::new()
+}
+
+fn default_mount_path() -> String {
+    "/workspace".to_string()
+}
+
+impl Default for DockerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            image: default_docker_image(),
+            extra_args: Vec::new(),
+            mount_path: default_mount_path(),
+            env_vars: Vec::new(),
+        }
+    }
+}
+
+/// YOLO (auto-accept) mode configuration for fully autonomous execution
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct YoloConfig {
+    /// Whether YOLO mode option is available in launch dialog
+    #[serde(default)]
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
@@ -173,6 +227,102 @@ pub struct BackstageConfig {
     /// Base URL for downloading backstage-server binary
     #[serde(default = "default_backstage_release_url")]
     pub release_url: String,
+    /// Optional local path to backstage-server binary
+    /// If set, this is used instead of downloading from release_url
+    #[serde(default)]
+    pub local_binary_path: Option<String>,
+    /// Branding and theming configuration
+    #[serde(default)]
+    pub branding: BrandingConfig,
+}
+
+/// Branding configuration for Backstage portal
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct BrandingConfig {
+    /// App title shown in header
+    #[serde(default = "default_app_title")]
+    pub app_title: String,
+    /// Organization name
+    #[serde(default = "default_org_name")]
+    pub org_name: String,
+    /// Path to logo SVG (relative to branding path)
+    #[serde(default)]
+    pub logo_path: Option<String>,
+    /// Theme colors (uses Operator defaults if not set)
+    #[serde(default)]
+    pub colors: ThemeColors,
+}
+
+fn default_app_title() -> String {
+    "Operator Portal".to_string()
+}
+
+fn default_org_name() -> String {
+    "Operator".to_string()
+}
+
+impl Default for BrandingConfig {
+    fn default() -> Self {
+        Self {
+            app_title: default_app_title(),
+            org_name: default_org_name(),
+            logo_path: Some("logo.svg".to_string()),
+            colors: ThemeColors::default(),
+        }
+    }
+}
+
+/// Theme color configuration for Backstage
+/// Default colors match Operator's tmux theme
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ThemeColors {
+    /// Primary/accent color (default: salmon #cc6c55)
+    #[serde(default = "default_color_primary")]
+    pub primary: String,
+    /// Secondary color (default: dark teal #114145)
+    #[serde(default = "default_color_secondary")]
+    pub secondary: String,
+    /// Accent/highlight color (default: cream #f4dbb7)
+    #[serde(default = "default_color_accent")]
+    pub accent: String,
+    /// Warning/error color (default: coral #d46048)
+    #[serde(default = "default_color_warning")]
+    pub warning: String,
+    /// Muted text color (default: darker salmon #8a4a3a)
+    #[serde(default = "default_color_muted")]
+    pub muted: String,
+}
+
+fn default_color_primary() -> String {
+    "#cc6c55".to_string() // salmon
+}
+
+fn default_color_secondary() -> String {
+    "#114145".to_string() // dark teal
+}
+
+fn default_color_accent() -> String {
+    "#f4dbb7".to_string() // cream
+}
+
+fn default_color_warning() -> String {
+    "#d46048".to_string() // coral
+}
+
+fn default_color_muted() -> String {
+    "#8a4a3a".to_string() // darker salmon
+}
+
+impl Default for ThemeColors {
+    fn default() -> Self {
+        Self {
+            primary: default_color_primary(),
+            secondary: default_color_secondary(),
+            accent: default_color_accent(),
+            warning: default_color_warning(),
+            muted: default_color_muted(),
+        }
+    }
 }
 
 fn default_backstage_enabled() -> bool {
@@ -204,6 +354,8 @@ impl Default for BackstageConfig {
             subpath: default_backstage_subpath(),
             branding_subpath: default_branding_subpath(),
             release_url: default_backstage_release_url(),
+            local_binary_path: None,
+            branding: BrandingConfig::default(),
         }
     }
 }
@@ -274,6 +426,9 @@ pub struct DetectedTool {
     /// Tool capabilities
     #[serde(default)]
     pub capabilities: ToolCapabilities,
+    /// CLI flags for YOLO (auto-accept) mode
+    #[serde(default)]
+    pub yolo_flags: Vec<String>,
 }
 
 /// Tool capabilities
@@ -628,6 +783,8 @@ impl Default for Config {
                 confirm_autonomous: true,
                 confirm_paired: true,
                 launch_delay_ms: 2000,
+                docker: DockerConfig::default(),
+                yolo: YoloConfig::default(),
             },
             templates: TemplatesConfig::default(),
             api: ApiConfig::default(),

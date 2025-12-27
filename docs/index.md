@@ -1,5 +1,6 @@
 ---
 title: Operator!
+description: "Operator! is a Rust TUI for orchestrating Claude Code agents across multi-project codebases with kanban-style ticket management."
 layout: doc
 ---
 

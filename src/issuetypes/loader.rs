@@ -45,7 +45,6 @@ fn template_schema_to_issuetype(schema: TemplateSchema, source: IssueTypeSource)
         mode: schema.mode,
         glyph: schema.glyph,
         color: schema.color,
-        branch_prefix: schema.branch_prefix,
         project_required: schema.project_required,
         fields: schema.fields,
         steps: schema.steps,

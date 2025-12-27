@@ -13,7 +13,8 @@ use std::time::Duration;
 
 use crate::agents::tmux::SystemTmuxClient;
 use crate::agents::{
-    AgentTicketCreator, AssessTicketCreator, Launcher, SessionMonitor, TicketSessionSync,
+    AgentTicketCreator, AssessTicketCreator, LaunchOptions, Launcher, SessionMonitor,
+    TicketSessionSync,
 };
 use crate::api::Capabilities;
 use crate::backstage::scaffold::{BackstageScaffold, ScaffoldOptions};
@@ -22,6 +23,7 @@ use crate::config::Config;
 use crate::notifications;
 use crate::queue::{Queue, TicketCreator};
 use crate::rest::RestApiServer;
+use crate::setup::filter_schema_fields;
 use crate::state::State;
 use crate::templates::TemplateType;
 use crate::ui::create_dialog::{CreateDialog, CreateDialogResult};
@@ -182,6 +184,7 @@ impl App {
         let backstage_server = BackstageServer::with_compiled_binary(
             config.state_path(),
             config.backstage.release_url.clone(),
+            config.backstage.local_binary_path.clone(),
             config.backstage.port,
         )
         .map_err(|e| anyhow::anyhow!("Failed to initialize backstage server: {}", e))?;
@@ -669,6 +672,16 @@ impl App {
                 KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
                     self.confirm_dialog.hide();
                 }
+                // Launch options: M = cycle provider, D = docker, A = auto-accept (yolo)
+                KeyCode::Char('m') | KeyCode::Char('M') => {
+                    self.confirm_dialog.cycle_provider();
+                }
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    self.confirm_dialog.toggle_docker();
+                }
+                KeyCode::Char('a') | KeyCode::Char('A') => {
+                    self.confirm_dialog.toggle_yolo();
+                }
                 KeyCode::Tab | KeyCode::Right => {
                     self.confirm_dialog.select_next();
                 }
@@ -772,6 +785,12 @@ impl App {
                         tracing::error!("Backstage stop failed: {}", e);
                     }
                 } else {
+                    // Show yellow "Starting" indicator immediately for feedback
+                    use crate::backstage::ServerStatus;
+                    self.dashboard
+                        .update_backstage_status(ServerStatus::Starting);
+                    terminal.draw(|f| self.dashboard.render(f))?;
+
                     // Start both if not running
                     if !rest_running {
                         if let Err(e) = self.rest_api_server.start() {
@@ -783,10 +802,18 @@ impl App {
                             tracing::error!("Backstage start failed: {}", e);
                         }
                     }
-                    // Open browser when Backstage is ready
+                    // Wait for server to be ready before opening browser
+                    // Polls /health every 500ms, up to 50 times (25 seconds)
                     if self.backstage_server.is_running() {
-                        if let Err(e) = self.backstage_server.open_browser() {
-                            tracing::warn!("Failed to open browser: {}", e);
+                        match self.backstage_server.wait_for_ready(25000) {
+                            Ok(()) => {
+                                if let Err(e) = self.backstage_server.open_browser() {
+                                    tracing::warn!("Failed to open browser: {}", e);
+                                }
+                            }
+                            Err(e) => {
+                                tracing::error!("Server not ready: {}", e);
+                            }
                         }
                     }
                 }
@@ -835,6 +862,13 @@ impl App {
                 return Ok(());
             }
 
+            // Configure dialog with available options from config
+            self.confirm_dialog.configure(
+                self.config.llm_tools.providers.clone(),
+                self.config.launch.docker.enabled,
+                self.config.launch.yolo.enabled,
+            );
+
             // Show confirmation
             self.confirm_dialog.show(ticket);
         }
@@ -845,7 +879,15 @@ impl App {
     async fn launch_confirmed(&mut self) -> Result<()> {
         if let Some(ticket) = self.confirm_dialog.ticket.take() {
             let launcher = Launcher::new(&self.config)?;
-            launcher.launch(&ticket).await?;
+
+            // Build launch options from dialog state
+            let options = LaunchOptions {
+                provider: self.confirm_dialog.selected_provider().cloned(),
+                docker_mode: self.confirm_dialog.docker_selected,
+                yolo_mode: self.confirm_dialog.yolo_selected,
+            };
+
+            launcher.launch_with_options(&ticket, options).await?;
             self.confirm_dialog.hide();
             self.refresh_data()?;
         }
@@ -1032,12 +1074,18 @@ impl App {
         fs::create_dir_all(tickets_path.join("templates"))?;
         fs::create_dir_all(tickets_path.join("operator"))?;
 
-        // Get selected issuetype collection from setup screen
-        let (selected_preset, selected_collection) = self
+        // Get selected issuetype collection and configured fields from setup screen
+        let (selected_preset, selected_collection, task_fields) = self
             .setup_screen
             .as_ref()
-            .map(|s| (s.preset(), s.collection()))
-            .unwrap_or_default();
+            .map(|s| (s.preset(), s.collection(), s.configured_task_fields()))
+            .unwrap_or_else(|| {
+                (
+                    crate::config::CollectionPreset::Simple,
+                    vec!["TASK".to_string()],
+                    vec!["priority".to_string(), "context".to_string()],
+                )
+            });
 
         // Update config with selected preset and collection
         self.config.templates.preset = selected_preset;
@@ -1067,7 +1115,7 @@ impl App {
             let filepath = tickets_path.join("templates").join(filename);
             fs::write(&filepath, template_type.template_content())?;
 
-            // Also write the JSON schema
+            // Also write the JSON schema (with field filtering applied)
             let schema_filename = match template_type {
                 TemplateType::Feature => "feature.json",
                 TemplateType::Fix => "fix.json",
@@ -1079,7 +1127,8 @@ impl App {
                 TemplateType::Init => "init.json",
             };
             let schema_filepath = tickets_path.join("templates").join(schema_filename);
-            fs::write(&schema_filepath, template_type.schema())?;
+            let filtered_schema = filter_schema_fields(template_type.schema(), &task_fields)?;
+            fs::write(&schema_filepath, filtered_schema)?;
         }
 
         // Generate tmux configuration files

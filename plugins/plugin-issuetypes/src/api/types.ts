@@ -42,7 +42,6 @@ export interface IssueTypeResponse {
   mode: ExecutionMode;
   glyph: string;
   color?: string;
-  branch_prefix: string;
   project_required: boolean;
   source: string;
   fields: FieldResponse[];
@@ -90,7 +89,6 @@ export interface CreateIssueTypeRequest {
   mode?: ExecutionMode;
   glyph: string;
   color?: string;
-  branch_prefix?: string;
   project_required?: boolean;
   fields?: CreateFieldRequest[];
   steps: CreateStepRequest[];
@@ -103,7 +101,6 @@ export interface UpdateIssueTypeRequest {
   mode?: ExecutionMode;
   glyph?: string;
   color?: string;
-  branch_prefix?: string;
   project_required?: boolean;
   fields?: CreateFieldRequest[];
   steps?: CreateStepRequest[];

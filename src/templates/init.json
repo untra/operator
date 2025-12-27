@@ -6,7 +6,6 @@
   "mode": "paired",
   "glyph": "%",
   "color": "green",
-  "branch_prefix": "init",
   "project_required": false,
   "agent_prompt": "Review this workspace to create an agent for Backstage initialization. The agent scaffolds the Backstage directory structure in .tickets/operator/backstage/, configures app-config.yaml with project locations and guest authentication, and verifies Bun installation. It works in paired mode with the operator for configuration decisions. Output ONLY the agent system prompt.",
   "fields": [
@@ -38,25 +37,6 @@
       "display_order": 2
     },
     {
-      "name": "status",
-      "description": "Ticket status",
-      "type": "string",
-      "required": true,
-      "auto": "status",
-      "default": "queued",
-      "display_order": 3,
-      "user_editable": false
-    },
-    {
-      "name": "created",
-      "description": "Creation date",
-      "type": "date",
-      "required": true,
-      "auto": "date",
-      "display_order": 4,
-      "user_editable": false
-    },
-    {
       "name": "summary",
       "description": "Initialization description",
       "type": "string",
@@ -64,7 +44,7 @@
       "default": "",
       "placeholder": "Initialize Backstage in workspace",
       "max_length": 120,
-      "display_order": 5
+      "display_order": 3
     }
   ],
   "steps": [

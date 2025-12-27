@@ -1,13 +1,14 @@
 ---
 title: "Downloads"
+description: "Download Operator! binaries for macOS and Linux, including the optional Backstage server."
 layout: doc
 ---
 
-# Downloads
+# Operator artifact Downloads
 
 Download <span class="operator-brand">Operator!</span> for your platform. Current version: **v{{ site.version }}**
 
-> **Note:** <span class="operator-brand">Operator!</span> is currently available for **macOS and Linux only**. Windows support is not yet available.
+> **Note:** Operator is currently available for **macOS and Linux only**. Windows support is not yet available.
 
 <div id="recommended-download">
   <noscript>See the download tables below for all available platforms.</noscript>

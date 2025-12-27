@@ -35,6 +35,23 @@
   --content-max-width: 800px;
 }
 
+/* Dark theme */
+[data-theme="dark"] {
+  --color-salmon: #E05D44;
+  --color-salmon-dark: #88AABB;
+  --color-cream: #1a1d1e;
+  --color-coral: #FF7A66;
+  --color-bg: #0d1011;
+  --color-white: #1a1d1e;
+
+  /* Green scale - adjusted for dark mode */
+  --color-green-l1: #3d8a7a;
+  --color-green-l2: #5aa896;
+  --color-green-l3: #88ccbb;
+  --color-green-l4: #aaddcc;
+  --color-teal: #b8d4cc;
+}
+
 /* Reset */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -196,6 +213,70 @@ details[open] .nav-parent::before {
 }
 
 .nav-children a.active {
+  background-color: var(--color-green-l3);
+}
+
+/* Third-level nav (grandchildren) */
+.nav-children details {
+  margin: 0;
+}
+
+.nav-children summary {
+  display: block;
+  padding: 6px 12px;
+  background-color: var(--color-green-l1);
+  color: var(--color-cream);
+  font-size: 0.875rem;
+  border-radius: 4px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.nav-children summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-children summary:hover {
+  background-color: var(--color-green-l2);
+}
+
+.nav-children summary::before {
+  content: "▸";
+  margin-right: 8px;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.nav-children details[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.nav-grandchildren {
+  list-style: none;
+  padding: 4px 0 4px 12px;
+  margin: 0;
+}
+
+.nav-grandchildren li {
+  margin-bottom: 2px;
+}
+
+.nav-grandchildren a {
+  display: block;
+  padding: 5px 10px;
+  background-color: var(--color-green-l1);
+  color: var(--color-cream);
+  font-size: 0.8125rem;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.nav-grandchildren a:hover {
+  background-color: var(--color-green-l2);
+}
+
+.nav-grandchildren a.active {
   background-color: var(--color-green-l3);
 }
 
@@ -375,6 +456,72 @@ tr:hover {
   background: var(--color-salmon-dark);
   color: var(--color-cream);
   text-decoration: none;
+}
+
+/* Theme Switcher */
+.theme-switcher {
+  margin-bottom: 16px;
+}
+
+#theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background-color: var(--color-green-l1);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: background-color 0.2s;
+}
+
+#theme-toggle:hover {
+  background-color: var(--color-green-l2);
+}
+
+/* Show sun in dark mode, moon in light mode */
+[data-theme="light"] .theme-icon-light,
+:root:not([data-theme]) .theme-icon-light {
+  display: none;
+}
+
+[data-theme="dark"] .theme-icon-dark {
+  display: none;
+}
+
+[data-theme="dark"] .theme-icon-light {
+  display: inline;
+}
+
+/* Dark mode element overrides */
+[data-theme="dark"] .circle {
+  border-color: var(--color-salmon);
+}
+
+[data-theme="dark"] pre {
+  background-color: #1a2426;
+  color: #b8d4cc;
+}
+
+[data-theme="dark"] th {
+  background-color: #3a4446;
+  color: var(--color-teal);
+}
+
+[data-theme="dark"] tr:hover {
+  background-color: #1a2426;
+}
+
+[data-theme="dark"] blockquote {
+  background-color: #1a2426;
+  border-left-color: var(--color-salmon);
+}
+
+[data-theme="dark"] code {
+  background-color: #1a2426;
 }
 
 /* Responsive */

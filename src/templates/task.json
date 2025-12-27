@@ -6,7 +6,6 @@
   "mode": "autonomous",
   "glyph": ">",
   "color": "cyan",
-  "branch_prefix": "task",
   "project_required": false,
   "fields": [
     {
@@ -19,41 +18,13 @@
       "user_editable": false
     },
     {
-      "name": "project",
-      "description": "Target project (optional)",
-      "type": "string",
-      "required": false,
-      "default": "",
-      "placeholder": "Optional project name",
-      "display_order": 1
-    },
-    {
       "name": "priority",
       "description": "Ticket priority level",
       "type": "enum",
       "required": false,
       "default": "P2-medium",
       "options": ["P0-critical", "P1-high", "P2-medium", "P3-low"],
-      "display_order": 2
-    },
-    {
-      "name": "status",
-      "description": "Ticket status",
-      "type": "string",
-      "required": true,
-      "auto": "status",
-      "default": "queued",
-      "display_order": 3,
-      "user_editable": false
-    },
-    {
-      "name": "created",
-      "description": "Creation date",
-      "type": "date",
-      "required": true,
-      "auto": "date",
-      "display_order": 4,
-      "user_editable": false
+      "display_order": 1
     },
     {
       "name": "summary",
@@ -63,7 +34,7 @@
       "default": "",
       "placeholder": "Brief description of the task",
       "max_length": 120,
-      "display_order": 5
+      "display_order": 2
     },
     {
       "name": "context",
@@ -72,7 +43,7 @@
       "required": false,
       "default": "",
       "placeholder": "Any relevant background or constraints",
-      "display_order": 6
+      "display_order": 3
     }
   ],
   "steps": [

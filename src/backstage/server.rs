@@ -12,9 +12,11 @@
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use thiserror::Error;
 
 use super::runtime::{BackstageRuntime, RuntimeError};
+use crate::config::BrandingConfig;
 
 /// Errors specific to Backstage operations
 #[derive(Error, Debug)]
@@ -43,6 +45,9 @@ pub enum BackstageError {
 
     #[error("bun command failed: {0}")]
     CommandFailed(String),
+
+    #[error("server not ready after {timeout_ms}ms on port {port}")]
+    ServerNotReady { port: u16, timeout_ms: u64 },
 
     #[error("runtime error: {0}")]
     Runtime(#[from] RuntimeError),
@@ -90,6 +95,79 @@ impl std::fmt::Display for BunVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
     }
+}
+
+/// Generate branding configuration file for backstage-server.
+///
+/// Creates a `theme.json` file in the branding directory that backstage-server
+/// reads on startup to configure the portal's theme and branding.
+///
+/// # Arguments
+/// * `branding_path` - Directory to write the theme.json file
+/// * `config` - Branding configuration from Operator config
+///
+/// # Returns
+/// * `Ok(())` on success
+/// * `Err` if directory creation or file writing fails
+pub fn generate_branding_config(
+    branding_path: &Path,
+    config: &BrandingConfig,
+) -> std::io::Result<()> {
+    // Create branding directory if it doesn't exist
+    std::fs::create_dir_all(branding_path)?;
+
+    // Build theme configuration JSON
+    let theme = serde_json::json!({
+        "appTitle": config.app_title,
+        "orgName": config.org_name,
+        "logoPath": config.logo_path,
+        "colors": {
+            "primary": config.colors.primary,
+            "secondary": config.colors.secondary,
+            "accent": config.colors.accent,
+            "warning": config.colors.warning,
+            "muted": config.colors.muted,
+        }
+    });
+
+    // Write theme.json
+    let theme_path = branding_path.join("theme.json");
+    let theme_json = serde_json::to_string_pretty(&theme)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    std::fs::write(&theme_path, theme_json)?;
+
+    tracing::info!(
+        path = %theme_path.display(),
+        app_title = %config.app_title,
+        "Generated backstage branding config"
+    );
+
+    Ok(())
+}
+
+/// Copy default logo to branding directory if not already present.
+///
+/// Copies `img/operator_logo.svg` to the branding directory as `logo.svg`
+/// on first setup if no logo already exists.
+///
+/// # Arguments
+/// * `branding_path` - Directory containing branding assets
+/// * `source_logo_path` - Path to the source logo file
+pub fn copy_default_logo(branding_path: &Path, source_logo_path: &Path) -> std::io::Result<()> {
+    let dest_logo = branding_path.join("logo.svg");
+
+    // Only copy if destination doesn't exist
+    if !dest_logo.exists() && source_logo_path.exists() {
+        std::fs::create_dir_all(branding_path)?;
+        std::fs::copy(source_logo_path, &dest_logo)?;
+        tracing::info!(
+            source = %source_logo_path.display(),
+            dest = %dest_logo.display(),
+            "Copied default logo to branding directory"
+        );
+    }
+
+    Ok(())
 }
 
 /// Server status information
@@ -245,8 +323,13 @@ impl RuntimeBinaryClient {
     /// # Arguments
     /// * `state_path` - Directory to store the binary (e.g., .tickets/operator)
     /// * `release_url` - Base URL for downloading binaries
-    pub fn new(state_path: PathBuf, release_url: String) -> Result<Self, RuntimeError> {
-        let runtime = BackstageRuntime::new(state_path, release_url)?;
+    /// * `local_binary_path` - Optional local path to binary (takes precedence over URL)
+    pub fn new(
+        state_path: PathBuf,
+        release_url: String,
+        local_binary_path: Option<String>,
+    ) -> Result<Self, RuntimeError> {
+        let runtime = BackstageRuntime::new(state_path, release_url, local_binary_path)?;
         Ok(Self { runtime })
     }
 }
@@ -339,13 +422,15 @@ impl BackstageServer {
     /// # Arguments
     /// * `state_path` - Directory to store the binary (e.g., .tickets/operator)
     /// * `release_url` - Base URL for downloading binaries
+    /// * `local_binary_path` - Optional local path to binary (takes precedence over URL)
     /// * `port` - Port to run the server on
     pub fn with_compiled_binary(
         state_path: PathBuf,
         release_url: String,
+        local_binary_path: Option<String>,
         port: u16,
     ) -> Result<Self, BackstageError> {
-        let client = RuntimeBinaryClient::new(state_path.clone(), release_url)?;
+        let client = RuntimeBinaryClient::new(state_path.clone(), release_url, local_binary_path)?;
         Ok(Self::new(Arc::new(client), state_path, port))
     }
 
@@ -485,6 +570,62 @@ impl BackstageServer {
         }
 
         Ok(())
+    }
+
+    /// Wait for server to be ready (health endpoint responds).
+    ///
+    /// Polls the `/health` endpoint every 500ms until it responds with success
+    /// or the timeout is reached.
+    ///
+    /// # Arguments
+    /// * `timeout_ms` - Maximum time to wait in milliseconds
+    ///
+    /// # Returns
+    /// * `Ok(())` if server is ready
+    /// * `Err(BackstageError::ServerNotReady)` if timeout reached
+    pub fn wait_for_ready(&self, timeout_ms: u64) -> Result<(), BackstageError> {
+        let url = format!("http://localhost:{}/health", self.port);
+        let check_interval = Duration::from_millis(500);
+        let max_attempts = (timeout_ms / 500) as usize;
+
+        tracing::debug!(
+            url = %url,
+            max_attempts = max_attempts,
+            "Waiting for server to be ready"
+        );
+
+        for attempt in 1..=max_attempts {
+            match reqwest::blocking::Client::new()
+                .get(&url)
+                .timeout(Duration::from_secs(2))
+                .send()
+            {
+                Ok(response) if response.status().is_success() => {
+                    tracing::info!(attempts = attempt, "Server ready");
+                    return Ok(());
+                }
+                Ok(response) => {
+                    tracing::debug!(
+                        attempt = attempt,
+                        status = %response.status(),
+                        "Health check returned non-success status"
+                    );
+                }
+                Err(e) => {
+                    tracing::debug!(
+                        attempt = attempt,
+                        error = %e,
+                        "Health check failed, retrying..."
+                    );
+                }
+            }
+            std::thread::sleep(check_interval);
+        }
+
+        Err(BackstageError::ServerNotReady {
+            port: self.port,
+            timeout_ms,
+        })
     }
 
     /// Refresh status by checking if process is still running

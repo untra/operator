@@ -8,7 +8,11 @@ import {
   createPlugin,
   createRoutableExtension,
   createRouteRef,
+  createApiFactory,
+  discoveryApiRef,
+  fetchApiRef,
 } from '@backstage/core-plugin-api';
+import { operatorApiRef, OperatorApiClient } from './api';
 
 // Route references
 export const rootRouteRef = createRouteRef({
@@ -38,6 +42,14 @@ export const issueTypesPlugin = createPlugin({
     form: formRouteRef,
     collections: collectionsRouteRef,
   },
+  apis: [
+    createApiFactory({
+      api: operatorApiRef,
+      deps: { discoveryApi: discoveryApiRef, fetchApi: fetchApiRef },
+      factory: ({ discoveryApi, fetchApi }) =>
+        new OperatorApiClient({ discoveryApi, fetchApi }),
+    }),
+  ],
 });
 
 // Routable extensions

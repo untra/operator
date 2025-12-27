@@ -40,6 +40,9 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `V/v` | View ticket ($VISUAL or open) | Launch Dialog |
 | `E/e` | Edit ticket ($EDITOR) | Launch Dialog |
 | `N/n` | Cancel | Launch Dialog |
+| `M/m` | Cycle provider/model | Launch Dialog |
+| `D/d` | Toggle Docker mode | Launch Dialog |
+| `A/a` | Toggle Auto-accept (YOLO) | Launch Dialog |
 
 ## Dashboard
 
@@ -113,4 +116,7 @@ These shortcuts are available in the ticket launch confirmation dialog.
 | `V/v` | View ticket ($VISUAL or open) |
 | `E/e` | Edit ticket ($EDITOR) |
 | `N/n` | Cancel |
+| `M/m` | Cycle provider/model |
+| `D/d` | Toggle Docker mode |
+| `A/a` | Toggle Auto-accept (YOLO) |
 

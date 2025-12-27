@@ -4,6 +4,11 @@ description: Documentation for Operator! - combining kanban workflows with LLM t
 url: "https://operator.untra.io"
 baseurl: ""
 
+# Social/SEO
+image: /assets/patricia_512.png
+twitter:
+  card: summary_large_image
+
 # GitHub repository
 github:
   repo: "https://github.com/untra/operator"
@@ -22,6 +27,7 @@ exclude:
 # Plugins
 plugins:
   - jekyll-seo-tag
+  - jekyll-sitemap
 
 # Defaults
 defaults:
@@ -36,3 +42,6 @@ collections_dir: .
 # Permalink structure
 permalink: pretty
 version: 0.1.7
+
+# Google Analytics
+ga_tag: G-5JZPJWWT7S  # Replace with actual GA4 measurement ID from analytics.google.com

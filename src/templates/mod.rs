@@ -196,18 +196,9 @@ impl TemplateType {
         )
     }
 
-    /// Returns the git branch prefix for this template type
-    pub fn branch_prefix(&self) -> &'static str {
-        match self {
-            TemplateType::Feature => "feature",
-            TemplateType::Fix => "fix",
-            TemplateType::Task => "task",
-            TemplateType::Spike => "spike",
-            TemplateType::Investigation => "investigation",
-            TemplateType::Assess => "assess",
-            TemplateType::Sync => "sync",
-            TemplateType::Init => "init",
-        }
+    /// Returns the git branch prefix for this template type (derived from key)
+    pub fn branch_prefix(&self) -> String {
+        self.as_str().to_lowercase()
     }
 
     /// Returns the first step name for this template type

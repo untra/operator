@@ -67,6 +67,7 @@ impl Platform {
 pub struct BackstageRuntime {
     state_path: PathBuf,
     release_url: String,
+    local_binary_path: Option<PathBuf>,
     platform: Platform,
 }
 
@@ -86,6 +87,12 @@ pub enum RuntimeError {
     #[allow(dead_code)] // Reserved for future validation
     BinaryNotFound(PathBuf),
 
+    #[error("Local file not found: {0}")]
+    LocalFileNotFound(PathBuf),
+
+    #[error("Local file is not executable: {0}")]
+    LocalFileNotExecutable(PathBuf),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -96,12 +103,18 @@ impl BackstageRuntime {
     /// # Arguments
     /// * `state_path` - Directory to store the binary (e.g., .tickets/operator)
     /// * `release_url` - Base URL for downloading binaries
-    pub fn new(state_path: PathBuf, release_url: String) -> Result<Self, RuntimeError> {
+    /// * `local_binary_path` - Optional local path to binary (takes precedence over URL)
+    pub fn new(
+        state_path: PathBuf,
+        release_url: String,
+        local_binary_path: Option<String>,
+    ) -> Result<Self, RuntimeError> {
         let platform = Platform::current().ok_or(RuntimeError::UnsupportedPlatform)?;
 
         Ok(Self {
             state_path,
             release_url,
+            local_binary_path: local_binary_path.map(PathBuf::from),
             platform,
         })
     }
@@ -139,8 +152,79 @@ impl BackstageRuntime {
         Ok(binary_path)
     }
 
-    /// Download the binary for the current platform.
+    /// Download or copy the binary for the current platform.
+    ///
+    /// If `local_binary_path` is set, copies from local path.
+    /// Otherwise, downloads from `release_url` with platform suffix appended.
     fn download_binary(&self) -> Result<(), RuntimeError> {
+        // Create bin directory
+        let bin_dir = self.state_path.join("bin");
+        fs::create_dir_all(&bin_dir)?;
+
+        let binary_path = self.binary_path();
+
+        if let Some(ref local_path) = self.local_binary_path {
+            self.copy_local_binary(local_path, &binary_path)?;
+        } else {
+            self.download_remote_binary(&binary_path)?;
+        }
+
+        // Make executable on Unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&binary_path)?.permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&binary_path, perms)?;
+        }
+
+        Ok(())
+    }
+
+    /// Copy binary from a local path.
+    fn copy_local_binary(
+        &self,
+        source_path: &PathBuf,
+        dest_path: &PathBuf,
+    ) -> Result<(), RuntimeError> {
+        // Verify source exists
+        if !source_path.exists() {
+            return Err(RuntimeError::LocalFileNotFound(source_path.clone()));
+        }
+
+        // Verify source is executable (on Unix)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::metadata(source_path)?.permissions();
+            if perms.mode() & 0o111 == 0 {
+                return Err(RuntimeError::LocalFileNotExecutable(source_path.clone()));
+            }
+        }
+
+        tracing::info!(
+            "Copying local backstage-server from {} to {}",
+            source_path.display(),
+            dest_path.display()
+        );
+
+        // Copy the file (not symlink)
+        fs::copy(source_path, dest_path).map_err(|e| RuntimeError::WriteFailed(e.to_string()))?;
+
+        let bytes = fs::metadata(dest_path)?.len();
+        tracing::info!(
+            "Copied backstage-server ({} bytes) to {}",
+            bytes,
+            dest_path.display()
+        );
+
+        Ok(())
+    }
+
+    /// Download binary from a remote https:// URL.
+    ///
+    /// Appends platform suffix to the URL (e.g., /backstage-server-bun-darwin-arm64).
+    fn download_remote_binary(&self, dest_path: &PathBuf) -> Result<(), RuntimeError> {
         let url = format!(
             "{}/backstage-server-{}",
             self.release_url,
@@ -152,10 +236,6 @@ impl BackstageRuntime {
             self.platform.display_name(),
             url
         );
-
-        // Create bin directory
-        let bin_dir = self.state_path.join("bin");
-        fs::create_dir_all(&bin_dir)?;
 
         // Download using reqwest blocking client
         let response = reqwest::blocking::get(&url)
@@ -174,22 +254,12 @@ impl BackstageRuntime {
             .map_err(|e| RuntimeError::DownloadFailed(e.to_string()))?;
 
         // Write binary
-        let binary_path = self.binary_path();
-        fs::write(&binary_path, &bytes).map_err(|e| RuntimeError::WriteFailed(e.to_string()))?;
-
-        // Make executable on Unix
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&binary_path)?.permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(&binary_path, perms)?;
-        }
+        fs::write(dest_path, &bytes).map_err(|e| RuntimeError::WriteFailed(e.to_string()))?;
 
         tracing::info!(
             "Downloaded backstage-server ({} bytes) to {}",
             bytes.len(),
-            binary_path.display()
+            dest_path.display()
         );
 
         Ok(())
@@ -243,6 +313,7 @@ mod tests {
         let runtime = BackstageRuntime::new(
             PathBuf::from("/tmp/test-state"),
             "https://example.com/releases".to_string(),
+            None,
         );
 
         if let Ok(runtime) = runtime {
@@ -252,9 +323,50 @@ mod tests {
     }
 
     #[test]
+    fn test_runtime_with_local_path() {
+        let runtime = BackstageRuntime::new(
+            PathBuf::from("/tmp/test-state"),
+            "https://example.com/releases".to_string(),
+            Some("/path/to/local/binary".to_string()),
+        );
+
+        if let Ok(runtime) = runtime {
+            assert_eq!(
+                runtime.local_binary_path,
+                Some(PathBuf::from("/path/to/local/binary"))
+            );
+        }
+    }
+
+    #[test]
+    fn test_runtime_without_local_path() {
+        let runtime = BackstageRuntime::new(
+            PathBuf::from("/tmp/test-state"),
+            "https://example.com/releases".to_string(),
+            None,
+        );
+
+        if let Ok(runtime) = runtime {
+            assert!(runtime.local_binary_path.is_none());
+        }
+    }
+
+    #[test]
     fn test_runtime_unsupported_platform() {
         // This test verifies the error type exists
         let err = RuntimeError::UnsupportedPlatform;
         assert!(err.to_string().contains("Unsupported platform"));
+    }
+
+    #[test]
+    fn test_local_file_not_found_error() {
+        let err = RuntimeError::LocalFileNotFound(PathBuf::from("/nonexistent/path"));
+        assert!(err.to_string().contains("Local file not found"));
+    }
+
+    #[test]
+    fn test_local_file_not_executable_error() {
+        let err = RuntimeError::LocalFileNotExecutable(PathBuf::from("/some/path"));
+        assert!(err.to_string().contains("not executable"));
     }
 }

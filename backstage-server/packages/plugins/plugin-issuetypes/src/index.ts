@@ -15,3 +15,11 @@ export {
   formRouteRef,
   collectionsRouteRef,
 } from './plugin';
+
+// API exports
+export { operatorApiRef } from './api';
+export type { OperatorApi } from './api';
+export * from './api/types';
+
+// Hooks exports
+export * from './hooks';

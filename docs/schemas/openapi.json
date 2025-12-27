@@ -688,9 +688,6 @@
           "steps"
         ],
         "properties": {
-          "branch_prefix": {
-            "type": "string"
-          },
           "color": {
             "type": [
               "string",
@@ -869,16 +866,12 @@
           "description",
           "mode",
           "glyph",
-          "branch_prefix",
           "project_required",
           "source",
           "fields",
           "steps"
         ],
         "properties": {
-          "branch_prefix": {
-            "type": "string"
-          },
           "color": {
             "type": [
               "string",
@@ -1041,12 +1034,6 @@
         "type": "object",
         "description": "Request to update an issue type",
         "properties": {
-          "branch_prefix": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "color": {
             "type": [
               "string",

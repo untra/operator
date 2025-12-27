@@ -1,0 +1,19 @@
+# Build outputs
+dist/
+packages/*/dist/
+packages/plugins/*/dist/
+
+# Generated embedding files
+src/assets/
+src/embedded-assets.ts
+
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store

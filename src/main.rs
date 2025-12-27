@@ -22,6 +22,7 @@ pub mod env_vars;
 mod notifications;
 mod queue;
 mod rest;
+mod setup;
 mod ui;
 
 use agents::tmux::{SystemTmuxClient, TmuxClient, TmuxError};
@@ -177,6 +178,25 @@ enum Commands {
         #[arg(short, long)]
         port: Option<u16>,
     },
+
+    /// Initialize operator workspace (non-interactive by default)
+    Setup {
+        /// Launch TUI setup wizard instead of non-interactive setup
+        #[arg(short, long)]
+        interactive: bool,
+
+        /// Collection preset: simple, dev-kanban, devops-kanban
+        #[arg(short = 'C', long, default_value = "simple")]
+        collection: String,
+
+        /// Enable backstage configuration
+        #[arg(long)]
+        backstage: bool,
+
+        /// Overwrite existing files
+        #[arg(short, long)]
+        force: bool,
+    },
 }
 
 #[tokio::main]
@@ -227,6 +247,14 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Api { port }) => {
             cmd_api(&config, port).await?;
+        }
+        Some(Commands::Setup {
+            interactive,
+            collection,
+            backstage,
+            force,
+        }) => {
+            cmd_setup(config, interactive, collection, backstage, force)?;
         }
         None => {
             // No subcommand = launch TUI dashboard
@@ -584,6 +612,78 @@ async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
 
     let state = rest::ApiState::new(config.clone(), config.tickets_path());
     rest::serve(state, port).await?;
+
+    Ok(())
+}
+
+fn cmd_setup(
+    mut config: Config,
+    interactive: bool,
+    collection: String,
+    backstage: bool,
+    force: bool,
+) -> Result<()> {
+    use setup::{initialize_workspace, parse_collection_preset, SetupOptions};
+
+    if interactive {
+        // For interactive mode, just launch the TUI which has its own setup wizard
+        println!("Interactive setup not yet implemented.");
+        println!("Run 'operator' without arguments to use the TUI setup wizard.");
+        return Ok(());
+    }
+
+    // Parse collection preset
+    let preset = parse_collection_preset(&collection)?;
+
+    let options = SetupOptions {
+        preset,
+        backstage_enabled: backstage,
+        force,
+        ..Default::default()
+    };
+
+    println!("Initializing operator workspace...");
+    println!("  Collection: {:?}", options.preset);
+    println!(
+        "  Backstage:  {}",
+        if options.backstage_enabled {
+            "enabled"
+        } else {
+            "disabled"
+        }
+    );
+    println!("  Force:      {}", options.force);
+    println!();
+
+    let result = initialize_workspace(&mut config, &options)?;
+
+    // Report results
+    if !result.directories_created.is_empty() {
+        println!("Created directories:");
+        for dir in &result.directories_created {
+            println!("  {}", dir.display());
+        }
+    }
+
+    if !result.files_created.is_empty() {
+        println!("Created files:");
+        for file in &result.files_created {
+            println!("  {}", file.display());
+        }
+    }
+
+    if !result.files_skipped.is_empty() {
+        println!("Skipped (already exist):");
+        for file in &result.files_skipped {
+            println!("  {}", file.display());
+        }
+    }
+
+    println!();
+    println!("Configuration saved to: {}", result.config_path.display());
+    println!();
+    println!("Workspace initialized successfully!");
+    println!("Run 'operator' to launch the TUI dashboard.");
 
     Ok(())
 }

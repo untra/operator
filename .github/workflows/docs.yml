@@ -1,15 +1,6 @@
 name: Deploy Docs
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'docs/**'
-      - 'src/docs_gen/**'
-      - 'src/backstage/taxonomy.toml'
-      - 'src/templates/*.json'
-      - '.github/workflows/docs.yml'
   pull_request:
     branches:
       - main
@@ -68,7 +59,7 @@ jobs:
         working-directory: docs
 
       - name: Deploy to gh-pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

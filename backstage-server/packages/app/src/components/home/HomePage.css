@@ -1,0 +1,45 @@
+/**
+ * HomePage Styles
+ * Uses CSS variables from operator-theme.css
+ */
+
+/* Welcome Card - Gradient banner */
+.welcome-card {
+  background: linear-gradient(135deg, var(--bui-primary) 0%, var(--bui-secondary) 100%) !important;
+  border: none !important;
+}
+
+.welcome-title,
+.welcome-text {
+  color: #ffffff !important;
+}
+
+/* Quick Link Cards */
+.quick-link-card {
+  text-decoration: none !important;
+  display: block;
+  height: 100%;
+}
+
+.quick-link-card-inner {
+  height: 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.quick-link-card-inner:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.quick-link-icon {
+  color: var(--bui-primary);
+}
+
+.quick-link-title {
+  text-align: center;
+}
+
+.quick-link-description {
+  text-align: center;
+}

@@ -1,0 +1,11 @@
+  page,path,priority,image_description
+  Homepage,/,critical,"Patricia at a control desk with multiple monitors showing kanban boards and agent status indicators. Speech bubble: 'Let's ship it!' Warm salmon/teal brand colors."
+  Downloads,/downloads/,critical,"Patricia holding up platform icons (Apple, Linux penguin) with download arrows. Binary code or terminal window in background. Call-to-action feel."
+  Getting Started,/getting-started/,high,"Patricia waving welcome, pointing to a simple 3-step path diagram (Install → Configure → Launch). Friendly onboarding vibe."
+  Issue Types,/issue-types/,high,"Patricia sorting colorful tickets labeled INV/FIX/FEAT/SPIKE/TASK into priority lanes. Each ticket type has distinct glyph visible."
+  Agents,/agents/,high,"Patricia conducting/directing multiple smaller robot agents (some autonomous running, one paired with speech bubble). Orchestration visual."
+  Kanban Workflow,/kanban/,medium,"Patricia moving tickets across Queue → In-Progress → Completed columns. Classic kanban board with brand colors."
+  LLM Tools,/llm-tools/,medium,"Patricia connecting Claude and Gemini logos with cables/wires to a central hub. Integration/connection theme."
+  Tmux Sessions,/tmux/,medium,"Patricia inside a split terminal window with multiple panes, each showing agent activity. Multiplexer visualization."
+  CLI Reference,/cli/,low,"Patricia at a terminal typing commands. Code/terminal aesthetic with --help output visible."
+  Keyboard Shortcuts,/shortcuts/,low,"Patricia's hands on a keyboard with key labels floating (j/k, Tab, L, P). Quick-reference cheatsheet feel."

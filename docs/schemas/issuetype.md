@@ -30,14 +30,13 @@ Schema for validating operator issuetype template configurations
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `agent_prompt` | `string` | No | Prompt for generating an operator agent for this issuetype via 'claude -p'. Should instruct Claude to output ONLY the agent system prompt. If omitted, no operator agent will be generated for this issuetype. |
-| `branch_prefix` | `string` | No | Git branch prefix for this issuetype (e.g., 'feature', 'fix') |
 | `color` | `string` | No | Optional color for the glyph in TUI display |
 | `description` | `string` | Yes | Description of what this issuetype is for |
 | `fields` | `array` | Yes | Field definitions for the ticket form |
 | `glyph` | `string` | Yes | Icon/glyph character displayed in the UI for this issuetype (e.g., '*', '#', '!', '?', '>') |
 | `key` | `string` | Yes | Unique issuetype key (e.g., FEAT, FIX, SPIKE, INV, TASK) |
-| `mode` | `string` | Yes | Whether this issuetype runs autonomously or requires human pairing |
-| `name` | `string` | Yes | Human-readable name of the issuetype |
+| `mode` | `string` | Yes | Whether this issuetype work runs autonomously or requires human pairing |
+| `name` | `string` | Yes | Human-readable name of the issuetype, eg. bug, feature, task, chore, spike, etc. |
 | `project_required` | `boolean` | No | Whether a project must be specified for this issuetype |
 | `steps` | `array` | Yes | Lifecycle steps for completing this ticket type |
 
@@ -45,12 +44,6 @@ Schema for validating operator issuetype template configurations
 
 - **Description**: Prompt for generating an operator agent for this issuetype via 'claude -p'. Should instruct Claude to output ONLY the agent system prompt. If omitted, no operator agent will be generated for this issuetype.
 - **Type**: `string`
-
-### branch_prefix
-
-- **Description**: Git branch prefix for this issuetype (e.g., 'feature', 'fix')
-- **Type**: `string`
-- **Default**: `"task"`
 
 ### color
 
@@ -83,13 +76,14 @@ Schema for validating operator issuetype template configurations
 
 ### mode
 
-- **Description**: Whether this issuetype runs autonomously or requires human pairing
+- **Description**: Whether this issuetype work runs autonomously or requires human pairing
 - **Type**: `string`
+- **Default**: `"paired"`
 - **Allowed Values**: `autonomous`, `paired`
 
 ### name
 
-- **Description**: Human-readable name of the issuetype
+- **Description**: Human-readable name of the issuetype, eg. bug, feature, task, chore, spike, etc.
 - **Type**: `string`
 
 ### project_required

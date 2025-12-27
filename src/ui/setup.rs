@@ -23,6 +23,13 @@ pub struct DetectedToolInfo {
 /// Available issuetype collections (all known types)
 pub const ALL_ISSUE_TYPES: &[&str] = &["TASK", "FEAT", "FIX", "SPIKE", "INV"];
 
+/// Optional fields that can be configured for TASK (and propagated to other types)
+/// Note: 'summary' remains required, 'id' is auto-generated
+pub const TASK_OPTIONAL_FIELDS: &[(&str, &str)] = &[
+    ("priority", "Priority level (P0-critical to P3-low)"),
+    ("context", "Background context for the task"),
+];
+
 /// Collection source options shown in setup
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CollectionSourceOption {
@@ -113,6 +120,10 @@ pub struct SetupScreen {
     collection_state: ListState,
     /// Whether we came from custom selection (for back navigation)
     from_custom: bool,
+    /// Selected optional fields to include in TASK (and other types)
+    pub task_optional_fields: Vec<String>,
+    /// List state for field configuration selection
+    field_state: ListState,
 }
 
 /// Steps in the setup process
@@ -124,6 +135,8 @@ pub enum SetupStep {
     CollectionSource,
     /// Custom issuetype selection (optional)
     CustomCollection,
+    /// Configure TASK optional fields
+    TaskFieldConfig,
     /// Tmux onboarding/help
     TmuxOnboarding,
     /// Confirm initialization
@@ -143,6 +156,9 @@ impl SetupScreen {
         let mut collection_state = ListState::default();
         collection_state.select(Some(0));
 
+        let mut field_state = ListState::default();
+        field_state.select(Some(0));
+
         Self {
             visible: true,
             step: SetupStep::Welcome,
@@ -155,6 +171,12 @@ impl SetupScreen {
             source_state,
             collection_state,
             from_custom: false,
+            // Default: all optional fields enabled
+            task_optional_fields: TASK_OPTIONAL_FIELDS
+                .iter()
+                .map(|(name, _)| name.to_string())
+                .collect(),
+            field_state,
         }
     }
 
@@ -169,6 +191,11 @@ impl SetupScreen {
             CollectionPreset::Custom => self.custom_collection.clone(),
             _ => self.selected_preset.issue_types(),
         }
+    }
+
+    /// Get the configured optional fields for TASK (and propagation to other types)
+    pub fn configured_task_fields(&self) -> Vec<String> {
+        self.task_optional_fields.clone()
     }
 
     /// Get the currently selected source option
@@ -191,6 +218,19 @@ impl SetupScreen {
                             self.custom_collection.retain(|t| t != &type_str);
                         } else {
                             self.custom_collection.push(type_str);
+                        }
+                    }
+                }
+            }
+            SetupStep::TaskFieldConfig => {
+                // Toggle the currently highlighted field
+                if let Some(i) = self.field_state.selected() {
+                    if i < TASK_OPTIONAL_FIELDS.len() {
+                        let field_name = TASK_OPTIONAL_FIELDS[i].0.to_string();
+                        if self.task_optional_fields.contains(&field_name) {
+                            self.task_optional_fields.retain(|f| f != &field_name);
+                        } else {
+                            self.task_optional_fields.push(field_name);
                         }
                     }
                 }
@@ -218,6 +258,11 @@ impl SetupScreen {
                     .map_or(0, |i| (i + 1) % len);
                 self.collection_state.select(Some(i));
             }
+            SetupStep::TaskFieldConfig => {
+                let len = TASK_OPTIONAL_FIELDS.len();
+                let i = self.field_state.selected().map_or(0, |i| (i + 1) % len);
+                self.field_state.select(Some(i));
+            }
             _ => {}
         }
     }
@@ -244,6 +289,14 @@ impl SetupScreen {
                 });
                 self.collection_state.select(Some(i));
             }
+            SetupStep::TaskFieldConfig => {
+                let len = TASK_OPTIONAL_FIELDS.len();
+                let i =
+                    self.field_state
+                        .selected()
+                        .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
+                self.field_state.select(Some(i));
+            }
             _ => {}
         }
     }
@@ -261,19 +314,19 @@ impl SetupScreen {
                         CollectionSourceOption::Simple => {
                             self.selected_preset = CollectionPreset::Simple;
                             self.from_custom = false;
-                            self.step = SetupStep::TmuxOnboarding;
+                            self.step = SetupStep::TaskFieldConfig;
                             SetupResult::Continue
                         }
                         CollectionSourceOption::DevKanban => {
                             self.selected_preset = CollectionPreset::DevKanban;
                             self.from_custom = false;
-                            self.step = SetupStep::TmuxOnboarding;
+                            self.step = SetupStep::TaskFieldConfig;
                             SetupResult::Continue
                         }
                         CollectionSourceOption::DevopsKanban => {
                             self.selected_preset = CollectionPreset::DevopsKanban;
                             self.from_custom = false;
-                            self.step = SetupStep::TmuxOnboarding;
+                            self.step = SetupStep::TaskFieldConfig;
                             SetupResult::Continue
                         }
                         CollectionSourceOption::ImportJira => SetupResult::ExitUnimplemented(
@@ -295,8 +348,12 @@ impl SetupScreen {
             }
             SetupStep::CustomCollection => {
                 if !self.custom_collection.is_empty() {
-                    self.step = SetupStep::TmuxOnboarding;
+                    self.step = SetupStep::TaskFieldConfig;
                 }
+                SetupResult::Continue
+            }
+            SetupStep::TaskFieldConfig => {
+                self.step = SetupStep::TmuxOnboarding;
                 SetupResult::Continue
             }
             SetupStep::TmuxOnboarding => {
@@ -325,12 +382,16 @@ impl SetupScreen {
                 self.step = SetupStep::CollectionSource;
                 SetupResult::Continue
             }
-            SetupStep::TmuxOnboarding => {
+            SetupStep::TaskFieldConfig => {
                 if self.from_custom {
                     self.step = SetupStep::CustomCollection;
                 } else {
                     self.step = SetupStep::CollectionSource;
                 }
+                SetupResult::Continue
+            }
+            SetupStep::TmuxOnboarding => {
+                self.step = SetupStep::TaskFieldConfig;
                 SetupResult::Continue
             }
             SetupStep::Confirm => {
@@ -350,6 +411,7 @@ impl SetupScreen {
             SetupStep::Welcome => self.render_welcome_step(frame),
             SetupStep::CollectionSource => self.render_collection_source_step(frame),
             SetupStep::CustomCollection => self.render_custom_collection_step(frame),
+            SetupStep::TaskFieldConfig => self.render_task_field_config_step(frame),
             SetupStep::TmuxOnboarding => self.render_tmux_onboarding_step(frame),
             SetupStep::Confirm => self.render_confirm_step(frame),
         }
@@ -696,6 +758,129 @@ impl SetupScreen {
         ]))
         .alignment(Alignment::Center);
         frame.render_widget(footer, chunks[3]);
+    }
+
+    fn render_task_field_config_step(&mut self, frame: &mut Frame) {
+        let area = centered_rect(70, 60, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled(
+                    "Operator!",
+                    Style::default()
+                        .fg(Color::LightRed)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" Setup - Configure TASK Fields "),
+            ]))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(3), // Explanation
+                Constraint::Length(2), // Instructions
+                Constraint::Min(6),    // Field list
+                Constraint::Length(2), // Footer
+            ])
+            .split(inner);
+
+        // Title
+        let title = Paragraph::new(Line::from(vec![Span::styled(
+            "Configure TASK Fields",
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        )]))
+        .alignment(Alignment::Center);
+        frame.render_widget(title, chunks[0]);
+
+        // Explanation
+        let explanation = Paragraph::new(vec![
+            Line::from("TASK is the foundational issuetype. Configure which optional"),
+            Line::from("fields to include. These choices will propagate to other types."),
+        ])
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::Gray));
+        frame.render_widget(explanation, chunks[1]);
+
+        // Instructions
+        let instructions = Paragraph::new(vec![Line::from(
+            "Use arrows to navigate, Space to toggle, Enter to continue",
+        )])
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::DarkGray));
+        frame.render_widget(instructions, chunks[2]);
+
+        // Field list
+        let items: Vec<ListItem> = TASK_OPTIONAL_FIELDS
+            .iter()
+            .map(|(name, description)| {
+                let is_selected = self.task_optional_fields.contains(&name.to_string());
+                let checkbox = if is_selected { "[x]" } else { "[ ]" };
+                ListItem::new(vec![
+                    Line::from(vec![
+                        Span::styled(
+                            checkbox,
+                            Style::default().fg(if is_selected {
+                                Color::Green
+                            } else {
+                                Color::DarkGray
+                            }),
+                        ),
+                        Span::raw(" "),
+                        Span::styled(
+                            *name,
+                            Style::default()
+                                .add_modifier(Modifier::BOLD)
+                                .fg(if is_selected {
+                                    Color::White
+                                } else {
+                                    Color::Gray
+                                }),
+                        ),
+                    ]),
+                    Line::from(vec![
+                        Span::raw("    "),
+                        Span::styled(*description, Style::default().fg(Color::DarkGray)),
+                    ]),
+                ])
+            })
+            .collect();
+
+        let list = List::new(items)
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_symbol("> ");
+
+        frame.render_stateful_widget(list, chunks[3], &mut self.field_state);
+
+        // Footer
+        let selected_count = self.task_optional_fields.len();
+        let footer = Paragraph::new(Line::from(vec![
+            Span::styled(
+                format!(
+                    "{}/{} fields enabled",
+                    selected_count,
+                    TASK_OPTIONAL_FIELDS.len()
+                ),
+                Style::default().fg(Color::Cyan),
+            ),
+            Span::raw("  |  "),
+            Span::styled("Enter", Style::default().fg(Color::Yellow)),
+            Span::raw(" continue  "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" back"),
+        ]))
+        .alignment(Alignment::Center);
+        frame.render_widget(footer, chunks[4]);
     }
 
     fn render_tmux_onboarding_step(&self, frame: &mut Frame) {

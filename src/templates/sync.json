@@ -6,7 +6,6 @@
   "mode": "autonomous",
   "glyph": "@",
   "color": "blue",
-  "branch_prefix": "sync",
   "project_required": false,
   "agent_prompt": "Review this workspace to create an agent for Backstage catalog synchronization. The agent discovers all projects with catalog-info.yaml files, validates them against the Backstage schema, checks for inconsistencies, and updates catalog entries as needed. It can run across the entire workspace or target specific projects. Output ONLY the agent system prompt.",
   "fields": [
@@ -29,34 +28,6 @@
       "display_order": 1
     },
     {
-      "name": "project",
-      "description": "Specific project to sync (when scope=project)",
-      "type": "string",
-      "required": false,
-      "default": "",
-      "placeholder": "Project name (optional)",
-      "display_order": 2
-    },
-    {
-      "name": "status",
-      "description": "Ticket status",
-      "type": "string",
-      "required": true,
-      "auto": "status",
-      "default": "queued",
-      "display_order": 3,
-      "user_editable": false
-    },
-    {
-      "name": "created",
-      "description": "Creation date",
-      "type": "date",
-      "required": true,
-      "auto": "date",
-      "display_order": 4,
-      "user_editable": false
-    },
-    {
       "name": "summary",
       "description": "Sync description",
       "type": "string",
@@ -64,7 +35,7 @@
       "default": "",
       "placeholder": "Sync catalog entries",
       "max_length": 120,
-      "display_order": 5
+      "display_order": 2
     }
   ],
   "steps": [

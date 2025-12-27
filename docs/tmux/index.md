@@ -1,5 +1,6 @@
 ---
 title: Tmux Sessions
+description: "Terminal multiplexer integration with custom config, color theme, status bar, and key bindings."
 layout: doc
 ---
 

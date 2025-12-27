@@ -133,7 +133,7 @@ The ticket ID is used to derive other identifiers:
 
 | Property | Description |
 | --- | --- |
-| `git_branch` | Derived as: {branch_prefix}/{id}-{summary-slug} (e.g., feature/FEAT-1234-add-auth) |
+| `git_branch` | Derived as: {key.lowercase}/{id}-{summary-slug} (e.g., feat/FEAT-1234-add-auth) |
 | `tmux_session_name` | Derived as: op-{id} (e.g., op-FEAT-1234) |
 
 ## Examples

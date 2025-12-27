@@ -1,5 +1,6 @@
 ---
 title: Kanban Workflow
+description: "Understand the kanban-style workflow for managing tickets through queue, in-progress, and completed stages."
 layout: doc
 ---
 

@@ -94,7 +94,9 @@ Agent launch behavior and confirmations
 | --- | --- | --- | --- |
 | `confirm_autonomous` * | `boolean` | true |  |
 | `confirm_paired` * | `boolean` | true |  |
+| `docker` | → `DockerConfig` | - | Docker execution configuration |
 | `launch_delay_ms` * | `integer` | 2000 |  |
+| `yolo` | → `YoloConfig` | - | YOLO (auto-accept) mode configuration |
 
 ## `[templates]`
 
@@ -140,9 +142,12 @@ Backstage server integration
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `auto_start` | `boolean` | false | Auto-start Backstage server when TUI launches |
+| `branding` | → `BrandingConfig` | - | Branding and theming configuration |
 | `branding_subpath` | `string` | branding | Subdirectory within backstage path for branding customization |
 | `enabled` | `boolean` | true | Whether Backstage integration is enabled |
+| `local_binary_path` | `string` \| `null` | - | Optional local path to backstage-server binary If set, this is used instead of downloading from release_url |
 | `port` | `integer` | 7007 | Port for the Backstage server |
+| `release_url` | `string` | - | Base URL for downloading backstage-server binary |
 | `subpath` | `string` | backstage | Subdirectory within state_path for Backstage installation |
 
 ## `[llm_tools]`
@@ -210,6 +215,16 @@ confirm_autonomous = true
 confirm_paired = true
 launch_delay_ms = 2000
 
+[launch.docker]
+enabled = false
+image = ""
+extra_args = []
+mount_path = "/workspace"
+env_vars = []
+
+[launch.yolo]
+enabled = false
+
 [templates]
 preset = "devops_kanban"
 collection = []
@@ -237,6 +252,24 @@ port = 7007
 auto_start = false
 subpath = "backstage"
 branding_subpath = "branding"
+release_url = "https://github.com/untra/operator/releases/latest/download"
+
+[backstage.branding]
+app_title = "Operator Portal"
+org_name = "Operator"
+logo_path = "logo.svg"
+
+[backstage.branding.colors]
+primary = "#cc6c55"
+secondary = "#114145"
+accent = "#f4dbb7"
+warning = "#d46048"
+muted = "#8a4a3a"
+
+[rest_api]
+enabled = true
+port = 7008
+cors_origins = []
 
 ```
 

@@ -12,7 +12,7 @@ pub mod tmux_config;
 pub use generator::{
     AgentTicketCreator, AgentTicketResult, AssessTicketCreator, AssessTicketResult, AGENT_TOOLS,
 };
-pub use launcher::Launcher;
+pub use launcher::{LaunchOptions, Launcher};
 pub use monitor::{HealthCheckResult, ReconciliationResult, SessionMonitor};
 pub use session::Session;
 pub use sync::{SyncAction, SyncResult, TicketSessionSync};

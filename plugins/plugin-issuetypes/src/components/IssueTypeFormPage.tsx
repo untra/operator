@@ -207,7 +207,6 @@ export function IssueTypeFormPage() {
   const [description, setDescription] = useState('');
   const [glyph, setGlyph] = useState('');
   const [mode, setMode] = useState<ExecutionMode>('autonomous');
-  const [branchPrefix, setBranchPrefix] = useState('');
   const [projectRequired, setProjectRequired] = useState(true);
   const [color, setColor] = useState('');
   const [steps, setSteps] = useState<StepFormData[]>([{ ...defaultStep }]);
@@ -220,7 +219,6 @@ export function IssueTypeFormPage() {
       setDescription(issueType.description);
       setGlyph(issueType.glyph);
       setMode(issueType.mode);
-      setBranchPrefix(issueType.branch_prefix);
       setProjectRequired(issueType.project_required);
       setColor(issueType.color || '');
       setSteps(
@@ -261,7 +259,6 @@ export function IssueTypeFormPage() {
       description,
       glyph,
       mode,
-      branch_prefix: branchPrefix || formKey.toLowerCase(),
       project_required: projectRequired,
       color: color || undefined,
       steps: stepsData,
@@ -274,7 +271,6 @@ export function IssueTypeFormPage() {
           description,
           glyph,
           mode,
-          branch_prefix: branchPrefix,
           project_required: projectRequired,
           color: color || undefined,
           steps: stepsData,

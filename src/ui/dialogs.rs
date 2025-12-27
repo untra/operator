@@ -8,6 +8,7 @@ use ratatui::{
     Frame,
 };
 
+use crate::config::LlmProvider;
 use crate::queue::Ticket;
 use crate::ui::keybindings::{shortcuts_by_category_for_context, ShortcutContext};
 
@@ -41,6 +42,20 @@ pub struct ConfirmDialog {
     pub visible: bool,
     pub ticket: Option<Ticket>,
     pub selection: ConfirmSelection,
+
+    // Launch options (only shown if config enables them)
+    /// Available LLM providers (tool + model combinations)
+    pub provider_options: Vec<LlmProvider>,
+    /// Currently selected provider index
+    pub selected_provider: usize,
+    /// Whether docker mode option is available
+    pub docker_enabled: bool,
+    /// Whether docker mode is selected
+    pub docker_selected: bool,
+    /// Whether YOLO mode option is available
+    pub yolo_enabled: bool,
+    /// Whether YOLO mode is selected
+    pub yolo_selected: bool,
 }
 
 impl ConfirmDialog {
@@ -49,13 +64,65 @@ impl ConfirmDialog {
             visible: false,
             ticket: None,
             selection: ConfirmSelection::Yes,
+            provider_options: Vec::new(),
+            selected_provider: 0,
+            docker_enabled: false,
+            docker_selected: false,
+            yolo_enabled: false,
+            yolo_selected: false,
         }
+    }
+
+    /// Configure the dialog with available options from config
+    pub fn configure(
+        &mut self,
+        providers: Vec<LlmProvider>,
+        docker_enabled: bool,
+        yolo_enabled: bool,
+    ) {
+        self.provider_options = providers;
+        self.docker_enabled = docker_enabled;
+        self.yolo_enabled = yolo_enabled;
     }
 
     pub fn show(&mut self, ticket: Ticket) {
         self.ticket = Some(ticket);
         self.visible = true;
         self.selection = ConfirmSelection::Yes; // Default to Yes
+                                                // Reset mode selections but keep provider selection
+        self.docker_selected = false;
+        self.yolo_selected = false;
+    }
+
+    /// Cycle to the next provider
+    pub fn cycle_provider(&mut self) {
+        if !self.provider_options.is_empty() {
+            self.selected_provider = (self.selected_provider + 1) % self.provider_options.len();
+        }
+    }
+
+    /// Toggle docker mode
+    pub fn toggle_docker(&mut self) {
+        if self.docker_enabled {
+            self.docker_selected = !self.docker_selected;
+        }
+    }
+
+    /// Toggle YOLO mode
+    pub fn toggle_yolo(&mut self) {
+        if self.yolo_enabled {
+            self.yolo_selected = !self.yolo_selected;
+        }
+    }
+
+    /// Get the selected provider (if any)
+    pub fn selected_provider(&self) -> Option<&LlmProvider> {
+        self.provider_options.get(self.selected_provider)
+    }
+
+    /// Check if any options are available
+    pub fn has_options(&self) -> bool {
+        self.provider_options.len() > 1 || self.docker_enabled || self.yolo_enabled
     }
 
     pub fn hide(&mut self) {
@@ -85,8 +152,12 @@ impl ConfirmDialog {
             return;
         };
 
+        // Calculate dialog height based on options
+        let has_options = self.has_options();
+        let dialog_height = if has_options { 60 } else { 45 };
+
         // Center the dialog
-        let area = centered_rect(60, 45, frame.area());
+        let area = centered_rect(60, dialog_height, frame.area());
 
         // Clear the background
         frame.render_widget(Clear, area);
@@ -99,15 +170,19 @@ impl ConfirmDialog {
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
-        // Dialog content - reordered: Type/ID, Summary, Project, Priority, Buttons
+        // Calculate options height
+        let options_height = if has_options { 6 } else { 0 };
+
+        // Dialog content layout
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(2), // Type/ID
-                Constraint::Min(3),    // Summary
-                Constraint::Length(2), // Project
-                Constraint::Length(2), // Priority
-                Constraint::Length(3), // Buttons
+                Constraint::Length(2),              // Type/ID
+                Constraint::Min(3),                 // Summary
+                Constraint::Length(2),              // Project
+                Constraint::Length(2),              // Priority
+                Constraint::Length(options_height), // Options (if any)
+                Constraint::Length(3),              // Buttons
             ])
             .margin(1)
             .split(inner);
@@ -156,6 +231,11 @@ impl ConfirmDialog {
         ]);
         frame.render_widget(Paragraph::new(priority_line), chunks[3]);
 
+        // Render options section if any are available
+        if has_options {
+            self.render_options(frame, chunks[4]);
+        }
+
         // Buttons - Yes, View, No
         let yes_style = if self.selection == ConfirmSelection::Yes {
             Style::default()
@@ -194,7 +274,79 @@ impl ConfirmDialog {
         ]);
 
         let buttons_para = Paragraph::new(buttons).alignment(Alignment::Center);
-        frame.render_widget(buttons_para, chunks[4]);
+        frame.render_widget(buttons_para, chunks[5]);
+    }
+
+    /// Render the options section (provider, docker, yolo toggles)
+    fn render_options(&self, frame: &mut Frame, area: Rect) {
+        let mut lines = Vec::new();
+
+        // Separator line
+        lines.push(Line::from(vec![Span::styled(
+            "── Options ──",
+            Style::default().fg(Color::DarkGray),
+        )]));
+
+        // Provider option (if multiple providers)
+        if self.provider_options.len() > 1 {
+            let provider_display = self
+                .selected_provider()
+                .map(|p| {
+                    p.display_name
+                        .clone()
+                        .unwrap_or_else(|| format!("{} {}", p.tool, p.model))
+                })
+                .unwrap_or_else(|| "Default".to_string());
+
+            lines.push(Line::from(vec![
+                Span::styled("[M] ", Style::default().fg(Color::Yellow)),
+                Span::styled("Provider: ", Style::default().fg(Color::Gray)),
+                Span::styled(provider_display, Style::default().fg(Color::White)),
+            ]));
+        }
+
+        // Docker option
+        if self.docker_enabled {
+            let (indicator, color) = if self.docker_selected {
+                ("●", Color::Green)
+            } else {
+                ("○", Color::DarkGray)
+            };
+            lines.push(Line::from(vec![
+                Span::styled("[D] ", Style::default().fg(Color::Yellow)),
+                Span::styled("Docker: ", Style::default().fg(Color::Gray)),
+                Span::styled(indicator, Style::default().fg(color)),
+                Span::styled(
+                    if self.docker_selected { " On" } else { " Off" },
+                    Style::default().fg(color),
+                ),
+            ]));
+        }
+
+        // YOLO option (use 'A' for Auto-accept to avoid conflict with 'Y' for Yes)
+        if self.yolo_enabled {
+            let (indicator, color) = if self.yolo_selected {
+                ("●", Color::Red)
+            } else {
+                ("○", Color::DarkGray)
+            };
+            lines.push(Line::from(vec![
+                Span::styled("[A] ", Style::default().fg(Color::Yellow)),
+                Span::styled("Auto:   ", Style::default().fg(Color::Gray)),
+                Span::styled(indicator, Style::default().fg(color)),
+                Span::styled(
+                    if self.yolo_selected {
+                        " On (YOLO mode)"
+                    } else {
+                        " Off"
+                    },
+                    Style::default().fg(color),
+                ),
+            ]));
+        }
+
+        let options = Paragraph::new(lines);
+        frame.render_widget(options, area);
     }
 }
 

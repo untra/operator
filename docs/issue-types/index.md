@@ -1,5 +1,6 @@
 ---
 title: Issue Types
+description: "Learn about INV, FIX, FEAT, SPIKE, and TASK issue types, custom definitions, and Jira/Linear imports."
 layout: doc
 ---
 
@@ -118,7 +119,6 @@ Define custom issue types in `.tickets/operator/issuetypes/`:
   "mode": "autonomous",
   "glyph": "S",
   "color": "cyan",
-  "branch_prefix": "story",
   "project_required": true,
   "fields": [
     {"name": "id", "type": "string", "required": true, "auto": "id"},

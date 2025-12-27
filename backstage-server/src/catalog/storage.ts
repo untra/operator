@@ -292,7 +292,7 @@ export class CatalogStorage {
   // Remove all entities from a location
   removeEntitiesByLocation(locationKey: string): number {
     let removed = 0;
-    for (const [ref, envelope] of this.entities) {
+    for (const [, envelope] of this.entities) {
       if (envelope.locationKey === locationKey) {
         this.unindexEntity(envelope);
         removed++;

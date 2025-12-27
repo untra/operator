@@ -18,7 +18,8 @@
     "**/__tests__/test-utils/**"
   ],
   "ignoreDependencies": [
-    "@backstage/*"
+    "@backstage/*",
+    "raw-loader"
   ],
   "ignoreExportsUsedInFile": true
 }

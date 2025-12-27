@@ -73,7 +73,7 @@ export class SearchIndex {
 
     // Add spec fields if they're strings
     if (entity.spec) {
-      for (const [key, value] of Object.entries(entity.spec)) {
+      for (const [, value] of Object.entries(entity.spec)) {
         if (typeof value === 'string') {
           textParts.push(value);
         }

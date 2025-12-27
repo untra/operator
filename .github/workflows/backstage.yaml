@@ -11,6 +11,10 @@ on:
       - '.github/workflows/backstage.yaml'
   workflow_dispatch:
 
+concurrency:
+  group: backstage-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   app-ci:
     runs-on: ubuntu-latest
@@ -71,6 +75,8 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Generate embedded assets
+        run: bun run build:embeds
       - name: TypeScript type check
         run: bun run typecheck
       - name: Knip (unused exports/imports)

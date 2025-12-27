@@ -6,7 +6,6 @@
 
 import {
   AnyApiFactory,
-  configApiRef,
   createApiFactory,
   discoveryApiRef,
   fetchApiRef,

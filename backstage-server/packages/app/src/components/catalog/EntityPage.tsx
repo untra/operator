@@ -96,10 +96,10 @@ const defaultPage = (
 export function entityPage() {
   return (
     <EntitySwitch>
-      <EntitySwitch.Case if={isKind('component')} children={componentPage} />
-      <EntitySwitch.Case if={isKind('api')} children={apiPage} />
-      <EntitySwitch.Case if={isKind('system')} children={systemPage} />
-      <EntitySwitch.Case if={isKind('domain')} children={domainPage} />
+      <EntitySwitch.Case if={isKind('component')}>{componentPage}</EntitySwitch.Case>
+      <EntitySwitch.Case if={isKind('api')}>{apiPage}</EntitySwitch.Case>
+      <EntitySwitch.Case if={isKind('system')}>{systemPage}</EntitySwitch.Case>
+      <EntitySwitch.Case if={isKind('domain')}>{domainPage}</EntitySwitch.Case>
       <EntitySwitch.Case>{defaultPage}</EntitySwitch.Case>
     </EntitySwitch>
   );

@@ -50,13 +50,6 @@ interface ThemeConfig {
   };
 }
 
-// Try to import embedded assets (only exists after build:embeds)
-try {
-  await import('./embedded-assets');
-} catch {
-  // No embedded assets - will use fallback status page
-}
-
 // Build asset map from embedded files
 const assetMap = new Map<string, Blob>();
 

@@ -291,10 +291,10 @@ impl SetupScreen {
             }
             SetupStep::TaskFieldConfig => {
                 let len = TASK_OPTIONAL_FIELDS.len();
-                let i =
-                    self.field_state
-                        .selected()
-                        .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
+                let i = self
+                    .field_state
+                    .selected()
+                    .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
                 self.field_state.select(Some(i));
             }
             _ => {}

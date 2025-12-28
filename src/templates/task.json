@@ -37,13 +37,30 @@
       "display_order": 2
     },
     {
-      "name": "context",
-      "description": "Background context for the task",
+      "name": "description",
+      "description": "Detailed description of the task",
+      "type": "text",
+      "required": true,
+      "default": "",
+      "placeholder": "Full description of what needs to be done",
+      "display_order": 3
+    },
+    {
+      "name": "points",
+      "description": "Story points estimate",
+      "type": "integer",
+      "required": false,
+      "default": "0",
+      "display_order": 4
+    },
+    {
+      "name": "user_story",
+      "description": "User story or background context",
       "type": "text",
       "required": false,
       "default": "",
-      "placeholder": "Any relevant background or constraints",
-      "display_order": 3
+      "placeholder": "As a USER, I want to X, so I can Y",
+      "display_order": 5
     }
   ],
   "steps": [

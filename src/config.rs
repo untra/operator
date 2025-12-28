@@ -461,9 +461,9 @@ pub enum CollectionPreset {
     /// Simple tasks only: TASK
     Simple,
     /// Developer kanban: TASK, FEAT, FIX
+    #[default]
     DevKanban,
     /// DevOps kanban: TASK, SPIKE, INV, FEAT, FIX
-    #[default]
     DevopsKanban,
     /// Custom collection (use the collection field)
     Custom,
@@ -518,7 +518,7 @@ pub struct TemplatesConfig {
 impl Default for TemplatesConfig {
     fn default() -> Self {
         Self {
-            preset: CollectionPreset::DevopsKanban,
+            preset: CollectionPreset::DevKanban,
             collection: Vec::new(),
             active_collection: None,
         }

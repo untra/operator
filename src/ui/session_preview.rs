@@ -263,3 +263,201 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         ])
         .split(popup_layout[1])[1]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    fn make_test_agent() -> AgentState {
+        AgentState {
+            id: "agent-1".to_string(),
+            ticket_id: "FEAT-1234".to_string(),
+            ticket_type: "FEAT".to_string(),
+            project: "my-project".to_string(),
+            status: "running".to_string(),
+            started_at: Utc::now(),
+            last_activity: Utc::now(),
+            last_message: None,
+            paired: false,
+            session_name: Some("op-my-project-001".to_string()),
+            content_hash: None,
+            current_step: Some("plan".to_string()),
+            step_started_at: None,
+            last_content_change: None,
+            pr_url: None,
+            pr_number: None,
+            github_repo: None,
+            pr_status: None,
+            completed_steps: vec![],
+            llm_tool: None,
+            launch_mode: None,
+        }
+    }
+
+    #[test]
+    fn test_session_preview_new_initializes_correctly() {
+        let preview = SessionPreview::new();
+
+        assert!(!preview.visible);
+        assert!(preview.agent.is_none());
+        assert!(preview.content.is_empty());
+        assert_eq!(preview.scroll, 0);
+        assert_eq!(preview.total_lines, 0);
+        assert!(preview.error.is_none());
+    }
+
+    #[test]
+    fn test_session_preview_default_equals_new() {
+        let p1 = SessionPreview::new();
+        let p2 = SessionPreview::default();
+
+        assert_eq!(p1.visible, p2.visible);
+        assert_eq!(p1.scroll, p2.scroll);
+    }
+
+    #[test]
+    fn test_session_preview_show_with_ok_content() {
+        let mut preview = SessionPreview::new();
+        let agent = make_test_agent();
+        let content = "Line 1\nLine 2\nLine 3".to_string();
+
+        preview.show(&agent, Ok(content.clone()));
+
+        assert!(preview.visible);
+        assert!(preview.agent.is_some());
+        assert_eq!(preview.content, content);
+        assert_eq!(preview.total_lines, 3);
+        assert!(preview.error.is_none());
+        assert_eq!(preview.scroll, 0);
+    }
+
+    #[test]
+    fn test_session_preview_show_with_error() {
+        let mut preview = SessionPreview::new();
+        let agent = make_test_agent();
+
+        preview.show(&agent, Err("Failed to capture".to_string()));
+
+        assert!(preview.visible);
+        assert!(preview.agent.is_some());
+        assert!(preview.content.is_empty());
+        assert_eq!(preview.total_lines, 0);
+        assert_eq!(preview.error, Some("Failed to capture".to_string()));
+    }
+
+    #[test]
+    fn test_session_preview_hide_clears_state() {
+        let mut preview = SessionPreview::new();
+        let agent = make_test_agent();
+        preview.show(&agent, Ok("content".to_string()));
+
+        preview.hide();
+
+        assert!(!preview.visible);
+        assert!(preview.agent.is_none());
+        assert!(preview.content.is_empty());
+        assert!(preview.error.is_none());
+    }
+
+    #[test]
+    fn test_session_preview_scroll_up_saturates_at_zero() {
+        let mut preview = SessionPreview::new();
+        preview.scroll = 0;
+
+        preview.scroll_up();
+        assert_eq!(preview.scroll, 0);
+
+        preview.scroll = 5;
+        preview.scroll_up();
+        assert_eq!(preview.scroll, 4);
+    }
+
+    #[test]
+    fn test_session_preview_scroll_down_respects_viewport() {
+        let mut preview = SessionPreview::new();
+        preview.total_lines = 100;
+        preview.scroll = 0;
+
+        preview.scroll_down(20);
+        assert_eq!(preview.scroll, 1);
+
+        // At max scroll, should not increment
+        preview.scroll = 80; // 100 - 20 = 80 max
+        preview.scroll_down(20);
+        assert_eq!(preview.scroll, 80);
+    }
+
+    #[test]
+    fn test_session_preview_page_up() {
+        let mut preview = SessionPreview::new();
+        preview.scroll = 50;
+
+        preview.page_up(20);
+        assert_eq!(preview.scroll, 30);
+
+        // Saturates at 0
+        preview.page_up(40);
+        assert_eq!(preview.scroll, 0);
+    }
+
+    #[test]
+    fn test_session_preview_page_down() {
+        let mut preview = SessionPreview::new();
+        preview.total_lines = 100;
+        preview.scroll = 0;
+
+        preview.page_down(20);
+        assert_eq!(preview.scroll, 20);
+
+        // Page down again
+        preview.page_down(20);
+        assert_eq!(preview.scroll, 40);
+
+        // Clamps to max (max_scroll = 100 - 20 = 80)
+        preview.scroll = 70;
+        preview.page_down(20);
+        assert_eq!(preview.scroll, 80);
+    }
+
+    #[test]
+    fn test_session_preview_scroll_to_top() {
+        let mut preview = SessionPreview::new();
+        preview.scroll = 50;
+
+        preview.scroll_to_top();
+        assert_eq!(preview.scroll, 0);
+    }
+
+    #[test]
+    fn test_session_preview_scroll_to_bottom() {
+        let mut preview = SessionPreview::new();
+        preview.total_lines = 100;
+        preview.scroll = 0;
+
+        preview.scroll_to_bottom(20);
+        assert_eq!(preview.scroll, 80); // 100 - 20
+    }
+
+    #[test]
+    fn test_session_preview_scroll_to_bottom_short_content() {
+        let mut preview = SessionPreview::new();
+        preview.total_lines = 10;
+
+        // When content is shorter than viewport, bottom scroll should be 0
+        preview.scroll_to_bottom(20);
+        assert_eq!(preview.scroll, 0); // 10 - 20 saturates to 0
+    }
+
+    #[test]
+    fn test_centered_rect_calculations() {
+        let parent = Rect::new(0, 0, 100, 100);
+        let centered = centered_rect(50, 50, parent);
+
+        // Should be roughly centered (accounting for percentage division)
+        assert!(centered.x > 0);
+        assert!(centered.y > 0);
+        assert!(centered.width > 0);
+        assert!(centered.height > 0);
+    }
+}

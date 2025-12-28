@@ -13,7 +13,7 @@ use crate::config::{CollectionPreset, Config};
 use crate::templates::TemplateType;
 
 /// Common optional fields that can be configured for TASK and propagated to other types
-pub const COMMON_OPTIONAL_FIELDS: &[&str] = &["priority", "context"];
+pub const COMMON_OPTIONAL_FIELDS: &[&str] = &["priority", "points", "user_story"];
 
 /// Options for workspace setup
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ pub struct SetupOptions {
     /// Overwrite existing files
     pub force: bool,
     /// Optional fields to include (propagated to all types)
-    /// Only common fields (priority, context) are filtered
+    /// Only common fields (priority, points, user_story) are filtered
     pub task_fields: Vec<String>,
 }
 
@@ -83,6 +83,7 @@ pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Resu
         tickets_path.join("completed"),
         tickets_path.join("templates"),
         tickets_path.join("operator"),
+        tickets_path.join("operator").join("templates"),
     ];
 
     for dir in &dirs {
@@ -123,6 +124,27 @@ pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Resu
         let filtered_schema = filter_schema_fields(template_type.schema(), &options.task_fields)?;
         write_file_if_allowed(&json_path, &filtered_schema, options.force, &mut result)?;
     }
+
+    // Write operator template files for interpolation
+    let operator_templates = tickets_path.join("operator").join("templates");
+    write_file_if_allowed(
+        &operator_templates.join("ACCEPTANCE_CRITERIA.md"),
+        include_str!("templates/ACCEPTANCE_CRITERIA.md"),
+        options.force,
+        &mut result,
+    )?;
+    write_file_if_allowed(
+        &operator_templates.join("DEFINITION_OF_DONE.md"),
+        include_str!("templates/DEFINITION_OF_DONE.md"),
+        options.force,
+        &mut result,
+    )?;
+    write_file_if_allowed(
+        &operator_templates.join("DEFINITION_OF_READY.md"),
+        include_str!("templates/DEFINITION_OF_READY.md"),
+        options.force,
+        &mut result,
+    )?;
 
     // Update config with preset
     config.templates.preset = options.preset;

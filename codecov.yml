@@ -1,0 +1,42 @@
+coverage:
+  precision: 2
+  round: down
+  range: "60...100"
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2%
+      rust:
+        target: auto
+        threshold: 2%
+        flags:
+          - rust
+      typescript:
+        target: auto
+        threshold: 2%
+        flags:
+          - typescript
+    patch:
+      default:
+        target: 80%
+
+flags:
+  rust:
+    paths:
+      - src/
+    carryforward: true
+  typescript:
+    paths:
+      - backstage-server/packages/
+      - backstage-server/src/
+    carryforward: true
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: true
+
+ignore:
+  - "tests/**"
+  - "backstage-server/e2e/**"

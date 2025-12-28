@@ -313,6 +313,21 @@ impl State {
             .collect()
     }
 
+    /// Remove agent by tmux session name (for session recovery cleanup)
+    pub fn remove_agent_by_session(&mut self, session_name: &str) -> Result<Option<AgentState>> {
+        let pos = self
+            .agents
+            .iter()
+            .position(|a| a.session_name.as_ref() == Some(&session_name.to_string()));
+
+        if let Some(pos) = pos {
+            let agent = self.agents.remove(pos);
+            self.save()?;
+            return Ok(Some(agent));
+        }
+        Ok(None)
+    }
+
     /// Update the current step for an agent (resets step timer)
     pub fn update_agent_step(&mut self, agent_id: &str, step: &str) -> Result<()> {
         let now = Utc::now();

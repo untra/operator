@@ -29,6 +29,9 @@ pub struct TemplateSchema {
     pub fields: Vec<FieldSchema>,
     /// Lifecycle steps for completing this ticket type
     pub steps: Vec<StepSchema>,
+    /// Optional prompt for work launching (interpolated with handlebars)
+    #[serde(default)]
+    pub prompt: Option<String>,
     /// Prompt for generating this issue type's operator agent via `claude -p`
     #[serde(default)]
     pub agent_prompt: Option<String>,
@@ -112,6 +115,8 @@ pub enum FieldType {
     Date,
     /// Multi-line text input
     Text,
+    /// Integer number input
+    Integer,
 }
 
 /// Schema definition for a lifecycle step

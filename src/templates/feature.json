@@ -8,6 +8,7 @@
   "color": "green",
   "project_required": true,
   "agent_prompt": "Review this project and prepare to create an agent for implementing new features. The agent should read tickets from .tickets/, create feature branches, implement code following existing patterns, run tests and linting, and create PRs. Output ONLY the agent system prompt.",
+  "prompt": "You are implementing a new feature for the {{ project }} project.\n\nBefore starting, review the acceptance criteria and understand the requirements.\n\n## Acceptance Criteria\n{{ acceptance_criteria }}\n\n## Definition of Done\nFollow this definition of done before claiming success:\n{{ definition_of_done }}",
   "fields": [
     {
       "name": "id",
@@ -47,7 +48,7 @@
       "display_order": 3
     },
     {
-      "name": "context",
+      "name": "user_story",
       "description": "Why is this feature needed? User story format preferred",
       "type": "text",
       "required": false,

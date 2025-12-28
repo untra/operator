@@ -2,7 +2,17 @@
 
 # Operator!
 
-Multi-agent orchestration dashboard for **AI-assisted** _kanban-shaped_ software development.
+[![codecov](https://codecov.io/gh/untra/operator/branch/main/graph/badge.svg)](https://codecov.io/gh/untra/operator)
+
+A multi-agent orchestration dashboard for **AI-assisted** _kanban-shaped_ software development.
+
+Operator is for you if: 
+
+- you do work assigned from tickets on a kanban board
+- you use claude code, codex or gemini to do work
+- you are drowning in the soup
+
+and you're ready to start seriously automating your work.
 
 ## Overview
 
@@ -16,6 +26,8 @@ Multi-agent orchestration dashboard for **AI-assisted** _kanban-shaped_ software
 Operator is designed to facilitate work from markdown tickets, tackling tasks across multiple code repositories by semi-autonomous agents. Operator should be started from the root of your collective work projects repository (eg, `~/Documents`), so that it may start feature or fix work in the right part of the codebase.
 
 When started for the first time, Operator will setup configuration to consume and process work tickets, and identify local projects with `claude.md files` to setup.
+
+Operator comes with a separate web component, unneeded to do work but purpose built to give you a developer portal to expand their workflows and administrate Operator with ease.
 
 ## Usage
 

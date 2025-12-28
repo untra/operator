@@ -100,3 +100,139 @@ impl Session {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn make_test_session() -> Session {
+        Session::new(
+            "test-id".to_string(),
+            "TICKET-001".to_string(),
+            "feature".to_string(),
+            "my-project".to_string(),
+        )
+    }
+
+    #[test]
+    fn test_session_new_initializes_with_started_event() {
+        let session = make_test_session();
+
+        assert_eq!(session.id, "test-id");
+        assert_eq!(session.ticket_id, "TICKET-001");
+        assert_eq!(session.ticket_type, "feature");
+        assert_eq!(session.project, "my-project");
+        assert_eq!(session.events.len(), 1);
+
+        let first_event = &session.events[0];
+        assert!(matches!(first_event.event_type, SessionEventType::Started));
+        assert!(first_event.message.is_none());
+    }
+
+    #[test]
+    fn test_add_event_appends_to_events() {
+        let mut session = make_test_session();
+        assert_eq!(session.events.len(), 1);
+
+        session.add_event(SessionEventType::AwaitingInput, Some("waiting".to_string()));
+        assert_eq!(session.events.len(), 2);
+
+        let last = &session.events[1];
+        assert!(matches!(last.event_type, SessionEventType::AwaitingInput));
+        assert_eq!(last.message, Some("waiting".to_string()));
+    }
+
+    #[test]
+    fn test_add_event_without_message() {
+        let mut session = make_test_session();
+        session.add_event(SessionEventType::Completed, None);
+
+        let last = session.events.last().unwrap();
+        assert!(matches!(last.event_type, SessionEventType::Completed));
+        assert!(last.message.is_none());
+    }
+
+    #[test]
+    fn test_last_event_returns_most_recent() {
+        let mut session = make_test_session();
+
+        // Initially returns Started event
+        let last = session.last_event().unwrap();
+        assert!(matches!(last.event_type, SessionEventType::Started));
+
+        // After adding events, returns the newest
+        session.add_event(SessionEventType::PrCreated, None);
+        session.add_event(SessionEventType::Completed, None);
+
+        let last = session.last_event().unwrap();
+        assert!(matches!(last.event_type, SessionEventType::Completed));
+    }
+
+    #[test]
+    fn test_is_awaiting_input_returns_true_when_last_event_is_awaiting() {
+        let mut session = make_test_session();
+        assert!(!session.is_awaiting_input());
+
+        session.add_event(SessionEventType::AwaitingInput, None);
+        assert!(session.is_awaiting_input());
+
+        // After another event, should return false
+        session.add_event(SessionEventType::Resumed, None);
+        assert!(!session.is_awaiting_input());
+    }
+
+    #[test]
+    fn test_is_completed_returns_true_when_last_event_is_completed() {
+        let mut session = make_test_session();
+        assert!(!session.is_completed());
+
+        session.add_event(SessionEventType::Completed, None);
+        assert!(session.is_completed());
+    }
+
+    #[test]
+    fn test_save_and_load_roundtrip() {
+        let temp_dir = TempDir::new().unwrap();
+        let sessions_dir = temp_dir.path();
+
+        let mut session = make_test_session();
+        session.add_event(SessionEventType::PrCreated, Some("PR #42".to_string()));
+
+        // Save
+        session.save(sessions_dir).unwrap();
+
+        // Load
+        let loaded = Session::load(sessions_dir, "test-id").unwrap();
+        assert!(loaded.is_some());
+
+        let loaded = loaded.unwrap();
+        assert_eq!(loaded.id, "test-id");
+        assert_eq!(loaded.ticket_id, "TICKET-001");
+        assert_eq!(loaded.events.len(), 2);
+    }
+
+    #[test]
+    fn test_load_nonexistent_returns_none() {
+        let temp_dir = TempDir::new().unwrap();
+        let result = Session::load(temp_dir.path(), "nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_session_event_types_coverage() {
+        let mut session = make_test_session();
+
+        // Test all event types
+        session.add_event(SessionEventType::AwaitingInput, None);
+        session.add_event(SessionEventType::Resumed, None);
+        session.add_event(SessionEventType::PrCreated, None);
+        session.add_event(SessionEventType::TicketsCreated, None);
+        session.add_event(SessionEventType::Paused, None);
+        session.add_event(SessionEventType::Failed, None);
+        session.add_event(SessionEventType::Completed, None);
+
+        assert_eq!(session.events.len(), 8);
+        assert!(session.is_completed());
+    }
+}

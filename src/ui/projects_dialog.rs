@@ -604,3 +604,298 @@ fn truncate_str(s: &str, max_len: usize) -> String {
         s[..max_len].to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ProjectAction tests
+    #[test]
+    fn test_project_action_all_returns_all_actions() {
+        let actions = ProjectAction::all();
+        assert_eq!(actions.len(), 2);
+        assert!(actions.contains(&ProjectAction::AddOperatorAgents));
+        assert!(actions.contains(&ProjectAction::AssessProject));
+    }
+
+    #[test]
+    fn test_project_action_label() {
+        assert_eq!(
+            ProjectAction::AddOperatorAgents.label(),
+            "Add Operator agents"
+        );
+        assert_eq!(ProjectAction::AssessProject.label(), "Assess for Backstage");
+    }
+
+    #[test]
+    fn test_project_action_description() {
+        assert!(!ProjectAction::AddOperatorAgents.description().is_empty());
+        assert!(!ProjectAction::AssessProject.description().is_empty());
+    }
+
+    // ProjectsDialog tests
+    #[test]
+    fn test_projects_dialog_new_initializes_correctly() {
+        let dialog = ProjectsDialog::new();
+
+        assert!(!dialog.visible);
+        assert_eq!(dialog.step, ProjectsDialogStep::SelectProject);
+        assert!(dialog.projects.is_empty());
+        assert!(dialog.selected_project.is_none());
+        assert!(dialog.selected_action.is_none());
+        assert!(matches!(dialog.creation_state, TicketCreationState::Idle));
+    }
+
+    #[test]
+    fn test_projects_dialog_default_equals_new() {
+        let dialog1 = ProjectsDialog::new();
+        let dialog2 = ProjectsDialog::default();
+
+        assert_eq!(dialog1.visible, dialog2.visible);
+        assert_eq!(dialog1.step, dialog2.step);
+    }
+
+    #[test]
+    fn test_projects_dialog_set_projects() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects(vec!["project-a".to_string(), "project-b".to_string()]);
+
+        assert_eq!(dialog.projects.len(), 2);
+        assert_eq!(dialog.projects[0], "project-a");
+    }
+
+    #[test]
+    fn test_projects_dialog_set_projects_path() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects_path(PathBuf::from("/path/to/projects"));
+
+        assert_eq!(dialog.projects_path, PathBuf::from("/path/to/projects"));
+    }
+
+    #[test]
+    fn test_projects_dialog_show_initializes_state() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects(vec!["p1".to_string(), "p2".to_string()]);
+        dialog.selected_project = Some("old".to_string());
+
+        dialog.show();
+
+        assert!(dialog.visible);
+        assert_eq!(dialog.step, ProjectsDialogStep::SelectProject);
+        assert_eq!(dialog.project_state.selected(), Some(0));
+        assert!(dialog.selected_project.is_none());
+    }
+
+    #[test]
+    fn test_projects_dialog_show_with_empty_projects() {
+        let mut dialog = ProjectsDialog::new();
+
+        dialog.show();
+
+        assert!(dialog.visible);
+        assert_eq!(dialog.project_state.selected(), None);
+    }
+
+    #[test]
+    fn test_projects_dialog_hide_resets_state() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.visible = true;
+        dialog.step = ProjectsDialogStep::Result;
+        dialog.selected_project = Some("test".to_string());
+
+        dialog.hide();
+
+        assert!(!dialog.visible);
+        assert_eq!(dialog.step, ProjectsDialogStep::SelectProject);
+        assert!(dialog.selected_project.is_none());
+    }
+
+    #[test]
+    fn test_projects_dialog_go_back_from_project_hides() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects(vec!["p1".to_string()]);
+        dialog.show();
+
+        dialog.handle_key(KeyCode::Esc);
+
+        assert!(!dialog.visible);
+    }
+
+    #[test]
+    fn test_projects_dialog_go_back_from_action_to_project() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects(vec!["p1".to_string()]);
+        dialog.show();
+
+        // Navigate to action step
+        dialog.handle_key(KeyCode::Enter);
+        assert_eq!(dialog.step, ProjectsDialogStep::SelectAction);
+
+        // Go back
+        dialog.handle_key(KeyCode::Esc);
+        assert_eq!(dialog.step, ProjectsDialogStep::SelectProject);
+    }
+
+    #[test]
+    fn test_projects_dialog_go_back_from_result_hides() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.show();
+        dialog.step = ProjectsDialogStep::Result;
+
+        dialog.handle_key(KeyCode::Esc);
+
+        assert!(!dialog.visible);
+    }
+
+    #[test]
+    fn test_projects_dialog_project_navigation_down() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects(vec!["p1".to_string(), "p2".to_string(), "p3".to_string()]);
+        dialog.show();
+
+        assert_eq!(dialog.project_state.selected(), Some(0));
+
+        dialog.handle_key(KeyCode::Down);
+        assert_eq!(dialog.project_state.selected(), Some(1));
+
+        dialog.handle_key(KeyCode::Char('j'));
+        assert_eq!(dialog.project_state.selected(), Some(2));
+
+        // Wrap around
+        dialog.handle_key(KeyCode::Down);
+        assert_eq!(dialog.project_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_projects_dialog_project_navigation_up() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects(vec!["p1".to_string(), "p2".to_string(), "p3".to_string()]);
+        dialog.show();
+
+        // Wrap to end
+        dialog.handle_key(KeyCode::Up);
+        assert_eq!(dialog.project_state.selected(), Some(2));
+
+        dialog.handle_key(KeyCode::Char('k'));
+        assert_eq!(dialog.project_state.selected(), Some(1));
+    }
+
+    #[test]
+    fn test_projects_dialog_project_selection() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects(vec!["p1".to_string(), "p2".to_string()]);
+        dialog.show();
+
+        dialog.handle_key(KeyCode::Down); // Select p2
+        dialog.handle_key(KeyCode::Enter);
+
+        assert_eq!(dialog.selected_project, Some("p2".to_string()));
+        assert_eq!(dialog.step, ProjectsDialogStep::SelectAction);
+    }
+
+    #[test]
+    fn test_projects_dialog_action_navigation() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects(vec!["p1".to_string()]);
+        dialog.show();
+        dialog.handle_key(KeyCode::Enter); // Go to action step
+
+        assert_eq!(dialog.action_state.selected(), Some(0));
+
+        dialog.handle_key(KeyCode::Down);
+        assert_eq!(dialog.action_state.selected(), Some(1));
+
+        dialog.handle_key(KeyCode::Down); // Wrap
+        assert_eq!(dialog.action_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_projects_dialog_action_selection_returns_result() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.set_projects(vec!["my-project".to_string()]);
+        dialog.set_projects_path(PathBuf::from("/projects"));
+        dialog.show();
+
+        dialog.handle_key(KeyCode::Enter); // Select project
+        let result = dialog.handle_key(KeyCode::Enter); // Select action
+
+        assert!(result.is_some());
+        let result = result.unwrap();
+        assert_eq!(result.project, "my-project");
+        assert_eq!(result.project_path, PathBuf::from("/projects/my-project"));
+        assert_eq!(result.action, ProjectAction::AddOperatorAgents);
+    }
+
+    #[test]
+    fn test_projects_dialog_set_creation_result_success() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.show();
+
+        let ticket_result = AgentTicketResult {
+            created: vec!["TASK-1234".to_string()],
+            skipped: vec![],
+            errors: vec![],
+        };
+
+        dialog.set_creation_result(Ok(ticket_result));
+
+        assert_eq!(dialog.step, ProjectsDialogStep::Result);
+        assert!(matches!(
+            dialog.creation_state,
+            TicketCreationState::Success(_)
+        ));
+    }
+
+    #[test]
+    fn test_projects_dialog_set_creation_result_error() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.show();
+
+        dialog.set_creation_result(Err("Failed to create".to_string()));
+
+        assert_eq!(dialog.step, ProjectsDialogStep::Result);
+        match &dialog.creation_state {
+            TicketCreationState::Error { message } => {
+                assert_eq!(message, "Failed to create");
+            }
+            _ => panic!("Expected Error state"),
+        }
+    }
+
+    #[test]
+    fn test_projects_dialog_result_enter_closes() {
+        let mut dialog = ProjectsDialog::new();
+        dialog.show();
+        dialog.step = ProjectsDialogStep::Result;
+
+        dialog.handle_key(KeyCode::Enter);
+
+        assert!(!dialog.visible);
+    }
+
+    // truncate_str tests
+    #[test]
+    fn test_truncate_str_short_string() {
+        assert_eq!(truncate_str("hello", 10), "hello");
+        assert_eq!(truncate_str("ab", 5), "ab");
+    }
+
+    #[test]
+    fn test_truncate_str_exact_length() {
+        assert_eq!(truncate_str("hello", 5), "hello");
+    }
+
+    #[test]
+    fn test_truncate_str_adds_ellipsis() {
+        assert_eq!(truncate_str("hello world", 8), "hello...");
+        assert_eq!(truncate_str("abcdefghij", 6), "abc...");
+    }
+
+    #[test]
+    fn test_truncate_str_small_max_len() {
+        // When max_len <= 3, no room for ellipsis
+        assert_eq!(truncate_str("hello", 3), "hel");
+        assert_eq!(truncate_str("hello", 2), "he");
+        assert_eq!(truncate_str("hello", 1), "h");
+    }
+}

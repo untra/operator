@@ -77,6 +77,7 @@ export const IssueTypesPage = () => {
       <Header
         title="Issue Types"
         subtitle="Manage Operator issue types and workflows"
+        data-testid="issuetypes-page-banner"
       >
         <HeaderLabel label="Source" value="Operator REST API" />
       </Header>

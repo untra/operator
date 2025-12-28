@@ -174,7 +174,7 @@ export function OperatorCatalogPage() {
   const [viewMode, setViewMode] = useViewMode();
 
   return (
-    <PageWithHeader title="Repositories" themeId="home">
+    <PageWithHeader title="Repositories" themeId="home" data-testid="catalog-page-banner">
       <Content>
         <Box className={classes.headerRow}>
           <ContentHeader title="">

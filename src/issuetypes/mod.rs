@@ -194,6 +194,54 @@ impl IssueTypeRegistry {
         Ok(())
     }
 
+    /// Load issue types and collections from directory structure
+    ///
+    /// New directory structure:
+    /// ```text
+    /// .tickets/templates/
+    /// ├── dev_kanban/
+    /// │   ├── collection.toml  (optional)
+    /// │   └── issues/
+    /// │       ├── TASK.json
+    /// │       ├── FEAT.json
+    /// │       └── FIX.json
+    /// ├── devops_kanban/
+    /// │   └── issues/
+    /// │       └── ...
+    /// ```
+    ///
+    /// Each collection is self-contained with its own issue types.
+    pub fn load_from_templates_dir(&mut self, templates_path: &Path) -> Result<()> {
+        let loaded = loader::load_collections_from_dir(templates_path)?;
+
+        if loaded.is_empty() {
+            debug!("No collections found in templates directory");
+            return Ok(());
+        }
+
+        // Register each collection and its types
+        for (name, loaded_collection) in loaded {
+            // Add all issue types from this collection
+            for (key, issue_type) in loaded_collection.types {
+                self.types.insert(key, issue_type);
+            }
+
+            // Create and register the collection
+            let collection = IssueTypeCollection::new(&name, &loaded_collection.description)
+                .with_types(loaded_collection.priority_order.iter().map(|s| s.as_str()));
+
+            self.collections.insert(name, collection);
+        }
+
+        info!(
+            "Loaded {} issue types in {} collections from templates directory",
+            self.types.len(),
+            self.collections.len()
+        );
+
+        Ok(())
+    }
+
     /// Activate a builtin preset
     pub fn activate_preset(&mut self, preset: BuiltinPreset) -> Result<()> {
         let name = preset.name();

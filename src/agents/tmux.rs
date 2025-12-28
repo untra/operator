@@ -136,6 +136,16 @@ pub trait TmuxClient: Send + Sync {
     /// Attach to a session (returns the command to execute for shell attach)
     /// This suspends the current terminal and attaches to the tmux session
     fn attach_session(&self, session: &str) -> Result<(), TmuxError>;
+
+    /// Set a client-detached hook that runs a command when the client detaches
+    fn set_client_detached_hook(&self, session: &str, command: &str) -> Result<(), TmuxError>;
+
+    /// Clear the client-detached hook
+    fn clear_client_detached_hook(&self, session: &str) -> Result<(), TmuxError>;
+
+    /// Attach to session with detach hook that creates a signal file
+    /// Returns the path to the signal file that will be created on detach
+    fn attach_session_with_detach_signal(&self, session: &str) -> Result<String, TmuxError>;
 }
 
 /// Real implementation using system tmux
@@ -456,6 +466,49 @@ impl TmuxClient for SystemTmuxClient {
 
         Ok(())
     }
+
+    fn set_client_detached_hook(&self, session: &str, command: &str) -> Result<(), TmuxError> {
+        // set-hook -t {session} client-detached 'run-shell "{command}"'
+        let hook_cmd = format!("run-shell \"{}\"", command);
+        let output = self.run_tmux(&["set-hook", "-t", session, "client-detached", &hook_cmd])?;
+
+        if !output.status.success() {
+            return Err(TmuxError::CommandFailed(
+                String::from_utf8_lossy(&output.stderr).to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn clear_client_detached_hook(&self, session: &str) -> Result<(), TmuxError> {
+        let output = self.run_tmux(&["set-hook", "-u", "-t", session, "client-detached"])?;
+
+        if !output.status.success() {
+            // Ignore errors when hook doesn't exist
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if !stderr.contains("not found") {
+                return Err(TmuxError::CommandFailed(stderr.to_string()));
+            }
+        }
+        Ok(())
+    }
+
+    fn attach_session_with_detach_signal(&self, session: &str) -> Result<String, TmuxError> {
+        // Create signal file path
+        let signal_file = format!("/tmp/operator-detach-{}.signal", session);
+
+        // Set hook to create signal file on detach
+        let hook_cmd = format!("touch {}", signal_file);
+        self.set_client_detached_hook(session, &hook_cmd)?;
+
+        // Attach to the session
+        self.attach_session(session)?;
+
+        // After detach, clear the hook
+        let _ = self.clear_client_detached_hook(session);
+
+        Ok(signal_file)
+    }
 }
 
 /// Mock implementation for testing
@@ -487,6 +540,7 @@ pub struct MockSession {
     pub keys_sent: Vec<String>,
     pub monitor_silence: u32,
     pub silence_flag: bool,
+    pub client_detached_hook: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -540,6 +594,7 @@ impl MockTmuxClient {
                 keys_sent: Vec::new(),
                 monitor_silence: 0,
                 silence_flag: false,
+                client_detached_hook: None,
             },
         );
     }
@@ -556,6 +611,24 @@ impl MockTmuxClient {
         if let Some(session) = self.sessions.lock().unwrap().get_mut(name) {
             session.content = content.to_string();
         }
+    }
+
+    /// Get the working directory for a session (for test assertions)
+    pub fn get_session_working_dir(&self, name: &str) -> Option<String> {
+        self.sessions
+            .lock()
+            .unwrap()
+            .get(name)
+            .map(|s| s.working_dir.clone())
+    }
+
+    /// Get the keys sent to a session (for test assertions)
+    pub fn get_session_keys_sent(&self, name: &str) -> Option<Vec<String>> {
+        self.sessions
+            .lock()
+            .unwrap()
+            .get(name)
+            .map(|s| s.keys_sent.clone())
     }
 
     /// Get the command log
@@ -619,6 +692,7 @@ impl TmuxClient for MockTmuxClient {
                 keys_sent: Vec::new(),
                 monitor_silence: 0,
                 silence_flag: false,
+                client_detached_hook: None,
             },
         );
 
@@ -783,6 +857,57 @@ impl TmuxClient for MockTmuxClient {
         if let Some(s) = sessions.get_mut(session) {
             s.attached = true;
             Ok(())
+        } else {
+            Err(TmuxError::SessionNotFound(session.to_string()))
+        }
+    }
+
+    fn set_client_detached_hook(&self, session: &str, command: &str) -> Result<(), TmuxError> {
+        self.log_command("set_client_detached_hook", &[session, command]);
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        let mut sessions = self.sessions.lock().unwrap();
+        if let Some(s) = sessions.get_mut(session) {
+            s.client_detached_hook = Some(command.to_string());
+            Ok(())
+        } else {
+            Err(TmuxError::SessionNotFound(session.to_string()))
+        }
+    }
+
+    fn clear_client_detached_hook(&self, session: &str) -> Result<(), TmuxError> {
+        self.log_command("clear_client_detached_hook", &[session]);
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        let mut sessions = self.sessions.lock().unwrap();
+        if let Some(s) = sessions.get_mut(session) {
+            s.client_detached_hook = None;
+            Ok(())
+        } else {
+            Err(TmuxError::SessionNotFound(session.to_string()))
+        }
+    }
+
+    fn attach_session_with_detach_signal(&self, session: &str) -> Result<String, TmuxError> {
+        self.log_command("attach_session_with_detach_signal", &[session]);
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        let signal_file = format!("/tmp/operator-detach-{}.signal", session);
+
+        let mut sessions = self.sessions.lock().unwrap();
+        if let Some(s) = sessions.get_mut(session) {
+            s.client_detached_hook = Some(format!("touch {}", signal_file));
+            s.attached = true;
+            Ok(signal_file)
         } else {
             Err(TmuxError::SessionNotFound(session.to_string()))
         }

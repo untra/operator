@@ -24,10 +24,11 @@ pub struct DetectedToolInfo {
 pub const ALL_ISSUE_TYPES: &[&str] = &["TASK", "FEAT", "FIX", "SPIKE", "INV"];
 
 /// Optional fields that can be configured for TASK (and propagated to other types)
-/// Note: 'summary' remains required, 'id' is auto-generated
+/// Note: 'summary' and 'description' remain required, 'id' is auto-generated
 pub const TASK_OPTIONAL_FIELDS: &[(&str, &str)] = &[
     ("priority", "Priority level (P0-critical to P3-low)"),
-    ("context", "Background context for the task"),
+    ("points", "Story points estimate (0 or greater)"),
+    ("user_story", "User story or background context"),
 ];
 
 /// Collection source options shown in setup
@@ -124,6 +125,47 @@ pub struct SetupScreen {
     pub task_optional_fields: Vec<String>,
     /// List state for field configuration selection
     field_state: ListState,
+    /// Startup ticket options (ASSESS, AGENT-SETUP, PROJECT-INIT)
+    pub startup_ticket_options: Vec<StartupTicketOption>,
+    /// List state for startup ticket selection
+    startup_state: ListState,
+    /// Acceptance criteria text (editable during setup)
+    pub acceptance_criteria_text: String,
+}
+
+/// Startup ticket options for project initialization
+#[derive(Debug, Clone)]
+pub struct StartupTicketOption {
+    /// Key identifier for the ticket type (e.g., "assess", "agent_setup")
+    pub key: &'static str,
+    pub name: &'static str,
+    pub description: &'static str,
+    pub enabled: bool,
+}
+
+impl StartupTicketOption {
+    pub fn all() -> Vec<StartupTicketOption> {
+        vec![
+            StartupTicketOption {
+                key: "assess",
+                name: "ASSESS tickets",
+                description: "Scan projects for catalog-info.yaml, create if missing",
+                enabled: true,
+            },
+            StartupTicketOption {
+                key: "agent_setup",
+                name: "AGENT-SETUP tickets",
+                description: "Configure Claude agents for each project",
+                enabled: false,
+            },
+            StartupTicketOption {
+                key: "project_init",
+                name: "PROJECT-INIT tickets",
+                description: "Run both ASSESS and AGENT-SETUP for each project",
+                enabled: false,
+            },
+        ]
+    }
 }
 
 /// Steps in the setup process
@@ -139,6 +181,10 @@ pub enum SetupStep {
     TaskFieldConfig,
     /// Tmux onboarding/help
     TmuxOnboarding,
+    /// Review and configure acceptance criteria
+    AcceptanceCriteria,
+    /// Optional startup tickets creation
+    StartupTickets,
     /// Confirm initialization
     Confirm,
 }
@@ -159,6 +205,9 @@ impl SetupScreen {
         let mut field_state = ListState::default();
         field_state.select(Some(0));
 
+        let mut startup_state = ListState::default();
+        startup_state.select(Some(0));
+
         Self {
             visible: true,
             step: SetupStep::Welcome,
@@ -177,6 +226,10 @@ impl SetupScreen {
                 .map(|(name, _)| name.to_string())
                 .collect(),
             field_state,
+            startup_ticket_options: StartupTicketOption::all(),
+            startup_state,
+            acceptance_criteria_text: include_str!("../templates/ACCEPTANCE_CRITERIA.md")
+                .to_string(),
         }
     }
 
@@ -196,6 +249,15 @@ impl SetupScreen {
     /// Get the configured optional fields for TASK (and propagation to other types)
     pub fn configured_task_fields(&self) -> Vec<String> {
         self.task_optional_fields.clone()
+    }
+
+    /// Get the selected startup ticket types to create
+    pub fn selected_startup_tickets(&self) -> Vec<String> {
+        self.startup_ticket_options
+            .iter()
+            .filter(|opt| opt.enabled)
+            .map(|opt| opt.key.to_string())
+            .collect()
     }
 
     /// Get the currently selected source option
@@ -235,6 +297,15 @@ impl SetupScreen {
                     }
                 }
             }
+            SetupStep::StartupTickets => {
+                // Toggle the currently highlighted startup ticket option
+                if let Some(i) = self.startup_state.selected() {
+                    if i < self.startup_ticket_options.len() {
+                        self.startup_ticket_options[i].enabled =
+                            !self.startup_ticket_options[i].enabled;
+                    }
+                }
+            }
             SetupStep::Confirm => {
                 self.confirm_selected = !self.confirm_selected;
             }
@@ -262,6 +333,11 @@ impl SetupScreen {
                 let len = TASK_OPTIONAL_FIELDS.len();
                 let i = self.field_state.selected().map_or(0, |i| (i + 1) % len);
                 self.field_state.select(Some(i));
+            }
+            SetupStep::StartupTickets => {
+                let len = self.startup_ticket_options.len();
+                let i = self.startup_state.selected().map_or(0, |i| (i + 1) % len);
+                self.startup_state.select(Some(i));
             }
             _ => {}
         }
@@ -296,6 +372,14 @@ impl SetupScreen {
                     .selected()
                     .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
                 self.field_state.select(Some(i));
+            }
+            SetupStep::StartupTickets => {
+                let len = self.startup_ticket_options.len();
+                let i =
+                    self.startup_state
+                        .selected()
+                        .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
+                self.startup_state.select(Some(i));
             }
             _ => {}
         }
@@ -357,6 +441,14 @@ impl SetupScreen {
                 SetupResult::Continue
             }
             SetupStep::TmuxOnboarding => {
+                self.step = SetupStep::AcceptanceCriteria;
+                SetupResult::Continue
+            }
+            SetupStep::AcceptanceCriteria => {
+                self.step = SetupStep::StartupTickets;
+                SetupResult::Continue
+            }
+            SetupStep::StartupTickets => {
                 self.step = SetupStep::Confirm;
                 SetupResult::Continue
             }
@@ -394,8 +486,16 @@ impl SetupScreen {
                 self.step = SetupStep::TaskFieldConfig;
                 SetupResult::Continue
             }
-            SetupStep::Confirm => {
+            SetupStep::AcceptanceCriteria => {
                 self.step = SetupStep::TmuxOnboarding;
+                SetupResult::Continue
+            }
+            SetupStep::StartupTickets => {
+                self.step = SetupStep::AcceptanceCriteria;
+                SetupResult::Continue
+            }
+            SetupStep::Confirm => {
+                self.step = SetupStep::StartupTickets;
                 SetupResult::Continue
             }
         }
@@ -413,6 +513,8 @@ impl SetupScreen {
             SetupStep::CustomCollection => self.render_custom_collection_step(frame),
             SetupStep::TaskFieldConfig => self.render_task_field_config_step(frame),
             SetupStep::TmuxOnboarding => self.render_tmux_onboarding_step(frame),
+            SetupStep::AcceptanceCriteria => self.render_acceptance_criteria_step(frame),
+            SetupStep::StartupTickets => self.render_startup_tickets_step(frame),
             SetupStep::Confirm => self.render_confirm_step(frame),
         }
     }
@@ -981,6 +1083,205 @@ impl SetupScreen {
         ]))
         .alignment(Alignment::Center);
         frame.render_widget(footer, chunks[5]);
+    }
+
+    fn render_acceptance_criteria_step(&self, frame: &mut Frame) {
+        let area = centered_rect(70, 70, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled(
+                    "Operator!",
+                    Style::default()
+                        .fg(Color::LightRed)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" Setup - Acceptance Criteria "),
+            ]))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(2), // Description
+                Constraint::Min(8),    // Acceptance criteria content
+                Constraint::Length(3), // Footer
+            ])
+            .split(inner);
+
+        // Title
+        let title = Paragraph::new(Line::from(vec![Span::styled(
+            "Review Acceptance Criteria",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]))
+        .alignment(Alignment::Center);
+        frame.render_widget(title, chunks[0]);
+
+        // Description
+        let desc = Paragraph::new(vec![
+            Line::from("These criteria will be used to validate completed work."),
+            Line::from("Other template files (Definition of Done, Definition of Ready) will be written from defaults."),
+        ])
+        .alignment(Alignment::Center);
+        frame.render_widget(desc, chunks[1]);
+
+        // Acceptance criteria content (read-only preview)
+        let content_block = Block::default()
+            .title(" Acceptance Criteria Template ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::DarkGray));
+
+        let content = Paragraph::new(self.acceptance_criteria_text.as_str())
+            .block(content_block)
+            .wrap(ratatui::widgets::Wrap { trim: false });
+        frame.render_widget(content, chunks[2]);
+
+        // Footer with key hints
+        let footer = Paragraph::new(Line::from(vec![
+            Span::styled("Enter", Style::default().fg(Color::Green)),
+            Span::raw(" accept  |  "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" back"),
+        ]))
+        .alignment(Alignment::Center);
+        frame.render_widget(footer, chunks[3]);
+    }
+
+    fn render_startup_tickets_step(&mut self, frame: &mut Frame) {
+        let area = centered_rect(70, 60, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled(
+                    "Operator!",
+                    Style::default()
+                        .fg(Color::LightRed)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" Setup - Startup Tickets "),
+            ]))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(3), // Explanation
+                Constraint::Length(2), // Instructions
+                Constraint::Min(8),    // Options list
+                Constraint::Length(2), // Footer
+            ])
+            .split(inner);
+
+        // Title
+        let title = Paragraph::new(Line::from(vec![Span::styled(
+            "Create Startup Tickets",
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        )]))
+        .alignment(Alignment::Center);
+        frame.render_widget(title, chunks[0]);
+
+        // Explanation
+        let explanation = Paragraph::new(vec![
+            Line::from("Optionally create tickets to bootstrap your projects."),
+            Line::from("These help set up catalog entries and agent configurations."),
+        ])
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::Gray));
+        frame.render_widget(explanation, chunks[1]);
+
+        // Instructions
+        let instructions = Paragraph::new(vec![Line::from(
+            "Use arrows to navigate, Space to toggle, Enter to continue",
+        )])
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::DarkGray));
+        frame.render_widget(instructions, chunks[2]);
+
+        // Options list
+        let items: Vec<ListItem> = self
+            .startup_ticket_options
+            .iter()
+            .map(|opt| {
+                let checkbox = if opt.enabled { "[x]" } else { "[ ]" };
+                ListItem::new(vec![
+                    Line::from(vec![
+                        Span::styled(
+                            checkbox,
+                            Style::default().fg(if opt.enabled {
+                                Color::Green
+                            } else {
+                                Color::DarkGray
+                            }),
+                        ),
+                        Span::raw(" "),
+                        Span::styled(
+                            opt.name,
+                            Style::default()
+                                .add_modifier(Modifier::BOLD)
+                                .fg(if opt.enabled {
+                                    Color::White
+                                } else {
+                                    Color::Gray
+                                }),
+                        ),
+                    ]),
+                    Line::from(vec![
+                        Span::raw("    "),
+                        Span::styled(opt.description, Style::default().fg(Color::DarkGray)),
+                    ]),
+                ])
+            })
+            .collect();
+
+        let list = List::new(items)
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_symbol("> ");
+
+        frame.render_stateful_widget(list, chunks[3], &mut self.startup_state);
+
+        // Footer
+        let selected_count = self
+            .startup_ticket_options
+            .iter()
+            .filter(|o| o.enabled)
+            .count();
+        let footer = Paragraph::new(Line::from(vec![
+            Span::styled(
+                format!("{} ticket types selected", selected_count),
+                Style::default().fg(if selected_count > 0 {
+                    Color::Green
+                } else {
+                    Color::Gray
+                }),
+            ),
+            Span::raw("  |  "),
+            Span::styled("Enter", Style::default().fg(Color::Yellow)),
+            Span::raw(" continue  "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" back"),
+        ]))
+        .alignment(Alignment::Center);
+        frame.render_widget(footer, chunks[4]);
     }
 
     fn render_confirm_step(&self, frame: &mut Frame) {

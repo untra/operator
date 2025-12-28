@@ -8,6 +8,7 @@
   "color": "magenta",
   "project_required": true,
   "agent_prompt": "Review this project and prepare to create an agent for bug fixes. The agent should read tickets from .tickets/, reproduce issues, implement minimal fixes, verify with tests, and create PRs. Output ONLY the agent system prompt.",
+  "prompt": "You are fixing a bug or addressing technical debt in the {{ project }} project.\n\nBefore starting, review the acceptance criteria and understand the root cause.\n\n## Acceptance Criteria\n{{ acceptance_criteria }}\n\n## Definition of Done\nFollow this definition of done before claiming success:\n{{ definition_of_done }}",
   "fields": [
     {
       "name": "id",
@@ -74,7 +75,7 @@
       "display_order": 6
     },
     {
-      "name": "context",
+      "name": "user_story",
       "description": "Context for the fix (steps to reproduce, background)",
       "type": "text",
       "required": false,

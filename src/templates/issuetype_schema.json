@@ -65,9 +65,13 @@
       },
       "minItems": 1
     },
-    "agent_prompt": {
+    "prompt": {
       "type": "string",
-      "description": "Prompt for generating an operator agent for this issuetype via 'claude -p'. Should instruct Claude to output ONLY the agent system prompt. If omitted, no operator agent will be generated for this issuetype."
+      "description": "Issue prompt to apply to work creation."
+    },
+    "agent_creation_prompt": {
+      "type": "string",
+      "description": "Optional prompt for generating an operator agent for this issuetype via 'claude -p' for this prompt. Should instruct Claude to output ONLY the agent system prompt. If omitted, no operator agent will be generated for this issuetype."
     }
   },
   "definitions": {
@@ -87,7 +91,7 @@
         },
         "type": {
           "type": "string",
-          "enum": ["string", "text", "enum", "date", "boolean"],
+          "enum": ["string", "text", "enum", "date", "boolean", "integer"],
           "description": "Field data type"
         },
         "required": {
@@ -96,8 +100,16 @@
           "description": "Whether this field must be filled"
         },
         "default": {
-          "type": ["string", "boolean", "null"],
+          "type": ["string", "boolean", "integer", "null"],
           "description": "Default value for the field. Required if field is required (except for 'id' field)"
+        },
+        "min": {
+          "type": "integer",
+          "description": "Minimum value for integer fields"
+        },
+        "max": {
+          "type": "integer",
+          "description": "Maximum value for integer fields"
         },
         "auto": {
           "type": "string",

@@ -12,6 +12,9 @@
  * - Embedded React frontend
  */
 
+// Import embedded assets first - enables Bun to embed frontend files into the binary
+import './embedded-assets';
+
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { join } from 'node:path';
@@ -325,6 +328,29 @@ const operatorApiUrl = process.env.OPERATOR_API_URL || 'http://localhost:7008';
 
 app.all('/api/operator/*', async (c) => {
   const path = c.req.path.replace('/api/operator', '');
+  const url = `${operatorApiUrl}${path}`;
+
+  try {
+    const response = await fetch(url, {
+      method: c.req.method,
+      headers: c.req.header(),
+      body: c.req.method !== 'GET' ? await c.req.text() : undefined,
+    });
+
+    const data = await response.text();
+    return new Response(data, {
+      status: response.status,
+      headers: { 'Content-Type': response.headers.get('Content-Type') || 'application/json' },
+    });
+  } catch (error) {
+    return c.json({ error: 'Operator API unavailable', details: String(error) }, 502);
+  }
+});
+
+// Proxy route for Backstage proxy plugin convention (/api/proxy/operator/*)
+// Used by OperatorApiClient and homepage widgets
+app.all('/api/proxy/operator/*', async (c) => {
+  const path = c.req.path.replace('/api/proxy/operator', '');
   const url = `${operatorApiUrl}${path}`;
 
   try {

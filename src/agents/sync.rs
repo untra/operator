@@ -31,6 +31,8 @@ pub struct SyncResult {
     pub timed_out: Vec<String>,
     /// Tickets that completed their step
     pub completed: Vec<String>,
+    /// Agent IDs that resumed from awaiting state
+    pub resumed: Vec<String>,
     /// Errors encountered during sync
     pub errors: Vec<String>,
 }
@@ -50,6 +52,8 @@ pub enum SyncAction {
     TimedOut,
     /// Session is hung (no content change)
     Hung,
+    /// Resumed from awaiting state (user returned and LLM is active)
+    ResumedFromAwaiting,
 }
 
 /// Ticket-session synchronizer
@@ -177,6 +181,14 @@ impl TicketSessionSync {
                             "Session appears hung (no content changes)"
                         );
                     }
+                    SyncAction::ResumedFromAwaiting => {
+                        // Agent resumed from awaiting state - handled by check_detach_signals
+                        result.resumed.push(ticket.id.clone());
+                        tracing::info!(
+                            ticket_id = %ticket.id,
+                            "Agent resumed from awaiting state"
+                        );
+                    }
                 }
 
                 result.synced += 1;
@@ -269,6 +281,68 @@ impl TicketSessionSync {
         } else {
             self.sync_interval - elapsed
         }
+    }
+
+    /// Check for detach signals and process agent returns from awaiting state
+    /// Returns a list of agent IDs that have resumed
+    pub fn check_detach_signals(&self, state: &mut State) -> Result<Vec<String>> {
+        use sha2::{Digest, Sha256};
+        use std::fs;
+        use std::path::Path;
+
+        let mut resumed_agents = Vec::new();
+
+        // Get agents in awaiting_input status
+        let awaiting_agents: Vec<_> = state
+            .agents
+            .iter()
+            .filter(|a| a.status == "awaiting_input")
+            .cloned()
+            .collect();
+
+        for agent in awaiting_agents {
+            let Some(ref session_name) = agent.session_name else {
+                continue;
+            };
+
+            // Check for signal file
+            let signal_file = format!("/tmp/operator-detach-{}.signal", session_name);
+            let signal_path = Path::new(&signal_file);
+
+            if signal_path.exists() {
+                // Signal found - user has detached from session
+                let _ = fs::remove_file(signal_path);
+
+                // Check if content has changed (LLM is working again)
+                if let Ok(content) = self.tmux.capture_pane(session_name, false) {
+                    let mut hasher = Sha256::new();
+                    hasher.update(content.as_bytes());
+                    let new_hash = format!("{:x}", hasher.finalize());
+
+                    // Compare with stored hash
+                    let content_changed = agent
+                        .content_hash
+                        .as_ref()
+                        .map(|old_hash| old_hash != &new_hash)
+                        .unwrap_or(true);
+
+                    if content_changed {
+                        // Content changed - LLM is working, resume agent
+                        state.update_agent_status(&agent.id, "running", None)?;
+                        state.update_agent_content_hash(&agent.id, &new_hash)?;
+                        resumed_agents.push(agent.id.clone());
+
+                        tracing::info!(
+                            agent_id = %agent.id,
+                            session = %session_name,
+                            "Agent resumed from awaiting state - content changed"
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(resumed_agents)
     }
 }
 

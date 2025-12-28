@@ -206,15 +206,9 @@ impl CreateDialog {
                     let template_type = self.templates[i];
                     self.selected_template = Some(template_type);
 
-                    // If no projects discovered and project not optional, still proceed
-                    if self.projects.is_empty() && !template_type.project_optional() {
-                        self.selected_project = None;
-                        self.initialize_forms();
-                        self.step = CreateDialogStep::RequiredFields;
-                    } else {
-                        self.step = CreateDialogStep::Project;
-                        self.project_state.select(Some(0));
-                    }
+                    // Always go to project selection step
+                    self.step = CreateDialogStep::Project;
+                    self.project_state.select(Some(0));
                 }
             }
             KeyCode::Esc => {
@@ -227,6 +221,11 @@ impl CreateDialog {
 
     fn handle_project_key(&mut self, key: KeyCode) -> Option<CreateDialogResult> {
         let list = self.project_list();
+        let requires_project = !self
+            .selected_template
+            .map(|t| t.project_optional())
+            .unwrap_or(true);
+
         match key {
             KeyCode::Up | KeyCode::Char('k') => {
                 if !list.is_empty() {
@@ -247,6 +246,11 @@ impl CreateDialog {
                 }
             }
             KeyCode::Enter => {
+                // Block proceeding if projects are required but none found
+                if list.is_empty() && requires_project {
+                    return None;
+                }
+
                 if list.is_empty() {
                     self.selected_project = None;
                 } else if let Some(i) = self.project_state.selected() {
@@ -644,12 +648,40 @@ impl CreateDialog {
             })
             .collect();
 
-        if items.is_empty() {
-            let empty_msg = Paragraph::new(Line::from(vec![Span::styled(
-                "No projects discovered (no CLAUDE.md files found)",
-                Style::default().fg(Color::DarkGray),
-            )]));
-            frame.render_widget(empty_msg, chunks[1]);
+        let requires_project = !self
+            .selected_template
+            .map(|t| t.project_optional())
+            .unwrap_or(true);
+
+        let items_empty = items.is_empty();
+
+        if items_empty {
+            if requires_project {
+                // Clear warning message for required project
+                let msg = Paragraph::new(vec![
+                    Line::from(Span::styled(
+                        "No projects found",
+                        Style::default().fg(Color::Yellow),
+                    )),
+                    Line::from(""),
+                    Line::from(Span::styled(
+                        "Add a CLAUDE.md file to project directories",
+                        Style::default().fg(Color::Gray),
+                    )),
+                    Line::from(Span::styled(
+                        "to register them with operator.",
+                        Style::default().fg(Color::Gray),
+                    )),
+                ]);
+                frame.render_widget(msg, chunks[1]);
+            } else {
+                // For optional projects, show simpler message
+                let empty_msg = Paragraph::new(Line::from(vec![Span::styled(
+                    "No projects discovered (press Enter to skip)",
+                    Style::default().fg(Color::DarkGray),
+                )]));
+                frame.render_widget(empty_msg, chunks[1]);
+            }
         } else {
             let list = List::new(items)
                 .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
@@ -658,14 +690,21 @@ impl CreateDialog {
             frame.render_stateful_widget(list, chunks[1], &mut self.project_state);
         }
 
-        // Footer
-        let footer = Paragraph::new(Line::from(vec![
-            Span::styled("Enter", Style::default().fg(Color::Yellow)),
-            Span::raw(" select  "),
-            Span::styled("Esc", Style::default().fg(Color::Yellow)),
-            Span::raw(" back"),
-        ]))
-        .alignment(Alignment::Center);
+        // Footer - different text when projects are required but empty
+        let footer_text = if items_empty && requires_project {
+            vec![
+                Span::styled("Esc", Style::default().fg(Color::Yellow)),
+                Span::raw(" back"),
+            ]
+        } else {
+            vec![
+                Span::styled("Enter", Style::default().fg(Color::Yellow)),
+                Span::raw(" select  "),
+                Span::styled("Esc", Style::default().fg(Color::Yellow)),
+                Span::raw(" back"),
+            ]
+        };
+        let footer = Paragraph::new(Line::from(footer_text)).alignment(Alignment::Center);
         frame.render_widget(footer, chunks[2]);
     }
 
@@ -856,6 +895,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 }
 
 /// Render a form with its fields (free function to avoid borrow issues)
+#[allow(dead_code)]
 fn render_form(frame: &mut Frame, area: Rect, form: &mut TicketForm) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -937,4 +977,232 @@ fn render_form(frame: &mut Frame, area: Rect, form: &mut TicketForm) {
     ]))
     .alignment(Alignment::Center);
     frame.render_widget(footer, chunks[1]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_dialog_new_initializes_correctly() {
+        let dialog = CreateDialog::new();
+
+        assert!(!dialog.visible);
+        assert_eq!(dialog.step, CreateDialogStep::Template);
+        assert!(dialog.selected_template.is_none());
+        assert!(dialog.selected_project.is_none());
+        assert!(!dialog.templates.is_empty());
+        assert!(dialog.template_state.selected().is_some());
+    }
+
+    #[test]
+    fn test_create_dialog_default_equals_new() {
+        let d1 = CreateDialog::new();
+        let d2 = CreateDialog::default();
+
+        assert_eq!(d1.visible, d2.visible);
+        assert_eq!(d1.step, d2.step);
+    }
+
+    #[test]
+    fn test_create_dialog_set_projects() {
+        let mut dialog = CreateDialog::new();
+        dialog.set_projects(vec!["p1".to_string(), "p2".to_string()]);
+
+        assert_eq!(dialog.projects.len(), 2);
+    }
+
+    #[test]
+    fn test_create_dialog_show_resets_state() {
+        let mut dialog = CreateDialog::new();
+        dialog.step = CreateDialogStep::Preview;
+        dialog.selected_template = Some(TemplateType::Feature);
+
+        dialog.show();
+
+        assert!(dialog.visible);
+        assert_eq!(dialog.step, CreateDialogStep::Template);
+        assert!(dialog.selected_template.is_none());
+        assert!(dialog.selected_project.is_none());
+    }
+
+    #[test]
+    fn test_create_dialog_hide_clears_state() {
+        let mut dialog = CreateDialog::new();
+        dialog.visible = true;
+        dialog.step = CreateDialogStep::Project;
+        dialog.selected_template = Some(TemplateType::Fix);
+
+        dialog.hide();
+
+        assert!(!dialog.visible);
+        assert_eq!(dialog.step, CreateDialogStep::Template);
+        assert!(dialog.selected_template.is_none());
+    }
+
+    #[test]
+    fn test_create_dialog_go_back_from_template_hides() {
+        let mut dialog = CreateDialog::new();
+        dialog.show();
+
+        dialog.go_back();
+
+        assert!(!dialog.visible);
+    }
+
+    #[test]
+    fn test_create_dialog_go_back_from_project_to_template() {
+        let mut dialog = CreateDialog::new();
+        dialog.show();
+        dialog.step = CreateDialogStep::Project;
+        dialog.selected_template = Some(TemplateType::Feature);
+
+        dialog.go_back();
+
+        assert_eq!(dialog.step, CreateDialogStep::Template);
+        assert!(dialog.selected_template.is_none());
+    }
+
+    #[test]
+    fn test_create_dialog_go_back_from_required_fields_to_project() {
+        let mut dialog = CreateDialog::new();
+        dialog.step = CreateDialogStep::RequiredFields;
+
+        dialog.go_back();
+
+        assert_eq!(dialog.step, CreateDialogStep::Project);
+    }
+
+    #[test]
+    fn test_create_dialog_go_back_from_optional_fields_to_required() {
+        let mut dialog = CreateDialog::new();
+        dialog.step = CreateDialogStep::OptionalFields;
+
+        dialog.go_back();
+
+        assert_eq!(dialog.step, CreateDialogStep::RequiredFields);
+    }
+
+    #[test]
+    fn test_create_dialog_go_back_from_preview_to_optional() {
+        let mut dialog = CreateDialog::new();
+        dialog.step = CreateDialogStep::Preview;
+
+        dialog.go_back();
+
+        assert_eq!(dialog.step, CreateDialogStep::OptionalFields);
+    }
+
+    #[test]
+    fn test_create_dialog_project_list_without_optional_template() {
+        let mut dialog = CreateDialog::new();
+        dialog.set_projects(vec!["p1".to_string(), "p2".to_string()]);
+        dialog.selected_template = Some(TemplateType::Feature); // Feature requires project
+
+        let list = dialog.project_list();
+
+        assert_eq!(list.len(), 2);
+        assert!(!list.contains(&"(none)".to_string()));
+    }
+
+    #[test]
+    fn test_create_dialog_project_list_with_optional_template() {
+        let mut dialog = CreateDialog::new();
+        dialog.set_projects(vec!["p1".to_string(), "p2".to_string()]);
+        dialog.selected_template = Some(TemplateType::Spike); // Spike has optional project
+
+        let list = dialog.project_list();
+
+        assert_eq!(list.len(), 3);
+        assert_eq!(list[0], "(none)");
+    }
+
+    #[test]
+    fn test_create_dialog_template_navigation() {
+        let mut dialog = CreateDialog::new();
+        dialog.show();
+
+        // Initially at 0
+        assert_eq!(dialog.template_state.selected(), Some(0));
+
+        // Navigate down
+        dialog.handle_key(KeyCode::Down);
+        assert_eq!(dialog.template_state.selected(), Some(1));
+
+        // Navigate up
+        dialog.handle_key(KeyCode::Up);
+        assert_eq!(dialog.template_state.selected(), Some(0));
+
+        // Wrap around at top
+        dialog.handle_key(KeyCode::Up);
+        assert_eq!(
+            dialog.template_state.selected(),
+            Some(dialog.templates.len() - 1)
+        );
+    }
+
+    #[test]
+    fn test_create_dialog_template_selection_proceeds_to_project() {
+        let mut dialog = CreateDialog::new();
+        dialog.show();
+
+        dialog.handle_key(KeyCode::Enter);
+
+        assert!(dialog.selected_template.is_some());
+        assert_eq!(dialog.step, CreateDialogStep::Project);
+    }
+
+    #[test]
+    fn test_create_dialog_esc_in_template_hides() {
+        let mut dialog = CreateDialog::new();
+        dialog.show();
+
+        dialog.handle_key(KeyCode::Esc);
+
+        assert!(!dialog.visible);
+    }
+
+    #[test]
+    fn test_create_dialog_generate_auto_values_creates_expected_keys() {
+        let dialog = CreateDialog::new();
+
+        let values = dialog.generate_auto_values(TemplateType::Feature);
+
+        assert!(values.contains_key("id"));
+        assert!(values.contains_key("created"));
+        assert!(values.contains_key("created_date"));
+        assert!(values.contains_key("created_datetime"));
+        assert!(values.contains_key("status"));
+        assert!(values.contains_key("branch"));
+        assert!(values.contains_key("project"));
+
+        assert_eq!(values.get("status"), Some(&"queued".to_string()));
+        assert!(values.get("id").unwrap().starts_with("FEAT-"));
+        assert!(values.get("branch").unwrap().starts_with("feat/FEAT-"));
+    }
+
+    #[test]
+    fn test_create_dialog_generate_auto_values_with_project() {
+        let mut dialog = CreateDialog::new();
+        dialog.selected_project = Some("my-project".to_string());
+
+        let values = dialog.generate_auto_values(TemplateType::Fix);
+
+        assert_eq!(values.get("project"), Some(&"my-project".to_string()));
+        assert!(values.get("id").unwrap().starts_with("FIX-"));
+    }
+
+    #[test]
+    fn test_create_dialog_current_template() {
+        let mut dialog = CreateDialog::new();
+        dialog.show();
+
+        // No explicit selection, returns from template_state
+        let template = dialog.current_template();
+        assert!(template.is_some());
+
+        // After selection, returns selected
+        dialog.selected_template = Some(TemplateType::Spike);
+        assert_eq!(dialog.current_template(), Some(TemplateType::Spike));
+    }
 }

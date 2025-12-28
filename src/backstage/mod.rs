@@ -23,9 +23,9 @@ pub use server::{BackstageServer, ServerStatus};
 #[allow(unused_imports)]
 pub use runtime::{BackstageRuntime, Platform, RuntimeError};
 
-// Additional re-exports for tests and future use
+// Additional re-exports for future use
 #[allow(unused_imports)]
 pub use server::{
     copy_default_logo, generate_branding_config, BackstageError, BunClient, BunVersion,
-    MockBunClient, RuntimeBinaryClient, SystemBunClient,
+    RuntimeBinaryClient, SystemBunClient,
 };

@@ -1,4 +1,4 @@
-name: operator build
+name: Operator Build
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}

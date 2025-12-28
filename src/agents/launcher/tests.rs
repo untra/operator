@@ -58,6 +58,16 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
             }],
             detection_complete: true,
         },
+        // Disable notifications in tests to avoid DBus requirement on Linux CI
+        notifications: crate::config::NotificationsConfig {
+            enabled: false,
+            on_agent_start: false,
+            on_agent_complete: false,
+            on_agent_needs_input: false,
+            on_pr_created: false,
+            on_investigation_created: false,
+            sound: false,
+        },
         ..Default::default()
     }
 }

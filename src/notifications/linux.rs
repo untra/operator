@@ -9,11 +9,18 @@ pub fn send_notification(title: &str, subtitle: &str, message: &str, _sound: boo
         format!("{}\n{}", subtitle, message)
     };
 
-    Notification::new()
+    // Handle D-Bus errors gracefully - notification daemon may not be available
+    // in CI environments or headless systems
+    match Notification::new()
         .summary(title)
         .body(&body)
         .appname("operator")
-        .show()?;
-
-    Ok(())
+        .show()
+    {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            tracing::warn!("Failed to send notification (D-Bus unavailable?): {}", e);
+            Ok(())
+        }
+    }
 }

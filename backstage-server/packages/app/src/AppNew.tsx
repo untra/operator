@@ -115,6 +115,7 @@ const pluginsNavItem = NavItemBlueprint.make({
 
 // Catalog API extension - provides catalog service for catalog components
 const catalogApi = ApiBlueprint.make({
+  name: 'catalog-api',
   params: defineParams =>
     defineParams({
       api: catalogApiRef,
@@ -126,6 +127,7 @@ const catalogApi = ApiBlueprint.make({
 
 // Starred Entities API - provides in-memory starred entity storage
 const starredEntitiesApi = ApiBlueprint.make({
+  name: 'starred-entities-api',
   params: defineParams =>
     defineParams({
       api: starredEntitiesApiRef,

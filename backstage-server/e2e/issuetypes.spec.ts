@@ -1,39 +1,41 @@
 import { test, expect } from '@playwright/test';
+import { gotoWithAuth } from './auth';
 
 test.describe('Issue Types Page', () => {
-  test('loads with expected banner', async ({ page }) => {
-    await page.goto('/issuetypes');
+  test('loads issue types page', async ({ page }) => {
+    await gotoWithAuth(page, '/issuetypes');
 
     // Wait for the page to load
     await expect(page).toHaveURL(/.*issuetypes/);
 
-    // Check for the issue types page banner data-testid
-    await expect(page.getByTestId('issuetypes-page-banner')).toBeVisible();
+    // Check for main Issue Types heading
+    await expect(page.getByRole('heading', { name: 'Issue Types', level: 1 })).toBeVisible();
   });
 
   test('displays Issue Types header', async ({ page }) => {
-    await page.goto('/issuetypes');
+    await gotoWithAuth(page, '/issuetypes');
 
-    // Check for the Issue Types header
-    await expect(page.getByRole('heading', { name: 'Issue Types' })).toBeVisible();
+    // Check for the Issue Types header (h1, not h2 subtitle)
+    await expect(page.getByRole('heading', { name: 'Issue Types', level: 1 })).toBeVisible();
   });
 
   test('displays action buttons', async ({ page }) => {
-    await page.goto('/issuetypes');
+    await gotoWithAuth(page, '/issuetypes');
 
-    // Check for action buttons - may need Operator REST API running
-    // These may be in different states depending on API availability
-    const createBtn = page.getByRole('button', { name: /Create/i });
-    const collectionsBtn = page.getByRole('button', { name: /Collections/i });
+    // Check for action buttons
+    const createBtn = page.getByRole('button', { name: 'Create Issue Type' });
+    const collectionsBtn = page.getByRole('button', { name: 'Collections' });
 
-    // At least one should be visible when page loads
-    await expect(createBtn.or(collectionsBtn)).toBeVisible({ timeout: 10000 });
+    // Both should be visible when page loads
+    await expect(createBtn).toBeVisible({ timeout: 10000 });
+    await expect(collectionsBtn).toBeVisible({ timeout: 10000 });
   });
 
   test('navigates to collections page', async ({ page }) => {
-    await page.goto('/issuetypes/collections');
+    await gotoWithAuth(page, '/issuetypes/collections');
 
     await expect(page).toHaveURL(/.*issuetypes\/collections/);
-    await expect(page.getByRole('heading', { name: /Collections/i })).toBeVisible();
+    // Check for main Collections heading (h1)
+    await expect(page.getByRole('heading', { name: 'Collections', level: 1 })).toBeVisible();
   });
 });

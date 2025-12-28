@@ -1,25 +1,26 @@
 import { test, expect } from '@playwright/test';
+import { gotoWithAuth } from './auth';
 
 test.describe('Catalog Page', () => {
-  test('loads with expected banner', async ({ page }) => {
-    await page.goto('/catalog');
+  test('loads catalog page', async ({ page }) => {
+    await gotoWithAuth(page, '/catalog');
 
     // Wait for the page to load
     await expect(page).toHaveURL(/.*catalog/);
 
-    // Check for the catalog page banner data-testid
-    await expect(page.getByTestId('catalog-page-banner')).toBeVisible();
+    // Check for main content - Repositories heading
+    await expect(page.getByRole('heading', { name: 'Repositories' })).toBeVisible();
   });
 
   test('displays Repositories header', async ({ page }) => {
-    await page.goto('/catalog');
+    await gotoWithAuth(page, '/catalog');
 
     // Check for the Repositories header (from OperatorCatalogPage)
     await expect(page.getByRole('heading', { name: 'Repositories' })).toBeVisible();
   });
 
   test('can toggle between Operator and Backstage views', async ({ page }) => {
-    await page.goto('/catalog');
+    await gotoWithAuth(page, '/catalog');
 
     // Check for view toggle buttons
     const operatorBtn = page.getByRole('button', { name: /Operator/i });

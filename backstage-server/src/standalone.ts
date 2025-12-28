@@ -323,6 +323,165 @@ app.route('/api/catalog', catalogRoutes);
 const searchRoutes = createSearchRoutes(searchIndex);
 app.route('/api/search', searchRoutes);
 
+// Guest authentication endpoints
+// These mock the Backstage auth backend for guest sign-in
+// See: https://backstage.io/docs/auth/guest/provider/
+
+// Generate a mock Backstage token (simple base64, not a real JWT)
+function generateGuestToken() {
+  const payload = {
+    sub: 'user:development/guest',
+    ent: ['user:development/guest'],
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  };
+  // Create a fake JWT-like structure (header.payload.signature)
+  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${header}.${body}.`;
+}
+
+// Auth OpenID configuration (discovery endpoint)
+app.get('/api/auth/.well-known/openid-configuration', (c) => {
+  const baseUrl = 'http://localhost:7007';
+  return c.json({
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/api/auth/guest/start`,
+    token_endpoint: `${baseUrl}/api/auth/guest/refresh`,
+    userinfo_endpoint: `${baseUrl}/api/auth/guest/refresh`,
+    jwks_uri: `${baseUrl}/api/auth/.well-known/jwks.json`,
+  });
+});
+
+// Mock JWKS (JSON Web Key Set)
+app.get('/api/auth/.well-known/jwks.json', (c) => {
+  return c.json({ keys: [] });
+});
+
+// Auth providers list - tells frontend what providers are available
+app.get('/api/auth/providers', (c) => {
+  return c.json({
+    guest: {
+      providerId: 'guest',
+      title: 'Guest',
+      message: 'Sign in as a guest user',
+    },
+  });
+});
+
+// Guest provider info endpoint
+app.get('/api/auth/guest', (c) => {
+  return c.json({
+    providerId: 'guest',
+    // Tell the frontend that guest sign-in is allowed
+    signIn: {
+      supported: true,
+    },
+  });
+});
+
+// Auth service check - tells frontend the auth backend is available
+app.get('/api/auth', (c) => {
+  return c.json({
+    status: 'ok',
+    providers: ['guest'],
+  });
+});
+
+// List available guest users (for multi-user guest setups)
+app.get('/api/auth/guest/users', (c) => {
+  return c.json([
+    { id: 'guest', displayName: 'Guest User' },
+  ]);
+});
+
+// Start guest authentication - GET variant used by some Backstage versions
+app.get('/api/auth/guest/start', (c) => {
+  const token = generateGuestToken();
+
+  return c.json({
+    backstageIdentity: {
+      token,
+      expiresInSeconds: 3600,
+      identity: {
+        type: 'user',
+        userEntityRef: 'user:development/guest',
+        ownershipEntityRefs: ['user:development/guest'],
+      },
+    },
+    profile: {
+      email: 'guest@example.com',
+      displayName: 'Guest User',
+    },
+    providerInfo: {},
+  });
+});
+
+// Start guest authentication session - POST variant
+app.post('/api/auth/guest/start', async (c) => {
+  const token = generateGuestToken();
+
+  return c.json({
+    backstageIdentity: {
+      token,
+      expiresInSeconds: 3600,
+      identity: {
+        type: 'user',
+        userEntityRef: 'user:development/guest',
+        ownershipEntityRefs: ['user:development/guest'],
+      },
+    },
+    profile: {
+      email: 'guest@example.com',
+      displayName: 'Guest User',
+    },
+    providerInfo: {},
+  });
+});
+
+// Handle OAuth-style refresh
+app.get('/api/auth/guest/refresh', (c) => {
+  const token = generateGuestToken();
+
+  return c.json({
+    backstageIdentity: {
+      token,
+      expiresInSeconds: 3600,
+      identity: {
+        type: 'user',
+        userEntityRef: 'user:development/guest',
+        ownershipEntityRefs: ['user:development/guest'],
+      },
+    },
+    profile: {
+      email: 'guest@example.com',
+      displayName: 'Guest User',
+    },
+    providerInfo: {},
+  });
+});
+
+app.post('/api/auth/guest/refresh', async (c) => {
+  const token = generateGuestToken();
+
+  return c.json({
+    backstageIdentity: {
+      token,
+      expiresInSeconds: 3600,
+      identity: {
+        type: 'user',
+        userEntityRef: 'user:development/guest',
+        ownershipEntityRefs: ['user:development/guest'],
+      },
+    },
+    profile: {
+      email: 'guest@example.com',
+      displayName: 'Guest User',
+    },
+    providerInfo: {},
+  });
+});
+
 // Proxy to Operator REST API (default port 7008)
 const operatorApiUrl = process.env.OPERATOR_API_URL || 'http://localhost:7008';
 

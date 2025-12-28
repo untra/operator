@@ -5,6 +5,9 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * Starts the backstage server before running tests and verifies
  * key pages load with expected data-testid attributes.
+ *
+ * Note: Backstage guest auth uses in-memory state, so each test
+ * handles login via the gotoWithAuth() helper in auth.ts.
  */
 export default defineConfig({
   testDir: './e2e',

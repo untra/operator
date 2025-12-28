@@ -130,10 +130,19 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Download backstage-server binary
+        uses: actions/download-artifact@v4
+        with:
+          name: backstage-server
+          path: backstage-server/dist
+      - name: Make binary executable
+        run: chmod +x dist/backstage-server
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
       - name: Run E2E tests
         run: bun run test:e2e
+        env:
+          USE_BINARY: 'true'
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

@@ -27,8 +27,11 @@ export default defineConfig({
   ],
 
   // Start the Backstage server before running tests
+  // In CI, use the compiled binary; locally, run from source
   webServer: {
-    command: 'bun run start',
+    command: process.env.USE_BINARY === 'true'
+      ? './dist/backstage-server'
+      : 'bun run start',
     url: 'http://localhost:7007/health',
     reuseExistingServer: !process.env.CI,
     timeout: 120000, // 2 minutes to start

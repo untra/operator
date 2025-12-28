@@ -796,3 +796,39 @@ impl Default for Config {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_preset_is_dev_kanban() {
+        assert_eq!(CollectionPreset::default(), CollectionPreset::DevKanban);
+    }
+
+    #[test]
+    fn test_templates_config_default_uses_dev_kanban() {
+        let config = TemplatesConfig::default();
+        assert_eq!(config.preset, CollectionPreset::DevKanban);
+    }
+
+    #[test]
+    fn test_dev_kanban_has_three_issue_types() {
+        let types = CollectionPreset::DevKanban.issue_types();
+        assert_eq!(types.len(), 3);
+        assert!(types.contains(&"TASK".to_string()));
+        assert!(types.contains(&"FEAT".to_string()));
+        assert!(types.contains(&"FIX".to_string()));
+    }
+
+    #[test]
+    fn test_devops_kanban_has_five_issue_types() {
+        let types = CollectionPreset::DevopsKanban.issue_types();
+        assert_eq!(types.len(), 5);
+        assert!(types.contains(&"TASK".to_string()));
+        assert!(types.contains(&"FEAT".to_string()));
+        assert!(types.contains(&"FIX".to_string()));
+        assert!(types.contains(&"SPIKE".to_string()));
+        assert!(types.contains(&"INV".to_string()));
+    }
+}

@@ -77,7 +77,7 @@ impl IssueTypeRegistry {
         Self {
             types: HashMap::new(),
             collections: HashMap::new(),
-            active_collection: "devops_kanban".to_string(),
+            active_collection: "dev_kanban".to_string(),
         }
     }
 
@@ -436,9 +436,9 @@ mod tests {
         let mut registry = IssueTypeRegistry::new();
         registry.load_builtins().unwrap();
 
-        // Default is devops_kanban
+        // Default is dev_kanban (3 types: TASK, FEAT, FIX)
         let active = registry.active_types();
-        assert_eq!(active.len(), 5);
+        assert_eq!(active.len(), 3);
 
         // Switch to simple
         registry.activate_collection("simple").unwrap();
@@ -446,10 +446,10 @@ mod tests {
         assert_eq!(active.len(), 1);
         assert_eq!(active[0].key, "TASK");
 
-        // Switch to dev_kanban
-        registry.activate_collection("dev_kanban").unwrap();
+        // Switch to devops_kanban
+        registry.activate_collection("devops_kanban").unwrap();
         let active = registry.active_types();
-        assert_eq!(active.len(), 3);
+        assert_eq!(active.len(), 5);
     }
 
     #[test]

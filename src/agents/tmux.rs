@@ -1171,4 +1171,105 @@ mod tests {
         let stored_path = mock.config_path.lock().unwrap();
         assert!(stored_path.is_none());
     }
+
+    #[test]
+    fn test_mock_set_client_detached_hook() {
+        let client = MockTmuxClient::new();
+
+        // Create a session first
+        client.create_session("op-TEST-123", "/tmp").unwrap();
+
+        // Set hook
+        client
+            .set_client_detached_hook("op-TEST-123", "touch /tmp/test.signal")
+            .unwrap();
+
+        // Verify command was logged
+        let commands = client.get_commands();
+        assert!(commands
+            .iter()
+            .any(|c| c.operation == "set_client_detached_hook"));
+
+        // Verify hook was stored in session
+        let sessions = client.sessions.lock().unwrap();
+        let session = sessions.get("op-TEST-123").unwrap();
+        assert_eq!(
+            session.client_detached_hook,
+            Some("touch /tmp/test.signal".to_string())
+        );
+    }
+
+    #[test]
+    fn test_mock_clear_client_detached_hook() {
+        let client = MockTmuxClient::new();
+
+        // Create a session and set hook
+        client.create_session("op-TEST-123", "/tmp").unwrap();
+        client
+            .set_client_detached_hook("op-TEST-123", "touch /tmp/test.signal")
+            .unwrap();
+
+        // Clear hook
+        client.clear_client_detached_hook("op-TEST-123").unwrap();
+
+        // Verify hook was cleared
+        let sessions = client.sessions.lock().unwrap();
+        let session = sessions.get("op-TEST-123").unwrap();
+        assert!(session.client_detached_hook.is_none());
+    }
+
+    #[test]
+    fn test_mock_attach_session_with_detach_signal() {
+        let client = MockTmuxClient::new();
+
+        // Create a session
+        client.create_session("op-TEST-123", "/tmp").unwrap();
+
+        // Attach with detach signal
+        let signal_file = client
+            .attach_session_with_detach_signal("op-TEST-123")
+            .unwrap();
+
+        // Verify signal file path format
+        assert_eq!(
+            signal_file,
+            "/tmp/operator-detach-op-TEST-123.signal".to_string()
+        );
+
+        // Verify session is now attached
+        let sessions = client.sessions.lock().unwrap();
+        let session = sessions.get("op-TEST-123").unwrap();
+        assert!(session.attached);
+
+        // Verify hook was set
+        assert!(session.client_detached_hook.is_some());
+    }
+
+    #[test]
+    fn test_mock_hook_methods_not_installed() {
+        let client = MockTmuxClient::not_installed();
+
+        let result = client.set_client_detached_hook("any", "cmd");
+        assert!(matches!(result, Err(TmuxError::NotInstalled)));
+
+        let result = client.clear_client_detached_hook("any");
+        assert!(matches!(result, Err(TmuxError::NotInstalled)));
+
+        let result = client.attach_session_with_detach_signal("any");
+        assert!(matches!(result, Err(TmuxError::NotInstalled)));
+    }
+
+    #[test]
+    fn test_mock_hook_methods_session_not_found() {
+        let client = MockTmuxClient::new();
+
+        let result = client.set_client_detached_hook("nonexistent", "cmd");
+        assert!(matches!(result, Err(TmuxError::SessionNotFound(_))));
+
+        let result = client.clear_client_detached_hook("nonexistent");
+        assert!(matches!(result, Err(TmuxError::SessionNotFound(_))));
+
+        let result = client.attach_session_with_detach_signal("nonexistent");
+        assert!(matches!(result, Err(TmuxError::SessionNotFound(_))));
+    }
 }

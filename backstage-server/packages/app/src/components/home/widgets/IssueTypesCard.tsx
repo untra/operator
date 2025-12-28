@@ -181,5 +181,3 @@ export function IssueTypesCard() {
     </Card>
   );
 }
-
-export default IssueTypesCard;

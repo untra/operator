@@ -121,5 +121,3 @@ export function OperatorHomePage({ widgets }: OperatorHomePageProps) {
     </Page>
   );
 }
-
-export default OperatorHomePage;

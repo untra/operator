@@ -203,5 +203,3 @@ export function QueueStatusCard() {
     </Card>
   );
 }
-
-export default QueueStatusCard;

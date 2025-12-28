@@ -226,5 +226,3 @@ export function ActiveAgentsCard() {
     </Card>
   );
 }
-
-export default ActiveAgentsCard;

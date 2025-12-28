@@ -167,7 +167,3 @@ export function createNewApp() {
   });
 }
 
-/**
- * Default export for direct use
- */
-export default createNewApp;

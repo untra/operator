@@ -669,106 +669,105 @@ impl Drop for BackstageServer {
     }
 }
 
-/// Mock implementation for testing
-#[derive(Default)]
-#[allow(dead_code)] // Used in tests
-pub struct MockBunClient {
-    pub installed: Mutex<bool>,
-    pub version: Mutex<Option<BunVersion>>,
-    pub deps_installed: Mutex<bool>,
-    pub running_pids: Mutex<Vec<u32>>,
-    pub next_pid: Mutex<u32>,
-    pub fail_start: Mutex<bool>,
-}
-
-#[allow(dead_code)] // Used in tests
-impl MockBunClient {
-    pub fn new() -> Self {
-        Self {
-            installed: Mutex::new(true),
-            version: Mutex::new(Some(BunVersion {
-                major: 1,
-                minor: 1,
-                patch: 42,
-                raw: "1.1.42".to_string(),
-            })),
-            deps_installed: Mutex::new(true),
-            running_pids: Mutex::new(Vec::new()),
-            next_pid: Mutex::new(1000),
-            fail_start: Mutex::new(false),
-        }
-    }
-
-    pub fn not_installed() -> Self {
-        let mock = Self::new();
-        *mock.installed.lock().unwrap() = false;
-        mock
-    }
-
-    pub fn with_deps_not_installed() -> Self {
-        let mock = Self::new();
-        *mock.deps_installed.lock().unwrap() = false;
-        mock
-    }
-
-    pub fn mark_pid_stopped(&self, pid: u32) {
-        self.running_pids.lock().unwrap().retain(|&p| p != pid);
-    }
-}
-
-impl BunClient for MockBunClient {
-    fn check_available(&self) -> Result<BunVersion, BackstageError> {
-        if !*self.installed.lock().unwrap() {
-            return Err(BackstageError::BunNotInstalled);
-        }
-
-        self.version
-            .lock()
-            .unwrap()
-            .clone()
-            .ok_or(BackstageError::BunNotInstalled)
-    }
-
-    fn check_dependencies(&self, _scaffold_path: &Path) -> Result<bool, BackstageError> {
-        Ok(*self.deps_installed.lock().unwrap())
-    }
-
-    fn install_dependencies(&self, _scaffold_path: &Path) -> Result<(), BackstageError> {
-        *self.deps_installed.lock().unwrap() = true;
-        Ok(())
-    }
-
-    fn start_server(&self, _scaffold_path: &Path, _port: u16) -> Result<Child, BackstageError> {
-        if *self.fail_start.lock().unwrap() {
-            return Err(BackstageError::StartFailed(
-                "Mock configured to fail".to_string(),
-            ));
-        }
-
-        // Track the PID
-        let mut next_pid = self.next_pid.lock().unwrap();
-        let pid = *next_pid;
-        *next_pid += 1;
-        self.running_pids.lock().unwrap().push(pid);
-
-        // Return a real dummy process (sleep) for testing
-        // This allows us to test the Child handling
-        Command::new("sleep")
-            .arg("3600")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|e| BackstageError::StartFailed(e.to_string()))
-    }
-
-    fn is_process_running(&self, pid: u32) -> bool {
-        self.running_pids.lock().unwrap().contains(&pid)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Mock implementation for testing
+    #[derive(Default)]
+    pub struct MockBunClient {
+        pub installed: Mutex<bool>,
+        pub version: Mutex<Option<BunVersion>>,
+        pub deps_installed: Mutex<bool>,
+        pub running_pids: Mutex<Vec<u32>>,
+        pub next_pid: Mutex<u32>,
+        pub fail_start: Mutex<bool>,
+    }
+
+    impl MockBunClient {
+        pub fn new() -> Self {
+            Self {
+                installed: Mutex::new(true),
+                version: Mutex::new(Some(BunVersion {
+                    major: 1,
+                    minor: 1,
+                    patch: 42,
+                    raw: "1.1.42".to_string(),
+                })),
+                deps_installed: Mutex::new(true),
+                running_pids: Mutex::new(Vec::new()),
+                next_pid: Mutex::new(1000),
+                fail_start: Mutex::new(false),
+            }
+        }
+
+        pub fn not_installed() -> Self {
+            let mock = Self::new();
+            *mock.installed.lock().unwrap() = false;
+            mock
+        }
+
+        pub fn with_deps_not_installed() -> Self {
+            let mock = Self::new();
+            *mock.deps_installed.lock().unwrap() = false;
+            mock
+        }
+
+        pub fn mark_pid_stopped(&self, pid: u32) {
+            self.running_pids.lock().unwrap().retain(|&p| p != pid);
+        }
+    }
+
+    impl BunClient for MockBunClient {
+        fn check_available(&self) -> Result<BunVersion, BackstageError> {
+            if !*self.installed.lock().unwrap() {
+                return Err(BackstageError::BunNotInstalled);
+            }
+
+            self.version
+                .lock()
+                .unwrap()
+                .clone()
+                .ok_or(BackstageError::BunNotInstalled)
+        }
+
+        fn check_dependencies(&self, _scaffold_path: &Path) -> Result<bool, BackstageError> {
+            Ok(*self.deps_installed.lock().unwrap())
+        }
+
+        fn install_dependencies(&self, _scaffold_path: &Path) -> Result<(), BackstageError> {
+            *self.deps_installed.lock().unwrap() = true;
+            Ok(())
+        }
+
+        fn start_server(&self, _scaffold_path: &Path, _port: u16) -> Result<Child, BackstageError> {
+            if *self.fail_start.lock().unwrap() {
+                return Err(BackstageError::StartFailed(
+                    "Mock configured to fail".to_string(),
+                ));
+            }
+
+            // Track the PID
+            let mut next_pid = self.next_pid.lock().unwrap();
+            let pid = *next_pid;
+            *next_pid += 1;
+            self.running_pids.lock().unwrap().push(pid);
+
+            // Return a real dummy process (sleep) for testing
+            // This allows us to test the Child handling
+            Command::new("sleep")
+                .arg("3600")
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|e| BackstageError::StartFailed(e.to_string()))
+        }
+
+        fn is_process_running(&self, pid: u32) -> bool {
+            self.running_pids.lock().unwrap().contains(&pid)
+        }
+    }
+
     use tempfile::TempDir;
 
     // ==================== BunVersion Tests ====================

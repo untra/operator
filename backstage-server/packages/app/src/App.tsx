@@ -3,6 +3,16 @@
  *
  * Full Backstage portal with Home, Catalog, Search, and Issue Types.
  * Uses custom theming based on Operator's branding configuration.
+ *
+ * This app uses a hybrid approach for incremental migration to the new
+ * frontend system. Legacy plugins (catalog, search) work alongside the
+ * new Blueprint-based plugin-issuetypes/alpha.
+ *
+ * Migration status:
+ * - [x] plugin-issuetypes: Migrated to Blueprints (alpha.ts)
+ * - [ ] catalog: Using legacy system
+ * - [ ] search: Using legacy system
+ * - [ ] home: Using legacy system
  */
 
 import React from 'react';
@@ -26,6 +36,7 @@ import { Root } from './components/Root/Root';
 import { HomePage } from './components/home/HomePage';
 import { entityPage } from './components/catalog/EntityPage';
 import { OperatorCatalogPage } from './components/catalog/OperatorCatalogPage';
+import { PluginsPage } from './components/plugins';
 import apis from './apis';
 import { OperatorThemeProvider } from './theme';
 
@@ -51,6 +62,9 @@ const routes = (
     {/* Search */}
     <Route path="/search" element={<SearchPage />} />
 
+    {/* Plugins */}
+    <Route path="/plugins" element={<PluginsPage />} />
+
     {/* Issue Types - flat routes (no nesting, each page is independent) */}
     <Route path="/issuetypes" element={<IssueTypesPage />} />
     <Route path="/issuetypes/new" element={<IssueTypeFormPage />} />
@@ -73,3 +87,15 @@ export default function App() {
     </OperatorThemeProvider>
   );
 }
+
+/**
+ * New Frontend System App (for future full migration)
+ *
+ * This export provides a path to fully migrate to the new frontend system.
+ * When ready, replace the default export with createNewApp().createRoot().
+ *
+ * Example usage in index.tsx:
+ *   import { createNewApp } from './App';
+ *   ReactDOM.createRoot(rootEl).render(createNewApp().createRoot());
+ */
+export { createNewApp } from './AppNew';

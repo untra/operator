@@ -77,7 +77,7 @@ impl IssueTypeRegistry {
         Self {
             types: HashMap::new(),
             collections: HashMap::new(),
-            active_collection: "devops_kanban".to_string(),
+            active_collection: "dev_kanban".to_string(),
         }
     }
 
@@ -190,6 +190,54 @@ impl IssueTypeRegistry {
                 self.load_collections(&collections_path)?;
             }
         }
+
+        Ok(())
+    }
+
+    /// Load issue types and collections from directory structure
+    ///
+    /// New directory structure:
+    /// ```text
+    /// .tickets/templates/
+    /// ├── dev_kanban/
+    /// │   ├── collection.toml  (optional)
+    /// │   └── issues/
+    /// │       ├── TASK.json
+    /// │       ├── FEAT.json
+    /// │       └── FIX.json
+    /// ├── devops_kanban/
+    /// │   └── issues/
+    /// │       └── ...
+    /// ```
+    ///
+    /// Each collection is self-contained with its own issue types.
+    pub fn load_from_templates_dir(&mut self, templates_path: &Path) -> Result<()> {
+        let loaded = loader::load_collections_from_dir(templates_path)?;
+
+        if loaded.is_empty() {
+            debug!("No collections found in templates directory");
+            return Ok(());
+        }
+
+        // Register each collection and its types
+        for (name, loaded_collection) in loaded {
+            // Add all issue types from this collection
+            for (key, issue_type) in loaded_collection.types {
+                self.types.insert(key, issue_type);
+            }
+
+            // Create and register the collection
+            let collection = IssueTypeCollection::new(&name, &loaded_collection.description)
+                .with_types(loaded_collection.priority_order.iter().map(|s| s.as_str()));
+
+            self.collections.insert(name, collection);
+        }
+
+        info!(
+            "Loaded {} issue types in {} collections from templates directory",
+            self.types.len(),
+            self.collections.len()
+        );
 
         Ok(())
     }
@@ -388,9 +436,9 @@ mod tests {
         let mut registry = IssueTypeRegistry::new();
         registry.load_builtins().unwrap();
 
-        // Default is devops_kanban
+        // Default is dev_kanban (3 types: TASK, FEAT, FIX)
         let active = registry.active_types();
-        assert_eq!(active.len(), 5);
+        assert_eq!(active.len(), 3);
 
         // Switch to simple
         registry.activate_collection("simple").unwrap();
@@ -398,10 +446,10 @@ mod tests {
         assert_eq!(active.len(), 1);
         assert_eq!(active[0].key, "TASK");
 
-        // Switch to dev_kanban
-        registry.activate_collection("dev_kanban").unwrap();
+        // Switch to devops_kanban
+        registry.activate_collection("devops_kanban").unwrap();
         let active = registry.active_types();
-        assert_eq!(active.len(), 3);
+        assert_eq!(active.len(), 5);
     }
 
     #[test]

@@ -118,11 +118,12 @@ pub async fn activate(
 mod tests {
     use super::*;
     use crate::config::Config;
-    use std::path::PathBuf;
 
     fn make_state() -> ApiState {
         let config = Config::default();
-        ApiState::new(config, PathBuf::from("/tmp/test"))
+        // Use a unique temp directory for each test to avoid state pollution
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        ApiState::new(config, temp_dir.keep())
     }
 
     #[tokio::test]
@@ -155,15 +156,26 @@ mod tests {
     async fn test_activate_collection() {
         let state = make_state();
 
-        // First check current active
+        // First check current active and available collections
         {
             let registry = state.registry.read().await;
             let _current = registry.active_collection_name();
+            // Debug: check if simple collection exists
+            let collections: Vec<_> = registry.all_collections().map(|c| c.name.clone()).collect();
+            assert!(
+                collections.contains(&"simple".to_string()),
+                "Expected 'simple' collection, found: {:?}",
+                collections
+            );
         }
 
         // Activate simple
         let result = activate(State(state.clone()), Path("simple".to_string())).await;
-        assert!(result.is_ok());
+        assert!(
+            result.is_ok(),
+            "Failed to activate collection: {:?}",
+            result.err()
+        );
 
         // Verify it's now active
         let registry = state.registry.read().await;

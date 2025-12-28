@@ -62,7 +62,9 @@ impl QueueWatcher {
         }
     }
 
-    fn classify_event(&self, event: Event) -> Option<QueueEvent> {
+    /// Classify a filesystem event into a QueueEvent.
+    /// Made pub(crate) for testing.
+    pub(crate) fn classify_event(&self, event: Event) -> Option<QueueEvent> {
         use notify::EventKind;
 
         let path = event.paths.first()?.clone();
@@ -78,5 +80,129 @@ impl QueueWatcher {
             EventKind::Modify(_) => Some(QueueEvent::Modified(path)),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use notify::event::{AccessKind, CreateKind, DataChange, ModifyKind, RemoveKind};
+    use notify::EventKind;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    /// Create a minimal watcher for testing (bypasses actual file watching)
+    fn make_test_watcher() -> QueueWatcher {
+        // Create a temp directory that exists
+        let temp_dir = TempDir::new().unwrap();
+        let queue_path = temp_dir.path().join("queue");
+        std::fs::create_dir_all(&queue_path).unwrap();
+
+        // Create the watcher (it will watch the temp directory)
+        // Note: This watcher won't receive real events, but we can test classify_event
+        let tickets_path = temp_dir.keep();
+        QueueWatcher::new(tickets_path).unwrap()
+    }
+
+    fn make_event(kind: EventKind, path: PathBuf) -> Event {
+        Event {
+            kind,
+            paths: vec![path],
+            attrs: Default::default(),
+        }
+    }
+
+    #[test]
+    fn test_classify_event_create_markdown_returns_added() {
+        let watcher = make_test_watcher();
+        let path = PathBuf::from("/tickets/queue/20241225-test.md");
+        let event = make_event(EventKind::Create(CreateKind::File), path.clone());
+
+        let result = watcher.classify_event(event);
+
+        assert!(matches!(result, Some(QueueEvent::Added(p)) if p == path));
+    }
+
+    #[test]
+    fn test_classify_event_remove_markdown_returns_removed() {
+        let watcher = make_test_watcher();
+        let path = PathBuf::from("/tickets/queue/20241225-test.md");
+        let event = make_event(EventKind::Remove(RemoveKind::File), path.clone());
+
+        let result = watcher.classify_event(event);
+
+        assert!(matches!(result, Some(QueueEvent::Removed(p)) if p == path));
+    }
+
+    #[test]
+    fn test_classify_event_modify_markdown_returns_modified() {
+        let watcher = make_test_watcher();
+        let path = PathBuf::from("/tickets/queue/20241225-test.md");
+        let event = make_event(
+            EventKind::Modify(ModifyKind::Data(DataChange::Any)),
+            path.clone(),
+        );
+
+        let result = watcher.classify_event(event);
+
+        assert!(matches!(result, Some(QueueEvent::Modified(p)) if p == path));
+    }
+
+    #[test]
+    fn test_classify_event_non_markdown_returns_none() {
+        let watcher = make_test_watcher();
+        let path = PathBuf::from("/tickets/queue/config.json");
+        let event = make_event(EventKind::Create(CreateKind::File), path);
+
+        let result = watcher.classify_event(event);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_classify_event_txt_extension_returns_none() {
+        let watcher = make_test_watcher();
+        let path = PathBuf::from("/tickets/queue/notes.txt");
+        let event = make_event(EventKind::Create(CreateKind::File), path);
+
+        let result = watcher.classify_event(event);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_classify_event_no_extension_returns_none() {
+        let watcher = make_test_watcher();
+        let path = PathBuf::from("/tickets/queue/README");
+        let event = make_event(EventKind::Create(CreateKind::File), path);
+
+        let result = watcher.classify_event(event);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_classify_event_empty_paths_returns_none() {
+        let watcher = make_test_watcher();
+        let event = Event {
+            kind: EventKind::Create(CreateKind::File),
+            paths: vec![],
+            attrs: Default::default(),
+        };
+
+        let result = watcher.classify_event(event);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_classify_event_access_event_returns_none() {
+        let watcher = make_test_watcher();
+        let path = PathBuf::from("/tickets/queue/test.md");
+        let event = make_event(EventKind::Access(AccessKind::Read), path);
+
+        let result = watcher.classify_event(event);
+
+        assert!(result.is_none());
     }
 }

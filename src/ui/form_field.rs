@@ -101,6 +101,16 @@ impl FormField {
                     value: default_value,
                 }
             }
+            FieldType::Integer => {
+                // Treat integer as text input; validation happens at submission
+                let default_value = schema.default.clone().unwrap_or_else(|| "0".to_string());
+                FormField::TextInput {
+                    cursor_pos: default_value.len(),
+                    value: default_value,
+                    placeholder: schema.placeholder.clone().unwrap_or_default(),
+                    max_length: schema.max_length,
+                }
+            }
         }
     }
 

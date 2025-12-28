@@ -52,9 +52,11 @@ impl PermissionTranslator for ClaudeTranslator {
             flags.push(Self::format_tool_pattern(pattern));
         }
 
-        // Directory allows are handled via additionalDirectories
-        // (not available via CLI, would need config file)
-        // For now, we skip directory allows in CLI-only mode
+        // Directory allows via --add-dir flag
+        for dir in &permissions.directories_allow {
+            flags.push("--add-dir".to_string());
+            flags.push(dir.clone());
+        }
 
         // Directory denies are converted to Read/Write/Edit denies
         for dir in &permissions.directories_deny {
@@ -178,6 +180,25 @@ mod tests {
         assert!(flags.contains(&"Read(./.env)".to_string()));
         assert!(flags.contains(&"Write(./.env)".to_string()));
         assert!(flags.contains(&"Edit(./.env)".to_string()));
+    }
+
+    #[test]
+    fn test_generate_cli_flags_directory_allows() {
+        let translator = ClaudeTranslator;
+        let step = StepPermissions {
+            directories: DirectoryPermissions {
+                allow: vec!["/path/to/tickets".to_string()],
+                deny: vec![],
+            },
+            ..Default::default()
+        };
+        let permissions = PermissionSet::from_step(&step, &ProviderCliArgs::default());
+        let flags = translator.generate_cli_flags(&permissions);
+
+        // Should generate --add-dir flag for allowed directory
+        assert_eq!(flags.len(), 2);
+        assert_eq!(flags[0], "--add-dir");
+        assert_eq!(flags[1], "/path/to/tickets");
     }
 
     #[test]

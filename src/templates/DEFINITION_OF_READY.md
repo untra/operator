@@ -1,0 +1,1 @@
+Before starting work, ensure the task has a clear objective and intention, ensure all external dependencies are resolved and specific functional requirements are articulated, and verify the scope of work is small enough to be completed within {{ step_count }} cycles of {{ step_names }}. A human must verify 

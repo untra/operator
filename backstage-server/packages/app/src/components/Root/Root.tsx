@@ -11,6 +11,7 @@ import HomeIcon from '@material-ui/icons/Home';
 import CategoryIcon from '@material-ui/icons/Category';
 import SearchIcon from '@material-ui/icons/Search';
 import AssignmentIcon from '@material-ui/icons/Assignment';
+import ExtensionIcon from '@material-ui/icons/Extension';
 // Tier icons
 import LayersIcon from '@material-ui/icons/Layers';           // Foundation
 import LibraryBooksIcon from '@material-ui/icons/LibraryBooks'; // Standards
@@ -136,6 +137,7 @@ export function Root({ children }: PropsWithChildren) {
               <SidebarSubmenuItem title="New Type" to="/issuetypes/new" />
             </SidebarSubmenu>
           </SidebarItem>
+          <SidebarItem icon={ExtensionIcon} to="/plugins" text="Plugins" />
         </SidebarGroup>
         <SidebarSpace />
         <SidebarDivider />

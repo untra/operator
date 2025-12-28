@@ -4,12 +4,25 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use super::collection::{CollectionsFile, IssueTypeCollection};
 use super::schema::{IssueType, IssueTypeSource};
 use crate::templates::schema::TemplateSchema;
 use crate::templates::TemplateType;
+
+/// A loaded collection with its issue types
+#[derive(Debug, Clone)]
+pub struct LoadedCollection {
+    /// Collection name (from directory name)
+    pub name: String,
+    /// Description (from collection.toml if present, or auto-generated)
+    pub description: String,
+    /// Issue types loaded from this collection's issues/ directory
+    pub types: HashMap<String, IssueType>,
+    /// Priority order for sorting (from collection.toml, or derived from types)
+    pub priority_order: Vec<String>,
+}
 
 /// Load all built-in issue types
 pub fn load_builtins() -> Result<HashMap<String, IssueType>> {
@@ -280,6 +293,202 @@ pub fn validate_collection_types(
     }
 
     (valid, missing)
+}
+
+/// Load collections from directory structure
+///
+/// Structure:
+/// ```text
+/// templates/
+/// ├── dev_kanban/
+/// │   ├── collection.toml  (optional: description, priority_order)
+/// │   └── issues/
+/// │       ├── TASK.json
+/// │       ├── FEAT.json
+/// │       └── FIX.json
+/// ├── devops_kanban/
+/// │   └── issues/
+/// │       └── ...
+/// ```
+///
+/// Each subdirectory of `templates_path` is treated as a collection.
+/// Issue types are loaded from the `issues/` subdirectory.
+/// Optional `collection.toml` can specify description and priority_order.
+pub fn load_collections_from_dir(
+    templates_path: &Path,
+) -> Result<HashMap<String, LoadedCollection>> {
+    let mut collections = HashMap::new();
+
+    if !templates_path.exists() {
+        debug!(
+            "Templates directory does not exist: {}",
+            templates_path.display()
+        );
+        return Ok(collections);
+    }
+
+    let entries = fs::read_dir(templates_path).with_context(|| {
+        format!(
+            "Failed to read templates directory: {}",
+            templates_path.display()
+        )
+    })?;
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+
+        // Only process directories
+        if !path.is_dir() {
+            continue;
+        }
+
+        let collection_name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(name) => name.to_string(),
+            None => continue,
+        };
+
+        // Skip hidden directories
+        if collection_name.starts_with('.') {
+            continue;
+        }
+
+        let issues_path = path.join("issues");
+        if !issues_path.exists() {
+            debug!(
+                "Collection '{}' has no issues/ directory, skipping",
+                collection_name
+            );
+            continue;
+        }
+
+        // Load issue types from issues/ directory
+        let types = load_types_from_issues_dir(&issues_path, &collection_name)?;
+
+        if types.is_empty() {
+            debug!(
+                "Collection '{}' has no valid issue types, skipping",
+                collection_name
+            );
+            continue;
+        }
+
+        // Try to load collection metadata from collection.toml
+        let (description, priority_order) = load_collection_metadata(&path, &types);
+
+        info!(
+            "Loaded collection '{}' with {} issue types",
+            collection_name,
+            types.len()
+        );
+
+        collections.insert(
+            collection_name.clone(),
+            LoadedCollection {
+                name: collection_name,
+                description,
+                types,
+                priority_order,
+            },
+        );
+    }
+
+    Ok(collections)
+}
+
+/// Load issue types from a collection's issues/ directory
+fn load_types_from_issues_dir(
+    issues_path: &Path,
+    collection_name: &str,
+) -> Result<HashMap<String, IssueType>> {
+    let mut types = HashMap::new();
+
+    let entries = fs::read_dir(issues_path)
+        .with_context(|| format!("Failed to read issues directory: {}", issues_path.display()))?;
+
+    for entry in entries {
+        let entry = entry?;
+        let file_path = entry.path();
+
+        // Only process JSON files
+        if file_path.is_dir() || file_path.extension().is_none_or(|e| e != "json") {
+            continue;
+        }
+
+        match load_issuetype_file(&file_path) {
+            Ok(mut issue_type) => {
+                // Mark source as from filesystem with collection name
+                issue_type.source = IssueTypeSource::User;
+                debug!(
+                    "Loaded issue type '{}' from collection '{}'",
+                    issue_type.key, collection_name
+                );
+                types.insert(issue_type.key.clone(), issue_type);
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to load issue type from {}: {}",
+                    file_path.display(),
+                    e
+                );
+            }
+        }
+    }
+
+    Ok(types)
+}
+
+/// Load optional collection metadata from collection.toml
+fn load_collection_metadata(
+    collection_path: &Path,
+    types: &HashMap<String, IssueType>,
+) -> (String, Vec<String>) {
+    let metadata_path = collection_path.join("collection.toml");
+
+    if metadata_path.exists() {
+        if let Ok(content) = fs::read_to_string(&metadata_path) {
+            if let Ok(toml_value) = content.parse::<toml::Value>() {
+                let description = toml_value
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let priority_order = toml_value
+                    .get("priority_order")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_else(|| derive_priority_order(types));
+
+                return (description, priority_order);
+            }
+        }
+    }
+
+    // Default: auto-generate description and derive priority from types
+    let collection_name = collection_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+
+    let description = format!(
+        "Collection '{}' with {} issue types",
+        collection_name,
+        types.len()
+    );
+
+    (description, derive_priority_order(types))
+}
+
+/// Derive priority order from issue types (alphabetical by key)
+fn derive_priority_order(types: &HashMap<String, IssueType>) -> Vec<String> {
+    let mut keys: Vec<String> = types.keys().cloned().collect();
+    keys.sort();
+    keys
 }
 
 #[cfg(test)]

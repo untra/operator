@@ -23,6 +23,7 @@ mod notifications;
 mod queue;
 mod rest;
 mod setup;
+mod startup;
 mod ui;
 
 use agents::tmux::{SystemTmuxClient, TmuxClient, TmuxError};
@@ -94,6 +95,10 @@ pub struct Cli {
     /// Enable debug logging
     #[arg(short, long)]
     debug: bool,
+
+    /// Start with web view enabled
+    #[arg(short = 'w', long)]
+    web: bool,
 }
 
 #[derive(Subcommand)]
@@ -258,21 +263,21 @@ async fn main() -> Result<()> {
         }
         None => {
             // No subcommand = launch TUI dashboard
-            run_tui(config, logging_handle.log_file_path).await?;
+            run_tui(config, logging_handle.log_file_path, cli.web).await?;
         }
     }
 
     Ok(())
 }
 
-async fn run_tui(config: Config, log_file_path: Option<PathBuf>) -> Result<()> {
+async fn run_tui(config: Config, log_file_path: Option<PathBuf>, start_web: bool) -> Result<()> {
     // Check tmux availability before starting TUI
     if let Err(err) = check_tmux_available() {
         print_tmux_error(&err);
         std::process::exit(1);
     }
 
-    let mut app = App::new(config)?;
+    let mut app = App::new(config, start_web)?;
     let result = app.run().await;
 
     // Print log file path on exit if logs were written
@@ -531,7 +536,9 @@ async fn cmd_create(
 }
 
 fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
-    use docs_gen::{cli, config, issuetype, metadata, openapi, shortcuts, taxonomy, DocGenerator};
+    use docs_gen::{
+        cli, config, issuetype, metadata, openapi, shortcuts, startup, taxonomy, DocGenerator,
+    };
     use std::path::PathBuf;
 
     // Determine output directory (default: ./docs relative to current directory)
@@ -565,9 +572,12 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
         Some("openapi") => {
             vec![Box::new(openapi::OpenApiDocGenerator)]
         }
+        Some("startup") => {
+            vec![Box::new(startup::StartupDocGenerator)]
+        }
         Some(other) => {
             println!(
-                "Unknown generator: {}. Use: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi",
+                "Unknown generator: {}. Use: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup",
                 other
             );
             return Ok(());
@@ -582,6 +592,7 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
                 Box::new(cli::CliDocGenerator),
                 Box::new(config::ConfigDocGenerator),
                 Box::new(openapi::OpenApiDocGenerator),
+                Box::new(startup::StartupDocGenerator),
             ]
         }
     };
@@ -686,4 +697,89 @@ fn cmd_setup(
     println!("Run 'operator' to launch the TUI dashboard.");
 
     Ok(())
+}
+
+/// Parse a template type string into a TemplateType.
+/// Used for testing and CLI parsing.
+#[allow(dead_code)]
+fn parse_template_type(s: &str) -> Option<templates::TemplateType> {
+    use templates::TemplateType;
+    match s {
+        "feature" | "feat" => Some(TemplateType::Feature),
+        "fix" => Some(TemplateType::Fix),
+        "spike" => Some(TemplateType::Spike),
+        "inv" | "investigation" => Some(TemplateType::Investigation),
+        "task" => Some(TemplateType::Task),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+    use templates::TemplateType;
+
+    #[test]
+    fn test_cli_parsing_no_args() {
+        // Verify the CLI struct is valid
+        Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn test_parse_template_type_feature() {
+        assert_eq!(parse_template_type("feature"), Some(TemplateType::Feature));
+        assert_eq!(parse_template_type("feat"), Some(TemplateType::Feature));
+    }
+
+    #[test]
+    fn test_parse_template_type_fix() {
+        assert_eq!(parse_template_type("fix"), Some(TemplateType::Fix));
+    }
+
+    #[test]
+    fn test_parse_template_type_spike() {
+        assert_eq!(parse_template_type("spike"), Some(TemplateType::Spike));
+    }
+
+    #[test]
+    fn test_parse_template_type_investigation() {
+        assert_eq!(
+            parse_template_type("inv"),
+            Some(TemplateType::Investigation)
+        );
+        assert_eq!(
+            parse_template_type("investigation"),
+            Some(TemplateType::Investigation)
+        );
+    }
+
+    #[test]
+    fn test_parse_template_type_task() {
+        assert_eq!(parse_template_type("task"), Some(TemplateType::Task));
+    }
+
+    #[test]
+    fn test_parse_template_type_invalid() {
+        assert_eq!(parse_template_type("unknown"), None);
+        assert_eq!(parse_template_type(""), None);
+        assert_eq!(parse_template_type("FEAT"), None); // Case sensitive
+    }
+
+    #[test]
+    fn test_glyph_for_key_returns_values() {
+        // Test that glyph_for_key returns non-empty strings for known types
+        assert!(!glyph_for_key("FEAT").is_empty());
+        assert!(!glyph_for_key("FIX").is_empty());
+        assert!(!glyph_for_key("SPIKE").is_empty());
+        assert!(!glyph_for_key("INV").is_empty());
+        assert!(!glyph_for_key("TASK").is_empty());
+    }
+
+    #[test]
+    fn test_glyph_for_key_unknown_returns_default() {
+        // Unknown types should return a default glyph
+        let unknown_glyph = glyph_for_key("UNKNOWN");
+        assert!(!unknown_glyph.is_empty());
+    }
 }

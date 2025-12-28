@@ -31,6 +31,8 @@ pub struct SyncResult {
     pub timed_out: Vec<String>,
     /// Tickets that completed their step
     pub completed: Vec<String>,
+    /// Agent IDs that resumed from awaiting state
+    pub resumed: Vec<String>,
     /// Errors encountered during sync
     pub errors: Vec<String>,
 }
@@ -50,6 +52,8 @@ pub enum SyncAction {
     TimedOut,
     /// Session is hung (no content change)
     Hung,
+    /// Resumed from awaiting state (user returned and LLM is active)
+    ResumedFromAwaiting,
 }
 
 /// Ticket-session synchronizer
@@ -177,6 +181,14 @@ impl TicketSessionSync {
                             "Session appears hung (no content changes)"
                         );
                     }
+                    SyncAction::ResumedFromAwaiting => {
+                        // Agent resumed from awaiting state - handled by check_detach_signals
+                        result.resumed.push(ticket.id.clone());
+                        tracing::info!(
+                            ticket_id = %ticket.id,
+                            "Agent resumed from awaiting state"
+                        );
+                    }
                 }
 
                 result.synced += 1;
@@ -269,6 +281,68 @@ impl TicketSessionSync {
         } else {
             self.sync_interval - elapsed
         }
+    }
+
+    /// Check for detach signals and process agent returns from awaiting state
+    /// Returns a list of agent IDs that have resumed
+    pub fn check_detach_signals(&self, state: &mut State) -> Result<Vec<String>> {
+        use sha2::{Digest, Sha256};
+        use std::fs;
+        use std::path::Path;
+
+        let mut resumed_agents = Vec::new();
+
+        // Get agents in awaiting_input status
+        let awaiting_agents: Vec<_> = state
+            .agents
+            .iter()
+            .filter(|a| a.status == "awaiting_input")
+            .cloned()
+            .collect();
+
+        for agent in awaiting_agents {
+            let Some(ref session_name) = agent.session_name else {
+                continue;
+            };
+
+            // Check for signal file
+            let signal_file = format!("/tmp/operator-detach-{}.signal", session_name);
+            let signal_path = Path::new(&signal_file);
+
+            if signal_path.exists() {
+                // Signal found - user has detached from session
+                let _ = fs::remove_file(signal_path);
+
+                // Check if content has changed (LLM is working again)
+                if let Ok(content) = self.tmux.capture_pane(session_name, false) {
+                    let mut hasher = Sha256::new();
+                    hasher.update(content.as_bytes());
+                    let new_hash = format!("{:x}", hasher.finalize());
+
+                    // Compare with stored hash
+                    let content_changed = agent
+                        .content_hash
+                        .as_ref()
+                        .map(|old_hash| old_hash != &new_hash)
+                        .unwrap_or(true);
+
+                    if content_changed {
+                        // Content changed - LLM is working, resume agent
+                        state.update_agent_status(&agent.id, "running", None)?;
+                        state.update_agent_content_hash(&agent.id, &new_hash)?;
+                        resumed_agents.push(agent.id.clone());
+
+                        tracing::info!(
+                            agent_id = %agent.id,
+                            session = %session_name,
+                            "Agent resumed from awaiting state - content changed"
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(resumed_agents)
     }
 }
 
@@ -439,5 +513,182 @@ mod tests {
         let action = sync.determine_action(&ticket, "op-FEAT-789", &health);
         // Timeout should take priority
         assert_eq!(action, SyncAction::TimedOut);
+    }
+
+    #[test]
+    fn test_check_detach_signals_no_awaiting_agents() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        let mock = Arc::new(MockTmuxClient::new());
+
+        let sync = TicketSessionSync::new(&config, mock);
+        let mut state = State::load(&config).unwrap();
+
+        // No agents at all
+        let resumed = sync.check_detach_signals(&mut state).unwrap();
+        assert!(resumed.is_empty());
+    }
+
+    #[test]
+    fn test_check_detach_signals_no_signal_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        let mock = Arc::new(MockTmuxClient::new());
+
+        let sync = TicketSessionSync::new(&config, mock);
+        let mut state = State::load(&config).unwrap();
+
+        // Add an awaiting agent
+        let agent_id = state
+            .add_agent(
+                "FEAT-123".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_session(&agent_id, "op-FEAT-123")
+            .unwrap();
+        state
+            .update_agent_status(&agent_id, "awaiting_input", None)
+            .unwrap();
+        state
+            .update_agent_content_hash(&agent_id, "old-hash")
+            .unwrap();
+
+        // No signal file exists
+        let resumed = sync.check_detach_signals(&mut state).unwrap();
+        assert!(resumed.is_empty());
+        // Agent should still be awaiting
+        let agent = state.agent_by_ticket("FEAT-123").unwrap();
+        assert_eq!(agent.status, "awaiting_input");
+    }
+
+    #[test]
+    fn test_check_detach_signals_content_changed() {
+        use sha2::{Digest, Sha256};
+        use std::fs;
+
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        let mock = Arc::new(MockTmuxClient::new());
+
+        // Create session with content
+        mock.create_session("op-FEAT-detach", "/tmp").unwrap();
+        mock.send_keys("op-FEAT-detach", "New content from LLM", false)
+            .unwrap();
+
+        let sync = TicketSessionSync::new(&config, Arc::clone(&mock) as Arc<dyn TmuxClient>);
+        let mut state = State::load(&config).unwrap();
+
+        // Calculate hash of OLD content (different from what's in the session)
+        let mut old_hasher = Sha256::new();
+        old_hasher.update(b"Old content");
+        let old_hash = format!("{:x}", old_hasher.finalize());
+
+        // Add an awaiting agent with old content hash
+        let agent_id = state
+            .add_agent(
+                "FEAT-detach".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_session(&agent_id, "op-FEAT-detach")
+            .unwrap();
+        state
+            .update_agent_status(&agent_id, "awaiting_input", None)
+            .unwrap();
+        state
+            .update_agent_content_hash(&agent_id, &old_hash)
+            .unwrap();
+
+        // Create signal file
+        let signal_file = "/tmp/operator-detach-op-FEAT-detach.signal";
+        fs::write(signal_file, "").unwrap();
+
+        // Run check
+        let resumed = sync.check_detach_signals(&mut state).unwrap();
+
+        // Clean up signal file if it still exists
+        let _ = fs::remove_file(signal_file);
+
+        // Agent should have resumed
+        assert_eq!(resumed.len(), 1);
+        assert_eq!(resumed[0], agent_id);
+        let agent = state.agent_by_ticket("FEAT-detach").unwrap();
+        assert_eq!(agent.status, "running");
+    }
+
+    #[test]
+    fn test_check_detach_signals_content_unchanged() {
+        use sha2::{Digest, Sha256};
+        use std::fs;
+
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        let mock = Arc::new(MockTmuxClient::new());
+
+        // Create session with specific content
+        mock.create_session("op-FEAT-unchanged", "/tmp").unwrap();
+        mock.send_keys("op-FEAT-unchanged", "Same content", false)
+            .unwrap();
+
+        // Get the content hash that will match
+        let content = mock.capture_pane("op-FEAT-unchanged", false).unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(content.as_bytes());
+        let same_hash = format!("{:x}", hasher.finalize());
+
+        let sync = TicketSessionSync::new(&config, Arc::clone(&mock) as Arc<dyn TmuxClient>);
+        let mut state = State::load(&config).unwrap();
+
+        // Add an awaiting agent with SAME content hash
+        let agent_id = state
+            .add_agent(
+                "FEAT-unchanged".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_session(&agent_id, "op-FEAT-unchanged")
+            .unwrap();
+        state
+            .update_agent_status(&agent_id, "awaiting_input", None)
+            .unwrap();
+        state
+            .update_agent_content_hash(&agent_id, &same_hash)
+            .unwrap();
+
+        // Create signal file
+        let signal_file = "/tmp/operator-detach-op-FEAT-unchanged.signal";
+        fs::write(signal_file, "").unwrap();
+
+        // Run check
+        let resumed = sync.check_detach_signals(&mut state).unwrap();
+
+        // Clean up signal file if it still exists
+        let _ = fs::remove_file(signal_file);
+
+        // Agent should NOT have resumed (content unchanged)
+        assert!(resumed.is_empty());
+        let agent = state.agent_by_ticket("FEAT-unchanged").unwrap();
+        assert_eq!(agent.status, "awaiting_input");
+    }
+
+    #[test]
+    fn test_sync_action_resumed_from_awaiting_variant() {
+        // Test that the ResumedFromAwaiting variant exists and works
+        let action = SyncAction::ResumedFromAwaiting;
+        assert_eq!(action, SyncAction::ResumedFromAwaiting);
+
+        // Test that it's different from other actions
+        assert_ne!(action, SyncAction::NoChange);
+        assert_ne!(action, SyncAction::MovedToAwaiting);
     }
 }

@@ -1,9 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
-    ".": {
-      "entry": ["src/standalone.ts"]
-    },
+    ".": {},
     "packages/app": {
       "entry": ["src/index.tsx"]
     },
@@ -15,7 +13,9 @@
   "ignore": [
     "**/*.d.ts",
     "**/dist/**",
-    "**/__tests__/test-utils/**"
+    "**/__tests__/test-utils/**",
+    "src/embedded-assets.ts",
+    "src/standalone.ts"
   ],
   "ignoreDependencies": [
     "@backstage/*",

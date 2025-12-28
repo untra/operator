@@ -21,6 +21,7 @@ pub mod markdown;
 pub mod metadata;
 pub mod openapi;
 pub mod shortcuts;
+pub mod startup;
 pub mod taxonomy;
 
 use anyhow::Result;
@@ -82,6 +83,7 @@ pub fn generate_all(docs_dir: &Path) -> Result<()> {
         Box::new(config::ConfigDocGenerator),
         Box::new(openapi::OpenApiDocGenerator),
         Box::new(llm_tools::LlmToolsDocGenerator),
+        Box::new(startup::StartupDocGenerator),
     ];
 
     for generator in generators {

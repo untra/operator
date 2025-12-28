@@ -150,6 +150,16 @@ impl Queue {
         Ok(())
     }
 
+    /// Move ticket from in-progress back to queue
+    pub fn return_to_queue(&self, ticket: &Ticket) -> Result<()> {
+        let src = self.in_progress_path.join(&ticket.filename);
+        let dst = self.queue_path.join(&ticket.filename);
+
+        fs::rename(&src, &dst).context("Failed to move ticket back to queue")?;
+
+        Ok(())
+    }
+
     /// Create a new investigation ticket from an external alert
     pub fn create_investigation(
         &self,

@@ -47,7 +47,7 @@
       "display_order": 3
     },
     {
-      "name": "context",
+      "name": "user_story",
       "description": "Why is this spike needed? What decision does it inform?",
       "type": "text",
       "required": false,

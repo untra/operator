@@ -17,6 +17,8 @@
     "@backstage/core-app-api": "^1.14.0",
     "@backstage/core-components": "^0.14.0",
     "@backstage/core-plugin-api": "^1.9.0",
+    "@backstage/frontend-defaults": "^0.3.4",
+    "@backstage/frontend-plugin-api": "^0.13.2",
     "@backstage/plugin-catalog": "^1.21.0",
     "@backstage/plugin-catalog-graph": "^0.4.0",
     "@backstage/plugin-catalog-import": "^0.12.0",

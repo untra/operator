@@ -31,7 +31,10 @@ use crate::ui::dialogs::HelpDialog;
 use crate::ui::projects_dialog::{ProjectAction, ProjectsDialog, ProjectsDialogResult};
 use crate::ui::session_preview::SessionPreview;
 use crate::ui::setup::{DetectedToolInfo, SetupResult, SetupScreen};
-use crate::ui::{with_suspended_tui, ConfirmDialog, ConfirmSelection, Dashboard};
+use crate::ui::{
+    with_suspended_tui, ConfirmDialog, ConfirmSelection, Dashboard, SessionRecoveryDialog,
+    SessionRecoverySelection,
+};
 use std::sync::Arc;
 
 /// Type alias for the terminal used by the app
@@ -68,10 +71,14 @@ pub struct App {
     exit_confirmation_mode: bool,
     /// Time when exit confirmation mode was entered
     exit_confirmation_time: Option<std::time::Instant>,
+    /// Start web servers on launch (--web flag)
+    start_web_on_launch: bool,
+    /// Session recovery dialog for handling dead tmux sessions
+    session_recovery_dialog: SessionRecoveryDialog,
 }
 
 impl App {
-    pub fn new(mut config: Config) -> Result<Self> {
+    pub fn new(mut config: Config, start_web: bool) -> Result<Self> {
         // Run LLM tool detection on first startup
         if !config.llm_tools.detection_complete {
             tracing::info!("Detecting LLM CLI tools...");
@@ -212,6 +219,8 @@ impl App {
             rest_api_server,
             exit_confirmation_mode: false,
             exit_confirmation_time: None,
+            start_web_on_launch: start_web,
+            session_recovery_dialog: SessionRecoveryDialog::new(),
         })
     }
 
@@ -228,6 +237,29 @@ impl App {
 
         // Initial data load
         self.refresh_data()?;
+
+        // Start web servers if --web flag was passed
+        if self.start_web_on_launch {
+            if let Err(e) = self.rest_api_server.start() {
+                tracing::error!("REST API start failed: {}", e);
+            }
+            if let Err(e) = self.backstage_server.start() {
+                tracing::error!("Backstage start failed: {}", e);
+            }
+            // Wait for server to be ready then open browser
+            if self.backstage_server.is_running() {
+                match self.backstage_server.wait_for_ready(25000) {
+                    Ok(()) => {
+                        if let Err(e) = self.backstage_server.open_browser() {
+                            tracing::warn!("Failed to open browser: {}", e);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Server not ready: {}", e);
+                    }
+                }
+            }
+        }
 
         // Main loop
         let tick_rate = Duration::from_millis(self.config.ui.refresh_rate_ms);
@@ -259,6 +291,7 @@ impl App {
                     self.create_dialog.render(f);
                     self.projects_dialog.render(f);
                     self.session_preview.render(f);
+                    self.session_recovery_dialog.render(f);
                 }
             })?;
 
@@ -659,46 +692,132 @@ impl App {
 
         // Confirm dialog handling
         if self.confirm_dialog.visible {
-            match key {
-                KeyCode::Char('y') | KeyCode::Char('Y') => {
-                    self.launch_confirmed().await?;
-                }
-                KeyCode::Char('v') | KeyCode::Char('V') => {
-                    self.view_ticket(terminal)?;
-                }
-                KeyCode::Char('e') | KeyCode::Char('E') => {
-                    self.edit_ticket(terminal)?;
-                }
-                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
-                    self.confirm_dialog.hide();
-                }
-                // Launch options: M = cycle provider, D = docker, A = auto-accept (yolo)
-                KeyCode::Char('m') | KeyCode::Char('M') => {
-                    self.confirm_dialog.cycle_provider();
-                }
-                KeyCode::Char('d') | KeyCode::Char('D') => {
-                    self.confirm_dialog.toggle_docker();
-                }
-                KeyCode::Char('a') | KeyCode::Char('A') => {
-                    self.confirm_dialog.toggle_yolo();
-                }
-                KeyCode::Tab | KeyCode::Right => {
-                    self.confirm_dialog.select_next();
-                }
-                KeyCode::Left => {
-                    self.confirm_dialog.select_prev();
-                }
-                KeyCode::Enter => match self.confirm_dialog.selection {
-                    ConfirmSelection::Yes => {
-                        self.launch_confirmed().await?;
+            // Check if options are focused for different key behavior
+            if self.confirm_dialog.is_options_focused() {
+                match key {
+                    // Down or Enter moves focus back to buttons
+                    KeyCode::Down | KeyCode::Enter => {
+                        self.confirm_dialog.focus_buttons();
                     }
-                    ConfirmSelection::View => {
-                        self.view_ticket(terminal)?;
+                    // Up/k navigates between options (provider <-> project)
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        self.confirm_dialog.prev_option();
                     }
-                    ConfirmSelection::No => {
+                    // j also navigates between options
+                    KeyCode::Char('j') => {
+                        self.confirm_dialog.next_option();
+                    }
+                    // Left/Right cycles the current option's value
+                    KeyCode::Right | KeyCode::Tab => {
+                        self.confirm_dialog.cycle_current_option();
+                    }
+                    KeyCode::Left => {
+                        self.confirm_dialog.cycle_current_option_prev();
+                    }
+                    // Escape closes dialog
+                    KeyCode::Esc => {
                         self.confirm_dialog.hide();
                     }
-                },
+                    // Direct shortcuts still work
+                    KeyCode::Char('m') | KeyCode::Char('M') => {
+                        self.confirm_dialog.cycle_provider();
+                    }
+                    KeyCode::Char('p') | KeyCode::Char('P') => {
+                        self.confirm_dialog.cycle_project();
+                    }
+                    KeyCode::Char('d') | KeyCode::Char('D') => {
+                        self.confirm_dialog.toggle_docker();
+                    }
+                    KeyCode::Char('a') | KeyCode::Char('A') => {
+                        self.confirm_dialog.toggle_yolo();
+                    }
+                    _ => {}
+                }
+            } else {
+                // Buttons focused (default behavior)
+                match key {
+                    KeyCode::Char('y') | KeyCode::Char('Y') => {
+                        self.launch_confirmed().await?;
+                    }
+                    KeyCode::Char('v') | KeyCode::Char('V') => {
+                        self.view_ticket(terminal)?;
+                    }
+                    KeyCode::Char('e') | KeyCode::Char('E') => {
+                        self.edit_ticket(terminal)?;
+                    }
+                    KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                        self.confirm_dialog.hide();
+                    }
+                    // Up moves focus to options section (if options available)
+                    KeyCode::Up => {
+                        self.confirm_dialog.focus_options();
+                    }
+                    // Launch options shortcuts: M = provider, P = project, D = docker, A = auto
+                    KeyCode::Char('m') | KeyCode::Char('M') => {
+                        self.confirm_dialog.cycle_provider();
+                    }
+                    KeyCode::Char('p') | KeyCode::Char('P') => {
+                        self.confirm_dialog.cycle_project();
+                    }
+                    KeyCode::Char('d') | KeyCode::Char('D') => {
+                        self.confirm_dialog.toggle_docker();
+                    }
+                    KeyCode::Char('a') | KeyCode::Char('A') => {
+                        self.confirm_dialog.toggle_yolo();
+                    }
+                    KeyCode::Tab | KeyCode::Right => {
+                        self.confirm_dialog.select_next();
+                    }
+                    KeyCode::Left => {
+                        self.confirm_dialog.select_prev();
+                    }
+                    KeyCode::Enter => match self.confirm_dialog.selection {
+                        ConfirmSelection::Yes => {
+                            self.launch_confirmed().await?;
+                        }
+                        ConfirmSelection::View => {
+                            self.view_ticket(terminal)?;
+                        }
+                        ConfirmSelection::No => {
+                            self.confirm_dialog.hide();
+                        }
+                    },
+                    _ => {}
+                }
+            }
+            return Ok(());
+        }
+
+        // Session recovery dialog handling
+        if self.session_recovery_dialog.visible {
+            match key {
+                KeyCode::Char('r') | KeyCode::Char('R') => {
+                    if self.session_recovery_dialog.has_session_id() {
+                        self.handle_session_recovery(SessionRecoverySelection::ResumeSession)
+                            .await?;
+                    }
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    self.handle_session_recovery(SessionRecoverySelection::StartFresh)
+                        .await?;
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    self.handle_session_recovery(SessionRecoverySelection::ReturnToQueue)
+                        .await?;
+                }
+                KeyCode::Esc => {
+                    self.session_recovery_dialog.hide();
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.session_recovery_dialog.select_prev();
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.session_recovery_dialog.select_next();
+                }
+                KeyCode::Enter => {
+                    let selection = self.session_recovery_dialog.selection;
+                    self.handle_session_recovery(selection).await?;
+                }
                 _ => {}
             }
             return Ok(());
@@ -865,6 +984,7 @@ impl App {
             // Configure dialog with available options from config
             self.confirm_dialog.configure(
                 self.config.llm_tools.providers.clone(),
+                self.config.projects.clone(),
                 self.config.launch.docker.enabled,
                 self.config.launch.yolo.enabled,
             );
@@ -881,10 +1001,18 @@ impl App {
             let launcher = Launcher::new(&self.config)?;
 
             // Build launch options from dialog state
+            // Only set project_override if it differs from the ticket's original project
+            let project_override = if self.confirm_dialog.is_project_overridden() {
+                self.confirm_dialog.selected_project_name().cloned()
+            } else {
+                None
+            };
+
             let options = LaunchOptions {
                 provider: self.confirm_dialog.selected_provider().cloned(),
                 docker_mode: self.confirm_dialog.docker_selected,
                 yolo_mode: self.confirm_dialog.yolo_selected,
+                project_override,
             };
 
             launcher.launch_with_options(&ticket, options).await?;
@@ -1044,21 +1172,177 @@ impl App {
 
         tracing::info!(session = %session_name, "Attaching to tmux session");
 
-        // Suspend TUI and attach to session
-        with_suspended_tui(terminal, || {
-            match tmux.attach_session(&session_name) {
-                Ok(()) => {
-                    tracing::info!(session = %session_name, "Detached from tmux session");
-                }
-                Err(e) => {
-                    tracing::warn!(session = %session_name, error = %e, "Failed to attach to session");
+        // Suspend TUI and attach to session, capturing any error
+        let attach_result = with_suspended_tui(terminal, || Ok(tmux.attach_session(&session_name)));
+
+        match attach_result {
+            Ok(Ok(())) => {
+                tracing::info!(session = %session_name, "Detached from tmux session");
+            }
+            Ok(Err(e)) => {
+                let error_str = e.to_string();
+                if error_str.contains("exit code: Some(1)") {
+                    // Session no longer exists - show recovery dialog
+                    tracing::warn!(
+                        session = %session_name,
+                        "Tmux session not found, showing recovery dialog"
+                    );
+                    self.show_session_recovery_dialog(&session_name)?;
+                } else {
+                    tracing::warn!(
+                        session = %session_name,
+                        error = %e,
+                        "Failed to attach to session"
+                    );
                 }
             }
-            Ok(())
-        })?;
+            Err(e) => {
+                tracing::warn!(
+                    session = %session_name,
+                    error = %e,
+                    "Error during TUI suspension"
+                );
+            }
+        }
 
         // Refresh data after returning
         self.refresh_data()?;
+
+        Ok(())
+    }
+
+    /// Show the session recovery dialog for a dead tmux session
+    fn show_session_recovery_dialog(&mut self, session_name: &str) -> Result<()> {
+        // Find the agent by session name
+        let state = State::load(&self.config)?;
+        let agent = state.agent_by_session(session_name);
+
+        let Some(agent) = agent else {
+            tracing::warn!(session = %session_name, "No agent found for session");
+            return Ok(());
+        };
+
+        let ticket_id = agent.ticket_id.clone();
+        let current_step = agent.current_step.clone();
+
+        // Load the ticket to get session data
+        let queue = Queue::new(&self.config)?;
+        let ticket = queue.get_in_progress_ticket(&ticket_id)?;
+
+        let Some(ticket) = ticket else {
+            tracing::warn!(ticket = %ticket_id, "Ticket not found in in-progress");
+            return Ok(());
+        };
+
+        // Get the step name (current_step from agent or step from ticket)
+        let step = current_step.unwrap_or_else(|| ticket.step.clone()).clone();
+        let step = if step.is_empty() {
+            "initial".to_string()
+        } else {
+            step
+        };
+
+        // Look up Claude session ID for this step
+        let claude_session_id = ticket.get_session_id(&step).cloned();
+
+        // Show the recovery dialog
+        self.session_recovery_dialog.show(
+            ticket.id.clone(),
+            session_name.to_string(),
+            step,
+            claude_session_id,
+        );
+
+        Ok(())
+    }
+
+    /// Handle a session recovery dialog selection
+    async fn handle_session_recovery(&mut self, selection: SessionRecoverySelection) -> Result<()> {
+        let ticket_id = self.session_recovery_dialog.ticket_id.clone();
+        let session_name = self.session_recovery_dialog.session_name.clone();
+        let claude_session_id = self.session_recovery_dialog.claude_session_id.clone();
+
+        self.session_recovery_dialog.hide();
+
+        match selection {
+            SessionRecoverySelection::ResumeSession => {
+                // Relaunch with resume flag
+                self.relaunch_ticket(&ticket_id, &session_name, claude_session_id)
+                    .await?;
+            }
+            SessionRecoverySelection::StartFresh => {
+                // Relaunch without resume flag
+                self.relaunch_ticket(&ticket_id, &session_name, None)
+                    .await?;
+            }
+            SessionRecoverySelection::ReturnToQueue => {
+                // Move ticket back to queue, remove agent from state
+                self.return_ticket_to_queue(&ticket_id, &session_name)?;
+            }
+            SessionRecoverySelection::Cancel => {
+                // Do nothing, dialog already hidden
+            }
+        }
+
+        self.refresh_data()?;
+        Ok(())
+    }
+
+    /// Relaunch a ticket with optional session resume
+    async fn relaunch_ticket(
+        &mut self,
+        ticket_id: &str,
+        old_session_name: &str,
+        resume_session_id: Option<String>,
+    ) -> Result<()> {
+        use crate::agents::{Launcher, RelaunchOptions};
+
+        // Load ticket from in-progress
+        let queue = Queue::new(&self.config)?;
+        let ticket = queue
+            .get_in_progress_ticket(ticket_id)?
+            .ok_or_else(|| anyhow::anyhow!("Ticket not found: {}", ticket_id))?;
+
+        // Remove old agent state
+        let mut state = State::load(&self.config)?;
+        state.remove_agent_by_session(old_session_name)?;
+
+        // Relaunch with the launcher
+        let launcher = Launcher::new(&self.config)?;
+        let options = RelaunchOptions {
+            launch_options: LaunchOptions::default(),
+            resume_session_id,
+        };
+
+        launcher.relaunch(&ticket, options).await?;
+
+        Ok(())
+    }
+
+    /// Return a ticket to the queue and clean up agent state
+    fn return_ticket_to_queue(&mut self, ticket_id: &str, session_name: &str) -> Result<()> {
+        // Load ticket
+        let queue = Queue::new(&self.config)?;
+        let ticket = queue
+            .get_in_progress_ticket(ticket_id)?
+            .ok_or_else(|| anyhow::anyhow!("Ticket not found: {}", ticket_id))?;
+
+        // Move ticket back to queue
+        queue.return_to_queue(&ticket)?;
+
+        // Remove agent from state
+        let mut state = State::load(&self.config)?;
+        state.remove_agent_by_session(session_name)?;
+
+        // Send notification
+        if self.config.notifications.enabled {
+            notifications::send(
+                "Ticket Returned to Queue",
+                &ticket.project,
+                &format!("{} - {}", ticket.id, ticket.summary),
+                self.config.notifications.sound,
+            )?;
+        }
 
         Ok(())
     }
@@ -1142,7 +1426,67 @@ impl App {
         self.config.save()?;
 
         // Update the create dialog with discovered projects
-        self.create_dialog.set_projects(discovered_projects);
+        self.create_dialog.set_projects(discovered_projects.clone());
+
+        // Create startup tickets based on user selections
+        let startup_tickets = self
+            .setup_screen
+            .as_ref()
+            .map(|s| s.selected_startup_tickets())
+            .unwrap_or_default();
+
+        if !startup_tickets.is_empty() {
+            let projects_path = self.config.projects_path();
+            for project in &discovered_projects {
+                let project_path = projects_path.join(project);
+
+                // ASSESS or PROJECT-INIT creates assess tickets
+                if startup_tickets.contains(&"assess".to_string())
+                    || startup_tickets.contains(&"project_init".to_string())
+                {
+                    match AssessTicketCreator::create_assess_ticket(
+                        &project_path,
+                        project,
+                        &self.config,
+                    ) {
+                        Ok(result) => {
+                            tracing::info!(
+                                ticket_id = %result.ticket_id,
+                                project = %project,
+                                "Created ASSESS startup ticket"
+                            );
+                        }
+                        Err(e) => {
+                            tracing::warn!(project = %project, error = %e, "Failed to create ASSESS ticket");
+                        }
+                    }
+                }
+
+                // AGENT-SETUP or PROJECT-INIT creates agent tickets
+                if startup_tickets.contains(&"agent_setup".to_string())
+                    || startup_tickets.contains(&"project_init".to_string())
+                {
+                    match AgentTicketCreator::create_agent_tickets(
+                        &project_path,
+                        project,
+                        &self.config,
+                    ) {
+                        Ok(result) => {
+                            if !result.created.is_empty() {
+                                tracing::info!(
+                                    created = ?result.created,
+                                    project = %project,
+                                    "Created AGENT-SETUP startup tickets"
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!(project = %project, error = %e, "Failed to create AGENT-SETUP tickets");
+                        }
+                    }
+                }
+            }
+        }
 
         // Generate Backstage scaffold
         let backstage_path = self.config.backstage_path();

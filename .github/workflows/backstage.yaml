@@ -1,10 +1,6 @@
 name: Backstage CI
 
 on:
-  push:
-    paths:
-      - 'backstage-server/**'
-      - '.github/workflows/backstage.yaml'
   pull_request:
     paths:
       - 'backstage-server/**'
@@ -82,9 +78,30 @@ jobs:
       - name: Knip (unused exports/imports)
         run: bun run knip
 
+  coverage:
+    runs-on: ubuntu-latest
+    needs: [app-ci, backend-ci, plugins-ci]
+    defaults:
+      run:
+        working-directory: backstage-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Run tests with coverage
+        run: bun test packages --coverage --coverage-reporter=lcov
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: backstage-server/coverage/lcov.info
+          flags: typescript
+          fail_ci_if_error: false
+
   build:
     runs-on: ubuntu-latest
-    needs: [app-ci, backend-ci, plugins-ci, typecheck]
+    needs: [coverage, typecheck]
     defaults:
       run:
         working-directory: backstage-server
@@ -99,4 +116,37 @@ jobs:
         with:
           name: backstage-server
           path: backstage-server/dist/backstage-server
+          retention-days: 7
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [build]
+    defaults:
+      run:
+        working-directory: backstage-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Download backstage-server binary
+        uses: actions/download-artifact@v4
+        with:
+          name: backstage-server
+          path: backstage-server/dist
+      - name: Make binary executable
+        run: chmod +x dist/backstage-server
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+      - name: Run E2E tests
+        run: bun run test:e2e
+        env:
+          USE_BINARY: 'true'
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: backstage-server/playwright-report/
           retention-days: 7

@@ -337,6 +337,28 @@ impl AwaitingPanel {
     pub fn render(&mut self, frame: &mut Frame, area: Rect, focused: bool) {
         let border_style = if focused {
             Style::default().fg(Color::Yellow)
+        } else if !self.agents.is_empty() {
+            // Strobe effect: 6-second cycle with pulse for first 500ms
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
+
+            let cycle_position = now % 6000; // 6-second cycle
+
+            if cycle_position < 500 {
+                // Pulse ON - bright orange
+                Style::default().fg(Color::Rgb(255, 165, 0))
+            } else if cycle_position < 1000 {
+                // Fade out from orange to gray
+                let progress = (cycle_position - 500) as f32 / 500.0;
+                let r = (255.0 - progress * 127.0) as u8; // 255 -> 128
+                let g = (165.0 - progress * 83.0) as u8; // 165 -> 82
+                let b = (progress * 82.0) as u8; // 0 -> 82
+                Style::default().fg(Color::Rgb(r, g, b))
+            } else {
+                Style::default().fg(Color::Gray)
+            }
         } else {
             Style::default().fg(Color::Gray)
         };

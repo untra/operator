@@ -184,6 +184,7 @@ impl From<&FieldSchema> for FieldResponse {
                 FieldType::Bool => "bool".to_string(),
                 FieldType::Date => "date".to_string(),
                 FieldType::Text => "text".to_string(),
+                FieldType::Integer => "integer".to_string(),
             },
             required: f.required,
             default: f.default.clone(),

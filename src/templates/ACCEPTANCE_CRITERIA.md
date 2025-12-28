@@ -1,0 +1,1 @@
+Review the task functional requirements if any specified and validate they are fulfilled. Consider edge-cases and unhappy paths to avoid unhandled exceptions. All defined requirements are handled, user-facing behavior matches the intended design, and the feature satisfies the metrics of success provided in the ticket.

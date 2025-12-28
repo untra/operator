@@ -38,10 +38,48 @@ impl ConfirmSelection {
     }
 }
 
+/// Focus area in the confirm dialog
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfirmDialogFocus {
+    /// Focused on the Yes/View/No buttons (default)
+    Buttons,
+    /// Focused on the options section (provider, project)
+    Options,
+}
+
+/// Which option is currently selected in the options section
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectedOption {
+    Provider = 0,
+    Project = 1,
+}
+
+impl SelectedOption {
+    fn next(self) -> Self {
+        match self {
+            Self::Provider => Self::Project,
+            Self::Project => Self::Provider,
+        }
+    }
+
+    fn prev(self) -> Self {
+        match self {
+            Self::Provider => Self::Project,
+            Self::Project => Self::Provider,
+        }
+    }
+}
+
 pub struct ConfirmDialog {
     pub visible: bool,
     pub ticket: Option<Ticket>,
     pub selection: ConfirmSelection,
+
+    // Focus and navigation state
+    /// Current focus area (buttons or options)
+    pub focus: ConfirmDialogFocus,
+    /// Currently selected option when in Options focus
+    pub selected_option: SelectedOption,
 
     // Launch options (only shown if config enables them)
     /// Available LLM providers (tool + model combinations)
@@ -56,6 +94,14 @@ pub struct ConfirmDialog {
     pub yolo_enabled: bool,
     /// Whether YOLO mode is selected
     pub yolo_selected: bool,
+
+    // Project override options
+    /// Available projects for override (includes "global" option)
+    pub project_options: Vec<String>,
+    /// Currently selected project index (0 = ticket's original project)
+    pub selected_project: usize,
+    /// The original project from the ticket (for display reference)
+    pub original_project: String,
 }
 
 impl ConfirmDialog {
@@ -64,12 +110,17 @@ impl ConfirmDialog {
             visible: false,
             ticket: None,
             selection: ConfirmSelection::Yes,
+            focus: ConfirmDialogFocus::Buttons,
+            selected_option: SelectedOption::Provider,
             provider_options: Vec::new(),
             selected_provider: 0,
             docker_enabled: false,
             docker_selected: false,
             yolo_enabled: false,
             yolo_selected: false,
+            project_options: Vec::new(),
+            selected_project: 0,
+            original_project: String::new(),
         }
     }
 
@@ -77,19 +128,33 @@ impl ConfirmDialog {
     pub fn configure(
         &mut self,
         providers: Vec<LlmProvider>,
+        projects: Vec<String>,
         docker_enabled: bool,
         yolo_enabled: bool,
     ) {
         self.provider_options = providers;
+        self.project_options = projects;
         self.docker_enabled = docker_enabled;
         self.yolo_enabled = yolo_enabled;
     }
 
     pub fn show(&mut self, ticket: Ticket) {
+        // Store original project from ticket
+        self.original_project = ticket.project.clone();
+
+        // Reset project selection to match ticket's project if it exists in options
+        self.selected_project = self
+            .project_options
+            .iter()
+            .position(|p| p == &ticket.project)
+            .unwrap_or(0);
+
         self.ticket = Some(ticket);
         self.visible = true;
         self.selection = ConfirmSelection::Yes; // Default to Yes
-                                                // Reset mode selections but keep provider selection
+        self.focus = ConfirmDialogFocus::Buttons; // Default to buttons
+        self.selected_option = SelectedOption::Provider;
+        // Reset mode selections but keep provider selection
         self.docker_selected = false;
         self.yolo_selected = false;
     }
@@ -122,7 +187,91 @@ impl ConfirmDialog {
 
     /// Check if any options are available
     pub fn has_options(&self) -> bool {
-        self.provider_options.len() > 1 || self.docker_enabled || self.yolo_enabled
+        self.provider_options.len() > 1
+            || self.project_options.len() > 1
+            || self.docker_enabled
+            || self.yolo_enabled
+    }
+
+    /// Cycle to the next project
+    pub fn cycle_project(&mut self) {
+        if !self.project_options.is_empty() {
+            self.selected_project = (self.selected_project + 1) % self.project_options.len();
+        }
+    }
+
+    /// Cycle to the previous project
+    pub fn cycle_project_prev(&mut self) {
+        if !self.project_options.is_empty() {
+            if self.selected_project == 0 {
+                self.selected_project = self.project_options.len() - 1;
+            } else {
+                self.selected_project -= 1;
+            }
+        }
+    }
+
+    /// Get the selected project name
+    pub fn selected_project_name(&self) -> Option<&String> {
+        self.project_options.get(self.selected_project)
+    }
+
+    /// Check if the project has been overridden from the original
+    pub fn is_project_overridden(&self) -> bool {
+        self.selected_project_name()
+            .is_some_and(|p| p != &self.original_project)
+    }
+
+    /// Move focus to options section
+    pub fn focus_options(&mut self) {
+        if self.has_options() {
+            self.focus = ConfirmDialogFocus::Options;
+        }
+    }
+
+    /// Move focus to buttons section
+    pub fn focus_buttons(&mut self) {
+        self.focus = ConfirmDialogFocus::Buttons;
+    }
+
+    /// Check if focused on options
+    pub fn is_options_focused(&self) -> bool {
+        self.focus == ConfirmDialogFocus::Options
+    }
+
+    /// Navigate to next option (within options section)
+    pub fn next_option(&mut self) {
+        self.selected_option = self.selected_option.next();
+    }
+
+    /// Navigate to previous option (within options section)
+    pub fn prev_option(&mut self) {
+        self.selected_option = self.selected_option.prev();
+    }
+
+    /// Cycle the currently selected option's value
+    pub fn cycle_current_option(&mut self) {
+        match self.selected_option {
+            SelectedOption::Provider => self.cycle_provider(),
+            SelectedOption::Project => self.cycle_project(),
+        }
+    }
+
+    /// Cycle the currently selected option's value in reverse
+    pub fn cycle_current_option_prev(&mut self) {
+        match self.selected_option {
+            SelectedOption::Provider => {
+                // Cycle provider in reverse
+                if !self.provider_options.is_empty() {
+                    if self.selected_provider == 0 {
+                        self.selected_provider = self.provider_options.len() - 1;
+                    } else {
+                        self.selected_provider -= 1;
+                    }
+                }
+            }
+            SelectedOption::Project => self.cycle_project_prev(),
+        }
     }
 
     pub fn hide(&mut self) {
@@ -236,32 +385,41 @@ impl ConfirmDialog {
             self.render_options(frame, chunks[4]);
         }
 
+        // Dim buttons when options are focused
+        let buttons_focused = self.focus == ConfirmDialogFocus::Buttons;
+
         // Buttons - Yes, View, No
-        let yes_style = if self.selection == ConfirmSelection::Yes {
+        let yes_style = if self.selection == ConfirmSelection::Yes && buttons_focused {
             Style::default()
                 .fg(Color::Black)
                 .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
-        } else {
+        } else if buttons_focused {
             Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::DarkGray)
         };
 
-        let view_style = if self.selection == ConfirmSelection::View {
+        let view_style = if self.selection == ConfirmSelection::View && buttons_focused {
             Style::default()
                 .fg(Color::Black)
                 .bg(Color::Blue)
                 .add_modifier(Modifier::BOLD)
-        } else {
+        } else if buttons_focused {
             Style::default().fg(Color::Blue)
+        } else {
+            Style::default().fg(Color::DarkGray)
         };
 
-        let no_style = if self.selection == ConfirmSelection::No {
+        let no_style = if self.selection == ConfirmSelection::No && buttons_focused {
             Style::default()
                 .fg(Color::Black)
                 .bg(Color::Red)
                 .add_modifier(Modifier::BOLD)
-        } else {
+        } else if buttons_focused {
             Style::default().fg(Color::Red)
+        } else {
+            Style::default().fg(Color::DarkGray)
         };
 
         let buttons = Line::from(vec![
@@ -273,22 +431,44 @@ impl ConfirmDialog {
             Span::styled(" [N]o ", no_style),
         ]);
 
-        let buttons_para = Paragraph::new(buttons).alignment(Alignment::Center);
+        // Add hint for navigating to options
+        let hint = if has_options && buttons_focused {
+            Line::from(vec![Span::styled(
+                "↑ to edit launch options",
+                Style::default().fg(Color::DarkGray),
+            )])
+        } else if has_options {
+            Line::from(vec![Span::styled(
+                "↓ to confirm, ←/→ to change value",
+                Style::default().fg(Color::DarkGray),
+            )])
+        } else {
+            Line::from("")
+        };
+
+        let buttons_para = Paragraph::new(vec![buttons, hint]).alignment(Alignment::Center);
         frame.render_widget(buttons_para, chunks[5]);
     }
 
-    /// Render the options section (provider, docker, yolo toggles)
+    /// Render the options section (provider, project, docker, yolo toggles)
     fn render_options(&self, frame: &mut Frame, area: Rect) {
         let mut lines = Vec::new();
+        let options_focused = self.focus == ConfirmDialogFocus::Options;
 
-        // Separator line
+        // Separator line with focus indicator
+        let separator_style = if options_focused {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
         lines.push(Line::from(vec![Span::styled(
-            "── Options ──",
-            Style::default().fg(Color::DarkGray),
+            "── Launch Options ──",
+            separator_style,
         )]));
 
         // Provider option (if multiple providers)
         if self.provider_options.len() > 1 {
+            let is_selected = options_focused && self.selected_option == SelectedOption::Provider;
             let provider_display = self
                 .selected_provider()
                 .map(|p| {
@@ -298,10 +478,56 @@ impl ConfirmDialog {
                 })
                 .unwrap_or_else(|| "Default".to_string());
 
+            let prefix = if is_selected { "▶ " } else { "  " };
+            let value_style = if is_selected {
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+
             lines.push(Line::from(vec![
-                Span::styled("[M] ", Style::default().fg(Color::Yellow)),
+                Span::styled(prefix, Style::default().fg(Color::Cyan)),
                 Span::styled("Provider: ", Style::default().fg(Color::Gray)),
-                Span::styled(provider_display, Style::default().fg(Color::White)),
+                Span::styled(provider_display, value_style),
+            ]));
+        }
+
+        // Project option (if multiple projects)
+        if self.project_options.len() > 1 {
+            let is_selected = options_focused && self.selected_option == SelectedOption::Project;
+            let project_display = self
+                .selected_project_name()
+                .cloned()
+                .unwrap_or_else(|| self.original_project.clone());
+
+            let prefix = if is_selected { "▶ " } else { "  " };
+
+            // Show if project is overridden from original
+            let (value_style, suffix) = if self.is_project_overridden() {
+                (
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                    " (override)",
+                )
+            } else if is_selected {
+                (
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                    "",
+                )
+            } else {
+                (Style::default().fg(Color::White), "")
+            };
+
+            lines.push(Line::from(vec![
+                Span::styled(prefix, Style::default().fg(Color::Cyan)),
+                Span::styled("Project:  ", Style::default().fg(Color::Gray)),
+                Span::styled(project_display, value_style),
+                Span::styled(suffix, Style::default().fg(Color::DarkGray)),
             ]));
         }
 
@@ -313,6 +539,7 @@ impl ConfirmDialog {
                 ("○", Color::DarkGray)
             };
             lines.push(Line::from(vec![
+                Span::styled("  ", Style::default()),
                 Span::styled("[D] ", Style::default().fg(Color::Yellow)),
                 Span::styled("Docker: ", Style::default().fg(Color::Gray)),
                 Span::styled(indicator, Style::default().fg(color)),
@@ -331,6 +558,7 @@ impl ConfirmDialog {
                 ("○", Color::DarkGray)
             };
             lines.push(Line::from(vec![
+                Span::styled("  ", Style::default()),
                 Span::styled("[A] ", Style::default().fg(Color::Yellow)),
                 Span::styled("Auto:   ", Style::default().fg(Color::Gray)),
                 Span::styled(indicator, Style::default().fg(color)),
@@ -670,5 +898,848 @@ impl HelpDialog {
             .alignment(Alignment::Left);
 
         frame.render_widget(help, area);
+    }
+}
+
+/// Selection state for session recovery dialog
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionRecoverySelection {
+    ResumeSession = 0, // Only shown when session ID exists
+    StartFresh = 1,
+    ReturnToQueue = 2,
+    Cancel = 3,
+}
+
+impl SessionRecoverySelection {
+    /// Get the next selection (skipping ResumeSession if no session ID)
+    fn next(self, has_session_id: bool) -> Self {
+        match self {
+            Self::ResumeSession => Self::StartFresh,
+            Self::StartFresh => Self::ReturnToQueue,
+            Self::ReturnToQueue => Self::Cancel,
+            Self::Cancel => {
+                if has_session_id {
+                    Self::ResumeSession
+                } else {
+                    Self::StartFresh
+                }
+            }
+        }
+    }
+
+    /// Get the previous selection (skipping ResumeSession if no session ID)
+    fn prev(self, has_session_id: bool) -> Self {
+        match self {
+            Self::ResumeSession => Self::Cancel,
+            Self::StartFresh => {
+                if has_session_id {
+                    Self::ResumeSession
+                } else {
+                    Self::Cancel
+                }
+            }
+            Self::ReturnToQueue => Self::StartFresh,
+            Self::Cancel => Self::ReturnToQueue,
+        }
+    }
+
+    /// Get display label for this selection
+    fn label(&self) -> &'static str {
+        match self {
+            Self::ResumeSession => "Resume session",
+            Self::StartFresh => "Start fresh",
+            Self::ReturnToQueue => "Return to queue",
+            Self::Cancel => "Cancel",
+        }
+    }
+
+    /// Get shortcut key for this selection
+    fn key(&self) -> &'static str {
+        match self {
+            Self::ResumeSession => "R",
+            Self::StartFresh => "S",
+            Self::ReturnToQueue => "Q",
+            Self::Cancel => "Esc",
+        }
+    }
+}
+
+/// Dialog shown when tmux session is not found for an in-progress ticket
+pub struct SessionRecoveryDialog {
+    pub visible: bool,
+    pub ticket_id: String,
+    pub session_name: String,
+    pub step: String,
+    /// The Claude session UUID if available (from ticket.sessions)
+    pub claude_session_id: Option<String>,
+    pub selection: SessionRecoverySelection,
+}
+
+impl SessionRecoveryDialog {
+    pub fn new() -> Self {
+        Self {
+            visible: false,
+            ticket_id: String::new(),
+            session_name: String::new(),
+            step: String::new(),
+            claude_session_id: None,
+            selection: SessionRecoverySelection::StartFresh,
+        }
+    }
+
+    /// Show the dialog with ticket context
+    pub fn show(
+        &mut self,
+        ticket_id: String,
+        session_name: String,
+        step: String,
+        claude_session_id: Option<String>,
+    ) {
+        self.ticket_id = ticket_id;
+        self.session_name = session_name;
+        self.step = step;
+        self.claude_session_id = claude_session_id.clone();
+        // Default to ResumeSession if session ID exists, otherwise StartFresh
+        self.selection = if claude_session_id.is_some() {
+            SessionRecoverySelection::ResumeSession
+        } else {
+            SessionRecoverySelection::StartFresh
+        };
+        self.visible = true;
+    }
+
+    pub fn hide(&mut self) {
+        self.visible = false;
+    }
+
+    /// Check if a Claude session ID is available
+    pub fn has_session_id(&self) -> bool {
+        self.claude_session_id.is_some()
+    }
+
+    pub fn select_next(&mut self) {
+        self.selection = self.selection.next(self.has_session_id());
+    }
+
+    pub fn select_prev(&mut self) {
+        self.selection = self.selection.prev(self.has_session_id());
+    }
+
+    /// Get list of available options based on session ID presence
+    fn available_options(&self) -> Vec<SessionRecoverySelection> {
+        if self.has_session_id() {
+            vec![
+                SessionRecoverySelection::ResumeSession,
+                SessionRecoverySelection::StartFresh,
+                SessionRecoverySelection::ReturnToQueue,
+                SessionRecoverySelection::Cancel,
+            ]
+        } else {
+            vec![
+                SessionRecoverySelection::StartFresh,
+                SessionRecoverySelection::ReturnToQueue,
+                SessionRecoverySelection::Cancel,
+            ]
+        }
+    }
+
+    /// Make the available_options method accessible for testing
+    #[cfg(test)]
+    pub fn available_options_for_test(&self) -> Vec<SessionRecoverySelection> {
+        self.available_options()
+    }
+
+    pub fn render(&self, frame: &mut Frame) {
+        if !self.visible {
+            return;
+        }
+
+        let area = centered_rect(55, 50, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(" Session Not Found ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Yellow));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Message
+                Constraint::Length(4), // Ticket info
+                Constraint::Min(5),    // Options
+                Constraint::Length(2), // Instructions
+            ])
+            .margin(1)
+            .split(inner);
+
+        // Message
+        let message = Paragraph::new(vec![Line::from(Span::styled(
+            "The tmux session for this ticket no longer exists.",
+            Style::default().fg(Color::White),
+        ))])
+        .wrap(Wrap { trim: true });
+        frame.render_widget(message, chunks[0]);
+
+        // Ticket info
+        let info_lines = vec![
+            Line::from(vec![
+                Span::styled("Ticket:  ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    &self.ticket_id,
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled("Step:    ", Style::default().fg(Color::Gray)),
+                Span::styled(&self.step, Style::default().fg(Color::White)),
+            ]),
+            Line::from(vec![
+                Span::styled("Session: ", Style::default().fg(Color::Gray)),
+                Span::styled(&self.session_name, Style::default().fg(Color::DarkGray)),
+            ]),
+        ];
+        frame.render_widget(Paragraph::new(info_lines), chunks[1]);
+
+        // Options
+        let options = self.available_options();
+        let mut option_lines = Vec::new();
+
+        for option in &options {
+            let is_selected = *option == self.selection;
+            let style = if is_selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+
+            let prefix = if is_selected { "▶ " } else { "  " };
+            let suffix = if *option == SessionRecoverySelection::ResumeSession {
+                " (session data found)"
+            } else {
+                ""
+            };
+
+            option_lines.push(Line::from(vec![
+                Span::raw(prefix),
+                Span::styled(
+                    format!("[{}] ", option.key()),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled(option.label(), style),
+                Span::styled(suffix, Style::default().fg(Color::Green)),
+            ]));
+        }
+
+        let options_widget = Paragraph::new(option_lines);
+        frame.render_widget(options_widget, chunks[2]);
+
+        // Instructions
+        let instructions = Line::from(vec![
+            Span::styled("↑/↓", Style::default().fg(Color::Yellow)),
+            Span::raw(" Navigate  "),
+            Span::styled("Enter", Style::default().fg(Color::Yellow)),
+            Span::raw(" Select  "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" Cancel"),
+        ]);
+        frame.render_widget(
+            Paragraph::new(instructions).alignment(Alignment::Center),
+            chunks[3],
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn make_test_ticket(project: &str) -> Ticket {
+        Ticket {
+            filename: format!("20241225-1200-TASK-{}-test.md", project),
+            filepath: format!("/tmp/tickets/queue/20241225-1200-TASK-{}-test.md", project),
+            timestamp: "20241225-1200".to_string(),
+            ticket_type: "TASK".to_string(),
+            project: project.to_string(),
+            id: "TASK-1234".to_string(),
+            summary: "Test ticket".to_string(),
+            priority: "P2-medium".to_string(),
+            status: "queued".to_string(),
+            step: String::new(),
+            content: "Test content".to_string(),
+            sessions: HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
+        }
+    }
+
+    // ConfirmSelection tests
+    #[test]
+    fn test_confirm_selection_next_cycles_correctly() {
+        assert_eq!(ConfirmSelection::Yes.next(), ConfirmSelection::View);
+        assert_eq!(ConfirmSelection::View.next(), ConfirmSelection::No);
+        assert_eq!(ConfirmSelection::No.next(), ConfirmSelection::Yes);
+    }
+
+    #[test]
+    fn test_confirm_selection_prev_cycles_correctly() {
+        assert_eq!(ConfirmSelection::Yes.prev(), ConfirmSelection::No);
+        assert_eq!(ConfirmSelection::View.prev(), ConfirmSelection::Yes);
+        assert_eq!(ConfirmSelection::No.prev(), ConfirmSelection::View);
+    }
+
+    // SelectedOption tests
+    #[test]
+    fn test_selected_option_next_cycles_correctly() {
+        assert_eq!(SelectedOption::Provider.next(), SelectedOption::Project);
+        assert_eq!(SelectedOption::Project.next(), SelectedOption::Provider);
+    }
+
+    #[test]
+    fn test_selected_option_prev_cycles_correctly() {
+        assert_eq!(SelectedOption::Provider.prev(), SelectedOption::Project);
+        assert_eq!(SelectedOption::Project.prev(), SelectedOption::Provider);
+    }
+
+    // ConfirmDialog tests
+    #[test]
+    fn test_confirm_dialog_new_initializes_correctly() {
+        let dialog = ConfirmDialog::new();
+        assert!(!dialog.visible);
+        assert!(dialog.ticket.is_none());
+        assert_eq!(dialog.selection, ConfirmSelection::Yes);
+        assert_eq!(dialog.focus, ConfirmDialogFocus::Buttons);
+        assert!(dialog.provider_options.is_empty());
+        assert!(!dialog.docker_selected);
+        assert!(!dialog.yolo_selected);
+    }
+
+    #[test]
+    fn test_confirm_dialog_configure_sets_options() {
+        let mut dialog = ConfirmDialog::new();
+        let providers = vec![
+            LlmProvider {
+                tool: "claude".to_string(),
+                model: "opus".to_string(),
+                display_name: Some("Claude Opus".to_string()),
+            },
+            LlmProvider {
+                tool: "claude".to_string(),
+                model: "sonnet".to_string(),
+                display_name: None,
+            },
+        ];
+        let projects = vec!["project-a".to_string(), "project-b".to_string()];
+
+        dialog.configure(providers.clone(), projects.clone(), true, false);
+
+        assert_eq!(dialog.provider_options.len(), 2);
+        assert_eq!(dialog.project_options.len(), 2);
+        assert!(dialog.docker_enabled);
+        assert!(!dialog.yolo_enabled);
+    }
+
+    #[test]
+    fn test_confirm_dialog_show_sets_ticket_and_resets_state() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.configure(
+            vec![],
+            vec!["project-a".to_string(), "project-b".to_string()],
+            false,
+            false,
+        );
+        dialog.selection = ConfirmSelection::No;
+        dialog.docker_selected = true;
+
+        let ticket = make_test_ticket("project-b");
+        dialog.show(ticket);
+
+        assert!(dialog.visible);
+        assert!(dialog.ticket.is_some());
+        assert_eq!(dialog.selection, ConfirmSelection::Yes);
+        assert_eq!(dialog.selected_project, 1); // project-b is at index 1
+        assert!(!dialog.docker_selected); // Reset
+    }
+
+    #[test]
+    fn test_confirm_dialog_cycle_provider() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.provider_options = vec![
+            LlmProvider {
+                tool: "a".to_string(),
+                model: "1".to_string(),
+                display_name: None,
+            },
+            LlmProvider {
+                tool: "b".to_string(),
+                model: "2".to_string(),
+                display_name: None,
+            },
+            LlmProvider {
+                tool: "c".to_string(),
+                model: "3".to_string(),
+                display_name: None,
+            },
+        ];
+
+        assert_eq!(dialog.selected_provider, 0);
+        dialog.cycle_provider();
+        assert_eq!(dialog.selected_provider, 1);
+        dialog.cycle_provider();
+        assert_eq!(dialog.selected_provider, 2);
+        dialog.cycle_provider();
+        assert_eq!(dialog.selected_provider, 0); // Wraps
+    }
+
+    #[test]
+    fn test_confirm_dialog_toggle_docker_respects_enabled() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.docker_enabled = false;
+
+        dialog.toggle_docker();
+        assert!(!dialog.docker_selected); // No-op when disabled
+
+        dialog.docker_enabled = true;
+        dialog.toggle_docker();
+        assert!(dialog.docker_selected);
+        dialog.toggle_docker();
+        assert!(!dialog.docker_selected);
+    }
+
+    #[test]
+    fn test_confirm_dialog_toggle_yolo_respects_enabled() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.yolo_enabled = false;
+
+        dialog.toggle_yolo();
+        assert!(!dialog.yolo_selected); // No-op when disabled
+
+        dialog.yolo_enabled = true;
+        dialog.toggle_yolo();
+        assert!(dialog.yolo_selected);
+    }
+
+    #[test]
+    fn test_confirm_dialog_cycle_project() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.project_options = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+
+        dialog.cycle_project();
+        assert_eq!(dialog.selected_project, 1);
+        dialog.cycle_project();
+        assert_eq!(dialog.selected_project, 2);
+        dialog.cycle_project();
+        assert_eq!(dialog.selected_project, 0); // Wraps
+    }
+
+    #[test]
+    fn test_confirm_dialog_cycle_project_prev() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.project_options = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+
+        dialog.cycle_project_prev();
+        assert_eq!(dialog.selected_project, 2); // Wraps to end
+        dialog.cycle_project_prev();
+        assert_eq!(dialog.selected_project, 1);
+    }
+
+    #[test]
+    fn test_confirm_dialog_is_project_overridden() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.project_options = vec!["a".to_string(), "b".to_string()];
+        dialog.original_project = "a".to_string();
+        dialog.selected_project = 0;
+
+        assert!(!dialog.is_project_overridden());
+
+        dialog.selected_project = 1;
+        assert!(dialog.is_project_overridden());
+    }
+
+    #[test]
+    fn test_confirm_dialog_has_options() {
+        let mut dialog = ConfirmDialog::new();
+        assert!(!dialog.has_options());
+
+        dialog.docker_enabled = true;
+        assert!(dialog.has_options());
+
+        dialog.docker_enabled = false;
+        dialog.yolo_enabled = true;
+        assert!(dialog.has_options());
+
+        dialog.yolo_enabled = false;
+        dialog.provider_options = vec![
+            LlmProvider {
+                tool: "a".to_string(),
+                model: "1".to_string(),
+                display_name: None,
+            },
+            LlmProvider {
+                tool: "b".to_string(),
+                model: "2".to_string(),
+                display_name: None,
+            },
+        ];
+        assert!(dialog.has_options());
+    }
+
+    #[test]
+    fn test_confirm_dialog_focus_management() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.docker_enabled = true; // Enable options
+
+        assert!(!dialog.is_options_focused());
+        dialog.focus_options();
+        assert!(dialog.is_options_focused());
+        dialog.focus_buttons();
+        assert!(!dialog.is_options_focused());
+    }
+
+    #[test]
+    fn test_confirm_dialog_option_navigation() {
+        let mut dialog = ConfirmDialog::new();
+        assert_eq!(dialog.selected_option, SelectedOption::Provider);
+
+        dialog.next_option();
+        assert_eq!(dialog.selected_option, SelectedOption::Project);
+
+        dialog.prev_option();
+        assert_eq!(dialog.selected_option, SelectedOption::Provider);
+    }
+
+    #[test]
+    fn test_confirm_dialog_select_next_prev() {
+        let mut dialog = ConfirmDialog::new();
+        assert_eq!(dialog.selection, ConfirmSelection::Yes);
+
+        dialog.select_next();
+        assert_eq!(dialog.selection, ConfirmSelection::View);
+
+        dialog.select_prev();
+        assert_eq!(dialog.selection, ConfirmSelection::Yes);
+    }
+
+    #[test]
+    fn test_confirm_dialog_hide_clears_state() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.visible = true;
+        dialog.ticket = Some(make_test_ticket("test"));
+
+        dialog.hide();
+
+        assert!(!dialog.visible);
+        assert!(dialog.ticket.is_none());
+    }
+
+    // RejectionDialog tests
+    #[test]
+    fn test_rejection_dialog_new_initializes_correctly() {
+        let dialog = RejectionDialog::new();
+        assert!(!dialog.visible);
+        assert!(dialog.reason.is_empty());
+        assert_eq!(dialog.cursor_position, 0);
+    }
+
+    #[test]
+    fn test_rejection_dialog_show_and_hide() {
+        let mut dialog = RejectionDialog::new();
+
+        dialog.show("plan", "TICKET-001");
+        assert!(dialog.visible);
+        assert_eq!(dialog.step_name, "plan");
+        assert_eq!(dialog.ticket_id, "TICKET-001");
+
+        dialog.hide();
+        assert!(!dialog.visible);
+        assert!(dialog.reason.is_empty());
+    }
+
+    #[test]
+    fn test_rejection_dialog_handle_char() {
+        let mut dialog = RejectionDialog::new();
+        dialog.show("step", "T1");
+
+        dialog.handle_char('H');
+        dialog.handle_char('i');
+
+        assert_eq!(dialog.reason, "Hi");
+        assert_eq!(dialog.cursor_position, 2);
+    }
+
+    #[test]
+    fn test_rejection_dialog_handle_backspace() {
+        let mut dialog = RejectionDialog::new();
+        dialog.show("step", "T1");
+
+        dialog.handle_char('a');
+        dialog.handle_char('b');
+        dialog.handle_backspace();
+
+        assert_eq!(dialog.reason, "a");
+        assert_eq!(dialog.cursor_position, 1);
+    }
+
+    #[test]
+    fn test_rejection_dialog_handle_backspace_at_start() {
+        let mut dialog = RejectionDialog::new();
+        dialog.show("step", "T1");
+
+        dialog.handle_backspace(); // Should be no-op
+        assert_eq!(dialog.cursor_position, 0);
+        assert!(dialog.reason.is_empty());
+    }
+
+    #[test]
+    fn test_rejection_dialog_cursor_movement() {
+        let mut dialog = RejectionDialog::new();
+        dialog.show("step", "T1");
+        dialog.handle_char('a');
+        dialog.handle_char('b');
+        dialog.handle_char('c');
+
+        dialog.cursor_left();
+        assert_eq!(dialog.cursor_position, 2);
+
+        dialog.cursor_right();
+        assert_eq!(dialog.cursor_position, 3);
+
+        dialog.cursor_home();
+        assert_eq!(dialog.cursor_position, 0);
+
+        dialog.cursor_end();
+        assert_eq!(dialog.cursor_position, 3);
+    }
+
+    #[test]
+    fn test_rejection_dialog_cursor_insert_at_position() {
+        let mut dialog = RejectionDialog::new();
+        dialog.show("step", "T1");
+
+        dialog.handle_char('a');
+        dialog.handle_char('c');
+        dialog.cursor_left();
+        dialog.handle_char('b');
+
+        assert_eq!(dialog.reason, "abc");
+    }
+
+    #[test]
+    fn test_rejection_dialog_handle_delete() {
+        let mut dialog = RejectionDialog::new();
+        dialog.show("step", "T1");
+
+        dialog.handle_char('a');
+        dialog.handle_char('b');
+        dialog.handle_char('c');
+        dialog.cursor_home();
+        dialog.handle_delete();
+
+        assert_eq!(dialog.reason, "bc");
+    }
+
+    #[test]
+    fn test_rejection_dialog_confirm_and_cancel() {
+        let mut dialog = RejectionDialog::new();
+        dialog.show("step", "T1");
+        dialog.handle_char('r');
+        dialog.handle_char('e');
+        dialog.handle_char('a');
+        dialog.handle_char('s');
+        dialog.handle_char('o');
+        dialog.handle_char('n');
+
+        let result = dialog.confirm();
+        assert!(result.confirmed);
+        assert_eq!(result.reason, "reason");
+
+        let cancel_result = dialog.cancel();
+        assert!(!cancel_result.confirmed);
+        assert!(cancel_result.reason.is_empty());
+    }
+
+    // HelpDialog tests
+    #[test]
+    fn test_help_dialog_toggle() {
+        let mut dialog = HelpDialog::new();
+        assert!(!dialog.visible);
+
+        dialog.toggle();
+        assert!(dialog.visible);
+
+        dialog.toggle();
+        assert!(!dialog.visible);
+    }
+
+    // SessionRecoverySelection tests
+    #[test]
+    fn test_session_recovery_selection_next_with_session_id() {
+        let has_session_id = true;
+
+        assert_eq!(
+            SessionRecoverySelection::ResumeSession.next(has_session_id),
+            SessionRecoverySelection::StartFresh
+        );
+        assert_eq!(
+            SessionRecoverySelection::StartFresh.next(has_session_id),
+            SessionRecoverySelection::ReturnToQueue
+        );
+        assert_eq!(
+            SessionRecoverySelection::ReturnToQueue.next(has_session_id),
+            SessionRecoverySelection::Cancel
+        );
+        assert_eq!(
+            SessionRecoverySelection::Cancel.next(has_session_id),
+            SessionRecoverySelection::ResumeSession
+        );
+    }
+
+    #[test]
+    fn test_session_recovery_selection_next_without_session_id() {
+        let has_session_id = false;
+
+        assert_eq!(
+            SessionRecoverySelection::Cancel.next(has_session_id),
+            SessionRecoverySelection::StartFresh
+        ); // Skips ResumeSession
+    }
+
+    #[test]
+    fn test_session_recovery_selection_prev_with_session_id() {
+        let has_session_id = true;
+
+        assert_eq!(
+            SessionRecoverySelection::ResumeSession.prev(has_session_id),
+            SessionRecoverySelection::Cancel
+        );
+        assert_eq!(
+            SessionRecoverySelection::StartFresh.prev(has_session_id),
+            SessionRecoverySelection::ResumeSession
+        );
+    }
+
+    #[test]
+    fn test_session_recovery_selection_prev_without_session_id() {
+        let has_session_id = false;
+
+        assert_eq!(
+            SessionRecoverySelection::StartFresh.prev(has_session_id),
+            SessionRecoverySelection::Cancel
+        ); // Skips ResumeSession
+    }
+
+    #[test]
+    fn test_session_recovery_selection_label_and_key() {
+        assert_eq!(
+            SessionRecoverySelection::ResumeSession.label(),
+            "Resume session"
+        );
+        assert_eq!(SessionRecoverySelection::StartFresh.label(), "Start fresh");
+        assert_eq!(
+            SessionRecoverySelection::ReturnToQueue.label(),
+            "Return to queue"
+        );
+        assert_eq!(SessionRecoverySelection::Cancel.label(), "Cancel");
+
+        assert_eq!(SessionRecoverySelection::ResumeSession.key(), "R");
+        assert_eq!(SessionRecoverySelection::StartFresh.key(), "S");
+        assert_eq!(SessionRecoverySelection::ReturnToQueue.key(), "Q");
+        assert_eq!(SessionRecoverySelection::Cancel.key(), "Esc");
+    }
+
+    // SessionRecoveryDialog tests
+    #[test]
+    fn test_session_recovery_dialog_new() {
+        let dialog = SessionRecoveryDialog::new();
+        assert!(!dialog.visible);
+        assert!(dialog.claude_session_id.is_none());
+        assert_eq!(dialog.selection, SessionRecoverySelection::StartFresh);
+    }
+
+    #[test]
+    fn test_session_recovery_dialog_show_with_session_id() {
+        let mut dialog = SessionRecoveryDialog::new();
+
+        dialog.show(
+            "TICKET-001".to_string(),
+            "session-name".to_string(),
+            "plan".to_string(),
+            Some("uuid-123".to_string()),
+        );
+
+        assert!(dialog.visible);
+        assert!(dialog.has_session_id());
+        assert_eq!(dialog.selection, SessionRecoverySelection::ResumeSession);
+    }
+
+    #[test]
+    fn test_session_recovery_dialog_show_without_session_id() {
+        let mut dialog = SessionRecoveryDialog::new();
+
+        dialog.show(
+            "TICKET-001".to_string(),
+            "session-name".to_string(),
+            "plan".to_string(),
+            None,
+        );
+
+        assert!(dialog.visible);
+        assert!(!dialog.has_session_id());
+        assert_eq!(dialog.selection, SessionRecoverySelection::StartFresh);
+    }
+
+    #[test]
+    fn test_session_recovery_dialog_available_options() {
+        let mut dialog = SessionRecoveryDialog::new();
+
+        // Without session ID
+        dialog.show("T1".to_string(), "s1".to_string(), "step".to_string(), None);
+        let opts = dialog.available_options_for_test();
+        assert_eq!(opts.len(), 3);
+        assert!(!opts.contains(&SessionRecoverySelection::ResumeSession));
+
+        // With session ID
+        dialog.show(
+            "T1".to_string(),
+            "s1".to_string(),
+            "step".to_string(),
+            Some("uuid".to_string()),
+        );
+        let opts = dialog.available_options_for_test();
+        assert_eq!(opts.len(), 4);
+        assert!(opts.contains(&SessionRecoverySelection::ResumeSession));
+    }
+
+    #[test]
+    fn test_session_recovery_dialog_navigation() {
+        let mut dialog = SessionRecoveryDialog::new();
+        dialog.show(
+            "T1".to_string(),
+            "s1".to_string(),
+            "step".to_string(),
+            Some("uuid".to_string()),
+        );
+
+        assert_eq!(dialog.selection, SessionRecoverySelection::ResumeSession);
+        dialog.select_next();
+        assert_eq!(dialog.selection, SessionRecoverySelection::StartFresh);
+        dialog.select_prev();
+        assert_eq!(dialog.selection, SessionRecoverySelection::ResumeSession);
+    }
+
+    #[test]
+    fn test_session_recovery_dialog_hide() {
+        let mut dialog = SessionRecoveryDialog::new();
+        dialog.show("T1".to_string(), "s1".to_string(), "step".to_string(), None);
+
+        dialog.hide();
+        assert!(!dialog.visible);
     }
 }

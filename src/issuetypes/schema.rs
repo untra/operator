@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::templates::schema::{
-    AutoGenStrategy, ExecutionMode, FieldSchema, FieldType, PermissionMode, StepSchema,
+    AutoGenStrategy, ExecutionMode, FieldSchema, FieldType, PermissionMode, ReviewType, StepSchema,
 };
 
 /// Source of an issue type definition
@@ -156,7 +156,8 @@ impl IssueType {
                 outputs: vec![],
                 prompt: "Execute this task according to the description.".to_string(),
                 allowed_tools: vec!["*".to_string()],
-                requires_review: false,
+                review_type: ReviewType::None,
+                visual_config: None,
                 on_reject: None,
                 next_step: None,
                 permissions: None,
@@ -321,7 +322,8 @@ mod tests {
                 outputs: vec![],
                 prompt: "Do the task".to_string(),
                 allowed_tools: vec!["*".to_string()],
-                requires_review: false,
+                review_type: ReviewType::None,
+                visual_config: None,
                 on_reject: None,
                 next_step: None,
                 permissions: None,

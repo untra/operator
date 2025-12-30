@@ -36,7 +36,6 @@
       "outputs": ["report"],
       "prompt": "Scan the project structure to understand what's needed:\n\n1. Check for existing configuration files\n2. Identify project type and language\n3. Find any missing required files:\n   - CLAUDE.md (agent context)\n   - catalog-info.yaml (Backstage catalog)\n   - .tickets/ directory structure\n4. Document current state and gaps",
       "allowed_tools": ["Read", "Glob", "Grep"],
-      "requires_review": false,
       "next_step": "apply_conventions"
     },
     {
@@ -45,7 +44,7 @@
       "outputs": ["code"],
       "prompt": "Apply Operator conventions to the project:\n\n1. Create missing directories:\n   - .tickets/queue/\n   - .tickets/in-progress/\n   - .tickets/completed/\n2. Create CLAUDE.md if missing (based on project type)\n3. Create catalog-info.yaml if missing\n4. Add any standard configuration files\n5. Document all changes made",
       "allowed_tools": ["Read", "Write", "Edit", "Bash"],
-      "requires_review": true,
+      "review_type": "plan",
       "on_reject": {
         "goto_step": "scan_structure",
         "prompt": "Re-scan and adjust based on feedback: {{ rejection_reason }}"

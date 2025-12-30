@@ -47,6 +47,7 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
             tickets: tickets_path.to_string_lossy().to_string(),
             projects: projects_path.to_string_lossy().to_string(),
             state: state_path.to_string_lossy().to_string(),
+            worktrees: state_path.join("worktrees").to_string_lossy().to_string(),
         },
         projects: vec!["test-project".to_string()],
         llm_tools: crate::config::LlmToolsConfig {
@@ -55,12 +56,21 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
                 tool: "claude".to_string(),
                 model: "sonnet".to_string(),
                 display_name: None,
+                ..Default::default()
             }],
             detection_complete: true,
         },
         // Disable notifications in tests to avoid DBus requirement on Linux CI
         notifications: crate::config::NotificationsConfig {
             enabled: false,
+            os: crate::config::OsNotificationConfig {
+                enabled: false,
+                sound: false,
+                events: vec![],
+            },
+            webhook: None,
+            webhooks: vec![],
+            // Legacy fields
             on_agent_start: false,
             on_agent_complete: false,
             on_agent_needs_input: false,
@@ -295,6 +305,11 @@ fn make_test_ticket(project: &str) -> Ticket {
         content: "Test content".to_string(),
         sessions: std::collections::HashMap::new(),
         llm_task: crate::queue::LlmTask::default(),
+        worktree_path: None,
+        branch: None,
+        external_id: None,
+        external_url: None,
+        external_provider: None,
     }
 }
 

@@ -64,7 +64,7 @@
       "outputs": ["plan"],
       "prompt": "You are implementing a new feature. First, read the ticket and explore the codebase to understand:\n1. Where the feature should be implemented\n2. What existing code/patterns to follow\n3. What tests need to be added\n\nCreate a detailed implementation plan in `.tickets/plans/{{ id }}.md` with:\n- Files to create/modify\n- Key implementation steps\n- Test coverage requirements\n- Any dependencies or risks",
       "allowed_tools": ["Read", "Glob", "Grep", "Write"],
-      "requires_review": true,
+      "review_type": "plan",
       "on_reject": {
         "goto_step": "plan",
         "prompt": "Plan rejected: {{ rejection_reason }}\n\nRevise the plan based on feedback."
@@ -77,7 +77,6 @@
       "outputs": ["code"],
       "prompt": "Build the feature structure based on the plan in `.tickets/plans/{{ id }}.md`.\n\nIn this step, focus on:\n- Creating new files and modules\n- Setting up the basic structure\n- Adding type definitions and interfaces\n- Creating stub implementations\n\nDo not implement full logic yet - that comes in the next step.",
       "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
-      "requires_review": false,
       "next_step": "code"
     },
     {
@@ -86,7 +85,6 @@
       "outputs": ["code"],
       "prompt": "Implement the feature logic based on the plan and structure.\n\nGuidelines:\n- Follow existing code patterns and conventions\n- Add appropriate comments for complex logic\n- Keep changes minimal and focused\n- Run formatters after making changes",
       "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
-      "requires_review": false,
       "next_step": "test"
     },
     {
@@ -95,16 +93,15 @@
       "outputs": ["test", "code"],
       "prompt": "Add tests for the new feature and ensure all tests pass.\n\n1. Write unit tests for new functions/modules\n2. Add integration tests if applicable\n3. Run the full test suite: `cargo test`\n4. Run linting: `cargo clippy`\n5. Run formatting: `cargo fmt`\n\nFix any failures before proceeding.",
       "allowed_tools": ["Read", "Write", "Edit", "Bash"],
-      "requires_review": false,
       "next_step": "deploy"
     },
     {
       "name": "deploy",
       "display_name": "Deploying",
-      "outputs": ["review"],
+      "outputs": ["pr"],
       "prompt": "Create a pull request for the feature:\n\n1. Commit all changes with a descriptive message\n2. Push the feature branch\n3. Create a PR with:\n   - Clear title: `feat({{ project }}): {{ summary }}`\n   - Description of changes\n   - Link to ticket: {{ id }}\n   - Test instructions\n\nFeature complete. Move ticket to completed after PR is merged.",
       "allowed_tools": ["Bash", "Read"],
-      "requires_review": true,
+      "review_type": "pr",
       "on_reject": {
         "goto_step": "code",
         "prompt": "Deploy rejected: {{ rejection_reason }}\n\nAddress feedback and revise the implementation."

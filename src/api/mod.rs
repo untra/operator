@@ -8,7 +8,11 @@
 //! - Capabilities system for capability-based feature enablement
 //! - Error handling with auth failure tracking
 
+pub mod cli_detection;
 pub mod error;
+pub mod gh_cli;
+pub mod github_service;
+pub mod pr_service;
 pub mod providers;
 
 // Legacy modules (kept for backward compatibility during migration)
@@ -22,7 +26,10 @@ pub use providers::repo::{GitHubProvider, IssueStatus, PrStatus, RepoProvider};
 
 // Legacy re-exports (for backward compatibility)
 pub use anthropic::AnthropicClient;
+pub use gh_cli::GhCli;
 pub use github::GitHubClient;
+pub use github_service::GitHubService;
+pub use pr_service::PrService;
 
 use std::collections::HashMap;
 use std::time::Instant;

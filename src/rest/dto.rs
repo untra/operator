@@ -1,6 +1,8 @@
 //! Data Transfer Objects for the REST API.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use utoipa::ToSchema;
 
 // Note: ToSchema is derived on all DTOs for OpenAPI documentation generation
@@ -16,7 +18,8 @@ use crate::templates::schema::{
 // =============================================================================
 
 /// Response for a single issue type
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct IssueTypeResponse {
     pub key: String,
     pub name: String,
@@ -52,7 +55,8 @@ impl From<&IssueType> for IssueTypeResponse {
 }
 
 /// Summary response for listing issue types
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct IssueTypeSummary {
     pub key: String,
     pub name: String,
@@ -81,7 +85,8 @@ impl From<&IssueType> for IssueTypeSummary {
 }
 
 /// Request to create a new issue type
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct CreateIssueTypeRequest {
     pub key: String,
     pub name: String,
@@ -131,7 +136,8 @@ impl CreateIssueTypeRequest {
 }
 
 /// Request to update an issue type
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct UpdateIssueTypeRequest {
     #[serde(default)]
     pub name: Option<String>,
@@ -156,7 +162,8 @@ pub struct UpdateIssueTypeRequest {
 // =============================================================================
 
 /// Response for a field
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct FieldResponse {
     pub name: String,
     pub description: String,
@@ -197,7 +204,8 @@ impl From<&FieldSchema> for FieldResponse {
 }
 
 /// Request to create a field
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct CreateFieldRequest {
     pub name: String,
     pub description: String,
@@ -250,7 +258,8 @@ impl From<CreateFieldRequest> for FieldSchema {
 // =============================================================================
 
 /// Response for a step
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct StepResponse {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -258,7 +267,8 @@ pub struct StepResponse {
     pub prompt: String,
     pub outputs: Vec<String>,
     pub allowed_tools: Vec<String>,
-    pub requires_review: bool,
+    /// Type of review required: "none", "plan", "visual", "pr"
+    pub review_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_step: Option<String>,
     pub permission_mode: String,
@@ -285,7 +295,12 @@ impl From<&StepSchema> for StepResponse {
                 })
                 .collect(),
             allowed_tools: s.allowed_tools.clone(),
-            requires_review: s.requires_review,
+            review_type: match s.review_type {
+                crate::templates::schema::ReviewType::None => "none".to_string(),
+                crate::templates::schema::ReviewType::Plan => "plan".to_string(),
+                crate::templates::schema::ReviewType::Visual => "visual".to_string(),
+                crate::templates::schema::ReviewType::Pr => "pr".to_string(),
+            },
             next_step: s.next_step.clone(),
             permission_mode: match s.permission_mode {
                 PermissionMode::Default => "default".to_string(),
@@ -298,7 +313,8 @@ impl From<&StepSchema> for StepResponse {
 }
 
 /// Request to create a step
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct CreateStepRequest {
     pub name: String,
     #[serde(default)]
@@ -308,8 +324,9 @@ pub struct CreateStepRequest {
     pub outputs: Vec<String>,
     #[serde(default = "default_all_tools")]
     pub allowed_tools: Vec<String>,
-    #[serde(default)]
-    pub requires_review: bool,
+    /// Type of review required: "none", "plan", "visual", "pr"
+    #[serde(default = "default_review_type")]
+    pub review_type: String,
     #[serde(default)]
     pub next_step: Option<String>,
     #[serde(default = "default_permission_mode")]
@@ -318,6 +335,10 @@ pub struct CreateStepRequest {
 
 fn default_all_tools() -> Vec<String> {
     vec!["*".to_string()]
+}
+
+fn default_review_type() -> String {
+    "none".to_string()
 }
 
 fn default_permission_mode() -> String {
@@ -346,7 +367,13 @@ impl From<CreateStepRequest> for StepSchema {
                 })
                 .collect(),
             allowed_tools: s.allowed_tools,
-            requires_review: s.requires_review,
+            review_type: match s.review_type.as_str() {
+                "plan" => crate::templates::schema::ReviewType::Plan,
+                "visual" => crate::templates::schema::ReviewType::Visual,
+                "pr" => crate::templates::schema::ReviewType::Pr,
+                _ => crate::templates::schema::ReviewType::None,
+            },
+            visual_config: None,
             on_reject: None,
             next_step: s.next_step,
             permissions: None,
@@ -364,7 +391,8 @@ impl From<CreateStepRequest> for StepSchema {
 }
 
 /// Request to update a step
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct UpdateStepRequest {
     #[serde(default)]
     pub display_name: Option<String>,
@@ -374,8 +402,9 @@ pub struct UpdateStepRequest {
     pub outputs: Option<Vec<String>>,
     #[serde(default)]
     pub allowed_tools: Option<Vec<String>>,
+    /// Type of review required: "none", "plan", "visual", "pr"
     #[serde(default)]
-    pub requires_review: Option<bool>,
+    pub review_type: Option<String>,
     #[serde(default)]
     pub next_step: Option<String>,
     #[serde(default)]
@@ -387,7 +416,8 @@ pub struct UpdateStepRequest {
 // =============================================================================
 
 /// Response for a collection
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct CollectionResponse {
     pub name: String,
     pub description: String,
@@ -411,20 +441,136 @@ impl CollectionResponse {
 // =============================================================================
 
 /// Health check response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct HealthResponse {
     pub status: String,
     pub version: String,
 }
 
 /// Status response with registry info
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
 pub struct StatusResponse {
     pub status: String,
     pub version: String,
     pub issuetype_count: usize,
     pub collection_count: usize,
     pub active_collection: String,
+}
+
+// =============================================================================
+// Kanban Board DTOs
+// =============================================================================
+
+/// A ticket card for the kanban board
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct KanbanTicketCard {
+    /// Ticket ID (e.g., "FEAT-7598")
+    pub id: String,
+    /// Ticket summary/title
+    pub summary: String,
+    /// Ticket type: FEAT, FIX, INV, SPIKE
+    pub ticket_type: String,
+    /// Project name
+    pub project: String,
+    /// Current status: queued, running, awaiting, completed
+    pub status: String,
+    /// Current step name
+    pub step: String,
+    /// Human-readable step name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step_display_name: Option<String>,
+    /// Priority: P0-critical, P1-high, P2-medium, P3-low
+    pub priority: String,
+    /// Timestamp for sorting (YYYYMMDD-HHMM format)
+    pub timestamp: String,
+}
+
+/// Kanban board response with tickets grouped by column
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct KanbanBoardResponse {
+    /// Tickets in queue (not yet started)
+    pub queue: Vec<KanbanTicketCard>,
+    /// Tickets currently being worked on
+    pub running: Vec<KanbanTicketCard>,
+    /// Tickets awaiting review or input
+    pub awaiting: Vec<KanbanTicketCard>,
+    /// Completed tickets
+    pub done: Vec<KanbanTicketCard>,
+    /// Total ticket count across all columns
+    pub total_count: usize,
+    /// ISO 8601 timestamp of last data refresh
+    pub last_updated: String,
+}
+
+// =============================================================================
+// Queue Status DTOs
+// =============================================================================
+
+/// Ticket counts by type for queue status
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct QueueByType {
+    pub inv: usize,
+    pub fix: usize,
+    pub feat: usize,
+    pub spike: usize,
+}
+
+/// Queue status response with ticket counts
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct QueueStatusResponse {
+    /// Tickets waiting in queue
+    pub queued: usize,
+    /// Tickets currently being worked on
+    pub in_progress: usize,
+    /// Tickets awaiting review or input
+    pub awaiting: usize,
+    /// Completed tickets (today)
+    pub completed: usize,
+    /// Breakdown by ticket type
+    pub by_type: QueueByType,
+}
+
+// =============================================================================
+// Active Agents DTOs
+// =============================================================================
+
+/// A single active agent
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ActiveAgentResponse {
+    /// Agent ID (e.g., "op-gamesvc-001")
+    pub id: String,
+    /// Associated ticket ID (e.g., "FEAT-042")
+    pub ticket_id: String,
+    /// Ticket type: FEAT, FIX, INV, SPIKE
+    pub ticket_type: String,
+    /// Project being worked on
+    pub project: String,
+    /// Agent status: running, awaiting_input, completing
+    pub status: String,
+    /// Execution mode: autonomous, paired
+    pub mode: String,
+    /// When the agent started (ISO 8601)
+    pub started_at: String,
+    /// Current workflow step
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_step: Option<String>,
+}
+
+/// Response for active agents list
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ActiveAgentsResponse {
+    /// List of active agents
+    pub agents: Vec<ActiveAgentResponse>,
+    /// Total count of active agents
+    pub count: usize,
 }
 
 #[cfg(test)]
@@ -448,7 +594,7 @@ mod tests {
                 prompt: "Do the thing".to_string(),
                 outputs: vec![],
                 allowed_tools: vec!["*".to_string()],
-                requires_review: false,
+                review_type: "none".to_string(),
                 next_step: None,
                 permission_mode: "default".to_string(),
             }],

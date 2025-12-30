@@ -17,15 +17,34 @@ health_check_interval = 30
 # Enable/disable all notifications
 enabled = true
 
-# Individual notification types
-on_agent_start = true
-on_agent_complete = true
-on_agent_needs_input = true
-on_pr_created = true
-on_investigation_created = true
-
-# Play sound with notifications
+# OS notifications (native system notifications)
+[notifications.os]
+enabled = true
 sound = false
+events = []  # Empty = all events
+
+# Webhook integration (disabled by default)
+# [notifications.webhook]
+# enabled = true
+# url = "https://your-service.com/webhook"
+# auth_type = "bearer"  # Optional: "bearer" or "basic"
+# token_env = "WEBHOOK_TOKEN"  # For bearer auth
+# events = ["agent.completed", "agent.failed"]  # Empty = all events
+
+# Multiple webhooks can be configured:
+# [[notifications.webhooks]]
+# name = "slack"
+# enabled = true
+# url = "https://hooks.slack.com/services/xxx"
+# events = ["agent.completed"]
+#
+# [[notifications.webhooks]]
+# name = "pagerduty"
+# enabled = true
+# url = "https://events.pagerduty.com/v2/enqueue"
+# auth_type = "bearer"
+# token_env = "PAGERDUTY_TOKEN"
+# events = ["agent.failed"]
 
 [queue]
 # Automatically assign work when agent slots are available

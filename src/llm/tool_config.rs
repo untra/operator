@@ -30,6 +30,31 @@ pub struct ArgMapping {
     pub quiet: Option<String>,
 }
 
+/// Hook configuration for tools that support hooks (Claude, Gemini)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HookConfig {
+    /// Hook event name (e.g., "Stop" for Claude, "AfterAgent" for Gemini)
+    pub event_name: String,
+    /// Path to hook script (e.g., "~/.claude/hooks/operator-stop.sh")
+    pub script_path: String,
+    /// Settings file path for this tool (e.g., "~/.claude/settings.json")
+    pub settings_path: String,
+}
+
+/// Configuration for idle state detection
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct IdleDetectionConfig {
+    /// Regex patterns that indicate tool is idle/waiting for input (e.g., prompt chars)
+    #[serde(default)]
+    pub idle_patterns: Vec<String>,
+    /// Regex patterns that indicate tool is actively working (spinners, status messages)
+    #[serde(default)]
+    pub activity_patterns: Vec<String>,
+    /// Hook configuration for this tool (if supported)
+    #[serde(default)]
+    pub hook_config: Option<HookConfig>,
+}
+
 /// Tool configuration loaded from JSON
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolConfig {
@@ -52,6 +77,9 @@ pub struct ToolConfig {
     /// CLI flags for YOLO (auto-accept) mode
     #[serde(default)]
     pub yolo_flags: Vec<String>,
+    /// Configuration for idle/awaiting state detection
+    #[serde(default)]
+    pub idle_detection: Option<IdleDetectionConfig>,
 }
 
 impl ToolConfig {

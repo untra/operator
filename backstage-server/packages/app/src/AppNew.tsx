@@ -44,6 +44,7 @@ import {
 // Route references for custom pages (homepage has its own)
 const catalogRouteRef = createRouteRef();
 const pluginsRouteRef = createRouteRef();
+const boardRouteRef = createRouteRef();
 
 const operatorCatalogPageExtension = PageBlueprint.make({
   name: 'operator-catalog',
@@ -64,6 +65,16 @@ const pluginsPageExtension = PageBlueprint.make({
     routeRef: pluginsRouteRef,
     loader: () =>
       import('./components/plugins').then(m => <m.PluginsPage />),
+  },
+});
+
+const boardPageExtension = PageBlueprint.make({
+  name: 'board',
+  params: {
+    path: '/board',
+    routeRef: boardRouteRef,
+    loader: () =>
+      import('./components/kanban').then(m => <m.KanbanBoardPage />),
   },
 });
 
@@ -113,6 +124,21 @@ const pluginsNavItem = NavItemBlueprint.make({
   },
 });
 
+const BoardIcon = () => (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+    <path d="M14 4h2v17h-2V4zM4 4h2v17H4V4zm14 0h2v17h-2V4z" />
+  </svg>
+);
+
+const boardNavItem = NavItemBlueprint.make({
+  name: 'board',
+  params: {
+    title: 'Board',
+    routeRef: boardRouteRef,
+    icon: BoardIcon,
+  },
+});
+
 // Catalog API extension - provides catalog service for catalog components
 const catalogApi = ApiBlueprint.make({
   name: 'catalog-api',
@@ -148,10 +174,12 @@ const operatorAppModule = createFrontendModule({
     // Other pages
     operatorCatalogPageExtension,
     pluginsPageExtension,
+    boardPageExtension,
     // Navigation
     homeNavItem,
     catalogNavItem,
     pluginsNavItem,
+    boardNavItem,
   ],
 });
 

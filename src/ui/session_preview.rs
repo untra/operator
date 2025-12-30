@@ -292,6 +292,9 @@ mod tests {
             completed_steps: vec![],
             llm_tool: None,
             launch_mode: None,
+            review_state: None,
+            dev_server_pid: None,
+            worktree_path: None,
         }
     }
 

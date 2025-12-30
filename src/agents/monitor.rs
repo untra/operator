@@ -4,6 +4,11 @@
 //!
 //! Periodically checks that agent tmux sessions are still alive and
 //! marks agents as orphaned if their sessions have terminated unexpectedly.
+//!
+//! Uses multi-signal detection for awaiting state:
+//! 1. Hook signals (Claude/Gemini) - fastest, most accurate
+//! 2. Content pattern detection - checks for idle prompts
+//! 3. Tmux silence flag - fallback for all tools
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -12,8 +17,11 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use sha2::{Digest, Sha256};
 
+use super::hooks::HookManager;
+use super::idle_detector::IdleDetector;
 use super::tmux::{SystemTmuxClient, TmuxClient};
 use crate::config::Config;
+use crate::llm::tool_config::load_all_tool_configs;
 use crate::state::{OrphanSession, State};
 
 /// Result of a health check cycle
@@ -29,8 +37,10 @@ pub struct HealthCheckResult {
     pub changed: Vec<String>,
     /// Sessions that have timed out (past step_timeout)
     pub timed_out: Vec<String>,
-    /// Sessions detected as awaiting input (silence flag set)
+    /// Sessions detected as awaiting input (via hooks, patterns, or silence)
     pub awaiting_input: Vec<String>,
+    /// Sessions that resumed from awaiting state (content changed while awaiting)
+    pub resumed: Vec<String>,
 }
 
 /// Session health monitor
@@ -39,6 +49,10 @@ pub struct SessionMonitor {
     tmux: Arc<dyn TmuxClient>,
     last_check: Instant,
     check_interval: Duration,
+    /// Hook manager for Claude/Gemini hook-based detection
+    hook_manager: HookManager,
+    /// Idle detector for pattern-based detection
+    idle_detector: IdleDetector,
 }
 
 impl SessionMonitor {
@@ -58,21 +72,32 @@ impl SessionMonitor {
             Arc::new(SystemTmuxClient::new())
         };
 
+        // Initialize idle detector from tool configs
+        let tool_configs = load_all_tool_configs();
+        let idle_detector = IdleDetector::from_tool_configs(&tool_configs);
+
         Self {
             config: config.clone(),
             tmux,
             last_check: Instant::now(),
             check_interval: Duration::from_secs(config.agents.health_check_interval),
+            hook_manager: HookManager::new(),
+            idle_detector,
         }
     }
 
     /// Create a new session monitor with a custom tmux client (for testing)
     pub fn with_tmux_client(config: &Config, tmux: Arc<dyn TmuxClient>) -> Self {
+        let tool_configs = load_all_tool_configs();
+        let idle_detector = IdleDetector::from_tool_configs(&tool_configs);
+
         Self {
             config: config.clone(),
             tmux,
             last_check: Instant::now(),
             check_interval: Duration::from_secs(config.agents.health_check_interval),
+            hook_manager: HookManager::new(),
+            idle_detector,
         }
     }
 
@@ -82,17 +107,31 @@ impl SessionMonitor {
     }
 
     /// Run a health check on all active agent sessions
+    ///
+    /// Uses multi-signal detection for awaiting state:
+    /// 1. Hook signals (Claude/Gemini) - fastest, most accurate
+    /// 2. Content pattern detection - checks for idle prompts
+    /// 3. Tmux silence flag - fallback for all tools
+    ///
+    /// Also detects resume: content changed while in awaiting status
     pub fn check_health(&mut self) -> Result<HealthCheckResult> {
         self.last_check = Instant::now();
 
         let mut result = HealthCheckResult::default();
         let mut state = State::load(&self.config)?;
 
-        // Get all agents that should have sessions
+        // Get all agents that should have sessions, including their status and tool
         let agents_with_sessions: Vec<_> = state
             .agents_with_sessions()
             .iter()
-            .map(|a| (a.id.clone(), a.session_name.clone().unwrap_or_default()))
+            .map(|a| {
+                (
+                    a.id.clone(),
+                    a.session_name.clone().unwrap_or_default(),
+                    a.status.clone(),
+                    a.llm_tool.clone(),
+                )
+            })
             .collect();
 
         result.checked = agents_with_sessions.len();
@@ -107,7 +146,7 @@ impl SessionMonitor {
             .collect();
 
         // Check each agent
-        for (agent_id, session_name) in agents_with_sessions {
+        for (agent_id, session_name, agent_status, llm_tool) in agents_with_sessions {
             if session_name.is_empty() {
                 continue;
             }
@@ -115,32 +154,80 @@ impl SessionMonitor {
             if active_sessions.contains(&session_name) {
                 result.alive += 1;
 
-                // Check for content changes
-                if let Ok(content) = self.tmux.capture_pane(&session_name, false) {
-                    let hash = hash_content(&content);
-                    if let Ok(changed) = state.update_agent_content_hash(&agent_id, &hash) {
-                        if changed {
-                            result.changed.push(session_name.clone());
-                            // Content changed means session is active, record the change
-                            let _ = state.record_content_change(&agent_id);
-                            tracing::debug!(
-                                agent_id = %agent_id,
-                                session = %session_name,
-                                "Session content changed"
-                            );
-                        }
-                    }
-                }
+                // Track if this session is detected as awaiting (avoid duplicate detection)
+                let mut detected_awaiting = false;
 
-                // Check for silence flag (awaiting input detection)
-                if let Ok(is_silent) = self.tmux.check_silence_flag(&session_name) {
-                    if is_silent {
+                // 1. Check hook signal first (fastest, most accurate for Claude/Gemini)
+                if let Some(signal) = self.hook_manager.check_hook_signal(&agent_id) {
+                    if signal.event == "stop" {
+                        detected_awaiting = true;
                         result.awaiting_input.push(session_name.clone());
                         tracing::info!(
                             agent_id = %agent_id,
                             session = %session_name,
-                            "Session is silent (awaiting input)"
+                            "Hook signal detected: agent stopped (awaiting input)"
                         );
+                    }
+                }
+
+                // Capture pane content for pattern detection and change tracking
+                if let Ok(content) = self.tmux.capture_pane(&session_name, false) {
+                    let hash = hash_content(&content);
+                    let content_changed = state
+                        .update_agent_content_hash(&agent_id, &hash)
+                        .unwrap_or(false);
+
+                    if content_changed {
+                        result.changed.push(session_name.clone());
+                        let _ = state.record_content_change(&agent_id);
+                        tracing::debug!(
+                            agent_id = %agent_id,
+                            session = %session_name,
+                            "Session content changed"
+                        );
+
+                        // RESUME DETECTION: If agent was awaiting and content changed, it resumed
+                        if agent_status == "awaiting_input" {
+                            result.resumed.push(session_name.clone());
+                            tracing::info!(
+                                agent_id = %agent_id,
+                                session = %session_name,
+                                "Agent resumed from awaiting state (content changed)"
+                            );
+                            // Clear any hook signal since agent is now active
+                            let _ = self.hook_manager.clear_signal(&agent_id);
+                            continue; // Skip awaiting detection for this agent
+                        }
+                    }
+
+                    // 2. Pattern-based idle detection (if not already detected via hook)
+                    if !detected_awaiting {
+                        if let Some(ref tool_name) = llm_tool {
+                            if self.idle_detector.is_idle(tool_name, &content) {
+                                detected_awaiting = true;
+                                result.awaiting_input.push(session_name.clone());
+                                tracing::info!(
+                                    agent_id = %agent_id,
+                                    session = %session_name,
+                                    tool = %tool_name,
+                                    "Pattern detection: agent is idle (awaiting input)"
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // 3. Fallback: Silence flag check (if not already detected)
+                if !detected_awaiting {
+                    if let Ok(is_silent) = self.tmux.check_silence_flag(&session_name) {
+                        if is_silent {
+                            result.awaiting_input.push(session_name.clone());
+                            tracing::info!(
+                                agent_id = %agent_id,
+                                session = %session_name,
+                                "Silence flag: agent is silent (awaiting input)"
+                            );
+                        }
                     }
                 }
 
@@ -342,6 +429,7 @@ mod tests {
                 tickets: tickets_path.to_string_lossy().to_string(),
                 projects: projects_path.to_string_lossy().to_string(),
                 state: state_path.to_string_lossy().to_string(),
+                worktrees: state_path.join("worktrees").to_string_lossy().to_string(),
             },
             ..Default::default()
         };

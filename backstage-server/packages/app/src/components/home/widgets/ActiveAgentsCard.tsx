@@ -5,7 +5,7 @@
  * Shows agent name, project, elapsed time, and mode.
  */
 
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardBody, Flex, Text, Box, Link } from '@backstage/ui';
 import { Progress } from '@backstage/core-components';
 import {
@@ -16,16 +16,8 @@ import {
   RiPlayCircleLine,
   RiPauseCircleLine,
 } from '@remixicon/react';
-
-interface Agent {
-  id: string;
-  name: string;
-  project: string;
-  ticketKey: string;
-  mode: 'autonomous' | 'paired' | 'awaiting-input';
-  startedAt: string;
-  status: 'running' | 'paused' | 'waiting';
-}
+import { useActiveAgentsQuery, type Agent } from '../../../api/queries';
+import { ErrorState } from '../../common/ErrorState';
 
 function formatElapsed(startedAt: string): string {
   const start = new Date(startedAt).getTime();
@@ -44,18 +36,18 @@ interface AgentRowProps {
 }
 
 function AgentRow({ agent }: AgentRowProps) {
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     running: '#66AA99',
-    paused: '#E9A820',
-    waiting: '#6688AA',
+    awaiting_input: '#E9A820',
+    completing: '#6688AA',
   };
 
-  const modeLabels = {
+  const modeLabels: Record<string, string> = {
     autonomous: 'Auto',
     paired: 'Paired',
-    'awaiting-input': 'Waiting',
   };
 
+  const statusColor = statusColors[agent.status] || '#6688AA';
   const StatusIcon = agent.status === 'running' ? RiPlayCircleLine : RiPauseCircleLine;
 
   return (
@@ -70,21 +62,21 @@ function AgentRow({ agent }: AgentRowProps) {
     >
       <Flex align="center" justify="between">
         <Flex align="center" gap="2">
-          <StatusIcon size={16} color={statusColors[agent.status]} />
+          <StatusIcon size={16} color={statusColor} />
           <Text variant="body-medium" style={{ fontWeight: 500 }}>
-            {agent.name}
+            {agent.ticket_id}
           </Text>
         </Flex>
         <Box
           style={{
-            backgroundColor: `${statusColors[agent.status]}20`,
-            color: statusColors[agent.status],
+            backgroundColor: `${statusColor}20`,
+            color: statusColor,
             fontSize: '0.75rem',
             padding: '2px 8px',
             borderRadius: 4,
           }}
         >
-          {modeLabels[agent.mode]}
+          {modeLabels[agent.mode] || agent.mode}
         </Box>
       </Flex>
 
@@ -98,70 +90,31 @@ function AgentRow({ agent }: AgentRowProps) {
         <Flex align="center" gap="1">
           <RiTimeLine size={14} color="var(--bui-color-text-secondary)" />
           <Text variant="body-small" color="secondary">
-            {formatElapsed(agent.startedAt)}
+            {formatElapsed(agent.started_at)}
           </Text>
         </Flex>
+        {agent.current_step && (
+          <Text variant="body-small" color="secondary">
+            Step: {agent.current_step}
+          </Text>
+        )}
       </Flex>
 
-      {agent.ticketKey && (
-        <Flex align="center" gap="1" style={{ marginLeft: 24 }}>
-          <Link href={`/issuetypes/${agent.ticketKey.split('-')[0]}`}>
-            <Text variant="body-small" style={{ color: 'var(--bui-color-primary)' }}>
-              {agent.ticketKey}
-            </Text>
-          </Link>
-        </Flex>
-      )}
+      <Flex align="center" gap="1" style={{ marginLeft: 24 }}>
+        <Link href={`/issuetypes/${agent.ticket_type}`}>
+          <Text variant="body-small" style={{ color: 'var(--bui-color-primary)' }}>
+            {agent.ticket_type}
+          </Text>
+        </Link>
+      </Flex>
     </Flex>
   );
 }
 
 export function ActiveAgentsCard() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, error, refetch } = useActiveAgentsQuery();
 
-  useEffect(() => {
-    async function fetchAgents() {
-      try {
-        const response = await fetch('/api/proxy/operator/agents/active');
-        if (!response.ok) {
-          throw new Error('Failed to fetch agents');
-        }
-        const data = await response.json();
-        setAgents(data);
-      } catch {
-        // Use mock data for now if API unavailable
-        setAgents([
-          {
-            id: '1',
-            name: 'Agent Alpha',
-            project: 'gamesvc',
-            ticketKey: 'FEAT-042',
-            mode: 'autonomous',
-            startedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-            status: 'running',
-          },
-          {
-            id: '2',
-            name: 'Agent Beta',
-            project: 'operator',
-            ticketKey: 'FIX-017',
-            mode: 'paired',
-            startedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-            status: 'waiting',
-          },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchAgents();
-    const interval = setInterval(fetchAgents, 10000); // Refresh every 10s
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardBody>
@@ -173,6 +126,29 @@ export function ActiveAgentsCard() {
       </Card>
     );
   }
+
+  if (error) {
+    return (
+      <Card>
+        <CardBody>
+          <Flex direction="column" gap="3" p="2">
+            <Flex align="center" justify="between">
+              <Text variant="title-small">Active Agents</Text>
+              <RiRobot2Line size={20} color="var(--bui-color-text-secondary)" />
+            </Flex>
+            <ErrorState
+              title="Failed to load"
+              message="Unable to load active agents"
+              onRetry={() => refetch()}
+              compact
+            />
+          </Flex>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  const agents = data?.agents || [];
 
   return (
     <Card>

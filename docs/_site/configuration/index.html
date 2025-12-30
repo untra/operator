@@ -58,7 +58,115 @@
 
   <ul class="sidebar-nav">
     <li><a href="/" >Home</a></li>
-    <li><a href="/getting-started/" >Getting Started</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Coding Agents</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/claude-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/claude-dark.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/codex-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/codex-dark.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/gemini-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/gemini-dark.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Kanban Providers</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/jira-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/jira-dark.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Git Repositories</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/github-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/github-dark.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Notification Integrations</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/webhook-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/webhook-dark.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/notification-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/notification-dark.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
     
     <li class="nav-section">
       
@@ -158,6 +266,18 @@
               <ul class="nav-grandchildren">
                 
                 <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
                   <a href="/schemas/issuetype/" >Issue Type Schema</a>
                 </li>
                 
@@ -167,6 +287,10 @@
                 
                 <li>
                   <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
                 </li>
                 
               </ul>
@@ -188,11 +312,11 @@
     <p></p>
     <div><small class="sidebar-nav-item">Currently v0.1.7</small> |
     <div id="theme-toggle" aria-label="Toggle theme">
-      <span class="theme-icon-light"><small>lights on</small></span>
-      <span class="theme-icon-dark"><small>lights off</small></span>
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
     </div>
     </div>
-    </p><small class="sidebar-nav-item"><i>Last updated 2025-12-29</i></small></p>
+    </p><small class="sidebar-nav-item"><i>Last updated 2025-12-31</i></small></p>
   </div>
 </nav>
 
@@ -285,9 +409,21 @@
   </thead>
   <tbody>
     <tr>
+      <td><code class="language-plaintext highlighter-rouge">max_parallel</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>5</td>
+      <td> </td>
+    </tr>
+    <tr>
       <td><code class="language-plaintext highlighter-rouge">cores_reserved</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">integer</code></td>
       <td>1</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">health_check_interval</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>30</td>
       <td> </td>
     </tr>
     <tr>
@@ -297,22 +433,10 @@
       <td>Timeout in seconds for each agent generation (default: 300 = 5 min)</td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">health_check_interval</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">sync_interval</code></td>
       <td><code class="language-plaintext highlighter-rouge">integer</code></td>
-      <td>30</td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code class="language-plaintext highlighter-rouge">max_parallel</code> *</td>
-      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
-      <td>5</td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code class="language-plaintext highlighter-rouge">silence_threshold</code></td>
-      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
-      <td>30</td>
-      <td>Seconds of tmux silence before considering agent awaiting input (default: 30)</td>
+      <td>60</td>
+      <td>Interval in seconds between ticket-session syncs (default: 60)</td>
     </tr>
     <tr>
       <td><code class="language-plaintext highlighter-rouge">step_timeout</code></td>
@@ -321,10 +445,10 @@
       <td>Maximum seconds a step can run before timing out (default: 1800 = 30 min)</td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">sync_interval</code></td>
+      <td><code class="language-plaintext highlighter-rouge">silence_threshold</code></td>
       <td><code class="language-plaintext highlighter-rouge">integer</code></td>
-      <td>60</td>
-      <td>Interval in seconds between ticket-session syncs (default: 60)</td>
+      <td>30</td>
+      <td>Seconds of tmux silence before considering agent awaiting input (default: 30)</td>
     </tr>
   </tbody>
 </table>
@@ -350,6 +474,12 @@
       <td> </td>
     </tr>
     <tr>
+      <td><code class="language-plaintext highlighter-rouge">on_agent_start</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>true</td>
+      <td> </td>
+    </tr>
+    <tr>
       <td><code class="language-plaintext highlighter-rouge">on_agent_complete</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
       <td>true</td>
@@ -362,19 +492,13 @@
       <td> </td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">on_agent_start</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">on_pr_created</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
       <td>true</td>
       <td> </td>
     </tr>
     <tr>
       <td><code class="language-plaintext highlighter-rouge">on_investigation_created</code> *</td>
-      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
-      <td>true</td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code class="language-plaintext highlighter-rouge">on_pr_created</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
       <td>true</td>
       <td> </td>
@@ -409,15 +533,15 @@
       <td> </td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">poll_interval_ms</code> *</td>
-      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
-      <td>1000</td>
-      <td> </td>
-    </tr>
-    <tr>
       <td><code class="language-plaintext highlighter-rouge">priority_order</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">array</code>[<code class="language-plaintext highlighter-rouge">string</code>]</td>
       <td>[“INV”, “FIX”, “TASK”, “FEAT”, “SPIKE”]</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">poll_interval_ms</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>1000</td>
       <td> </td>
     </tr>
   </tbody>
@@ -438,6 +562,12 @@
   </thead>
   <tbody>
     <tr>
+      <td><code class="language-plaintext highlighter-rouge">tickets</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>.tickets</td>
+      <td> </td>
+    </tr>
+    <tr>
       <td><code class="language-plaintext highlighter-rouge">projects</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">string</code></td>
       <td>.</td>
@@ -450,10 +580,10 @@
       <td> </td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">tickets</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">worktrees</code></td>
       <td><code class="language-plaintext highlighter-rouge">string</code></td>
-      <td>.tickets</td>
-      <td> </td>
+      <td>-</td>
+      <td>Base directory for per-ticket worktrees (default: ~/.operator/worktrees)</td>
     </tr>
   </tbody>
 </table>
@@ -473,27 +603,27 @@
   </thead>
   <tbody>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">completed_history_hours</code> *</td>
-      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
-      <td>24</td>
-      <td> </td>
-    </tr>
-    <tr>
-      <td><code class="language-plaintext highlighter-rouge">panel_names</code></td>
-      <td>→ <code class="language-plaintext highlighter-rouge">PanelNamesConfig</code></td>
-      <td>-</td>
-      <td> </td>
-    </tr>
-    <tr>
       <td><code class="language-plaintext highlighter-rouge">refresh_rate_ms</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">integer</code></td>
       <td>250</td>
       <td> </td>
     </tr>
     <tr>
+      <td><code class="language-plaintext highlighter-rouge">completed_history_hours</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>24</td>
+      <td> </td>
+    </tr>
+    <tr>
       <td><code class="language-plaintext highlighter-rouge">summary_max_length</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">integer</code></td>
       <td>40</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">panel_names</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">PanelNamesConfig</code></td>
+      <td>-</td>
       <td> </td>
     </tr>
   </tbody>
@@ -526,16 +656,16 @@
       <td> </td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">docker</code></td>
-      <td>→ <code class="language-plaintext highlighter-rouge">DockerConfig</code></td>
-      <td>-</td>
-      <td>Docker execution configuration</td>
-    </tr>
-    <tr>
       <td><code class="language-plaintext highlighter-rouge">launch_delay_ms</code> *</td>
       <td><code class="language-plaintext highlighter-rouge">integer</code></td>
       <td>2000</td>
       <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">docker</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">DockerConfig</code></td>
+      <td>-</td>
+      <td>Docker execution configuration</td>
     </tr>
     <tr>
       <td><code class="language-plaintext highlighter-rouge">yolo</code></td>
@@ -561,10 +691,10 @@
   </thead>
   <tbody>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">active_collection</code></td>
-      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td><code class="language-plaintext highlighter-rouge">preset</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">CollectionPreset</code></td>
       <td>-</td>
-      <td>Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection</td>
+      <td>Named preset for issue type collection Options: simple, dev_kanban, devops_kanban, custom</td>
     </tr>
     <tr>
       <td><code class="language-plaintext highlighter-rouge">collection</code></td>
@@ -573,10 +703,10 @@
       <td>Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV</td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">preset</code></td>
-      <td>→ <code class="language-plaintext highlighter-rouge">CollectionPreset</code></td>
+      <td><code class="language-plaintext highlighter-rouge">active_collection</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
       <td>-</td>
-      <td>Named preset for issue type collection Options: simple, dev_kanban, devops_kanban, custom</td>
+      <td>Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection</td>
     </tr>
   </tbody>
 </table>
@@ -683,34 +813,10 @@
   </thead>
   <tbody>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">auto_start</code></td>
-      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
-      <td>false</td>
-      <td>Auto-start Backstage server when TUI launches</td>
-    </tr>
-    <tr>
-      <td><code class="language-plaintext highlighter-rouge">branding</code></td>
-      <td>→ <code class="language-plaintext highlighter-rouge">BrandingConfig</code></td>
-      <td>-</td>
-      <td>Branding and theming configuration</td>
-    </tr>
-    <tr>
-      <td><code class="language-plaintext highlighter-rouge">branding_subpath</code></td>
-      <td><code class="language-plaintext highlighter-rouge">string</code></td>
-      <td>branding</td>
-      <td>Subdirectory within backstage path for branding customization</td>
-    </tr>
-    <tr>
       <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
       <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
       <td>true</td>
       <td>Whether Backstage integration is enabled</td>
-    </tr>
-    <tr>
-      <td><code class="language-plaintext highlighter-rouge">local_binary_path</code></td>
-      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
-      <td>-</td>
-      <td>Optional local path to backstage-server binary If set, this is used instead of downloading from release_url</td>
     </tr>
     <tr>
       <td><code class="language-plaintext highlighter-rouge">port</code></td>
@@ -719,16 +825,40 @@
       <td>Port for the Backstage server</td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">release_url</code></td>
-      <td><code class="language-plaintext highlighter-rouge">string</code></td>
-      <td>-</td>
-      <td>Base URL for downloading backstage-server binary</td>
+      <td><code class="language-plaintext highlighter-rouge">auto_start</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>false</td>
+      <td>Auto-start Backstage server when TUI launches</td>
     </tr>
     <tr>
       <td><code class="language-plaintext highlighter-rouge">subpath</code></td>
       <td><code class="language-plaintext highlighter-rouge">string</code></td>
       <td>backstage</td>
       <td>Subdirectory within state_path for Backstage installation</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">branding_subpath</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>branding</td>
+      <td>Subdirectory within backstage path for branding customization</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">release_url</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>-</td>
+      <td>Base URL for downloading backstage-server binary</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">local_binary_path</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>-</td>
+      <td>Optional local path to backstage-server binary If set, this is used instead of downloading from release_url</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">branding</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">BrandingConfig</code></td>
+      <td>-</td>
+      <td>Branding and theming configuration</td>
     </tr>
   </tbody>
 </table>
@@ -754,16 +884,16 @@
       <td>Detected CLI tools (populated on first startup)</td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">detection_complete</code></td>
-      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
-      <td>-</td>
-      <td>Whether detection has been completed</td>
-    </tr>
-    <tr>
       <td><code class="language-plaintext highlighter-rouge">providers</code></td>
       <td><code class="language-plaintext highlighter-rouge">array</code>[→ <code class="language-plaintext highlighter-rouge">LlmProvider</code>]</td>
       <td>-</td>
       <td>Available {tool, model} pairs for launching tickets Built from detected tools + their model aliases</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">detection_complete</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>-</td>
+      <td>Whether detection has been completed</td>
     </tr>
   </tbody>
 </table>
@@ -805,6 +935,7 @@
 <span class="n">tickets</span> <span class="o">=</span><span class="w"> </span><span class="s">".tickets"</span>
 <span class="n">projects</span> <span class="o">=</span><span class="w"> </span><span class="s">"."</span>
 <span class="n">state</span> <span class="o">=</span><span class="w"> </span><span class="s">".tickets/operator"</span>
+<span class="n">worktrees</span> <span class="o">=</span><span class="w"> </span><span class="s">"/Users/samuelvolin/.operator/worktrees"</span>
 
 <span class="k">[</span><span class="n">ui</span><span class="k">]</span>
 <span class="n">refresh_rate_ms</span> <span class="o">=</span><span class="w"> </span><span class="mi">250</span>
@@ -833,7 +964,7 @@
 <span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 
 <span class="k">[</span><span class="n">templates</span><span class="k">]</span>
-<span class="n">preset</span> <span class="o">=</span><span class="w"> </span><span class="s">"devops_kanban"</span>
+<span class="n">preset</span> <span class="o">=</span><span class="w"> </span><span class="s">"dev_kanban"</span>
 <span class="n">collection</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
 
 <span class="k">[</span><span class="n">api</span><span class="k">]</span>

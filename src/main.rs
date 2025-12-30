@@ -6,15 +6,18 @@ mod api;
 mod app;
 mod backstage;
 mod config;
+mod git;
 mod issuetypes;
 mod llm;
 mod logging;
 mod permissions;
 mod pr_config;
 mod projects;
+mod services;
 mod state;
 mod steps;
 mod templates;
+mod types;
 
 mod agents;
 mod docs_gen;
@@ -480,19 +483,20 @@ async fn cmd_alert(
 ) -> Result<()> {
     let queue = queue::Queue::new(config)?;
 
-    let ticket = queue.create_investigation(source, message, severity, project)?;
+    let ticket = queue.create_investigation(source.clone(), message, severity.clone(), project)?;
 
     println!("Created investigation ticket: {}", ticket.filename);
 
     // Send notification
-    if config.notifications.enabled && config.notifications.on_investigation_created {
-        notifications::send(
-            "Investigation Created",
-            &format!("{}-{}", ticket.ticket_type, ticket.id),
-            &ticket.summary,
-            config.notifications.sound,
-        )?;
-    }
+    let notification_service = notifications::NotificationService::from_config(config)?;
+    notification_service
+        .notify(notifications::NotificationEvent::InvestigationCreated {
+            source,
+            severity,
+            summary: ticket.summary.clone(),
+            ticket_id: ticket.id.clone(),
+        })
+        .await;
 
     Ok(())
 }
@@ -537,7 +541,8 @@ async fn cmd_create(
 
 fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
     use docs_gen::{
-        cli, config, issuetype, metadata, openapi, shortcuts, startup, taxonomy, DocGenerator,
+        cli, config, config_schema, issuetype, jira_api, metadata, openapi, schema_index,
+        shortcuts, startup, state_schema, taxonomy, DocGenerator,
     };
     use std::path::PathBuf;
 
@@ -575,9 +580,21 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
         Some("startup") => {
             vec![Box::new(startup::StartupDocGenerator)]
         }
+        Some("config-schema") => {
+            vec![Box::new(config_schema::ConfigSchemaDocGenerator)]
+        }
+        Some("state-schema") => {
+            vec![Box::new(state_schema::StateSchemaDocGenerator)]
+        }
+        Some("schema-index") => {
+            vec![Box::new(schema_index::SchemaIndexDocGenerator)]
+        }
+        Some("jira-api") => {
+            vec![Box::new(jira_api::JiraApiDocGenerator)]
+        }
         Some(other) => {
             println!(
-                "Unknown generator: {}. Use: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup",
+                "Unknown generator: {}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api",
                 other
             );
             return Ok(());
@@ -593,6 +610,10 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
                 Box::new(config::ConfigDocGenerator),
                 Box::new(openapi::OpenApiDocGenerator),
                 Box::new(startup::StartupDocGenerator),
+                Box::new(config_schema::ConfigSchemaDocGenerator),
+                Box::new(state_schema::StateSchemaDocGenerator),
+                Box::new(schema_index::SchemaIndexDocGenerator),
+                Box::new(jira_api::JiraApiDocGenerator),
             ]
         }
     };

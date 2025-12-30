@@ -12,6 +12,7 @@ import CategoryIcon from '@material-ui/icons/Category';
 import SearchIcon from '@material-ui/icons/Search';
 import AssignmentIcon from '@material-ui/icons/Assignment';
 import ExtensionIcon from '@material-ui/icons/Extension';
+import ViewColumnIcon from '@material-ui/icons/ViewColumn';
 // Tier icons
 import LayersIcon from '@material-ui/icons/Layers';           // Foundation
 import LibraryBooksIcon from '@material-ui/icons/LibraryBooks'; // Standards
@@ -130,6 +131,7 @@ export function Root({ children }: PropsWithChildren) {
               />
             </SidebarSubmenu>
           </SidebarItem>
+          <SidebarItem icon={ViewColumnIcon} to="/board" text="Board" />
           <SidebarItem icon={AssignmentIcon} to="/issuetypes" text="Issue Types">
             <SidebarSubmenu title="Issue Types">
               <SidebarSubmenuItem title="All Types" to="/issuetypes" />

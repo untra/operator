@@ -280,6 +280,40 @@ details[open] .nav-parent::before {
   background-color: var(--color-green-l3);
 }
 
+/* Navigation icons with light/dark mode support */
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+}
+
+.nav-icon img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+/* Light/dark icon swapping - show light by default */
+.nav-icon .icon-dark {
+  display: none;
+}
+
+.nav-icon .icon-light {
+  display: inline-block;
+}
+
+/* In dark mode, show dark icons and hide light icons */
+[data-theme="dark"] .nav-icon .icon-dark {
+  display: inline-block;
+}
+
+[data-theme="dark"] .nav-icon .icon-light {
+  display: none;
+}
+
 /* Downloads nav link - highlighted */
 .sidebar-nav .downloads-link {
   margin-top: 16px;
@@ -464,12 +498,9 @@ tr:hover {
 }
 
 #theme-toggle {
-  display: flex;
+  display: inline-block;
   align-items: center;
   justify-content: center;
-  width: 100px;
-  height: 40px;
-  padding: 0;
   color: var(--color-green-l1);
   border: none;
   border-radius: 4px;
@@ -479,7 +510,7 @@ tr:hover {
 }
 
 #theme-toggle:hover {
-  background-color: var(--color-green-l2);
+  color: var(--color-green-l2);
 }
 
 /* Show sun in dark mode, moon in light mode */

@@ -11,10 +11,12 @@ mod options;
 mod prompt;
 mod step_config;
 mod tmux_session;
+pub mod worktree_setup;
 
 #[cfg(test)]
 mod tests;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -28,6 +30,7 @@ use crate::state::State;
 pub use options::{LaunchOptions, RelaunchOptions};
 use prompt::generate_prompt;
 use tmux_session::{launch_in_tmux_with_options, launch_in_tmux_with_relaunch_options};
+use worktree_setup::setup_worktree_for_ticket;
 
 /// Session name prefix for operator-managed tmux sessions
 pub const SESSION_PREFIX: &str = "op-";
@@ -102,26 +105,36 @@ impl Launcher {
         ticket: &Ticket,
         options: LaunchOptions,
     ) -> Result<String> {
+        // Clone ticket so we can update worktree info
+        let mut ticket = ticket.clone();
+
         // Move ticket to in-progress
         let queue = Queue::new(&self.config)?;
-        queue.claim_ticket(ticket)?;
+        queue.claim_ticket(&ticket)?;
 
         // Get project path (use override if provided)
         let project_path = if let Some(ref override_project) = options.project_override {
-            self.get_project_path_for(override_project)?
+            PathBuf::from(self.get_project_path_for(override_project)?)
         } else {
-            self.get_project_path(ticket)?
+            PathBuf::from(self.get_project_path(&ticket)?)
         };
 
-        // Generate the initial prompt for the agent
-        let initial_prompt = generate_prompt(&self.config, ticket);
+        // Setup worktree for per-ticket isolation (if project is a git repo)
+        let working_dir = setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
+            .await
+            .context("Failed to setup worktree for ticket")?;
 
-        // Launch in tmux session
+        let working_dir_str = working_dir.to_string_lossy().to_string();
+
+        // Generate the initial prompt for the agent
+        let initial_prompt = generate_prompt(&self.config, &ticket);
+
+        // Launch in tmux session (using worktree as working directory)
         let session_name = launch_in_tmux_with_options(
             &self.config,
             &self.tmux,
-            ticket,
-            &project_path,
+            &ticket,
+            &working_dir_str,
             &initial_prompt,
             &options,
         )?;
@@ -153,6 +166,11 @@ impl Launcher {
         // Store session name in state for later recovery
         state.update_agent_session(&agent_id, &session_name)?;
 
+        // Store worktree path in state (if one was created)
+        if let Some(ref worktree_path) = ticket.worktree_path {
+            state.update_agent_worktree_path(&agent_id, worktree_path)?;
+        }
+
         // Set the current step in state
         if !ticket.step.is_empty() {
             state.update_agent_step(&agent_id, &ticket.step)?;
@@ -166,11 +184,18 @@ impl Launcher {
                 (false, true) => " [yolo]",
                 (false, false) => "",
             };
+            let worktree_suffix = if ticket.worktree_path.is_some() {
+                " [worktree]"
+            } else {
+                ""
+            };
+            // TODO: Migrate to NotificationService when Launcher has access to it
+            #[allow(deprecated)]
             notifications::send(
                 "Agent Started",
                 &format!(
-                    "{} - {} (tmux: {}){}",
-                    ticket.project, ticket.ticket_type, session_name, mode_suffix
+                    "{} - {} (tmux: {}){}{}",
+                    ticket.project, ticket.ticket_type, session_name, mode_suffix, worktree_suffix
                 ),
                 &ticket.summary,
                 self.config.notifications.sound,
@@ -185,18 +210,41 @@ impl Launcher {
     /// Used when a tmux session died but the ticket is still in progress.
     /// Can optionally resume from an existing Claude session ID.
     pub async fn relaunch(&self, ticket: &Ticket, options: RelaunchOptions) -> Result<String> {
-        // Get project path (ticket is already in in-progress)
-        let project_path = self.get_project_path(ticket)?;
+        // Clone ticket so we can update worktree info if needed
+        let mut ticket = ticket.clone();
+
+        // Get working directory (use existing worktree, or setup new one)
+        let working_dir = if let Some(ref worktree_path) = ticket.worktree_path {
+            let path = PathBuf::from(worktree_path);
+            if path.exists() {
+                // Reuse existing worktree
+                path
+            } else {
+                // Worktree was deleted, recreate it
+                let project_path = PathBuf::from(self.get_project_path(&ticket)?);
+                setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
+                    .await
+                    .context("Failed to recreate worktree for ticket")?
+            }
+        } else {
+            // No worktree yet, try to create one
+            let project_path = PathBuf::from(self.get_project_path(&ticket)?);
+            setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
+                .await
+                .context("Failed to setup worktree for ticket")?
+        };
+
+        let working_dir_str = working_dir.to_string_lossy().to_string();
 
         // Generate the initial prompt for the agent
-        let initial_prompt = generate_prompt(&self.config, ticket);
+        let initial_prompt = generate_prompt(&self.config, &ticket);
 
         // Launch in tmux session with resume support
         let session_name = launch_in_tmux_with_relaunch_options(
             &self.config,
             &self.tmux,
-            ticket,
-            &project_path,
+            &ticket,
+            &working_dir_str,
             &initial_prompt,
             &options,
         )?;
@@ -229,6 +277,11 @@ impl Launcher {
         // Store session name in state for later recovery
         state.update_agent_session(&agent_id, &session_name)?;
 
+        // Store worktree path in state (if one was created)
+        if let Some(ref worktree_path) = ticket.worktree_path {
+            state.update_agent_worktree_path(&agent_id, worktree_path)?;
+        }
+
         // Set the current step in state
         if !ticket.step.is_empty() {
             state.update_agent_step(&agent_id, &ticket.step)?;
@@ -241,11 +294,18 @@ impl Launcher {
             } else {
                 " [restarted]"
             };
+            let worktree_suffix = if ticket.worktree_path.is_some() {
+                " [worktree]"
+            } else {
+                ""
+            };
+            // TODO: Migrate to NotificationService when Launcher has access to it
+            #[allow(deprecated)]
             notifications::send(
                 "Agent Relaunched",
                 &format!(
-                    "{} - {} (tmux: {}){}",
-                    ticket.project, ticket.ticket_type, session_name, mode_suffix
+                    "{} - {} (tmux: {}){}{}",
+                    ticket.project, ticket.ticket_type, session_name, mode_suffix, worktree_suffix
                 ),
                 &ticket.summary,
                 self.config.notifications.sound,

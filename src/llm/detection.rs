@@ -23,6 +23,7 @@ pub fn detect_all_tools() -> LlmToolsConfig {
                     tool: tool.name.clone(),
                     model: model.clone(),
                     display_name: Some(format!("{} {}", config.display_name(), capitalize(model))),
+                    ..Default::default()
                 });
             }
             detected.push(tool);

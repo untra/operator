@@ -5,7 +5,7 @@
  * Fetches data from the Operator REST API.
  */
 
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardBody, Flex, Text, Box } from '@backstage/ui';
 import { Progress } from '@backstage/core-components';
 import {
@@ -17,18 +17,8 @@ import {
   RiLightbulbLine,
   RiSearchLine,
 } from '@remixicon/react';
-
-interface QueueStatus {
-  queued: number;
-  inProgress: number;
-  completed: number;
-  byPriority: {
-    inv: number;
-    fix: number;
-    feat: number;
-    spike: number;
-  };
-}
+import { useQueueStatusQuery } from '../../../api/queries';
+import { ErrorState } from '../../common/ErrorState';
 
 const priorityConfig = {
   inv: { label: 'Investigation', icon: RiAlertLine, color: '#E05D44' },
@@ -91,44 +81,9 @@ function StatusRow({ icon, label, count, color }: StatusRowProps) {
 }
 
 export function QueueStatusCard() {
-  const [status, setStatus] = useState<QueueStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: status, isLoading, error, refetch } = useQueueStatusQuery();
 
-  useEffect(() => {
-    async function fetchStatus() {
-      try {
-        const response = await fetch('/api/proxy/operator/queue/status');
-        if (!response.ok) {
-          throw new Error('Failed to fetch queue status');
-        }
-        const data = await response.json();
-        setStatus(data);
-      } catch (err) {
-        // Use mock data for now if API unavailable
-        setStatus({
-          queued: 5,
-          inProgress: 2,
-          completed: 12,
-          byPriority: {
-            inv: 1,
-            fix: 2,
-            feat: 3,
-            spike: 1,
-          },
-        });
-        setError(null); // Clear error, using mock data
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardBody>
@@ -141,15 +96,21 @@ export function QueueStatusCard() {
     );
   }
 
-  if (error && !status) {
+  if (error) {
     return (
       <Card>
         <CardBody>
           <Flex direction="column" gap="3" p="2">
-            <Text variant="title-small">Queue Status</Text>
-            <Text variant="body-small" color="secondary">
-              Unable to load queue status
-            </Text>
+            <Flex align="center" justify="between">
+              <Text variant="title-small">Queue Status</Text>
+              <RiListCheck2 size={20} color="var(--bui-color-text-secondary)" />
+            </Flex>
+            <ErrorState
+              title="Failed to load"
+              message="Unable to load queue status"
+              onRetry={() => refetch()}
+              compact
+            />
           </Flex>
         </CardBody>
       </Card>
@@ -175,27 +136,33 @@ export function QueueStatusCard() {
             <StatusRow
               icon={<RiTimeLine size={18} color="#E9A820" />}
               label="In Progress"
-              count={status?.inProgress || 0}
+              count={status?.in_progress || 0}
               color="#E9A82020"
             />
             <StatusRow
+              icon={<RiTimeLine size={18} color="#9966AA" />}
+              label="Awaiting"
+              count={status?.awaiting || 0}
+              color="#9966AA20"
+            />
+            <StatusRow
               icon={<RiCheckDoubleLine size={18} color="#66AA99" />}
-              label="Completed Today"
+              label="Completed"
               count={status?.completed || 0}
               color="#66AA9920"
             />
           </Flex>
 
-          {/* Priority breakdown */}
+          {/* Type breakdown */}
           <Flex direction="column" gap="2" style={{ marginTop: 8 }}>
             <Text variant="body-small" color="secondary">
-              By Priority
+              By Type
             </Text>
             <Flex gap="3" style={{ flexWrap: 'wrap' }}>
-              <PriorityBadge type="inv" count={status?.byPriority.inv || 0} />
-              <PriorityBadge type="fix" count={status?.byPriority.fix || 0} />
-              <PriorityBadge type="feat" count={status?.byPriority.feat || 0} />
-              <PriorityBadge type="spike" count={status?.byPriority.spike || 0} />
+              <PriorityBadge type="inv" count={status?.by_type.inv || 0} />
+              <PriorityBadge type="fix" count={status?.by_type.fix || 0} />
+              <PriorityBadge type="feat" count={status?.by_type.feat || 0} />
+              <PriorityBadge type="spike" count={status?.by_type.spike || 0} />
             </Flex>
           </Flex>
         </Flex>

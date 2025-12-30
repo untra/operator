@@ -1,0 +1,12 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["shared/types.ts"],
+  "out": "docs/typescript",
+  "name": "Operator TypeScript Types",
+  "readme": "none",
+  "githubPages": false,
+  "hideGenerator": true,
+  "navigationLinks": {
+    "Back to Docs": "/schemas/"
+  }
+}

@@ -767,8 +767,9 @@
           "prompt": {
             "type": "string"
           },
-          "requires_review": {
-            "type": "boolean"
+          "review_type": {
+            "type": "string",
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
           }
         }
       },
@@ -988,7 +989,7 @@
           "prompt",
           "outputs",
           "allowed_tools",
-          "requires_review",
+          "review_type",
           "permission_mode"
         ],
         "properties": {
@@ -1025,8 +1026,9 @@
           "prompt": {
             "type": "string"
           },
-          "requires_review": {
-            "type": "boolean"
+          "review_type": {
+            "type": "string",
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
           }
         }
       },
@@ -1136,11 +1138,12 @@
               "null"
             ]
           },
-          "requires_review": {
+          "review_type": {
             "type": [
-              "boolean",
+              "string",
               "null"
-            ]
+            ],
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
           }
         }
       }

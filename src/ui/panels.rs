@@ -127,18 +127,21 @@ impl AgentsPanel {
             .agents
             .iter()
             .map(|a| {
-                let status_icon = match a.status.as_str() {
-                    "running" => "▶",
-                    "awaiting_input" => "⏸",
-                    "completing" => "✓",
-                    _ => "?",
-                };
-
-                let status_color = match a.status.as_str() {
-                    "running" => Color::Green,
-                    "awaiting_input" => Color::Yellow,
-                    "completing" => Color::Cyan,
-                    _ => Color::Gray,
+                // Check review state first for awaiting_input agents
+                let (status_icon, status_color) = if a.status == "awaiting_input" {
+                    match a.review_state.as_deref() {
+                        Some("pending_plan") => ("📋", Color::Yellow), // Plan review
+                        Some("pending_visual") => ("👁", Color::Magenta), // Visual review
+                        Some("pending_pr_creation") => ("🔄", Color::Blue), // Creating PR
+                        Some("pending_pr_merge") => ("🔗", Color::Cyan), // Awaiting merge
+                        _ => ("⏸", Color::Yellow),                     // Standard awaiting
+                    }
+                } else {
+                    match a.status.as_str() {
+                        "running" => ("▶", Color::Green),
+                        "completing" => ("✓", Color::Cyan),
+                        _ => ("?", Color::Gray),
+                    }
                 };
 
                 // Tool indicator (A=Anthropic/Claude, G=Gemini, O=OpenAI/Codex)
@@ -235,7 +238,7 @@ impl AgentsPanel {
                     Span::styled(step_display, Style::default().fg(Color::Cyan)),
                 ]);
 
-                let lines = vec![
+                let mut lines = vec![
                     Line::from(line1_spans),
                     Line::from(vec![
                         Span::raw("  "),
@@ -247,6 +250,36 @@ impl AgentsPanel {
                         Span::styled(elapsed_display, Style::default().fg(Color::DarkGray)),
                     ]),
                 ];
+
+                // Add review hint line for agents awaiting review
+                if a.status == "awaiting_input" {
+                    let hint = match a.review_state.as_deref() {
+                        Some("pending_plan") => Some("[a]pprove [r]eject plan"),
+                        Some("pending_visual") => Some("[a]pprove [r]eject visual"),
+                        Some("pending_pr_creation") => Some("Creating PR..."),
+                        Some("pending_pr_merge") => {
+                            if a.pr_url.is_some() {
+                                // PR URL shown elsewhere
+                                None
+                            } else {
+                                Some("Waiting for PR merge")
+                            }
+                        }
+                        _ => None, // No hint for standard awaiting
+                    };
+
+                    if let Some(hint_text) = hint {
+                        lines.push(Line::from(vec![
+                            Span::raw("  "),
+                            Span::styled(
+                                hint_text,
+                                Style::default()
+                                    .fg(Color::DarkGray)
+                                    .add_modifier(Modifier::ITALIC),
+                            ),
+                        ]));
+                    }
+                }
 
                 ListItem::new(lines)
             })
@@ -475,6 +508,33 @@ pub struct StatusBar {
 }
 
 impl StatusBar {
+    /// Build keyboard hints based on available terminal width
+    fn build_hints(width: u16) -> Span<'static> {
+        // Full: all hints (requires ~120 chars)
+        let full = "[Q]ueue [L]aunch [C]reate Pro[J]ects [K]anban [P]ause [R]esume [A]gents [S]ync [V]iew [?]Help [q]uit";
+        // Medium: abbreviated hints (requires ~100 chars)
+        let medium = "[Q] [L]aunch [C]reate [K]anban [P]/[R] [S]ync [V]iew [?] [q]";
+        // Short: essential hints only (requires ~80 chars)
+        let short = "[L]aunch [C]reate [S]ync [V] [?] [q]";
+        // Minimal: just help
+        let minimal = "[?]Help";
+
+        let hint_text = if width >= 120 {
+            full
+        } else if width >= 100 {
+            medium
+        } else if width >= 80 {
+            short
+        } else {
+            minimal
+        };
+
+        Span::styled(
+            format!("  {}", hint_text),
+            Style::default().fg(Color::DarkGray),
+        )
+    }
+
     pub fn render(&self, frame: &mut Frame, area: Rect) {
         // Exit confirmation mode - show only the exit message
         if self.exit_confirmation_mode {
@@ -525,10 +585,7 @@ impl StatusBar {
             _ => Span::styled("  [W]eb ○", Style::default().fg(Color::White)),
         };
 
-        let help = Span::styled(
-            "  [Q]ueue [L]aunch [C]reate Pro[J]ects [P]ause [R]esume [A]gents [S]ync [V]iew [?]Help [q]uit",
-            Style::default().fg(Color::DarkGray),
-        );
+        let help = Self::build_hints(area.width);
 
         let content = Line::from(vec![status, agents, web_indicator, help]);
 
@@ -661,5 +718,70 @@ mod tests {
                 input, expected, result
             );
         }
+    }
+
+    #[test]
+    fn test_build_hints_full_width() {
+        let hints = StatusBar::build_hints(120);
+        let content = hints.content;
+        assert!(
+            content.contains("[K]anban"),
+            "Full width should include [K]anban"
+        );
+        assert!(
+            content.contains("[Q]ueue"),
+            "Full width should include [Q]ueue"
+        );
+        assert!(
+            content.contains("[?]Help"),
+            "Full width should include [?]Help"
+        );
+    }
+
+    #[test]
+    fn test_build_hints_medium_width() {
+        let hints = StatusBar::build_hints(100);
+        let content = hints.content;
+        assert!(
+            content.contains("[K]anban"),
+            "Medium width should include [K]anban"
+        );
+        assert!(
+            content.contains("[S]ync"),
+            "Medium width should include [S]ync"
+        );
+    }
+
+    #[test]
+    fn test_build_hints_short_width() {
+        let hints = StatusBar::build_hints(80);
+        let content = hints.content;
+        // Short width should NOT include [K]anban
+        assert!(
+            !content.contains("[K]anban"),
+            "Short width should NOT include [K]anban"
+        );
+        assert!(
+            content.contains("[S]ync"),
+            "Short width should include [S]ync"
+        );
+        assert!(
+            content.contains("[L]aunch"),
+            "Short width should include [L]aunch"
+        );
+    }
+
+    #[test]
+    fn test_build_hints_minimal_width() {
+        let hints = StatusBar::build_hints(60);
+        let content = hints.content;
+        assert!(
+            content.contains("[?]Help"),
+            "Minimal width should include [?]Help"
+        );
+        assert!(
+            !content.contains("[S]ync"),
+            "Minimal width should NOT include [S]ync"
+        );
     }
 }

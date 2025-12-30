@@ -27,6 +27,8 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `P/p` | Pause queue processing | Dashboard |
 | `R/r` | Resume queue processing | Dashboard |
 | `S` | Manual sync (rate limits + sessions) | Dashboard |
+| `Y/y` | Approve review (agents panel) | Dashboard |
+| `X/x` | Reject review (agents panel) | Dashboard |
 | `W/w` | Toggle Backstage server | Dashboard |
 | `V/v` | Show session preview | Dashboard |
 | `C` | Create new ticket | Dashboard |
@@ -36,13 +38,13 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `PgUp` | Page up | Session Preview |
 | `PgDn` | Page down | Session Preview |
 | `Esc/q` | Close preview | Session Preview |
-| `Y/y` | Launch agent | Launch Dialog |
+| `L/l` | Launch agent | Launch Dialog |
 | `V/v` | View ticket ($VISUAL or open) | Launch Dialog |
 | `E/e` | Edit ticket ($EDITOR) | Launch Dialog |
 | `N/n` | Cancel | Launch Dialog |
 | `M/m` | Cycle provider/model | Launch Dialog |
 | `D/d` | Toggle Docker mode | Launch Dialog |
-| `A/a` | Toggle Auto-accept (YOLO) | Launch Dialog |
+| `Y/y` | Toggle Auto-accept (YOLO) | Launch Dialog |
 
 ## Dashboard
 
@@ -75,6 +77,8 @@ These shortcuts are available in the main dashboard view.
 | `P/p` | Pause queue processing |
 | `R/r` | Resume queue processing |
 | `S` | Manual sync (rate limits + sessions) |
+| `Y/y` | Approve review (agents panel) |
+| `X/x` | Reject review (agents panel) |
 | `W/w` | Toggle Backstage server |
 | `V/v` | Show session preview |
 
@@ -112,11 +116,11 @@ These shortcuts are available in the ticket launch confirmation dialog.
 
 | Key | Action |
 | --- | --- |
-| `Y/y` | Launch agent |
+| `L/l` | Launch agent |
 | `V/v` | View ticket ($VISUAL or open) |
 | `E/e` | Edit ticket ($EDITOR) |
 | `N/n` | Cancel |
 | `M/m` | Cycle provider/model |
 | `D/d` | Toggle Docker mode |
-| `A/a` | Toggle Auto-accept (YOLO) |
+| `Y/y` | Toggle Auto-accept (YOLO) |
 

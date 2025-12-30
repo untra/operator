@@ -3,15 +3,18 @@
 use anyhow::{Context, Result};
 use chrono::Local;
 use regex::Regex;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use ts_rs::TS;
 
 use crate::templates::{schema::TemplateSchema, TemplateType};
 
 /// LLM task metadata for delegate mode integration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 pub struct LlmTask {
     /// LLM task ID (e.g., Claude delegate mode task UUID)
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -41,6 +44,16 @@ pub struct Ticket {
     pub sessions: HashMap<String, String>,
     /// LLM task metadata for delegate mode integration
     pub llm_task: LlmTask,
+    /// Path to the git worktree for this ticket (per-ticket isolation)
+    pub worktree_path: Option<String>,
+    /// Git branch name for this ticket
+    pub branch: Option<String>,
+    /// External issue ID from kanban provider (e.g., "PROJ-123" for Jira, "ENG-456" for Linear)
+    pub external_id: Option<String>,
+    /// Full URL to the issue in the external provider's web UI
+    pub external_url: Option<String>,
+    /// Provider name for the external issue (e.g., "jira", "linear")
+    pub external_provider: Option<String>,
 }
 
 impl Ticket {
@@ -58,44 +71,80 @@ impl Ticket {
         let (timestamp, ticket_type, project) = parse_filename(&filename)?;
 
         // Try to extract metadata from YAML frontmatter first, fall back to legacy regex parsing
-        let (id, priority, status, step, summary, sessions, llm_task) =
-            if let Some((frontmatter, sessions, llm_task, body)) = extract_frontmatter(&content) {
-                let id = frontmatter
-                    .get("id")
-                    .cloned()
-                    .unwrap_or_else(|| format!("{}-{}", ticket_type, timestamp.replace('-', "")));
-                let priority = frontmatter
-                    .get("priority")
-                    .cloned()
-                    .unwrap_or_else(|| "P2-medium".to_string());
-                let status = frontmatter
-                    .get("status")
-                    .cloned()
-                    .unwrap_or_else(|| "queued".to_string());
-                let step = frontmatter.get("step").cloned().unwrap_or_default();
-                // Extract summary from body (after frontmatter)
-                let summary = extract_summary(body);
-                (id, priority, status, step, summary, sessions, llm_task)
-            } else {
-                // Legacy parsing using regex for inline metadata
-                let id = extract_field(&content, "ID")
-                    .unwrap_or_else(|| format!("{}-{}", ticket_type, timestamp.replace('-', "")));
-                let priority =
-                    extract_field(&content, "Priority").unwrap_or_else(|| "P2-medium".to_string());
-                let status =
-                    extract_field(&content, "Status").unwrap_or_else(|| "queued".to_string());
-                let step = extract_field(&content, "Step").unwrap_or_default();
-                let summary = extract_summary(&content);
-                (
-                    id,
-                    priority,
-                    status,
-                    step,
-                    summary,
-                    HashMap::new(),
-                    LlmTask::default(),
-                )
-            };
+        let (
+            id,
+            priority,
+            status,
+            step,
+            summary,
+            sessions,
+            llm_task,
+            worktree_path,
+            branch,
+            external_id,
+            external_url,
+            external_provider,
+        ) = if let Some((frontmatter, sessions, llm_task, body)) = extract_frontmatter(&content) {
+            let id = frontmatter
+                .get("id")
+                .cloned()
+                .unwrap_or_else(|| format!("{}-{}", ticket_type, timestamp.replace('-', "")));
+            let priority = frontmatter
+                .get("priority")
+                .cloned()
+                .unwrap_or_else(|| "P2-medium".to_string());
+            let status = frontmatter
+                .get("status")
+                .cloned()
+                .unwrap_or_else(|| "queued".to_string());
+            let step = frontmatter.get("step").cloned().unwrap_or_default();
+            // Extract worktree fields
+            let worktree_path = frontmatter.get("worktree_path").cloned();
+            let branch = frontmatter.get("branch").cloned();
+            // Extract external kanban provider fields
+            let external_id = frontmatter.get("external_id").cloned();
+            let external_url = frontmatter.get("external_url").cloned();
+            let external_provider = frontmatter.get("external_provider").cloned();
+            // Extract summary from body (after frontmatter)
+            let summary = extract_summary(body);
+            (
+                id,
+                priority,
+                status,
+                step,
+                summary,
+                sessions,
+                llm_task,
+                worktree_path,
+                branch,
+                external_id,
+                external_url,
+                external_provider,
+            )
+        } else {
+            // Legacy parsing using regex for inline metadata
+            let id = extract_field(&content, "ID")
+                .unwrap_or_else(|| format!("{}-{}", ticket_type, timestamp.replace('-', "")));
+            let priority =
+                extract_field(&content, "Priority").unwrap_or_else(|| "P2-medium".to_string());
+            let status = extract_field(&content, "Status").unwrap_or_else(|| "queued".to_string());
+            let step = extract_field(&content, "Step").unwrap_or_default();
+            let summary = extract_summary(&content);
+            (
+                id,
+                priority,
+                status,
+                step,
+                summary,
+                HashMap::new(),
+                LlmTask::default(),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+        };
 
         Ok(Self {
             filename,
@@ -111,6 +160,11 @@ impl Ticket {
             content,
             sessions,
             llm_task,
+            worktree_path,
+            branch,
+            external_id,
+            external_url,
+            external_provider,
         })
     }
 
@@ -201,6 +255,11 @@ impl Ticket {
                 "step" => self.step = value.to_string(),
                 "status" => self.status = value.to_string(),
                 "priority" => self.priority = value.to_string(),
+                "worktree_path" => self.worktree_path = Some(value.to_string()),
+                "branch" => self.branch = Some(value.to_string()),
+                "external_id" => self.external_id = Some(value.to_string()),
+                "external_url" => self.external_url = Some(value.to_string()),
+                "external_provider" => self.external_provider = Some(value.to_string()),
                 _ => {}
             }
 
@@ -281,7 +340,7 @@ impl Ticket {
     /// Check if the current step requires review before advancing
     pub fn step_requires_review(&self) -> bool {
         self.current_step_schema()
-            .map(|s| s.requires_review)
+            .map(|s| s.requires_review())
             .unwrap_or(false)
     }
 
@@ -313,6 +372,23 @@ impl Ticket {
     pub fn set_llm_task_blocked_by(&mut self, blocked_by: Vec<String>) -> Result<()> {
         self.llm_task.blocked_by = blocked_by;
         self.save_llm_task_to_frontmatter()
+    }
+
+    /// Set the worktree path and save to frontmatter
+    pub fn set_worktree_path(&mut self, path: &str) -> Result<()> {
+        self.worktree_path = Some(path.to_string());
+        self.update_field("worktree_path", path)
+    }
+
+    /// Set the branch name and save to frontmatter
+    pub fn set_branch(&mut self, branch: &str) -> Result<()> {
+        self.branch = Some(branch.to_string());
+        self.update_field("branch", branch)
+    }
+
+    /// Check if this ticket has a worktree
+    pub fn has_worktree(&self) -> bool {
+        self.worktree_path.is_some()
     }
 
     /// Save the LLM task to the ticket frontmatter

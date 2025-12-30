@@ -208,6 +208,11 @@ mod tests {
             content: "# Feature Description\n\nThis is the feature content.".to_string(),
             sessions: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
         }
     }
 
@@ -247,6 +252,11 @@ mod tests {
                 tickets: temp_dir.path().to_string_lossy().to_string(),
                 projects: temp_dir.path().to_string_lossy().to_string(),
                 state: temp_dir.path().to_string_lossy().to_string(),
+                worktrees: temp_dir
+                    .path()
+                    .join("worktrees")
+                    .to_string_lossy()
+                    .to_string(),
             },
             ..Default::default()
         };
@@ -272,6 +282,11 @@ mod tests {
                 tickets: temp_dir.path().to_string_lossy().to_string(),
                 projects: temp_dir.path().to_string_lossy().to_string(),
                 state: temp_dir.path().to_string_lossy().to_string(),
+                worktrees: temp_dir
+                    .path()
+                    .join("worktrees")
+                    .to_string_lossy()
+                    .to_string(),
             },
             ..Default::default()
         };

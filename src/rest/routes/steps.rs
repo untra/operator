@@ -9,7 +9,7 @@ use crate::issuetypes::schema::IssueTypeSource;
 use crate::rest::dto::{StepResponse, UpdateStepRequest};
 use crate::rest::error::{ApiError, ErrorResponse};
 use crate::rest::state::ApiState;
-use crate::templates::schema::{PermissionMode, StepOutput};
+use crate::templates::schema::{PermissionMode, ReviewType, StepOutput};
 
 /// List all steps for an issue type
 #[utoipa::path(
@@ -143,8 +143,13 @@ pub async fn update(
     if let Some(allowed_tools) = request.allowed_tools {
         step.allowed_tools = allowed_tools;
     }
-    if let Some(requires_review) = request.requires_review {
-        step.requires_review = requires_review;
+    if let Some(review_type) = request.review_type {
+        step.review_type = match review_type.as_str() {
+            "plan" => ReviewType::Plan,
+            "visual" => ReviewType::Visual,
+            "pr" => ReviewType::Pr,
+            _ => ReviewType::None,
+        };
     }
     if let Some(next_step) = request.next_step {
         step.next_step = Some(next_step);

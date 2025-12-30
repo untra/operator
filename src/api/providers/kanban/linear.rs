@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{debug, warn};
 
-use super::{ExternalIssueType, KanbanProvider, ProjectInfo};
+use super::{ExternalIssue, ExternalIssueType, ExternalUser, KanbanProvider, ProjectInfo};
 use crate::api::error::ApiError;
 use crate::issuetypes::IssueType;
 
@@ -35,6 +35,22 @@ impl LinearProvider {
     pub fn from_env() -> Result<Self, ApiError> {
         match env::var("OPERATOR_LINEAR_API_KEY") {
             Ok(key) if !key.is_empty() => Ok(Self::new(key)),
+            _ => Err(ApiError::not_configured(PROVIDER_NAME)),
+        }
+    }
+
+    /// Create from config with workspace as key
+    ///
+    /// The workspace slug is passed for identification (it's the HashMap key in KanbanConfig).
+    /// The api_key is read from the environment variable specified in config.api_key_env.
+    pub fn from_config(
+        _workspace: &str,
+        config: &crate::config::LinearConfig,
+    ) -> Result<Self, ApiError> {
+        let api_key = env::var(&config.api_key_env).ok();
+
+        match api_key {
+            Some(key) if !key.is_empty() => Ok(Self::new(key)),
             _ => Err(ApiError::not_configured(PROVIDER_NAME)),
         }
     }
@@ -280,6 +296,41 @@ impl KanbanProvider for LinearProvider {
             }
             Err(e) => Err(e),
         }
+    }
+
+    async fn list_users(&self, _project_key: &str) -> Result<Vec<ExternalUser>, ApiError> {
+        // TODO: Implement Linear user listing
+        // GraphQL: query { team(id: $teamKey) { members { nodes { id name email avatarUrl } } } }
+        Err(ApiError::http(
+            PROVIDER_NAME,
+            501,
+            "list_users not yet implemented".to_string(),
+        ))
+    }
+
+    async fn list_statuses(&self, _project_key: &str) -> Result<Vec<String>, ApiError> {
+        // TODO: Implement Linear status listing
+        // GraphQL: query { team(id: $teamKey) { states { nodes { name position } } } }
+        Err(ApiError::http(
+            PROVIDER_NAME,
+            501,
+            "list_statuses not yet implemented".to_string(),
+        ))
+    }
+
+    async fn list_issues(
+        &self,
+        _project_key: &str,
+        _user_id: &str,
+        _statuses: &[String],
+    ) -> Result<Vec<ExternalIssue>, ApiError> {
+        // TODO: Implement Linear issue listing
+        // GraphQL: query { issues(filter: { team: {key: {eq: X}}, assignee: {id: {eq: Y}}, state: {name: {in: [...]}} }) { nodes { ... } } }
+        Err(ApiError::http(
+            PROVIDER_NAME,
+            501,
+            "list_issues not yet implemented".to_string(),
+        ))
     }
 }
 

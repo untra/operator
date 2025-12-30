@@ -19,6 +19,9 @@
 <loc>https://operator.untra.io/tickets/</loc>
 </url>
 <url>
+<loc>https://operator.untra.io/startup/</loc>
+</url>
+<url>
 <loc>https://operator.untra.io/downloads/</loc>
 </url>
 <url>
@@ -26,6 +29,9 @@
 </url>
 <url>
 <loc>https://operator.untra.io/llm-tools/</loc>
+</url>
+<url>
+<loc>https://operator.untra.io/architecture/</loc>
 </url>
 <url>
 <loc>https://operator.untra.io/getting-started/</loc>
@@ -40,9 +46,6 @@
 <loc>https://operator.untra.io/tmux/</loc>
 </url>
 <url>
-<loc>https://operator.untra.io/startup/</loc>
-</url>
-<url>
 <loc>https://operator.untra.io/schemas/issuetype/</loc>
 </url>
 <url>
@@ -50,5 +53,8 @@
 </url>
 <url>
 <loc>https://operator.untra.io/backstage/taxonomy/</loc>
+</url>
+<url>
+<loc>https://operator.untra.io/architecture/vibe-kanban-comparison/</loc>
 </url>
 </urlset>

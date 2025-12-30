@@ -1,0 +1,765 @@
+{
+  "$comment": "AUTO-GENERATED - DO NOT EDIT. Regenerate with: cargo run --bin generate_types",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "type": "object",
+  "properties": {
+    "projects": {
+      "description": "List of projects operator can assign work to",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "agents": {
+      "$ref": "#/$defs/AgentsConfig"
+    },
+    "notifications": {
+      "$ref": "#/$defs/NotificationsConfig"
+    },
+    "queue": {
+      "$ref": "#/$defs/QueueConfig"
+    },
+    "paths": {
+      "$ref": "#/$defs/PathsConfig"
+    },
+    "ui": {
+      "$ref": "#/$defs/UiConfig"
+    },
+    "launch": {
+      "$ref": "#/$defs/LaunchConfig"
+    },
+    "templates": {
+      "$ref": "#/$defs/TemplatesConfig"
+    },
+    "api": {
+      "$ref": "#/$defs/ApiConfig",
+      "default": {
+        "pr_check_interval_secs": 60,
+        "rate_limit_check_interval_secs": 300,
+        "rate_limit_warning_threshold": 0.20000000298023224
+      }
+    },
+    "logging": {
+      "$ref": "#/$defs/LoggingConfig",
+      "default": {
+        "level": "info",
+        "to_file": true
+      }
+    },
+    "tmux": {
+      "$ref": "#/$defs/TmuxConfig",
+      "default": {
+        "config_generated": false
+      }
+    },
+    "llm_tools": {
+      "$ref": "#/$defs/LlmToolsConfig",
+      "default": {
+        "detected": [],
+        "providers": [],
+        "detection_complete": false
+      }
+    },
+    "backstage": {
+      "$ref": "#/$defs/BackstageConfig",
+      "default": {
+        "enabled": true,
+        "port": 7007,
+        "auto_start": false,
+        "subpath": "backstage",
+        "branding_subpath": "branding",
+        "release_url": "https://github.com/untra/operator/releases/latest/download",
+        "local_binary_path": null,
+        "branding": {
+          "app_title": "Operator Portal",
+          "org_name": "Operator",
+          "logo_path": "logo.svg",
+          "colors": {
+            "primary": "#cc6c55",
+            "secondary": "#114145",
+            "accent": "#f4dbb7",
+            "warning": "#d46048",
+            "muted": "#8a4a3a"
+          }
+        }
+      }
+    },
+    "rest_api": {
+      "$ref": "#/$defs/RestApiConfig",
+      "default": {
+        "enabled": true,
+        "port": 7008,
+        "cors_origins": []
+      }
+    }
+  },
+  "required": [
+    "agents",
+    "notifications",
+    "queue",
+    "paths",
+    "ui",
+    "launch",
+    "templates"
+  ],
+  "$defs": {
+    "AgentsConfig": {
+      "type": "object",
+      "properties": {
+        "max_parallel": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "cores_reserved": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "health_check_interval": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "generation_timeout_secs": {
+          "description": "Timeout in seconds for each agent generation (default: 300 = 5 min)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 300
+        },
+        "sync_interval": {
+          "description": "Interval in seconds between ticket-session syncs (default: 60)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 60
+        },
+        "step_timeout": {
+          "description": "Maximum seconds a step can run before timing out (default: 1800 = 30 min)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 1800
+        },
+        "silence_threshold": {
+          "description": "Seconds of tmux silence before considering agent awaiting input (default: 30)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 30
+        }
+      },
+      "required": [
+        "max_parallel",
+        "cores_reserved",
+        "health_check_interval"
+      ]
+    },
+    "NotificationsConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "on_agent_start": {
+          "type": "boolean"
+        },
+        "on_agent_complete": {
+          "type": "boolean"
+        },
+        "on_agent_needs_input": {
+          "type": "boolean"
+        },
+        "on_pr_created": {
+          "type": "boolean"
+        },
+        "on_investigation_created": {
+          "type": "boolean"
+        },
+        "sound": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled",
+        "on_agent_start",
+        "on_agent_complete",
+        "on_agent_needs_input",
+        "on_pr_created",
+        "on_investigation_created",
+        "sound"
+      ]
+    },
+    "QueueConfig": {
+      "type": "object",
+      "properties": {
+        "auto_assign": {
+          "type": "boolean"
+        },
+        "priority_order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "poll_interval_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "auto_assign",
+        "priority_order",
+        "poll_interval_ms"
+      ]
+    },
+    "PathsConfig": {
+      "type": "object",
+      "properties": {
+        "tickets": {
+          "type": "string"
+        },
+        "projects": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tickets",
+        "projects",
+        "state"
+      ]
+    },
+    "UiConfig": {
+      "type": "object",
+      "properties": {
+        "refresh_rate_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "completed_history_hours": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "summary_max_length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "panel_names": {
+          "$ref": "#/$defs/PanelNamesConfig",
+          "default": {
+            "queue": "TODO QUEUE",
+            "agents": "DOING",
+            "awaiting": "AWAITING",
+            "completed": "DONE"
+          }
+        }
+      },
+      "required": [
+        "refresh_rate_ms",
+        "completed_history_hours",
+        "summary_max_length"
+      ]
+    },
+    "PanelNamesConfig": {
+      "type": "object",
+      "properties": {
+        "queue": {
+          "type": "string",
+          "default": "TODO QUEUE"
+        },
+        "agents": {
+          "type": "string",
+          "default": "DOING"
+        },
+        "awaiting": {
+          "type": "string",
+          "default": "AWAITING"
+        },
+        "completed": {
+          "type": "string",
+          "default": "DONE"
+        }
+      }
+    },
+    "LaunchConfig": {
+      "type": "object",
+      "properties": {
+        "confirm_autonomous": {
+          "type": "boolean"
+        },
+        "confirm_paired": {
+          "type": "boolean"
+        },
+        "launch_delay_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "docker": {
+          "description": "Docker execution configuration",
+          "$ref": "#/$defs/DockerConfig",
+          "default": {
+            "enabled": false,
+            "image": "",
+            "extra_args": [],
+            "mount_path": "/workspace",
+            "env_vars": []
+          }
+        },
+        "yolo": {
+          "description": "YOLO (auto-accept) mode configuration",
+          "$ref": "#/$defs/YoloConfig",
+          "default": {
+            "enabled": false
+          }
+        }
+      },
+      "required": [
+        "confirm_autonomous",
+        "confirm_paired",
+        "launch_delay_ms"
+      ]
+    },
+    "DockerConfig": {
+      "description": "Docker execution configuration for running agents in containers",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether docker mode option is available in launch dialog",
+          "type": "boolean",
+          "default": false
+        },
+        "image": {
+          "description": "Docker image to use (required if enabled)",
+          "type": "string",
+          "default": ""
+        },
+        "extra_args": {
+          "description": "Additional docker run arguments",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "mount_path": {
+          "description": "Container mount path for the project (default: /workspace)",
+          "type": "string",
+          "default": "/workspace"
+        },
+        "env_vars": {
+          "description": "Environment variables to pass through to the container",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    },
+    "YoloConfig": {
+      "description": "YOLO (auto-accept) mode configuration for fully autonomous execution",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether YOLO mode option is available in launch dialog",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "TemplatesConfig": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "description": "Named preset for issue type collection\nOptions: simple, dev_kanban, devops_kanban, custom",
+          "$ref": "#/$defs/CollectionPreset",
+          "default": "dev_kanban"
+        },
+        "collection": {
+          "description": "Custom issuetype collection (only used when preset = custom)\nList of issue type keys: TASK, FEAT, FIX, SPIKE, INV",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "active_collection": {
+          "description": "Active collection name (overrides preset if set)\nCan be a builtin preset name or a user-defined collection",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "CollectionPreset": {
+      "description": "Predefined issue type collections",
+      "oneOf": [
+        {
+          "description": "Simple tasks only: TASK",
+          "type": "string",
+          "const": "simple"
+        },
+        {
+          "description": "Developer kanban: TASK, FEAT, FIX",
+          "type": "string",
+          "const": "dev_kanban"
+        },
+        {
+          "description": "DevOps kanban: TASK, SPIKE, INV, FEAT, FIX",
+          "type": "string",
+          "const": "devops_kanban"
+        },
+        {
+          "description": "Custom collection (use the collection field)",
+          "type": "string",
+          "const": "custom"
+        }
+      ]
+    },
+    "ApiConfig": {
+      "description": "API integrations configuration",
+      "type": "object",
+      "properties": {
+        "pr_check_interval_secs": {
+          "description": "Interval in seconds between PR status checks (default: 60)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 60
+        },
+        "rate_limit_check_interval_secs": {
+          "description": "Interval in seconds between rate limit checks (default: 300)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 300
+        },
+        "rate_limit_warning_threshold": {
+          "description": "Show warning when rate limit remaining is below this percentage (default: 0.2)",
+          "type": "number",
+          "format": "float",
+          "default": 0.20000000298023224
+        }
+      }
+    },
+    "LoggingConfig": {
+      "description": "Logging configuration",
+      "type": "object",
+      "properties": {
+        "level": {
+          "description": "Log level filter (trace, debug, info, warn, error)",
+          "type": "string",
+          "default": "info"
+        },
+        "to_file": {
+          "description": "Whether to log to file in TUI mode (false = stderr for debugging)",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "TmuxConfig": {
+      "type": "object",
+      "properties": {
+        "config_generated": {
+          "description": "Whether custom tmux config has been generated",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "LlmToolsConfig": {
+      "description": "LLM CLI tools configuration",
+      "type": "object",
+      "properties": {
+        "detected": {
+          "description": "Detected CLI tools (populated on first startup)",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DetectedTool"
+          },
+          "default": []
+        },
+        "providers": {
+          "description": "Available {tool, model} pairs for launching tickets\nBuilt from detected tools + their model aliases",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LlmProvider"
+          },
+          "default": []
+        },
+        "detection_complete": {
+          "description": "Whether detection has been completed",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "DetectedTool": {
+      "description": "A detected CLI tool (e.g., claude binary)",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Tool name (e.g., \"claude\")",
+          "type": "string"
+        },
+        "path": {
+          "description": "Path to the binary",
+          "type": "string"
+        },
+        "version": {
+          "description": "Version string",
+          "type": "string"
+        },
+        "model_aliases": {
+          "description": "Available model aliases (e.g., [\"opus\", \"sonnet\", \"haiku\"])",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command_template": {
+          "description": "Command template with {{model}}, {{session_id}}, {{prompt_file}} placeholders",
+          "type": "string",
+          "default": ""
+        },
+        "capabilities": {
+          "description": "Tool capabilities",
+          "$ref": "#/$defs/ToolCapabilities",
+          "default": {
+            "supports_sessions": false,
+            "supports_headless": false
+          }
+        },
+        "yolo_flags": {
+          "description": "CLI flags for YOLO (auto-accept) mode",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "name",
+        "path",
+        "version",
+        "model_aliases"
+      ]
+    },
+    "ToolCapabilities": {
+      "description": "Tool capabilities",
+      "type": "object",
+      "properties": {
+        "supports_sessions": {
+          "description": "Whether the tool supports session continuity via UUID",
+          "type": "boolean",
+          "default": false
+        },
+        "supports_headless": {
+          "description": "Whether the tool can run in headless/non-interactive mode",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "LlmProvider": {
+      "description": "A {tool, model} pair that can be selected when launching tickets",
+      "type": "object",
+      "properties": {
+        "tool": {
+          "description": "CLI tool name (e.g., \"claude\")",
+          "type": "string"
+        },
+        "model": {
+          "description": "Model alias or name (e.g., \"opus\", \"sonnet\")",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Optional display name for UI (e.g., \"Claude Opus\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "tool",
+        "model"
+      ]
+    },
+    "BackstageConfig": {
+      "description": "Backstage integration configuration",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether Backstage integration is enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "port": {
+          "description": "Port for the Backstage server",
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": 7007
+        },
+        "auto_start": {
+          "description": "Auto-start Backstage server when TUI launches",
+          "type": "boolean",
+          "default": false
+        },
+        "subpath": {
+          "description": "Subdirectory within state_path for Backstage installation",
+          "type": "string",
+          "default": "backstage"
+        },
+        "branding_subpath": {
+          "description": "Subdirectory within backstage path for branding customization",
+          "type": "string",
+          "default": "branding"
+        },
+        "release_url": {
+          "description": "Base URL for downloading backstage-server binary",
+          "type": "string",
+          "default": "https://github.com/untra/operator/releases/latest/download"
+        },
+        "local_binary_path": {
+          "description": "Optional local path to backstage-server binary\nIf set, this is used instead of downloading from release_url",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "branding": {
+          "description": "Branding and theming configuration",
+          "$ref": "#/$defs/BrandingConfig",
+          "default": {
+            "app_title": "Operator Portal",
+            "org_name": "Operator",
+            "logo_path": "logo.svg",
+            "colors": {
+              "primary": "#cc6c55",
+              "secondary": "#114145",
+              "accent": "#f4dbb7",
+              "warning": "#d46048",
+              "muted": "#8a4a3a"
+            }
+          }
+        }
+      }
+    },
+    "BrandingConfig": {
+      "description": "Branding configuration for Backstage portal",
+      "type": "object",
+      "properties": {
+        "app_title": {
+          "description": "App title shown in header",
+          "type": "string",
+          "default": "Operator Portal"
+        },
+        "org_name": {
+          "description": "Organization name",
+          "type": "string",
+          "default": "Operator"
+        },
+        "logo_path": {
+          "description": "Path to logo SVG (relative to branding path)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "colors": {
+          "description": "Theme colors (uses Operator defaults if not set)",
+          "$ref": "#/$defs/ThemeColors",
+          "default": {
+            "primary": "#cc6c55",
+            "secondary": "#114145",
+            "accent": "#f4dbb7",
+            "warning": "#d46048",
+            "muted": "#8a4a3a"
+          }
+        }
+      }
+    },
+    "ThemeColors": {
+      "description": "Theme color configuration for Backstage\nDefault colors match Operator's tmux theme",
+      "type": "object",
+      "properties": {
+        "primary": {
+          "description": "Primary/accent color (default: salmon #cc6c55)",
+          "type": "string",
+          "default": "#cc6c55"
+        },
+        "secondary": {
+          "description": "Secondary color (default: dark teal #114145)",
+          "type": "string",
+          "default": "#114145"
+        },
+        "accent": {
+          "description": "Accent/highlight color (default: cream #f4dbb7)",
+          "type": "string",
+          "default": "#f4dbb7"
+        },
+        "warning": {
+          "description": "Warning/error color (default: coral #d46048)",
+          "type": "string",
+          "default": "#d46048"
+        },
+        "muted": {
+          "description": "Muted text color (default: darker salmon #8a4a3a)",
+          "type": "string",
+          "default": "#8a4a3a"
+        }
+      }
+    },
+    "RestApiConfig": {
+      "description": "REST API server configuration",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether the REST API is enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "port": {
+          "description": "Port for the REST API server",
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": 7008
+        },
+        "cors_origins": {
+          "description": "CORS allowed origins (empty = allow all)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    }
+  }
+}

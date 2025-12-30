@@ -1,0 +1,221 @@
+{
+  "$comment": "AUTO-GENERATED - DO NOT EDIT. Regenerate with: cargo run --bin generate_types",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "State",
+
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "State",
+  "type": "object",
+  "properties": {
+    "paused": {
+      "type": "boolean"
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AgentState"
+      }
+    },
+    "completed": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CompletedTicket"
+      }
+    }
+  },
+  "required": [
+    "paused",
+    "agents",
+    "completed"
+  ],
+  "$defs": {
+    "AgentState": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "ticket_id": {
+          "type": "string"
+        },
+        "ticket_type": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_activity": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paired": {
+          "type": "boolean"
+        },
+        "session_name": {
+          "description": "The tmux session name for this agent (for recovery)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "content_hash": {
+          "description": "Hash of the last captured pane content (for change detection)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "current_step": {
+          "description": "Current step in the ticket workflow (e.g., \"plan\", \"implement\", \"test\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "step_started_at": {
+          "description": "When the current step started (for timeout detection)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "default": null
+        },
+        "last_content_change": {
+          "description": "Last time content changed in the session (for hung detection)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "default": null
+        },
+        "pr_url": {
+          "description": "PR URL if created during \"pr\" step",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "pr_number": {
+          "description": "PR number for GitHub API tracking",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        },
+        "github_repo": {
+          "description": "GitHub repo in format \"owner/repo\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "pr_status": {
+          "description": "Last known PR status (\"open\", \"approved\", \"changes_requested\", \"merged\", \"closed\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "completed_steps": {
+          "description": "Completed steps for this ticket",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "llm_tool": {
+          "description": "LLM tool used (e.g., \"claude\", \"gemini\", \"codex\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "launch_mode": {
+          "description": "Launch mode: \"default\", \"yolo\", \"docker\", \"docker-yolo\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "ticket_id",
+        "ticket_type",
+        "project",
+        "status",
+        "started_at",
+        "last_activity",
+        "paired"
+      ]
+    },
+    "CompletedTicket": {
+      "type": "object",
+      "properties": {
+        "ticket_id": {
+          "type": "string"
+        },
+        "ticket_type": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "pr_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "output_tickets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "ticket_id",
+        "ticket_type",
+        "project",
+        "summary",
+        "completed_at",
+        "output_tickets"
+      ]
+    }
+  }
+}

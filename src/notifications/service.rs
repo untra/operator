@@ -152,24 +152,25 @@ mod tests {
 
     /// Create a minimal test config
     fn make_test_config() -> Config {
-        let mut config = Config::default();
-        config.notifications = NotificationsConfig {
-            enabled: true,
-            os: OsNotificationConfig {
+        Config {
+            notifications: NotificationsConfig {
                 enabled: true,
+                os: OsNotificationConfig {
+                    enabled: true,
+                    sound: false,
+                    events: vec![],
+                },
+                webhook: None,
+                webhooks: vec![],
+                on_agent_start: true,
+                on_agent_complete: true,
+                on_agent_needs_input: true,
+                on_pr_created: true,
+                on_investigation_created: true,
                 sound: false,
-                events: vec![],
             },
-            webhook: None,
-            webhooks: vec![],
-            on_agent_start: true,
-            on_agent_complete: true,
-            on_agent_needs_input: true,
-            on_pr_created: true,
-            on_investigation_created: true,
-            sound: false,
-        };
-        config
+            ..Default::default()
+        }
     }
 
     #[test]

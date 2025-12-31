@@ -15,11 +15,15 @@
     "**/dist/**",
     "**/__tests__/test-utils/**",
     "src/embedded-assets.ts",
-    "src/standalone.ts"
+    "src/standalone.ts",
+    "packages/app/src/test/setup.ts",
+    "packages/app/src/components/kanban/types.ts"
   ],
   "ignoreDependencies": [
     "@backstage/*",
-    "raw-loader"
+    "raw-loader",
+    "@happy-dom/global-registrator",
+    "happy-dom"
   ],
   "ignoreExportsUsedInFile": true
 }

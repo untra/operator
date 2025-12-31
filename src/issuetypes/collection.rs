@@ -1,6 +1,23 @@
 //! Issue type collection definitions
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+
+/// Metadata about where a collection was synced from (e.g., Jira, Linear)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CollectionSyncSource {
+    /// Provider type (e.g., "jira", "linear", "github_projects")
+    pub provider: String,
+    /// Base URL of the provider instance
+    #[serde(default)]
+    pub base_url: Option<String>,
+    /// Project/board identifier in the external system
+    #[serde(default)]
+    pub project_id: Option<String>,
+    /// Last sync timestamp
+    #[serde(default)]
+    pub last_synced_at: Option<DateTime<Utc>>,
+}
 
 /// A named collection of issue types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,6 +33,9 @@ pub struct IssueTypeCollection {
     /// If empty, uses `types` order
     #[serde(default)]
     pub priority_order: Vec<String>,
+    /// Sync source metadata (if collection was synced from external provider)
+    #[serde(default)]
+    pub sync_source: Option<CollectionSyncSource>,
 }
 
 impl IssueTypeCollection {
@@ -26,7 +46,14 @@ impl IssueTypeCollection {
             description: description.into(),
             types: vec![],
             priority_order: vec![],
+            sync_source: None,
         }
+    }
+
+    /// Set the sync source for this collection
+    pub fn with_sync_source(mut self, source: CollectionSyncSource) -> Self {
+        self.sync_source = Some(source);
+        self
     }
 
     /// Add an issue type to the collection

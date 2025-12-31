@@ -177,4 +177,62 @@ mod tests {
         let server = RestApiServer::new(config, 8080);
         assert_eq!(server.port(), 8080);
     }
+
+    #[test]
+    fn test_server_double_start_error() {
+        let config = Config::default();
+        let server = RestApiServer::new(config, 7008);
+
+        // Simulate server already running by setting status
+        *server.status.lock().unwrap() = RestApiStatus::Running { port: 7008 };
+
+        let result = server.start();
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("already running"));
+    }
+
+    #[test]
+    fn test_server_status_transitions() {
+        let config = Config::default();
+        let server = RestApiServer::new(config, 7008);
+
+        // Initially stopped
+        assert_eq!(server.status(), RestApiStatus::Stopped);
+
+        // Manually set to starting
+        *server.status.lock().unwrap() = RestApiStatus::Starting;
+        assert!(!server.is_running());
+
+        // Manually set to running
+        *server.status.lock().unwrap() = RestApiStatus::Running { port: 7008 };
+        assert!(server.is_running());
+
+        // Manually set to stopping
+        *server.status.lock().unwrap() = RestApiStatus::Stopping;
+        assert!(!server.is_running());
+
+        // Error state
+        *server.status.lock().unwrap() = RestApiStatus::Error("test error".to_string());
+        assert!(!server.is_running());
+    }
+
+    #[test]
+    fn test_server_stop_clears_shutdown_tx() {
+        let config = Config::default();
+        let server = RestApiServer::new(config, 7008);
+
+        // Simulate a running server with a shutdown channel
+        let (tx, _rx) = tokio::sync::oneshot::channel();
+        *server.shutdown_tx.lock().unwrap() = Some(tx);
+        *server.status.lock().unwrap() = RestApiStatus::Running { port: 7008 };
+
+        server.stop();
+
+        // Status should be stopped
+        assert_eq!(server.status(), RestApiStatus::Stopped);
+        // Shutdown tx should be taken (None)
+        assert!(server.shutdown_tx.lock().unwrap().is_none());
+    }
 }

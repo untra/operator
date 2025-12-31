@@ -16,6 +16,7 @@ Operator provides both a TUI dashboard and CLI commands for queue management.
 | --- | --- |
 | `-c, --config` | Config file path |
 | `-d, --debug` | Enable debug logging |
+| `-w, --web` | Start with web view enabled |
 
 ## Commands
 

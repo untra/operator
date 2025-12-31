@@ -1,8 +1,19 @@
-//! Project discovery by scanning for LLM tool marker files (CLAUDE.md, GEMINI.md, CODEX.md)
+//! Project discovery by scanning for LLM tool marker files and git repositories.
+//!
+//! Supports two discovery modes:
+//! - **Marker-based**: Scan for CLAUDE.md, GEMINI.md, CODEX.md files
+//! - **Git-based**: Scan for .git directories and extract repo info
 
+#![allow(dead_code)] // Git discovery types for future integration
+
+use crate::types::pr::GitHubRepoInfo;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use ts_rs::TS;
 
 /// Marker files for each LLM tool
 pub const TOOL_MARKERS: &[(&str, &str)] = &[
@@ -10,6 +21,158 @@ pub const TOOL_MARKERS: &[(&str, &str)] = &[
     ("gemini", "GEMINI.md"),
     ("codex", "CODEX.md"),
 ];
+
+/// A discovered project with git and LLM tool information
+#[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
+#[ts(export)]
+pub struct DiscoveredProject {
+    /// Project name (directory name)
+    pub name: String,
+    /// Absolute path to project root
+    #[ts(type = "string")]
+    pub path: PathBuf,
+    /// LLM tools available (from marker files)
+    pub llm_tools: Vec<String>,
+    /// Git repository info (if .git exists)
+    pub git_info: Option<GitRepoInfo>,
+}
+
+/// Git repository information
+#[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
+#[ts(export)]
+pub struct GitRepoInfo {
+    /// Remote origin URL
+    pub remote_url: Option<String>,
+    /// Parsed GitHub info (if GitHub remote)
+    pub github_info: Option<GitHubRepoInfo>,
+    /// Default branch name
+    pub default_branch: String,
+    /// Whether repo has uncommitted changes
+    pub is_dirty: bool,
+}
+
+/// Discover projects by scanning for .git directories
+///
+/// Returns a list of discovered projects with git repo info and LLM tool availability.
+/// Projects are included if they have either a .git directory or LLM marker files.
+pub fn discover_projects_with_git(projects_path: &Path) -> Vec<DiscoveredProject> {
+    let mut projects = Vec::new();
+
+    if let Ok(entries) = fs::read_dir(projects_path) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+
+                // Skip hidden directories
+                if name.starts_with('.') {
+                    continue;
+                }
+
+                // Check for .git directory
+                let git_info = if path.join(".git").exists() {
+                    Some(extract_git_info(&path))
+                } else {
+                    None
+                };
+
+                // Check for LLM marker files
+                let llm_tools: Vec<String> = TOOL_MARKERS
+                    .iter()
+                    .filter(|(_, marker)| path.join(marker).exists())
+                    .map(|(tool, _)| tool.to_string())
+                    .collect();
+
+                // Include if has git OR has LLM markers
+                if git_info.is_some() || !llm_tools.is_empty() {
+                    projects.push(DiscoveredProject {
+                        name,
+                        path: path.clone(),
+                        llm_tools,
+                        git_info,
+                    });
+                }
+            }
+        }
+    }
+
+    projects.sort_by(|a, b| a.name.cmp(&b.name));
+    projects
+}
+
+/// Extract git repository information from a project path
+fn extract_git_info(path: &Path) -> GitRepoInfo {
+    // Get remote origin URL
+    let remote_url = Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(path)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+            } else {
+                None
+            }
+        });
+
+    // Parse GitHub info from remote URL
+    let github_info = remote_url
+        .as_ref()
+        .and_then(|url| GitHubRepoInfo::from_remote_url(url).ok());
+
+    // Detect default branch
+    let default_branch = detect_default_branch(path);
+
+    // Check for uncommitted changes
+    let is_dirty = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(path)
+        .output()
+        .map(|o| o.status.success() && !o.stdout.is_empty())
+        .unwrap_or(false);
+
+    GitRepoInfo {
+        remote_url,
+        github_info,
+        default_branch,
+        is_dirty,
+    }
+}
+
+/// Detect the default branch for a repository
+fn detect_default_branch(path: &Path) -> String {
+    // Try to read origin/HEAD symbolic ref
+    if let Ok(output) = Command::new("git")
+        .args(["symbolic-ref", "refs/remotes/origin/HEAD"])
+        .current_dir(path)
+        .output()
+    {
+        if output.status.success() {
+            let full_ref = String::from_utf8_lossy(&output.stdout);
+            if let Some(branch) = full_ref.trim().strip_prefix("refs/remotes/origin/") {
+                return branch.to_string();
+            }
+        }
+    }
+
+    // Fallback: check common default branch names
+    for branch in &["main", "master", "develop"] {
+        let check = Command::new("git")
+            .args(["rev-parse", "--verify", &format!("origin/{}", branch)])
+            .current_dir(path)
+            .output();
+        if check.map(|o| o.status.success()).unwrap_or(false) {
+            return branch.to_string();
+        }
+    }
+
+    // Final fallback
+    "main".to_string()
+}
 
 /// Discover projects by tool, scanning for tool-specific marker files
 ///
@@ -244,5 +407,158 @@ mod tests {
         // gemini and codex should be None (not even empty Vec)
         assert!(!by_tool.contains_key("gemini"));
         assert!(!by_tool.contains_key("codex"));
+    }
+
+    // Git discovery tests
+
+    #[test]
+    fn test_discover_projects_with_git_finds_git_repos() {
+        let temp = tempdir().unwrap();
+
+        // Create project with .git directory
+        let project = temp.path().join("my-project");
+        fs::create_dir(&project).unwrap();
+        fs::create_dir(project.join(".git")).unwrap();
+
+        let projects = discover_projects_with_git(temp.path());
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "my-project");
+        assert!(projects[0].git_info.is_some());
+    }
+
+    #[test]
+    fn test_discover_projects_with_git_includes_both_git_and_marker() {
+        let temp = tempdir().unwrap();
+
+        // Git-only project
+        let git_proj = temp.path().join("git-only");
+        fs::create_dir(&git_proj).unwrap();
+        fs::create_dir(git_proj.join(".git")).unwrap();
+
+        // Marker-only project
+        let marker_proj = temp.path().join("marker-only");
+        fs::create_dir(&marker_proj).unwrap();
+        File::create(marker_proj.join("CLAUDE.md")).unwrap();
+
+        // Both git and marker
+        let both_proj = temp.path().join("both");
+        fs::create_dir(&both_proj).unwrap();
+        fs::create_dir(both_proj.join(".git")).unwrap();
+        File::create(both_proj.join("CLAUDE.md")).unwrap();
+
+        let projects = discover_projects_with_git(temp.path());
+        assert_eq!(projects.len(), 3);
+
+        // Find each project
+        let git_only = projects.iter().find(|p| p.name == "git-only").unwrap();
+        assert!(git_only.git_info.is_some());
+        assert!(git_only.llm_tools.is_empty());
+
+        let marker_only = projects.iter().find(|p| p.name == "marker-only").unwrap();
+        assert!(marker_only.git_info.is_none());
+        assert!(marker_only.llm_tools.contains(&"claude".to_string()));
+
+        let both = projects.iter().find(|p| p.name == "both").unwrap();
+        assert!(both.git_info.is_some());
+        assert!(both.llm_tools.contains(&"claude".to_string()));
+    }
+
+    #[test]
+    fn test_discover_projects_with_git_skips_hidden_dirs() {
+        let temp = tempdir().unwrap();
+
+        // Create hidden directory with .git
+        let hidden = temp.path().join(".hidden-project");
+        fs::create_dir(&hidden).unwrap();
+        fs::create_dir(hidden.join(".git")).unwrap();
+
+        // Create normal project
+        let project = temp.path().join("normal-project");
+        fs::create_dir(&project).unwrap();
+        fs::create_dir(project.join(".git")).unwrap();
+
+        let projects = discover_projects_with_git(temp.path());
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "normal-project");
+    }
+
+    #[test]
+    fn test_discover_projects_with_git_sorted() {
+        let temp = tempdir().unwrap();
+
+        for name in &["zebra", "apple", "mango"] {
+            let project = temp.path().join(name);
+            fs::create_dir(&project).unwrap();
+            fs::create_dir(project.join(".git")).unwrap();
+        }
+
+        let projects = discover_projects_with_git(temp.path());
+        let names: Vec<&str> = projects.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["apple", "mango", "zebra"]);
+    }
+
+    #[test]
+    fn test_discover_projects_with_git_empty_dir() {
+        let temp = tempdir().unwrap();
+        let projects = discover_projects_with_git(temp.path());
+        assert!(projects.is_empty());
+    }
+
+    #[test]
+    fn test_discover_projects_with_git_nonexistent_path() {
+        let projects = discover_projects_with_git(Path::new("/nonexistent/path"));
+        assert!(projects.is_empty());
+    }
+
+    #[test]
+    fn test_git_repo_info_default_branch_fallback() {
+        let temp = tempdir().unwrap();
+
+        // Create project with .git but no remotes (bare minimum)
+        let project = temp.path().join("new-repo");
+        fs::create_dir(&project).unwrap();
+
+        // Initialize a real git repo
+        let _ = std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(&project)
+            .output();
+
+        let projects = discover_projects_with_git(temp.path());
+        assert_eq!(projects.len(), 1);
+
+        let git_info = projects[0].git_info.as_ref().unwrap();
+        // Should have a default branch (fallback to "main")
+        assert!(!git_info.default_branch.is_empty());
+    }
+
+    #[test]
+    fn test_discovered_project_has_correct_path() {
+        let temp = tempdir().unwrap();
+
+        let project = temp.path().join("my-project");
+        fs::create_dir(&project).unwrap();
+        fs::create_dir(project.join(".git")).unwrap();
+
+        let projects = discover_projects_with_git(temp.path());
+        assert_eq!(projects[0].path, project);
+    }
+
+    #[test]
+    fn test_discovered_project_multiple_llm_tools() {
+        let temp = tempdir().unwrap();
+
+        let project = temp.path().join("multi-tool");
+        fs::create_dir(&project).unwrap();
+        File::create(project.join("CLAUDE.md")).unwrap();
+        File::create(project.join("GEMINI.md")).unwrap();
+        File::create(project.join("CODEX.md")).unwrap();
+
+        let projects = discover_projects_with_git(temp.path());
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].llm_tools.len(), 3);
+        assert!(projects[0].llm_tools.contains(&"claude".to_string()));
+        assert!(projects[0].llm_tools.contains(&"gemini".to_string()));
+        assert!(projects[0].llm_tools.contains(&"codex".to_string()));
     }
 }

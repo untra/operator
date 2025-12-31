@@ -78,7 +78,7 @@ impl StepManager {
             None => return Ok(true),
         };
 
-        if !current.requires_review {
+        if !current.requires_review() {
             return Ok(true);
         }
 
@@ -112,7 +112,7 @@ impl StepManager {
     /// Check if current step requires human review
     pub fn requires_review(&self, ticket: &Ticket) -> bool {
         self.current_step(ticket)
-            .map(|s| s.requires_review)
+            .map(|s| s.requires_review())
             .unwrap_or(false)
     }
 
@@ -298,6 +298,11 @@ mod tests {
             content: "Test content".to_string(),
             sessions: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
         }
     }
 
@@ -328,12 +333,12 @@ mod tests {
         let config = Config::default();
         let manager = StepManager::new(&config);
 
-        // deploy step outputs review, not pr
+        // deploy step now outputs pr
         let ticket = make_test_ticket("FEAT", "deploy");
-        assert!(!manager.is_pr_step(&ticket)); // deploy outputs review, not pr
+        assert!(manager.is_pr_step(&ticket)); // deploy outputs pr
 
         let ticket = make_test_ticket("FEAT", "plan");
-        assert!(!manager.is_pr_step(&ticket));
+        assert!(!manager.is_pr_step(&ticket)); // plan step doesn't output pr
     }
 
     #[test]

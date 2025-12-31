@@ -45,7 +45,6 @@
       "outputs": ["report"],
       "prompt": "Analyze the project to understand its structure and requirements:\n\n1. Read existing CLAUDE.md if present\n2. Identify project type (Rust, TypeScript, Python, etc.)\n3. Find build commands, test commands, and lint commands\n4. Identify key directories and file patterns\n5. Document findings for agent configuration",
       "allowed_tools": ["Read", "Glob", "Grep"],
-      "requires_review": false,
       "next_step": "configure_agent"
     },
     {
@@ -54,7 +53,7 @@
       "outputs": ["code"],
       "prompt": "Create or update agent configuration:\n\n1. Create/update CLAUDE.md with:\n   - Project overview\n   - Development commands (build, test, lint)\n   - Key architecture concepts\n   - File organization\n2. Ensure CLAUDE.md follows best practices for agent context\n3. Add any project-specific instructions",
       "allowed_tools": ["Read", "Write", "Edit"],
-      "requires_review": true,
+      "review_type": "plan",
       "next_step": "test_agent"
     },
     {
@@ -63,7 +62,7 @@
       "outputs": ["report"],
       "prompt": "Verify the agent configuration works:\n\n1. Confirm CLAUDE.md is readable and complete\n2. Test that documented commands work\n3. Verify key file paths are accurate\n4. Document any issues found",
       "allowed_tools": ["Read", "Bash"],
-      "requires_review": true,
+      "review_type": "plan",
       "on_reject": {
         "goto_step": "configure_agent",
         "prompt": "Fix agent configuration based on feedback: {{ rejection_reason }}"

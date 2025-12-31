@@ -19,6 +19,7 @@ import React from 'react';
 import { Route } from 'react-router-dom';
 import { createApp } from '@backstage/app-defaults';
 import { FlatRoutes } from '@backstage/core-app-api';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   CatalogEntityPage,
   catalogPlugin,
@@ -37,6 +38,7 @@ import { HomePage } from './components/home/HomePage';
 import { entityPage } from './components/catalog/EntityPage';
 import { OperatorCatalogPage } from './components/catalog/OperatorCatalogPage';
 import { PluginsPage } from './components/plugins';
+import { KanbanBoardPage } from './components/kanban';
 import apis from './apis';
 import { OperatorThemeProvider } from './theme';
 
@@ -47,6 +49,18 @@ const app = createApp({
 
 const AppProvider = app.getProvider();
 const AppRouter = app.getRouter();
+
+// Query client for server state management
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Retry once on failure
+      retry: 1,
+      // Keep data fresh for 30 seconds
+      staleTime: 30000,
+    },
+  },
+});
 
 const routes = (
   <FlatRoutes>
@@ -65,6 +79,9 @@ const routes = (
     {/* Plugins */}
     <Route path="/plugins" element={<PluginsPage />} />
 
+    {/* Kanban Board */}
+    <Route path="/board" element={<KanbanBoardPage />} />
+
     {/* Issue Types - flat routes (no nesting, each page is independent) */}
     <Route path="/issuetypes" element={<IssueTypesPage />} />
     <Route path="/issuetypes/new" element={<IssueTypeFormPage />} />
@@ -76,15 +93,17 @@ const routes = (
 
 export default function App() {
   return (
-    <OperatorThemeProvider>
-      <AppProvider>
-        <AppRouter>
-          <Root>
-            {routes}
-          </Root>
-        </AppRouter>
-      </AppProvider>
-    </OperatorThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <OperatorThemeProvider>
+        <AppProvider>
+          <AppRouter>
+            <Root>
+              {routes}
+            </Root>
+          </AppRouter>
+        </AppProvider>
+      </OperatorThemeProvider>
+    </QueryClientProvider>
   );
 }
 

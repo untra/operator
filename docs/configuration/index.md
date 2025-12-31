@@ -33,13 +33,13 @@ Agent lifecycle, parallelism, and health monitoring
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `cores_reserved` * | `integer` | 1 |  |
-| `generation_timeout_secs` | `integer` | 300 | Timeout in seconds for each agent generation (default: 300 = 5 min) |
-| `health_check_interval` * | `integer` | 30 |  |
 | `max_parallel` * | `integer` | 5 |  |
-| `silence_threshold` | `integer` | 30 | Seconds of tmux silence before considering agent awaiting input (default: 30) |
-| `step_timeout` | `integer` | 1800 | Maximum seconds a step can run before timing out (default: 1800 = 30 min) |
+| `cores_reserved` * | `integer` | 1 |  |
+| `health_check_interval` * | `integer` | 30 |  |
+| `generation_timeout_secs` | `integer` | 300 | Timeout in seconds for each agent generation (default: 300 = 5 min) |
 | `sync_interval` | `integer` | 60 | Interval in seconds between ticket-session syncs (default: 60) |
+| `step_timeout` | `integer` | 1800 | Maximum seconds a step can run before timing out (default: 1800 = 30 min) |
+| `silence_threshold` | `integer` | 30 | Seconds of tmux silence before considering agent awaiting input (default: 30) |
 
 ## `[notifications]`
 
@@ -48,11 +48,11 @@ macOS notification preferences
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `enabled` * | `boolean` | true |  |
+| `on_agent_start` * | `boolean` | true |  |
 | `on_agent_complete` * | `boolean` | true |  |
 | `on_agent_needs_input` * | `boolean` | true |  |
-| `on_agent_start` * | `boolean` | true |  |
-| `on_investigation_created` * | `boolean` | true |  |
 | `on_pr_created` * | `boolean` | true |  |
+| `on_investigation_created` * | `boolean` | true |  |
 | `sound` * | `boolean` | false |  |
 
 ## `[queue]`
@@ -62,8 +62,8 @@ Queue processing and ticket assignment
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `auto_assign` * | `boolean` | true |  |
-| `poll_interval_ms` * | `integer` | 1000 |  |
 | `priority_order` * | `array`[`string`] | ["INV", "FIX", "TASK", "FEAT", "SPIKE"] |  |
+| `poll_interval_ms` * | `integer` | 1000 |  |
 
 ## `[paths]`
 
@@ -71,9 +71,10 @@ Directory paths for tickets, projects, and state
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
+| `tickets` * | `string` | .tickets |  |
 | `projects` * | `string` | . |  |
 | `state` * | `string` | .tickets/operator |  |
-| `tickets` * | `string` | .tickets |  |
+| `worktrees` | `string` | - | Base directory for per-ticket worktrees (default: ~/.operator/worktrees) |
 
 ## `[ui]`
 
@@ -81,10 +82,10 @@ Terminal UI appearance and behavior
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `completed_history_hours` * | `integer` | 24 |  |
-| `panel_names` | → `PanelNamesConfig` | - |  |
 | `refresh_rate_ms` * | `integer` | 250 |  |
+| `completed_history_hours` * | `integer` | 24 |  |
 | `summary_max_length` * | `integer` | 40 |  |
+| `panel_names` | → `PanelNamesConfig` | - |  |
 
 ## `[launch]`
 
@@ -94,8 +95,8 @@ Agent launch behavior and confirmations
 | --- | --- | --- | --- |
 | `confirm_autonomous` * | `boolean` | true |  |
 | `confirm_paired` * | `boolean` | true |  |
-| `docker` | → `DockerConfig` | - | Docker execution configuration |
 | `launch_delay_ms` * | `integer` | 2000 |  |
+| `docker` | → `DockerConfig` | - | Docker execution configuration |
 | `yolo` | → `YoloConfig` | - | YOLO (auto-accept) mode configuration |
 
 ## `[templates]`
@@ -104,9 +105,9 @@ Issue type collections and presets
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `active_collection` | `string` \| `null` | - | Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection |
-| `collection` | `array`[`string`] | - | Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV |
 | `preset` | → `CollectionPreset` | - | Named preset for issue type collection Options: simple, dev_kanban, devops_kanban, custom |
+| `collection` | `array`[`string`] | - | Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV |
+| `active_collection` | `string` \| `null` | - | Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection |
 
 ## `[api]`
 
@@ -141,14 +142,14 @@ Backstage server integration
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `auto_start` | `boolean` | false | Auto-start Backstage server when TUI launches |
-| `branding` | → `BrandingConfig` | - | Branding and theming configuration |
-| `branding_subpath` | `string` | branding | Subdirectory within backstage path for branding customization |
 | `enabled` | `boolean` | true | Whether Backstage integration is enabled |
-| `local_binary_path` | `string` \| `null` | - | Optional local path to backstage-server binary If set, this is used instead of downloading from release_url |
 | `port` | `integer` | 7007 | Port for the Backstage server |
-| `release_url` | `string` | - | Base URL for downloading backstage-server binary |
+| `auto_start` | `boolean` | false | Auto-start Backstage server when TUI launches |
 | `subpath` | `string` | backstage | Subdirectory within state_path for Backstage installation |
+| `branding_subpath` | `string` | branding | Subdirectory within backstage path for branding customization |
+| `release_url` | `string` | - | Base URL for downloading backstage-server binary |
+| `local_binary_path` | `string` \| `null` | - | Optional local path to backstage-server binary If set, this is used instead of downloading from release_url |
+| `branding` | → `BrandingConfig` | - | Branding and theming configuration |
 
 ## `[llm_tools]`
 
@@ -157,8 +158,8 @@ LLM CLI tool detection and providers
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `detected` | `array`[→ `DetectedTool`] | - | Detected CLI tools (populated on first startup) |
-| `detection_complete` | `boolean` | - | Whether detection has been completed |
 | `providers` | `array`[→ `LlmProvider`] | - | Available {tool, model} pairs for launching tickets Built from detected tools + their model aliases |
+| `detection_complete` | `boolean` | - | Whether detection has been completed |
 
 ## Example Configuration
 
@@ -198,6 +199,7 @@ poll_interval_ms = 1000
 tickets = ".tickets"
 projects = "."
 state = ".tickets/operator"
+worktrees = "/Users/samuelvolin/.operator/worktrees"
 
 [ui]
 refresh_rate_ms = 250
@@ -226,7 +228,7 @@ env_vars = []
 enabled = false
 
 [templates]
-preset = "devops_kanban"
+preset = "dev_kanban"
 collection = []
 
 [api]

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex | Operator! Documentation</title>
+  <meta name="description" content="Configure OpenAI Codex as your AI coding agent.">
+
+  <link rel="icon" type="image/png" href="/assets/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Codex | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Codex" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Configure OpenAI Codex as your AI coding agent." />
+<meta property="og:description" content="Configure OpenAI Codex as your AI coding agent." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/agents/codex/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/agents/codex/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Codex" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Configure OpenAI Codex as your AI coding agent.","headline":"Codex","url":"https://operator.untra.io/getting-started/agents/codex/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" class="active" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary>Supported Coding Agents</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/claude-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/claude-dark.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" class="active"
+                    ><span class="nav-icon"><img class="icon-light" src="/assets/icons/codex-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/codex-dark.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/gemini-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/gemini-dark.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Kanban Providers</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/jira-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/jira-dark.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Git Repositories</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/github-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/github-dark.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Notification Integrations</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/webhook-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/webhook-dark.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/notification-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/notification-dark.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/agents/" class="active" >Agents</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tmux/" >Tmux</a>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Backstage</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Schemas</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/agents/codex.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.7</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2025-12-31</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Codex</h1>
+  
+
+  <h1 id="codex">Codex</h1>
+
+<p><a href="https://developers.openai.com/codex/">Codex</a> is the <a href="https://openai.com/">OpenAI</a> code-specialized CLI agent, available through the OpenAI API.</p>
+
+<h2 id="status">Status</h2>
+
+<p>Codex integration is currently <strong>experimental</strong>. Features may be limited compared to other agents.</p>
+
+<h2 id="installation">Installation</h2>
+
+<p>Install the OpenAI CLI:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>npm i <span class="nt">-g</span> @openai/codex
+</code></pre></div></div>
+
+<h3 id="plans-and-pricing">Plans and Pricing</h3>
+
+<p>View <a href="https://developers.openai.com/codex/pricing/">OpenAI Codex pricing page</a></p>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>See the full <a href="/configuration/#agents-codex">Codex agent configuration reference</a>.</p>
+
+<p>Add Codex to your Operator configuration:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># ~/.config/operator/config.toml</span>
+
+<span class="k">[</span><span class="n">agents</span><span class="k">.</span><span class="n">codex</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">api_key_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"OPENAI_API_KEY"</span>
+<span class="n">model</span> <span class="o">=</span><span class="w"> </span><span class="s">"gpt-4"</span>
+</code></pre></div></div>
+
+<h2 id="authentication">Authentication</h2>
+
+<p>Set your OpenAI API key:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span><span class="s2">"your-api-key"</span>
+</code></pre></div></div>
+
+<p>Or add it to your shell profile for persistence.</p>
+
+<h2 id="api-usage">API Usage</h2>
+
+<p>Codex uses the OpenAI API which has usage-based pricing. Monitor your usage at <a href="https://platform.openai.com/">platform.openai.com</a>.</p>
+
+</article>
+
+  </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

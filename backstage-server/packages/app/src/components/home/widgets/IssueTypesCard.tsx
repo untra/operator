@@ -5,7 +5,7 @@
  * Shows recent/pinned types with create action.
  */
 
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardBody, Flex, Text, Link, Button } from '@backstage/ui';
 import { Progress } from '@backstage/core-components';
 import {
@@ -14,13 +14,8 @@ import {
   RiFolderLine,
   RiArrowRightLine,
 } from '@remixicon/react';
-
-interface IssueType {
-  key: string;
-  name: string;
-  mode: string;
-  collection?: string;
-}
+import { useIssueTypesQuery, type IssueType } from '../../../api/queries';
+import { ErrorState } from '../../common/ErrorState';
 
 interface IssueTypeChipProps {
   issueType: IssueType;
@@ -73,35 +68,9 @@ function IssueTypeChip({ issueType }: IssueTypeChipProps) {
 }
 
 export function IssueTypesCard() {
-  const [issueTypes, setIssueTypes] = useState<IssueType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, error, refetch } = useIssueTypesQuery();
 
-  useEffect(() => {
-    async function fetchIssueTypes() {
-      try {
-        const response = await fetch('/api/proxy/operator/issuetypes?limit=5');
-        if (!response.ok) {
-          throw new Error('Failed to fetch issue types');
-        }
-        const data = await response.json();
-        setIssueTypes(data);
-      } catch (err) {
-        // Use mock data if API unavailable
-        setIssueTypes([
-          { key: 'FEAT', name: 'Feature', mode: 'autonomous' },
-          { key: 'FIX', name: 'Bug Fix', mode: 'autonomous' },
-          { key: 'SPIKE', name: 'Research Spike', mode: 'paired' },
-          { key: 'INV', name: 'Investigation', mode: 'investigation' },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchIssueTypes();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardBody>
@@ -113,6 +82,30 @@ export function IssueTypesCard() {
       </Card>
     );
   }
+
+  if (error) {
+    return (
+      <Card>
+        <CardBody>
+          <Flex direction="column" gap="3" p="2">
+            <Flex align="center" justify="between">
+              <Text variant="title-small">Issue Types</Text>
+              <RiFileList3Line size={20} color="var(--bui-color-text-secondary)" />
+            </Flex>
+            <ErrorState
+              title="Failed to load"
+              message="Unable to load issue types"
+              onRetry={() => refetch()}
+              compact
+            />
+          </Flex>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  // Take first 5 issue types for the widget
+  const issueTypes = Array.isArray(data) ? data.slice(0, 5) : [];
 
   return (
     <Card>

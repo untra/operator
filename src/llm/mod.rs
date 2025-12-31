@@ -7,6 +7,6 @@
 //! at compile time. Detection checks if binaries exist on the system PATH.
 
 mod detection;
-mod tool_config;
+pub mod tool_config;
 
 pub use detection::detect_all_tools;

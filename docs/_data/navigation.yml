@@ -1,4 +1,41 @@
 docs:
+  - title: Getting Started
+    children:
+      - title: Overview
+        url: /getting-started/
+      - title: Prerequisites
+        url: /getting-started/prerequisites/
+      - title: Installation
+        url: /getting-started/installation/
+      - title: Supported Coding Agents
+        children:
+          - title: Claude
+            url: /getting-started/agents/claude/
+            icon: claude
+          - title: Codex
+            url: /getting-started/agents/codex/
+            icon: codex
+          - title: Gemini CLI
+            url: /getting-started/agents/gemini-cli/
+            icon: gemini
+      - title: Supported Kanban Providers
+        children:
+          - title: Jira Cloud
+            url: /getting-started/kanban/jira/
+            icon: jira
+      - title: Supported Git Repositories
+        children:
+          - title: GitHub
+            url: /getting-started/git/github/
+            icon: github
+      - title: Supported Notification Integrations
+        children:
+          - title: Webhooks
+            url: /getting-started/notifications/webhooks/
+            icon: webhook
+          - title: Operating System
+            url: /getting-started/notifications/os/
+            icon: notification
   - title: Core
     children:
       - title: Kanban
@@ -27,9 +64,17 @@ docs:
             url: /backstage/taxonomy/
       - title: Schemas
         children:
+          - title: Overview
+            url: /schemas/
+          - title: Configuration
+            url: /schemas/config/
+          - title: State
+            url: /schemas/state/
           - title: Issue Type Schema
             url: /schemas/issuetype/
           - title: Ticket Metadata
             url: /schemas/metadata/
           - title: REST API
             url: /schemas/api/
+          - title: TypeScript Types
+            url: /typescript/

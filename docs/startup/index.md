@@ -100,7 +100,7 @@ Operator session names start with 'op-' for easy identification.
 Create startup tickets to help initialize your projects:
 - **ASSESS tickets**: Scan projects for catalog-info.yaml, create if missing
 - **AGENT-SETUP tickets**: Configure Claude agents for each project
-- **PROJECT-INIT tickets**: Initialize projects with Operator conventions
+- **PROJECT-INIT tickets**: Run both ASSESS and AGENT-SETUP for each project
 
 These tickets are optional and help automate common setup tasks.
 

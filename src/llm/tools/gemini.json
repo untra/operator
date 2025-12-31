@@ -16,5 +16,14 @@
     "quiet": "--output-format json"
   },
   "command_template": "gemini {{config_flags}}--model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
-  "yolo_flags": ["--auto-approve", "-y"]
+  "yolo_flags": ["--auto-approve", "-y"],
+  "idle_detection": {
+    "idle_patterns": ["^>\\s*$", "^gemini>\\s*$", "^\\$\\s*$"],
+    "activity_patterns": ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "Analyzing", "Processing", "Thinking", "Working"],
+    "hook_config": {
+      "event_name": "AfterAgent",
+      "script_path": "~/.gemini/hooks/operator-stop.sh",
+      "settings_path": "~/.gemini/settings.json"
+    }
+  }
 }

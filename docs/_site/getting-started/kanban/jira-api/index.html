@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jira API Reference | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Jira API Reference | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Jira API Reference" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/getting-started/kanban/jira-api/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/kanban/jira-api/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Jira API Reference" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Jira API Reference","url":"https://operator.untra.io/getting-started/kanban/jira-api/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" class="active" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Coding Agents</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/claude-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/claude-dark.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/codex-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/codex-dark.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/gemini-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/gemini-dark.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Kanban Providers</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/jira-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/jira-dark.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Git Repositories</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/github-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/github-dark.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Supported Notification Integrations</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/webhook-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/webhook-dark.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/notification-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/notification-dark.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" class="active" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/agents/" >Agents</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tmux/" >Tmux</a>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Backstage</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary>Schemas</summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/kanban/jira-api.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.7</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2025-12-31</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Jira API Reference</h1>
+  
+
+  <!-- AUTO-GENERATED FROM docs/schemas/jira-api.json - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+<h1 id="jira-api-reference">Jira API Reference</h1>
+
+<p>Auto-generated documentation of Jira Cloud REST API response types used by Operator.</p>
+
+<h2 id="overview">Overview</h2>
+
+<p>Operator integrates with the following Jira Cloud REST API endpoints:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Endpoint</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /rest/api/3/user/assignable/search</code></td>
+      <td>List assignable users</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /rest/api/3/project/{key}/statuses</code></td>
+      <td>List project statuses</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /rest/api/3/search</code></td>
+      <td>Search issues with JQL</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="jirasearchresponse">JiraSearchResponse</h2>
+
+<p>Response from the JQL search endpoint.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">issues</code></td>
+      <td><code class="language-plaintext highlighter-rouge">JiraIssue</code>[]</td>
+      <td>List of issues matching the JQL query</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="type-definitions">Type Definitions</h2>
+
+<h3 id="jiraavatarurls">JiraAvatarUrls</h3>
+
+<p>Avatar URLs for a Jira user</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">48x48</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> (optional)</td>
+      <td>48x48 pixel avatar URL</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="jiradescription">JiraDescription</h3>
+
+<p>Jira description in Atlassian Document Format (ADF)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">content</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code> (optional)</td>
+      <td>ADF content nodes - parsed to extract plain text</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="jiraissue">JiraIssue</h3>
+
+<p>A Jira issue from search results</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">id</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Internal Jira issue ID</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">key</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Issue key (e.g., “PROJ-123”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">fields</code></td>
+      <td><code class="language-plaintext highlighter-rouge">JiraIssueFields</code></td>
+      <td>Issue fields containing summary, status, etc.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="jiraissuefields">JiraIssueFields</h3>
+
+<p>Fields of a Jira issue</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">summary</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Issue summary/title</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">description</code></td>
+      <td><code class="language-plaintext highlighter-rouge">JiraDescription</code> (optional)</td>
+      <td>Issue description in ADF format</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">issuetype</code></td>
+      <td><code class="language-plaintext highlighter-rouge">JiraIssueTypeRef</code></td>
+      <td>Issue type (Bug, Story, Task, etc.)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">status</code></td>
+      <td><code class="language-plaintext highlighter-rouge">JiraStatusRef</code></td>
+      <td>Current workflow status</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">assignee</code></td>
+      <td><code class="language-plaintext highlighter-rouge">JiraUser</code> (optional)</td>
+      <td>Assigned user (if any)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">priority</code></td>
+      <td><code class="language-plaintext highlighter-rouge">JiraPriority</code> (optional)</td>
+      <td>Issue priority (if set)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="jiraissuetyperef">JiraIssueTypeRef</h3>
+
+<p>Reference to an issue type</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Issue type name (e.g., “Bug”, “Story”, “Task”)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="jirapriority">JiraPriority</h3>
+
+<p>Issue priority level</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Priority name (e.g., “Highest”, “High”, “Medium”, “Low”, “Lowest”)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="jirastatusref">JiraStatusRef</h3>
+
+<p>Reference to a workflow status</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Status name (e.g., “To Do”, “In Progress”, “Done”)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="jirauser">JiraUser</h3>
+
+<p>Jira user information from assignable users API
+GET /rest/api/3/user/assignable/search?project={key}</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">accountId</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Atlassian account ID (e.g., “5e3f7acd9876543210abcdef”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">displayName</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>User’s display name</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">emailAddress</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> (optional)</td>
+      <td>User’s email address (may be hidden by privacy settings)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">avatarUrls</code></td>
+      <td><code class="language-plaintext highlighter-rouge">JiraAvatarUrls</code> (optional)</td>
+      <td>Avatar URLs in various sizes</td>
+    </tr>
+  </tbody>
+</table>
+
+
+</article>
+
+  </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

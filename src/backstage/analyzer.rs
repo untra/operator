@@ -75,6 +75,15 @@ pub struct ProjectAnalysis {
 
     /// File statistics for context
     pub file_stats: FileStats,
+
+    /// Executable commands for common operations
+    pub commands: Commands,
+
+    /// Key entry points into the codebase
+    pub entry_points: Vec<EntryPoint>,
+
+    /// Environment variables used by the project
+    pub environment: Vec<EnvVar>,
 }
 
 /// Kind assessment from the 25-Kind taxonomy.
@@ -431,6 +440,96 @@ pub struct FileStats {
     pub excluded_files: usize,
 }
 
+/// Executable commands for common project operations.
+///
+/// These commands are detected from package.json scripts, Makefile, Cargo.toml,
+/// or other project configuration files.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct Commands {
+    /// Command to start the application (e.g., "cargo run", "npm start")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
+
+    /// Command to start in development mode (e.g., "npm run dev")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dev: Option<String>,
+
+    /// Command to run tests (e.g., "cargo test", "npm test")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test: Option<String>,
+
+    /// Command to build for production (e.g., "cargo build --release")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build: Option<String>,
+
+    /// Command to run linter (e.g., "cargo clippy", "npm run lint")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lint: Option<String>,
+
+    /// Command to format code (e.g., "cargo fmt", "npm run fmt")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fmt: Option<String>,
+
+    /// Command to run type checker (e.g., "tsc --noEmit")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub typecheck: Option<String>,
+}
+
+/// Purpose categories for entry points.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum EntryPointPurpose {
+    /// Main binary entry point (e.g., src/main.rs, index.js)
+    BinaryEntry,
+    /// Library entry point (e.g., src/lib.rs, lib/index.js)
+    LibraryEntry,
+    /// Test entry point (e.g., tests/main.rs)
+    TestEntry,
+    /// Configuration file (e.g., config/default.toml)
+    Config,
+    /// Route definitions (e.g., src/routes.rs, routes/index.js)
+    Routes,
+    /// Main UI component (e.g., src/App.tsx)
+    MainComponent,
+}
+
+/// A key entry point into the codebase.
+///
+/// Entry points help AI agents understand where to start when exploring
+/// or modifying specific aspects of the project.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EntryPoint {
+    /// Relative path from project root
+    pub file: String,
+
+    /// Purpose of this entry point
+    pub purpose: EntryPointPurpose,
+}
+
+/// An environment variable used by the project.
+///
+/// Detected from .env.example, docker-compose.yml, config files, or code.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EnvVar {
+    /// Environment variable name (e.g., "DATABASE_URL")
+    pub name: String,
+
+    /// Whether this variable is required for the app to run
+    pub required: bool,
+
+    /// What this variable is used for
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
+
+    /// Default value if not set
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+
+    /// Example value for documentation
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub example: Option<String>,
+}
+
 /// Project analyzer for detecting project attributes.
 ///
 /// Currently provides stub implementations. Future versions will implement
@@ -496,6 +595,9 @@ impl ProjectAnalyzer {
                 directories: 0,
                 excluded_files: 0,
             },
+            commands: Commands::default(),
+            entry_points: vec![],
+            environment: vec![],
         })
     }
 }
@@ -633,6 +735,32 @@ mod tests {
                 directories: 20,
                 excluded_files: 1200,
             },
+            commands: Commands {
+                start: Some("cargo run".to_string()),
+                dev: None,
+                test: Some("cargo test".to_string()),
+                build: Some("cargo build --release".to_string()),
+                lint: Some("cargo clippy -- -D warnings".to_string()),
+                fmt: Some("cargo fmt".to_string()),
+                typecheck: None,
+            },
+            entry_points: vec![
+                EntryPoint {
+                    file: "src/main.rs".to_string(),
+                    purpose: EntryPointPurpose::BinaryEntry,
+                },
+                EntryPoint {
+                    file: "src/lib.rs".to_string(),
+                    purpose: EntryPointPurpose::LibraryEntry,
+                },
+            ],
+            environment: vec![EnvVar {
+                name: "DATABASE_URL".to_string(),
+                required: true,
+                purpose: Some("PostgreSQL connection string".to_string()),
+                default: None,
+                example: Some("postgres://localhost:5432/mydb".to_string()),
+            }],
         };
 
         let json = serde_json::to_string_pretty(&analysis);
@@ -645,6 +773,9 @@ mod tests {
         assert!(json_str.contains("\"framework\": \"axum\""));
         assert!(json_str.contains("\"database\": \"postgres\""));
         assert!(json_str.contains("\"has_dockerfile\": true"));
+        assert!(json_str.contains("\"start\": \"cargo run\""));
+        assert!(json_str.contains("\"binary_entry\""));
+        assert!(json_str.contains("\"DATABASE_URL\""));
     }
 
     #[test]
@@ -700,7 +831,20 @@ mod tests {
                 "by_extension": {"ts": 80, "tsx": 100, "json": 20},
                 "directories": 30,
                 "excluded_files": 5000
-            }
+            },
+            "commands": {
+                "start": "npm start",
+                "dev": "npm run dev",
+                "test": "npm test",
+                "build": "npm run build"
+            },
+            "entry_points": [
+                {"file": "src/index.tsx", "purpose": "binary_entry"},
+                {"file": "src/App.tsx", "purpose": "main_component"}
+            ],
+            "environment": [
+                {"name": "REACT_APP_API_URL", "required": true, "example": "https://api.example.com"}
+            ]
         }"#;
 
         let analysis: Result<ProjectAnalysis, _> = serde_json::from_str(json);
@@ -714,6 +858,16 @@ mod tests {
         assert_eq!(analysis.frameworks.len(), 1);
         assert_eq!(analysis.frameworks[0].category, FrameworkCategory::Ui);
         assert_eq!(analysis.ports[0].port_number, Some(3000));
+        assert_eq!(analysis.commands.start, Some("npm start".to_string()));
+        assert_eq!(analysis.commands.dev, Some("npm run dev".to_string()));
+        assert_eq!(analysis.entry_points.len(), 2);
+        assert_eq!(
+            analysis.entry_points[0].purpose,
+            EntryPointPurpose::BinaryEntry
+        );
+        assert_eq!(analysis.environment.len(), 1);
+        assert_eq!(analysis.environment[0].name, "REACT_APP_API_URL");
+        assert!(analysis.environment[0].required);
     }
 
     #[test]

@@ -15,7 +15,10 @@
     "docker",
     "ports",
     "testing",
-    "file_stats"
+    "file_stats",
+    "commands",
+    "entry_points",
+    "environment"
   ],
   "additionalProperties": false,
   "properties": {
@@ -66,6 +69,20 @@
     },
     "file_stats": {
       "$ref": "#/definitions/fileStats"
+    },
+    "commands": {
+      "$ref": "#/definitions/commands",
+      "description": "Executable commands for common operations"
+    },
+    "entry_points": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/entryPoint" },
+      "description": "Key entry points into the codebase"
+    },
+    "environment": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/envVar" },
+      "description": "Environment variables used by the project"
     }
   },
   "definitions": {
@@ -497,6 +514,86 @@
           "type": "integer",
           "minimum": 1,
           "description": "Line number if applicable"
+        }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "description": "Executable commands for common operations",
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "type": "string",
+          "description": "Command to start the application (e.g., 'cargo run', 'npm start')"
+        },
+        "dev": {
+          "type": "string",
+          "description": "Command to start in development mode (e.g., 'npm run dev')"
+        },
+        "test": {
+          "type": "string",
+          "description": "Command to run tests (e.g., 'cargo test', 'npm test')"
+        },
+        "build": {
+          "type": "string",
+          "description": "Command to build for production (e.g., 'cargo build --release')"
+        },
+        "lint": {
+          "type": "string",
+          "description": "Command to run linter (e.g., 'cargo clippy', 'npm run lint')"
+        },
+        "fmt": {
+          "type": "string",
+          "description": "Command to format code (e.g., 'cargo fmt', 'npm run fmt')"
+        },
+        "typecheck": {
+          "type": "string",
+          "description": "Command to run type checker (e.g., 'tsc --noEmit')"
+        }
+      }
+    },
+    "entryPoint": {
+      "type": "object",
+      "description": "A key entry point into the codebase",
+      "required": ["file", "purpose"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Relative path from project root"
+        },
+        "purpose": {
+          "type": "string",
+          "enum": ["binary_entry", "library_entry", "test_entry", "config", "routes", "main_component"],
+          "description": "Purpose of this entry point"
+        }
+      }
+    },
+    "envVar": {
+      "type": "object",
+      "description": "An environment variable used by the project",
+      "required": ["name", "required"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Environment variable name (e.g., 'DATABASE_URL')"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this variable is required for the app to run"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "What this variable is used for"
+        },
+        "default": {
+          "type": "string",
+          "description": "Default value if not set"
+        },
+        "example": {
+          "type": "string",
+          "description": "Example value for documentation"
         }
       }
     }

@@ -170,6 +170,10 @@ pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Resu
         }
     }
 
+    // Discover projects (git repos and/or LLM marker files)
+    let discovered = crate::projects::discover_projects_with_git(&config.projects_path());
+    config.projects = discovered.iter().map(|p| p.name.clone()).collect();
+
     // Save config (must be after directories are created)
     config.save()?;
 
@@ -473,5 +477,64 @@ mod tests {
         initialize_workspace(&mut config, &options).unwrap();
 
         assert!(config.backstage.enabled);
+    }
+
+    #[test]
+    fn test_initialize_workspace_discovers_projects() {
+        let temp_dir = TempDir::new().unwrap();
+        let tickets_path = temp_dir.path().join(".tickets");
+
+        // Create some project directories with .git and/or CLAUDE.md
+        let project_a = temp_dir.path().join("project-a");
+        fs::create_dir(&project_a).unwrap();
+        fs::create_dir(project_a.join(".git")).unwrap();
+        fs::File::create(project_a.join("CLAUDE.md")).unwrap();
+
+        let project_b = temp_dir.path().join("project-b");
+        fs::create_dir(&project_b).unwrap();
+        fs::create_dir(project_b.join(".git")).unwrap();
+        // No CLAUDE.md - should still be discovered (git repo)
+
+        let project_c = temp_dir.path().join("project-c");
+        fs::create_dir(&project_c).unwrap();
+        fs::File::create(project_c.join("CLAUDE.md")).unwrap();
+        // No .git - should still be discovered (LLM marker)
+
+        let project_d = temp_dir.path().join("project-d");
+        fs::create_dir(&project_d).unwrap();
+        // No .git, no CLAUDE.md - should NOT be discovered
+
+        let mut config = Config::default();
+        config.paths.tickets = tickets_path.to_string_lossy().to_string();
+        config.paths.state = tickets_path.join("operator").to_string_lossy().to_string();
+        // Projects path is the temp dir root (where project subdirs are)
+        config.paths.projects = temp_dir.path().to_string_lossy().to_string();
+
+        let options = SetupOptions::default();
+        initialize_workspace(&mut config, &options).unwrap();
+
+        // Should discover project-a, project-b, project-c but NOT project-d
+        assert_eq!(config.projects.len(), 3);
+        assert!(config.projects.contains(&"project-a".to_string()));
+        assert!(config.projects.contains(&"project-b".to_string()));
+        assert!(config.projects.contains(&"project-c".to_string()));
+        assert!(!config.projects.contains(&"project-d".to_string()));
+    }
+
+    #[test]
+    fn test_initialize_workspace_discovers_no_projects_in_empty_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let tickets_path = temp_dir.path().join(".tickets");
+
+        let mut config = Config::default();
+        config.paths.tickets = tickets_path.to_string_lossy().to_string();
+        config.paths.state = tickets_path.join("operator").to_string_lossy().to_string();
+        config.paths.projects = temp_dir.path().to_string_lossy().to_string();
+
+        let options = SetupOptions::default();
+        initialize_workspace(&mut config, &options).unwrap();
+
+        // No projects should be discovered
+        assert!(config.projects.is_empty());
     }
 }

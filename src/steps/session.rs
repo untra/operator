@@ -204,7 +204,7 @@ When you have completed this step, clearly indicate "STEP COMPLETE" in your fina
             current_step_display: current_step.as_ref().map(|s| s.display_name().to_string()),
             requires_review: current_step
                 .as_ref()
-                .map(|s| s.requires_review)
+                .map(|s| s.requires_review())
                 .unwrap_or(false),
             is_final: current_step
                 .as_ref()
@@ -272,6 +272,11 @@ mod tests {
             content: "Test content".to_string(),
             sessions: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
         }
     }
 
@@ -282,7 +287,8 @@ mod tests {
             outputs: vec![],
             prompt: "Create a plan".to_string(),
             allowed_tools: vec!["Read".to_string(), "Glob".to_string()],
-            requires_review: false,
+            review_type: crate::templates::schema::ReviewType::None,
+            visual_config: None,
             on_reject: None,
             next_step: Some("implement".to_string()),
             permissions: None,

@@ -19,5 +19,14 @@
   },
   "permission_modes": ["default", "plan", "acceptEdits", "delegate"],
   "command_template": "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
-  "yolo_flags": ["--dangerously-skip-permissions"]
+  "yolo_flags": ["--dangerously-skip-permissions"],
+  "idle_detection": {
+    "idle_patterns": ["^>\\s*$", "^❯\\s*$", "^\\$\\s*$"],
+    "activity_patterns": ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "Thinking", "Working", "Reading", "Writing", "Searching"],
+    "hook_config": {
+      "event_name": "Stop",
+      "script_path": "~/.claude/hooks/operator-stop.sh",
+      "settings_path": "~/.claude/settings.json"
+    }
+  }
 }

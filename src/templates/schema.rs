@@ -133,9 +133,12 @@ pub struct StepSchema {
     pub prompt: String,
     /// Claude Code tools allowed in this step
     pub allowed_tools: Vec<String>,
-    /// Whether this step requires human review before proceeding
+    /// Type of review required for this step (none, plan, visual, pr)
     #[serde(default)]
-    pub requires_review: bool,
+    pub review_type: ReviewType,
+    /// Configuration for visual review (required when review_type is "visual")
+    #[serde(default)]
+    pub visual_config: Option<VisualReviewConfig>,
     /// What to do if step output is rejected
     #[serde(default)]
     pub on_reject: Option<OnReject>,
@@ -212,6 +215,34 @@ pub enum PermissionMode {
     AcceptEdits,
     /// Delegate mode - task delegation with DAG management
     Delegate,
+}
+
+/// Type of review required for a step
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ReviewType {
+    /// No review required - proceed automatically
+    #[default]
+    None,
+    /// Review the plan/output before proceeding
+    Plan,
+    /// Visual confirmation via browser
+    Visual,
+    /// GitHub PR review workflow
+    Pr,
+}
+
+/// Configuration for visual review steps
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VisualReviewConfig {
+    /// URL to open for visual check (supports handlebars templates)
+    pub url: String,
+    /// Optional startup command (e.g., dev server) to run before opening browser
+    #[serde(default)]
+    pub startup_command: Option<String>,
+    /// Timeout in seconds for server startup (default: 30)
+    #[serde(default)]
+    pub startup_timeout_secs: Option<u32>,
 }
 
 impl TemplateSchema {
@@ -298,13 +329,18 @@ impl StepSchema {
     pub fn derived_status(&self, is_first: bool, is_last: bool) -> StepStatus {
         if is_last {
             StepStatus::Done
-        } else if self.requires_review {
+        } else if self.requires_review() {
             StepStatus::Await
         } else if is_first {
             StepStatus::Todo
         } else {
             StepStatus::Doing
         }
+    }
+
+    /// Check if this step requires any form of review
+    pub fn requires_review(&self) -> bool {
+        !matches!(self.review_type, ReviewType::None)
     }
 
     /// Check if this step outputs a plan
@@ -367,7 +403,7 @@ mod tests {
                     "outputs": ["code"],
                     "prompt": "Implement the plan",
                     "allowed_tools": ["Read", "Write", "Edit", "Bash"],
-                    "requires_review": true,
+                    "review_type": "plan",
                     "on_reject": {
                         "goto_step": "plan",
                         "prompt": "Review rejected. Please revise the plan."
@@ -385,7 +421,8 @@ mod tests {
         assert!(!schema.fields[0].user_editable);
         assert_eq!(schema.steps.len(), 2);
         assert!(schema.steps[0].outputs_plan());
-        assert!(schema.steps[1].requires_review);
+        assert!(schema.steps[1].requires_review());
+        assert_eq!(schema.steps[1].review_type, ReviewType::Plan);
 
         // Validate
         assert!(schema.validate().is_ok());

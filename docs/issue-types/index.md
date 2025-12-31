@@ -1,6 +1,6 @@
 ---
 title: Issue Types
-description: "Learn about INV, FIX, FEAT, SPIKE, and TASK issue types, custom definitions, and Jira/Linear imports."
+description: "Learn about INV, FIX, FEAT, SPIKE, and TASK issue types, custom definitions, and Jira imports."
 layout: doc
 ---
 
@@ -106,7 +106,7 @@ Define custom issue types in `.tickets/operator/issuetypes/`:
   STORY.json           # User-defined type
   BUG.json             # User-defined type
   collections.toml     # Collection definitions
-  imports/             # Imported types from Jira/Linear
+  imports/             # Imported types from Jira
 ```
 
 ### Issue Type Schema
@@ -144,7 +144,7 @@ Define custom issue types in `.tickets/operator/issuetypes/`:
 
 ## Importing from Kanban Systems
 
-Import issue types from Jira or Linear to use their type definitions locally.
+Import issue types from Jira to use their type definitions locally.
 
 ### Environment Variables
 
@@ -153,9 +153,6 @@ Import issue types from Jira or Linear to use their type definitions locally.
 export OPERATOR_JIRA_DOMAIN=your-domain.atlassian.net
 export OPERATOR_JIRA_EMAIL=you@example.com
 export OPERATOR_JIRA_TOKEN=your-api-token
-
-# Linear
-export OPERATOR_LINEAR_API_KEY=lin_api_xxxxx
 ```
 
 ### Imported Type Structure

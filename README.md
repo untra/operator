@@ -314,5 +314,6 @@ cargo run -- docs --only config
 ## TODO
 
 * [ ] `--setup jira` option for jira sync for workspace setup
-* [ ] `--setup notion` option for notion sync for workspace setup
+* [ ] `--setup linear` option for linear kanban provider
+* [ ] `--setup gitlab` option for gitlab repository provider
 * [ ] `--sync https://foobar.atlassian.net --project ABC` option for jira ticket sync

@@ -131,6 +131,22 @@ pub struct SetupScreen {
     startup_state: ListState,
     /// Acceptance criteria text (editable during setup)
     pub acceptance_criteria_text: String,
+    // ─── Kanban Setup State ─────────────────────────────────────────────────────
+    /// Detected kanban providers from environment variables
+    pub detected_kanban_providers: Vec<crate::api::providers::kanban::DetectedKanbanProvider>,
+    /// Indices of providers with valid credentials
+    pub valid_kanban_providers: Vec<usize>,
+    /// Projects fetched from current provider being configured
+    pub kanban_projects:
+        super::paginated_list::PaginatedList<crate::api::providers::kanban::ProjectInfo>,
+    /// Issue types for the currently selected project
+    pub kanban_issue_types: Vec<String>,
+    /// Member count for the currently selected project
+    pub kanban_member_count: usize,
+    /// Whether kanban detection/testing has run
+    pub kanban_detection_complete: bool,
+    /// Whether the user chose to skip kanban setup
+    pub kanban_skipped: bool,
 }
 
 /// Startup ticket options for project initialization
@@ -169,7 +185,7 @@ impl StartupTicketOption {
 }
 
 /// Steps in the setup process
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupStep {
     /// Welcome splash screen with discovered projects
     Welcome,
@@ -181,6 +197,10 @@ pub enum SetupStep {
     TaskFieldConfig,
     /// Tmux onboarding/help
     TmuxOnboarding,
+    /// Kanban integration info and provider detection
+    KanbanInfo,
+    /// Per-provider setup with project selection (index into valid_providers)
+    KanbanProviderSetup { provider_index: usize },
     /// Review and configure acceptance criteria
     AcceptanceCriteria,
     /// Optional startup tickets creation
@@ -230,6 +250,14 @@ impl SetupScreen {
             startup_state,
             acceptance_criteria_text: include_str!("../templates/ACCEPTANCE_CRITERIA.md")
                 .to_string(),
+            // Kanban setup state
+            detected_kanban_providers: Vec::new(),
+            valid_kanban_providers: Vec::new(),
+            kanban_projects: super::paginated_list::PaginatedList::new(8),
+            kanban_issue_types: Vec::new(),
+            kanban_member_count: 0,
+            kanban_detection_complete: false,
+            kanban_skipped: false,
         }
     }
 
@@ -441,7 +469,35 @@ impl SetupScreen {
                 SetupResult::Continue
             }
             SetupStep::TmuxOnboarding => {
-                self.step = SetupStep::AcceptanceCriteria;
+                // Detect kanban providers if not already done
+                if !self.kanban_detection_complete {
+                    self.detected_kanban_providers =
+                        crate::api::providers::kanban::detect_kanban_env_vars();
+                    self.kanban_detection_complete = true;
+                }
+                self.step = SetupStep::KanbanInfo;
+                SetupResult::Continue
+            }
+            SetupStep::KanbanInfo => {
+                // If no valid providers or skipped, go to acceptance criteria
+                if self.valid_kanban_providers.is_empty() || self.kanban_skipped {
+                    self.step = SetupStep::AcceptanceCriteria;
+                } else {
+                    // Start with first valid provider
+                    self.step = SetupStep::KanbanProviderSetup { provider_index: 0 };
+                }
+                SetupResult::Continue
+            }
+            SetupStep::KanbanProviderSetup { provider_index } => {
+                // Move to next provider or acceptance criteria
+                let next_index = provider_index + 1;
+                if next_index < self.valid_kanban_providers.len() {
+                    self.step = SetupStep::KanbanProviderSetup {
+                        provider_index: next_index,
+                    };
+                } else {
+                    self.step = SetupStep::AcceptanceCriteria;
+                }
                 SetupResult::Continue
             }
             SetupStep::AcceptanceCriteria => {
@@ -486,8 +542,30 @@ impl SetupScreen {
                 self.step = SetupStep::TaskFieldConfig;
                 SetupResult::Continue
             }
-            SetupStep::AcceptanceCriteria => {
+            SetupStep::KanbanInfo => {
                 self.step = SetupStep::TmuxOnboarding;
+                SetupResult::Continue
+            }
+            SetupStep::KanbanProviderSetup { provider_index } => {
+                if provider_index > 0 {
+                    self.step = SetupStep::KanbanProviderSetup {
+                        provider_index: provider_index - 1,
+                    };
+                } else {
+                    self.step = SetupStep::KanbanInfo;
+                }
+                SetupResult::Continue
+            }
+            SetupStep::AcceptanceCriteria => {
+                // Go back to last kanban provider setup or kanban info
+                if !self.valid_kanban_providers.is_empty() && !self.kanban_skipped {
+                    let last_index = self.valid_kanban_providers.len() - 1;
+                    self.step = SetupStep::KanbanProviderSetup {
+                        provider_index: last_index,
+                    };
+                } else {
+                    self.step = SetupStep::KanbanInfo;
+                }
                 SetupResult::Continue
             }
             SetupStep::StartupTickets => {
@@ -507,12 +585,16 @@ impl SetupScreen {
             return;
         }
 
-        match self.step {
+        match self.step.clone() {
             SetupStep::Welcome => self.render_welcome_step(frame),
             SetupStep::CollectionSource => self.render_collection_source_step(frame),
             SetupStep::CustomCollection => self.render_custom_collection_step(frame),
             SetupStep::TaskFieldConfig => self.render_task_field_config_step(frame),
             SetupStep::TmuxOnboarding => self.render_tmux_onboarding_step(frame),
+            SetupStep::KanbanInfo => self.render_kanban_info_step(frame),
+            SetupStep::KanbanProviderSetup { provider_index } => {
+                self.render_kanban_provider_setup_step(frame, provider_index)
+            }
             SetupStep::AcceptanceCriteria => self.render_acceptance_criteria_step(frame),
             SetupStep::StartupTickets => self.render_startup_tickets_step(frame),
             SetupStep::Confirm => self.render_confirm_step(frame),
@@ -1399,6 +1481,351 @@ impl SetupScreen {
 
         let buttons_para = Paragraph::new(buttons).alignment(Alignment::Center);
         frame.render_widget(buttons_para, chunks[8]);
+    }
+
+    // ─── Kanban Setup Render Methods ────────────────────────────────────────────
+
+    fn render_kanban_info_step(&self, frame: &mut Frame) {
+        use crate::api::providers::kanban::{KanbanProviderType, ProviderStatus};
+
+        let area = centered_rect(70, 80, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(" Kanban Integration ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(2), // Description
+                Constraint::Length(1), // Spacer
+                Constraint::Length(3), // Supported providers header
+                Constraint::Length(4), // Supported providers list
+                Constraint::Length(1), // Spacer
+                Constraint::Length(2), // Detected header
+                Constraint::Min(6),    // Detected providers list
+                Constraint::Length(2), // Footer/help
+            ])
+            .split(inner);
+
+        // Title
+        let title = Paragraph::new(vec![Line::from(vec![
+            Span::styled(
+                "Kanban",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Integration Setup"),
+        ])])
+        .alignment(Alignment::Center);
+        frame.render_widget(title, chunks[0]);
+
+        // Description
+        let desc = Paragraph::new("Operator can sync issues from external kanban providers.")
+            .style(Style::default().fg(Color::Gray))
+            .alignment(Alignment::Center);
+        frame.render_widget(desc, chunks[1]);
+
+        // Supported providers header
+        let supported_header = Paragraph::new(Line::from(vec![Span::styled(
+            "Supported Providers:",
+            Style::default().fg(Color::Yellow),
+        )]));
+        frame.render_widget(supported_header, chunks[3]);
+
+        // Supported providers list
+        let supported = Paragraph::new(vec![
+            Line::from(vec![
+                Span::raw("  • "),
+                Span::styled("Jira Cloud", Style::default().fg(Color::White)),
+                Span::raw(" ("),
+                Span::styled(
+                    "OPERATOR_JIRA_API_KEY",
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::raw(")"),
+            ]),
+            Line::from(vec![
+                Span::raw("  • "),
+                Span::styled("Linear", Style::default().fg(Color::White)),
+                Span::raw(" ("),
+                Span::styled(
+                    "OPERATOR_LINEAR_API_KEY",
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::raw(")"),
+            ]),
+        ]);
+        frame.render_widget(supported, chunks[4]);
+
+        // Detected header
+        let detected_header = Paragraph::new(Line::from(vec![Span::styled(
+            "Detected Providers:",
+            Style::default().fg(Color::Yellow),
+        )]));
+        frame.render_widget(detected_header, chunks[6]);
+
+        // Detected providers list
+        let mut detected_lines = Vec::new();
+        if self.detected_kanban_providers.is_empty() {
+            detected_lines.push(Line::from(vec![Span::styled(
+                "  No providers detected from environment variables",
+                Style::default().fg(Color::DarkGray),
+            )]));
+        } else {
+            for (i, provider) in self.detected_kanban_providers.iter().enumerate() {
+                let is_valid = self.valid_kanban_providers.contains(&i);
+                let (icon, icon_color) = match &provider.status {
+                    ProviderStatus::Untested => ("?", Color::Yellow),
+                    ProviderStatus::Testing => ("~", Color::Yellow),
+                    ProviderStatus::Valid => ("✓", Color::Green),
+                    ProviderStatus::Failed { .. } => ("✗", Color::Red),
+                };
+
+                let provider_name = match provider.provider_type {
+                    KanbanProviderType::Jira => "Jira",
+                    KanbanProviderType::Linear => "Linear",
+                };
+
+                let status_text = match &provider.status {
+                    ProviderStatus::Untested => "not tested".to_string(),
+                    ProviderStatus::Testing => "testing...".to_string(),
+                    ProviderStatus::Valid => "valid".to_string(),
+                    ProviderStatus::Failed { error } => {
+                        format!("failed: {}", error.chars().take(30).collect::<String>())
+                    }
+                };
+
+                detected_lines.push(Line::from(vec![
+                    Span::raw("  ["),
+                    Span::styled(icon, Style::default().fg(icon_color)),
+                    Span::raw("] "),
+                    Span::styled(
+                        provider_name,
+                        Style::default().fg(if is_valid {
+                            Color::White
+                        } else {
+                            Color::DarkGray
+                        }),
+                    ),
+                    Span::raw(" - "),
+                    Span::styled(&provider.domain, Style::default().fg(Color::Cyan)),
+                    Span::raw(" ("),
+                    Span::styled(status_text, Style::default().fg(icon_color)),
+                    Span::raw(")"),
+                ]));
+            }
+        }
+        let detected_list = Paragraph::new(detected_lines);
+        frame.render_widget(detected_list, chunks[7]);
+
+        // Footer
+        let footer = if self.valid_kanban_providers.is_empty() {
+            Line::from(vec![
+                Span::styled("[Enter]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Continue  "),
+                Span::styled("[Esc]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Back"),
+            ])
+        } else {
+            Line::from(vec![
+                Span::styled("[Enter]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Configure providers  "),
+                Span::styled("[S]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Skip  "),
+                Span::styled("[Esc]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Back"),
+            ])
+        };
+        let footer_para = Paragraph::new(footer).alignment(Alignment::Center);
+        frame.render_widget(footer_para, chunks[8]);
+    }
+
+    fn render_kanban_provider_setup_step(&mut self, frame: &mut Frame, provider_index: usize) {
+        use crate::api::providers::kanban::KanbanProviderType;
+
+        let area = centered_rect(70, 80, frame.area());
+        frame.render_widget(Clear, area);
+
+        // Get the provider being configured
+        let provider_idx = self
+            .valid_kanban_providers
+            .get(provider_index)
+            .copied()
+            .unwrap_or(0);
+        let provider = self.detected_kanban_providers.get(provider_idx);
+
+        let title = if let Some(p) = provider {
+            let provider_name = match p.provider_type {
+                KanbanProviderType::Jira => "Jira",
+                KanbanProviderType::Linear => "Linear",
+            };
+            format!(" Setup: {} - {} ", provider_name, p.domain)
+        } else {
+            " Kanban Provider Setup ".to_string()
+        };
+
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(2), // Instructions
+                Constraint::Length(1), // Spacer
+                Constraint::Min(10),   // Project list
+                Constraint::Length(1), // Spacer
+                Constraint::Length(3), // Preview info
+                Constraint::Length(2), // Footer
+            ])
+            .split(inner);
+
+        // Instructions
+        let instructions =
+            Paragraph::new("Select a project to sync:").style(Style::default().fg(Color::Gray));
+        frame.render_widget(instructions, chunks[0]);
+
+        // Project list
+        if self.kanban_projects.is_empty() {
+            let loading = Paragraph::new(vec![
+                Line::from(""),
+                Line::from(vec![Span::styled(
+                    "Loading projects...",
+                    Style::default().fg(Color::Yellow),
+                )]),
+                Line::from(""),
+                Line::from(vec![Span::styled(
+                    "(Projects will be fetched when you enter this step)",
+                    Style::default().fg(Color::DarkGray),
+                )]),
+            ])
+            .alignment(Alignment::Center);
+            frame.render_widget(loading, chunks[2]);
+        } else {
+            super::paginated_list::render_paginated_list(
+                frame,
+                chunks[2],
+                &mut self.kanban_projects,
+                "Projects",
+                |project, _selected| {
+                    ratatui::widgets::ListItem::new(Line::from(vec![
+                        Span::styled(
+                            format!("{:8}", project.key),
+                            Style::default()
+                                .fg(Color::Cyan)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::raw(" - "),
+                        Span::styled(project.name.clone(), Style::default().fg(Color::White)),
+                    ]))
+                },
+            );
+        }
+
+        // Preview info
+        let preview = if !self.kanban_issue_types.is_empty() {
+            Line::from(vec![
+                Span::styled("Issue Types: ", Style::default().fg(Color::Yellow)),
+                Span::styled(
+                    self.kanban_issue_types.join(", "),
+                    Style::default().fg(Color::White),
+                ),
+                Span::raw("  |  "),
+                Span::styled("Members: ", Style::default().fg(Color::Yellow)),
+                Span::styled(
+                    self.kanban_member_count.to_string(),
+                    Style::default().fg(Color::White),
+                ),
+            ])
+        } else {
+            Line::from(vec![Span::styled(
+                "Select a project to see details",
+                Style::default().fg(Color::DarkGray),
+            )])
+        };
+        let preview_para = Paragraph::new(preview);
+        frame.render_widget(preview_para, chunks[4]);
+
+        // Footer
+        let footer = Line::from(vec![
+            Span::styled("[Enter]", Style::default().fg(Color::Yellow)),
+            Span::raw(" Select  "),
+            Span::styled("[n/p]", Style::default().fg(Color::Yellow)),
+            Span::raw(" Page  "),
+            Span::styled("[Esc]", Style::default().fg(Color::Yellow)),
+            Span::raw(" Skip provider"),
+        ]);
+        let footer_para = Paragraph::new(footer).alignment(Alignment::Center);
+        frame.render_widget(footer_para, chunks[5]);
+    }
+
+    // ─── Kanban Setup Helper Methods ────────────────────────────────────────────
+    // These methods are called from app.rs during async credential testing
+    // and project fetching. They are infrastructure for the full kanban setup flow.
+
+    /// Skip kanban setup entirely
+    #[allow(dead_code)]
+    pub fn skip_kanban(&mut self) {
+        self.kanban_skipped = true;
+    }
+
+    /// Mark a provider as valid after testing
+    #[allow(dead_code)]
+    pub fn mark_provider_valid(&mut self, index: usize) {
+        use crate::api::providers::kanban::ProviderStatus;
+
+        if let Some(provider) = self.detected_kanban_providers.get_mut(index) {
+            provider.status = ProviderStatus::Valid;
+            if !self.valid_kanban_providers.contains(&index) {
+                self.valid_kanban_providers.push(index);
+            }
+        }
+    }
+
+    /// Mark a provider as failed after testing
+    #[allow(dead_code)]
+    pub fn mark_provider_failed(&mut self, index: usize, error: String) {
+        use crate::api::providers::kanban::ProviderStatus;
+
+        if let Some(provider) = self.detected_kanban_providers.get_mut(index) {
+            provider.status = ProviderStatus::Failed { error };
+        }
+    }
+
+    /// Set the projects for the current kanban provider
+    #[allow(dead_code)]
+    pub fn set_kanban_projects(
+        &mut self,
+        projects: Vec<crate::api::providers::kanban::ProjectInfo>,
+    ) {
+        self.kanban_projects.set_items(projects);
+    }
+
+    /// Get the selected kanban project
+    #[allow(dead_code)]
+    pub fn selected_kanban_project(&self) -> Option<&crate::api::providers::kanban::ProjectInfo> {
+        self.kanban_projects.selected_item()
+    }
+
+    /// Set the preview info for the selected project
+    #[allow(dead_code)]
+    pub fn set_kanban_preview(&mut self, issue_types: Vec<String>, member_count: usize) {
+        self.kanban_issue_types = issue_types;
+        self.kanban_member_count = member_count;
     }
 }
 

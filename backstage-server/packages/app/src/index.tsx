@@ -12,6 +12,17 @@ import './theme/operator-theme.css';
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Query client for server state management (shared config with App.tsx)
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30000,
+    },
+  },
+});
 
 // Feature flag for legacy app (check localStorage only - env handled by bundler)
 const useLegacyApp = localStorage.getItem('USE_LEGACY_APP') === 'true';
@@ -35,7 +46,9 @@ if (useLegacyApp) {
     const app = createNewApp();
     root.render(
       <React.StrictMode>
-        {app.createRoot()}
+        <QueryClientProvider client={queryClient}>
+          {app.createRoot()}
+        </QueryClientProvider>
       </React.StrictMode>
     );
   });

@@ -16,5 +16,10 @@
     "quiet": "-q"
   },
   "command_template": "codex exec {{config_flags}}-m {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
-  "yolo_flags": ["--full-auto"]
+  "yolo_flags": ["--full-auto"],
+  "idle_detection": {
+    "idle_patterns": ["^>\\s*$", "^\\$\\s*$"],
+    "activity_patterns": ["Thinking", "Working", "Waiting", "⠋", "⠙", "⠹", "⠸"],
+    "hook_config": null
+  }
 }

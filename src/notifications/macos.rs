@@ -20,6 +20,7 @@ pub fn send_notification(title: &str, subtitle: &str, message: &str, sound: bool
 }
 
 /// Send a notification that can be clicked to perform an action
+#[allow(dead_code)]
 pub fn send_actionable(
     title: &str,
     subtitle: &str,

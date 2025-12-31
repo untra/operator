@@ -205,10 +205,31 @@
           },
           "description": "Claude Code tools allowed in this step (e.g., 'Read', 'Write', 'Bash')"
         },
-        "requires_review": {
-          "type": "boolean",
-          "default": false,
-          "description": "Whether this step requires human review before proceeding"
+        "review_type": {
+          "type": "string",
+          "enum": ["none", "plan", "visual", "pr"],
+          "default": "none",
+          "description": "Type of review required: none (auto-proceed), plan (approve plan), visual (browser check), pr (GitHub PR review)"
+        },
+        "visual_config": {
+          "type": "object",
+          "description": "Configuration for visual review (required when review_type is 'visual')",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "URL to open for visual check (supports handlebars templates)"
+            },
+            "startup_command": {
+              "type": "string",
+              "description": "Optional command to start dev server before opening browser"
+            },
+            "startup_timeout_secs": {
+              "type": "integer",
+              "default": 30,
+              "description": "Timeout in seconds for server startup"
+            }
+          },
+          "required": ["url"]
         },
         "on_reject": {
           "type": "object",

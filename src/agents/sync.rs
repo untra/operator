@@ -12,13 +12,18 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
+use std::path::PathBuf;
+
+use anyhow::{Context, Result};
 
 use super::monitor::{HealthCheckResult, SessionMonitor};
 use super::tmux::TmuxClient;
+use super::visual_review::VisualReviewHandler;
+use crate::agents::launcher::worktree_setup::cleanup_ticket_worktree;
 use crate::config::Config;
 use crate::queue::{Queue, Ticket};
-use crate::state::State;
+use crate::state::{AgentState, State};
+use crate::templates::schema::ReviewType;
 
 /// Result of a sync cycle
 #[derive(Debug, Default)]
@@ -115,11 +120,83 @@ impl TicketSessionSync {
                 match action {
                     SyncAction::NoChange => {}
                     SyncAction::MovedToAwaiting => {
-                        // Update agent status
-                        state.update_agent_status(&agent_id, "awaiting_input", None)?;
+                        // Get the ticket's current step review type
+                        let review_type = ticket
+                            .current_step_schema()
+                            .map(|s| s.review_type.clone())
+                            .unwrap_or(ReviewType::None);
+
+                        let step_display = ticket.current_step_display_name();
+
+                        // Handle based on review type
+                        match review_type {
+                            ReviewType::None => {
+                                // Standard awaiting_input (agent is stuck)
+                                state.update_agent_status(&agent_id, "awaiting_input", None)?;
+                            }
+                            ReviewType::Plan => {
+                                // Agent completed step, awaiting plan review
+                                state.update_agent_status(
+                                    &agent_id,
+                                    "awaiting_input",
+                                    Some("Awaiting plan approval".to_string()),
+                                )?;
+                                state.set_agent_review_state(&agent_id, "pending_plan")?;
+                                tracing::info!(
+                                    ticket_id = %ticket.id,
+                                    step = %step_display,
+                                    "Step awaiting plan review"
+                                );
+                            }
+                            ReviewType::Visual => {
+                                // Trigger visual review flow
+                                if let Some(ref visual_config) =
+                                    ticket.current_step_schema().and_then(|s| s.visual_config)
+                                {
+                                    state.update_agent_status(
+                                        &agent_id,
+                                        "awaiting_input",
+                                        Some(format!("Visual review: {}", visual_config.url)),
+                                    )?;
+                                    state.set_agent_review_state(&agent_id, "pending_visual")?;
+
+                                    // Open browser (fire and forget)
+                                    let _ = VisualReviewHandler::open_browser(&visual_config.url);
+
+                                    tracing::info!(
+                                        ticket_id = %ticket.id,
+                                        step = %step_display,
+                                        url = %visual_config.url,
+                                        "Opened browser for visual review"
+                                    );
+                                } else {
+                                    // Visual review without config - treat as plan review
+                                    state.update_agent_status(
+                                        &agent_id,
+                                        "awaiting_input",
+                                        Some("Visual review (no config)".to_string()),
+                                    )?;
+                                    state.set_agent_review_state(&agent_id, "pending_visual")?;
+                                }
+                            }
+                            ReviewType::Pr => {
+                                // Trigger PR creation flow
+                                // PR creation is async - set state and let background task handle it
+                                state.update_agent_status(
+                                    &agent_id,
+                                    "awaiting_input",
+                                    Some("Creating PR...".to_string()),
+                                )?;
+                                state.set_agent_review_state(&agent_id, "pending_pr_creation")?;
+                                tracing::info!(
+                                    ticket_id = %ticket.id,
+                                    step = %step_display,
+                                    "Step requires PR review - awaiting PR creation"
+                                );
+                            }
+                        }
 
                         // Add history entry to ticket
-                        let step_display = ticket.current_step_display_name();
                         if let Err(e) = ticket.add_awaiting_entry(&step_display) {
                             result.errors.push(format!(
                                 "Failed to add history entry for {}: {}",
@@ -134,6 +211,7 @@ impl TicketSessionSync {
                         tracing::info!(
                             ticket_id = %ticket.id,
                             step = %step_display,
+                            review_type = ?review_type,
                             "Ticket moved to AWAITING"
                         );
                     }
@@ -182,11 +260,14 @@ impl TicketSessionSync {
                         );
                     }
                     SyncAction::ResumedFromAwaiting => {
-                        // Agent resumed from awaiting state - handled by check_detach_signals
+                        // Agent resumed from awaiting state (content changed while awaiting)
+                        state.update_agent_status(&agent_id, "running", None)?;
+                        // Clear any review state since agent is now active
+                        state.set_agent_review_state(&agent_id, "")?;
                         result.resumed.push(ticket.id.clone());
                         tracing::info!(
                             ticket_id = %ticket.id,
-                            "Agent resumed from awaiting state"
+                            "Agent resumed from awaiting state - now running"
                         );
                     }
                 }
@@ -210,7 +291,12 @@ impl TicketSessionSync {
             return SyncAction::TimedOut;
         }
 
-        // Check if awaiting input (silence detected)
+        // Check if resumed from awaiting (before checking awaiting_input)
+        if health_result.resumed.iter().any(|s| s == session_name) {
+            return SyncAction::ResumedFromAwaiting;
+        }
+
+        // Check if awaiting input (via hooks, patterns, or silence)
         if health_result
             .awaiting_input
             .iter()
@@ -313,36 +399,153 @@ impl TicketSessionSync {
                 // Signal found - user has detached from session
                 let _ = fs::remove_file(signal_path);
 
-                // Check if content has changed (LLM is working again)
-                if let Ok(content) = self.tmux.capture_pane(session_name, false) {
-                    let mut hasher = Sha256::new();
-                    hasher.update(content.as_bytes());
-                    let new_hash = format!("{:x}", hasher.finalize());
-
-                    // Compare with stored hash
-                    let content_changed = agent
-                        .content_hash
-                        .as_ref()
-                        .map(|old_hash| old_hash != &new_hash)
-                        .unwrap_or(true);
-
-                    if content_changed {
-                        // Content changed - LLM is working, resume agent
+                // Handle based on review state
+                match agent.review_state.as_deref() {
+                    Some("pending_plan") | Some("pending_visual") => {
+                        // Review was approved via TUI (signal file written by approval handler)
+                        // Resume without needing content change
                         state.update_agent_status(&agent.id, "running", None)?;
-                        state.update_agent_content_hash(&agent.id, &new_hash)?;
+                        state.clear_review_state(&agent.id)?;
                         resumed_agents.push(agent.id.clone());
 
                         tracing::info!(
                             agent_id = %agent.id,
                             session = %session_name,
-                            "Agent resumed from awaiting state - content changed"
+                            review_state = ?agent.review_state,
+                            "Agent resumed from review - approved"
                         );
+                    }
+                    Some("pending_pr_merge") | Some("pending_pr_creation") => {
+                        // PR review doesn't use signal files for resume
+                        // PR merge is detected by PrMonitorService
+                        // Skip - signal file may have been created accidentally
+                        tracing::debug!(
+                            agent_id = %agent.id,
+                            "Ignoring signal file for PR review - resume via PR monitor"
+                        );
+                    }
+                    _ => {
+                        // Standard awaiting_input (no review state or unknown state)
+                        // Original behavior: check content change
+                        if let Ok(content) = self.tmux.capture_pane(session_name, false) {
+                            let mut hasher = Sha256::new();
+                            hasher.update(content.as_bytes());
+                            let new_hash = format!("{:x}", hasher.finalize());
+
+                            // Compare with stored hash
+                            let content_changed = agent
+                                .content_hash
+                                .as_ref()
+                                .map(|old_hash| old_hash != &new_hash)
+                                .unwrap_or(true);
+
+                            if content_changed {
+                                // Content changed - LLM is working, resume agent
+                                state.update_agent_status(&agent.id, "running", None)?;
+                                state.update_agent_content_hash(&agent.id, &new_hash)?;
+                                resumed_agents.push(agent.id.clone());
+
+                                tracing::info!(
+                                    agent_id = %agent.id,
+                                    session = %session_name,
+                                    "Agent resumed from awaiting state - content changed"
+                                );
+                            }
+                        }
                     }
                 }
             }
         }
 
         Ok(resumed_agents)
+    }
+
+    /// Handle a PR that has been merged - cleanup worktree and complete ticket
+    ///
+    /// This should be called when PrStatusEvent::Merged is received.
+    ///
+    /// # Arguments
+    /// * `ticket` - The ticket whose PR was merged
+    /// * `agent` - The agent state for this ticket
+    /// * `cleanup_script` - Optional cleanup script from ProjectRepo
+    ///
+    /// # Cleanup steps:
+    /// 1. Run cleanup_script in worktree (if provided)
+    /// 2. Remove worktree via WorktreeManager
+    /// 3. Delete local branch (remote branch already merged)
+    pub async fn handle_pr_merged(
+        &self,
+        ticket: &Ticket,
+        agent: &AgentState,
+        cleanup_script: Option<&str>,
+    ) -> Result<()> {
+        let worktree_path = match &agent.worktree_path {
+            Some(path) => PathBuf::from(path),
+            None => {
+                tracing::debug!(
+                    ticket_id = %ticket.id,
+                    "No worktree to cleanup for merged PR"
+                );
+                return Ok(());
+            }
+        };
+
+        if !worktree_path.exists() {
+            tracing::warn!(
+                ticket_id = %ticket.id,
+                worktree = %worktree_path.display(),
+                "Worktree path doesn't exist, skipping cleanup"
+            );
+            return Ok(());
+        }
+
+        // Get the main repo path (worktree's parent repo)
+        let repo_path = self.get_main_repo_path(ticket)?;
+
+        tracing::info!(
+            ticket_id = %ticket.id,
+            worktree = %worktree_path.display(),
+            "Cleaning up worktree for merged PR"
+        );
+
+        // Perform cleanup:
+        // - Run cleanup_script (if any)
+        // - Remove worktree
+        // - Delete local branch (prune_branch=true)
+        // - Don't delete remote branch (already merged)
+        cleanup_ticket_worktree(
+            &self.config,
+            &worktree_path,
+            &repo_path,
+            cleanup_script,
+            true,  // prune_branch - delete local branch
+            false, // delete_remote_branch - already merged
+        )
+        .await
+        .context("Failed to cleanup worktree for merged PR")?;
+
+        tracing::info!(
+            ticket_id = %ticket.id,
+            "Worktree cleanup complete for merged PR"
+        );
+
+        Ok(())
+    }
+
+    /// Get the main repository path for a ticket's project
+    fn get_main_repo_path(&self, ticket: &Ticket) -> Result<PathBuf> {
+        let projects_root = self.config.projects_path();
+        let project_path = if ticket.project == "global" {
+            projects_root
+        } else {
+            projects_root.join(&ticket.project)
+        };
+
+        if !project_path.exists() {
+            anyhow::bail!("Project path does not exist: {:?}", project_path);
+        }
+
+        Ok(project_path)
     }
 }
 
@@ -368,6 +571,7 @@ mod tests {
                 tickets: tickets_path.to_string_lossy().to_string(),
                 projects: projects_path.to_string_lossy().to_string(),
                 state: state_path.to_string_lossy().to_string(),
+                worktrees: state_path.join("worktrees").to_string_lossy().to_string(),
             },
             ..Default::default()
         };
@@ -413,6 +617,11 @@ mod tests {
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
@@ -444,6 +653,11 @@ mod tests {
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
@@ -475,6 +689,11 @@ mod tests {
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-456", &health);
@@ -508,6 +727,11 @@ mod tests {
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-789", &health);

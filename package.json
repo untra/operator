@@ -1,0 +1,12 @@
+{
+  "name": "operator-docs",
+  "private": true,
+  "description": "Documentation generation for Operator TypeScript types",
+  "scripts": {
+    "docs:typescript": "typedoc"
+  },
+  "devDependencies": {
+    "typedoc": "^0.27.0",
+    "typescript": "^5.0.0"
+  }
+}

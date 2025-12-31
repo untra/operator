@@ -15,13 +15,17 @@
 
 pub mod cli;
 pub mod config;
+pub mod config_schema;
 pub mod issuetype;
+pub mod jira_api;
 pub mod llm_tools;
 pub mod markdown;
 pub mod metadata;
 pub mod openapi;
+pub mod schema_index;
 pub mod shortcuts;
 pub mod startup;
+pub mod state_schema;
 pub mod taxonomy;
 
 use anyhow::Result;
@@ -84,6 +88,10 @@ pub fn generate_all(docs_dir: &Path) -> Result<()> {
         Box::new(openapi::OpenApiDocGenerator),
         Box::new(llm_tools::LlmToolsDocGenerator),
         Box::new(startup::StartupDocGenerator),
+        Box::new(config_schema::ConfigSchemaDocGenerator),
+        Box::new(state_schema::StateSchemaDocGenerator),
+        Box::new(schema_index::SchemaIndexDocGenerator),
+        Box::new(jira_api::JiraApiDocGenerator),
     ];
 
     for generator in generators {

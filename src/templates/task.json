@@ -69,8 +69,7 @@
       "display_name": "Executing",
       "outputs": ["code", "report"],
       "prompt": "Execute this task:\n\n1. Read the ticket summary and context\n2. Explore the codebase as needed\n3. Complete the task as specified\n4. Document what was done\n\nThis is a focused task - complete it directly without creating follow-up tickets or plans.",
-      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
-      "requires_review": false
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
     }
   ]
 }

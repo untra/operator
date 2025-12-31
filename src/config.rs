@@ -3,8 +3,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use sysinfo::System;
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct Config {
     /// List of projects operator can assign work to
     #[serde(default)]
@@ -28,9 +30,15 @@ pub struct Config {
     pub backstage: BackstageConfig,
     #[serde(default)]
     pub rest_api: RestApiConfig,
+    #[serde(default)]
+    pub git: GitConfig,
+    /// Kanban provider configuration for syncing issues from Jira, Linear, etc.
+    #[serde(default)]
+    pub kanban: KanbanConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct AgentsConfig {
     pub max_parallel: usize,
     pub cores_reserved: usize,
@@ -62,35 +70,173 @@ fn default_step_timeout() -> u64 {
 }
 
 fn default_silence_threshold() -> u64 {
-    30 // 30 seconds
+    6 // 6 seconds
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+/// Notifications configuration with support for multiple integrations.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct NotificationsConfig {
+    /// Global enabled flag for all notifications
     pub enabled: bool,
+
+    /// OS notification configuration
+    #[serde(default)]
+    pub os: OsNotificationConfig,
+
+    /// Single webhook configuration (for simple setups)
+    #[serde(default)]
+    pub webhook: Option<WebhookConfig>,
+
+    /// Multiple webhook configurations
+    #[serde(default)]
+    pub webhooks: Vec<WebhookConfig>,
+
+    // Legacy fields for backwards compatibility
+    // These are deprecated but still supported for existing configs
+    #[serde(default = "default_true")]
+    #[schemars(skip)]
+    #[ts(skip)]
     pub on_agent_start: bool,
+    #[serde(default = "default_true")]
+    #[schemars(skip)]
+    #[ts(skip)]
     pub on_agent_complete: bool,
+    #[serde(default = "default_true")]
+    #[schemars(skip)]
+    #[ts(skip)]
     pub on_agent_needs_input: bool,
+    #[serde(default = "default_true")]
+    #[schemars(skip)]
+    #[ts(skip)]
     pub on_pr_created: bool,
+    #[serde(default = "default_true")]
+    #[schemars(skip)]
+    #[ts(skip)]
     pub on_investigation_created: bool,
+    #[serde(default)]
+    #[schemars(skip)]
+    #[ts(skip)]
     pub sound: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+fn default_true() -> bool {
+    true
+}
+
+impl Default for NotificationsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            os: OsNotificationConfig::default(),
+            webhook: None,
+            webhooks: Vec::new(),
+            // Legacy fields
+            on_agent_start: true,
+            on_agent_complete: true,
+            on_agent_needs_input: true,
+            on_pr_created: true,
+            on_investigation_created: true,
+            sound: false,
+        }
+    }
+}
+
+/// OS notification configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct OsNotificationConfig {
+    /// Whether OS notifications are enabled
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    /// Play sound with notifications
+    #[serde(default)]
+    pub sound: bool,
+
+    /// Events to send (empty = all events)
+    /// Possible values: agent.started, agent.completed, agent.failed,
+    /// agent.awaiting_input, agent.session_lost, pr.created, pr.merged,
+    /// pr.closed, pr.ready_to_merge, pr.changes_requested,
+    /// ticket.returned, investigation.created
+    #[serde(default)]
+    pub events: Vec<String>,
+}
+
+impl Default for OsNotificationConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            sound: false,
+            events: Vec::new(), // All events
+        }
+    }
+}
+
+/// Webhook notification configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct WebhookConfig {
+    /// Optional name for this webhook (for logging)
+    #[serde(default)]
+    pub name: Option<String>,
+
+    /// Whether this webhook is enabled
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Webhook URL
+    #[serde(default)]
+    pub url: String,
+
+    /// Authentication type: "bearer" or "basic"
+    #[serde(default)]
+    pub auth_type: Option<String>,
+
+    /// Environment variable containing the bearer token
+    #[serde(default)]
+    pub token_env: Option<String>,
+
+    /// Username for basic auth
+    #[serde(default)]
+    pub username: Option<String>,
+
+    /// Environment variable containing the password for basic auth
+    #[serde(default)]
+    pub password_env: Option<String>,
+
+    /// Events to send (empty = all events)
+    #[serde(default)]
+    pub events: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct QueueConfig {
     pub auto_assign: bool,
     pub priority_order: Vec<String>,
     pub poll_interval_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct PathsConfig {
     pub tickets: String,
     pub projects: String,
     pub state: String,
+    /// Base directory for per-ticket worktrees (default: ~/.operator/worktrees)
+    #[serde(default = "default_worktrees_dir")]
+    pub worktrees: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+fn default_worktrees_dir() -> String {
+    dirs::home_dir()
+        .map(|h| h.join(".operator/worktrees").to_string_lossy().to_string())
+        .unwrap_or_else(|| ".operator/worktrees".to_string())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct UiConfig {
     pub refresh_rate_ms: u64,
     pub completed_history_hours: u64,
@@ -99,7 +245,8 @@ pub struct UiConfig {
     pub panel_names: PanelNamesConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct PanelNamesConfig {
     #[serde(default = "default_todo_name")]
     pub queue: String,
@@ -138,7 +285,8 @@ impl Default for PanelNamesConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct LaunchConfig {
     pub confirm_autonomous: bool,
     pub confirm_paired: bool,
@@ -152,7 +300,8 @@ pub struct LaunchConfig {
 }
 
 /// Docker execution configuration for running agents in containers
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct DockerConfig {
     /// Whether docker mode option is available in launch dialog
     #[serde(default)]
@@ -192,14 +341,16 @@ impl Default for DockerConfig {
 }
 
 /// YOLO (auto-accept) mode configuration for fully autonomous execution
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, TS)]
+#[ts(export)]
 pub struct YoloConfig {
     /// Whether YOLO mode option is available in launch dialog
     #[serde(default)]
     pub enabled: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, TS)]
+#[ts(export)]
 pub struct TmuxConfig {
     /// Whether custom tmux config has been generated
     #[serde(default)]
@@ -207,7 +358,8 @@ pub struct TmuxConfig {
 }
 
 /// Backstage integration configuration
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct BackstageConfig {
     /// Whether Backstage integration is enabled
     #[serde(default = "default_backstage_enabled")]
@@ -237,7 +389,8 @@ pub struct BackstageConfig {
 }
 
 /// Branding configuration for Backstage portal
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct BrandingConfig {
     /// App title shown in header
     #[serde(default = "default_app_title")]
@@ -274,7 +427,8 @@ impl Default for BrandingConfig {
 
 /// Theme color configuration for Backstage
 /// Default colors match Operator's tmux theme
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct ThemeColors {
     /// Primary/accent color (default: salmon #cc6c55)
     #[serde(default = "default_color_primary")]
@@ -361,7 +515,8 @@ impl Default for BackstageConfig {
 }
 
 /// REST API server configuration
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct RestApiConfig {
     /// Whether the REST API is enabled
     #[serde(default = "default_rest_enabled")]
@@ -393,7 +548,8 @@ impl Default for RestApiConfig {
 }
 
 /// LLM CLI tools configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, TS)]
+#[ts(export)]
 pub struct LlmToolsConfig {
     /// Detected CLI tools (populated on first startup)
     #[serde(default)]
@@ -410,7 +566,8 @@ pub struct LlmToolsConfig {
 }
 
 /// A detected CLI tool (e.g., claude binary)
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct DetectedTool {
     /// Tool name (e.g., "claude")
     pub name: String,
@@ -432,7 +589,8 @@ pub struct DetectedTool {
 }
 
 /// Tool capabilities
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, TS)]
+#[ts(export)]
 pub struct ToolCapabilities {
     /// Whether the tool supports session continuity via UUID
     #[serde(default)]
@@ -442,20 +600,48 @@ pub struct ToolCapabilities {
     pub supports_headless: bool,
 }
 
-/// A {tool, model} pair that can be selected when launching tickets
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+/// A {tool, model} pair that can be selected when launching tickets.
+/// Includes optional variant fields adopted from vibe-kanban's profile system.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 pub struct LlmProvider {
-    /// CLI tool name (e.g., "claude")
+    /// CLI tool name (e.g., "claude", "codex", "gemini")
     pub tool: String,
-    /// Model alias or name (e.g., "opus", "sonnet")
+    /// Model alias or name (e.g., "opus", "sonnet", "gpt-4.1")
     pub model: String,
-    /// Optional display name for UI (e.g., "Claude Opus")
+    /// Optional display name for UI (e.g., "Claude Opus", "Codex High")
     #[serde(default)]
     pub display_name: Option<String>,
+
+    // ─── Variant fields (all optional) ───────────────────────────────
+    /// Additional CLI flags for this provider (e.g., ["--dangerously-skip-permissions"])
+    #[serde(default)]
+    pub flags: Vec<String>,
+
+    /// Environment variables to set when launching
+    #[serde(default)]
+    pub env: std::collections::HashMap<String, String>,
+
+    /// Whether this provider requires approval gates
+    #[serde(default)]
+    pub approvals: bool,
+
+    /// Whether to run in plan-only mode
+    #[serde(default)]
+    pub plan_only: bool,
+
+    /// Reasoning effort level (Codex: "low", "medium", "high")
+    #[serde(default)]
+    pub reasoning_effort: Option<String>,
+
+    /// Sandbox mode (Codex: "danger-full-access", "workspace-write")
+    #[serde(default)]
+    pub sandbox: Option<String>,
 }
 
 /// Predefined issue type collections
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum CollectionPreset {
     /// Simple tasks only: TASK
@@ -499,7 +685,8 @@ impl CollectionPreset {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct TemplatesConfig {
     /// Named preset for issue type collection
     /// Options: simple, dev_kanban, devops_kanban, custom
@@ -526,7 +713,8 @@ impl Default for TemplatesConfig {
 }
 
 /// Logging configuration
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct LoggingConfig {
     /// Log level filter (trace, debug, info, warn, error)
     #[serde(default = "default_log_level")]
@@ -555,7 +743,8 @@ impl Default for LoggingConfig {
 }
 
 /// API integrations configuration
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 pub struct ApiConfig {
     /// Interval in seconds between PR status checks (default: 60)
     #[serde(default = "default_pr_check_interval")]
@@ -588,6 +777,191 @@ impl Default for ApiConfig {
             rate_limit_warning_threshold: default_rate_limit_warning_threshold(),
         }
     }
+}
+
+// ─── Kanban Provider Configuration ─────────────────────────────────────────
+
+/// Kanban provider configuration for syncing issues from external systems
+///
+/// Providers are keyed by domain/workspace:
+/// - Jira: keyed by domain (e.g., "foobar.atlassian.net")
+/// - Linear: keyed by workspace slug (e.g., "myworkspace")
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, Default)]
+#[ts(export)]
+pub struct KanbanConfig {
+    /// Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net")
+    #[serde(default)]
+    pub jira: std::collections::HashMap<String, JiraConfig>,
+    /// Linear instances keyed by workspace slug
+    #[serde(default)]
+    pub linear: std::collections::HashMap<String, LinearConfig>,
+}
+
+/// Jira Cloud provider configuration
+///
+/// The domain is specified as the HashMap key in KanbanConfig.jira
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct JiraConfig {
+    /// Whether this provider is enabled
+    #[serde(default)]
+    pub enabled: bool,
+    /// Environment variable name containing the API key (default: OPERATOR_JIRA_API_KEY)
+    #[serde(default = "default_jira_api_key_env")]
+    pub api_key_env: String,
+    /// Atlassian account email for authentication
+    pub email: String,
+    /// Per-project sync configuration
+    #[serde(default)]
+    pub projects: std::collections::HashMap<String, ProjectSyncConfig>,
+}
+
+fn default_jira_api_key_env() -> String {
+    "OPERATOR_JIRA_API_KEY".to_string()
+}
+
+impl Default for JiraConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            api_key_env: default_jira_api_key_env(),
+            email: String::new(),
+            projects: std::collections::HashMap::new(),
+        }
+    }
+}
+
+/// Linear provider configuration
+///
+/// The workspace slug is specified as the HashMap key in KanbanConfig.linear
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct LinearConfig {
+    /// Whether this provider is enabled
+    #[serde(default)]
+    pub enabled: bool,
+    /// Environment variable name containing the API key (default: OPERATOR_LINEAR_API_KEY)
+    #[serde(default = "default_linear_api_key_env")]
+    pub api_key_env: String,
+    /// Per-team sync configuration
+    #[serde(default)]
+    pub projects: std::collections::HashMap<String, ProjectSyncConfig>,
+}
+
+fn default_linear_api_key_env() -> String {
+    "OPERATOR_LINEAR_API_KEY".to_string()
+}
+
+impl Default for LinearConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            api_key_env: default_linear_api_key_env(),
+            projects: std::collections::HashMap::new(),
+        }
+    }
+}
+
+/// Per-project/team sync configuration for a kanban provider
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct ProjectSyncConfig {
+    /// User ID to sync issues for (provider-specific format)
+    /// - Jira: accountId (e.g., "5e3f7acd9876543210abcdef")
+    /// - Linear: user ID (e.g., "abc12345-6789-0abc-def0-123456789abc")
+    #[serde(default)]
+    pub sync_user_id: String,
+    /// Workflow statuses to sync (empty = default/first status only)
+    #[serde(default)]
+    pub sync_statuses: Vec<String>,
+    /// IssueTypeCollection name this project maps to
+    #[serde(default)]
+    pub collection_name: String,
+}
+
+// ─── Git Provider Configuration ────────────────────────────────────────────
+
+/// Git provider configuration for PR/MR operations
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct GitConfig {
+    /// Active provider (auto-detected from remote URL if not specified)
+    #[serde(default)]
+    pub provider: Option<GitProviderConfig>,
+    /// GitHub-specific configuration
+    #[serde(default)]
+    pub github: GitHubConfig,
+    /// GitLab-specific configuration (planned)
+    #[serde(default)]
+    pub gitlab: GitLabConfig,
+    /// Branch naming format (e.g., "{type}/{ticket_id}-{slug}")
+    #[serde(default = "default_branch_format")]
+    pub branch_format: String,
+}
+
+fn default_branch_format() -> String {
+    "{type}/{ticket_id}".to_string()
+}
+
+impl Default for GitConfig {
+    fn default() -> Self {
+        Self {
+            provider: None,
+            github: GitHubConfig::default(),
+            gitlab: GitLabConfig::default(),
+            branch_format: default_branch_format(),
+        }
+    }
+}
+
+/// Git provider selection
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum GitProviderConfig {
+    /// GitHub (github.com)
+    GitHub,
+    /// GitLab (gitlab.com or self-hosted)
+    GitLab,
+    /// Bitbucket (bitbucket.org)
+    Bitbucket,
+    /// Azure DevOps (dev.azure.com)
+    AzureDevOps,
+}
+
+/// GitHub-specific configuration
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, Default)]
+#[ts(export)]
+pub struct GitHubConfig {
+    /// Whether GitHub integration is enabled
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Environment variable containing the GitHub token (default: GITHUB_TOKEN)
+    #[serde(default = "default_github_token_env")]
+    pub token_env: String,
+}
+
+fn default_github_token_env() -> String {
+    "GITHUB_TOKEN".to_string()
+}
+
+/// GitLab-specific configuration (planned)
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, Default)]
+#[ts(export)]
+pub struct GitLabConfig {
+    /// Whether GitLab integration is enabled
+    #[serde(default)]
+    pub enabled: bool,
+    /// Environment variable containing the GitLab token (default: GITLAB_TOKEN)
+    #[serde(default = "default_gitlab_token_env")]
+    pub token_env: String,
+    /// GitLab host (default: gitlab.com, can be self-hosted)
+    #[serde(default)]
+    pub host: Option<String>,
+}
+
+fn default_gitlab_token_env() -> String {
+    "GITLAB_TOKEN".to_string()
 }
 
 impl Config {
@@ -694,6 +1068,17 @@ impl Config {
         }
     }
 
+    /// Get absolute path to worktrees directory
+    #[allow(dead_code)] // Will be used when WorktreeManager is wired into launcher
+    pub fn worktrees_path(&self) -> PathBuf {
+        let path = PathBuf::from(&self.paths.worktrees);
+        if path.is_absolute() {
+            path
+        } else {
+            std::env::current_dir().unwrap_or_default().join(path)
+        }
+    }
+
     /// Get absolute path to logs directory
     pub fn logs_path(&self) -> PathBuf {
         self.state_path().join("logs")
@@ -733,6 +1118,16 @@ impl Config {
     pub fn discover_projects(&self) -> Vec<String> {
         crate::projects::discover_projects(&self.projects_path())
     }
+
+    /// Discover projects with full git and LLM tool information
+    ///
+    /// Returns projects found by scanning for .git directories and LLM marker files.
+    /// Each project includes git repo info (remote URL, default branch, GitHub info)
+    /// and a list of available LLM tools.
+    #[allow(dead_code)] // For future integration
+    pub fn discover_projects_full(&self) -> Vec<crate::projects::DiscoveredProject> {
+        crate::projects::discover_projects_with_git(&self.projects_path())
+    }
 }
 
 impl Default for Config {
@@ -748,15 +1143,7 @@ impl Default for Config {
                 step_timeout: 1800,           // 30 minutes
                 silence_threshold: 30,        // 30 seconds
             },
-            notifications: NotificationsConfig {
-                enabled: true,
-                on_agent_start: true,
-                on_agent_complete: true,
-                on_agent_needs_input: true,
-                on_pr_created: true,
-                on_investigation_created: true,
-                sound: false,
-            },
+            notifications: NotificationsConfig::default(),
             queue: QueueConfig {
                 auto_assign: true,
                 priority_order: vec![
@@ -772,6 +1159,7 @@ impl Default for Config {
                 tickets: ".tickets".to_string(), // Relative to cwd
                 projects: ".".to_string(),       // cwd is projects root
                 state: ".tickets/operator".to_string(),
+                worktrees: default_worktrees_dir(),
             },
             ui: UiConfig {
                 refresh_rate_ms: 250,
@@ -793,6 +1181,8 @@ impl Default for Config {
             llm_tools: LlmToolsConfig::default(),
             backstage: BackstageConfig::default(),
             rest_api: RestApiConfig::default(),
+            git: GitConfig::default(),
+            kanban: KanbanConfig::default(),
         }
     }
 }

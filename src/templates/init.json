@@ -54,7 +54,6 @@
       "outputs": ["code"],
       "prompt": "Create the Backstage directory structure:\n\n1. Create `.tickets/operator/backstage/` directory\n2. Generate minimal `package.json` for Bun:\n   ```json\n   {\n     \"name\": \"backstage-local\",\n     \"scripts\": {\n       \"dev\": \"backstage-cli dev\",\n       \"start\": \"backstage-cli start\"\n     }\n   }\n   ```\n3. Create `packages/` directory structure\n4. Set up branding directory with defaults\n\nAsk operator for branding preferences if not specified.",
       "allowed_tools": ["Read", "Write", "Bash"],
-      "requires_review": false,
       "next_step": "configure"
     },
     {
@@ -63,7 +62,7 @@
       "outputs": ["code"],
       "prompt": "Configure Backstage for local development:\n\n1. Generate `app-config.yaml` with:\n   - Guest authentication (no login required)\n   - File-based catalog locations\n   - Local database (SQLite)\n2. Scan workspace for existing catalog-info.yaml files\n3. Add all discovered locations to config\n4. Configure branding if branding_name is set\n\nReview configuration with operator before proceeding.",
       "allowed_tools": ["Read", "Write", "Glob"],
-      "requires_review": true,
+      "review_type": "plan",
       "on_reject": {
         "goto_step": "configure",
         "prompt": "Revise configuration based on feedback: {{ rejection_reason }}"
@@ -76,7 +75,7 @@
       "outputs": ["report"],
       "prompt": "Verify the Backstage setup:\n\n1. Check Bun is installed: `bun --version`\n2. Install dependencies: `bun install`\n3. Verify configuration is valid\n4. Document setup in `.tickets/operator/backstage/README.md`\n5. Provide instructions for starting: `bun run dev`\n\nReport any issues that need manual resolution.",
       "allowed_tools": ["Read", "Write", "Bash"],
-      "requires_review": true,
+      "review_type": "plan",
       "on_reject": {
         "goto_step": "scaffold",
         "prompt": "Setup verification failed. Re-scaffold with feedback: {{ rejection_reason }}"

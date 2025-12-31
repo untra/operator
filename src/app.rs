@@ -7,22 +7,25 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::time::Duration;
+use tokio::sync::{mpsc, RwLock};
 
 use crate::agents::tmux::SystemTmuxClient;
 use crate::agents::{
-    AgentTicketCreator, AssessTicketCreator, LaunchOptions, Launcher, SessionMonitor,
+    AgentTicketCreator, AssessTicketCreator, LaunchOptions, Launcher, PrWorkflow, SessionMonitor,
     TicketSessionSync,
 };
-use crate::api::Capabilities;
 use crate::backstage::scaffold::{BackstageScaffold, ScaffoldOptions};
 use crate::backstage::BackstageServer;
 use crate::config::Config;
-use crate::notifications;
+use crate::issuetypes::IssueTypeRegistry;
+use crate::notifications::{NotificationEvent, NotificationService};
 use crate::queue::{Queue, TicketCreator};
 use crate::rest::RestApiServer;
+use crate::services::{KanbanSyncService, PrMonitorService, PrStatusEvent, TrackedPr};
 use crate::setup::filter_schema_fields;
 use crate::state::State;
 use crate::templates::TemplateType;
@@ -32,8 +35,9 @@ use crate::ui::projects_dialog::{ProjectAction, ProjectsDialog, ProjectsDialogRe
 use crate::ui::session_preview::SessionPreview;
 use crate::ui::setup::{DetectedToolInfo, SetupResult, SetupScreen};
 use crate::ui::{
-    with_suspended_tui, ConfirmDialog, ConfirmSelection, Dashboard, SessionRecoveryDialog,
-    SessionRecoverySelection,
+    with_suspended_tui, CollectionSwitchDialog, ConfirmDialog, ConfirmSelection, Dashboard,
+    KanbanView, KanbanViewResult, SessionRecoveryDialog, SessionRecoverySelection,
+    SyncConfirmDialog, SyncConfirmResult,
 };
 use std::sync::Arc;
 
@@ -57,10 +61,6 @@ pub struct App {
     session_preview: SessionPreview,
     /// Ticket-session synchronizer
     ticket_sync: TicketSessionSync,
-    /// API capabilities (rate limits, PR status, etc.)
-    capabilities: Capabilities,
-    /// Flag indicating rate limit sync is in progress
-    rate_limit_syncing: bool,
     /// Last sync status message for display
     sync_status_message: Option<String>,
     /// Backstage server lifecycle manager
@@ -75,6 +75,24 @@ pub struct App {
     start_web_on_launch: bool,
     /// Session recovery dialog for handling dead tmux sessions
     session_recovery_dialog: SessionRecoveryDialog,
+    /// Collection switch dialog for changing active issue type collection
+    collection_dialog: CollectionSwitchDialog,
+    /// Kanban providers view for syncing external issues
+    kanban_view: KanbanView,
+    /// Kanban sync confirmation dialog
+    sync_confirm_dialog: SyncConfirmDialog,
+    /// Kanban sync service
+    kanban_sync_service: KanbanSyncService,
+    /// Issue type registry for dynamic issue types
+    issue_type_registry: IssueTypeRegistry,
+    /// Receiver for PR status events from the background monitor
+    pr_event_rx: mpsc::UnboundedReceiver<PrStatusEvent>,
+    /// Shared access to tracked PRs (for adding new PRs from sync)
+    pr_tracked: Arc<RwLock<HashMap<String, TrackedPr>>>,
+    /// Shutdown signal sender for PR monitor
+    pr_shutdown_tx: Option<mpsc::Sender<()>>,
+    /// Notification service for dispatching events to integrations
+    notification_service: NotificationService,
 }
 
 impl App {
@@ -172,21 +190,6 @@ impl App {
         };
         let ticket_sync = TicketSessionSync::new(&config, tmux_client);
 
-        // Initialize API capabilities from environment
-        let capabilities = Capabilities::from_env();
-        if capabilities.has_ai() {
-            tracing::info!(
-                provider = capabilities.ai_provider_name(),
-                "AI provider configured"
-            );
-        }
-        if capabilities.has_repo() {
-            tracing::info!(
-                provider = capabilities.repo_provider_name(),
-                "Repo provider configured"
-            );
-        }
-
         // Initialize Backstage server lifecycle manager using compiled binary mode
         let backstage_server = BackstageServer::with_compiled_binary(
             config.state_path(),
@@ -198,6 +201,41 @@ impl App {
 
         // Initialize REST API server lifecycle manager
         let rest_api_server = RestApiServer::new(config.clone(), config.rest_api.port);
+
+        // Initialize issue type registry
+        let mut issue_type_registry = IssueTypeRegistry::new();
+        if let Err(e) = issue_type_registry.load_all(&config.tickets_path()) {
+            tracing::warn!("Failed to load issue types: {}", e);
+        }
+
+        // Activate configured collection if specified
+        if let Some(ref active) = config.templates.active_collection {
+            if let Err(e) = issue_type_registry.activate_collection(active) {
+                tracing::warn!("Failed to activate collection '{}': {}", active, e);
+            }
+        }
+
+        // Initialize notification service
+        let notification_service = NotificationService::from_config(&config)?;
+
+        // Initialize PR monitor channels (monitor will be spawned in run())
+        let (pr_event_tx, pr_event_rx) = mpsc::unbounded_channel();
+        let (pr_shutdown_tx, pr_shutdown_rx) = mpsc::channel(1);
+
+        // Create PR monitor service and get shared access to tracked PRs
+        let mut pr_monitor = PrMonitorService::new(pr_event_tx)
+            .with_poll_interval(Duration::from_secs(config.api.pr_check_interval_secs))
+            .with_shutdown(pr_shutdown_rx);
+        let pr_tracked = pr_monitor.tracked_prs();
+
+        // Spawn PR monitor as background task
+        tokio::spawn(async move {
+            if let Err(e) = pr_monitor.run().await {
+                tracing::error!("PR monitor error: {}", e);
+            }
+        });
+
+        let kanban_sync_service = KanbanSyncService::new(&config);
 
         Ok(Self {
             config,
@@ -212,8 +250,6 @@ impl App {
             session_monitor,
             session_preview: SessionPreview::new(),
             ticket_sync,
-            capabilities,
-            rate_limit_syncing: false,
             sync_status_message: None,
             backstage_server,
             rest_api_server,
@@ -221,6 +257,15 @@ impl App {
             exit_confirmation_time: None,
             start_web_on_launch: start_web,
             session_recovery_dialog: SessionRecoveryDialog::new(),
+            collection_dialog: CollectionSwitchDialog::new(),
+            kanban_view: KanbanView::new(),
+            sync_confirm_dialog: SyncConfirmDialog::new(),
+            kanban_sync_service,
+            issue_type_registry,
+            pr_event_rx,
+            pr_tracked,
+            pr_shutdown_tx: Some(pr_shutdown_tx),
+            notification_service,
         })
     }
 
@@ -292,6 +337,11 @@ impl App {
                     self.projects_dialog.render(f);
                     self.session_preview.render(f);
                     self.session_recovery_dialog.render(f);
+                    self.collection_dialog.render(f);
+                    if self.kanban_view.visible {
+                        self.kanban_view.render(f, f.area());
+                    }
+                    self.sync_confirm_dialog.render(f);
                 }
             })?;
 
@@ -303,7 +353,7 @@ impl App {
                         if key.code == KeyCode::Char('c')
                             && key.modifiers.contains(KeyModifiers::CONTROL)
                         {
-                            self.handle_ctrl_c();
+                            self.handle_ctrl_c().await;
                         } else {
                             // Reset exit confirmation if any other key is pressed
                             if self.exit_confirmation_mode {
@@ -324,6 +374,12 @@ impl App {
 
             // Run periodic ticket-session sync
             self.run_periodic_sync()?;
+
+            // Check for PR status events (non-blocking)
+            self.handle_pr_events().await?;
+
+            // Process any pending PR creations
+            self.process_pending_pr_creations().await?;
         }
 
         // Restore terminal
@@ -392,15 +448,11 @@ impl App {
             );
 
             // Notify about orphaned sessions
-            if self.config.notifications.enabled {
-                for session in &result.orphaned {
-                    notifications::send(
-                        "Orphaned Agent Found",
-                        session,
-                        "This agent's session was not found on startup.",
-                        self.config.notifications.sound,
-                    )?;
-                }
+            for session in &result.orphaned {
+                self.notification_service
+                    .notify_sync(NotificationEvent::AgentSessionLost {
+                        session_name: session.clone(),
+                    });
             }
         }
 
@@ -438,15 +490,11 @@ impl App {
                 "Detected orphaned agent sessions"
             );
 
-            if self.config.notifications.enabled {
-                for session in &result.orphaned {
-                    notifications::send(
-                        "Agent Session Lost",
-                        session,
-                        "The tmux session for this agent has terminated unexpectedly.",
-                        self.config.notifications.sound,
-                    )?;
-                }
+            for session in &result.orphaned {
+                self.notification_service
+                    .notify_sync(NotificationEvent::AgentSessionLost {
+                        session_name: session.clone(),
+                    });
             }
         }
 
@@ -481,48 +529,404 @@ impl App {
         self.execute_sync()
     }
 
-    /// Sync rate limits from AI provider
-    async fn sync_rate_limits(&mut self) {
-        if !self.capabilities.has_ai() {
-            self.sync_status_message = Some("No AI provider configured".to_string());
-            return;
+    /// Sync all configured kanban collections
+    async fn run_kanban_sync_all(&mut self) -> Result<()> {
+        let collections = self.kanban_sync_service.configured_collections();
+        let total = collections.len();
+
+        if total == 0 {
+            self.sync_confirm_dialog.hide();
+            self.sync_status_message = Some("No kanban providers configured".to_string());
+            return Ok(());
         }
 
-        self.rate_limit_syncing = true;
-        self.sync_status_message = Some("Syncing rate limits...".to_string());
+        let mut created_total = 0;
+        let mut skipped_total = 0;
+        let mut error_count = 0;
 
-        match self.capabilities.sync_rate_limits().await {
-            Ok(info) => {
-                let summary = info.summary();
-                self.sync_status_message = Some(format!("Rate limits: {}", summary));
+        for (i, collection) in collections.iter().enumerate() {
+            self.sync_confirm_dialog.set_syncing(i, total);
 
-                // Update dashboard with rate limit info
-                self.dashboard.update_rate_limit(Some(info));
-
-                // Check for providers needing token refresh
-                let needs_refresh = self.capabilities.providers_needing_refresh();
-                if !needs_refresh.is_empty() {
+            match self
+                .kanban_sync_service
+                .sync_collection(&collection.provider, &collection.project_key)
+                .await
+            {
+                Ok(result) => {
+                    created_total += result.created.len();
+                    skipped_total += result.skipped.len();
+                    if !result.is_success() {
+                        error_count += result.errors.len();
+                    }
+                    tracing::info!(
+                        provider = %collection.provider,
+                        project = %collection.project_key,
+                        "Synced collection: {}",
+                        result.summary()
+                    );
+                }
+                Err(e) => {
+                    error_count += 1;
                     tracing::warn!(
-                        providers = ?needs_refresh,
-                        "Providers need token refresh (persistent 401 errors)"
+                        provider = %collection.provider,
+                        project = %collection.project_key,
+                        "Failed to sync collection: {}",
+                        e
                     );
                 }
             }
-            Err(e) => {
-                self.sync_status_message = Some(format!("Rate limit sync failed: {}", e));
-                tracing::warn!("Rate limit sync failed: {}", e);
+        }
 
-                // Check if token needs refresh
-                if e.needs_token_refresh() {
-                    self.sync_status_message = Some(format!(
-                        "{} token expired - please refresh",
-                        e.provider_name()
-                    ));
+        // Build summary message
+        let summary = if error_count > 0 {
+            format!(
+                "Sync complete: {} created, {} skipped, {} errors",
+                created_total, skipped_total, error_count
+            )
+        } else {
+            format!(
+                "Sync complete: {} tickets created, {} skipped",
+                created_total, skipped_total
+            )
+        };
+
+        self.sync_confirm_dialog.set_complete(&summary);
+        self.sync_status_message = Some(summary);
+        self.sync_confirm_dialog.hide();
+
+        // Trigger queue refresh
+        self.run_manual_sync()?;
+
+        Ok(())
+    }
+
+    /// Handle PR status events from the background monitor (non-blocking)
+    async fn handle_pr_events(&mut self) -> Result<()> {
+        // Process all pending PR events (non-blocking)
+        while let Ok(event) = self.pr_event_rx.try_recv() {
+            match event {
+                PrStatusEvent::Merged {
+                    ticket_id,
+                    pr_number,
+                    merge_commit_sha,
+                } => {
+                    tracing::info!(
+                        ticket = %ticket_id,
+                        pr = pr_number,
+                        merge_sha = %merge_commit_sha,
+                        "PR merged - advancing ticket"
+                    );
+
+                    // Load state and queue
+                    let mut state = State::load(&self.config)?;
+                    let queue = Queue::new(&self.config)?;
+
+                    // Get the ticket and agent
+                    if let Some(ticket) = queue.get_in_progress_ticket(&ticket_id)? {
+                        if let Some(agent) = state.agent_by_ticket(&ticket_id).cloned() {
+                            // Handle PR merged (cleanup worktree, etc.)
+                            if let Err(e) = self
+                                .ticket_sync
+                                .handle_pr_merged(&ticket, &agent, None)
+                                .await
+                            {
+                                tracing::error!(
+                                    ticket = %ticket_id,
+                                    error = %e,
+                                    "Failed to cleanup after PR merge"
+                                );
+                            }
+
+                            // Clear PR review state and update status
+                            state.clear_review_state(&agent.id)?;
+                            state.update_agent_status(
+                                &agent.id,
+                                "completed",
+                                Some(format!("PR #{} merged", pr_number)),
+                            )?;
+
+                            // Send notification
+                            self.notification_service
+                                .notify(NotificationEvent::PrMerged {
+                                    project: ticket.project.clone(),
+                                    ticket_id: ticket_id.clone(),
+                                    pr_number,
+                                })
+                                .await;
+                        }
+                    }
+
+                    // Untrack the PR (it's been merged)
+                    let key = format!("{}#{}", ticket_id, pr_number);
+                    self.pr_tracked.write().await.remove(&key);
+                }
+                PrStatusEvent::Closed {
+                    ticket_id,
+                    pr_number,
+                } => {
+                    tracing::warn!(
+                        ticket = %ticket_id,
+                        pr = pr_number,
+                        "PR closed without merge - triggering on_reject"
+                    );
+
+                    // Load state
+                    let mut state = State::load(&self.config)?;
+
+                    if let Some(agent) = state.agent_by_ticket(&ticket_id).cloned() {
+                        // Set review state to indicate rejection
+                        state.update_agent_status(
+                            &agent.id,
+                            "awaiting_input",
+                            Some("PR closed without merge".to_string()),
+                        )?;
+                        state.set_agent_review_state(&agent.id, "pr_rejected")?;
+
+                        // Send notification
+                        self.notification_service
+                            .notify(NotificationEvent::PrClosed {
+                                project: String::new(), // Project unknown in this context
+                                ticket_id: ticket_id.clone(),
+                                pr_number,
+                            })
+                            .await;
+                    }
+
+                    // Untrack the PR
+                    let key = format!("{}#{}", ticket_id, pr_number);
+                    self.pr_tracked.write().await.remove(&key);
+                }
+                PrStatusEvent::ReadyToMerge {
+                    ticket_id,
+                    pr_number,
+                } => {
+                    // Notify only - no auto-merge per user decision
+                    tracing::info!(
+                        ticket = %ticket_id,
+                        pr = pr_number,
+                        "PR ready to merge (approved + checks pass)"
+                    );
+
+                    self.notification_service
+                        .notify(NotificationEvent::PrReadyToMerge {
+                            project: String::new(), // Project unknown in this context
+                            ticket_id: ticket_id.clone(),
+                            pr_number,
+                        })
+                        .await;
+                }
+                PrStatusEvent::Approved {
+                    ticket_id,
+                    pr_number,
+                } => {
+                    tracing::info!(
+                        ticket = %ticket_id,
+                        pr = pr_number,
+                        "PR approved"
+                    );
+                }
+                PrStatusEvent::ChangesRequested {
+                    ticket_id,
+                    pr_number,
+                } => {
+                    tracing::info!(
+                        ticket = %ticket_id,
+                        pr = pr_number,
+                        "PR has changes requested"
+                    );
+
+                    // Update state to indicate changes requested
+                    let mut state = State::load(&self.config)?;
+                    if let Some(agent) = state.agent_by_ticket(&ticket_id).cloned() {
+                        state.set_agent_review_state(&agent.id, "pr_changes_requested")?;
+                    }
+
+                    self.notification_service
+                        .notify(NotificationEvent::PrChangesRequested {
+                            project: String::new(), // Project unknown in this context
+                            ticket_id: ticket_id.clone(),
+                            pr_number,
+                        })
+                        .await;
+                }
+                PrStatusEvent::ReadyForReview {
+                    ticket_id,
+                    pr_number,
+                } => {
+                    tracing::info!(
+                        ticket = %ticket_id,
+                        pr = pr_number,
+                        "PR converted from draft to ready for review"
+                    );
                 }
             }
         }
 
-        self.rate_limit_syncing = false;
+        Ok(())
+    }
+
+    /// Process agents with pending PR creations
+    async fn process_pending_pr_creations(&mut self) -> Result<()> {
+        let state = State::load(&self.config)?;
+        let queue = Queue::new(&self.config)?;
+
+        // Find agents with pending_pr_creation state
+        let pending_agents: Vec<_> = state
+            .agents
+            .iter()
+            .filter(|a| a.review_state.as_deref() == Some("pending_pr_creation"))
+            .cloned()
+            .collect();
+
+        for agent in pending_agents {
+            // Get the ticket for this agent
+            let ticket = match queue.get_in_progress_ticket(&agent.ticket_id)? {
+                Some(t) => t,
+                None => {
+                    tracing::warn!(
+                        agent_id = %agent.id,
+                        ticket_id = %agent.ticket_id,
+                        "Ticket not found for pending PR creation"
+                    );
+                    continue;
+                }
+            };
+
+            // Get the worktree path
+            let worktree_path = match &agent.worktree_path {
+                Some(path) => std::path::PathBuf::from(path),
+                None => {
+                    tracing::warn!(
+                        agent_id = %agent.id,
+                        "No worktree path for PR creation"
+                    );
+                    continue;
+                }
+            };
+
+            // Get the base branch (from ticket or default)
+            let base_branch = ticket.branch.as_deref().unwrap_or("main");
+
+            // Create PR via PrWorkflow
+            let workflow = PrWorkflow::new();
+            let pr_title = format!("{}: {}", ticket.ticket_type, ticket.summary);
+            let pr_body = Some(ticket.content.clone());
+
+            // Get repo info for tracking
+            let repo_info = match workflow.get_repo_info(&worktree_path).await {
+                Ok(info) => info,
+                Err(e) => {
+                    tracing::error!(
+                        ticket_id = %ticket.id,
+                        error = %e,
+                        "Failed to get repo info for PR creation"
+                    );
+                    continue;
+                }
+            };
+
+            tracing::info!(
+                ticket_id = %ticket.id,
+                worktree = %worktree_path.display(),
+                base = %base_branch,
+                repo = %repo_info.full_name(),
+                "Creating PR for ticket"
+            );
+
+            match workflow
+                .create_or_attach_pr(
+                    &worktree_path,
+                    &pr_title,
+                    pr_body,
+                    base_branch,
+                    false, // not draft
+                )
+                .await
+            {
+                Ok(pr) => {
+                    tracing::info!(
+                        ticket_id = %ticket.id,
+                        pr_number = pr.number,
+                        pr_url = %pr.url,
+                        "PR created successfully"
+                    );
+
+                    // Update agent state with PR info
+                    let mut state = State::load(&self.config)?;
+                    if let Err(e) = state.update_agent_pr(
+                        &agent.id,
+                        &pr.url,
+                        pr.number as u64,
+                        &repo_info.full_name(),
+                    ) {
+                        tracing::error!(error = %e, "Failed to update agent PR info");
+                    }
+                    if let Err(e) = state.update_agent_status(
+                        &agent.id,
+                        "awaiting_input",
+                        Some("PR created, awaiting merge".to_string()),
+                    ) {
+                        tracing::error!(error = %e, "Failed to update agent status");
+                    }
+                    if let Err(e) = state.set_agent_review_state(&agent.id, "pending_pr_merge") {
+                        tracing::error!(error = %e, "Failed to set agent review state");
+                    }
+
+                    // Add PR to tracking
+                    let key = format!("{}#{}", repo_info.full_name(), pr.number);
+                    let tracked_pr = TrackedPr {
+                        repo_info: repo_info.clone(),
+                        pr_number: pr.number,
+                        last_state: crate::types::pr::PrState::Open,
+                        ticket_id: ticket.id.clone(),
+                        is_draft: false,
+                        merge_commit_sha: None,
+                    };
+                    self.pr_tracked.write().await.insert(key, tracked_pr);
+
+                    // Send notification
+                    self.notification_service
+                        .notify(NotificationEvent::PrCreated {
+                            project: ticket.project.clone(),
+                            ticket_id: ticket.id.clone(),
+                            pr_url: pr.url.clone(),
+                            pr_number: pr.number,
+                        })
+                        .await;
+                }
+                Err(e) => {
+                    tracing::error!(
+                        ticket_id = %ticket.id,
+                        error = %e,
+                        "Failed to create PR"
+                    );
+
+                    // Update agent state to indicate failure
+                    let mut state = State::load(&self.config)?;
+                    if let Err(e) = state.update_agent_status(
+                        &agent.id,
+                        "awaiting_input",
+                        Some(format!("PR creation failed: {}", e)),
+                    ) {
+                        tracing::error!(error = %e, "Failed to update agent status");
+                    }
+                    if let Err(e) = state.set_agent_review_state(&agent.id, "pr_creation_failed") {
+                        tracing::error!(error = %e, "Failed to set agent review state");
+                    }
+
+                    // Send notification
+                    self.notification_service
+                        .notify(NotificationEvent::AgentFailed {
+                            project: ticket.project.clone(),
+                            ticket_id: ticket.id.clone(),
+                            error: format!("Failed to create PR: {}", e),
+                        })
+                        .await;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Execute the sync and handle results
@@ -551,24 +955,24 @@ impl App {
         }
 
         // Send notifications for tickets that moved to awaiting
-        if self.config.notifications.enabled {
-            for ticket_id in &result.moved_to_awaiting {
-                notifications::send(
-                    "Agent Awaiting Input",
-                    ticket_id,
-                    "The agent is waiting for user input.",
-                    self.config.notifications.sound,
-                )?;
-            }
+        for ticket_id in &result.moved_to_awaiting {
+            self.notification_service
+                .notify_sync(NotificationEvent::AgentAwaitingInput {
+                    project: String::new(), // Project unknown in this context
+                    ticket_type: String::new(),
+                    ticket_id: ticket_id.clone(),
+                    reason: "The agent is waiting for user input.".to_string(),
+                });
+        }
 
-            for ticket_id in &result.timed_out {
-                notifications::send(
-                    "Step Timed Out",
-                    ticket_id,
-                    "The agent step has timed out and is now awaiting input.",
-                    self.config.notifications.sound,
-                )?;
-            }
+        for ticket_id in &result.timed_out {
+            self.notification_service
+                .notify_sync(NotificationEvent::AgentAwaitingInput {
+                    project: String::new(),
+                    ticket_type: String::new(),
+                    ticket_id: ticket_id.clone(),
+                    reason: "The agent step has timed out and is now awaiting input.".to_string(),
+                });
         }
 
         // Log any errors
@@ -823,6 +1227,57 @@ impl App {
             return Ok(());
         }
 
+        // Collection dialog handling
+        if self.collection_dialog.visible {
+            if let Some(result) = self.collection_dialog.handle_key(key) {
+                self.handle_collection_switch(result)?;
+            }
+            return Ok(());
+        }
+
+        // Kanban view handling
+        if self.kanban_view.visible {
+            if let Some(result) = self.kanban_view.handle_key(key) {
+                match result {
+                    KanbanViewResult::Sync {
+                        provider,
+                        project_key,
+                    } => {
+                        // Trigger sync in background
+                        self.kanban_view.syncing = true;
+                        self.kanban_view.set_status("Syncing...");
+                        // Note: Actual sync would require spawning an async task
+                        // For now, just show a status message
+                        self.sync_status_message = Some(format!(
+                            "Sync requested for {}/{} (sync not yet implemented)",
+                            provider, project_key
+                        ));
+                        self.kanban_view.syncing = false;
+                        self.kanban_view.hide();
+                    }
+                    KanbanViewResult::Dismissed => {
+                        // Already hidden by handle_key
+                    }
+                }
+            }
+            return Ok(());
+        }
+
+        // Sync confirm dialog handling
+        if self.sync_confirm_dialog.visible {
+            if let Some(result) = self.sync_confirm_dialog.handle_key(key) {
+                match result {
+                    SyncConfirmResult::Confirmed => {
+                        self.run_kanban_sync_all().await?;
+                    }
+                    SyncConfirmResult::Cancelled => {
+                        // Already hidden by handle_key
+                    }
+                }
+            }
+            return Ok(());
+        }
+
         // Normal mode
         match key {
             KeyCode::Char('q') => {
@@ -830,6 +1285,10 @@ impl App {
                 if self.rest_api_server.is_running() || self.backstage_server.is_running() {
                     self.rest_api_server.stop();
                     let _ = self.backstage_server.stop();
+                }
+                // Shut down PR monitor
+                if let Some(tx) = self.pr_shutdown_tx.take() {
+                    let _ = tx.send(()).await;
                 }
                 self.should_quit = true;
             }
@@ -887,10 +1346,22 @@ impl App {
             KeyCode::Char('v') | KeyCode::Char('V') => {
                 self.show_session_preview()?;
             }
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                // Approve review (only for agents with review_state)
+                self.handle_review_approval()?;
+            }
+            KeyCode::Char('x') | KeyCode::Char('X') => {
+                // Reject review (only for agents with review_state)
+                self.handle_review_rejection()?;
+            }
             KeyCode::Char('S') => {
-                // Sync both ticket-session state and rate limits
-                self.run_manual_sync()?;
-                self.sync_rate_limits().await;
+                // Show kanban sync confirmation dialog
+                let collections = self.kanban_sync_service.configured_collections();
+                if collections.is_empty() {
+                    self.sync_status_message = Some("No kanban providers configured".to_string());
+                } else {
+                    self.sync_confirm_dialog.show(collections);
+                }
             }
             KeyCode::Char('W') | KeyCode::Char('w') => {
                 // Toggle both REST API and Backstage servers together
@@ -937,16 +1408,92 @@ impl App {
                     }
                 }
             }
+            KeyCode::Char('T') | KeyCode::Char('t') => {
+                // Open collection switch dialog
+                self.show_collection_dialog();
+            }
+            KeyCode::Char('K') => {
+                // Open kanban providers view
+                self.show_kanban_view();
+            }
             _ => {}
         }
 
         Ok(())
     }
 
+    /// Show the collection switch dialog
+    fn show_collection_dialog(&mut self) {
+        // Get project context from selected queue item if any
+        let project_context = self.dashboard.selected_ticket().map(|t| t.project.as_str());
+        self.collection_dialog.show(
+            &self.issue_type_registry,
+            self.issue_type_registry.active_collection_name(),
+            project_context,
+        );
+    }
+
+    /// Show the kanban providers view
+    fn show_kanban_view(&mut self) {
+        let collections = self.kanban_sync_service.configured_collections();
+        if collections.is_empty() {
+            // No kanban providers configured, show a message
+            self.sync_status_message = Some(
+                "No kanban providers configured. Add [kanban] section to config.toml".to_string(),
+            );
+            return;
+        }
+        self.kanban_view.show(collections);
+    }
+
+    /// Handle collection switch result
+    fn handle_collection_switch(
+        &mut self,
+        result: crate::ui::CollectionSwitchResult,
+    ) -> Result<()> {
+        // Activate the collection in the registry
+        if let Err(e) = self
+            .issue_type_registry
+            .activate_collection(&result.collection_name)
+        {
+            tracing::warn!(
+                "Failed to activate collection '{}': {}",
+                result.collection_name,
+                e
+            );
+            return Ok(());
+        }
+
+        // Persist the preference
+        if let Some(project) = result.project_scope {
+            // Per-project preference
+            let mut state = State::load(&self.config)?;
+            state.set_project_collection(&project, &result.collection_name)?;
+            tracing::info!(
+                "Set collection '{}' for project '{}'",
+                result.collection_name,
+                project
+            );
+        } else {
+            // Global preference - update config
+            self.config.templates.active_collection = Some(result.collection_name.clone());
+            if let Err(e) = self.config.save() {
+                tracing::warn!("Failed to save config: {}", e);
+            }
+            tracing::info!("Set global collection to '{}'", result.collection_name);
+        }
+
+        Ok(())
+    }
+
     /// Handle Ctrl+C for graceful two-stage exit
-    fn handle_ctrl_c(&mut self) {
+    async fn handle_ctrl_c(&mut self) {
         if self.exit_confirmation_mode {
             // Second Ctrl+C - exit immediately
+            // Shut down PR monitor
+            if let Some(tx) = self.pr_shutdown_tx.take() {
+                let _ = tx.send(()).await;
+            }
             self.should_quit = true;
         } else {
             // First Ctrl+C - stop servers and enter confirmation mode
@@ -1123,6 +1670,86 @@ impl App {
             .map_err(|e| format!("Failed to capture session: {}", e));
 
         self.session_preview.show(&agent, content);
+
+        Ok(())
+    }
+
+    /// Handle review approval for the selected agent
+    ///
+    /// Only works for agents in awaiting_input with a review_state of pending_plan or pending_visual.
+    /// Creates a signal file to trigger resume in the next sync cycle.
+    fn handle_review_approval(&mut self) -> Result<()> {
+        use crate::ui::dashboard::FocusedPanel;
+
+        // Only works when agents or awaiting panel is focused
+        let agent = match self.dashboard.focused {
+            FocusedPanel::Agents => self.dashboard.selected_running_agent().cloned(),
+            FocusedPanel::Awaiting => self.dashboard.selected_awaiting_agent().cloned(),
+            _ => None,
+        };
+
+        let Some(agent) = agent else {
+            return Ok(());
+        };
+
+        // Only process if agent has a review state that can be approved
+        match agent.review_state.as_deref() {
+            Some("pending_plan") | Some("pending_visual") => {
+                // Write signal file to trigger resume
+                if let Some(ref session_name) = agent.session_name {
+                    let signal_file = format!("/tmp/operator-detach-{}.signal", session_name);
+                    std::fs::write(&signal_file, "approved")?;
+
+                    tracing::info!(
+                        agent_id = %agent.id,
+                        session = %session_name,
+                        review_state = ?agent.review_state,
+                        "Review approved - signal file written"
+                    );
+                }
+            }
+            _ => {
+                // No review state or non-approvable state - ignore
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Handle review rejection for the selected agent
+    ///
+    /// Only works for agents in awaiting_input with a review_state of pending_plan or pending_visual.
+    /// For now, this just logs the rejection. A full implementation would show a dialog
+    /// for entering a rejection reason and possibly restart the step.
+    fn handle_review_rejection(&mut self) -> Result<()> {
+        use crate::ui::dashboard::FocusedPanel;
+
+        // Only works when agents or awaiting panel is focused
+        let agent = match self.dashboard.focused {
+            FocusedPanel::Agents => self.dashboard.selected_running_agent().cloned(),
+            FocusedPanel::Awaiting => self.dashboard.selected_awaiting_agent().cloned(),
+            _ => None,
+        };
+
+        let Some(agent) = agent else {
+            return Ok(());
+        };
+
+        // Only process if agent has a review state that can be rejected
+        match agent.review_state.as_deref() {
+            Some("pending_plan") | Some("pending_visual") => {
+                // TODO: Show rejection dialog for entering reason
+                // For now, just log the rejection
+                tracing::info!(
+                    agent_id = %agent.id,
+                    review_state = ?agent.review_state,
+                    "Review rejected (rejection dialog not yet implemented)"
+                );
+            }
+            _ => {
+                // No review state or non-rejectable state - ignore
+            }
+        }
 
         Ok(())
     }
@@ -1335,14 +1962,12 @@ impl App {
         state.remove_agent_by_session(session_name)?;
 
         // Send notification
-        if self.config.notifications.enabled {
-            notifications::send(
-                "Ticket Returned to Queue",
-                &ticket.project,
-                &format!("{} - {}", ticket.id, ticket.summary),
-                self.config.notifications.sound,
-            )?;
-        }
+        self.notification_service
+            .notify_sync(NotificationEvent::TicketReturned {
+                project: ticket.project.clone(),
+                ticket_id: ticket.id.clone(),
+                summary: ticket.summary.clone(),
+            });
 
         Ok(())
     }

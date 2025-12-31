@@ -91,7 +91,7 @@
       "outputs": ["plan"],
       "prompt": "Assess the project and plan reproduction:\n\n1. Understand the project structure\n2. Find how to run the project and tests\n3. Locate applicable test code\n4. Create a plan to reproduce the bug\n\nWrite plan to `.tickets/plans/{{ id }}.md` with:\n- How to run the project\n- Relevant test commands\n- Steps to reproduce the issue\n- Initial hypotheses about the root cause",
       "allowed_tools": ["Read", "Glob", "Grep", "Write", "Bash"],
-      "requires_review": true,
+      "review_type": "plan",
       "on_reject": {
         "goto_step": "plan",
         "prompt": "Plan rejected: {{ rejection_reason }}\n\nRevise the reproduction plan."
@@ -104,7 +104,6 @@
       "outputs": ["test", "report"],
       "prompt": "Reproduce the bug:\n\n1. Follow the plan to reproduce the issue\n2. Write a failing test that demonstrates the bug\n3. Document the reproduction in `.tickets/notes/{{ id }}.md`\n4. Confirm the test fails as expected",
       "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
-      "requires_review": false,
       "next_step": "test"
     },
     {
@@ -113,7 +112,6 @@
       "outputs": ["report"],
       "prompt": "Establish test baseline:\n\n1. Run full test suite to understand current state\n2. Document which tests pass/fail\n3. Identify any related test coverage gaps\n4. Note any flaky or slow tests",
       "allowed_tools": ["Read", "Bash"],
-      "requires_review": false,
       "next_step": "fix"
     },
     {
@@ -122,7 +120,6 @@
       "outputs": ["code"],
       "prompt": "Implement the fix:\n\n1. Apply minimal fix to address the root cause\n2. Verify the previously failing test now passes\n3. Run full test suite: `cargo test`\n4. Run linting: `cargo clippy`\n5. Run formatting: `cargo fmt`\n\nKeep the fix focused and minimal.",
       "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
-      "requires_review": false,
       "next_step": "deploy"
     },
     {
@@ -131,7 +128,7 @@
       "outputs": ["review"],
       "prompt": "Create a pull request for the fix:\n\n1. Commit all changes with message: `fix({{ project }}): {{ summary }}`\n2. Push the fix branch\n3. Create a PR with:\n   - Root cause analysis\n   - Description of the fix\n   - Test verification\n   - Link to ticket: {{ id }}\n\nFix complete. Move ticket to completed after PR is merged.",
       "allowed_tools": ["Bash", "Read"],
-      "requires_review": true,
+      "review_type": "plan",
       "on_reject": {
         "goto_step": "fix",
         "prompt": "Deploy rejected: {{ rejection_reason }}\n\nAddress feedback and revise the fix."

@@ -6,7 +6,6 @@ use ratatui::{
 };
 
 use super::panels::{AgentsPanel, AwaitingPanel, CompletedPanel, HeaderBar, QueuePanel, StatusBar};
-use crate::api::RateLimitInfo;
 use crate::backstage::ServerStatus;
 use crate::config::Config;
 use crate::queue::Ticket;
@@ -29,8 +28,6 @@ pub struct Dashboard {
     pub focused: FocusedPanel,
     pub paused: bool,
     pub max_agents: usize,
-    /// Current rate limit info from AI provider
-    pub rate_limit: Option<RateLimitInfo>,
     /// Backstage server status
     pub backstage_status: ServerStatus,
     /// REST API server status
@@ -51,16 +48,11 @@ impl Dashboard {
             focused: FocusedPanel::Queue,
             paused: false,
             max_agents: config.effective_max_agents(),
-            rate_limit: None,
             backstage_status: ServerStatus::Stopped,
             rest_api_status: RestApiStatus::Stopped,
             exit_confirmation_mode: false,
             update_available_version: None,
         }
-    }
-
-    pub fn update_rate_limit(&mut self, rate_limit: Option<RateLimitInfo>) {
-        self.rate_limit = rate_limit;
     }
 
     pub fn update_backstage_status(&mut self, status: ServerStatus) {
@@ -111,10 +103,9 @@ impl Dashboard {
             ])
             .split(frame.area());
 
-        // Header with rate limit meter
+        // Header
         let header = HeaderBar {
             version: env!("CARGO_PKG_VERSION"),
-            rate_limit: self.rate_limit.as_ref(),
         };
         header.render(frame, chunks[0]);
 

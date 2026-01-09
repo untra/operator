@@ -4,12 +4,14 @@
 
 [![codecov](https://codecov.io/gh/untra/operator/branch/main/graph/badge.svg)](https://codecov.io/gh/untra/operator)
 
-A multi-agent orchestration dashboard for **AI-assisted** _kanban-shaped_ software development.
+A multi-agent orchestration dashboard for [**AI-assisted**](https://operator.untra.io/getting-started/agents/) [_kanban-shaped_](https://operator.untra.io/getting-started/kanban/) [git-versioned](https://operator.untra.io/getting-started/git/) software development.
 
 Operator is for you if: 
 
-- you do work assigned from tickets on a kanban board
-- you use claude code, codex or gemini to do work
+- you do work assigned from tickets on a kanban board , such as [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/) or [_Linear_](https://operator.untra.io/getting-started/kanban/linear/)
+- you use llm assisted coding agent tools to accomplish work, such as [_Claude Code_](https://operator.untra.io/getting-started/agents/claude/), [_OpenAI Codex_](https://operator.untra.io/getting-started/agents/codex/)
+- your work is version controlled with git repository provider (like [_Github_](https://operator.untra.io/getting-started/git/github/))
+
 - you are drowning in the soup
 
 and you're ready to start seriously automating your work.

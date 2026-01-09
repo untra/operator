@@ -23,6 +23,9 @@ docs:
           - title: Jira Cloud
             url: /getting-started/kanban/jira/
             icon: jira
+          - title: Linear
+            url: /getting-started/kanban/linear/
+            icon: linear
       - title: Supported Git Repositories
         children:
           - title: GitHub

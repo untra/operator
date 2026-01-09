@@ -89,7 +89,7 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
     SetupStepInfo {
         name: "Tmux Onboarding",
         description: "Help and documentation about tmux session management",
-        help_text: "Operator launches Claude agents in tmux sessions. Essential commands:\n\
+        help_text: "Operator launches Coding agents in tmux sessions. Essential commands:\n\
             - **Detach from session**: Ctrl+a (quick, no prefix needed!)\n\
             - **Fallback detach**: Ctrl+b then d\n\
             - **List sessions**: `tmux ls`\n\

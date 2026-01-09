@@ -67,6 +67,18 @@ fn test_issue_title(suffix: &str) -> String {
     format!("[OPTEST] {} - {}", suffix, uuid)
 }
 
+/// Find a terminal status (Done, Complete, Completed, Closed, Resolved) from available statuses.
+/// Returns the first matching status name (case-insensitive).
+fn find_terminal_status(statuses: &[String]) -> Option<String> {
+    const TERMINAL_PATTERNS: &[&str] = &["done", "complete", "completed", "closed", "resolved"];
+    for pattern in TERMINAL_PATTERNS {
+        if let Some(status) = statuses.iter().find(|s| s.eq_ignore_ascii_case(pattern)) {
+            return Some(status.clone());
+        }
+    }
+    None
+}
+
 /// Macro to skip test if provider is not configured
 macro_rules! skip_if_not_configured {
     ($configured:expr, $provider:expr) => {
@@ -438,6 +450,29 @@ mod linear_tests {
             response.issue.summary.contains("[OPTEST]"),
             "Issue should have OPTEST prefix"
         );
+
+        // ─── Cleanup: Move issue to terminal status ────────────────────────────────
+        let statuses = provider
+            .list_statuses(&team)
+            .await
+            .expect("Should get statuses for cleanup");
+
+        if let Some(done_status) = find_terminal_status(&statuses) {
+            if !response.issue.status.eq_ignore_ascii_case(&done_status) {
+                eprintln!(
+                    "Cleanup: Moving issue {} to {}",
+                    response.issue.key, done_status
+                );
+                let _ = provider
+                    .update_issue_status(
+                        &response.issue.key,
+                        UpdateStatusRequest {
+                            status: done_status,
+                        },
+                    )
+                    .await;
+            }
+        }
     }
 
     #[tokio::test]
@@ -471,11 +506,21 @@ mod linear_tests {
             .await
             .expect("Should get statuses");
 
-        // Find a different status to transition to
+        // Find terminal status for later cleanup
+        let terminal_status = find_terminal_status(&statuses);
+
+        // Find a different status to transition to (not terminal, to test intermediate transition)
         let target_status = statuses
             .iter()
-            .find(|s| *s != &created.issue.status)
+            .find(|s| {
+                *s != &created.issue.status
+                    && terminal_status
+                        .as_ref()
+                        .is_none_or(|t| !s.eq_ignore_ascii_case(t))
+            })
             .cloned();
+
+        let mut current_status = created.issue.status.clone();
 
         if let Some(target) = target_status {
             eprintln!("Transitioning to: {}", target);
@@ -495,8 +540,55 @@ mod linear_tests {
                 target.to_lowercase(),
                 "Status should be updated"
             );
+            current_status = updated.status;
         } else {
             eprintln!("No alternative status available for transition test");
+        }
+
+        // ─── Cleanup: Move issue to terminal status (Done) ─────────────────────────
+        if let Some(done_status) = terminal_status {
+            // Only transition if not already in terminal status
+            if !current_status.eq_ignore_ascii_case(&done_status) {
+                eprintln!(
+                    "Cleanup: Transitioning issue to terminal status: {}",
+                    done_status
+                );
+
+                let done_request = UpdateStatusRequest {
+                    status: done_status.clone(),
+                };
+
+                match provider
+                    .update_issue_status(&created.issue.key, done_request)
+                    .await
+                {
+                    Ok(final_issue) => {
+                        eprintln!(
+                            "Issue {} moved to terminal status: {}",
+                            final_issue.key, final_issue.status
+                        );
+                        assert_eq!(
+                            final_issue.status.to_lowercase(),
+                            done_status.to_lowercase(),
+                            "Issue should be in terminal status"
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "Warning: Could not move issue to terminal status '{}': {}",
+                            done_status, e
+                        );
+                        // Don't fail the test - cleanup is best-effort
+                    }
+                }
+            } else {
+                eprintln!("Issue already in terminal status: {}", current_status);
+            }
+        } else {
+            eprintln!(
+                "Warning: No terminal status found in available statuses: {:?}",
+                statuses
+            );
         }
     }
 }

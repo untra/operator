@@ -103,14 +103,8 @@ jobs:
           OPERATOR_GIT_TEST_ENABLED: 'true'
         run: cargo test --test git_integration -- --nocapture --test-threads=1
 
-      - name: Run Git push integration tests
-        if: >-
-          github.event_name == 'push' ||
-          (github.event_name == 'workflow_dispatch' && inputs.run_git_push)
-        env:
-          OPERATOR_GIT_TEST_ENABLED: 'true'
-          OPERATOR_GIT_PUSH_ENABLED: 'true'
-        run: cargo test --test git_integration git_cli_branch_lifecycle_tests -- --nocapture --test-threads=1
+      # NOTE: Git push tests disabled in CI - require authenticated push access
+      # Run locally with OPERATOR_GIT_PUSH_ENABLED=true to test push operations
 
       - name: Cleanup optest branches
         if: always()

@@ -245,12 +245,7 @@ struct TeamWithMembers {
 
 #[derive(Debug, Deserialize)]
 struct MembersConnection {
-    nodes: Vec<LinearMember>,
-}
-
-#[derive(Debug, Deserialize)]
-struct LinearMember {
-    user: LinearUser,
+    nodes: Vec<LinearUser>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -535,12 +530,10 @@ impl KanbanProvider for LinearProvider {
                 team(id: $teamId) {
                     members {
                         nodes {
-                            user {
-                                id
-                                name
-                                email
-                                avatarUrl
-                            }
+                            id
+                            name
+                            email
+                            avatarUrl
                         }
                     }
                 }
@@ -559,10 +552,10 @@ impl KanbanProvider for LinearProvider {
             .nodes
             .into_iter()
             .map(|m| ExternalUser {
-                id: m.user.id,
-                name: m.user.name,
-                email: m.user.email,
-                avatar_url: m.user.avatar_url,
+                id: m.id,
+                name: m.name,
+                email: m.email,
+                avatar_url: m.avatar_url,
             })
             .collect())
     }
@@ -609,7 +602,7 @@ impl KanbanProvider for LinearProvider {
         // depending on whether we have status filters
         let query = if statuses.is_empty() {
             r#"
-                query($teamId: String!, $userId: String!) {
+                query($teamId: ID!, $userId: ID!) {
                     issues(
                         filter: {
                             team: { id: { eq: $teamId } }
@@ -639,7 +632,7 @@ impl KanbanProvider for LinearProvider {
             "#
         } else {
             r#"
-                query($teamId: String!, $userId: String!, $stateNames: [String!]!) {
+                query($teamId: ID!, $userId: ID!, $stateNames: [String!]!) {
                     issues(
                         filter: {
                             team: { id: { eq: $teamId } }

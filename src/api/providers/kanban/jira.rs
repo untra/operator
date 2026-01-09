@@ -609,7 +609,7 @@ impl KanbanProvider for JiraProvider {
             project_key, user_id, status_clause
         );
         let encoded_jql = simple_url_encode(&jql);
-        let path = format!("/search?jql={}&maxResults=100", encoded_jql);
+        let path = format!("/search/jql?jql={}&maxResults=100", encoded_jql);
 
         let response: JiraSearchResponse = self.get(&path).await?;
 

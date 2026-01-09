@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - 'feature/kanban-integration-tests'
     paths:
       - 'src/api/providers/kanban/**'
       - 'src/git/**'

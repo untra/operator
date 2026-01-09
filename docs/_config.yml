@@ -42,7 +42,7 @@ collections_dir: .
 
 # Permalink structure
 permalink: pretty
-version: 0.1.10
+version: 0.1.11
 
 # Google Analytics
 ga_tag: G-5JZPJWWT7S  # Replace with actual GA4 measurement ID from analytics.google.com

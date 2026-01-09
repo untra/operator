@@ -98,17 +98,17 @@ fn get_repo_path() -> PathBuf {
     env::current_dir().expect("Failed to get current directory")
 }
 
-/// Get the default branch name for the repository
+/// Get the default branch name for the repository (returns remote ref like "origin/main")
 async fn get_default_branch(repo_path: &Path) -> String {
     // Try to read origin/HEAD symbolic ref
     if let Ok(ref_str) = GitCli::symbolic_ref(repo_path, "refs/remotes/origin/HEAD").await {
-        // refs/remotes/origin/main -> main
+        // refs/remotes/origin/main -> origin/main
         if let Some(branch) = ref_str.strip_prefix("refs/remotes/origin/") {
-            return branch.to_string();
+            return format!("origin/{}", branch);
         }
     }
-    // Fallback to main
-    "main".to_string()
+    // Fallback to origin/main (works in CI where local main doesn't exist)
+    "origin/main".to_string()
 }
 
 // ─── GitCli Read-Only Tests ──────────────────────────────────────────────────

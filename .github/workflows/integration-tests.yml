@@ -43,6 +43,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for git operations
+
+      - name: Configure Git for tests
+        run: |
+          git config user.email "ci@example.com"
+          git config user.name "CI"
+          # Set origin/HEAD if not set (needed for get_default_branch)
+          git remote set-head origin --auto || true
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@1.85.0

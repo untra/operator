@@ -929,20 +929,16 @@ mod tests {
                 "members": {
                     "nodes": [
                         {
-                            "user": {
-                                "id": "user-123",
-                                "name": "John Doe",
-                                "email": "john@example.com",
-                                "avatarUrl": "https://example.com/avatar.png"
-                            }
+                            "id": "user-123",
+                            "name": "John Doe",
+                            "email": "john@example.com",
+                            "avatarUrl": "https://example.com/avatar.png"
                         },
                         {
-                            "user": {
-                                "id": "user-456",
-                                "name": "Jane Smith",
-                                "email": null,
-                                "avatarUrl": null
-                            }
+                            "id": "user-456",
+                            "name": "Jane Smith",
+                            "email": null,
+                            "avatarUrl": null
                         }
                     ]
                 }
@@ -951,13 +947,13 @@ mod tests {
 
         let response: TeamMembersResponse = serde_json::from_str(json).unwrap();
         assert_eq!(response.team.members.nodes.len(), 2);
-        assert_eq!(response.team.members.nodes[0].user.id, "user-123");
-        assert_eq!(response.team.members.nodes[0].user.name, "John Doe");
+        assert_eq!(response.team.members.nodes[0].id, "user-123");
+        assert_eq!(response.team.members.nodes[0].name, "John Doe");
         assert_eq!(
-            response.team.members.nodes[0].user.email,
+            response.team.members.nodes[0].email,
             Some("john@example.com".to_string())
         );
-        assert!(response.team.members.nodes[1].user.email.is_none());
+        assert!(response.team.members.nodes[1].email.is_none());
     }
 
     #[test]

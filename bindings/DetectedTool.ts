@@ -18,6 +18,14 @@ path: string,
  */
 version: string, 
 /**
+ * Minimum required version for Operator compatibility
+ */
+min_version: string | null, 
+/**
+ * Whether the installed version meets the minimum requirement
+ */
+version_ok: boolean, 
+/**
  * Available model aliases (e.g., ["opus", "sonnet", "haiku"])
  */
 model_aliases: Array<string>, 

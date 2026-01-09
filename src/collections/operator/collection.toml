@@ -1,0 +1,5 @@
+name = "operator"
+description = "Operator Backstage tasks: ASSESS, SYNC, INIT"
+
+# Issue types in this collection (display order)
+types = ["ASSESS", "SYNC", "INIT"]

@@ -35,6 +35,9 @@ pub struct Config {
     /// Kanban provider configuration for syncing issues from Jira, Linear, etc.
     #[serde(default)]
     pub kanban: KanbanConfig,
+    /// Version check configuration for automatic update notifications
+    #[serde(default)]
+    pub version_check: VersionCheckConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -575,6 +578,12 @@ pub struct DetectedTool {
     pub path: String,
     /// Version string
     pub version: String,
+    /// Minimum required version for Operator compatibility
+    #[serde(default)]
+    pub min_version: Option<String>,
+    /// Whether the installed version meets the minimum requirement
+    #[serde(default)]
+    pub version_ok: bool,
     /// Available model aliases (e.g., ["opus", "sonnet", "haiku"])
     pub model_aliases: Vec<String>,
     /// Command template with {{model}}, {{session_id}}, {{prompt_file}} placeholders
@@ -964,6 +973,43 @@ fn default_gitlab_token_env() -> String {
     "GITLAB_TOKEN".to_string()
 }
 
+// ─── Version Check Configuration ────────────────────────────────────────────
+
+/// Version check configuration for automatic update notifications
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct VersionCheckConfig {
+    /// Enable automatic version checking on startup
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    /// URL to fetch latest version from (optional, can be removed)
+    #[serde(default = "default_version_check_url")]
+    pub url: Option<String>,
+
+    /// Timeout in seconds for version check HTTP request
+    #[serde(default = "default_version_check_timeout")]
+    pub timeout_secs: u64,
+}
+
+fn default_version_check_url() -> Option<String> {
+    Some("https://operator.untra.io/VERSION".to_string())
+}
+
+fn default_version_check_timeout() -> u64 {
+    3
+}
+
+impl Default for VersionCheckConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            url: default_version_check_url(),
+            timeout_secs: 3,
+        }
+    }
+}
+
 impl Config {
     /// Path to the operator config file within .tickets/
     pub fn operator_config_path() -> PathBuf {
@@ -1183,6 +1229,7 @@ impl Default for Config {
             rest_api: RestApiConfig::default(),
             git: GitConfig::default(),
             kanban: KanbanConfig::default(),
+            version_check: VersionCheckConfig::default(),
         }
     }
 }

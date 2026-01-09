@@ -33,6 +33,8 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
         name: "claude".to_string(),
         path: "/usr/bin/claude".to_string(),
         version: "1.0.0".to_string(),
+        min_version: Some("1.0.0".to_string()),
+        version_ok: true,
         model_aliases: vec!["sonnet".to_string()],
         command_template: "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} --print-prompt-path {{prompt_file}}".to_string(),
         capabilities: crate::config::ToolCapabilities {

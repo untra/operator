@@ -2,6 +2,7 @@
   "tool_name": "codex",
   "display_name": "OpenAI Codex",
   "version_command": "codex --version",
+  "min_version": "0.1.0",
   "capabilities": {
     "supports_sessions": true,
     "supports_headless": true,

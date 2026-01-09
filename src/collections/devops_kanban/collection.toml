@@ -1,0 +1,5 @@
+name = "devops_kanban"
+description = "DevOps kanban with TASK, FEAT, FIX, SPIKE, INV"
+
+# Issue types in this collection (display order)
+types = ["TASK", "FEAT", "FIX", "SPIKE", "INV"]

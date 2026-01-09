@@ -5,6 +5,7 @@ use std::path::PathBuf;
 mod api;
 mod app;
 mod backstage;
+mod collections;
 mod config;
 mod git;
 mod issuetypes;
@@ -28,6 +29,7 @@ mod rest;
 mod setup;
 mod startup;
 mod ui;
+mod version;
 
 use agents::tmux::{SystemTmuxClient, TmuxClient, TmuxError};
 use app::App;

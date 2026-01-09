@@ -99,6 +99,37 @@ pub struct ExternalField {
     pub options: Vec<String>,
 }
 
+// ─── CRUD Request/Response Types ─────────────────────────────────────────────
+
+/// Request to create a new issue in a kanban provider
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateIssueRequest {
+    /// Issue summary/title (required)
+    pub summary: String,
+    /// Issue description (optional, may be markdown)
+    pub description: Option<String>,
+    /// Assignee user ID (optional)
+    pub assignee_id: Option<String>,
+    /// Initial status name (optional, uses provider default if not specified)
+    pub status: Option<String>,
+    /// Priority name (optional)
+    pub priority: Option<String>,
+}
+
+/// Response from creating an issue
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateIssueResponse {
+    /// The created issue with its assigned ID/key
+    pub issue: ExternalIssue,
+}
+
+/// Request to update an issue's status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateStatusRequest {
+    /// New status name to transition to
+    pub status: String,
+}
+
 /// Trait for kanban providers that can export issue types and sync work items
 #[async_trait]
 pub trait KanbanProvider: Send + Sync {
@@ -139,6 +170,27 @@ pub trait KanbanProvider: Send + Sync {
         user_id: &str,
         statuses: &[String],
     ) -> Result<Vec<ExternalIssue>, ApiError>;
+
+    // ─── CRUD Operations ─────────────────────────────────────────────────────
+
+    /// Create a new issue in the specified project
+    ///
+    /// Returns the created issue with its assigned ID/key from the provider.
+    async fn create_issue(
+        &self,
+        project_key: &str,
+        request: CreateIssueRequest,
+    ) -> Result<CreateIssueResponse, ApiError>;
+
+    /// Update an issue's workflow status
+    ///
+    /// Transitions the issue to the specified status and returns the updated issue.
+    /// Returns an error if the transition is not valid for the issue's current state.
+    async fn update_issue_status(
+        &self,
+        issue_key: &str,
+        request: UpdateStatusRequest,
+    ) -> Result<ExternalIssue, ApiError>;
 }
 
 /// Detect which kanban providers are configured based on environment variables

@@ -2,41 +2,68 @@
 title: "Linear"
 description: "Configure Linear integration with Operator."
 layout: doc
-published: false
 ---
 
 # Linear
 
-Connect Operator to Linear for modern issue tracking.
+Connect Operator to Linear for modern issue tracking and project management.
 
 ## Prerequisites
 
-- Linear workspace
+- Linear workspace with team access
 - API key for authentication
 
 ## Create API Key
 
-1. Go to Linear Settings > API
-2. Click "Create key"
+1. Go to [Linear Settings](https://linear.app/settings/account/api)
+2. Under "Personal API keys", click "Create key"
 3. Name it "Operator" and copy the key
 
 ## Configuration
 
-Add Linear to your Operator configuration:
+Set the required environment variable:
+
+```bash
+export OPERATOR_LINEAR_API_KEY="lin_api_xxxxxxxxxxxxx"
+```
+
+Add Linear to your Operator configuration (team ID is the key):
 
 ```toml
 # ~/.config/operator/config.toml
 
-[kanban.linear]
+[kanban.linear."team-uuid-here"]
 enabled = true
-api_key_env = "LINEAR_API_KEY"
-team_key = "ENG"  # Your team identifier
+api_key_env = "OPERATOR_LINEAR_API_KEY"  # default
+
+[kanban.linear."team-uuid-here".projects.default]
+sync_user_id = "your-linear-user-id"
+collection_name = "dev_kanban"
 ```
 
-Set your API key:
+### Finding Your Team ID
+
+Your team ID is a UUID visible in Linear URLs when viewing team settings, or via the API:
 
 ```bash
-export LINEAR_API_KEY="lin_api_xxxxx"
+curl -H "Authorization: $OPERATOR_LINEAR_API_KEY" \
+     -H "Content-Type: application/json" \
+     https://api.linear.app/graphql \
+     -d '{"query": "{ teams { nodes { id name } } }"}'
+```
+
+### Multiple Teams
+
+You can configure multiple Linear teams:
+
+```toml
+[kanban.linear."uuid-engineering-team"]
+enabled = true
+api_key_env = "OPERATOR_LINEAR_API_KEY"
+
+[kanban.linear."uuid-platform-team"]
+enabled = true
+api_key_env = "OPERATOR_LINEAR_API_KEY"
 ```
 
 ## Issue Mapping
@@ -58,33 +85,30 @@ Pull issues from Linear:
 operator sync
 ```
 
-## Workflow States
+## Per-Team Configuration
 
-Configure which states to sync:
-
-```toml
-[kanban.linear]
-states = ["Todo", "In Progress", "Backlog"]
-```
-
-## Filtering
-
-Limit sync to specific projects or labels:
+Configure sync settings for each team:
 
 ```toml
-[kanban.linear]
-project = "Backend"
-labels = ["priority-high", "priority-medium"]
+[kanban.linear."team-uuid-here".projects.default]
+sync_user_id = "user-uuid-here"           # Your Linear user ID
+sync_statuses = ["Todo", "In Progress"]   # Statuses to sync (empty = default only)
+collection_name = "dev_kanban"            # IssueTypeCollection to use
 ```
 
 ## Troubleshooting
 
 ### Authentication errors
 
-Test your API key:
+Verify your API key:
 
 ```bash
-curl -H "Authorization: $LINEAR_API_KEY" \
+curl -H "Authorization: $OPERATOR_LINEAR_API_KEY" \
+     -H "Content-Type: application/json" \
      https://api.linear.app/graphql \
-     -d '{"query": "{ viewer { id } }"}'
+     -d '{"query": "{ viewer { id name } }"}'
 ```
+
+### Missing issues
+
+Check that the user ID and team ID are correct, and that the issues are assigned to the configured user.

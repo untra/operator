@@ -13,6 +13,7 @@ Operator integrates with popular issue tracking systems to manage work items for
 | Provider | Status | Notes |
 |----------|--------|-------|
 | [Jira Cloud](/getting-started/kanban/jira/) | Supported | Full API integration |
+| [Linear](/getting-started/kanban/linear/) | Supported | Full API integration |
 
 ## How It Works
 
@@ -25,7 +26,10 @@ Operator syncs tickets from your kanban provider:
 
 ## Choosing a Provider
 
-Jira Cloud is the currently supported kanban provider. Additional providers may be added in future releases.
+Both Jira Cloud and Linear are fully supported kanban providers:
+
+- **Jira Cloud**: Best for teams already using Atlassian products, with rich workflow customization
+- **Linear**: Best for teams wanting a modern, fast issue tracker with streamlined workflows
 
 ## Local Tickets
 

@@ -2,6 +2,7 @@
   "tool_name": "gemini",
   "display_name": "Google Gemini",
   "version_command": "gemini --version",
+  "min_version": "0.1.0",
   "capabilities": {
     "supports_sessions": true,
     "supports_headless": true,

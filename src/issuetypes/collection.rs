@@ -27,12 +27,8 @@ pub struct IssueTypeCollection {
     /// Human-readable description
     #[serde(default)]
     pub description: String,
-    /// Ordered list of issue type keys in this collection
+    /// Ordered list of issue type keys in this collection (display order)
     pub types: Vec<String>,
-    /// Priority order for queue sorting (first = highest priority)
-    /// If empty, uses `types` order
-    #[serde(default)]
-    pub priority_order: Vec<String>,
     /// Sync source metadata (if collection was synced from external provider)
     #[serde(default)]
     pub sync_source: Option<CollectionSyncSource>,
@@ -45,7 +41,6 @@ impl IssueTypeCollection {
             name: name.into(),
             description: description.into(),
             types: vec![],
-            priority_order: vec![],
             sync_source: None,
         }
     }
@@ -68,25 +63,13 @@ impl IssueTypeCollection {
         self
     }
 
-    /// Set the priority order
-    pub fn with_priority_order(
-        mut self,
-        order: impl IntoIterator<Item = impl Into<String>>,
-    ) -> Self {
-        self.priority_order = order.into_iter().map(|k| k.into()).collect();
-        self
-    }
-
-    /// Get priority index for a type (lower = higher priority)
-    /// Returns usize::MAX if type not in priority order
+    /// Get position index for a type in the collection
+    /// Returns usize::MAX if type not in collection
     pub fn priority_index(&self, key: &str) -> usize {
-        let order = if self.priority_order.is_empty() {
-            &self.types
-        } else {
-            &self.priority_order
-        };
-
-        order.iter().position(|k| k == key).unwrap_or(usize::MAX)
+        self.types
+            .iter()
+            .position(|k| k == key)
+            .unwrap_or(usize::MAX)
     }
 
     /// Check if a type is in this collection
@@ -161,24 +144,17 @@ impl BuiltinPreset {
                 IssueTypeCollection::new("simple", self.description()).with_types(["TASK"])
             }
             BuiltinPreset::DevKanban => IssueTypeCollection::new("dev_kanban", self.description())
-                .with_types(["TASK", "FEAT", "FIX"])
-                .with_priority_order(["FIX", "FEAT", "TASK"]),
+                .with_types(["TASK", "FEAT", "FIX"]),
             BuiltinPreset::DevopsKanban => {
                 IssueTypeCollection::new("devops_kanban", self.description())
-                    .with_types(["TASK", "SPIKE", "INV", "FEAT", "FIX"])
-                    .with_priority_order(["INV", "FIX", "FEAT", "SPIKE", "TASK"])
+                    .with_types(["TASK", "FEAT", "FIX", "SPIKE", "INV"])
             }
             BuiltinPreset::Operator => IssueTypeCollection::new("operator", self.description())
-                .with_types(["ASSESS", "SYNC", "INIT"])
-                .with_priority_order(["ASSESS", "SYNC", "INIT"]),
+                .with_types(["ASSESS", "SYNC", "INIT"]),
             BuiltinPreset::BackstageFull => {
-                IssueTypeCollection::new("backstage_full", self.description())
-                    .with_types([
-                        "INV", "FIX", "FEAT", "SPIKE", "TASK", "ASSESS", "SYNC", "INIT",
-                    ])
-                    .with_priority_order([
-                        "INV", "FIX", "FEAT", "ASSESS", "SPIKE", "TASK", "SYNC", "INIT",
-                    ])
+                IssueTypeCollection::new("backstage_full", self.description()).with_types([
+                    "TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT",
+                ])
             }
         }
     }
@@ -240,24 +216,12 @@ mod tests {
 
     #[test]
     fn test_collection_priority_index() {
-        let collection = IssueTypeCollection::new("test", "")
-            .with_types(["FEAT", "FIX", "TASK"])
-            .with_priority_order(["FIX", "FEAT", "TASK"]);
-
-        assert_eq!(collection.priority_index("FIX"), 0);
-        assert_eq!(collection.priority_index("FEAT"), 1);
-        assert_eq!(collection.priority_index("TASK"), 2);
-        assert_eq!(collection.priority_index("SPIKE"), usize::MAX);
-    }
-
-    #[test]
-    fn test_collection_priority_defaults_to_types() {
         let collection = IssueTypeCollection::new("test", "").with_types(["FEAT", "FIX", "TASK"]);
-        // No priority_order set, should use types order
 
         assert_eq!(collection.priority_index("FEAT"), 0);
         assert_eq!(collection.priority_index("FIX"), 1);
         assert_eq!(collection.priority_index("TASK"), 2);
+        assert_eq!(collection.priority_index("SPIKE"), usize::MAX);
     }
 
     #[test]
@@ -272,7 +236,6 @@ mod tests {
         let collection = BuiltinPreset::DevKanban.into_collection();
         assert_eq!(collection.name, "dev_kanban");
         assert_eq!(collection.types, vec!["TASK", "FEAT", "FIX"]);
-        assert_eq!(collection.priority_order, vec!["FIX", "FEAT", "TASK"]);
     }
 
     #[test]
@@ -281,11 +244,7 @@ mod tests {
         assert_eq!(collection.name, "devops_kanban");
         assert_eq!(
             collection.types,
-            vec!["TASK", "SPIKE", "INV", "FEAT", "FIX"]
-        );
-        assert_eq!(
-            collection.priority_order,
-            vec!["INV", "FIX", "FEAT", "SPIKE", "TASK"]
+            vec!["TASK", "FEAT", "FIX", "SPIKE", "INV"]
         );
     }
 
@@ -319,7 +278,6 @@ mod tests {
         let collection = BuiltinPreset::Operator.into_collection();
         assert_eq!(collection.name, "operator");
         assert_eq!(collection.types, vec!["ASSESS", "SYNC", "INIT"]);
-        assert_eq!(collection.priority_order, vec!["ASSESS", "SYNC", "INIT"]);
     }
 
     #[test]
@@ -328,11 +286,7 @@ mod tests {
         assert_eq!(collection.name, "backstage_full");
         assert_eq!(
             collection.types,
-            vec!["INV", "FIX", "FEAT", "SPIKE", "TASK", "ASSESS", "SYNC", "INIT"]
-        );
-        assert_eq!(
-            collection.priority_order,
-            vec!["INV", "FIX", "FEAT", "ASSESS", "SPIKE", "TASK", "SYNC", "INIT"]
+            vec!["TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT"]
         );
     }
 
@@ -343,7 +297,6 @@ mod tests {
 name = "agile"
 description = "Agile workflow"
 types = ["STORY", "BUG", "TASK"]
-priority_order = ["BUG", "STORY", "TASK"]
 
 [collections.custom]
 name = "custom"
@@ -356,11 +309,9 @@ types = ["FEAT", "FIX"]
 
         let agile = file.collections.get("agile").unwrap();
         assert_eq!(agile.types, vec!["STORY", "BUG", "TASK"]);
-        assert_eq!(agile.priority_order, vec!["BUG", "STORY", "TASK"]);
 
         let custom = file.collections.get("custom").unwrap();
         assert_eq!(custom.types, vec!["FEAT", "FIX"]);
-        assert!(custom.priority_order.is_empty());
     }
 
     #[test]

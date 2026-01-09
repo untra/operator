@@ -114,6 +114,107 @@ impl JiraProvider {
             .await
             .map_err(|e| ApiError::http(PROVIDER_NAME, 0, format!("Parse error: {}", e)))
     }
+
+    /// Make an authenticated POST request
+    async fn post<T: for<'de> Deserialize<'de>, B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, ApiError> {
+        let url = format!("{}{}", self.base_url(), path);
+        debug!("Jira POST: {}", url);
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", self.auth_header())
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| ApiError::network(PROVIDER_NAME, e.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return match status.as_u16() {
+                401 => Err(ApiError::unauthorized(PROVIDER_NAME)),
+                403 => Err(ApiError::forbidden(PROVIDER_NAME)),
+                404 => Err(ApiError::http(
+                    PROVIDER_NAME,
+                    404,
+                    format!("Not found: {}", path),
+                )),
+                429 => Err(ApiError::rate_limited(PROVIDER_NAME, None)),
+                _ => Err(ApiError::http(PROVIDER_NAME, status.as_u16(), body)),
+            };
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| ApiError::http(PROVIDER_NAME, 0, format!("Parse error: {}", e)))
+    }
+
+    /// Make an authenticated POST request that returns no content (204)
+    async fn post_no_content<B: Serialize>(&self, path: &str, body: &B) -> Result<(), ApiError> {
+        let url = format!("{}{}", self.base_url(), path);
+        debug!("Jira POST (no content): {}", url);
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", self.auth_header())
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| ApiError::network(PROVIDER_NAME, e.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return match status.as_u16() {
+                401 => Err(ApiError::unauthorized(PROVIDER_NAME)),
+                403 => Err(ApiError::forbidden(PROVIDER_NAME)),
+                404 => Err(ApiError::http(
+                    PROVIDER_NAME,
+                    404,
+                    format!("Not found: {}", path),
+                )),
+                429 => Err(ApiError::rate_limited(PROVIDER_NAME, None)),
+                _ => Err(ApiError::http(PROVIDER_NAME, status.as_u16(), body)),
+            };
+        }
+
+        Ok(())
+    }
+
+    /// Fetch a single issue by key and convert to ExternalIssue
+    async fn fetch_issue(&self, issue_key: &str) -> Result<ExternalIssue, ApiError> {
+        let path = format!("/issue/{}", issue_key);
+        let issue: JiraIssue = self.get(&path).await?;
+
+        let url = format!("https://{}/browse/{}", self.domain, issue.key);
+        Ok(ExternalIssue {
+            id: issue.id,
+            key: issue.key,
+            summary: issue.fields.summary,
+            description: extract_description_text(&issue.fields.description),
+            issue_type: issue.fields.issuetype.name,
+            status: issue.fields.status.name,
+            assignee: issue.fields.assignee.map(|u| ExternalUser {
+                id: u.account_id,
+                name: u.display_name,
+                email: u.email_address,
+                avatar_url: u.avatar_urls.and_then(|a| a.large),
+            }),
+            url,
+            priority: issue.fields.priority.map(|p| p.name),
+        })
+    }
 }
 
 /// Simple Base64 encoding implementation (for Basic Auth only)
@@ -317,6 +418,35 @@ pub struct JiraPriority {
     pub name: String,
 }
 
+// ─── Create Issue Types ──────────────────────────────────────────────────────
+
+/// Response from creating a Jira issue
+#[derive(Debug, Deserialize)]
+struct JiraCreateIssueResponse {
+    id: String,
+    key: String,
+}
+
+/// Jira transitions response
+#[derive(Debug, Deserialize)]
+struct JiraTransitionsResponse {
+    transitions: Vec<JiraTransition>,
+}
+
+/// A workflow transition in Jira
+#[derive(Debug, Deserialize)]
+struct JiraTransition {
+    id: String,
+    name: String,
+    to: JiraTransitionTarget,
+}
+
+/// Target status for a transition
+#[derive(Debug, Deserialize)]
+struct JiraTransitionTarget {
+    name: String,
+}
+
 /// Extract plain text from Jira's ADF (Atlassian Document Format) description
 fn extract_description_text(desc: &Option<JiraDescription>) -> Option<String> {
     desc.as_ref()
@@ -506,6 +636,95 @@ impl KanbanProvider for JiraProvider {
                 }
             })
             .collect())
+    }
+
+    async fn create_issue(
+        &self,
+        project_key: &str,
+        request: super::CreateIssueRequest,
+    ) -> Result<super::CreateIssueResponse, ApiError> {
+        // Build ADF description if provided
+        let description = request.description.map(|text| {
+            serde_json::json!({
+                "type": "doc",
+                "version": 1,
+                "content": [{
+                    "type": "paragraph",
+                    "content": [{
+                        "type": "text",
+                        "text": text
+                    }]
+                }]
+            })
+        });
+
+        // Build request body
+        let mut fields = serde_json::json!({
+            "project": { "key": project_key },
+            "summary": request.summary,
+            "issuetype": { "name": "Task" }  // Default to Task
+        });
+
+        if let Some(desc) = description {
+            fields["description"] = desc;
+        }
+
+        if let Some(assignee_id) = request.assignee_id {
+            fields["assignee"] = serde_json::json!({ "accountId": assignee_id });
+        }
+
+        let body = serde_json::json!({ "fields": fields });
+
+        // Create the issue
+        let created: JiraCreateIssueResponse = self.post("/issue", &body).await?;
+
+        // Fetch the full issue details to return
+        let issue = self.fetch_issue(&created.key).await?;
+
+        Ok(super::CreateIssueResponse { issue })
+    }
+
+    async fn update_issue_status(
+        &self,
+        issue_key: &str,
+        request: super::UpdateStatusRequest,
+    ) -> Result<ExternalIssue, ApiError> {
+        // Get available transitions
+        let path = format!("/issue/{}/transitions", issue_key);
+        let transitions_response: JiraTransitionsResponse = self.get(&path).await?;
+
+        // Find the transition to the target status
+        let transition = transitions_response
+            .transitions
+            .iter()
+            .find(|t| t.to.name.eq_ignore_ascii_case(&request.status))
+            .ok_or_else(|| {
+                ApiError::http(
+                    PROVIDER_NAME,
+                    400,
+                    format!(
+                        "No transition to status '{}'. Available: {}",
+                        request.status,
+                        transitions_response
+                            .transitions
+                            .iter()
+                            .map(|t| t.to.name.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                )
+            })?;
+
+        // Execute the transition
+        let transition_body = serde_json::json!({
+            "transition": { "id": transition.id }
+        });
+        let transitions_path = format!("/issue/{}/transitions", issue_key);
+        self.post_no_content(&transitions_path, &transition_body)
+            .await?;
+
+        // Fetch and return the updated issue
+        self.fetch_issue(issue_key).await
     }
 }
 

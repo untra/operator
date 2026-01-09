@@ -11,5 +11,5 @@
 mod cli;
 mod worktree;
 
-pub use cli::GitCli;
+pub use cli::{GitCli, WorktreeEntry};
 pub use worktree::{WorktreeInfo, WorktreeManager};

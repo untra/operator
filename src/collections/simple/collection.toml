@@ -1,0 +1,5 @@
+name = "simple"
+description = "Simple workflow with TASK only"
+
+# Issue types in this collection (display order)
+types = ["TASK"]

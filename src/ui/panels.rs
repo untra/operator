@@ -505,6 +505,7 @@ pub struct StatusBar {
     pub backstage_status: ServerStatus,
     pub rest_api_status: RestApiStatus,
     pub exit_confirmation_mode: bool,
+    pub update_available_version: Option<String>,
 }
 
 impl StatusBar {
@@ -536,12 +537,33 @@ impl StatusBar {
     }
 
     pub fn render(&self, frame: &mut Frame, area: Rect) {
-        // Exit confirmation mode - show only the exit message
+        // Exit confirmation mode - show only the exit message (highest priority)
         if self.exit_confirmation_mode {
             let content = Line::from(vec![Span::styled(
                 "  Press Ctrl+C again to exit",
                 Style::default()
                     .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]);
+
+            let bar = Paragraph::new(content).block(Block::default().borders(Borders::TOP));
+            frame.render_widget(bar, area);
+            return;
+        }
+
+        // Update notification - show update available message
+        if let Some(ref new_version) = self.update_available_version {
+            let current_version = env!("CARGO_PKG_VERSION");
+            let message = format!(
+                "  Update available: v{} -> v{} | Run: cargo install operator-tui",
+                current_version, new_version
+            );
+
+            let content = Line::from(vec![Span::styled(
+                message,
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
             )]);
 

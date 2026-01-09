@@ -108,22 +108,16 @@ impl WorktreeManager {
             warn!("Failed to fetch from origin: {}", e);
         }
 
-        // Get the base commit for the target branch
-        let base_ref = format!("origin/{}", target_branch);
+        // Get the base commit for the target branch (callers pass full ref like "origin/main")
+        let base_ref = target_branch;
         let base_commit = GitCli::head_commit(repo_path)
             .await
             .context("Failed to get HEAD commit")?;
 
         // Create the worktree with a new branch
-        GitCli::add_worktree(
-            repo_path,
-            &worktree_path,
-            branch_name,
-            true,
-            Some(&base_ref),
-        )
-        .await
-        .context("Failed to create worktree")?;
+        GitCli::add_worktree(repo_path, &worktree_path, branch_name, true, Some(base_ref))
+            .await
+            .context("Failed to create worktree")?;
 
         info!("Worktree created successfully");
 

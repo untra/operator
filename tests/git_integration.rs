@@ -854,7 +854,7 @@ mod worktree_manager_error_tests {
                 "project",
                 "TICKET-1",
                 "branch",
-                "main",
+                "origin/main",
             )
             .await;
 
@@ -880,7 +880,7 @@ mod worktree_manager_error_tests {
 
         // Try to create worktree - should fail validation
         let result = manager
-            .create_for_ticket(&repo_path, project, ticket, "test-branch", "main")
+            .create_for_ticket(&repo_path, project, ticket, "test-branch", "origin/main")
             .await;
 
         // May succeed if it can recover, or fail with appropriate error

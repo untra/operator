@@ -1,0 +1,111 @@
+{
+  "$schema": "./issuetype_schema.json",
+  "key": "FEAT",
+  "name": "Feature",
+  "description": "New feature or enhancement ticket",
+  "mode": "autonomous",
+  "glyph": "*",
+  "color": "green",
+  "project_required": true,
+  "agent_prompt": "Review this project and prepare to create an agent for implementing new features. The agent should read tickets from .tickets/, create feature branches, implement code following existing patterns, run tests and linting, and create PRs. Output ONLY the agent system prompt.",
+  "prompt": "You are implementing a new feature for the {{ project }} project.\n\nBefore starting, review the acceptance criteria and understand the requirements.\n\n## Acceptance Criteria\n{{ acceptance_criteria }}\n\n## Definition of Done\nFollow this definition of done before claiming success:\n{{ definition_of_done }}",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "priority",
+      "description": "Ticket priority level",
+      "type": "enum",
+      "required": false,
+      "default": "P2-medium",
+      "options": ["P0-critical", "P1-high", "P2-medium", "P3-low"],
+      "display_order": 1
+    },
+    {
+      "name": "branch",
+      "description": "Git branch name",
+      "type": "string",
+      "required": true,
+      "auto": "branch",
+      "display_order": 2,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "name or summary of this feature",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Brief description of the feature",
+      "max_length": 120,
+      "display_order": 3
+    },
+    {
+      "name": "user_story",
+      "description": "Why is this feature needed? User story format preferred",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "placeholder": "As a USER, I want to X, so I can Y",
+      "display_order": 4
+    }
+  ],
+  "steps": [
+    {
+      "name": "plan",
+      "display_name": "Planning",
+      "outputs": ["plan"],
+      "prompt": "You are implementing a new feature. First, read the ticket and explore the codebase to understand:\n1. Where the feature should be implemented\n2. What existing code/patterns to follow\n3. What tests need to be added\n\nCreate a detailed implementation plan in `.tickets/plans/{{ id }}.md` with:\n- Files to create/modify\n- Key implementation steps\n- Test coverage requirements\n- Any dependencies or risks",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "plan",
+        "prompt": "Plan rejected: {{ rejection_reason }}\n\nRevise the plan based on feedback."
+      },
+      "next_step": "build"
+    },
+    {
+      "name": "build",
+      "display_name": "Building",
+      "outputs": ["code"],
+      "prompt": "Build the feature structure based on the plan in `.tickets/plans/{{ id }}.md`.\n\nIn this step, focus on:\n- Creating new files and modules\n- Setting up the basic structure\n- Adding type definitions and interfaces\n- Creating stub implementations\n\nDo not implement full logic yet - that comes in the next step.",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "next_step": "code"
+    },
+    {
+      "name": "code",
+      "display_name": "Coding",
+      "outputs": ["code"],
+      "prompt": "Implement the feature logic based on the plan and structure.\n\nGuidelines:\n- Follow existing code patterns and conventions\n- Add appropriate comments for complex logic\n- Keep changes minimal and focused\n- Run formatters after making changes",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "next_step": "test"
+    },
+    {
+      "name": "test",
+      "display_name": "Testing",
+      "outputs": ["test", "code"],
+      "prompt": "Add tests for the new feature and ensure all tests pass.\n\n1. Write unit tests for new functions/modules\n2. Add integration tests if applicable\n3. Run the full test suite: `cargo test`\n4. Run linting: `cargo clippy`\n5. Run formatting: `cargo fmt`\n\nFix any failures before proceeding.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "next_step": "deploy"
+    },
+    {
+      "name": "deploy",
+      "display_name": "Deploying",
+      "outputs": ["pr"],
+      "prompt": "Create a pull request for the feature:\n\n1. Commit all changes with a descriptive message\n2. Push the feature branch\n3. Create a PR with:\n   - Clear title: `feat({{ project }}): {{ summary }}`\n   - Description of changes\n   - Link to ticket: {{ id }}\n   - Test instructions\n\nFeature complete. Move ticket to completed after PR is merged.",
+      "allowed_tools": ["Bash", "Read"],
+      "review_type": "pr",
+      "on_reject": {
+        "goto_step": "code",
+        "prompt": "Deploy rejected: {{ rejection_reason }}\n\nAddress feedback and revise the implementation."
+      }
+    }
+  ]
+}

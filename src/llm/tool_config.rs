@@ -65,6 +65,9 @@ pub struct ToolConfig {
     pub display_name: Option<String>,
     /// Command to get version (e.g., "claude --version")
     pub version_command: String,
+    /// Minimum required version for Operator compatibility
+    #[serde(default)]
+    pub min_version: Option<String>,
     /// Tool capabilities
     pub capabilities: ToolCapabilities,
     /// Available model aliases (e.g., ["opus", "sonnet", "haiku"])

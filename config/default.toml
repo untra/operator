@@ -85,3 +85,13 @@ confirm_paired = true
 
 # Delay between launching multiple agents (milliseconds)
 launch_delay_ms = 2000
+
+[version_check]
+# Enable automatic version checking on startup
+enabled = true
+
+# URL to fetch latest version from (set to null or remove to disable)
+url = "https://operator.untra.io/VERSION"
+
+# Timeout for version check HTTP request (seconds)
+timeout_secs = 3

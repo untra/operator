@@ -18,10 +18,10 @@ pub struct LoadedCollection {
     pub name: String,
     /// Description (from collection.toml if present, or auto-generated)
     pub description: String,
-    /// Issue types loaded from this collection's issues/ directory
+    /// Issue types loaded from this collection directory
     pub types: HashMap<String, IssueType>,
-    /// Priority order for sorting (from collection.toml, or derived from types)
-    pub priority_order: Vec<String>,
+    /// Ordered list of type keys (from collection.toml types field, or derived)
+    pub type_order: Vec<String>,
 }
 
 /// Load all built-in issue types
@@ -297,23 +297,25 @@ pub fn validate_collection_types(
 
 /// Load collections from directory structure
 ///
-/// Structure:
+/// Structure (flattened - no issues/ subfolder):
 /// ```text
 /// templates/
 /// ├── dev_kanban/
-/// │   ├── collection.toml  (optional: description, priority_order)
-/// │   └── issues/
-/// │       ├── TASK.json
-/// │       ├── FEAT.json
-/// │       └── FIX.json
+/// │   ├── collection.toml  (optional: description, types)
+/// │   ├── TASK.json
+/// │   ├── TASK.md
+/// │   ├── FEAT.json
+/// │   ├── FEAT.md
+/// │   ├── FIX.json
+/// │   └── FIX.md
 /// ├── devops_kanban/
-/// │   └── issues/
-/// │       └── ...
+/// │   ├── collection.toml
+/// │   └── ...
 /// ```
 ///
 /// Each subdirectory of `templates_path` is treated as a collection.
-/// Issue types are loaded from the `issues/` subdirectory.
-/// Optional `collection.toml` can specify description and priority_order.
+/// Issue types (*.json files) are loaded directly from the collection directory.
+/// Optional `collection.toml` can specify description and types order.
 pub fn load_collections_from_dir(
     templates_path: &Path,
 ) -> Result<HashMap<String, LoadedCollection>> {
@@ -353,17 +355,8 @@ pub fn load_collections_from_dir(
             continue;
         }
 
-        let issues_path = path.join("issues");
-        if !issues_path.exists() {
-            debug!(
-                "Collection '{}' has no issues/ directory, skipping",
-                collection_name
-            );
-            continue;
-        }
-
-        // Load issue types from issues/ directory
-        let types = load_types_from_issues_dir(&issues_path, &collection_name)?;
+        // Load issue types directly from collection directory (flattened structure)
+        let types = load_types_from_collection_dir(&path, &collection_name)?;
 
         if types.is_empty() {
             debug!(
@@ -374,7 +367,7 @@ pub fn load_collections_from_dir(
         }
 
         // Try to load collection metadata from collection.toml
-        let (description, priority_order) = load_collection_metadata(&path, &types);
+        let (description, type_order) = load_collection_metadata(&path, &types);
 
         info!(
             "Loaded collection '{}' with {} issue types",
@@ -388,7 +381,7 @@ pub fn load_collections_from_dir(
                 name: collection_name,
                 description,
                 types,
-                priority_order,
+                type_order,
             },
         );
     }
@@ -396,15 +389,21 @@ pub fn load_collections_from_dir(
     Ok(collections)
 }
 
-/// Load issue types from a collection's issues/ directory
-fn load_types_from_issues_dir(
-    issues_path: &Path,
+/// Load issue types directly from a collection directory (flattened structure)
+///
+/// Looks for *.json files in the collection directory (excluding collection.toml).
+fn load_types_from_collection_dir(
+    collection_path: &Path,
     collection_name: &str,
 ) -> Result<HashMap<String, IssueType>> {
     let mut types = HashMap::new();
 
-    let entries = fs::read_dir(issues_path)
-        .with_context(|| format!("Failed to read issues directory: {}", issues_path.display()))?;
+    let entries = fs::read_dir(collection_path).with_context(|| {
+        format!(
+            "Failed to read collection directory: {}",
+            collection_path.display()
+        )
+    })?;
 
     for entry in entries {
         let entry = entry?;
@@ -412,6 +411,14 @@ fn load_types_from_issues_dir(
 
         // Only process JSON files
         if file_path.is_dir() || file_path.extension().is_none_or(|e| e != "json") {
+            continue;
+        }
+
+        // Skip collection.toml's JSON equivalent if someone creates one
+        if file_path
+            .file_stem()
+            .is_some_and(|s| s == "collection" || s == "issuetype_schema")
+        {
             continue;
         }
 
@@ -439,6 +446,9 @@ fn load_types_from_issues_dir(
 }
 
 /// Load optional collection metadata from collection.toml
+///
+/// Returns (description, type_order) where type_order is read from the `types` field
+/// in collection.toml, or derived alphabetically from the loaded types.
 fn load_collection_metadata(
     collection_path: &Path,
     types: &HashMap<String, IssueType>,
@@ -454,22 +464,23 @@ fn load_collection_metadata(
                     .unwrap_or("")
                     .to_string();
 
-                let priority_order = toml_value
-                    .get("priority_order")
+                // Read `types` field from collection.toml for ordering
+                let type_order = toml_value
+                    .get("types")
                     .and_then(|v| v.as_array())
                     .map(|arr| {
                         arr.iter()
                             .filter_map(|v| v.as_str().map(|s| s.to_string()))
                             .collect()
                     })
-                    .unwrap_or_else(|| derive_priority_order(types));
+                    .unwrap_or_else(|| derive_type_order(types));
 
-                return (description, priority_order);
+                return (description, type_order);
             }
         }
     }
 
-    // Default: auto-generate description and derive priority from types
+    // Default: auto-generate description and derive order from types
     let collection_name = collection_path
         .file_name()
         .and_then(|n| n.to_str())
@@ -481,11 +492,11 @@ fn load_collection_metadata(
         types.len()
     );
 
-    (description, derive_priority_order(types))
+    (description, derive_type_order(types))
 }
 
-/// Derive priority order from issue types (alphabetical by key)
-fn derive_priority_order(types: &HashMap<String, IssueType>) -> Vec<String> {
+/// Derive type order from issue types (alphabetical by key)
+fn derive_type_order(types: &HashMap<String, IssueType>) -> Vec<String> {
     let mut keys: Vec<String> = types.keys().cloned().collect();
     keys.sort();
     keys
@@ -597,7 +608,6 @@ mod tests {
 name = "test"
 description = "Test collection"
 types = ["FEAT", "FIX"]
-priority_order = ["FIX", "FEAT"]
 "#;
         let collections_path = temp_dir.path().join("collections.toml");
         fs::write(&collections_path, toml).unwrap();
@@ -607,7 +617,6 @@ priority_order = ["FIX", "FEAT"]
 
         let test = collections.get("test").unwrap();
         assert_eq!(test.types, vec!["FEAT", "FIX"]);
-        assert_eq!(test.priority_order, vec!["FIX", "FEAT"]);
     }
 
     #[test]

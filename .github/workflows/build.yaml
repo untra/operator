@@ -60,6 +60,7 @@ jobs:
 
   coverage:
     needs: lint-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,8 +83,35 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
+      - name: Configure Git for tests
+        run: |
+          git config user.email "ci@example.com"
+          git config user.name "CI"
+          git remote set-head origin --auto || true
+
       - name: Generate coverage
-        run: cargo llvm-cov --all-features --codecov --output-path codecov.json
+        env:
+          # Jira integration test credentials
+          OPERATOR_JIRA_DOMAIN: ${{ secrets.OPERATOR_JIRA_DOMAIN }}
+          OPERATOR_JIRA_EMAIL: ${{ secrets.OPERATOR_JIRA_EMAIL }}
+          OPERATOR_JIRA_API_KEY: ${{ secrets.OPERATOR_JIRA_API_KEY }}
+          OPERATOR_JIRA_TEST_PROJECT: ${{ secrets.OPERATOR_JIRA_TEST_PROJECT }}
+          # Linear integration test credentials
+          OPERATOR_LINEAR_API_KEY: ${{ secrets.OPERATOR_LINEAR_API_KEY }}
+          OPERATOR_LINEAR_TEST_TEAM: ${{ secrets.OPERATOR_LINEAR_TEST_TEAM }}
+          # Git integration test flags
+          OPERATOR_GIT_TEST_ENABLED: 'true'
+          OPERATOR_GIT_PUSH_ENABLED: 'true'
+        run: cargo llvm-cov --all-features --codecov --output-path codecov.json -- --test-threads=1
+
+      - name: Cleanup optest branches
+        if: always()
+        run: |
+          git fetch --prune origin
+          for branch in $(git branch -r | grep 'origin/optest/' | sed 's|origin/||' | xargs); do
+            echo "Cleaning up orphaned test branch: $branch"
+            git push origin --delete "$branch" || true
+          done
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5

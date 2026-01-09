@@ -1,0 +1,123 @@
+name: Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/api/providers/kanban/**'
+      - 'src/git/**'
+      - 'tests/kanban_integration.rs'
+      - 'tests/git_integration.rs'
+      - '.github/workflows/integration-tests.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/api/providers/kanban/**'
+      - 'src/git/**'
+      - 'tests/kanban_integration.rs'
+      - 'tests/git_integration.rs'
+  workflow_dispatch:
+    inputs:
+      run_jira:
+        description: 'Run Jira integration tests'
+        type: boolean
+        default: true
+      run_linear:
+        description: 'Run Linear integration tests'
+        type: boolean
+        default: true
+      run_git:
+        description: 'Run Git integration tests'
+        type: boolean
+        default: true
+      run_git_push:
+        description: 'Run Git push tests (creates/deletes optest/ branches)'
+        type: boolean
+        default: false
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for git operations
+
+      - name: Configure Git for tests
+        run: |
+          git config user.email "ci@example.com"
+          git config user.name "CI"
+          # Set origin/HEAD if not set (needed for get_default_branch)
+          git remote set-head origin --auto || true
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-integration-
+
+      - name: Run Jira integration tests
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.run_jira) &&
+          env.OPERATOR_JIRA_DOMAIN != ''
+        env:
+          OPERATOR_JIRA_DOMAIN: ${{ secrets.OPERATOR_JIRA_DOMAIN }}
+          OPERATOR_JIRA_EMAIL: ${{ secrets.OPERATOR_JIRA_EMAIL }}
+          OPERATOR_JIRA_API_KEY: ${{ secrets.OPERATOR_JIRA_API_KEY }}
+          OPERATOR_JIRA_TEST_PROJECT: ${{ secrets.OPERATOR_JIRA_TEST_PROJECT }}
+        run: cargo test --test kanban_integration jira_tests -- --nocapture --test-threads=1
+
+      - name: Run Linear integration tests
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.run_linear) &&
+          env.OPERATOR_LINEAR_API_KEY != ''
+        env:
+          OPERATOR_LINEAR_API_KEY: ${{ secrets.OPERATOR_LINEAR_API_KEY }}
+          OPERATOR_LINEAR_TEST_TEAM: ${{ secrets.OPERATOR_LINEAR_TEST_TEAM }}
+        run: cargo test --test kanban_integration linear_tests -- --nocapture --test-threads=1
+
+      - name: Run cross-provider tests
+        env:
+          OPERATOR_JIRA_DOMAIN: ${{ secrets.OPERATOR_JIRA_DOMAIN }}
+          OPERATOR_JIRA_EMAIL: ${{ secrets.OPERATOR_JIRA_EMAIL }}
+          OPERATOR_JIRA_API_KEY: ${{ secrets.OPERATOR_JIRA_API_KEY }}
+          OPERATOR_JIRA_TEST_PROJECT: ${{ secrets.OPERATOR_JIRA_TEST_PROJECT }}
+          OPERATOR_LINEAR_API_KEY: ${{ secrets.OPERATOR_LINEAR_API_KEY }}
+          OPERATOR_LINEAR_TEST_TEAM: ${{ secrets.OPERATOR_LINEAR_TEST_TEAM }}
+        run: cargo test --test kanban_integration test_provider_interface_consistency -- --nocapture
+
+      # Git Integration Tests
+      - name: Run Git integration tests (read-only)
+        if: github.event_name != 'workflow_dispatch' || inputs.run_git
+        env:
+          OPERATOR_GIT_TEST_ENABLED: 'true'
+        run: cargo test --test git_integration -- --nocapture --test-threads=1
+
+      - name: Run Git push integration tests
+        if: >-
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' && inputs.run_git_push)
+        env:
+          OPERATOR_GIT_TEST_ENABLED: 'true'
+          OPERATOR_GIT_PUSH_ENABLED: 'true'
+        run: cargo test --test git_integration git_cli_branch_lifecycle_tests -- --nocapture --test-threads=1
+
+      - name: Cleanup optest branches
+        if: always()
+        run: |
+          # Remove any remaining optest/ branches from remote
+          git fetch --prune origin
+          for branch in $(git branch -r | grep 'origin/optest/' | sed 's|origin/||' | xargs); do
+            echo "Cleaning up orphaned test branch: $branch"
+            git push origin --delete "$branch" || true
+          done

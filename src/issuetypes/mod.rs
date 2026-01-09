@@ -196,18 +196,19 @@ impl IssueTypeRegistry {
 
     /// Load issue types and collections from directory structure
     ///
-    /// New directory structure:
+    /// Flattened directory structure (no issues/ subfolder):
     /// ```text
     /// .tickets/templates/
     /// ├── dev_kanban/
     /// │   ├── collection.toml  (optional)
-    /// │   └── issues/
-    /// │       ├── TASK.json
-    /// │       ├── FEAT.json
-    /// │       └── FIX.json
+    /// │   ├── TASK.json
+    /// │   ├── TASK.md
+    /// │   ├── FEAT.json
+    /// │   ├── FEAT.md
+    /// │   ├── FIX.json
+    /// │   └── FIX.md
     /// ├── devops_kanban/
-    /// │   └── issues/
-    /// │       └── ...
+    /// │   └── ...
     /// ```
     ///
     /// Each collection is self-contained with its own issue types.
@@ -228,7 +229,7 @@ impl IssueTypeRegistry {
 
             // Create and register the collection
             let collection = IssueTypeCollection::new(&name, &loaded_collection.description)
-                .with_types(loaded_collection.priority_order.iter().map(|s| s.as_str()));
+                .with_types(loaded_collection.type_order.iter().map(|s| s.as_str()));
 
             self.collections.insert(name, collection);
         }
@@ -458,12 +459,12 @@ mod tests {
         registry.load_builtins().unwrap();
         registry.activate_collection("devops_kanban").unwrap();
 
-        // devops_kanban priority: INV, FIX, FEAT, SPIKE, TASK
-        assert_eq!(registry.priority_index("INV"), 0);
-        assert_eq!(registry.priority_index("FIX"), 1);
-        assert_eq!(registry.priority_index("FEAT"), 2);
+        // devops_kanban priority: TASK, FEAT, FIX, SPIKE, INV
+        assert_eq!(registry.priority_index("TASK"), 0);
+        assert_eq!(registry.priority_index("FEAT"), 1);
+        assert_eq!(registry.priority_index("FIX"), 2);
         assert_eq!(registry.priority_index("SPIKE"), 3);
-        assert_eq!(registry.priority_index("TASK"), 4);
+        assert_eq!(registry.priority_index("INV"), 4);
     }
 
     #[test]

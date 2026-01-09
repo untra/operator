@@ -10,6 +10,7 @@
 // Public modules for type generation
 pub mod api;
 pub mod config;
+pub mod git;
 pub mod queue;
 pub mod rest;
 pub mod state;
@@ -17,12 +18,14 @@ pub mod types;
 
 // Internal modules required by public modules
 mod backstage;
+mod collections;
 mod issuetypes;
 mod llm;
 mod permissions;
 mod projects;
 mod startup;
 mod templates;
+pub mod version;
 
 // Re-export env_vars for potential external use
 pub mod env_vars;

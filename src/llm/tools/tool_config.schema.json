@@ -33,6 +33,11 @@
       "description": "Shell command to retrieve the tool's version. Used during detection to verify the tool is installed and working.",
       "examples": ["claude --version", "gemini --version", "codex --version"]
     },
+    "min_version": {
+      "type": "string",
+      "description": "Minimum required version for Operator compatibility. Operator will warn if installed version is below this. Uses semver comparison.",
+      "examples": ["1.0.34", "0.1.0", "2.0.0"]
+    },
     "capabilities": {
       "type": "object",
       "description": "Declares what features this tool supports. Operator uses these to determine available functionality.",

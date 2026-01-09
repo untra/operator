@@ -14,6 +14,7 @@ import type { RestApiConfig } from "./RestApiConfig";
 import type { TemplatesConfig } from "./TemplatesConfig";
 import type { TmuxConfig } from "./TmuxConfig";
 import type { UiConfig } from "./UiConfig";
+import type { VersionCheckConfig } from "./VersionCheckConfig";
 
 export type Config = { 
 /**
@@ -23,4 +24,8 @@ projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfi
 /**
  * Kanban provider configuration for syncing issues from Jira, Linear, etc.
  */
-kanban: KanbanConfig, };
+kanban: KanbanConfig, 
+/**
+ * Version check configuration for automatic update notifications
+ */
+version_check: VersionCheckConfig, };

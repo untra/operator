@@ -37,6 +37,8 @@ pub struct Dashboard {
     pub rest_api_status: RestApiStatus,
     /// Exit confirmation mode (first Ctrl+C pressed)
     pub exit_confirmation_mode: bool,
+    /// Version update available (if notification should be shown)
+    pub update_available_version: Option<String>,
 }
 
 impl Dashboard {
@@ -53,6 +55,7 @@ impl Dashboard {
             backstage_status: ServerStatus::Stopped,
             rest_api_status: RestApiStatus::Stopped,
             exit_confirmation_mode: false,
+            update_available_version: None,
         }
     }
 
@@ -70,6 +73,10 @@ impl Dashboard {
 
     pub fn update_exit_confirmation_mode(&mut self, mode: bool) {
         self.exit_confirmation_mode = mode;
+    }
+
+    pub fn update_available_version(&mut self, version: Option<String>) {
+        self.update_available_version = version;
     }
 
     pub fn update_queue(&mut self, tickets: Vec<Ticket>) {
@@ -153,6 +160,7 @@ impl Dashboard {
             backstage_status: self.backstage_status.clone(),
             rest_api_status: self.rest_api_status.clone(),
             exit_confirmation_mode: self.exit_confirmation_mode,
+            update_available_version: self.update_available_version.clone(),
         };
         status.render(frame, chunks[2]);
     }

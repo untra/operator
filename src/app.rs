@@ -93,6 +93,12 @@ pub struct App {
     pr_shutdown_tx: Option<mpsc::Sender<()>>,
     /// Notification service for dispatching events to integrations
     notification_service: NotificationService,
+    /// Latest version available (if update notification shown)
+    update_available_version: Option<String>,
+    /// Time when update notification was first shown
+    update_notification_shown_at: Option<std::time::Instant>,
+    /// Receiver for version check results
+    version_rx: mpsc::UnboundedReceiver<String>,
 }
 
 impl App {
@@ -222,6 +228,9 @@ impl App {
         let (pr_event_tx, pr_event_rx) = mpsc::unbounded_channel();
         let (pr_shutdown_tx, pr_shutdown_rx) = mpsc::channel(1);
 
+        // Initialize version check channel
+        let (version_tx, version_rx) = mpsc::unbounded_channel();
+
         // Create PR monitor service and get shared access to tracked PRs
         let mut pr_monitor = PrMonitorService::new(pr_event_tx)
             .with_poll_interval(Duration::from_secs(config.api.pr_check_interval_secs))
@@ -234,6 +243,17 @@ impl App {
                 tracing::error!("PR monitor error: {}", e);
             }
         });
+
+        // Spawn background version check
+        if config.version_check.enabled {
+            let check_config = config.version_check.clone();
+            let tx = version_tx.clone();
+            tokio::spawn(async move {
+                if let Some(new_version) = crate::version::check_for_updates(&check_config).await {
+                    let _ = tx.send(new_version);
+                }
+            });
+        }
 
         let kanban_sync_service = KanbanSyncService::new(&config);
 
@@ -266,6 +286,9 @@ impl App {
             pr_tracked,
             pr_shutdown_tx: Some(pr_shutdown_tx),
             notification_service,
+            update_available_version: None,
+            update_notification_shown_at: None,
+            version_rx,
         })
     }
 
@@ -325,6 +348,14 @@ impl App {
             self.dashboard
                 .update_exit_confirmation_mode(self.exit_confirmation_mode);
 
+            // Update dashboard with version notification status
+            let version_to_show = if self.update_notification_shown_at.is_some() {
+                self.update_available_version.clone()
+            } else {
+                None
+            };
+            self.dashboard.update_available_version(version_to_show);
+
             // Draw
             terminal.draw(|f| {
                 if let Some(ref mut setup) = self.setup_screen {
@@ -380,6 +411,19 @@ impl App {
 
             // Process any pending PR creations
             self.process_pending_pr_creations().await?;
+
+            // Check for version check results (non-blocking)
+            if let Ok(new_version) = self.version_rx.try_recv() {
+                self.update_available_version = Some(new_version);
+                self.update_notification_shown_at = Some(std::time::Instant::now());
+            }
+
+            // Auto-dismiss version notification after 6 seconds
+            if let Some(shown_at) = self.update_notification_shown_at {
+                if shown_at.elapsed() > Duration::from_secs(6) {
+                    self.update_notification_shown_at = None;
+                }
+            }
         }
 
         // Restore terminal

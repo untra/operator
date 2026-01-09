@@ -1,0 +1,5 @@
+name = "backstage_full"
+description = "Full workflow plus Backstage: all types combined"
+
+# Issue types in this collection (display order)
+types = ["TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT"]

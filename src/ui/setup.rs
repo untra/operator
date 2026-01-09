@@ -1104,7 +1104,7 @@ impl SetupScreen {
 
         // Intro
         let intro = Paragraph::new(vec![Line::from(
-            "Operator launches Claude agents in tmux sessions.",
+            "Operator launches Coding agents in tmux sessions.",
         )])
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::Gray));

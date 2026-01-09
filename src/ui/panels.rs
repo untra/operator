@@ -617,14 +617,13 @@ impl StatusBar {
     }
 }
 
-pub struct HeaderBar<'a> {
+pub struct HeaderBar {
     pub version: &'static str,
-    pub rate_limit: Option<&'a crate::api::RateLimitInfo>,
 }
 
-impl HeaderBar<'_> {
+impl HeaderBar {
     pub fn render(&self, frame: &mut Frame, area: Rect) {
-        let mut spans = vec![
+        let spans = vec![
             Span::styled(
                 " Operator!",
                 Style::default()
@@ -636,54 +635,6 @@ impl HeaderBar<'_> {
                 Style::default().fg(Color::Gray),
             ),
         ];
-
-        // Add rate limit meter if available
-        if let Some(info) = self.rate_limit {
-            spans.push(Span::styled("  │  ", Style::default().fg(Color::DarkGray)));
-
-            if info.is_rate_limited {
-                // Rate limited - show warning
-                let msg = if let Some(secs) = info.retry_after_secs {
-                    format!("RATE LIMITED ({}s)", secs)
-                } else {
-                    "RATE LIMITED".to_string()
-                };
-                spans.push(Span::styled(msg, Style::default().fg(Color::Red)));
-            } else if let Some(pct) = info.best_remaining_pct() {
-                // Show progress bar and percentage
-                let bar = info.progress_bar(10);
-                let color = if pct < 0.2 {
-                    Color::Yellow // Warning: below 20%
-                } else {
-                    Color::Green
-                };
-                spans.push(Span::styled(bar, Style::default().fg(color)));
-                spans.push(Span::styled(
-                    format!(" {:.0}%", pct * 100.0),
-                    Style::default().fg(color),
-                ));
-                spans.push(Span::styled(
-                    format!(" {}", info.provider),
-                    Style::default().fg(Color::DarkGray),
-                ));
-            } else {
-                spans.push(Span::styled(
-                    format!("{}: synced", info.provider),
-                    Style::default().fg(Color::DarkGray),
-                ));
-            }
-
-            spans.push(Span::styled(
-                "  [S]ync",
-                Style::default().fg(Color::DarkGray),
-            ));
-        } else {
-            // No rate limit info - show hint
-            spans.push(Span::styled(
-                "  │  [S]ync rate limits",
-                Style::default().fg(Color::DarkGray),
-            ));
-        }
 
         let content = Line::from(spans);
         let bar = Paragraph::new(content).block(Block::default().borders(Borders::BOTTOM));

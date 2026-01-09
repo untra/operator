@@ -83,7 +83,7 @@ These choices propagate to other issue types. The 'summary' field is always requ
 
 *Help and documentation about tmux session management*
 
-Operator launches Claude agents in tmux sessions. Essential commands:
+Operator launches Coding agents in tmux sessions. Essential commands:
 - **Detach from session**: Ctrl+a (quick, no prefix needed!)
 - **Fallback detach**: Ctrl+b then d
 - **List sessions**: `tmux ls`

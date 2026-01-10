@@ -479,3 +479,720 @@ async fn test_launch_global_ticket_uses_root() {
         .to_string();
     assert_eq!(working_dir.unwrap(), expected_path);
 }
+
+// ========================================
+// launch_in_tmux_with_options() tests
+// ========================================
+
+use super::options::RelaunchOptions;
+use super::tmux_session::{launch_in_tmux_with_options, launch_in_tmux_with_relaunch_options};
+use crate::agents::tmux::TmuxClient;
+
+fn make_test_config_with_docker(temp_dir: &TempDir, image: &str) -> Config {
+    let mut config = make_test_config(temp_dir);
+    config.launch.docker.image = image.to_string();
+    config.launch.docker.mount_path = "/workspace".to_string();
+    config
+}
+
+fn make_test_config_no_yolo(temp_dir: &TempDir) -> Config {
+    let mut config = make_test_config(temp_dir);
+    config.llm_tools.detected[0].yolo_flags = vec![];
+    config
+}
+
+#[test]
+fn test_launch_in_tmux_session_uses_prefix() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions::default();
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok(), "Launch failed: {:?}", result.err());
+    let session_name = result.unwrap();
+    assert!(
+        session_name.starts_with("op-"),
+        "Session should use op- prefix, got: {}",
+        session_name
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_existing_session_returns_error() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions::default();
+
+    // Pre-add a session with the expected name
+    let expected_session = format!("op-{}", ticket.id);
+    mock.add_session(&expected_session, &project_path);
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("already exists"),
+        "Error should mention session exists, got: {}",
+        err
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_sends_cd_command() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions::default();
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    assert!(keys_sent.is_some(), "Keys should have been sent");
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        cmd.starts_with("cd "),
+        "Command should start with cd, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_sends_llm_command() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions::default();
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        cmd.contains("claude"),
+        "Command should contain claude, got: {}",
+        cmd
+    );
+    assert!(
+        cmd.contains("--session-id"),
+        "Command should contain --session-id, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_yolo_mode_applies_flags() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions {
+        yolo_mode: true,
+        ..Default::default()
+    };
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        cmd.contains("--dangerously-skip-permissions"),
+        "Command should contain YOLO flag, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_yolo_mode_disabled_no_flags() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions {
+        yolo_mode: false,
+        ..Default::default()
+    };
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        !cmd.contains("--dangerously-skip-permissions"),
+        "Command should NOT contain YOLO flag when disabled, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_docker_mode_wraps() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config_with_docker(&temp_dir, "my-claude:latest");
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions {
+        docker_mode: true,
+        ..Default::default()
+    };
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        cmd.contains("docker run"),
+        "Command should contain docker run, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_both_modes() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config_with_docker(&temp_dir, "my-claude:latest");
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions {
+        yolo_mode: true,
+        docker_mode: true,
+        ..Default::default()
+    };
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        cmd.contains("docker run"),
+        "Command should contain docker run, got: {}",
+        cmd
+    );
+    assert!(
+        cmd.contains("--dangerously-skip-permissions"),
+        "Command should contain YOLO flag, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_uses_provider_from_options() {
+    let temp_dir = TempDir::new().unwrap();
+    // Add a second tool
+    let mut config = make_test_config(&temp_dir);
+    config.llm_tools.detected.push(crate::config::DetectedTool {
+        name: "gemini".to_string(),
+        path: "/usr/bin/gemini".to_string(),
+        version: "1.0.0".to_string(),
+        min_version: None,
+        version_ok: true,
+        model_aliases: vec!["pro".to_string()],
+        command_template:
+            "gemini {{config_flags}}{{model_flag}}--session {{session_id}} --prompt {{prompt_file}}"
+                .to_string(),
+        capabilities: crate::config::ToolCapabilities::default(),
+        yolo_flags: vec![],
+    });
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions {
+        provider: Some(crate::config::LlmProvider {
+            tool: "gemini".to_string(),
+            model: "pro".to_string(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        cmd.contains("gemini"),
+        "Command should use gemini tool, got: {}",
+        cmd
+    );
+    assert!(
+        cmd.contains("--model pro"),
+        "Command should use pro model, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_writes_prompt_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions::default();
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt content",
+        &options,
+    );
+
+    assert!(result.is_ok());
+
+    // Verify a prompt file was created
+    let prompts_dir = temp_dir
+        .path()
+        .join("tickets")
+        .join("operator")
+        .join("prompts");
+    let prompt_files: Vec<_> = std::fs::read_dir(&prompts_dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .collect();
+    assert!(
+        !prompt_files.is_empty(),
+        "At least one prompt file should have been created"
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_tmux_not_installed() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::not_installed());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions::default();
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("tmux is not installed"),
+        "Error should mention tmux not installed, got: {}",
+        err
+    );
+}
+
+// ========================================
+// launch_in_tmux_with_relaunch_options() tests
+// ========================================
+
+#[test]
+fn test_relaunch_fresh_start_new_uuid() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = RelaunchOptions {
+        resume_session_id: None, // Fresh start
+        ..Default::default()
+    };
+
+    let result = launch_in_tmux_with_relaunch_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    assert!(session_name.starts_with("op-"));
+}
+
+#[test]
+fn test_relaunch_inherits_yolo_mode() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = RelaunchOptions {
+        launch_options: LaunchOptions {
+            yolo_mode: true,
+            ..Default::default()
+        },
+        resume_session_id: None,
+    };
+
+    let result = launch_in_tmux_with_relaunch_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        cmd.contains("--dangerously-skip-permissions"),
+        "Relaunch should apply YOLO flags, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_relaunch_inherits_docker_mode() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config_with_docker(&temp_dir, "my-claude:latest");
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = RelaunchOptions {
+        launch_options: LaunchOptions {
+            docker_mode: true,
+            ..Default::default()
+        },
+        resume_session_id: None,
+    };
+
+    let result = launch_in_tmux_with_relaunch_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        cmd.contains("docker run"),
+        "Relaunch should apply Docker wrapping, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_relaunch_existing_session_errors() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+
+    // Pre-add a session with the expected name
+    let expected_session = format!("op-{}", ticket.id);
+    mock.add_session(&expected_session, &project_path);
+
+    let options = RelaunchOptions::default();
+
+    let result = launch_in_tmux_with_relaunch_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("already exists"),
+        "Relaunch should fail if session exists, got: {}",
+        err
+    );
+}
+
+#[test]
+fn test_relaunch_with_resume_adds_flag() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+
+    // Create a prompt file for the resume session
+    let resume_uuid = "test-resume-uuid-12345";
+    let prompts_dir = temp_dir
+        .path()
+        .join("tickets")
+        .join("operator")
+        .join("prompts");
+    std::fs::create_dir_all(&prompts_dir).unwrap();
+    std::fs::write(
+        prompts_dir.join(format!("{}.txt", resume_uuid)),
+        "Previous prompt",
+    )
+    .unwrap();
+
+    let options = RelaunchOptions {
+        launch_options: LaunchOptions::default(),
+        resume_session_id: Some(resume_uuid.to_string()),
+    };
+
+    let result = launch_in_tmux_with_relaunch_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    assert!(
+        cmd.contains("--resume"),
+        "Resume mode should add --resume flag, got: {}",
+        cmd
+    );
+    assert!(
+        cmd.contains(resume_uuid),
+        "Resume should use the provided session ID, got: {}",
+        cmd
+    );
+}
+
+#[test]
+fn test_relaunch_missing_prompt_fresh_start() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+
+    // Don't create the prompt file - it should fall back to fresh start
+    let resume_uuid = "nonexistent-uuid-12345";
+    let options = RelaunchOptions {
+        launch_options: LaunchOptions::default(),
+        resume_session_id: Some(resume_uuid.to_string()),
+    };
+
+    let result = launch_in_tmux_with_relaunch_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Fallback prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let cmd = &keys_sent.unwrap()[0];
+    // Should NOT have resume flag since prompt file doesn't exist
+    assert!(
+        !cmd.contains("--resume"),
+        "Should fall back to fresh start when prompt file missing, got: {}",
+        cmd
+    );
+}

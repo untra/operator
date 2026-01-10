@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import { TerminalCreateOptions, TerminalState, ActivityState } from './types';
+import { IssueTypeService } from './issuetype-service';
 
 /**
  * Manages operator terminals with activity detection and styling
@@ -16,6 +17,7 @@ export class TerminalManager {
   private activityState = new Map<string, ActivityState>();
   private createdAt = new Map<string, number>();
   private disposables: vscode.Disposable[] = [];
+  private issueTypeService: IssueTypeService | undefined;
 
   constructor() {
     // Track shell execution for activity detection
@@ -41,6 +43,13 @@ export class TerminalManager {
         }
       })
     );
+  }
+
+  /**
+   * Set the issue type service for dynamic styling
+   */
+  setIssueTypeService(service: IssueTypeService): void {
+    this.issueTypeService = service;
   }
 
   /**
@@ -153,47 +162,24 @@ export class TerminalManager {
   }
 
   /**
-   * Color scheme based on ticket type
+   * Color scheme based on ticket type (dynamic lookup)
    */
   private getColorForName(name: string): vscode.ThemeColor {
-    // op-FEAT-123 -> cyan, op-FIX-123 -> red, etc.
-    if (name.includes('FEAT')) {
-      return new vscode.ThemeColor('terminal.ansiCyan');
+    if (this.issueTypeService) {
+      return this.issueTypeService.getColorForTerminal(name);
     }
-    if (name.includes('FIX')) {
-      return new vscode.ThemeColor('terminal.ansiRed');
-    }
-    if (name.includes('TASK')) {
-      return new vscode.ThemeColor('terminal.ansiGreen');
-    }
-    if (name.includes('SPIKE')) {
-      return new vscode.ThemeColor('terminal.ansiMagenta');
-    }
-    if (name.includes('INV')) {
-      return new vscode.ThemeColor('terminal.ansiYellow');
-    }
+    // Fallback if service not set
     return new vscode.ThemeColor('terminal.ansiWhite');
   }
 
   /**
-   * Icon based on ticket type
+   * Icon based on ticket type (dynamic lookup)
    */
   private getIconForName(name: string): vscode.ThemeIcon {
-    if (name.includes('FEAT')) {
-      return new vscode.ThemeIcon('sparkle');
+    if (this.issueTypeService) {
+      return this.issueTypeService.getIconForTerminal(name);
     }
-    if (name.includes('FIX')) {
-      return new vscode.ThemeIcon('wrench');
-    }
-    if (name.includes('TASK')) {
-      return new vscode.ThemeIcon('tasklist');
-    }
-    if (name.includes('SPIKE')) {
-      return new vscode.ThemeIcon('beaker');
-    }
-    if (name.includes('INV')) {
-      return new vscode.ThemeIcon('search');
-    }
+    // Fallback if service not set
     return new vscode.ThemeIcon('terminal');
   }
 

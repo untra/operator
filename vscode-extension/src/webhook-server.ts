@@ -98,7 +98,7 @@ export class WebhookServer {
       port: this.actualPort,
       pid: process.pid,
       version: VERSION,
-      started_at: new Date().toISOString(),
+      startedAt: new Date().toISOString(),
       workspace:
         vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
     };

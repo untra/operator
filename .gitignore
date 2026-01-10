@@ -32,3 +32,7 @@ coverage/
 
 # built vscode extension
 *.vsix
+
+# vscode-extension generated types (copied from bindings/)
+vscode-extension/src/generated/
+vscode-extension/out/

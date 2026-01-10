@@ -17,6 +17,13 @@ use schemars::schema_for;
 use ts_rs::TS;
 
 // Import all types that should be exported
+use operator::agents::{
+    VsCodeActivityResponse, VsCodeActivityState, VsCodeErrorResponse, VsCodeExistsResponse,
+    VsCodeHealthResponse, VsCodeLaunchOptions, VsCodeListResponse, VsCodeModelOption,
+    VsCodeSendCommandRequest, VsCodeSessionInfo, VsCodeSuccessResponse,
+    VsCodeTerminalCreateOptions, VsCodeTerminalState, VsCodeTicketInfo, VsCodeTicketMetadata,
+    VsCodeTicketStatus, VsCodeTicketType,
+};
 use operator::api::providers::kanban::{
     JiraAvatarUrls, JiraDescription, JiraIssue, JiraIssueFields, JiraIssueTypeRef, JiraPriority,
     JiraProjectStatus, JiraSearchResponse, JiraStatus, JiraStatusRef, JiraUser,
@@ -139,6 +146,24 @@ fn generate_typescript() -> String {
         JiraPriority::decl(),
         JiraProjectStatus::decl(),
         JiraStatus::decl(),
+        // VSCode extension types (src/agents/vscode_types.rs)
+        VsCodeSessionInfo::decl(),
+        VsCodeHealthResponse::decl(),
+        VsCodeActivityState::decl(),
+        VsCodeTerminalState::decl(),
+        VsCodeTerminalCreateOptions::decl(),
+        VsCodeSendCommandRequest::decl(),
+        VsCodeSuccessResponse::decl(),
+        VsCodeExistsResponse::decl(),
+        VsCodeActivityResponse::decl(),
+        VsCodeListResponse::decl(),
+        VsCodeErrorResponse::decl(),
+        VsCodeTicketType::decl(),
+        VsCodeTicketStatus::decl(),
+        VsCodeTicketInfo::decl(),
+        VsCodeModelOption::decl(),
+        VsCodeLaunchOptions::decl(),
+        VsCodeTicketMetadata::decl(),
     ];
 
     // Add export keyword to each declaration

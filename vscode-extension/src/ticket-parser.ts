@@ -73,7 +73,7 @@ export function parseTicketContent(content: string): TicketMetadata | null {
         metadata.project = value;
         break;
       case 'worktree_path':
-        metadata.worktree_path = value;
+        metadata.worktreePath = value;
         break;
       case 'branch':
         metadata.branch = value;

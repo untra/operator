@@ -260,11 +260,19 @@ export type Config = {
 /**
  * List of projects operator can assign work to
  */
-projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfig, queue: QueueConfig, paths: PathsConfig, ui: UiConfig, launch: LaunchConfig, templates: TemplatesConfig, api: ApiConfig, logging: LoggingConfig, tmux: TmuxConfig, llm_tools: LlmToolsConfig, backstage: BackstageConfig, rest_api: RestApiConfig, git: GitConfig, 
+projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfig, queue: QueueConfig, paths: PathsConfig, ui: UiConfig, launch: LaunchConfig, templates: TemplatesConfig, api: ApiConfig, logging: LoggingConfig, tmux: TmuxConfig, 
+/**
+ * Session wrapper configuration (tmux or vscode)
+ */
+sessions: SessionsConfig, llm_tools: LlmToolsConfig, backstage: BackstageConfig, rest_api: RestApiConfig, git: GitConfig, 
 /**
  * Kanban provider configuration for syncing issues from Jira, Linear, etc.
  */
-kanban: KanbanConfig, };
+kanban: KanbanConfig, 
+/**
+ * Version check configuration for automatic update notifications
+ */
+version_check: VersionCheckConfig, };
 
 export type AgentsConfig = { max_parallel: number, cores_reserved: number, health_check_interval: bigint, 
 /**
@@ -476,6 +484,14 @@ path: string,
  */
 version: string, 
 /**
+ * Minimum required version for Operator compatibility
+ */
+min_version: string | null, 
+/**
+ * Whether the installed version meets the minimum requirement
+ */
+version_ok: boolean, 
+/**
  * Available model aliases (e.g., ["opus", "sonnet", "haiku"])
  */
 model_aliases: Array<string>, 
@@ -660,7 +676,7 @@ export type CompletedTicket = { ticket_id: string, ticket_type: string, project:
 
 export type IssueTypeResponse = { key: string, name: string, description: string, mode: string, glyph: string, color: string | null, project_required: boolean, source: string, fields: Array<FieldResponse>, steps: Array<StepResponse>, };
 
-export type IssueTypeSummary = { key: string, name: string, description: string, mode: string, glyph: string, source: string, step_count: number, };
+export type IssueTypeSummary = { key: string, name: string, description: string, mode: string, glyph: string, color?: string, source: string, stepCount: number, };
 
 export type CreateIssueTypeRequest = { key: string, name: string, description: string, mode: string, glyph: string, color: string | null, project_required: boolean, fields: Array<CreateFieldRequest>, steps: Array<CreateStepRequest>, };
 
@@ -813,4 +829,198 @@ export type JiraStatus = {
  * Status name (e.g., "To Do", "In Progress", "Done")
  */
 name: string, };
+
+export type VsCodeSessionInfo = { 
+/**
+ * Wrapper type identifier (always "vscode")
+ */
+wrapper: string, 
+/**
+ * Actual port the webhook server is listening on
+ */
+port: number, 
+/**
+ * Process ID of VS Code
+ */
+pid: number, 
+/**
+ * Extension version
+ */
+version: string, 
+/**
+ * ISO timestamp when server started
+ */
+startedAt: string, 
+/**
+ * Workspace folder path
+ */
+workspace: string, };
+
+export type VsCodeHealthResponse = { 
+/**
+ * Health status (always "ok" when healthy)
+ */
+status: string, 
+/**
+ * Extension version
+ */
+version: string, 
+/**
+ * Port the server is listening on
+ */
+port: number, };
+
+export type VsCodeActivityState = "idle" | "running" | "unknown";
+
+export type VsCodeTerminalState = { 
+/**
+ * Terminal name
+ */
+name: string, 
+/**
+ * Process ID if available
+ */
+pid?: number, 
+/**
+ * Current activity state
+ */
+activity: VsCodeActivityState, 
+/**
+ * Unix timestamp when terminal was created (milliseconds)
+ */
+createdAt: number, };
+
+export type VsCodeTerminalCreateOptions = { 
+/**
+ * Terminal name (e.g., "op-FEAT-123")
+ */
+name: string, 
+/**
+ * Working directory for the terminal
+ */
+workingDir?: string, 
+/**
+ * Environment variables to set
+ */
+env?: { [key in string]?: string }, };
+
+export type VsCodeSendCommandRequest = { 
+/**
+ * Command to execute
+ */
+command: string, };
+
+export type VsCodeSuccessResponse = { 
+/**
+ * Whether the operation succeeded
+ */
+success: boolean, 
+/**
+ * Optional terminal name (for create operations)
+ */
+name?: string, };
+
+export type VsCodeExistsResponse = { 
+/**
+ * Whether the terminal exists
+ */
+exists: boolean, };
+
+export type VsCodeActivityResponse = { 
+/**
+ * Current activity state
+ */
+activity: VsCodeActivityState, };
+
+export type VsCodeListResponse = { 
+/**
+ * List of managed terminals
+ */
+terminals: Array<VsCodeTerminalState>, };
+
+export type VsCodeErrorResponse = { 
+/**
+ * Error message
+ */
+error: string, };
+
+export type VsCodeTicketType = "FEAT" | "FIX" | "TASK" | "SPIKE" | "INV";
+
+export type VsCodeTicketStatus = "in-progress" | "queue" | "completed";
+
+export type VsCodeTicketInfo = { 
+/**
+ * Ticket ID (e.g., "FEAT-123")
+ */
+id: string, 
+/**
+ * Ticket title from markdown heading
+ */
+title: string, 
+/**
+ * Ticket type key (e.g., "FEAT", "FIX", or any custom type)
+ */
+type: string, 
+/**
+ * Current status
+ */
+status: VsCodeTicketStatus, 
+/**
+ * Path to the ticket markdown file
+ */
+filePath: string, 
+/**
+ * Terminal name if in-progress (e.g., "op-FEAT-123")
+ */
+terminalName?: string, };
+
+export type VsCodeModelOption = "sonnet" | "opus" | "haiku";
+
+export type VsCodeLaunchOptions = { 
+/**
+ * Model to use (sonnet, opus, haiku)
+ */
+model: VsCodeModelOption, 
+/**
+ * YOLO mode - auto-accept all prompts
+ */
+yoloMode: boolean, 
+/**
+ * Resume from existing session (uses session_id from ticket)
+ */
+resumeSession: boolean, };
+
+export type VsCodeTicketMetadata = { 
+/**
+ * Ticket ID
+ */
+id: string, 
+/**
+ * Current status
+ */
+status: string, 
+/**
+ * Current step name
+ */
+step: string, 
+/**
+ * Priority level
+ */
+priority: string, 
+/**
+ * Project name
+ */
+project: string, 
+/**
+ * Session UUIDs by step name
+ */
+sessions?: { [key in string]?: string }, 
+/**
+ * Git worktree path if using per-ticket worktrees
+ */
+worktreePath?: string, 
+/**
+ * Git branch name
+ */
+branch?: string, };
 

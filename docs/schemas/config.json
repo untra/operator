@@ -57,6 +57,21 @@
         "config_generated": false
       }
     },
+    "sessions": {
+      "description": "Session wrapper configuration (tmux or vscode)",
+      "$ref": "#/$defs/SessionsConfig",
+      "default": {
+        "wrapper": "tmux",
+        "tmux": {
+          "config_generated": false,
+          "socket_name": "operator"
+        },
+        "vscode": {
+          "webhook_port": 7009,
+          "connect_timeout_ms": 5000
+        }
+      }
+    },
     "llm_tools": {
       "$ref": "#/$defs/LlmToolsConfig",
       "default": {
@@ -117,8 +132,17 @@
       "description": "Kanban provider configuration for syncing issues from Jira, Linear, etc.",
       "$ref": "#/$defs/KanbanConfig",
       "default": {
-        "jira": null,
-        "linear": null
+        "jira": {},
+        "linear": {}
+      }
+    },
+    "version_check": {
+      "description": "Version check configuration for automatic update notifications",
+      "$ref": "#/$defs/VersionCheckConfig",
+      "default": {
+        "enabled": true,
+        "url": "https://operator.untra.io/VERSION",
+        "timeout_secs": 3
       }
     }
   },
@@ -611,6 +635,85 @@
         }
       }
     },
+    "SessionsConfig": {
+      "description": "Session wrapper configuration\n\nControls how operator creates and manages terminal sessions for agents.\nTwo modes are supported:\n- tmux: Standalone tmux sessions (default)\n- vscode: VS Code integrated terminal (requires extension)",
+      "type": "object",
+      "properties": {
+        "wrapper": {
+          "description": "Which session wrapper to use",
+          "$ref": "#/$defs/SessionWrapperType",
+          "default": "tmux"
+        },
+        "tmux": {
+          "description": "Tmux-specific configuration",
+          "$ref": "#/$defs/SessionsTmuxConfig",
+          "default": {
+            "config_generated": false,
+            "socket_name": "operator"
+          }
+        },
+        "vscode": {
+          "description": "VS Code-specific configuration",
+          "$ref": "#/$defs/SessionsVSCodeConfig",
+          "default": {
+            "webhook_port": 7009,
+            "connect_timeout_ms": 5000
+          }
+        }
+      }
+    },
+    "SessionWrapperType": {
+      "description": "Session wrapper type for terminal session management",
+      "oneOf": [
+        {
+          "description": "Standalone tmux sessions (default)",
+          "type": "string",
+          "const": "tmux"
+        },
+        {
+          "description": "VS Code integrated terminal (via extension webhook)",
+          "type": "string",
+          "const": "vscode"
+        }
+      ]
+    },
+    "SessionsTmuxConfig": {
+      "description": "Tmux-specific session configuration",
+      "type": "object",
+      "properties": {
+        "config_generated": {
+          "description": "Whether custom tmux config has been generated",
+          "type": "boolean",
+          "default": false
+        },
+        "socket_name": {
+          "description": "Socket name for session isolation",
+          "type": "string",
+          "default": "operator"
+        }
+      }
+    },
+    "SessionsVSCodeConfig": {
+      "description": "VS Code extension session configuration",
+      "type": "object",
+      "properties": {
+        "webhook_port": {
+          "description": "Port for extension webhook server",
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": 7009
+        },
+        "connect_timeout_ms": {
+          "description": "Connection timeout in milliseconds",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 5000
+        }
+      }
+    },
     "LlmToolsConfig": {
       "description": "LLM CLI tools configuration",
       "type": "object",
@@ -653,6 +756,19 @@
         "version": {
           "description": "Version string",
           "type": "string"
+        },
+        "min_version": {
+          "description": "Minimum required version for Operator compatibility",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "version_ok": {
+          "description": "Whether the installed version meets the minimum requirement",
+          "type": "boolean",
+          "default": false
         },
         "model_aliases": {
           "description": "Available model aliases (e.g., [\"opus\", \"sonnet\", \"haiku\"])",
@@ -1036,37 +1152,29 @@
       }
     },
     "KanbanConfig": {
-      "description": "Kanban provider configuration for syncing issues from external systems",
+      "description": "Kanban provider configuration for syncing issues from external systems\n\nProviders are keyed by domain/workspace:\n- Jira: keyed by domain (e.g., \"foobar.atlassian.net\")\n- Linear: keyed by workspace slug (e.g., \"myworkspace\")",
       "type": "object",
       "properties": {
         "jira": {
-          "description": "Jira Cloud configuration",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/JiraConfig"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "description": "Jira Cloud instances keyed by domain (e.g., \"foobar.atlassian.net\")",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/JiraConfig"
+          },
+          "default": {}
         },
         "linear": {
-          "description": "Linear configuration",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LinearConfig"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "description": "Linear instances keyed by workspace slug",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/LinearConfig"
+          },
+          "default": {}
         }
       }
     },
     "JiraConfig": {
-      "description": "Jira Cloud provider configuration",
+      "description": "Jira Cloud provider configuration\n\nThe domain is specified as the HashMap key in KanbanConfig.jira",
       "type": "object",
       "properties": {
         "enabled": {
@@ -1074,14 +1182,10 @@
           "type": "boolean",
           "default": false
         },
-        "api_token_env": {
-          "description": "Environment variable name containing the API token (default: OPERATOR_JIRA_TOKEN)",
+        "api_key_env": {
+          "description": "Environment variable name containing the API key (default: OPERATOR_JIRA_API_KEY)",
           "type": "string",
-          "default": "OPERATOR_JIRA_TOKEN"
-        },
-        "domain": {
-          "description": "Jira Cloud domain (e.g., \"your-org.atlassian.net\")",
-          "type": "string"
+          "default": "OPERATOR_JIRA_API_KEY"
         },
         "email": {
           "description": "Atlassian account email for authentication",
@@ -1097,7 +1201,6 @@
         }
       },
       "required": [
-        "domain",
         "email"
       ]
     },
@@ -1126,7 +1229,7 @@
       }
     },
     "LinearConfig": {
-      "description": "Linear provider configuration",
+      "description": "Linear provider configuration\n\nThe workspace slug is specified as the HashMap key in KanbanConfig.linear",
       "type": "object",
       "properties": {
         "enabled": {
@@ -1146,6 +1249,32 @@
             "$ref": "#/$defs/ProjectSyncConfig"
           },
           "default": {}
+        }
+      }
+    },
+    "VersionCheckConfig": {
+      "description": "Version check configuration for automatic update notifications",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enable automatic version checking on startup",
+          "type": "boolean",
+          "default": true
+        },
+        "url": {
+          "description": "URL to fetch latest version from (optional, can be removed)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": "https://operator.untra.io/VERSION"
+        },
+        "timeout_secs": {
+          "description": "Timeout in seconds for version check HTTP request",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 3
         }
       }
     }

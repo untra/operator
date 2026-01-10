@@ -61,7 +61,7 @@ export class LaunchManager {
     const sessionId = options.resumeSession ? getCurrentSessionId(metadata) : undefined;
 
     // Determine working directory
-    const workingDir = metadata.worktree_path || this.getProjectDir(ticket);
+    const workingDir = metadata.worktreePath || this.getProjectDir(ticket);
 
     // Build the command
     const ticketRelPath = path.relative(workingDir, ticket.filePath);

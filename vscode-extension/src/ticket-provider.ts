@@ -9,7 +9,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { TerminalManager } from './terminal-manager';
-import { TicketInfo, TicketType } from './types';
+import { IssueTypeService } from './issuetype-service';
+import { TicketInfo } from './types';
 
 /**
  * TreeDataProvider for ticket lists
@@ -27,6 +28,7 @@ export class TicketTreeProvider
 
   constructor(
     private readonly status: 'in-progress' | 'queue' | 'completed',
+    private readonly issueTypeService: IssueTypeService,
     private readonly terminalManager?: TerminalManager
   ) {}
 
@@ -69,10 +71,8 @@ export class TicketTreeProvider
     filePath: string,
     content: string
   ): TicketInfo {
-    // Parse ticket ID and type from filename: FEAT-123-title.md or FEAT-123.md
-    const match = filename.match(/^(FEAT|FIX|TASK|SPIKE|INV)-(\d+)/i);
-    const type = (match?.[1]?.toUpperCase() || 'TASK') as TicketType;
-    const id = match ? `${match[1].toUpperCase()}-${match[2]}` : filename.replace('.md', '');
+    // Parse ticket ID and type dynamically from filename
+    const { id, type } = this.issueTypeService.parseTicketFilename(filename);
 
     // Parse title from first heading or frontmatter
     const titleMatch =
@@ -95,7 +95,7 @@ export class TicketTreeProvider
 
   getChildren(): TicketItem[] {
     return this.tickets.map(
-      (ticket) => new TicketItem(ticket, this.terminalManager)
+      (ticket) => new TicketItem(ticket, this.issueTypeService, this.terminalManager)
     );
   }
 
@@ -113,6 +113,7 @@ export class TicketTreeProvider
 export class TicketItem extends vscode.TreeItem {
   constructor(
     public readonly ticket: TicketInfo,
+    private readonly issueTypeService: IssueTypeService,
     private readonly terminalManager?: TerminalManager
   ) {
     super(ticket.title, vscode.TreeItemCollapsibleState.None);
@@ -121,8 +122,8 @@ export class TicketItem extends vscode.TreeItem {
     this.tooltip = `${ticket.id}: ${ticket.title}`;
     this.description = ticket.id;
 
-    // Set icon based on ticket type
-    this.iconPath = this.getIconForType(ticket.type);
+    // Set icon based on ticket type (dynamic lookup)
+    this.iconPath = this.issueTypeService.getIcon(ticket.type);
 
     // Set context for menu commands
     this.contextValue = ticket.status;
@@ -141,38 +142,6 @@ export class TicketItem extends vscode.TreeItem {
         title: 'Open Ticket',
         arguments: [ticket.filePath],
       };
-    }
-  }
-
-  private getIconForType(type: TicketType): vscode.ThemeIcon {
-    switch (type) {
-      case 'FEAT':
-        return new vscode.ThemeIcon(
-          'sparkle',
-          new vscode.ThemeColor('terminal.ansiCyan')
-        );
-      case 'FIX':
-        return new vscode.ThemeIcon(
-          'wrench',
-          new vscode.ThemeColor('terminal.ansiRed')
-        );
-      case 'TASK':
-        return new vscode.ThemeIcon(
-          'tasklist',
-          new vscode.ThemeColor('terminal.ansiGreen')
-        );
-      case 'SPIKE':
-        return new vscode.ThemeIcon(
-          'beaker',
-          new vscode.ThemeColor('terminal.ansiMagenta')
-        );
-      case 'INV':
-        return new vscode.ThemeIcon(
-          'search',
-          new vscode.ThemeColor('terminal.ansiYellow')
-        );
-      default:
-        return new vscode.ThemeIcon('file');
     }
   }
 }

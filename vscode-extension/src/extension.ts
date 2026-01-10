@@ -21,11 +21,13 @@ import { showLaunchOptionsDialog, showTicketPicker } from './launch-dialog';
 import { parseTicketMetadata, getCurrentSessionId } from './ticket-parser';
 import { TicketInfo } from './types';
 import { OperatorApiClient } from './api-client';
+import { IssueTypeService } from './issuetype-service';
 
 let terminalManager: TerminalManager;
 let webhookServer: WebhookServer;
 let statusBarItem: vscode.StatusBarItem;
 let launchManager: LaunchManager;
+let issueTypeService: IssueTypeService;
 
 // TreeView providers
 let statusProvider: StatusTreeProvider;
@@ -36,13 +38,25 @@ let completedProvider: TicketTreeProvider;
 // Current tickets directory
 let currentTicketsDir: string | undefined;
 
+// Output channel for logging
+let outputChannel: vscode.OutputChannel;
+
 /**
  * Extension activation
  */
 export async function activate(
   context: vscode.ExtensionContext
 ): Promise<void> {
+  // Create output channel for logging
+  outputChannel = vscode.window.createOutputChannel('Operator');
+  context.subscriptions.push(outputChannel);
+
+  // Initialize issue type service (fetches types from API)
+  issueTypeService = new IssueTypeService(outputChannel);
+  await issueTypeService.refresh();
+
   terminalManager = new TerminalManager();
+  terminalManager.setIssueTypeService(issueTypeService);
   webhookServer = new WebhookServer(terminalManager);
   launchManager = new LaunchManager(terminalManager);
 
@@ -54,11 +68,11 @@ export async function activate(
   statusBarItem.command = 'operator.showStatus';
   context.subscriptions.push(statusBarItem);
 
-  // Create TreeView providers
+  // Create TreeView providers (with issue type service)
   statusProvider = new StatusTreeProvider();
-  inProgressProvider = new TicketTreeProvider('in-progress', terminalManager);
-  queueProvider = new TicketTreeProvider('queue');
-  completedProvider = new TicketTreeProvider('completed');
+  inProgressProvider = new TicketTreeProvider('in-progress', issueTypeService, terminalManager);
+  queueProvider = new TicketTreeProvider('queue', issueTypeService);
+  completedProvider = new TicketTreeProvider('completed', issueTypeService);
 
   // Register TreeViews
   context.subscriptions.push(
@@ -496,13 +510,13 @@ async function launchTicketFromEditorWithOptionsCommand(): Promise<void> {
   }
 
   // Create a minimal TicketInfo for the dialog
-  const ticketType = metadata.id.split('-')[0] as 'FEAT' | 'FIX' | 'TASK' | 'SPIKE' | 'INV';
+  const ticketType = issueTypeService.extractTypeFromId(metadata.id);
   const ticketStatus = (metadata.status === 'in-progress' || metadata.status === 'completed')
     ? metadata.status as 'in-progress' | 'completed'
     : 'queue' as const;
   const ticketInfo: TicketInfo = {
     id: metadata.id,
-    type: ticketType || 'TASK',
+    type: ticketType,
     title: 'Ticket from editor',
     status: ticketStatus,
     filePath: filePath,

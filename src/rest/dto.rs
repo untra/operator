@@ -57,12 +57,17 @@ impl From<&IssueType> for IssueTypeResponse {
 /// Summary response for listing issue types
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct IssueTypeSummary {
     pub key: String,
     pub name: String,
     pub description: String,
     pub mode: String,
     pub glyph: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub color: Option<String>,
     pub source: String,
     pub step_count: usize,
 }
@@ -78,6 +83,7 @@ impl From<&IssueType> for IssueTypeSummary {
                 ExecutionMode::Paired => "paired".to_string(),
             },
             glyph: it.glyph.clone(),
+            color: it.color.clone(),
             source: it.source_display(),
             step_count: it.steps.len(),
         }

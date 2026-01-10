@@ -190,8 +190,9 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "copy-types": "node scripts/copy-types.js",
+    "compile": "npm run copy-types && tsc -p ./",
+    "watch": "npm run copy-types && tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",

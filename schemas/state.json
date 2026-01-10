@@ -1,0 +1,402 @@
+{
+  "$comment": "AUTO-GENERATED - DO NOT EDIT. Regenerate with: cargo run --bin generate_types",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "State",
+
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "State",
+  "type": "object",
+  "properties": {
+    "paused": {
+      "type": "boolean"
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AgentState"
+      }
+    },
+    "completed": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CompletedTicket"
+      }
+    },
+    "project_llm_stats": {
+      "description": "Per-project LLM usage statistics",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ProjectLlmStats"
+      },
+      "default": {}
+    },
+    "project_collection_prefs": {
+      "description": "Per-project issue type collection preferences (project_name -> collection_name)",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    }
+  },
+  "required": [
+    "paused",
+    "agents",
+    "completed"
+  ],
+  "$defs": {
+    "AgentState": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "ticket_id": {
+          "type": "string"
+        },
+        "ticket_type": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_activity": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paired": {
+          "type": "boolean"
+        },
+        "session_name": {
+          "description": "The tmux session name for this agent (for recovery)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "content_hash": {
+          "description": "Hash of the last captured pane content (for change detection)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "current_step": {
+          "description": "Current step in the ticket workflow (e.g., \"plan\", \"implement\", \"test\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "step_started_at": {
+          "description": "When the current step started (for timeout detection)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "default": null
+        },
+        "last_content_change": {
+          "description": "Last time content changed in the session (for hung detection)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "default": null
+        },
+        "pr_url": {
+          "description": "PR URL if created during \"pr\" step",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "pr_number": {
+          "description": "PR number for GitHub API tracking",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        },
+        "github_repo": {
+          "description": "GitHub repo in format \"owner/repo\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "pr_status": {
+          "description": "Last known PR status (\"open\", \"approved\", \"changes_requested\", \"merged\", \"closed\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "completed_steps": {
+          "description": "Completed steps for this ticket",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "llm_tool": {
+          "description": "LLM tool used (e.g., \"claude\", \"gemini\", \"codex\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "launch_mode": {
+          "description": "Launch mode: \"default\", \"yolo\", \"docker\", \"docker-yolo\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "review_state": {
+          "description": "Review state for awaiting_input agents\nValues: \"pending_plan\", \"pending_visual\", \"pending_pr_creation\", \"pending_pr_merge\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "dev_server_pid": {
+          "description": "Server process ID for visual review cleanup (if applicable)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0,
+          "default": null
+        },
+        "worktree_path": {
+          "description": "Path to the git worktree for this ticket (per-ticket isolation)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "ticket_id",
+        "ticket_type",
+        "project",
+        "status",
+        "started_at",
+        "last_activity",
+        "paired"
+      ]
+    },
+    "CompletedTicket": {
+      "type": "object",
+      "properties": {
+        "ticket_id": {
+          "type": "string"
+        },
+        "ticket_type": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "pr_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "output_tickets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "ticket_id",
+        "ticket_type",
+        "project",
+        "summary",
+        "completed_at",
+        "output_tickets"
+      ]
+    },
+    "ProjectLlmStats": {
+      "description": "LLM usage statistics for a project",
+      "type": "object",
+      "properties": {
+        "project": {
+          "description": "Project name",
+          "type": "string"
+        },
+        "preferred_tool": {
+          "description": "Preferred LLM tool for this project (user override)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "preferred_model": {
+          "description": "Preferred model for this project (user override)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "tool_usage": {
+          "description": "Usage history per LLM tool",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/LlmToolUsage"
+          },
+          "default": {}
+        },
+        "updated_at": {
+          "description": "Last updated timestamp",
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "project",
+        "updated_at"
+      ]
+    },
+    "LlmToolUsage": {
+      "description": "Usage statistics for a specific LLM tool",
+      "type": "object",
+      "properties": {
+        "tool": {
+          "description": "Tool name (e.g., \"claude\", \"gemini\")",
+          "type": "string"
+        },
+        "ticket_count": {
+          "description": "Total number of tickets processed",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        },
+        "success_count": {
+          "description": "Number of successful completions",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        },
+        "failure_count": {
+          "description": "Number of failures/abandonments",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        },
+        "total_time_secs": {
+          "description": "Total time spent (in seconds)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        },
+        "last_used": {
+          "description": "Last used timestamp",
+          "type": "string",
+          "format": "date-time"
+        },
+        "model_usage": {
+          "description": "Per-model breakdown",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/LlmModelUsage"
+          },
+          "default": {}
+        }
+      },
+      "required": [
+        "tool",
+        "last_used"
+      ]
+    },
+    "LlmModelUsage": {
+      "description": "Usage statistics for a specific model",
+      "type": "object",
+      "properties": {
+        "model": {
+          "description": "Model name/alias",
+          "type": "string"
+        },
+        "ticket_count": {
+          "description": "Number of tickets",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        },
+        "success_count": {
+          "description": "Success count",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        },
+        "failure_count": {
+          "description": "Failure count",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        },
+        "total_time_secs": {
+          "description": "Total time (seconds)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        }
+      },
+      "required": [
+        "model"
+      ]
+    }
+  }
+}

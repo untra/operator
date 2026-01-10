@@ -9,6 +9,14 @@ suite('Extension Test Suite', () => {
   });
 
   test('Commands should be registered', async () => {
+    // Ensure extension is activated before checking commands
+    const extension = vscode.extensions.getExtension('untra.operator-terminals');
+    assert.ok(extension, 'Extension should be present');
+
+    if (!extension.isActive) {
+      await extension.activate();
+    }
+
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes('operator.startServer'));
     assert.ok(commands.includes('operator.stopServer'));

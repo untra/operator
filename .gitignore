@@ -36,3 +36,4 @@ coverage/
 # vscode-extension generated types (copied from bindings/)
 vscode-extension/src/generated/
 vscode-extension/out/
+vscode-extension/.vscode-test/

@@ -2,7 +2,8 @@
 
 use std::collections::HashMap;
 
-use crate::config::CollectionPreset;
+use crate::agents::{SystemTmuxClient, TmuxClient, TmuxError};
+use crate::config::{CollectionPreset, SessionWrapperType};
 use crate::projects::TOOL_MARKERS;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -147,6 +148,15 @@ pub struct SetupScreen {
     pub kanban_detection_complete: bool,
     /// Whether the user chose to skip kanban setup
     pub kanban_skipped: bool,
+    // ─── Session Wrapper Setup State ────────────────────────────────────────────
+    /// Selected session wrapper type
+    pub selected_wrapper: SessionWrapperType,
+    /// List state for wrapper selection
+    wrapper_state: ListState,
+    /// Tmux availability status (checked during TmuxOnboarding step)
+    pub tmux_status: TmuxDetectionStatus,
+    /// VS Code extension status (checked during VSCodeSetup step)
+    pub vscode_status: VSCodeDetectionStatus,
 }
 
 /// Startup ticket options for project initialization
@@ -184,6 +194,81 @@ impl StartupTicketOption {
     }
 }
 
+/// Tmux availability detection status
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TmuxDetectionStatus {
+    /// Not yet checked
+    NotChecked,
+    /// Tmux is available with the given version
+    Available { version: String },
+    /// Tmux is not installed
+    NotInstalled,
+    /// Tmux is installed but version is too old
+    VersionTooOld { current: String, required: String },
+}
+
+impl Default for TmuxDetectionStatus {
+    fn default() -> Self {
+        Self::NotChecked
+    }
+}
+
+/// VS Code extension detection status
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)] // Variants will be used when VS Code extension support is implemented
+pub enum VSCodeDetectionStatus {
+    /// Not yet checked
+    NotChecked,
+    /// Currently checking connection
+    Checking,
+    /// Connected to extension with the given version
+    Connected { version: String },
+    /// Extension not reachable
+    NotReachable,
+}
+
+impl Default for VSCodeDetectionStatus {
+    fn default() -> Self {
+        Self::NotChecked
+    }
+}
+
+/// Session wrapper options shown in setup
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionWrapperOption {
+    Tmux,
+    VSCode,
+}
+
+impl SessionWrapperOption {
+    pub fn all() -> &'static [SessionWrapperOption] {
+        &[SessionWrapperOption::Tmux, SessionWrapperOption::VSCode]
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            SessionWrapperOption::Tmux => "Tmux (default)",
+            SessionWrapperOption::VSCode => "VS Code Integrated Terminal",
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            SessionWrapperOption::Tmux => "Run agents in standalone tmux sessions",
+            SessionWrapperOption::VSCode => {
+                "Run agents in VS Code terminal panels (requires extension)"
+            }
+        }
+    }
+
+    pub fn to_wrapper_type(self) -> SessionWrapperType {
+        match self {
+            SessionWrapperOption::Tmux => SessionWrapperType::Tmux,
+            SessionWrapperOption::VSCode => SessionWrapperType::Vscode,
+        }
+    }
+}
+
 /// Steps in the setup process
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupStep {
@@ -195,8 +280,12 @@ pub enum SetupStep {
     CustomCollection,
     /// Configure TASK optional fields
     TaskFieldConfig,
-    /// Tmux onboarding/help
+    /// Select session wrapper (tmux or vscode)
+    SessionWrapperChoice,
+    /// Tmux onboarding/help (only shown if tmux selected)
     TmuxOnboarding,
+    /// VS Code extension setup (only shown if vscode selected)
+    VSCodeSetup,
     /// Kanban integration info and provider detection
     KanbanInfo,
     /// Per-provider setup with project selection (index into valid_providers)
@@ -228,6 +317,9 @@ impl SetupScreen {
         let mut startup_state = ListState::default();
         startup_state.select(Some(0));
 
+        let mut wrapper_state = ListState::default();
+        wrapper_state.select(Some(0));
+
         Self {
             visible: true,
             step: SetupStep::Welcome,
@@ -258,6 +350,11 @@ impl SetupScreen {
             kanban_member_count: 0,
             kanban_detection_complete: false,
             kanban_skipped: false,
+            // Session wrapper state
+            selected_wrapper: SessionWrapperType::Tmux,
+            wrapper_state,
+            tmux_status: TmuxDetectionStatus::NotChecked,
+            vscode_status: VSCodeDetectionStatus::NotChecked,
         }
     }
 
@@ -325,6 +422,15 @@ impl SetupScreen {
                     }
                 }
             }
+            SetupStep::SessionWrapperChoice => {
+                // Select the currently highlighted wrapper option
+                if let Some(i) = self.wrapper_state.selected() {
+                    let options = SessionWrapperOption::all();
+                    if i < options.len() {
+                        self.selected_wrapper = options[i].to_wrapper_type();
+                    }
+                }
+            }
             SetupStep::StartupTickets => {
                 // Toggle the currently highlighted startup ticket option
                 if let Some(i) = self.startup_state.selected() {
@@ -361,6 +467,11 @@ impl SetupScreen {
                 let len = TASK_OPTIONAL_FIELDS.len();
                 let i = self.field_state.selected().map_or(0, |i| (i + 1) % len);
                 self.field_state.select(Some(i));
+            }
+            SetupStep::SessionWrapperChoice => {
+                let len = SessionWrapperOption::all().len();
+                let i = self.wrapper_state.selected().map_or(0, |i| (i + 1) % len);
+                self.wrapper_state.select(Some(i));
             }
             SetupStep::StartupTickets => {
                 let len = self.startup_ticket_options.len();
@@ -400,6 +511,14 @@ impl SetupScreen {
                     .selected()
                     .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
                 self.field_state.select(Some(i));
+            }
+            SetupStep::SessionWrapperChoice => {
+                let len = SessionWrapperOption::all().len();
+                let i =
+                    self.wrapper_state
+                        .selected()
+                        .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
+                self.wrapper_state.select(Some(i));
             }
             SetupStep::StartupTickets => {
                 let len = self.startup_ticket_options.len();
@@ -465,10 +584,46 @@ impl SetupScreen {
                 SetupResult::Continue
             }
             SetupStep::TaskFieldConfig => {
-                self.step = SetupStep::TmuxOnboarding;
+                self.step = SetupStep::SessionWrapperChoice;
+                SetupResult::Continue
+            }
+            SetupStep::SessionWrapperChoice => {
+                // Select the wrapper from the highlighted option
+                if let Some(i) = self.wrapper_state.selected() {
+                    let options = SessionWrapperOption::all();
+                    if i < options.len() {
+                        self.selected_wrapper = options[i].to_wrapper_type();
+                    }
+                }
+                // Navigate to the appropriate next step
+                match self.selected_wrapper {
+                    SessionWrapperType::Tmux => {
+                        // Check tmux availability when entering TmuxOnboarding
+                        self.check_tmux_availability();
+                        self.step = SetupStep::TmuxOnboarding;
+                    }
+                    SessionWrapperType::Vscode => {
+                        self.step = SetupStep::VSCodeSetup;
+                    }
+                }
                 SetupResult::Continue
             }
             SetupStep::TmuxOnboarding => {
+                // Only allow proceeding if tmux is available
+                if matches!(self.tmux_status, TmuxDetectionStatus::Available { .. }) {
+                    // Detect kanban providers if not already done
+                    if !self.kanban_detection_complete {
+                        self.detected_kanban_providers =
+                            crate::api::providers::kanban::detect_kanban_env_vars();
+                        self.kanban_detection_complete = true;
+                    }
+                    self.step = SetupStep::KanbanInfo;
+                }
+                // If tmux not available, stay on this step (user must install or go back)
+                SetupResult::Continue
+            }
+            SetupStep::VSCodeSetup => {
+                // For now, allow proceeding (extension check will be added later)
                 // Detect kanban providers if not already done
                 if !self.kanban_detection_complete {
                     self.detected_kanban_providers =
@@ -538,12 +693,24 @@ impl SetupScreen {
                 }
                 SetupResult::Continue
             }
-            SetupStep::TmuxOnboarding => {
+            SetupStep::SessionWrapperChoice => {
                 self.step = SetupStep::TaskFieldConfig;
                 SetupResult::Continue
             }
+            SetupStep::TmuxOnboarding => {
+                self.step = SetupStep::SessionWrapperChoice;
+                SetupResult::Continue
+            }
+            SetupStep::VSCodeSetup => {
+                self.step = SetupStep::SessionWrapperChoice;
+                SetupResult::Continue
+            }
             SetupStep::KanbanInfo => {
-                self.step = SetupStep::TmuxOnboarding;
+                // Go back to the appropriate wrapper setup step
+                match self.selected_wrapper {
+                    SessionWrapperType::Tmux => self.step = SetupStep::TmuxOnboarding,
+                    SessionWrapperType::Vscode => self.step = SetupStep::VSCodeSetup,
+                }
                 SetupResult::Continue
             }
             SetupStep::KanbanProviderSetup { provider_index } => {
@@ -590,7 +757,9 @@ impl SetupScreen {
             SetupStep::CollectionSource => self.render_collection_source_step(frame),
             SetupStep::CustomCollection => self.render_custom_collection_step(frame),
             SetupStep::TaskFieldConfig => self.render_task_field_config_step(frame),
+            SetupStep::SessionWrapperChoice => self.render_session_wrapper_choice_step(frame),
             SetupStep::TmuxOnboarding => self.render_tmux_onboarding_step(frame),
+            SetupStep::VSCodeSetup => self.render_vscode_setup_step(frame),
             SetupStep::KanbanInfo => self.render_kanban_info_step(frame),
             SetupStep::KanbanProviderSetup { provider_index } => {
                 self.render_kanban_provider_setup_step(frame, provider_index)
@@ -599,6 +768,41 @@ impl SetupScreen {
             SetupStep::StartupTickets => self.render_startup_tickets_step(frame),
             SetupStep::Confirm => self.render_confirm_step(frame),
         }
+    }
+
+    /// Check tmux availability and update status
+    pub fn check_tmux_availability(&mut self) {
+        let client = SystemTmuxClient::new();
+        match client.check_available() {
+            Ok(version) => {
+                // Minimum version 2.1 for the features we use
+                const MIN_MAJOR: u32 = 2;
+                const MIN_MINOR: u32 = 1;
+
+                if version.meets_minimum(MIN_MAJOR, MIN_MINOR) {
+                    self.tmux_status = TmuxDetectionStatus::Available {
+                        version: version.raw,
+                    };
+                } else {
+                    self.tmux_status = TmuxDetectionStatus::VersionTooOld {
+                        current: version.raw,
+                        required: format!("{}.{}", MIN_MAJOR, MIN_MINOR),
+                    };
+                }
+            }
+            Err(TmuxError::NotInstalled) => {
+                self.tmux_status = TmuxDetectionStatus::NotInstalled;
+            }
+            Err(_) => {
+                self.tmux_status = TmuxDetectionStatus::NotInstalled;
+            }
+        }
+    }
+
+    /// Re-check tmux availability (for [R] key binding)
+    #[allow(dead_code)] // Will be connected to [R] key handler in app event loop
+    pub fn recheck_tmux(&mut self) {
+        self.check_tmux_availability();
     }
 
     fn render_welcome_step(&self, frame: &mut Frame) {
@@ -1067,8 +1271,120 @@ impl SetupScreen {
         frame.render_widget(footer, chunks[4]);
     }
 
+    fn render_session_wrapper_choice_step(&mut self, frame: &mut Frame) {
+        let area = centered_rect(70, 60, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled(
+                    "Operator!",
+                    Style::default()
+                        .fg(Color::LightRed)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" Setup - Session Wrapper "),
+            ]))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(3), // Description
+                Constraint::Length(2), // Instructions
+                Constraint::Min(8),    // Options list
+                Constraint::Length(2), // Footer
+            ])
+            .split(inner);
+
+        // Title
+        let title = Paragraph::new(Line::from(vec![Span::styled(
+            "Session Wrapper Configuration",
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        )]))
+        .alignment(Alignment::Center);
+        frame.render_widget(title, chunks[0]);
+
+        // Description
+        let description = Paragraph::new(vec![
+            Line::from("Operator runs agents in terminal sessions."),
+            Line::from("Select your preferred wrapper:"),
+        ])
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::Gray));
+        frame.render_widget(description, chunks[1]);
+
+        // Instructions
+        let instructions =
+            Paragraph::new(vec![Line::from("Use arrows to navigate, Enter to select")])
+                .alignment(Alignment::Center)
+                .style(Style::default().fg(Color::DarkGray));
+        frame.render_widget(instructions, chunks[2]);
+
+        // Options list
+        let items: Vec<ListItem> = SessionWrapperOption::all()
+            .iter()
+            .map(|opt| {
+                let is_selected = opt.to_wrapper_type() == self.selected_wrapper;
+                let radio = if is_selected { "(o)" } else { "( )" };
+                ListItem::new(vec![
+                    Line::from(vec![
+                        Span::styled(
+                            radio,
+                            Style::default().fg(if is_selected {
+                                Color::Green
+                            } else {
+                                Color::DarkGray
+                            }),
+                        ),
+                        Span::raw(" "),
+                        Span::styled(
+                            opt.label(),
+                            Style::default()
+                                .add_modifier(Modifier::BOLD)
+                                .fg(if is_selected {
+                                    Color::White
+                                } else {
+                                    Color::Gray
+                                }),
+                        ),
+                    ]),
+                    Line::from(vec![
+                        Span::raw("    "),
+                        Span::styled(opt.description(), Style::default().fg(Color::DarkGray)),
+                    ]),
+                ])
+            })
+            .collect();
+
+        let list = List::new(items)
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_symbol("> ");
+
+        frame.render_stateful_widget(list, chunks[3], &mut self.wrapper_state);
+
+        // Footer
+        let footer = Paragraph::new(Line::from(vec![
+            Span::styled("Enter", Style::default().fg(Color::Yellow)),
+            Span::raw(" select  "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" back"),
+        ]))
+        .alignment(Alignment::Center);
+        frame.render_widget(footer, chunks[4]);
+    }
+
     fn render_tmux_onboarding_step(&self, frame: &mut Frame) {
-        let area = centered_rect(70, 70, frame.area());
+        let area = centered_rect(70, 75, frame.area());
         frame.render_widget(Clear, area);
 
         let block = Block::default()
@@ -1084,17 +1400,17 @@ impl SetupScreen {
             .margin(2)
             .constraints([
                 Constraint::Length(3), // Title
-                Constraint::Length(2), // Spacer
-                Constraint::Length(3), // Intro
-                Constraint::Length(2), // Spacer
-                Constraint::Min(12),   // Help text
+                Constraint::Length(1), // Spacer
+                Constraint::Length(3), // Status
+                Constraint::Length(1), // Spacer
+                Constraint::Min(12),   // Help text or install instructions
                 Constraint::Length(3), // Footer
             ])
             .split(inner);
 
         // Title
         let title = Paragraph::new(Line::from(vec![Span::styled(
-            "Tmux Session Help",
+            "Tmux Session Configuration",
             Style::default()
                 .fg(Color::LightRed)
                 .add_modifier(Modifier::BOLD),
@@ -1102,62 +1418,246 @@ impl SetupScreen {
         .alignment(Alignment::Center);
         frame.render_widget(title, chunks[0]);
 
-        // Intro
-        let intro = Paragraph::new(vec![Line::from(
-            "Operator launches Coding agents in tmux sessions.",
-        )])
-        .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::Gray));
-        frame.render_widget(intro, chunks[2]);
+        // Status indicator
+        let status_line = match &self.tmux_status {
+            TmuxDetectionStatus::NotChecked => Line::from(vec![
+                Span::styled("Tmux status: ", Style::default().fg(Color::Gray)),
+                Span::styled("[?] ", Style::default().fg(Color::Yellow)),
+                Span::styled("Not checked", Style::default().fg(Color::Yellow)),
+            ]),
+            TmuxDetectionStatus::Available { version } => Line::from(vec![
+                Span::styled("Tmux status: ", Style::default().fg(Color::Gray)),
+                Span::styled("[+] ", Style::default().fg(Color::Green)),
+                Span::styled(
+                    format!("Available (v{})", version),
+                    Style::default().fg(Color::Green),
+                ),
+            ]),
+            TmuxDetectionStatus::NotInstalled => Line::from(vec![
+                Span::styled("Tmux status: ", Style::default().fg(Color::Gray)),
+                Span::styled("[x] ", Style::default().fg(Color::Red)),
+                Span::styled("Not installed", Style::default().fg(Color::Red)),
+            ]),
+            TmuxDetectionStatus::VersionTooOld { current, required } => Line::from(vec![
+                Span::styled("Tmux status: ", Style::default().fg(Color::Gray)),
+                Span::styled("[x] ", Style::default().fg(Color::Red)),
+                Span::styled(
+                    format!("Version too old (v{}, need {}+)", current, required),
+                    Style::default().fg(Color::Red),
+                ),
+            ]),
+        };
+        let status = Paragraph::new(vec![status_line]).alignment(Alignment::Center);
+        frame.render_widget(status, chunks[2]);
 
-        // Help text
-        let help_text = vec![
+        // Help text or install instructions
+        let help_text = if matches!(self.tmux_status, TmuxDetectionStatus::Available { .. }) {
+            vec![
+                Line::from(Span::styled(
+                    "Essential Commands:",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                )),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("  Detach from session:  ", Style::default().fg(Color::Gray)),
+                    Span::styled(
+                        "Ctrl+a",
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        " (quick, no prefix needed!)",
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Fallback detach:      ", Style::default().fg(Color::Gray)),
+                    Span::styled("Ctrl+b", Style::default().fg(Color::Cyan)),
+                    Span::styled(" then ", Style::default().fg(Color::Gray)),
+                    Span::styled("d", Style::default().fg(Color::Cyan)),
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("  List sessions:        ", Style::default().fg(Color::Gray)),
+                    Span::styled("tmux ls", Style::default().fg(Color::Green)),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Attach to session:    ", Style::default().fg(Color::Gray)),
+                    Span::styled("tmux attach -t ", Style::default().fg(Color::Green)),
+                    Span::styled("<name>", Style::default().fg(Color::DarkGray)),
+                ]),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "Operator session names start with 'op-'",
+                    Style::default().fg(Color::DarkGray),
+                )),
+            ]
+        } else {
+            vec![
+                Line::from(Span::styled(
+                    "Install tmux:",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                )),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("  macOS:         ", Style::default().fg(Color::Gray)),
+                    Span::styled("brew install tmux", Style::default().fg(Color::Green)),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Ubuntu/Debian: ", Style::default().fg(Color::Gray)),
+                    Span::styled("sudo apt install tmux", Style::default().fg(Color::Green)),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Fedora/RHEL:   ", Style::default().fg(Color::Gray)),
+                    Span::styled("sudo dnf install tmux", Style::default().fg(Color::Green)),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Arch:          ", Style::default().fg(Color::Gray)),
+                    Span::styled("sudo pacman -S tmux", Style::default().fg(Color::Green)),
+                ]),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "After installing, press [R] to re-check",
+                    Style::default().fg(Color::DarkGray),
+                )),
+            ]
+        };
+        frame.render_widget(Paragraph::new(help_text), chunks[4]);
+
+        // Footer - different depending on status
+        let footer = if matches!(self.tmux_status, TmuxDetectionStatus::Available { .. }) {
+            Paragraph::new(Line::from(vec![
+                Span::styled("[R]", Style::default().fg(Color::Yellow)),
+                Span::raw(" re-check  "),
+                Span::styled("Enter", Style::default().fg(Color::Yellow)),
+                Span::raw(" continue  "),
+                Span::styled("Esc", Style::default().fg(Color::Yellow)),
+                Span::raw(" back"),
+            ]))
+        } else {
+            Paragraph::new(Line::from(vec![
+                Span::styled("[R]", Style::default().fg(Color::Green)),
+                Span::raw(" re-check tmux  "),
+                Span::styled("Esc", Style::default().fg(Color::Yellow)),
+                Span::raw(" back"),
+            ]))
+        };
+        frame.render_widget(footer.alignment(Alignment::Center), chunks[5]);
+    }
+
+    fn render_vscode_setup_step(&self, frame: &mut Frame) {
+        let area = centered_rect(70, 70, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(" VS Code Extension Setup ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(1), // Spacer
+                Constraint::Length(3), // Status
+                Constraint::Length(1), // Spacer
+                Constraint::Min(12),   // Instructions
+                Constraint::Length(3), // Footer
+            ])
+            .split(inner);
+
+        // Title
+        let title = Paragraph::new(Line::from(vec![Span::styled(
+            "VS Code Integration Setup",
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        )]))
+        .alignment(Alignment::Center);
+        frame.render_widget(title, chunks[0]);
+
+        // Status indicator
+        let status_line = match &self.vscode_status {
+            VSCodeDetectionStatus::NotChecked => Line::from(vec![
+                Span::styled("Extension status: ", Style::default().fg(Color::Gray)),
+                Span::styled("[?] ", Style::default().fg(Color::Yellow)),
+                Span::styled("Not checked", Style::default().fg(Color::Yellow)),
+            ]),
+            VSCodeDetectionStatus::Checking => Line::from(vec![
+                Span::styled("Extension status: ", Style::default().fg(Color::Gray)),
+                Span::styled("[~] ", Style::default().fg(Color::Yellow)),
+                Span::styled("Checking...", Style::default().fg(Color::Yellow)),
+            ]),
+            VSCodeDetectionStatus::Connected { version } => Line::from(vec![
+                Span::styled("Extension status: ", Style::default().fg(Color::Gray)),
+                Span::styled("[+] ", Style::default().fg(Color::Green)),
+                Span::styled(
+                    format!("Connected (v{})", version),
+                    Style::default().fg(Color::Green),
+                ),
+            ]),
+            VSCodeDetectionStatus::NotReachable => Line::from(vec![
+                Span::styled("Extension status: ", Style::default().fg(Color::Gray)),
+                Span::styled("[x] ", Style::default().fg(Color::Red)),
+                Span::styled("Not detected", Style::default().fg(Color::Red)),
+            ]),
+        };
+        let status = Paragraph::new(vec![status_line]).alignment(Alignment::Center);
+        frame.render_widget(status, chunks[2]);
+
+        // Instructions
+        let instructions = vec![
             Line::from(Span::styled(
-                "Essential Commands:",
+                "To use VS Code integration:",
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from(vec![
-                Span::styled("  Detach from session:  ", Style::default().fg(Color::Gray)),
-                Span::styled(
-                    "Ctrl+a",
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(
-                    " (quick, no prefix needed!)",
-                    Style::default().fg(Color::DarkGray),
-                ),
+                Span::styled("  1. ", Style::default().fg(Color::Cyan)),
+                Span::raw("Install the Operator extension from:"),
             ]),
             Line::from(vec![
-                Span::styled("  Fallback detach:      ", Style::default().fg(Color::Gray)),
-                Span::styled("Ctrl+b", Style::default().fg(Color::Cyan)),
-                Span::styled(" then ", Style::default().fg(Color::Gray)),
-                Span::styled("d", Style::default().fg(Color::Cyan)),
+                Span::raw("     "),
+                Span::styled(
+                    "https://operator.untra.io/vscode",
+                    Style::default()
+                        .fg(Color::Blue)
+                        .add_modifier(Modifier::UNDERLINED),
+                ),
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("  List sessions:        ", Style::default().fg(Color::Gray)),
-                Span::styled("tmux ls", Style::default().fg(Color::Green)),
+                Span::styled("  2. ", Style::default().fg(Color::Cyan)),
+                Span::raw("Restart VS Code after installation"),
             ]),
+            Line::from(""),
             Line::from(vec![
-                Span::styled("  Attach to session:    ", Style::default().fg(Color::Gray)),
-                Span::styled("tmux attach -t ", Style::default().fg(Color::Green)),
-                Span::styled("<name>", Style::default().fg(Color::DarkGray)),
+                Span::styled("  3. ", Style::default().fg(Color::Cyan)),
+                Span::raw("The extension will start automatically on port 7009"),
             ]),
             Line::from(""),
             Line::from(Span::styled(
-                "Operator session names start with 'op-'",
+                "Note: VS Code extension support is coming soon!",
                 Style::default().fg(Color::DarkGray),
             )),
         ];
-        frame.render_widget(Paragraph::new(help_text), chunks[4]);
+        frame.render_widget(Paragraph::new(instructions), chunks[4]);
 
         // Footer
         let footer = Paragraph::new(Line::from(vec![
+            Span::styled("[T]", Style::default().fg(Color::Yellow)),
+            Span::raw(" test connection  "),
             Span::styled("Enter", Style::default().fg(Color::Yellow)),
             Span::raw(" continue  "),
             Span::styled("Esc", Style::default().fg(Color::Yellow)),
@@ -1913,5 +2413,154 @@ mod tests {
         let screen = SetupScreen::new(".tickets".to_string(), tools, projects);
         assert!(screen.visible);
         assert_eq!(screen.step, SetupStep::Welcome);
+    }
+
+    // ─── Session Wrapper Selection Tests ────────────────────────────────────────
+
+    #[test]
+    fn test_setup_default_wrapper_is_tmux() {
+        let screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        assert_eq!(screen.selected_wrapper, SessionWrapperType::Tmux);
+    }
+
+    #[test]
+    fn test_setup_tmux_status_default_is_not_checked() {
+        let screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        assert_eq!(screen.tmux_status, TmuxDetectionStatus::NotChecked);
+    }
+
+    #[test]
+    fn test_setup_vscode_status_default_is_not_checked() {
+        let screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        assert_eq!(screen.vscode_status, VSCodeDetectionStatus::NotChecked);
+    }
+
+    #[test]
+    fn test_setup_wrapper_navigation_flow() {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+
+        // Navigate to SessionWrapperChoice
+        screen.step = SetupStep::TaskFieldConfig;
+        screen.confirm(); // Should go to SessionWrapperChoice
+        assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
+    }
+
+    #[test]
+    fn test_setup_navigation_tmux_path() {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.step = SetupStep::SessionWrapperChoice;
+        screen.selected_wrapper = SessionWrapperType::Tmux;
+        screen.wrapper_state.select(Some(0)); // Select tmux
+
+        screen.confirm();
+        assert_eq!(screen.step, SetupStep::TmuxOnboarding);
+    }
+
+    #[test]
+    fn test_setup_navigation_vscode_path() {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.step = SetupStep::SessionWrapperChoice;
+        screen.wrapper_state.select(Some(1)); // Select vscode (index 1)
+
+        screen.confirm();
+        assert_eq!(screen.step, SetupStep::VSCodeSetup);
+        assert_eq!(screen.selected_wrapper, SessionWrapperType::Vscode);
+    }
+
+    #[test]
+    fn test_setup_tmux_onboarding_go_back() {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.step = SetupStep::TmuxOnboarding;
+
+        screen.go_back();
+        assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
+    }
+
+    #[test]
+    fn test_setup_vscode_setup_go_back() {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.step = SetupStep::VSCodeSetup;
+
+        screen.go_back();
+        assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
+    }
+
+    #[test]
+    fn test_setup_wrapper_selection_toggle() {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.step = SetupStep::SessionWrapperChoice;
+
+        // Start at tmux (default)
+        assert_eq!(screen.selected_wrapper, SessionWrapperType::Tmux);
+
+        // Navigate down to vscode
+        screen.select_next();
+        assert_eq!(screen.wrapper_state.selected(), Some(1));
+
+        // Toggle selection
+        screen.toggle_selection();
+        assert_eq!(screen.selected_wrapper, SessionWrapperType::Vscode);
+    }
+
+    #[test]
+    fn test_tmux_onboarding_blocks_if_not_available() {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.step = SetupStep::TmuxOnboarding;
+        screen.tmux_status = TmuxDetectionStatus::NotInstalled;
+
+        // Should stay on TmuxOnboarding because tmux isn't available
+        screen.confirm();
+        assert_eq!(screen.step, SetupStep::TmuxOnboarding);
+    }
+
+    #[test]
+    fn test_tmux_onboarding_proceeds_if_available() {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.step = SetupStep::TmuxOnboarding;
+        screen.tmux_status = TmuxDetectionStatus::Available {
+            version: "3.3a".to_string(),
+        };
+
+        // Should proceed to KanbanInfo because tmux is available
+        screen.confirm();
+        assert_eq!(screen.step, SetupStep::KanbanInfo);
+    }
+
+    #[test]
+    fn test_kanban_info_go_back_respects_wrapper_choice() {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+
+        // Test tmux path
+        screen.step = SetupStep::KanbanInfo;
+        screen.selected_wrapper = SessionWrapperType::Tmux;
+        screen.go_back();
+        assert_eq!(screen.step, SetupStep::TmuxOnboarding);
+
+        // Test vscode path
+        screen.step = SetupStep::KanbanInfo;
+        screen.selected_wrapper = SessionWrapperType::Vscode;
+        screen.go_back();
+        assert_eq!(screen.step, SetupStep::VSCodeSetup);
+    }
+
+    #[test]
+    fn test_session_wrapper_option_labels() {
+        assert_eq!(SessionWrapperOption::Tmux.label(), "Tmux (default)");
+        assert_eq!(
+            SessionWrapperOption::VSCode.label(),
+            "VS Code Integrated Terminal"
+        );
+    }
+
+    #[test]
+    fn test_session_wrapper_option_to_wrapper_type() {
+        assert_eq!(
+            SessionWrapperOption::Tmux.to_wrapper_type(),
+            SessionWrapperType::Tmux
+        );
+        assert_eq!(
+            SessionWrapperOption::VSCode.to_wrapper_type(),
+            SessionWrapperType::Vscode
+        );
     }
 }

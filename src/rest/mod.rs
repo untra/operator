@@ -77,6 +77,11 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/api/v1/queue/status", get(routes::queue::status))
         // Agent endpoints
         .route("/api/v1/agents/active", get(routes::agents::active))
+        // Launch endpoints
+        .route(
+            "/api/v1/tickets/:id/launch",
+            post(routes::launch::launch_ticket),
+        )
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state)

@@ -1,5 +1,5 @@
 {
-  "$schema": "./issuetype_schema.json",
+  "$schema": "../../schemas/issuetype_schema.json",
   "key": "INIT",
   "name": "Backstage Init",
   "description": "Initialize Backstage deployment in workspace",

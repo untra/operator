@@ -199,14 +199,14 @@ function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
  * Format: {NAME}-{YYYYMMDDHHMMSS}
  */
 function generateKey(name: string): string {
-  if (!name.trim()) return '';
+  if (!name.trim()) {return '';}
 
   const prefix = name
     .replace(/[^a-zA-Z]/g, '') // Remove non-letters
     .toUpperCase()
     .slice(0, 8); // First 8 chars
 
-  if (!prefix) return '';
+  if (!prefix) {return '';}
 
   const timestamp = new Date()
     .toISOString()

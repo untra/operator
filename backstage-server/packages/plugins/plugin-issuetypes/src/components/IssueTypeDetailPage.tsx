@@ -64,7 +64,7 @@ export const IssueTypeDetailPage = () => {
   const isBuiltin = issueType?.source === 'builtin';
 
   const handleDelete = async () => {
-    if (!issueType) return;
+    if (!issueType) {return;}
     try {
       await deleteIssueType(issueType.key);
       navigate('..');

@@ -276,12 +276,8 @@ async fn main() -> Result<()> {
 }
 
 async fn run_tui(config: Config, log_file_path: Option<PathBuf>, start_web: bool) -> Result<()> {
-    // Check tmux availability before starting TUI
-    if let Err(err) = check_tmux_available() {
-        print_tmux_error(&err);
-        std::process::exit(1);
-    }
-
+    // Note: tmux availability is now checked in the setup wizard (TmuxOnboarding step)
+    // when the user selects tmux as their session wrapper
     let mut app = App::new(config, start_web)?;
     let result = app.run().await;
 

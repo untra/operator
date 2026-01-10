@@ -66,6 +66,15 @@ impl RestApiServer {
         self.port
     }
 
+    /// Check if the configured port is already in use by another process
+    ///
+    /// This is useful for detecting if another operator instance is already running.
+    pub async fn is_port_in_use(&self) -> bool {
+        use std::net::SocketAddr;
+        let addr = SocketAddr::from(([0, 0, 0, 0], self.port));
+        tokio::net::TcpListener::bind(addr).await.is_err()
+    }
+
     /// Start the REST API server
     pub fn start(&self) -> Result<(), String> {
         if self.is_running() {

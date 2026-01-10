@@ -6,7 +6,7 @@ use anyhow::Result;
 use serde_json::Value;
 
 /// Schema JSON embedded at compile time
-const METADATA_SCHEMA: &str = include_str!("../templates/ticket_metadata.schema.json");
+const METADATA_SCHEMA: &str = include_str!("../schemas/ticket_metadata.schema.json");
 
 /// Generates documentation from ticket_metadata.schema.json
 pub struct MetadataSchemaDocGenerator;
@@ -17,7 +17,7 @@ impl DocGenerator for MetadataSchemaDocGenerator {
     }
 
     fn source(&self) -> &'static str {
-        "src/templates/ticket_metadata.schema.json"
+        "src/schemas/ticket_metadata.schema.json"
     }
 
     fn output_path(&self) -> &'static str {

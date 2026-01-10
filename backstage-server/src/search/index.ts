@@ -120,7 +120,7 @@ export class SearchIndex {
         const typeMatch = query.types.some(
           (t) => t.toLowerCase() === `software-catalog.${doc.kind}`
         );
-        if (!typeMatch) continue;
+        if (!typeMatch) {continue;}
       }
 
       // Apply kind filter if in filters
@@ -128,7 +128,7 @@ export class SearchIndex {
         const kinds = Array.isArray(query.filters.kind)
           ? query.filters.kind
           : [query.filters.kind];
-        if (!kinds.some((k) => k.toLowerCase() === doc.kind)) continue;
+        if (!kinds.some((k) => k.toLowerCase() === doc.kind)) {continue;}
       }
 
       // Apply tier filter if in filters
@@ -136,7 +136,7 @@ export class SearchIndex {
         const tiers = Array.isArray(query.filters['metadata.labels.operator-tier'])
           ? query.filters['metadata.labels.operator-tier']
           : [query.filters['metadata.labels.operator-tier']];
-        if (!doc.tier || !tiers.includes(doc.tier)) continue;
+        if (!doc.tier || !tiers.includes(doc.tier)) {continue;}
       }
 
       // Apply kindType (spec.type) filter if in filters
@@ -144,7 +144,7 @@ export class SearchIndex {
         const kindTypes = Array.isArray(query.filters['spec.type'])
           ? query.filters['spec.type']
           : [query.filters['spec.type']];
-        if (!doc.kindType || !kindTypes.includes(doc.kindType)) continue;
+        if (!doc.kindType || !kindTypes.includes(doc.kindType)) {continue;}
       }
 
       // Calculate relevance score

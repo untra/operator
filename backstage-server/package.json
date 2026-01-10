@@ -1,6 +1,6 @@
 {
   "name": "operator-backstage",
-  "version": "1.0.0",
+  "version": "0.1.12",
   "private": true,
   "engines": {
     "node": ">=18"

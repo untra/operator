@@ -11,6 +11,7 @@ import type { NotificationsConfig } from "./NotificationsConfig";
 import type { PathsConfig } from "./PathsConfig";
 import type { QueueConfig } from "./QueueConfig";
 import type { RestApiConfig } from "./RestApiConfig";
+import type { SessionsConfig } from "./SessionsConfig";
 import type { TemplatesConfig } from "./TemplatesConfig";
 import type { TmuxConfig } from "./TmuxConfig";
 import type { UiConfig } from "./UiConfig";
@@ -20,7 +21,11 @@ export type Config = {
 /**
  * List of projects operator can assign work to
  */
-projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfig, queue: QueueConfig, paths: PathsConfig, ui: UiConfig, launch: LaunchConfig, templates: TemplatesConfig, api: ApiConfig, logging: LoggingConfig, tmux: TmuxConfig, llm_tools: LlmToolsConfig, backstage: BackstageConfig, rest_api: RestApiConfig, git: GitConfig, 
+projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfig, queue: QueueConfig, paths: PathsConfig, ui: UiConfig, launch: LaunchConfig, templates: TemplatesConfig, api: ApiConfig, logging: LoggingConfig, tmux: TmuxConfig, 
+/**
+ * Session wrapper configuration (tmux or vscode)
+ */
+sessions: SessionsConfig, llm_tools: LlmToolsConfig, backstage: BackstageConfig, rest_api: RestApiConfig, git: GitConfig, 
 /**
  * Kanban provider configuration for syncing issues from Jira, Linear, etc.
  */

@@ -188,8 +188,8 @@ Operator uses a schema-driven, code-derived documentation strategy to reduce mai
 | File | Generates | Purpose |
 |------|-----------|---------|
 | `src/backstage/taxonomy.toml` | `docs/backstage/taxonomy.md` | 25 project Kinds across 5 tiers |
-| `src/templates/issuetype_schema.json` | `docs/schemas/issuetype.md` | Issue type structure (key, mode, fields, steps) |
-| `src/templates/ticket_metadata.schema.json` | `docs/schemas/metadata.md` | Ticket YAML frontmatter format |
+| `src/schemas/issuetype_schema.json` | `docs/schemas/issuetype.md` | Issue type structure (key, mode, fields, steps) |
+| `src/schemas/ticket_metadata.schema.json` | `docs/schemas/metadata.md` | Ticket YAML frontmatter format |
 | `src/ui/keybindings.rs` | `docs/shortcuts/index.md` | Keyboard shortcuts by context |
 | `src/main.rs` + `src/env_vars.rs` | `docs/cli/index.md` | CLI commands and env vars |
 | `src/config.rs` | `docs/configuration/index.md` | Config structure (via schemars) |

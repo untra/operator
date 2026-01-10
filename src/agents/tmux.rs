@@ -927,6 +927,125 @@ pub fn sanitize_session_name(name: &str) -> String {
         .collect()
 }
 
+// ============================================================================
+// SessionWrapper implementation for tmux
+// ============================================================================
+
+use crate::agents::terminal_wrapper::{SessionError, SessionInfo, SessionWrapper, WrapperType};
+use async_trait::async_trait;
+
+/// Wrapper around TmuxClient that implements SessionWrapper trait
+///
+/// This provides the SessionWrapper interface for tmux-based session management.
+/// It wraps any TmuxClient implementation (System or Mock).
+pub struct TmuxWrapper {
+    client: Arc<dyn TmuxClient>,
+}
+
+impl TmuxWrapper {
+    /// Create a new TmuxWrapper from a TmuxClient
+    pub fn new(client: Arc<dyn TmuxClient>) -> Self {
+        Self { client }
+    }
+
+    /// Create with default system tmux client
+    pub fn system() -> Self {
+        Self::new(Arc::new(SystemTmuxClient::new()))
+    }
+
+    /// Create with system tmux client using custom config
+    pub fn with_config(config_path: PathBuf) -> Self {
+        Self::new(Arc::new(SystemTmuxClient::with_config(config_path)))
+    }
+
+    /// Get the underlying TmuxClient
+    pub fn client(&self) -> &dyn TmuxClient {
+        self.client.as_ref()
+    }
+}
+
+#[async_trait]
+impl SessionWrapper for TmuxWrapper {
+    fn wrapper_type(&self) -> WrapperType {
+        WrapperType::Tmux
+    }
+
+    async fn check_available(&self) -> Result<(), SessionError> {
+        self.client
+            .check_available()
+            .map(|_| ())
+            .map_err(|e| SessionError::NotAvailable(e.to_string()))
+    }
+
+    async fn session_exists(&self, name: &str) -> Result<bool, SessionError> {
+        self.client
+            .session_exists(name)
+            .map_err(|e| SessionError::CommandFailed(e.to_string()))
+    }
+
+    async fn create_session(&self, name: &str, working_dir: &str) -> Result<(), SessionError> {
+        self.client
+            .create_session(name, working_dir)
+            .map_err(|e| match e {
+                TmuxError::SessionExists(n) => SessionError::SessionExists(n),
+                other => SessionError::CommandFailed(other.to_string()),
+            })
+    }
+
+    async fn send_command(&self, session: &str, command: &str) -> Result<(), SessionError> {
+        self.client
+            .send_keys(session, command, true)
+            .map_err(|e| match e {
+                TmuxError::SessionNotFound(n) => SessionError::SessionNotFound(n),
+                other => SessionError::CommandFailed(other.to_string()),
+            })
+    }
+
+    async fn kill_session(&self, name: &str) -> Result<(), SessionError> {
+        self.client.kill_session(name).map_err(|e| match e {
+            TmuxError::SessionNotFound(n) => SessionError::SessionNotFound(n),
+            other => SessionError::CommandFailed(other.to_string()),
+        })
+    }
+
+    async fn list_sessions(&self, prefix: Option<&str>) -> Result<Vec<SessionInfo>, SessionError> {
+        self.client
+            .list_sessions(prefix)
+            .map(|sessions| {
+                sessions
+                    .into_iter()
+                    .map(|s| SessionInfo {
+                        name: s.name,
+                        created: s.created,
+                        attached: s.attached,
+                        wrapper_type: WrapperType::Tmux,
+                    })
+                    .collect()
+            })
+            .map_err(|e| SessionError::CommandFailed(e.to_string()))
+    }
+
+    async fn focus_session(&self, session: &str) -> Result<(), SessionError> {
+        self.client.attach_session(session).map_err(|e| match e {
+            TmuxError::SessionNotFound(n) => SessionError::SessionNotFound(n),
+            other => SessionError::CommandFailed(other.to_string()),
+        })
+    }
+
+    fn capture_content(&self, session: &str) -> Result<String, SessionError> {
+        self.client
+            .capture_pane(session, false)
+            .map_err(|e| match e {
+                TmuxError::SessionNotFound(n) => SessionError::SessionNotFound(n),
+                other => SessionError::CommandFailed(other.to_string()),
+            })
+    }
+
+    fn supports_content_capture(&self) -> bool {
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

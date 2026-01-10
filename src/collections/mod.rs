@@ -86,7 +86,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
             },
         ],
     },
-    // Operator collection: ASSESS, SYNC, INIT
+    // Operator collection: ASSESS, SYNC, INIT, AGENT-SETUP, PROJECT-INIT
     EmbeddedCollection {
         name: "operator",
         manifest: include_str!("operator/collection.toml"),
@@ -105,6 +105,16 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
                 key: "INIT",
                 schema_json: include_str!("operator/INIT.json"),
                 template_md: include_str!("operator/INIT.md"),
+            },
+            EmbeddedIssueType {
+                key: "AGENT-SETUP",
+                schema_json: include_str!("operator/AGENT-SETUP.json"),
+                template_md: include_str!("operator/AGENT-SETUP.md"),
+            },
+            EmbeddedIssueType {
+                key: "PROJECT-INIT",
+                schema_json: include_str!("operator/PROJECT-INIT.json"),
+                template_md: include_str!("operator/PROJECT-INIT.md"),
             },
         ],
     },
@@ -204,7 +214,7 @@ mod tests {
 
         let operator = get_embedded_collection("operator").unwrap();
         assert_eq!(operator.name, "operator");
-        assert_eq!(operator.issuetypes.len(), 3);
+        assert_eq!(operator.issuetypes.len(), 5);
 
         let full = get_embedded_collection("backstage_full").unwrap();
         assert_eq!(full.name, "backstage_full");

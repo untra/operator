@@ -287,8 +287,8 @@ Reference documentation is auto-generated from source-of-truth files to minimize
 | Configuration | `docs/configuration/` | `src/config.rs` via schemars |
 | Keyboard Shortcuts | `docs/shortcuts/` | `src/ui/keybindings.rs` |
 | REST API (OpenAPI) | `docs/schemas/openapi.json` | utoipa annotations in `src/rest/` |
-| Issue Type Schema | `docs/schemas/issuetype.md` | `src/templates/issuetype_schema.json` |
-| Ticket Metadata Schema | `docs/schemas/metadata.md` | `src/templates/ticket_metadata.schema.json` |
+| Issue Type Schema | `docs/schemas/issuetype.md` | `src/schemas/issuetype_schema.json` |
+| Ticket Metadata Schema | `docs/schemas/metadata.md` | `src/schemas/ticket_metadata.schema.json` |
 | Project Taxonomy | `docs/backstage/taxonomy.md` | `src/backstage/taxonomy.toml` |
 
 ### Viewing Documentation

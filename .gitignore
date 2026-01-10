@@ -25,3 +25,7 @@
 # typescript/node build artifacts
 dist/
 node_modules/
+
+# Test coverage
+coverage/
+*.lcov

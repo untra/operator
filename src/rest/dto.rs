@@ -573,6 +573,51 @@ pub struct ActiveAgentsResponse {
     pub count: usize,
 }
 
+// =============================================================================
+// Ticket Launch DTOs
+// =============================================================================
+
+/// Request to launch a ticket
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct LaunchTicketRequest {
+    /// LLM provider to use (e.g., "claude")
+    #[serde(default)]
+    pub provider: Option<String>,
+    /// Model to use (e.g., "sonnet", "opus")
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Run in YOLO mode (auto-accept all prompts)
+    #[serde(default)]
+    pub yolo_mode: bool,
+    /// Session wrapper type: "vscode", "tmux", "terminal"
+    #[serde(default)]
+    pub wrapper: Option<String>,
+}
+
+/// Response from launching a ticket
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct LaunchTicketResponse {
+    /// Agent ID assigned to this launch
+    pub agent_id: String,
+    /// Ticket ID that was launched
+    pub ticket_id: String,
+    /// Working directory (worktree if created, else project path)
+    pub working_directory: String,
+    /// Command to execute in terminal
+    pub command: String,
+    /// Terminal name to use
+    pub terminal_name: String,
+    /// Session UUID for the LLM tool
+    pub session_id: String,
+    /// Whether a worktree was created
+    pub worktree_created: bool,
+    /// Branch name (if worktree was created)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

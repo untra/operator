@@ -24,8 +24,8 @@ function formatElapsed(startedAt: string): string {
   const now = Date.now();
   const elapsed = Math.floor((now - start) / 1000);
 
-  if (elapsed < 60) return `${elapsed}s`;
-  if (elapsed < 3600) return `${Math.floor(elapsed / 60)}m`;
+  if (elapsed < 60) {return `${elapsed}s`;}
+  if (elapsed < 3600) {return `${Math.floor(elapsed / 60)}m`;}
   const hours = Math.floor(elapsed / 3600);
   const mins = Math.floor((elapsed % 3600) / 60);
   return `${hours}h ${mins}m`;

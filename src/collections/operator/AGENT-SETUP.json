@@ -1,0 +1,72 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "AGENT-SETUP",
+  "name": "Agent Setup",
+  "description": "Set up Claude agent configuration for a project",
+  "mode": "paired",
+  "glyph": "@",
+  "color": "blue",
+  "project_required": true,
+  "agent_prompt": "Review this project to configure a Claude agent. The agent analyzes project structure, creates or updates CLAUDE.md with project-specific context, and ensures the agent can work effectively. Output ONLY the agent system prompt.",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Setup description",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Set up Claude agent for project",
+      "max_length": 120,
+      "display_order": 1
+    },
+    {
+      "name": "agent_tool",
+      "description": "Target agent tool (claude, aider, etc.)",
+      "type": "enum",
+      "values": ["claude", "aider", "gemini"],
+      "required": true,
+      "default": "claude",
+      "display_order": 2
+    }
+  ],
+  "steps": [
+    {
+      "name": "analyze_project",
+      "display_name": "Analyzing Project",
+      "outputs": ["report"],
+      "prompt": "Analyze the project to understand its structure and requirements:\n\n1. Read existing CLAUDE.md if present\n2. Identify project type (Rust, TypeScript, Python, etc.)\n3. Find build commands, test commands, and lint commands\n4. Identify key directories and file patterns\n5. Document findings for agent configuration",
+      "allowed_tools": ["Read", "Glob", "Grep"],
+      "next_step": "configure_agent"
+    },
+    {
+      "name": "configure_agent",
+      "display_name": "Configuring Agent",
+      "outputs": ["code"],
+      "prompt": "Create or update agent configuration:\n\n1. Create/update CLAUDE.md with:\n   - Project overview\n   - Development commands (build, test, lint)\n   - Key architecture concepts\n   - File organization\n2. Ensure CLAUDE.md follows best practices for agent context\n3. Add any project-specific instructions",
+      "allowed_tools": ["Read", "Write", "Edit"],
+      "review_type": "plan",
+      "next_step": "test_agent"
+    },
+    {
+      "name": "test_agent",
+      "display_name": "Testing Agent",
+      "outputs": ["report"],
+      "prompt": "Verify the agent configuration works:\n\n1. Confirm CLAUDE.md is readable and complete\n2. Test that documented commands work\n3. Verify key file paths are accurate\n4. Document any issues found",
+      "allowed_tools": ["Read", "Bash"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "configure_agent",
+        "prompt": "Fix agent configuration based on feedback: {{ rejection_reason }}"
+      }
+    }
+  ]
+}

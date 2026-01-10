@@ -99,6 +99,8 @@ pub struct App {
     update_notification_shown_at: Option<std::time::Instant>,
     /// Receiver for version check results
     version_rx: mpsc::UnboundedReceiver<String>,
+    /// True if REST API port was in use at startup (another instance may be running)
+    api_port_conflict: bool,
 }
 
 impl App {
@@ -289,6 +291,7 @@ impl App {
             update_available_version: None,
             update_notification_shown_at: None,
             version_rx,
+            api_port_conflict: false,
         })
     }
 
@@ -306,11 +309,22 @@ impl App {
         // Initial data load
         self.refresh_data()?;
 
-        // Start web servers if --web flag was passed
-        if self.start_web_on_launch {
-            if let Err(e) = self.rest_api_server.start() {
+        // Always try to start REST API (unless disabled in config)
+        if self.config.rest_api.enabled {
+            // Check if port is already in use (another operator instance may be running)
+            if self.rest_api_server.is_port_in_use().await {
+                self.api_port_conflict = true;
+                tracing::warn!(
+                    port = self.config.rest_api.port,
+                    "REST API port is already in use. Another operator instance may be running from this .tickets/ directory."
+                );
+            } else if let Err(e) = self.rest_api_server.start() {
                 tracing::error!("REST API start failed: {}", e);
             }
+        }
+
+        // Start Backstage web server if --web flag was passed
+        if self.start_web_on_launch {
             if let Err(e) = self.backstage_server.start() {
                 tracing::error!("Backstage start failed: {}", e);
             }

@@ -8,6 +8,7 @@
 #![allow(unused_imports)]
 
 // Public modules for type generation
+pub mod agents;
 pub mod api;
 pub mod config;
 pub mod git;
@@ -21,8 +22,11 @@ mod backstage;
 mod collections;
 mod issuetypes;
 mod llm;
+mod notifications;
 mod permissions;
+mod pr_config;
 mod projects;
+mod services;
 mod startup;
 mod templates;
 pub mod version;

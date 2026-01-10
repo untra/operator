@@ -37,8 +37,8 @@
             {% assign item_active = true %}
             {% endif %}
             {% endfor %}
-            <details {% if item_active %}open{% endif %}>
-              <summary>{{ item.title }}</summary>
+            <details {% if item_active or page.url == item.url %}open{% endif %}>
+              <summary>{% if item.url %}<a href="{{ item.url | relative_url }}" class="nav-parent-link {% if page.url == item.url %}active{% endif %}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</summary>
               <ul class="nav-grandchildren">
                 {% for grandchild in item.children %}
                 <li>

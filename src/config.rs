@@ -24,6 +24,9 @@ pub struct Config {
     pub logging: LoggingConfig,
     #[serde(default)]
     pub tmux: TmuxConfig,
+    /// Session wrapper configuration (tmux or vscode)
+    #[serde(default)]
+    pub sessions: SessionsConfig,
     #[serde(default)]
     pub llm_tools: LlmToolsConfig,
     #[serde(default)]
@@ -358,6 +361,115 @@ pub struct TmuxConfig {
     /// Whether custom tmux config has been generated
     #[serde(default)]
     pub config_generated: bool,
+}
+
+/// Session wrapper type for terminal session management
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum SessionWrapperType {
+    /// Standalone tmux sessions (default)
+    #[default]
+    Tmux,
+    /// VS Code integrated terminal (via extension webhook)
+    Vscode,
+}
+
+impl std::fmt::Display for SessionWrapperType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SessionWrapperType::Tmux => write!(f, "tmux"),
+            SessionWrapperType::Vscode => write!(f, "vscode"),
+        }
+    }
+}
+
+/// Session wrapper configuration
+///
+/// Controls how operator creates and manages terminal sessions for agents.
+/// Two modes are supported:
+/// - tmux: Standalone tmux sessions (default)
+/// - vscode: VS Code integrated terminal (requires extension)
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct SessionsConfig {
+    /// Which session wrapper to use
+    #[serde(default)]
+    pub wrapper: SessionWrapperType,
+
+    /// Tmux-specific configuration
+    #[serde(default)]
+    pub tmux: SessionsTmuxConfig,
+
+    /// VS Code-specific configuration
+    #[serde(default)]
+    pub vscode: SessionsVSCodeConfig,
+}
+
+impl Default for SessionsConfig {
+    fn default() -> Self {
+        Self {
+            wrapper: SessionWrapperType::Tmux,
+            tmux: SessionsTmuxConfig::default(),
+            vscode: SessionsVSCodeConfig::default(),
+        }
+    }
+}
+
+/// Tmux-specific session configuration
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct SessionsTmuxConfig {
+    /// Whether custom tmux config has been generated
+    #[serde(default)]
+    pub config_generated: bool,
+
+    /// Socket name for session isolation
+    #[serde(default = "default_socket_name")]
+    pub socket_name: String,
+}
+
+fn default_socket_name() -> String {
+    "operator".to_string()
+}
+
+impl Default for SessionsTmuxConfig {
+    fn default() -> Self {
+        Self {
+            config_generated: false,
+            socket_name: default_socket_name(),
+        }
+    }
+}
+
+/// VS Code extension session configuration
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct SessionsVSCodeConfig {
+    /// Port for extension webhook server
+    #[serde(default = "default_vscode_webhook_port")]
+    pub webhook_port: u16,
+
+    /// Connection timeout in milliseconds
+    #[serde(default = "default_vscode_connect_timeout")]
+    pub connect_timeout_ms: u64,
+}
+
+fn default_vscode_webhook_port() -> u16 {
+    7009
+}
+
+fn default_vscode_connect_timeout() -> u64 {
+    5000
+}
+
+impl Default for SessionsVSCodeConfig {
+    fn default() -> Self {
+        Self {
+            webhook_port: default_vscode_webhook_port(),
+            connect_timeout_ms: default_vscode_connect_timeout(),
+        }
+    }
 }
 
 /// Backstage integration configuration
@@ -1224,6 +1336,7 @@ impl Default for Config {
             api: ApiConfig::default(),
             logging: LoggingConfig::default(),
             tmux: TmuxConfig::default(),
+            sessions: SessionsConfig::default(),
             llm_tools: LlmToolsConfig::default(),
             backstage: BackstageConfig::default(),
             rest_api: RestApiConfig::default(),

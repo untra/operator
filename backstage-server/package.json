@@ -1,6 +1,11 @@
 {
   "name": "operator-backstage",
-  "version": "1.0.0",
+  "version": "0.1.12",
+  "author": {
+    "name": "Samuel Volin",
+    "email": "untra.sam@gmail.com",
+    "url": "https://untra.io"
+  },
   "private": true,
   "engines": {
     "node": ">=18"

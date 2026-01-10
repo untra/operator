@@ -235,6 +235,33 @@ pub async fn cleanup_ticket_worktree(
 mod tests {
     use super::*;
 
+    fn make_ticket(id: &str, ticket_type: &str) -> crate::queue::Ticket {
+        crate::queue::Ticket {
+            id: id.to_string(),
+            ticket_type: ticket_type.to_string(),
+            filename: "test.md".to_string(),
+            filepath: "/tmp/test.md".to_string(),
+            timestamp: "20241225-1200".to_string(),
+            project: "test-project".to_string(),
+            summary: "Test".to_string(),
+            priority: "P2-medium".to_string(),
+            status: "queued".to_string(),
+            step: String::new(),
+            content: String::new(),
+            sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
+        }
+    }
+
+    // ========================================
+    // sanitize_branch_name() tests
+    // ========================================
+
     #[test]
     fn test_sanitize_branch_name() {
         assert_eq!(sanitize_branch_name("FEAT-1234"), "feat-1234");
@@ -243,54 +270,81 @@ mod tests {
     }
 
     #[test]
-    fn test_branch_name_for_ticket() {
-        let ticket = crate::queue::Ticket {
-            id: "FEAT-1234".to_string(),
-            ticket_type: "FEAT".to_string(),
-            filename: "test.md".to_string(),
-            filepath: "/tmp/test.md".to_string(),
-            timestamp: "20241225-1200".to_string(),
-            project: "test-project".to_string(),
-            summary: "Test".to_string(),
-            priority: "P2-medium".to_string(),
-            status: "queued".to_string(),
-            step: String::new(),
-            content: String::new(),
-            sessions: std::collections::HashMap::new(),
-            llm_task: crate::queue::LlmTask::default(),
-            worktree_path: None,
-            branch: None,
-            external_id: None,
-            external_url: None,
-            external_provider: None,
-        };
+    fn test_sanitize_branch_name_spaces_become_hyphens() {
+        assert_eq!(sanitize_branch_name("add user auth"), "add-user-auth");
+        assert_eq!(sanitize_branch_name("  leading spaces"), "leading-spaces");
+        assert_eq!(sanitize_branch_name("trailing spaces  "), "trailing-spaces");
+    }
 
+    #[test]
+    fn test_sanitize_branch_name_special_chars_become_hyphens() {
+        // Special chars become hyphens, trailing hyphens are trimmed
+        assert_eq!(sanitize_branch_name("feat@123!"), "feat-123");
+        assert_eq!(sanitize_branch_name("test$%^&*()"), "test");
+        assert_eq!(sanitize_branch_name("fix/slash/test"), "fix-slash-test");
+    }
+
+    #[test]
+    fn test_sanitize_branch_name_unicode_alphanumeric_preserved() {
+        // is_alphanumeric() includes Unicode letters, so they're preserved
+        // Japanese characters are alphanumeric in Unicode
+        assert_eq!(sanitize_branch_name("feat-日本語"), "feat-日本語");
+        // Emoji is not alphanumeric, so it becomes hyphen (and gets trimmed)
+        assert_eq!(sanitize_branch_name("test-🎉"), "test");
+        // Accented letters are alphanumeric
+        assert_eq!(sanitize_branch_name("café-feature"), "café-feature");
+    }
+
+    #[test]
+    fn test_sanitize_branch_name_preserves_underscores() {
+        assert_eq!(sanitize_branch_name("feature_flag"), "feature_flag");
+        assert_eq!(sanitize_branch_name("test_case_123"), "test_case_123");
+    }
+
+    #[test]
+    fn test_sanitize_branch_name_trims_leading_trailing_hyphens() {
+        assert_eq!(sanitize_branch_name("-leading"), "leading");
+        assert_eq!(sanitize_branch_name("trailing-"), "trailing");
+        assert_eq!(sanitize_branch_name("--both--"), "both");
+    }
+
+    // ========================================
+    // branch_name_for_ticket() tests
+    // ========================================
+
+    #[test]
+    fn test_branch_name_for_ticket() {
+        let ticket = make_ticket("FEAT-1234", "FEAT");
         assert_eq!(branch_name_for_ticket(&ticket), "feat/feat-1234");
     }
 
     #[test]
     fn test_branch_name_for_fix_ticket() {
-        let ticket = crate::queue::Ticket {
-            id: "FIX-5678".to_string(),
-            ticket_type: "FIX".to_string(),
-            filename: "test.md".to_string(),
-            filepath: "/tmp/test.md".to_string(),
-            timestamp: "20241225-1200".to_string(),
-            project: "test-project".to_string(),
-            summary: "Test".to_string(),
-            priority: "P2-medium".to_string(),
-            status: "queued".to_string(),
-            step: String::new(),
-            content: String::new(),
-            sessions: std::collections::HashMap::new(),
-            llm_task: crate::queue::LlmTask::default(),
-            worktree_path: None,
-            branch: None,
-            external_id: None,
-            external_url: None,
-            external_provider: None,
-        };
-
+        let ticket = make_ticket("FIX-5678", "FIX");
         assert_eq!(branch_name_for_ticket(&ticket), "fix/fix-5678");
+    }
+
+    #[test]
+    fn test_branch_name_for_spike_ticket() {
+        let ticket = make_ticket("SPIKE-001", "SPIKE");
+        assert_eq!(branch_name_for_ticket(&ticket), "spike/spike-001");
+    }
+
+    #[test]
+    fn test_branch_name_for_inv_ticket() {
+        let ticket = make_ticket("INV-critical-bug", "INV");
+        assert_eq!(branch_name_for_ticket(&ticket), "inv/inv-critical-bug");
+    }
+
+    #[test]
+    fn test_branch_name_for_task_ticket() {
+        let ticket = make_ticket("TASK-cleanup", "TASK");
+        assert_eq!(branch_name_for_ticket(&ticket), "task/task-cleanup");
+    }
+
+    #[test]
+    fn test_branch_name_with_special_chars_in_id() {
+        let ticket = make_ticket("FEAT-123.1", "FEAT");
+        assert_eq!(branch_name_for_ticket(&ticket), "feat/feat-123-1");
     }
 }

@@ -32,7 +32,7 @@ const useStyles = makeStyles({
 
 // Format Operator kind from spec.type (e.g., "api-gateway" -> "API Gateway")
 function formatOperatorKind(specType?: string): string {
-  if (!specType) return '—';
+  if (!specType) {return '—';}
   return specType
     .split('-')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -158,7 +158,7 @@ function NameCellBackstage({ entity }: { entity: Entity }) {
 
 function OwnerCell({ entity }: { entity: Entity }) {
   const owner = entity.spec?.owner as string | undefined;
-  if (!owner) return <span>—</span>;
+  if (!owner) {return <span>—</span>;}
 
   // Display owner as text - refs may not be fully qualified in local-file mode
   return <span>{owner}</span>;
@@ -166,7 +166,7 @@ function OwnerCell({ entity }: { entity: Entity }) {
 
 function SystemCell({ entity }: { entity: Entity }) {
   const system = entity.spec?.system as string | undefined;
-  if (!system) return <span>—</span>;
+  if (!system) {return <span>—</span>;}
 
   // Display system as text - refs may not be fully qualified in local-file mode
   return <span>{system}</span>;
@@ -174,7 +174,7 @@ function SystemCell({ entity }: { entity: Entity }) {
 
 function LifecycleCell({ entity }: { entity: Entity }) {
   const lifecycle = entity.spec?.lifecycle as string | undefined;
-  if (!lifecycle) return <span>—</span>;
+  if (!lifecycle) {return <span>—</span>;}
 
   const colors: Record<string, string> = {
     production: '#4CAF50',

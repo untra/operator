@@ -86,6 +86,26 @@ confirm_paired = true
 # Delay between launching multiple agents (milliseconds)
 launch_delay_ms = 2000
 
+# Session wrapper configuration
+# Controls how operator creates and manages terminal sessions for agents
+[sessions]
+# Which session wrapper to use: "tmux" (default) or "vscode"
+wrapper = "tmux"
+
+# Tmux-specific configuration (used when wrapper = "tmux")
+[sessions.tmux]
+# Whether custom tmux config has been generated
+config_generated = false
+# Socket name for session isolation
+socket_name = "operator"
+
+# VS Code extension configuration (used when wrapper = "vscode")
+[sessions.vscode]
+# Port for extension webhook server
+webhook_port = 7009
+# Connection timeout in milliseconds
+connect_timeout_ms = 5000
+
 [version_check]
 # Enable automatic version checking on startup
 enabled = true

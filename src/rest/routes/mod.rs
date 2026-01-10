@@ -4,5 +4,6 @@ pub mod agents;
 pub mod collections;
 pub mod health;
 pub mod issuetypes;
+pub mod launch;
 pub mod queue;
 pub mod steps;

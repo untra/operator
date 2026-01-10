@@ -214,3 +214,406 @@ fn get_detected_tool<'a>(config: &'a Config, tool_name: &str) -> Option<&'a Dete
 pub fn get_default_model(config: &Config) -> Option<String> {
     config.llm_tools.providers.first().map(|p| p.model.clone())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    fn make_test_config_with_tool(tool: DetectedTool) -> Config {
+        Config {
+            llm_tools: crate::config::LlmToolsConfig {
+                detected: vec![tool],
+                providers: vec![crate::config::LlmProvider {
+                    tool: "claude".to_string(),
+                    model: "sonnet".to_string(),
+                    display_name: None,
+                    ..Default::default()
+                }],
+                detection_complete: true,
+            },
+            ..Default::default()
+        }
+    }
+
+    fn make_detected_tool() -> DetectedTool {
+        DetectedTool {
+            name: "claude".to_string(),
+            path: "/usr/bin/claude".to_string(),
+            version: "1.0.0".to_string(),
+            min_version: Some("1.0.0".to_string()),
+            version_ok: true,
+            model_aliases: vec!["sonnet".to_string()],
+            command_template: "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} --print-prompt-path {{prompt_file}}".to_string(),
+            capabilities: crate::config::ToolCapabilities {
+                supports_sessions: true,
+                supports_headless: true,
+            },
+            yolo_flags: vec!["--dangerously-skip-permissions".to_string()],
+        }
+    }
+
+    // ========================================
+    // apply_yolo_flags() tests
+    // ========================================
+
+    #[test]
+    fn test_apply_yolo_flags_inserts_after_tool_name() {
+        let tool = make_detected_tool();
+        let config = make_test_config_with_tool(tool);
+        let cmd = "claude --model sonnet --session-id abc123";
+
+        let result = apply_yolo_flags(&config, cmd, "claude");
+
+        assert!(
+            result.contains("claude --dangerously-skip-permissions --model"),
+            "YOLO flag should be inserted after tool name, got: {}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_apply_yolo_flags_multiple_flags() {
+        let mut tool = make_detected_tool();
+        tool.yolo_flags = vec![
+            "--dangerously-skip-permissions".to_string(),
+            "--no-confirm".to_string(),
+        ];
+        let config = make_test_config_with_tool(tool);
+        let cmd = "claude --model sonnet";
+
+        let result = apply_yolo_flags(&config, cmd, "claude");
+
+        assert!(
+            result.contains("--dangerously-skip-permissions --no-confirm"),
+            "Multiple YOLO flags should be joined with spaces, got: {}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_apply_yolo_flags_empty_when_no_flags() {
+        let mut tool = make_detected_tool();
+        tool.yolo_flags = vec![];
+        let config = make_test_config_with_tool(tool);
+        let cmd = "claude --model sonnet";
+
+        let result = apply_yolo_flags(&config, cmd, "claude");
+
+        assert_eq!(
+            result, cmd,
+            "Command should be unchanged when no YOLO flags"
+        );
+    }
+
+    #[test]
+    fn test_apply_yolo_flags_unknown_tool_unchanged() {
+        let tool = make_detected_tool();
+        let config = make_test_config_with_tool(tool);
+        let cmd = "gemini --model pro";
+
+        let result = apply_yolo_flags(&config, cmd, "gemini");
+
+        assert_eq!(result, cmd, "Command should be unchanged for unknown tool");
+    }
+
+    #[test]
+    fn test_apply_yolo_flags_preserves_command_args() {
+        let tool = make_detected_tool();
+        let config = make_test_config_with_tool(tool);
+        let cmd = "claude --model sonnet --session-id abc --print-prompt-path /tmp/p.md";
+
+        let result = apply_yolo_flags(&config, cmd, "claude");
+
+        assert!(
+            result.contains("--session-id abc"),
+            "Should preserve session-id arg"
+        );
+        assert!(
+            result.contains("--print-prompt-path /tmp/p.md"),
+            "Should preserve prompt-path arg"
+        );
+    }
+
+    // ========================================
+    // build_docker_command() tests
+    // ========================================
+
+    #[test]
+    fn test_build_docker_command_basic_structure() {
+        let mut config = Config::default();
+        config.launch.docker.image = "my-claude:latest".to_string();
+        config.launch.docker.mount_path = "/workspace".to_string();
+
+        let result = build_docker_command(&config, "claude --model sonnet", "/home/user/project");
+
+        assert!(result.is_ok());
+        let cmd = result.unwrap();
+        assert!(cmd.starts_with("docker run --rm -it"));
+    }
+
+    #[test]
+    fn test_build_docker_command_volume_mount() {
+        let mut config = Config::default();
+        config.launch.docker.image = "my-claude:latest".to_string();
+        config.launch.docker.mount_path = "/workspace".to_string();
+
+        let result = build_docker_command(&config, "claude", "/home/user/project");
+
+        let cmd = result.unwrap();
+        assert!(
+            cmd.contains("-v /home/user/project:/workspace:rw"),
+            "Should mount project path with :rw, got: {}",
+            cmd
+        );
+    }
+
+    #[test]
+    fn test_build_docker_command_working_dir() {
+        let mut config = Config::default();
+        config.launch.docker.image = "my-claude:latest".to_string();
+        config.launch.docker.mount_path = "/workspace".to_string();
+
+        let result = build_docker_command(&config, "claude", "/home/user/project");
+
+        let cmd = result.unwrap();
+        assert!(
+            cmd.contains("-w /workspace"),
+            "Should set working dir to mount path, got: {}",
+            cmd
+        );
+    }
+
+    #[test]
+    fn test_build_docker_command_env_vars() {
+        let mut config = Config::default();
+        config.launch.docker.image = "my-claude:latest".to_string();
+        config.launch.docker.mount_path = "/workspace".to_string();
+        config.launch.docker.env_vars =
+            vec!["ANTHROPIC_API_KEY".to_string(), "HOME=/root".to_string()];
+
+        let result = build_docker_command(&config, "claude", "/project");
+
+        let cmd = result.unwrap();
+        assert!(
+            cmd.contains("-e ANTHROPIC_API_KEY"),
+            "Should pass first env var, got: {}",
+            cmd
+        );
+        assert!(
+            cmd.contains("-e HOME=/root"),
+            "Should pass second env var, got: {}",
+            cmd
+        );
+    }
+
+    #[test]
+    fn test_build_docker_command_extra_args() {
+        let mut config = Config::default();
+        config.launch.docker.image = "my-claude:latest".to_string();
+        config.launch.docker.mount_path = "/workspace".to_string();
+        config.launch.docker.extra_args =
+            vec!["--network=host".to_string(), "--privileged".to_string()];
+
+        let result = build_docker_command(&config, "claude", "/project");
+
+        let cmd = result.unwrap();
+        assert!(cmd.contains("--network=host"), "Should include extra arg 1");
+        assert!(cmd.contains("--privileged"), "Should include extra arg 2");
+    }
+
+    #[test]
+    fn test_build_docker_command_no_image_errors() {
+        let config = Config::default(); // image is empty by default
+
+        let result = build_docker_command(&config, "claude", "/project");
+
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("no image is configured"),
+            "Error should mention missing image, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_build_docker_command_wraps_inner_cmd() {
+        let mut config = Config::default();
+        config.launch.docker.image = "my-claude:latest".to_string();
+        config.launch.docker.mount_path = "/workspace".to_string();
+
+        let result = build_docker_command(&config, "claude --model sonnet", "/project");
+
+        let cmd = result.unwrap();
+        assert!(
+            cmd.contains("sh -c claude --model sonnet"),
+            "Should wrap inner command with sh -c, got: {}",
+            cmd
+        );
+    }
+
+    // ========================================
+    // get_default_model() tests
+    // ========================================
+
+    #[test]
+    fn test_get_default_model_returns_first() {
+        let mut config = Config::default();
+        config.llm_tools.providers = vec![crate::config::LlmProvider {
+            tool: "claude".to_string(),
+            model: "opus".to_string(),
+            ..Default::default()
+        }];
+
+        let result = get_default_model(&config);
+
+        assert_eq!(result, Some("opus".to_string()));
+    }
+
+    #[test]
+    fn test_get_default_model_empty_returns_none() {
+        let mut config = Config::default();
+        config.llm_tools.providers = vec![];
+
+        let result = get_default_model(&config);
+
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_get_default_model_multiple_uses_first() {
+        let mut config = Config::default();
+        config.llm_tools.providers = vec![
+            crate::config::LlmProvider {
+                tool: "claude".to_string(),
+                model: "sonnet".to_string(),
+                ..Default::default()
+            },
+            crate::config::LlmProvider {
+                tool: "gemini".to_string(),
+                model: "pro".to_string(),
+                ..Default::default()
+            },
+        ];
+
+        let result = get_default_model(&config);
+
+        assert_eq!(
+            result,
+            Some("sonnet".to_string()),
+            "Should return first provider's model"
+        );
+    }
+
+    // ========================================
+    // build_llm_command_with_permissions_for_tool() tests
+    // ========================================
+
+    #[test]
+    fn test_build_llm_command_unknown_tool_errors() {
+        let config = Config::default(); // No detected tools
+
+        let result = build_llm_command_with_permissions_for_tool(
+            &config,
+            "nonexistent",
+            "sonnet",
+            "session-123",
+            Path::new("/tmp/prompt.md"),
+            None,
+            None,
+        );
+
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("not detected"),
+            "Error should mention tool not detected, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_build_llm_command_template_interpolation() {
+        let tool = make_detected_tool();
+        let config = make_test_config_with_tool(tool);
+
+        let result = build_llm_command_with_permissions_for_tool(
+            &config,
+            "claude",
+            "opus",
+            "sess-abc",
+            Path::new("/tmp/prompt.md"),
+            None,
+            None,
+        );
+
+        assert!(result.is_ok());
+        let cmd = result.unwrap();
+        assert!(
+            cmd.contains("--model opus"),
+            "Should interpolate model, got: {}",
+            cmd
+        );
+        assert!(
+            cmd.contains("--session-id sess-abc"),
+            "Should interpolate session_id, got: {}",
+            cmd
+        );
+        assert!(
+            cmd.contains("/tmp/prompt.md"),
+            "Should interpolate prompt_file, got: {}",
+            cmd
+        );
+    }
+
+    #[test]
+    fn test_build_llm_command_no_ticket_empty_config_flags() {
+        let tool = make_detected_tool();
+        let config = make_test_config_with_tool(tool);
+
+        let result = build_llm_command_with_permissions_for_tool(
+            &config,
+            "claude",
+            "sonnet",
+            "sess-123",
+            Path::new("/tmp/prompt.md"),
+            None, // No ticket
+            None, // No project path
+        );
+
+        assert!(result.is_ok());
+        let cmd = result.unwrap();
+        // When no ticket, config_flags should be empty, so command starts with "claude --model"
+        assert!(
+            cmd.starts_with("claude --model"),
+            "Should have empty config_flags when no ticket, got: {}",
+            cmd
+        );
+    }
+
+    #[test]
+    fn test_build_llm_command_model_flag_format() {
+        let tool = make_detected_tool();
+        let config = make_test_config_with_tool(tool);
+
+        let result = build_llm_command_with_permissions_for_tool(
+            &config,
+            "claude",
+            "haiku",
+            "sess-xyz",
+            Path::new("/tmp/p.md"),
+            None,
+            None,
+        );
+
+        assert!(result.is_ok());
+        let cmd = result.unwrap();
+        // Model flag should have trailing space per the code
+        assert!(
+            cmd.contains("--model haiku "),
+            "Model flag should have trailing space, got: {}",
+            cmd
+        );
+    }
+}

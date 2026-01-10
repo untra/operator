@@ -6,7 +6,7 @@ use anyhow::Result;
 use serde_json::Value;
 
 /// Schema JSON embedded at compile time
-const ISSUETYPE_SCHEMA: &str = include_str!("../templates/issuetype_schema.json");
+const ISSUETYPE_SCHEMA: &str = include_str!("../schemas/issuetype_schema.json");
 
 /// Generates documentation from issuetype_schema.json
 pub struct IssuetypeSchemaDocGenerator;
@@ -17,7 +17,7 @@ impl DocGenerator for IssuetypeSchemaDocGenerator {
     }
 
     fn source(&self) -> &'static str {
-        "src/templates/issuetype_schema.json"
+        "src/schemas/issuetype_schema.json"
     }
 
     fn output_path(&self) -> &'static str {

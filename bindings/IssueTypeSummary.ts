@@ -3,4 +3,4 @@
 /**
  * Summary response for listing issue types
  */
-export type IssueTypeSummary = { key: string, name: string, description: string, mode: string, glyph: string, source: string, step_count: number, };
+export type IssueTypeSummary = { key: string, name: string, description: string, mode: string, glyph: string, color?: string, source: string, stepCount: number, };

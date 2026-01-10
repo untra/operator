@@ -1,5 +1,5 @@
 {
-  "$schema": "./issuetype_schema.json",
+  "$schema": "../../schemas/issuetype_schema.json",
   "key": "FEAT",
   "name": "Feature",
   "description": "New feature or enhancement ticket",

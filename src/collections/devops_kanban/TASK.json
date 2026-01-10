@@ -1,5 +1,5 @@
 {
-  "$schema": "./issuetype_schema.json",
+  "$schema": "../../schemas/issuetype_schema.json",
   "key": "TASK",
   "name": "Task",
   "description": "Focused task that executes one specific thing",

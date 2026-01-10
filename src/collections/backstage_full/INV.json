@@ -1,5 +1,5 @@
 {
-  "$schema": "./issuetype_schema.json",
+  "$schema": "../../schemas/issuetype_schema.json",
   "key": "INV",
   "name": "Investigation",
   "description": "Incident investigation ticket (paired mode)",

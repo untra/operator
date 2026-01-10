@@ -14,6 +14,9 @@ on:
       - 'Cargo.lock'
       - 'docs/**'
       - '.github/workflows/docs.yml'
+      - 'backstage-server/package.json'
+      - 'vscode-extension/package.json'
+      - 'vscode-extension/src/webhook-server.ts'
   pull_request:
     branches:
       - main
@@ -119,6 +122,41 @@ jobs:
           files: codecov.json
           flags: rust
           fail_ci_if_error: true
+
+  launch-integration:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-launch-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-launch-
+
+      - name: Build operator
+        run: cargo build
+
+      - name: Run launch integration tests
+        env:
+          OPERATOR_LAUNCH_TEST_ENABLED: 'true'
+        run: cargo test --test launch_integration -- --test-threads=1 --nocapture
+
+      - name: Cleanup tmux sessions
+        if: always()
+        run: |
+          tmux list-sessions -F '#{session_name}' 2>/dev/null | grep '^op' | xargs -I {} tmux kill-session -t {} || true
 
   build:
     needs: lint-test
@@ -252,11 +290,23 @@ jobs:
         run: |
           sed -i 's/^version: .*/version: ${{ steps.version.outputs.version }}/' docs/_config.yml
 
+      - name: Update package.json versions
+        run: |
+          jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' backstage-server/package.json > tmp.json && mv tmp.json backstage-server/package.json
+          jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' vscode-extension/package.json > tmp.json && mv tmp.json vscode-extension/package.json
+
+      - name: Update TypeScript VERSION constant
+        run: |
+          sed -i "s/const VERSION = '[^']*'/const VERSION = '${{ steps.version.outputs.version }}'/" vscode-extension/src/webhook-server.ts
+
       - name: Commit version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION Cargo.toml Cargo.lock docs/_config.yml
+          git add VERSION Cargo.toml Cargo.lock docs/_config.yml \
+            backstage-server/package.json \
+            vscode-extension/package.json \
+            vscode-extension/src/webhook-server.ts
           git commit -m "chore: bump version to v${{ steps.version.outputs.version }} [skip ci]"
           git push
 

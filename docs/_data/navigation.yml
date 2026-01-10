@@ -8,6 +8,7 @@ docs:
       - title: Installation
         url: /getting-started/installation/
       - title: Supported Coding Agents
+        url: /getting-started/agents/
         children:
           - title: Claude
             url: /getting-started/agents/claude/
@@ -19,6 +20,7 @@ docs:
             url: /getting-started/agents/gemini-cli/
             icon: gemini
       - title: Supported Kanban Providers
+        url: /getting-started/kanban/
         children:
           - title: Jira Cloud
             url: /getting-started/kanban/jira/
@@ -27,11 +29,13 @@ docs:
             url: /getting-started/kanban/linear/
             icon: linear
       - title: Supported Git Repositories
+        url: /getting-started/git/
         children:
           - title: GitHub
             url: /getting-started/git/github/
             icon: github
       - title: Supported Notification Integrations
+        url: /getting-started/notifications/
         children:
           - title: Webhooks
             url: /getting-started/notifications/webhooks/
@@ -39,6 +43,15 @@ docs:
           - title: Operating System
             url: /getting-started/notifications/os/
             icon: notification
+      - title: Supported Session Management
+        url: /getting-started/sessions/
+        children:
+          - title: tmux
+            url: /getting-started/sessions/tmux/
+            icon: tmux
+          - title: VS Code Extension
+            url: /getting-started/sessions/vscode/
+            icon: vscode
   - title: Core
     children:
       - title: Kanban
@@ -49,8 +62,6 @@ docs:
         url: /tickets/
       - title: Agents
         url: /agents/
-      - title: Tmux
-        url: /tmux/
   - title: Reference
     children:
       - title: CLI

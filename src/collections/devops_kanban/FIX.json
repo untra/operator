@@ -1,5 +1,5 @@
 {
-  "$schema": "./issuetype_schema.json",
+  "$schema": "../../schemas/issuetype_schema.json",
   "key": "FIX",
   "name": "Fix",
   "description": "Bug fix, follow-up work, tech debt, or refactoring ticket",

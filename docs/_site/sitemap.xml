@@ -22,7 +22,10 @@
 <loc>https://operator.untra.io/getting-started/git/github/</loc>
 </url>
 <url>
-<loc>https://operator.untra.io/llm-tools/</loc>
+<loc>https://operator.untra.io/getting-started/sessions/</loc>
+</url>
+<url>
+<loc>https://operator.untra.io/</loc>
 </url>
 <url>
 <loc>https://operator.untra.io/tickets/</loc>
@@ -43,6 +46,9 @@
 <loc>https://operator.untra.io/getting-started/agents/</loc>
 </url>
 <url>
+<loc>https://operator.untra.io/getting-started/sessions/tmux/</loc>
+</url>
+<url>
 <loc>https://operator.untra.io/getting-started/kanban/</loc>
 </url>
 <url>
@@ -61,9 +67,6 @@
 <loc>https://operator.untra.io/shortcuts/</loc>
 </url>
 <url>
-<loc>https://operator.untra.io/tmux/</loc>
-</url>
-<url>
 <loc>https://operator.untra.io/startup/</loc>
 </url>
 <url>
@@ -73,7 +76,7 @@
 <loc>https://operator.untra.io/issue-types/</loc>
 </url>
 <url>
-<loc>https://operator.untra.io/</loc>
+<loc>https://operator.untra.io/llm-tools/</loc>
 </url>
 <url>
 <loc>https://operator.untra.io/getting-started/installation/</loc>
@@ -107,6 +110,9 @@
 </url>
 <url>
 <loc>https://operator.untra.io/backstage/taxonomy/</loc>
+</url>
+<url>
+<loc>https://operator.untra.io/getting-started/sessions/vscode/</loc>
 </url>
 <url>
 <loc>https://operator.untra.io/getting-started/notifications/webhooks/</loc>

@@ -1,5 +1,5 @@
 {
-  "$schema": "./issuetype_schema.json",
+  "$schema": "../../schemas/issuetype_schema.json",
   "key": "SYNC",
   "name": "Catalog Sync",
   "description": "Refresh Backstage catalog entries from projects",

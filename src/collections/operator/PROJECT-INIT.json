@@ -1,0 +1,54 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "PROJECT-INIT",
+  "name": "Project Initialization",
+  "description": "Initialize project with Operator conventions",
+  "mode": "autonomous",
+  "glyph": "*",
+  "color": "green",
+  "project_required": true,
+  "agent_prompt": "Review this project to initialize it with Operator conventions. The agent scans project structure, creates required files, and ensures the project follows established patterns. Output ONLY the agent system prompt.",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Initialization description",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Initialize project with Operator conventions",
+      "max_length": 120,
+      "display_order": 1
+    }
+  ],
+  "steps": [
+    {
+      "name": "scan_structure",
+      "display_name": "Scanning Structure",
+      "outputs": ["report"],
+      "prompt": "Scan the project structure to understand what's needed:\n\n1. Check for existing configuration files\n2. Identify project type and language\n3. Find any missing required files:\n   - CLAUDE.md (agent context)\n   - catalog-info.yaml (Backstage catalog)\n   - .tickets/ directory structure\n4. Document current state and gaps",
+      "allowed_tools": ["Read", "Glob", "Grep"],
+      "next_step": "apply_conventions"
+    },
+    {
+      "name": "apply_conventions",
+      "display_name": "Applying Conventions",
+      "outputs": ["code"],
+      "prompt": "Apply Operator conventions to the project:\n\n1. Create missing directories:\n   - .tickets/queue/\n   - .tickets/in-progress/\n   - .tickets/completed/\n2. Create CLAUDE.md if missing (based on project type)\n3. Create catalog-info.yaml if missing\n4. Add any standard configuration files\n5. Document all changes made",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "scan_structure",
+        "prompt": "Re-scan and adjust based on feedback: {{ rejection_reason }}"
+      }
+    }
+  ]
+}

@@ -17,6 +17,11 @@ coverage:
         threshold: 2%
         flags:
           - typescript
+      vscode-extension:
+        target: auto
+        threshold: 2%
+        flags:
+          - vscode-extension
     patch:
       default:
         target: 80%
@@ -31,6 +36,10 @@ flags:
       - backstage-server/packages/
       - backstage-server/src/
     carryforward: true
+  vscode-extension:
+    paths:
+      - vscode-extension/src/
+    carryforward: true
 
 comment:
   layout: "reach,diff,flags,files"
@@ -40,3 +49,4 @@ comment:
 ignore:
   - "tests/**"
   - "backstage-server/e2e/**"
+  - "vscode-extension/test/**"

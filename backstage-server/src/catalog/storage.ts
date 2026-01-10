@@ -36,7 +36,7 @@ export class CatalogStorage {
   }
 
   async load(): Promise<void> {
-    if (!this.persistPath) return;
+    if (!this.persistPath) {return;}
 
     try {
       const data = await readFile(this.persistPath, 'utf-8');
@@ -58,7 +58,7 @@ export class CatalogStorage {
   }
 
   private async save(): Promise<void> {
-    if (!this.persistPath || !this.dirty) return;
+    if (!this.persistPath || !this.dirty) {return;}
 
     try {
       await mkdir(dirname(this.persistPath), { recursive: true });
@@ -77,7 +77,7 @@ export class CatalogStorage {
 
   private scheduleSave(): void {
     this.dirty = true;
-    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    if (this.saveTimeout) {clearTimeout(this.saveTimeout);}
     this.saveTimeout = setTimeout(() => this.save(), 1000);
   }
 
@@ -116,7 +116,7 @@ export class CatalogStorage {
   // Remove an entity
   removeEntity(ref: string): boolean {
     const envelope = this.entities.get(ref);
-    if (!envelope) return false;
+    if (!envelope) {return false;}
 
     this.unindexEntity(envelope);
     this.scheduleSave();
@@ -180,7 +180,7 @@ export class CatalogStorage {
   private applyFilter(entities: Entity[], filter: string): Entity[] {
     // Filter format: field=value or field!=value
     const match = filter.match(/^([^=!]+)(=|!=)(.*)$/);
-    if (!match) return entities;
+    if (!match) {return entities;}
 
     const [, field, operator, value] = match;
 
@@ -199,7 +199,7 @@ export class CatalogStorage {
     const parts = field.split('.');
 
     // Handle special fields
-    if (parts[0] === 'kind') return entity.kind.toLowerCase();
+    if (parts[0] === 'kind') {return entity.kind.toLowerCase();}
     if (parts[0] === 'metadata') {
       const key = parts.slice(1).join('.');
       return this.getNestedValue(entity.metadata, key);
@@ -217,7 +217,7 @@ export class CatalogStorage {
     let current: unknown = obj;
 
     for (const part of parts) {
-      if (current == null || typeof current !== 'object') return undefined;
+      if (current == null || typeof current !== 'object') {return undefined;}
       current = (current as Record<string, unknown>)[part];
     }
 
@@ -233,7 +233,7 @@ export class CatalogStorage {
         const aVal = String(this.getFieldValue(a, field) ?? '');
         const bVal = String(this.getFieldValue(b, field) ?? '');
         const cmp = aVal.localeCompare(bVal);
-        if (cmp !== 0) return order === 'asc' ? cmp : -cmp;
+        if (cmp !== 0) {return order === 'asc' ? cmp : -cmp;}
       }
       return 0;
     });
@@ -277,7 +277,7 @@ export class CatalogStorage {
 
   removeLocation(id: string): boolean {
     const removed = this.locations.delete(id);
-    if (removed) this.scheduleSave();
+    if (removed) {this.scheduleSave();}
     return removed;
   }
 
@@ -298,7 +298,7 @@ export class CatalogStorage {
         removed++;
       }
     }
-    if (removed > 0) this.scheduleSave();
+    if (removed > 0) {this.scheduleSave();}
     return removed;
   }
 

@@ -1,0 +1,222 @@
+{
+  "name": "operator-terminals",
+  "displayName": "Operator! Terminals for vscode",
+  "description": "VS Code terminal integration for Operator! multi-agent orchestration",
+  "version": "0.1.12",
+  "publisher": "untra",
+  "author": {
+    "name": "Samuel Volin",
+    "email": "untra.sam@gmail.com",
+    "url": "https://untra.io"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/untra/operator"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "operator",
+    "terminal",
+    "agent",
+    "claude",
+    "ai"
+  ],
+  "icon": "images/operator-logo-128.png",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/src/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "operator-sidebar",
+          "title": "Operator",
+          "icon": "images/operator-icon-128.png"
+        }
+      ]
+    },
+    "views": {
+      "operator-sidebar": [
+        {
+          "id": "operator-status",
+          "name": "Status",
+          "type": "tree"
+        },
+        {
+          "id": "operator-in-progress",
+          "name": "In Progress",
+          "type": "tree"
+        },
+        {
+          "id": "operator-queue",
+          "name": "Queue",
+          "type": "tree"
+        },
+        {
+          "id": "operator-completed",
+          "name": "Completed",
+          "type": "tree",
+          "visibility": "collapsed"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Operator Terminals",
+      "properties": {
+        "operator.webhookPort": {
+          "type": "number",
+          "default": 7009,
+          "description": "Preferred port for webhook server (falls back to available port if busy)"
+        },
+        "operator.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start webhook server on VS Code launch"
+        },
+        "operator.terminalPrefix": {
+          "type": "string",
+          "default": "op-",
+          "description": "Prefix for operator-managed terminal names"
+        },
+        "operator.ticketsDir": {
+          "type": "string",
+          "default": ".tickets",
+          "description": "Path to tickets directory (relative to workspace root or absolute)"
+        },
+        "operator.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:7008",
+          "description": "URL of the Operator REST API server"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "operator.startServer",
+        "title": "Operator: Start Webhook Server"
+      },
+      {
+        "command": "operator.stopServer",
+        "title": "Operator: Stop Webhook Server"
+      },
+      {
+        "command": "operator.showStatus",
+        "title": "Operator: Show Server Status"
+      },
+      {
+        "command": "operator.refreshTickets",
+        "title": "Refresh Tickets",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "operator.focusTicket",
+        "title": "Focus Terminal"
+      },
+      {
+        "command": "operator.openTicket",
+        "title": "Open Ticket"
+      },
+      {
+        "command": "operator.launchTicket",
+        "title": "Operator: Launch Ticket"
+      },
+      {
+        "command": "operator.launchTicketWithOptions",
+        "title": "Operator: Launch Ticket (with options)"
+      },
+      {
+        "command": "operator.relaunchTicket",
+        "title": "Relaunch Ticket",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "operator.launchTicketFromEditor",
+        "title": "Operator: Launch Ticket from Editor"
+      },
+      {
+        "command": "operator.launchTicketFromEditorWithOptions",
+        "title": "Operator: Launch Ticket from Editor (with options)"
+      },
+      {
+        "command": "operator.downloadOperator",
+        "title": "Operator: Download Operator"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "operator.refreshTickets",
+          "when": "view =~ /operator-/",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "operator.focusTicket",
+          "when": "view == operator-in-progress",
+          "group": "inline"
+        },
+        {
+          "command": "operator.relaunchTicket",
+          "when": "view == operator-in-progress",
+          "group": "inline"
+        },
+        {
+          "command": "operator.launchTicket",
+          "when": "view == operator-queue",
+          "group": "inline"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "operator.launchTicketFromEditor",
+          "when": "resourcePath =~ /\\.tickets\\/(queue|in-progress)\\/.+\\.md$/",
+          "group": "operator@1"
+        },
+        {
+          "command": "operator.launchTicketFromEditorWithOptions",
+          "when": "resourcePath =~ /\\.tickets\\/(queue|in-progress)\\/.+\\.md$/",
+          "group": "operator@2"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "copy-types": "node scripts/copy-types.js",
+    "compile": "npm run copy-types && tsc -p ./",
+    "watch": "npm run copy-types && tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test",
+    "test:coverage": "c8 npm run test",
+    "coverage:report": "c8 report --reporter=lcov",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@istanbuljs/nyc-config-typescript": "^1.0.2",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.22.0",
+    "c8": "^10.1.2",
+    "eslint": "^8.56.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "source-map-support": "^0.5.21",
+    "typescript": "^5.3.3"
+  }
+}

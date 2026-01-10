@@ -142,7 +142,10 @@ impl RestApiTestContext {
                 .await
                 .map_err(|e| e.to_string())
         } else {
-            Err(format!("Health check failed with status: {}", response.status()))
+            Err(format!(
+                "Health check failed with status: {}",
+                response.status()
+            ))
         }
     }
 }
@@ -226,9 +229,15 @@ async fn test_api_writes_session_file() {
     assert!(session.is_some(), "Should be able to parse session file");
 
     let session = session.unwrap();
-    assert_eq!(session.port, ctx.port, "Session file should have correct port");
+    assert_eq!(
+        session.port, ctx.port,
+        "Session file should have correct port"
+    );
     assert!(session.pid > 0, "Session file should have valid PID");
-    assert!(!session.version.is_empty(), "Session file should have version");
+    assert!(
+        !session.version.is_empty(),
+        "Session file should have version"
+    );
     assert!(
         !session.started_at.is_empty(),
         "Session file should have started_at timestamp"
@@ -281,7 +290,10 @@ async fn test_api_session_file_matches_health_endpoint() {
     let session = ctx.read_session_file().expect("Should read session file");
 
     // Get health endpoint info
-    let health = ctx.check_health().await.expect("Health check should succeed");
+    let health = ctx
+        .check_health()
+        .await
+        .expect("Health check should succeed");
 
     // Verify version matches
     assert_eq!(
@@ -311,10 +323,7 @@ async fn test_api_port_in_use_detection() {
 
     // Check if port is in use
     let port_in_use = server2.is_port_in_use().await;
-    assert!(
-        port_in_use,
-        "Port should be detected as in use"
-    );
+    assert!(port_in_use, "Port should be detected as in use");
 
     // Stop first server
     server1.stop();

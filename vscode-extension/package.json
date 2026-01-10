@@ -1,9 +1,14 @@
 {
   "name": "operator-terminals",
-  "displayName": "Operator Terminals",
-  "description": "VS Code terminal integration for Operator multi-agent orchestration",
+  "displayName": "Operator! Terminals for vscode",
+  "description": "VS Code terminal integration for Operator! multi-agent orchestration",
   "version": "0.1.12",
   "publisher": "untra",
+  "author": {
+    "name": "Samuel Volin",
+    "email": "untra.sam@gmail.com",
+    "url": "https://untra.io"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/untra/operator"

@@ -45,7 +45,7 @@ const http = __importStar(require("http"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs/promises"));
 const vscode = __importStar(require("vscode"));
-const VERSION = '0.1.10';
+const VERSION = '0.1.12';
 /**
  * HTTP server for operator <-> extension communication
  */

@@ -29,3 +29,6 @@ node_modules/
 # Test coverage
 coverage/
 *.lcov
+
+# built vscode extension
+*.vsix

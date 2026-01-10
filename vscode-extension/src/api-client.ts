@@ -6,6 +6,8 @@
  */
 
 import * as vscode from 'vscode';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 export interface LaunchTicketRequest {
   provider?: string;
@@ -33,6 +35,43 @@ export interface HealthResponse {
 export interface ApiError {
   error: string;
   message: string;
+}
+
+/**
+ * API session info written by Operator when running in API mode
+ */
+export interface ApiSessionInfo {
+  port: number;
+  pid: number;
+  started_at: string;
+  version: string;
+}
+
+/**
+ * Discover Operator API URL from session file or configuration
+ *
+ * Checks in order:
+ * 1. .tickets/operator/api-session.json (written by running Operator)
+ * 2. VSCode configuration operator.apiUrl
+ */
+export async function discoverApiUrl(
+  ticketsDir: string | undefined
+): Promise<string> {
+  // Try to read api-session.json from tickets directory
+  if (ticketsDir) {
+    const sessionFile = path.join(ticketsDir, 'operator', 'api-session.json');
+    try {
+      const content = await fs.readFile(sessionFile, 'utf-8');
+      const session: ApiSessionInfo = JSON.parse(content);
+      return `http://localhost:${session.port}`;
+    } catch {
+      // Session file doesn't exist or is invalid, fall through
+    }
+  }
+
+  // Fall back to configured URL
+  const config = vscode.workspace.getConfiguration('operator');
+  return config.get('apiUrl', 'http://localhost:7008');
 }
 
 /**

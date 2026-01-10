@@ -143,6 +143,10 @@
       {
         "command": "operator.launchTicketFromEditorWithOptions",
         "title": "Operator: Launch Ticket from Editor (with options)"
+      },
+      {
+        "command": "operator.downloadOperator",
+        "title": "Operator: Download Operator"
       }
     ],
     "menus": {

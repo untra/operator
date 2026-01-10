@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Schema Reference | Operator! Documentation</title>
-  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+  <title>VS Code Extension | Operator! Documentation</title>
+  <meta name="description" content="VS Code terminal integration for Operator multi-agent orchestration.">
 
   <link rel="icon" type="image/png" href="/assets/patricia_512.png">
   <link rel="apple-touch-icon" href="/assets/patricia_512.png">
@@ -24,21 +24,21 @@
   <link rel="stylesheet" href="/assets/css/syntax.css">
 
   <!-- Begin Jekyll SEO tag v2.8.0 -->
-<title>Schema Reference | Operator! Documentation</title>
+<title>VS Code Extension | Operator! Documentation</title>
 <meta name="generator" content="Jekyll v4.4.1" />
-<meta property="og:title" content="Schema Reference" />
+<meta property="og:title" content="VS Code Extension" />
 <meta property="og:locale" content="en_US" />
-<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
-<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
-<link rel="canonical" href="https://operator.untra.io/schemas/" />
-<meta property="og:url" content="https://operator.untra.io/schemas/" />
+<meta name="description" content="VS Code terminal integration for Operator multi-agent orchestration." />
+<meta property="og:description" content="VS Code terminal integration for Operator multi-agent orchestration." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/sessions/vscode/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/sessions/vscode/" />
 <meta property="og:site_name" content="Operator! Documentation" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary" />
-<meta property="twitter:title" content="Schema Reference" />
+<meta property="twitter:title" content="VS Code Extension" />
 <meta name="twitter:site" content="@" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Schema Reference","url":"https://operator.untra.io/schemas/"}</script>
+{"@context":"https://schema.org","@type":"WebPage","description":"VS Code terminal integration for Operator multi-agent orchestration.","headline":"VS Code Extension","url":"https://operator.untra.io/getting-started/sessions/vscode/"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -62,7 +62,7 @@
     <li class="nav-section">
       
       
-      <details >
+      <details open>
         <summary class="nav-parent">Getting Started</summary>
         <ul class="nav-children">
           
@@ -172,7 +172,7 @@
             
             
             
-            <details >
+            <details open>
               <summary><a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a></summary>
               <ul class="nav-grandchildren">
                 
@@ -181,7 +181,8 @@
                 </li>
                 
                 <li>
-                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/vscode-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/vscode-dark.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                  <a href="/getting-started/sessions/vscode/" class="active"
+                    ><span class="nav-icon"><img class="icon-light" src="/assets/icons/vscode-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/vscode-dark.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
                 </li>
                 
               </ul>
@@ -231,7 +232,7 @@
     <li class="nav-section">
       
       
-      <details open>
+      <details >
         <summary class="nav-parent">Reference</summary>
         <ul class="nav-children">
           
@@ -280,13 +281,12 @@
             
             
             
-            <details open>
+            <details >
               <summary>Schemas</summary>
               <ul class="nav-grandchildren">
                 
                 <li>
-                  <a href="/schemas/" class="active"
-                    >Overview</a>
+                  <a href="/schemas/" >Overview</a>
                 </li>
                 
                 <li>
@@ -327,7 +327,7 @@
 
   <div class="sidebar-footer">
     <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
-        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/schemas/index.md"><small>View this page
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/sessions/vscode.md"><small>View this page
           source on Github</small></a></div></p>
     <p></p>
     <div><small class="sidebar-nav-item">Currently v0.1.12</small> |
@@ -343,104 +343,229 @@
   <main class="content">
     <article class="doc">
   
-  <h1 class="doc-title">Schema Reference</h1>
+  <h1 class="doc-title">VS Code Extension</h1>
   
 
-  <!-- AUTO-GENERATED FROM docs/schemas/ - DO NOT EDIT MANUALLY -->
-<!-- Regenerate with: cargo run -- docs -->
+  <h1 id="vs-code-extension">VS Code Extension</h1>
 
-<h1 id="schema-reference">Schema Reference</h1>
+<p><a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank" class="button">Install from VS Code Marketplace</a></p>
 
-<p>This section documents all JSON schemas and type definitions used by Operator.</p>
+<p>Operator Terminals brings the Operator multi-agent orchestration experience directly into VS Code with integrated terminal management and ticket tracking.</p>
 
-<h2 id="documentation">Documentation</h2>
-
-<p>Human-readable documentation for each schema:</p>
-
-<table>
-  <thead>
-    <tr>
-      <th>Schema</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><a href="config/">Configuration</a></td>
-      <td>Structure of <code class="language-plaintext highlighter-rouge">config.toml</code> - agents, paths, UI, notifications, and integrations</td>
-    </tr>
-    <tr>
-      <td><a href="state/">Application State</a></td>
-      <td>Runtime state file (<code class="language-plaintext highlighter-rouge">state.json</code>) - active agents, completed tickets, system status</td>
-    </tr>
-    <tr>
-      <td><a href="issuetype/">Issue Type</a></td>
-      <td>Issue type template format - fields, steps, permissions, and workflows</td>
-    </tr>
-    <tr>
-      <td><a href="metadata/">Ticket Metadata</a></td>
-      <td>Ticket YAML frontmatter - status, priority, sessions, and LLM task tracking</td>
-    </tr>
-    <tr>
-      <td><a href="api/">REST API</a></td>
-      <td>Interactive OpenAPI documentation with Swagger UI</td>
-    </tr>
-  </tbody>
-</table>
-
-<h2 id="raw-json-schemas">Raw JSON Schemas</h2>
-
-<p>Machine-readable JSON Schema files for validation and code generation:</p>
-
-<table>
-  <thead>
-    <tr>
-      <th>File</th>
-      <th>Format</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><a href="config.json">config.json</a></td>
-      <td>JSON Schema</td>
-      <td>Configuration file schema (generated via schemars)</td>
-    </tr>
-    <tr>
-      <td><a href="state.json">state.json</a></td>
-      <td>JSON Schema</td>
-      <td>Runtime state file schema (generated via schemars)</td>
-    </tr>
-    <tr>
-      <td><a href="openapi.json">openapi.json</a></td>
-      <td>OpenAPI 3.0</td>
-      <td>REST API specification (generated via utoipa)</td>
-    </tr>
-  </tbody>
-</table>
-
-<h2 id="typescript-types">TypeScript Types</h2>
-
-<p>TypeScript type definitions are available for frontend integration:</p>
+<h2 id="features">Features</h2>
 
 <ul>
-  <li><a href="/typescript/">TypeScript API Documentation</a> - Generated via TypeDoc</li>
-  <li>Source: <code class="language-plaintext highlighter-rouge">shared/types.ts</code> (generated via ts-rs)</li>
+  <li><strong>Sidebar Integration</strong>: View Queue, In Progress, and Completed tickets directly in VS Code</li>
+  <li><strong>Styled Terminals</strong>: Color-coded terminals by ticket type
+    <ul>
+      <li>FEAT (cyan, sparkle icon)</li>
+      <li>FIX (red, wrench icon)</li>
+      <li>TASK (green, tasklist icon)</li>
+      <li>SPIKE (magenta, beaker icon)</li>
+      <li>INV (yellow, search icon)</li>
+    </ul>
+  </li>
+  <li><strong>Activity Tracking</strong>: Monitors shell execution to detect idle/running states</li>
+  <li><strong>Webhook Server</strong>: Local HTTP server for Operator communication</li>
 </ul>
 
-<h2 id="regenerating-schemas">Regenerating Schemas</h2>
+<h2 id="installation">Installation</h2>
 
-<p>Schemas are auto-generated from source code. To regenerate:</p>
+<h3 id="from-marketplace-recommended">From Marketplace (Recommended)</h3>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Generate JSON schemas and TypeScript types</span>
-cargo run <span class="nt">--bin</span> generate_types
+<ol>
+  <li>Open VS Code</li>
+  <li>Go to Extensions (<code class="language-plaintext highlighter-rouge">Ctrl+Shift+X</code> / <code class="language-plaintext highlighter-rouge">Cmd+Shift+X</code>)</li>
+  <li>Search for “Operator Terminals”</li>
+  <li>Click Install</li>
+</ol>
 
-<span class="c"># Generate documentation pages</span>
-cargo run <span class="nt">--</span> docs
+<p>Or install directly: <a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank">VS Code Marketplace</a></p>
 
-<span class="c"># Generate TypeScript API docs</span>
-npm run docs:typescript
+<h3 id="manual-installation">Manual Installation</h3>
+
+<ol>
+  <li>Download the <code class="language-plaintext highlighter-rouge">.vsix</code> file from <a href="https://github.com/untra/operator/releases" target="_blank">GitHub releases</a></li>
+  <li>In VS Code, go to Extensions</li>
+  <li>Click the “…” menu</li>
+  <li>Select “Install from VSIX…”</li>
+</ol>
+
+<h2 id="configuration">Configuration</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Setting</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.webhookPort</code></td>
+      <td><code class="language-plaintext highlighter-rouge">7009</code></td>
+      <td>Port for webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.autoStart</code></td>
+      <td><code class="language-plaintext highlighter-rouge">true</code></td>
+      <td>Start server on VS Code launch</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.terminalPrefix</code></td>
+      <td><code class="language-plaintext highlighter-rouge">op-</code></td>
+      <td>Prefix for managed terminal names</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.ticketsDir</code></td>
+      <td><code class="language-plaintext highlighter-rouge">.tickets</code></td>
+      <td>Path to tickets directory</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.apiUrl</code></td>
+      <td><code class="language-plaintext highlighter-rouge">http://localhost:7008</code></td>
+      <td>Operator REST API URL</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="commands">Commands</h2>
+
+<p>Access via Command Palette (<code class="language-plaintext highlighter-rouge">Ctrl+Shift+P</code> / <code class="language-plaintext highlighter-rouge">Cmd+Shift+P</code>):</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Start Webhook Server</code></td>
+      <td>Start the webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Stop Webhook Server</code></td>
+      <td>Stop the webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Show Server Status</code></td>
+      <td>Display server status</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Launch Ticket</code></td>
+      <td>Launch a ticket in a new terminal</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Launch Ticket (with options)</code></td>
+      <td>Launch with agent/mode selection</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Download Operator</code></td>
+      <td>Download the Operator CLI</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="sidebar-views">Sidebar Views</h2>
+
+<p>The extension adds an Operator sidebar with four views:</p>
+
+<ol>
+  <li><strong>Status</strong>: Server status and connection info</li>
+  <li><strong>In Progress</strong>: Currently running agent sessions</li>
+  <li><strong>Queue</strong>: Pending tickets waiting to be launched</li>
+  <li><strong>Completed</strong>: Recently completed tickets (collapsed by default)</li>
+</ol>
+
+<h2 id="api-endpoints">API Endpoints</h2>
+
+<p>The extension exposes a local HTTP API for Operator communication:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Endpoint</th>
+      <th>Method</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /health</code></td>
+      <td>GET</td>
+      <td>Server health check</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /terminal/create</code></td>
+      <td>POST</td>
+      <td>Create a new terminal</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /terminal/:name/send</code></td>
+      <td>POST</td>
+      <td>Send command to terminal</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /terminal/:name/show</code></td>
+      <td>POST</td>
+      <td>Reveal terminal (keep focus)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /terminal/:name/focus</code></td>
+      <td>POST</td>
+      <td>Focus terminal (take focus)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">DELETE /terminal/:name/kill</code></td>
+      <td>DELETE</td>
+      <td>Dispose terminal</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /terminal/:name/exists</code></td>
+      <td>GET</td>
+      <td>Check if terminal exists</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /terminal/:name/activity</code></td>
+      <td>GET</td>
+      <td>Get idle/running state</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /terminal/list</code></td>
+      <td>GET</td>
+      <td>List all managed terminals</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="requirements">Requirements</h2>
+
+<ul>
+  <li>VS Code 1.85.0 or later</li>
+  <li>Operator CLI (for full functionality)</li>
+</ul>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="server-wont-start">Server won’t start</h3>
+
+<p>Check if another process is using the configured port:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>lsof <span class="nt">-i</span> :7009
 </code></pre></div></div>
+
+<p>Try a different port in settings: <code class="language-plaintext highlighter-rouge">operator.webhookPort</code>.</p>
+
+<h3 id="terminals-not-appearing-in-sidebar">Terminals not appearing in sidebar</h3>
+
+<ol>
+  <li>Ensure the webhook server is running (check Status view)</li>
+  <li>Verify <code class="language-plaintext highlighter-rouge">operator.ticketsDir</code> points to your tickets directory</li>
+  <li>Refresh the views using the refresh button</li>
+</ol>
 
 </article>
 

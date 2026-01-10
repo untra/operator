@@ -86,7 +86,7 @@ async function activate(context) {
     // Register TreeViews
     context.subscriptions.push(vscode.window.registerTreeDataProvider('operator-status', statusProvider), vscode.window.registerTreeDataProvider('operator-in-progress', inProgressProvider), vscode.window.registerTreeDataProvider('operator-queue', queueProvider), vscode.window.registerTreeDataProvider('operator-completed', completedProvider));
     // Register commands
-    context.subscriptions.push(vscode.commands.registerCommand('operator.startServer', startServer), vscode.commands.registerCommand('operator.stopServer', stopServer), vscode.commands.registerCommand('operator.showStatus', showStatus), vscode.commands.registerCommand('operator.refreshTickets', refreshAllProviders), vscode.commands.registerCommand('operator.focusTicket', focusTicketTerminal), vscode.commands.registerCommand('operator.openTicket', openTicketFile), vscode.commands.registerCommand('operator.launchTicket', launchTicketCommand), vscode.commands.registerCommand('operator.launchTicketWithOptions', launchTicketWithOptionsCommand), vscode.commands.registerCommand('operator.relaunchTicket', relaunchTicketCommand), vscode.commands.registerCommand('operator.launchTicketFromEditor', launchTicketFromEditorCommand), vscode.commands.registerCommand('operator.launchTicketFromEditorWithOptions', launchTicketFromEditorWithOptionsCommand));
+    context.subscriptions.push(vscode.commands.registerCommand('operator.startServer', startServer), vscode.commands.registerCommand('operator.stopServer', stopServer), vscode.commands.registerCommand('operator.showStatus', showStatus), vscode.commands.registerCommand('operator.refreshTickets', refreshAllProviders), vscode.commands.registerCommand('operator.focusTicket', focusTicketTerminal), vscode.commands.registerCommand('operator.openTicket', openTicketFile), vscode.commands.registerCommand('operator.launchTicket', launchTicketCommand), vscode.commands.registerCommand('operator.launchTicketWithOptions', launchTicketWithOptionsCommand), vscode.commands.registerCommand('operator.relaunchTicket', relaunchTicketCommand), vscode.commands.registerCommand('operator.launchTicketFromEditor', launchTicketFromEditorCommand), vscode.commands.registerCommand('operator.launchTicketFromEditorWithOptions', launchTicketFromEditorWithOptionsCommand), vscode.commands.registerCommand('operator.downloadOperator', downloadOperatorCommand));
     // Find tickets directory (check parent first, then workspace)
     currentTicketsDir = await findParentTicketsDir();
     await setTicketsDir(currentTicketsDir);
@@ -469,6 +469,12 @@ async function launchTicketFromEditorWithOptionsCommand() {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         vscode.window.showErrorMessage(`Failed to launch: ${msg}`);
     }
+}
+/**
+ * Command: Open Operator download page
+ */
+function downloadOperatorCommand() {
+    vscode.env.openExternal(vscode.Uri.parse('https://operator.untra.io/downloads/'));
 }
 /**
  * Extension deactivation

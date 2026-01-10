@@ -40,7 +40,34 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OperatorApiClient = void 0;
+exports.discoverApiUrl = discoverApiUrl;
 const vscode = __importStar(require("vscode"));
+const fs = __importStar(require("fs/promises"));
+const path = __importStar(require("path"));
+/**
+ * Discover Operator API URL from session file or configuration
+ *
+ * Checks in order:
+ * 1. .tickets/operator/api-session.json (written by running Operator)
+ * 2. VSCode configuration operator.apiUrl
+ */
+async function discoverApiUrl(ticketsDir) {
+    // Try to read api-session.json from tickets directory
+    if (ticketsDir) {
+        const sessionFile = path.join(ticketsDir, 'operator', 'api-session.json');
+        try {
+            const content = await fs.readFile(sessionFile, 'utf-8');
+            const session = JSON.parse(content);
+            return `http://localhost:${session.port}`;
+        }
+        catch {
+            // Session file doesn't exist or is invalid, fall through
+        }
+    }
+    // Fall back to configured URL
+    const config = vscode.workspace.getConfiguration('operator');
+    return config.get('apiUrl', 'http://localhost:7008');
+}
 /**
  * Client for the Operator REST API
  */

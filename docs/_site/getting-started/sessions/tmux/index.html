@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Schema Reference | Operator! Documentation</title>
-  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+  <title>Tmux Sessions | Operator! Documentation</title>
+  <meta name="description" content="Terminal multiplexer integration with custom config, color theme, status bar, and key bindings.">
 
   <link rel="icon" type="image/png" href="/assets/patricia_512.png">
   <link rel="apple-touch-icon" href="/assets/patricia_512.png">
@@ -24,21 +24,21 @@
   <link rel="stylesheet" href="/assets/css/syntax.css">
 
   <!-- Begin Jekyll SEO tag v2.8.0 -->
-<title>Schema Reference | Operator! Documentation</title>
+<title>Tmux Sessions | Operator! Documentation</title>
 <meta name="generator" content="Jekyll v4.4.1" />
-<meta property="og:title" content="Schema Reference" />
+<meta property="og:title" content="Tmux Sessions" />
 <meta property="og:locale" content="en_US" />
-<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
-<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
-<link rel="canonical" href="https://operator.untra.io/schemas/" />
-<meta property="og:url" content="https://operator.untra.io/schemas/" />
+<meta name="description" content="Terminal multiplexer integration with custom config, color theme, status bar, and key bindings." />
+<meta property="og:description" content="Terminal multiplexer integration with custom config, color theme, status bar, and key bindings." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/sessions/tmux/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/sessions/tmux/" />
 <meta property="og:site_name" content="Operator! Documentation" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary" />
-<meta property="twitter:title" content="Schema Reference" />
+<meta property="twitter:title" content="Tmux Sessions" />
 <meta name="twitter:site" content="@" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Schema Reference","url":"https://operator.untra.io/schemas/"}</script>
+{"@context":"https://schema.org","@type":"WebPage","description":"Terminal multiplexer integration with custom config, color theme, status bar, and key bindings.","headline":"Tmux Sessions","url":"https://operator.untra.io/getting-started/sessions/tmux/"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -62,7 +62,7 @@
     <li class="nav-section">
       
       
-      <details >
+      <details open>
         <summary class="nav-parent">Getting Started</summary>
         <ul class="nav-children">
           
@@ -172,12 +172,13 @@
             
             
             
-            <details >
+            <details open>
               <summary><a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a></summary>
               <ul class="nav-grandchildren">
                 
                 <li>
-                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/tmux-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/tmux-dark.svg" alt="" width="16" height="16"></span>tmux</a>
+                  <a href="/getting-started/sessions/tmux/" class="active"
+                    ><span class="nav-icon"><img class="icon-light" src="/assets/icons/tmux-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/tmux-dark.svg" alt="" width="16" height="16"></span>tmux</a>
                 </li>
                 
                 <li>
@@ -231,7 +232,7 @@
     <li class="nav-section">
       
       
-      <details open>
+      <details >
         <summary class="nav-parent">Reference</summary>
         <ul class="nav-children">
           
@@ -280,13 +281,12 @@
             
             
             
-            <details open>
+            <details >
               <summary>Schemas</summary>
               <ul class="nav-grandchildren">
                 
                 <li>
-                  <a href="/schemas/" class="active"
-                    >Overview</a>
+                  <a href="/schemas/" >Overview</a>
                 </li>
                 
                 <li>
@@ -327,7 +327,7 @@
 
   <div class="sidebar-footer">
     <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
-        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/schemas/index.md"><small>View this page
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/sessions/tmux/index.md"><small>View this page
           source on Github</small></a></div></p>
     <p></p>
     <div><small class="sidebar-nav-item">Currently v0.1.12</small> |
@@ -343,104 +343,156 @@
   <main class="content">
     <article class="doc">
   
-  <h1 class="doc-title">Schema Reference</h1>
+  <h1 class="doc-title">Tmux Sessions</h1>
   
 
-  <!-- AUTO-GENERATED FROM docs/schemas/ - DO NOT EDIT MANUALLY -->
-<!-- Regenerate with: cargo run -- docs -->
+  <p>Operator uses <a href="https://github.com/tmux/tmux/wiki" target="_blank"><strong>tmux</strong></a> for terminal session management, providing a customized experience for managing multiple LLM tool agent sessions from a single terminal.</p>
 
-<h1 id="schema-reference">Schema Reference</h1>
+<h2 id="what-is-tmux">What is <code class="language-plaintext highlighter-rouge">tmux</code>?</h2>
 
-<p>This section documents all JSON schemas and type definitions used by Operator.</p>
+<p>tmux is a program which runs in a terminal and allows multiple other terminal programs to be run inside it. Each program inside tmux gets its own terminal managed by tmux, which can be accessed from the single terminal where tmux is running - this called multiplexing and tmux is a terminal multiplexer.</p>
 
-<h2 id="documentation">Documentation</h2>
+<p>tmux - and any programs running inside it - may be detached from the terminal where it is running (the outside terminal) and later reattached to the same or another terminal.</p>
 
-<p>Human-readable documentation for each schema:</p>
+<p><strong>Operator!</strong> uses tmux to start llm sessions in, so that those sessions can be attached when the llms await input, and detach once work is delegated to.</p>
 
-<table>
-  <thead>
-    <tr>
-      <th>Schema</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><a href="config/">Configuration</a></td>
-      <td>Structure of <code class="language-plaintext highlighter-rouge">config.toml</code> - agents, paths, UI, notifications, and integrations</td>
-    </tr>
-    <tr>
-      <td><a href="state/">Application State</a></td>
-      <td>Runtime state file (<code class="language-plaintext highlighter-rouge">state.json</code>) - active agents, completed tickets, system status</td>
-    </tr>
-    <tr>
-      <td><a href="issuetype/">Issue Type</a></td>
-      <td>Issue type template format - fields, steps, permissions, and workflows</td>
-    </tr>
-    <tr>
-      <td><a href="metadata/">Ticket Metadata</a></td>
-      <td>Ticket YAML frontmatter - status, priority, sessions, and LLM task tracking</td>
-    </tr>
-    <tr>
-      <td><a href="api/">REST API</a></td>
-      <td>Interactive OpenAPI documentation with Swagger UI</td>
-    </tr>
-  </tbody>
-</table>
+<h2 id="custom-configuration">Custom Configuration</h2>
 
-<h2 id="raw-json-schemas">Raw JSON Schemas</h2>
-
-<p>Machine-readable JSON Schema files for validation and code generation:</p>
-
-<table>
-  <thead>
-    <tr>
-      <th>File</th>
-      <th>Format</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><a href="config.json">config.json</a></td>
-      <td>JSON Schema</td>
-      <td>Configuration file schema (generated via schemars)</td>
-    </tr>
-    <tr>
-      <td><a href="state.json">state.json</a></td>
-      <td>JSON Schema</td>
-      <td>Runtime state file schema (generated via schemars)</td>
-    </tr>
-    <tr>
-      <td><a href="openapi.json">openapi.json</a></td>
-      <td>OpenAPI 3.0</td>
-      <td>REST API specification (generated via utoipa)</td>
-    </tr>
-  </tbody>
-</table>
-
-<h2 id="typescript-types">TypeScript Types</h2>
-
-<p>TypeScript type definitions are available for frontend integration:</p>
+<p><span class="operator-brand">Operator!</span> generates a custom <code class="language-plaintext highlighter-rouge">.tmux.conf</code> for managed sessions with:</p>
 
 <ul>
-  <li><a href="/typescript/">TypeScript API Documentation</a> - Generated via TypeDoc</li>
-  <li>Source: <code class="language-plaintext highlighter-rouge">shared/types.ts</code> (generated via ts-rs)</li>
+  <li>Easy detach binding (Ctrl+a)</li>
+  <li>Increased scrollback</li>
+  <li>Custom status bar with agent stats to nudge ya</li>
+  <li><span class="operator-brand">Operator!</span> centric color theme</li>
 </ul>
 
-<h2 id="regenerating-schemas">Regenerating Schemas</h2>
+<h2 id="color-theme">Color Theme</h2>
 
-<p>Schemas are auto-generated from source code. To regenerate:</p>
+<p>The tmux theme uses <span class="operator-brand">Operator!’s</span> salmon-based palette:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Generate JSON schemas and TypeScript types</span>
-cargo run <span class="nt">--bin</span> generate_types
+<table>
+  <thead>
+    <tr>
+      <th>Element</th>
+      <th>Color</th>
+      <th>Hex</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Background</td>
+      <td>Salmon</td>
+      <td><code class="language-plaintext highlighter-rouge">#cc6c55</code></td>
+    </tr>
+    <tr>
+      <td>Primary text</td>
+      <td>Dark teal</td>
+      <td><code class="language-plaintext highlighter-rouge">#114145</code></td>
+    </tr>
+    <tr>
+      <td>Muted text</td>
+      <td>Darker salmon</td>
+      <td><code class="language-plaintext highlighter-rouge">#8a4a3a</code></td>
+    </tr>
+    <tr>
+      <td>Accent</td>
+      <td>Tan/cream</td>
+      <td><code class="language-plaintext highlighter-rouge">#f4dbb7</code></td>
+    </tr>
+    <tr>
+      <td>Warning</td>
+      <td>Red/coral</td>
+      <td><code class="language-plaintext highlighter-rouge">#d46048</code></td>
+    </tr>
+  </tbody>
+</table>
 
-<span class="c"># Generate documentation pages</span>
-cargo run <span class="nt">--</span> docs
+<h2 id="status-bar">Status Bar</h2>
 
-<span class="c"># Generate TypeScript API docs</span>
-npm run docs:typescript
+<p>The status bar shows:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>op:SESSION | 1:window  | 3 agents | 14:30
 </code></pre></div></div>
+
+<h3 id="agent-display">Agent Display</h3>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">3 agents</code> - All agents running</li>
+  <li><code class="language-plaintext highlighter-rouge">2/1 agents</code> - 2 running, 1 awaiting input</li>
+  <li><code class="language-plaintext highlighter-rouge">PAUSED</code> - Queue is paused</li>
+</ul>
+
+<h2 id="key-bindings">Key Bindings</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Binding</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Ctrl+a</code></td>
+      <td>Detach from session</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Ctrl+b</code> (prefix)</td>
+      <td>Standard tmux prefix</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="configuration-file">Configuration File</h2>
+
+<p>The generated config includes:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Operator custom tmux configuration</span>
+
+<span class="c"># Easy detach: Ctrl+a (no prefix needed!)</span>
+bind-key <span class="nt">-n</span> C-a detach-client
+
+<span class="c"># Increase scrollback buffer</span>
+<span class="nb">set</span> <span class="nt">-g</span> history-limit 10000
+
+<span class="c"># Status bar colors (Operator theme)</span>
+<span class="nb">set</span> <span class="nt">-g</span> status-style <span class="s2">"bg=#cc6c55,fg=#114145"</span>
+
+<span class="c"># Left: session name</span>
+<span class="nb">set</span> <span class="nt">-g</span> status-left <span class="s2">"#[fg=#f4dbb7,bold] op:#S #[fg=#8a4a3a]| "</span>
+
+<span class="c"># Right: operator stats + time</span>
+<span class="nb">set</span> <span class="nt">-g</span> status-right <span class="s2">"#[fg=#8a4a3a]| #(status-script) | %H:%M"</span>
+</code></pre></div></div>
+
+<h2 id="status-script">Status Script</h2>
+
+<p>The status script reads <code class="language-plaintext highlighter-rouge">state.json</code> and outputs:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash</span>
+<span class="nv">STATE_FILE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$1</span><span class="s2">"</span>
+
+<span class="k">if </span><span class="nb">command</span> <span class="nt">-v</span> jq &amp;&gt; /dev/null<span class="p">;</span> <span class="k">then
+    </span><span class="nv">RUNNING</span><span class="o">=</span><span class="si">$(</span>jq <span class="s1">'[.agents[] | select(.status == "running")] | length'</span> <span class="s2">"</span><span class="nv">$STATE_FILE</span><span class="s2">"</span><span class="si">)</span>
+    <span class="nv">AWAITING</span><span class="o">=</span><span class="si">$(</span>jq <span class="s1">'[.agents[] | select(.status == "awaiting_input")] | length'</span> <span class="s2">"</span><span class="nv">$STATE_FILE</span><span class="s2">"</span><span class="si">)</span>
+<span class="k">fi
+
+if</span> <span class="o">[</span> <span class="s2">"</span><span class="nv">$AWAITING</span><span class="s2">"</span> <span class="nt">-gt</span> 0 <span class="o">]</span><span class="p">;</span> <span class="k">then
+    </span><span class="nb">echo</span> <span class="s2">"</span><span class="nv">$RUNNING</span><span class="s2">/</span><span class="nv">$AWAITING</span><span class="s2"> agents"</span>
+<span class="k">else
+    </span><span class="nb">echo</span> <span class="s2">"</span><span class="nv">$RUNNING</span><span class="s2"> agents"</span>
+<span class="k">fi</span>
+</code></pre></div></div>
+
+<h2 id="best-practices">Best Practices</h2>
+
+<ol>
+  <li><strong>Use Ctrl+a to detach</strong> - Quick detach without prefix</li>
+  <li><strong>Check status bar</strong> - Monitor agent count at a glance</li>
+  <li><strong>Scroll history</strong> - Use mouse or vi keys in copy mode</li>
+  <li><strong>Multiple windows</strong> - Organize by project or task</li>
+</ol>
 
 </article>
 

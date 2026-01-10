@@ -95,6 +95,10 @@ export async function activate(
     vscode.commands.registerCommand(
       'operator.launchTicketFromEditorWithOptions',
       launchTicketFromEditorWithOptionsCommand
+    ),
+    vscode.commands.registerCommand(
+      'operator.downloadOperator',
+      downloadOperatorCommand
     )
   );
 
@@ -549,6 +553,15 @@ async function launchTicketFromEditorWithOptionsCommand(): Promise<void> {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     vscode.window.showErrorMessage(`Failed to launch: ${msg}`);
   }
+}
+
+/**
+ * Command: Open Operator download page
+ */
+function downloadOperatorCommand(): void {
+  vscode.env.openExternal(
+    vscode.Uri.parse('https://operator.untra.io/downloads/')
+  );
 }
 
 /**

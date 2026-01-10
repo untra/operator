@@ -3,7 +3,7 @@
  * Status TreeDataProvider for Operator VS Code extension
  *
  * Displays Operator connection status and session information.
- * Checks for vscode-session.json to determine if Operator is running.
+ * Checks for vscode-session.json (webhook) and api-session.json (API).
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -43,60 +43,130 @@ exports.StatusTreeProvider = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs/promises"));
+const api_client_1 = require("./api-client");
 /**
  * TreeDataProvider for status information
  */
 class StatusTreeProvider {
     _onDidChangeTreeData = new vscode.EventEmitter();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
-    status = { running: false };
+    webhookStatus = { running: false };
+    apiStatus = { connected: false };
     ticketsDir;
     async setTicketsDir(dir) {
         this.ticketsDir = dir;
         await this.refresh();
     }
     async refresh() {
+        // Check webhook status (requires ticketsDir for session file)
+        await this.checkWebhookStatus();
+        // Always check API status, even without ticketsDir
+        await this.checkApiStatus();
+        this._onDidChangeTreeData.fire(undefined);
+    }
+    /**
+     * Check webhook server status via session file
+     * Requires ticketsDir since the webhook writes to .tickets/operator/vscode-session.json
+     */
+    async checkWebhookStatus() {
         if (!this.ticketsDir) {
-            this.status = { running: false };
-            this._onDidChangeTreeData.fire(undefined);
+            this.webhookStatus = { running: false };
             return;
         }
-        // Check for vscode-session.json in .tickets/operator/
-        const sessionFile = path.join(this.ticketsDir, 'operator', 'vscode-session.json');
+        const webhookSessionFile = path.join(this.ticketsDir, 'operator', 'vscode-session.json');
         try {
-            const content = await fs.readFile(sessionFile, 'utf-8');
+            const content = await fs.readFile(webhookSessionFile, 'utf-8');
             const session = JSON.parse(content);
-            // Session file exists - server is running
-            this.status = {
+            this.webhookStatus = {
                 running: true,
                 version: session.version,
                 port: session.port,
                 workspace: session.workspace,
-                sessionFile,
+                sessionFile: webhookSessionFile,
             };
         }
         catch {
-            this.status = { running: false };
+            this.webhookStatus = { running: false };
         }
-        this._onDidChangeTreeData.fire(undefined);
+    }
+    /**
+     * Check API status - tries session file first, then falls back to configured URL
+     * Works even without ticketsDir by using the configured apiUrl
+     */
+    async checkApiStatus() {
+        // Try session file first if ticketsDir exists
+        if (this.ticketsDir) {
+            const apiSessionFile = path.join(this.ticketsDir, 'operator', 'api-session.json');
+            try {
+                const content = await fs.readFile(apiSessionFile, 'utf-8');
+                const session = JSON.parse(content);
+                const apiUrl = `http://localhost:${session.port}`;
+                if (await this.tryHealthCheck(apiUrl, session.version)) {
+                    return;
+                }
+            }
+            catch {
+                // Session file doesn't exist or is invalid, fall through to configured URL
+            }
+        }
+        // Always try configured URL as fallback (works without ticketsDir)
+        const apiUrl = await (0, api_client_1.discoverApiUrl)(this.ticketsDir);
+        await this.tryHealthCheck(apiUrl);
+    }
+    /**
+     * Attempt a health check against the given API URL
+     * Returns true if successful, false otherwise
+     */
+    async tryHealthCheck(apiUrl, sessionVersion) {
+        try {
+            const response = await fetch(`${apiUrl}/api/v1/health`);
+            if (response.ok) {
+                const health = await response.json();
+                const port = new URL(apiUrl).port;
+                this.apiStatus = {
+                    connected: true,
+                    version: health.version || sessionVersion,
+                    port: port ? parseInt(port, 10) : 7008,
+                    url: apiUrl,
+                };
+                return true;
+            }
+        }
+        catch {
+            // Health check failed
+        }
+        this.apiStatus = { connected: false };
+        return false;
     }
     getTreeItem(element) {
         return element;
     }
     getChildren() {
         const items = [];
-        if (this.status.running) {
-            items.push(new StatusItem('Status', 'Connected', 'pass', 'Webhook server is running'));
-            if (this.status.version) {
-                items.push(new StatusItem('Version', this.status.version, 'versions'));
+        // REST API status
+        if (this.apiStatus.connected) {
+            items.push(new StatusItem('API', 'Connected', 'pass', `Operator REST API at ${this.apiStatus.url}`));
+            if (this.apiStatus.version) {
+                items.push(new StatusItem('API Version', this.apiStatus.version, 'versions'));
             }
-            if (this.status.port) {
-                items.push(new StatusItem('Port', this.status.port.toString(), 'plug'));
+            if (this.apiStatus.port) {
+                items.push(new StatusItem('API Port', this.apiStatus.port.toString(), 'plug'));
             }
         }
         else {
-            items.push(new StatusItem('Status', 'Disconnected', 'error', 'Webhook server not running'));
+            items.push(new StatusItem('API', 'Disconnected', 'error', 'Operator REST API not running. Use "Operator: Download Operator" command if not installed.'));
         }
+        // Webhook server status
+        if (this.webhookStatus.running) {
+            items.push(new StatusItem('Webhook', 'Running', 'pass', 'Local webhook server for terminal management'));
+            if (this.webhookStatus.port) {
+                items.push(new StatusItem('Webhook Port', this.webhookStatus.port.toString(), 'plug'));
+            }
+        }
+        else {
+            items.push(new StatusItem('Webhook', 'Stopped', 'circle-slash', 'Local webhook server not running'));
+        }
+        // Tickets directory
         if (this.ticketsDir) {
             items.push(new StatusItem('Tickets', path.basename(this.ticketsDir), 'folder'));
         }

@@ -2,23 +2,34 @@
  * Status TreeDataProvider for Operator VS Code extension
  *
  * Displays Operator connection status and session information.
- * Checks for vscode-session.json to determine if Operator is running.
+ * Checks for vscode-session.json (webhook) and api-session.json (API).
  */
 
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { SessionInfo } from './types';
+import { discoverApiUrl, ApiSessionInfo } from './api-client';
 
 /**
- * Operator connection status
+ * Webhook server connection status
  */
-export interface OperatorStatus {
+export interface WebhookStatus {
   running: boolean;
   version?: string;
   port?: number;
   workspace?: string;
   sessionFile?: string;
+}
+
+/**
+ * Operator REST API connection status
+ */
+export interface ApiStatus {
+  connected: boolean;
+  version?: string;
+  port?: number;
+  url?: string;
 }
 
 /**
@@ -30,7 +41,8 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   >();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  private status: OperatorStatus = { running: false };
+  private webhookStatus: WebhookStatus = { running: false };
+  private apiStatus: ApiStatus = { connected: false };
   private ticketsDir: string | undefined;
 
   async setTicketsDir(dir: string | undefined): Promise<void> {
@@ -39,31 +51,91 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   }
 
   async refresh(): Promise<void> {
+    // Check webhook status (requires ticketsDir for session file)
+    await this.checkWebhookStatus();
+
+    // Always check API status, even without ticketsDir
+    await this.checkApiStatus();
+
+    this._onDidChangeTreeData.fire(undefined);
+  }
+
+  /**
+   * Check webhook server status via session file
+   * Requires ticketsDir since the webhook writes to .tickets/operator/vscode-session.json
+   */
+  private async checkWebhookStatus(): Promise<void> {
     if (!this.ticketsDir) {
-      this.status = { running: false };
-      this._onDidChangeTreeData.fire(undefined);
+      this.webhookStatus = { running: false };
       return;
     }
 
-    // Check for vscode-session.json in .tickets/operator/
-    const sessionFile = path.join(this.ticketsDir, 'operator', 'vscode-session.json');
+    const webhookSessionFile = path.join(this.ticketsDir, 'operator', 'vscode-session.json');
     try {
-      const content = await fs.readFile(sessionFile, 'utf-8');
+      const content = await fs.readFile(webhookSessionFile, 'utf-8');
       const session: SessionInfo = JSON.parse(content);
 
-      // Session file exists - server is running
-      this.status = {
+      this.webhookStatus = {
         running: true,
         version: session.version,
         port: session.port,
         workspace: session.workspace,
-        sessionFile,
+        sessionFile: webhookSessionFile,
       };
     } catch {
-      this.status = { running: false };
+      this.webhookStatus = { running: false };
+    }
+  }
+
+  /**
+   * Check API status - tries session file first, then falls back to configured URL
+   * Works even without ticketsDir by using the configured apiUrl
+   */
+  private async checkApiStatus(): Promise<void> {
+    // Try session file first if ticketsDir exists
+    if (this.ticketsDir) {
+      const apiSessionFile = path.join(this.ticketsDir, 'operator', 'api-session.json');
+      try {
+        const content = await fs.readFile(apiSessionFile, 'utf-8');
+        const session: ApiSessionInfo = JSON.parse(content);
+        const apiUrl = `http://localhost:${session.port}`;
+
+        if (await this.tryHealthCheck(apiUrl, session.version)) {
+          return;
+        }
+      } catch {
+        // Session file doesn't exist or is invalid, fall through to configured URL
+      }
     }
 
-    this._onDidChangeTreeData.fire(undefined);
+    // Always try configured URL as fallback (works without ticketsDir)
+    const apiUrl = await discoverApiUrl(this.ticketsDir);
+    await this.tryHealthCheck(apiUrl);
+  }
+
+  /**
+   * Attempt a health check against the given API URL
+   * Returns true if successful, false otherwise
+   */
+  private async tryHealthCheck(apiUrl: string, sessionVersion?: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${apiUrl}/api/v1/health`);
+      if (response.ok) {
+        const health = await response.json() as { version?: string };
+        const port = new URL(apiUrl).port;
+        this.apiStatus = {
+          connected: true,
+          version: health.version || sessionVersion,
+          port: port ? parseInt(port, 10) : 7008,
+          url: apiUrl,
+        };
+        return true;
+      }
+    } catch {
+      // Health check failed
+    }
+    this.apiStatus = { connected: false };
+    return false;
   }
 
   getTreeItem(element: StatusItem): vscode.TreeItem {
@@ -73,31 +145,54 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   getChildren(): StatusItem[] {
     const items: StatusItem[] = [];
 
-    if (this.status.running) {
+    // REST API status
+    if (this.apiStatus.connected) {
       items.push(
-        new StatusItem('Status', 'Connected', 'pass', 'Webhook server is running')
+        new StatusItem('API', 'Connected', 'pass', `Operator REST API at ${this.apiStatus.url}`)
       );
-      if (this.status.version) {
+      if (this.apiStatus.version) {
         items.push(
-          new StatusItem('Version', this.status.version, 'versions')
+          new StatusItem('API Version', this.apiStatus.version, 'versions')
         );
       }
-      if (this.status.port) {
+      if (this.apiStatus.port) {
         items.push(
-          new StatusItem('Port', this.status.port.toString(), 'plug')
+          new StatusItem('API Port', this.apiStatus.port.toString(), 'plug')
         );
       }
     } else {
       items.push(
         new StatusItem(
-          'Status',
+          'API',
           'Disconnected',
           'error',
-          'Webhook server not running'
+          'Operator REST API not running. Use "Operator: Download Operator" command if not installed.'
         )
       );
     }
 
+    // Webhook server status
+    if (this.webhookStatus.running) {
+      items.push(
+        new StatusItem('Webhook', 'Running', 'pass', 'Local webhook server for terminal management')
+      );
+      if (this.webhookStatus.port) {
+        items.push(
+          new StatusItem('Webhook Port', this.webhookStatus.port.toString(), 'plug')
+        );
+      }
+    } else {
+      items.push(
+        new StatusItem(
+          'Webhook',
+          'Stopped',
+          'circle-slash',
+          'Local webhook server not running'
+        )
+      );
+    }
+
+    // Tickets directory
     if (this.ticketsDir) {
       items.push(
         new StatusItem('Tickets', path.basename(this.ticketsDir), 'folder')

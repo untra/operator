@@ -11,7 +11,8 @@ use axum::{
     Router,
 };
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::trace::TraceLayer;
+use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use tracing::Level;
 
 pub mod dto;
 pub mod error;
@@ -21,7 +22,7 @@ pub mod server;
 pub mod state;
 
 pub use openapi::ApiDoc;
-pub use server::{RestApiServer, RestApiStatus};
+pub use server::{ApiSessionInfo, RestApiServer, RestApiStatus};
 pub use state::ApiState;
 
 /// Default port for the REST API server
@@ -82,22 +83,98 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/tickets/:id/launch",
             post(routes::launch::launch_ticket),
         )
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http()
+                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO)),
+        )
         .layer(cors)
         .with_state(state)
 }
 
-/// Start the REST API server
+/// Start the REST API server (standalone mode with session file and logging)
 pub async fn serve(state: ApiState, port: u16) -> Result<()> {
+    let tickets_path = state.tickets_path.clone();
     let app = build_router(state);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
     tracing::info!("REST API listening on http://{}", addr);
 
+    // Write session file for client discovery
+    write_session_file(&tickets_path, port)?;
+
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+
+    // Serve with graceful shutdown
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
+
+    // Clean up session file on shutdown
+    remove_session_file(&tickets_path);
 
     Ok(())
+}
+
+/// Write API session file for client discovery (standalone mode)
+fn write_session_file(tickets_path: &std::path::Path, port: u16) -> Result<()> {
+    let operator_dir = tickets_path.join("operator");
+    std::fs::create_dir_all(&operator_dir)?;
+
+    let session_file = operator_dir.join("api-session.json");
+    let session = ApiSessionInfo {
+        port,
+        pid: std::process::id(),
+        started_at: chrono::Utc::now().to_rfc3339(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+    };
+
+    let json = serde_json::to_string_pretty(&session)?;
+    std::fs::write(&session_file, json)?;
+
+    println!("Session file: {}", session_file.display());
+    Ok(())
+}
+
+/// Remove API session file on shutdown (standalone mode)
+fn remove_session_file(tickets_path: &std::path::Path) {
+    let session_file = tickets_path.join("operator").join("api-session.json");
+    if session_file.exists() {
+        if let Err(e) = std::fs::remove_file(&session_file) {
+            tracing::warn!(error = %e, "Failed to remove API session file");
+        } else {
+            println!("Cleaned up session file");
+        }
+    }
+}
+
+/// Shutdown signal handler for graceful termination
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            println!("\nReceived Ctrl+C, shutting down...");
+        },
+        _ = terminate => {
+            println!("\nReceived terminate signal, shutting down...");
+        },
+    }
 }
 
 #[cfg(test)]

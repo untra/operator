@@ -252,18 +252,6 @@ mod tests {
     }
 
     #[test]
-    fn test_ticket_type_serialization() {
-        assert_eq!(
-            serde_json::to_string(&VsCodeTicketType::Feat).unwrap(),
-            "\"FEAT\""
-        );
-        assert_eq!(
-            serde_json::to_string(&VsCodeTicketType::Fix).unwrap(),
-            "\"FIX\""
-        );
-    }
-
-    #[test]
     fn test_ticket_status_serialization() {
         assert_eq!(
             serde_json::to_string(&VsCodeTicketStatus::InProgress).unwrap(),

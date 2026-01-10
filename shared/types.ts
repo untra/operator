@@ -944,8 +944,6 @@ export type VsCodeErrorResponse = {
  */
 error: string, };
 
-export type VsCodeTicketType = "FEAT" | "FIX" | "TASK" | "SPIKE" | "INV";
-
 export type VsCodeTicketStatus = "in-progress" | "queue" | "completed";
 
 export type VsCodeTicketInfo = { 

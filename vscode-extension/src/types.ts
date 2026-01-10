@@ -7,7 +7,6 @@
  */
 
 // TicketType is now a dynamic string (any uppercase key like "FEAT", "BUG", "CUSTOM")
-// This replaces the former hardcoded VsCodeTicketType enum
 export type TicketType = string;
 
 // Re-export generated types with original names for backwards compatibility

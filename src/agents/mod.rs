@@ -55,5 +55,5 @@ pub use vscode_types::{
     VsCodeHealthResponse, VsCodeLaunchOptions, VsCodeListResponse, VsCodeModelOption,
     VsCodeSendCommandRequest, VsCodeSessionInfo, VsCodeSuccessResponse,
     VsCodeTerminalCreateOptions, VsCodeTerminalState, VsCodeTicketInfo, VsCodeTicketMetadata,
-    VsCodeTicketStatus, VsCodeTicketType,
+    VsCodeTicketStatus,
 };

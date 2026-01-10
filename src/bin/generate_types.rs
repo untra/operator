@@ -22,7 +22,7 @@ use operator::agents::{
     VsCodeHealthResponse, VsCodeLaunchOptions, VsCodeListResponse, VsCodeModelOption,
     VsCodeSendCommandRequest, VsCodeSessionInfo, VsCodeSuccessResponse,
     VsCodeTerminalCreateOptions, VsCodeTerminalState, VsCodeTicketInfo, VsCodeTicketMetadata,
-    VsCodeTicketStatus, VsCodeTicketType,
+    VsCodeTicketStatus,
 };
 use operator::api::providers::kanban::{
     JiraAvatarUrls, JiraDescription, JiraIssue, JiraIssueFields, JiraIssueTypeRef, JiraPriority,
@@ -158,7 +158,6 @@ fn generate_typescript() -> String {
         VsCodeActivityResponse::decl(),
         VsCodeListResponse::decl(),
         VsCodeErrorResponse::decl(),
-        VsCodeTicketType::decl(),
         VsCodeTicketStatus::decl(),
         VsCodeTicketInfo::decl(),
         VsCodeModelOption::decl(),

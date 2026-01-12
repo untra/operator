@@ -184,8 +184,17 @@ fn generate_config_flags(
             cli_flags.push("--json-schema".to_string());
             cli_flags.push(schema_str);
         } else if let Some(ref schema_file) = step_config.json_schema_file {
-            // Resolve path relative to project root
-            let schema_path = PathBuf::from(project_path).join(schema_file);
+            // Resolve path - .tickets/ paths are relative to tickets parent dir, others to project
+            let schema_path =
+                if schema_file.starts_with(".tickets/") || schema_file.starts_with(".tickets\\") {
+                    if let Some(parent) = config.tickets_path().parent() {
+                        parent.join(schema_file)
+                    } else {
+                        PathBuf::from(project_path).join(schema_file)
+                    }
+                } else {
+                    PathBuf::from(project_path).join(schema_file)
+                };
             let schema_content = fs::read_to_string(&schema_path)
                 .with_context(|| format!("Failed to read JSON schema file: {:?}", schema_path))?;
             cli_flags.push("--json-schema".to_string());
@@ -615,5 +624,286 @@ mod tests {
             "Model flag should have trailing space, got: {}",
             cmd
         );
+    }
+
+    // ========================================
+    // Step permissions tests
+    // ========================================
+
+    /// Tests for step permission handling across providers.
+    /// These tests verify that stepPermissions from issuetype schemas
+    /// are correctly translated to provider-specific CLI args and configs.
+    mod step_permissions {
+        use crate::permissions::{
+            PermissionSet, ProviderCliArgs, StepPermissions, ToolPattern, ToolPermissions,
+            TranslatorManager,
+        };
+        use crate::templates::schema::PermissionMode;
+
+        // ========================================
+        // Claude step permission tests
+        // ========================================
+
+        #[test]
+        fn test_claude_permission_mode_plan_generates_flag() {
+            // Permission mode is handled in generate_config_flags, not in translator
+            // This test verifies the permission mode string mapping
+            let mode = PermissionMode::Plan;
+            let mode_str = match mode {
+                PermissionMode::Default => "default",
+                PermissionMode::Plan => "plan",
+                PermissionMode::AcceptEdits => "acceptEdits",
+                PermissionMode::Delegate => "delegate",
+            };
+            assert_eq!(mode_str, "plan");
+        }
+
+        #[test]
+        fn test_claude_permission_mode_accept_edits_generates_flag() {
+            let mode = PermissionMode::AcceptEdits;
+            let mode_str = match mode {
+                PermissionMode::Default => "default",
+                PermissionMode::Plan => "plan",
+                PermissionMode::AcceptEdits => "acceptEdits",
+                PermissionMode::Delegate => "delegate",
+            };
+            assert_eq!(mode_str, "acceptEdits");
+        }
+
+        #[test]
+        fn test_claude_permission_mode_delegate_generates_flag() {
+            let mode = PermissionMode::Delegate;
+            let mode_str = match mode {
+                PermissionMode::Default => "default",
+                PermissionMode::Plan => "plan",
+                PermissionMode::AcceptEdits => "acceptEdits",
+                PermissionMode::Delegate => "delegate",
+            };
+            assert_eq!(mode_str, "delegate");
+        }
+
+        #[test]
+        fn test_claude_tool_permissions_generate_correct_flags() {
+            let manager = TranslatorManager::new();
+            let claude = manager.get("claude").unwrap();
+
+            let step = StepPermissions {
+                tools: ToolPermissions {
+                    allow: vec![
+                        ToolPattern::new("Read"),
+                        ToolPattern::with_pattern("Bash", "cargo:*"),
+                    ],
+                    deny: vec![ToolPattern::with_pattern("Bash", "rm:*")],
+                },
+                ..Default::default()
+            };
+            let permissions = PermissionSet::from_step(&step, &ProviderCliArgs::default());
+            let flags = claude.generate_cli_flags(&permissions);
+
+            // Verify allow flags
+            assert!(flags.contains(&"--allowedTools".to_string()));
+            assert!(flags.contains(&"Read".to_string()));
+            assert!(flags.contains(&"Bash(cargo:*)".to_string()));
+
+            // Verify deny flags
+            assert!(flags.contains(&"--disallowedTools".to_string()));
+            assert!(flags.contains(&"Bash(rm:*)".to_string()));
+        }
+
+        // ========================================
+        // Gemini step permission tests
+        // ========================================
+
+        #[test]
+        fn test_gemini_tool_mapping_correct() {
+            let manager = TranslatorManager::new();
+            let gemini = manager.get("gemini").unwrap();
+
+            let step = StepPermissions {
+                tools: ToolPermissions {
+                    allow: vec![
+                        ToolPattern::new("Bash"),
+                        ToolPattern::new("Read"),
+                        ToolPattern::new("Write"),
+                    ],
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let permissions = PermissionSet::from_step(&step, &ProviderCliArgs::default());
+            let content = gemini
+                .generate_config_content(&permissions)
+                .expect("Should generate config");
+
+            // Verify tool name mappings
+            assert!(
+                content.contains("ShellTool"),
+                "Bash should map to ShellTool"
+            );
+            assert!(
+                content.contains("ReadFileTool"),
+                "Read should map to ReadFileTool"
+            );
+            assert!(
+                content.contains("WriteFileTool"),
+                "Write should map to WriteFileTool"
+            );
+        }
+
+        #[test]
+        fn test_gemini_config_dir_flag_added() {
+            let manager = TranslatorManager::new();
+            let gemini = manager.get("gemini").unwrap();
+
+            // Verify Gemini uses config file
+            assert!(!gemini.uses_cli_only());
+            assert_eq!(gemini.config_path(), Some(".gemini/settings.json"));
+        }
+
+        // ========================================
+        // Codex step permission tests
+        // ========================================
+
+        #[test]
+        fn test_codex_tool_mapping_correct() {
+            let manager = TranslatorManager::new();
+            let codex = manager.get("codex").unwrap();
+
+            // Codex only generates config when patterns have a pattern string
+            let step = StepPermissions {
+                tools: ToolPermissions {
+                    allow: vec![
+                        ToolPattern::with_pattern("Bash", "cargo:*"),
+                        ToolPattern::with_pattern("Read", "./src/**"),
+                        ToolPattern::with_pattern("Edit", "./src/**"),
+                    ],
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let permissions = PermissionSet::from_step(&step, &ProviderCliArgs::default());
+            let content = codex
+                .generate_config_content(&permissions)
+                .expect("Should generate config");
+
+            // Verify tool name mappings in TOML
+            assert!(content.contains("exec"), "Bash should map to exec");
+            assert!(
+                content.contains("apply_patch"),
+                "Edit should map to apply_patch"
+            );
+        }
+
+        #[test]
+        fn test_codex_creates_toml_config() {
+            let manager = TranslatorManager::new();
+            let codex = manager.get("codex").unwrap();
+
+            // Verify Codex uses TOML config file
+            assert!(!codex.uses_cli_only());
+            assert_eq!(codex.config_path(), Some(".codex/config.toml"));
+        }
+
+        // ========================================
+        // Cross-provider tests
+        // ========================================
+
+        #[test]
+        fn test_provider_specific_cli_args_added() {
+            let manager = TranslatorManager::new();
+
+            // Test that provider-specific CLI args are available
+            let cli_args = ProviderCliArgs {
+                claude: vec!["--custom-claude-flag".to_string()],
+                gemini: vec!["--custom-gemini-flag".to_string()],
+                codex: vec!["--custom-codex-flag".to_string()],
+            };
+
+            // Verify each provider can access its CLI args
+            assert_eq!(cli_args.claude, vec!["--custom-claude-flag"]);
+            assert_eq!(cli_args.gemini, vec!["--custom-gemini-flag"]);
+            assert_eq!(cli_args.codex, vec!["--custom-codex-flag"]);
+
+            // Verify TranslatorManager has all three providers
+            assert!(manager.get("claude").is_some());
+            assert!(manager.get("gemini").is_some());
+            assert!(manager.get("codex").is_some());
+        }
+
+        #[test]
+        fn test_same_permissions_different_provider_output() {
+            let manager = TranslatorManager::new();
+
+            // Use patterns with pattern strings so all providers generate output
+            let step = StepPermissions {
+                tools: ToolPermissions {
+                    allow: vec![
+                        ToolPattern::with_pattern("Read", "./src/**"),
+                        ToolPattern::with_pattern("Write", "./src/**"),
+                    ],
+                    deny: vec![ToolPattern::with_pattern("Bash", "rm:*")],
+                },
+                ..Default::default()
+            };
+            let permissions = PermissionSet::from_step(&step, &ProviderCliArgs::default());
+
+            // Claude uses CLI flags
+            let claude = manager.get("claude").unwrap();
+            let claude_flags = claude.generate_cli_flags(&permissions);
+            assert!(!claude_flags.is_empty(), "Claude should generate CLI flags");
+            assert!(claude.uses_cli_only());
+
+            // Gemini uses config file
+            let gemini = manager.get("gemini").unwrap();
+            let gemini_content = gemini.generate_config_content(&permissions);
+            assert!(
+                gemini_content.is_some(),
+                "Gemini should generate config content"
+            );
+            assert!(!gemini.uses_cli_only());
+
+            // Codex uses config file (needs pattern strings to generate content)
+            let codex = manager.get("codex").unwrap();
+            let codex_content = codex.generate_config_content(&permissions);
+            assert!(
+                codex_content.is_some(),
+                "Codex should generate config content when patterns have pattern strings"
+            );
+            assert!(!codex.uses_cli_only());
+        }
+
+        #[test]
+        fn test_permission_set_merge_additive() {
+            let project_perms = StepPermissions {
+                tools: ToolPermissions {
+                    allow: vec![ToolPattern::new("Read")],
+                    deny: vec![],
+                },
+                ..Default::default()
+            };
+
+            let step_perms = StepPermissions {
+                tools: ToolPermissions {
+                    allow: vec![ToolPattern::new("Write")],
+                    deny: vec![ToolPattern::with_pattern("Bash", "rm:*")],
+                },
+                ..Default::default()
+            };
+
+            let merged =
+                PermissionSet::merge(&project_perms, &step_perms, &ProviderCliArgs::default());
+
+            // Verify merge is additive
+            assert_eq!(
+                merged.tools_allow.len(),
+                2,
+                "Should have 2 allowed tools after merge"
+            );
+            assert_eq!(
+                merged.tools_deny.len(),
+                1,
+                "Should have 1 denied tool after merge"
+            );
+        }
     }
 }

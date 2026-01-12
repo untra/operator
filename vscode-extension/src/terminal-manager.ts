@@ -80,6 +80,9 @@ export class TerminalManager {
     this.activityState.set(name, 'idle');
     this.createdAt.set(name, Date.now());
 
+    // Show terminal immediately after creation
+    terminal.show(false);
+
     return terminal;
   }
 

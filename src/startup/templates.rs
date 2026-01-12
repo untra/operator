@@ -8,7 +8,9 @@ use std::fs;
 use std::path::Path;
 use tracing::info;
 
-use crate::collections::{get_embedded_collection, EmbeddedCollection, EMBEDDED_COLLECTIONS};
+use crate::collections::{
+    get_embedded_collection, EmbeddedCollection, EMBEDDED_COLLECTIONS, EMBEDDED_SCHEMAS,
+};
 
 /// Initialize the templates directory with default collections
 ///
@@ -100,6 +102,34 @@ pub fn scaffold_all_collections(templates_path: &Path) -> Result<()> {
     for collection in EMBEDDED_COLLECTIONS.iter() {
         scaffold_collection(templates_path, collection)?;
     }
+    Ok(())
+}
+
+/// Ensure schema files exist in .tickets/schemas/
+///
+/// This function runs on every startup (not just first-time init) to ensure
+/// schema files are available for issue types that need structured output.
+/// Schema files are only written if they don't already exist.
+pub fn ensure_schemas(tickets_path: &Path) -> Result<()> {
+    let schemas_path = tickets_path.join("schemas");
+    fs::create_dir_all(&schemas_path).with_context(|| {
+        format!(
+            "Failed to create schemas directory: {}",
+            schemas_path.display()
+        )
+    })?;
+
+    for schema in EMBEDDED_SCHEMAS {
+        let schema_file = schemas_path.join(schema.name);
+        // Only write if missing (don't overwrite user modifications)
+        if !schema_file.exists() {
+            fs::write(&schema_file, schema.content).with_context(|| {
+                format!("Failed to write schema file: {}", schema_file.display())
+            })?;
+            info!("Created schema: {}", schema.name);
+        }
+    }
+
     Ok(())
 }
 

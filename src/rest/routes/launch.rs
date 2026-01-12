@@ -8,7 +8,7 @@ use axum::{
     Json,
 };
 
-use crate::agents::{LaunchOptions, Launcher, PreparedLaunch};
+use crate::agents::{LaunchOptions, Launcher, PreparedLaunch, RelaunchOptions};
 use crate::config::LlmProvider;
 use crate::queue::Queue;
 use crate::rest::dto::{LaunchTicketRequest, LaunchTicketResponse};
@@ -22,7 +22,8 @@ fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse
         ticket_id: prepared.ticket_id,
         working_directory: prepared.working_directory.to_string_lossy().to_string(),
         command: prepared.command,
-        terminal_name: prepared.terminal_name,
+        terminal_name: prepared.terminal_name.clone(),
+        tmux_session_name: prepared.terminal_name,
         session_id: prepared.session_id,
         worktree_created: prepared.worktree_created,
         branch: prepared.branch,
@@ -62,33 +63,32 @@ pub async fn launch_ticket(
         .map_err(|e| ApiError::InternalError(e.to_string()))?
         .ok_or_else(|| ApiError::NotFound(format!("Ticket '{}' not found", ticket_id)))?;
 
-    // Check if ticket is already in progress
-    if ticket.status == "running" || ticket.status == "in-progress" {
-        // Check if it's actually in the in-progress directory
-        let in_progress_path = state
-            .config
-            .tickets_path()
-            .join("in-progress")
-            .join(&ticket.filename);
-        if in_progress_path.exists() {
-            return Err(ApiError::Conflict(format!(
-                "Ticket '{}' is already in progress",
-                ticket_id
-            )));
-        }
-    }
+    // Check if ticket is in-progress directory
+    let in_progress_path = state
+        .config
+        .tickets_path()
+        .join("in-progress")
+        .join(&ticket.filename);
 
-    // Build launch options from request
-    let launch_options = build_launch_options(&state, &request)?;
-
-    // Create launcher and prepare the launch
+    // Create launcher
     let launcher =
         Launcher::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
-    let prepared = launcher
-        .prepare_launch(&ticket, launch_options)
-        .await
-        .map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let prepared = if in_progress_path.exists() {
+        // Ticket is in-progress - use relaunch flow (no claim needed)
+        let relaunch_options = build_relaunch_options(&state, &request)?;
+        launcher
+            .prepare_relaunch(&ticket, relaunch_options)
+            .await
+            .map_err(|e| ApiError::InternalError(e.to_string()))?
+    } else {
+        // New launch - claim ticket from queue
+        let launch_options = build_launch_options(&state, &request)?;
+        launcher
+            .prepare_launch(&ticket, launch_options)
+            .await
+            .map_err(|e| ApiError::InternalError(e.to_string()))?
+    };
 
     Ok(Json(prepared_launch_to_response(prepared)))
 }
@@ -142,6 +142,20 @@ fn build_launch_options(
     Ok(options)
 }
 
+/// Build RelaunchOptions from the request
+fn build_relaunch_options(
+    state: &ApiState,
+    request: &LaunchTicketRequest,
+) -> Result<RelaunchOptions, ApiError> {
+    let launch_options = build_launch_options(state, request)?;
+
+    Ok(RelaunchOptions {
+        launch_options,
+        resume_session_id: request.resume_session_id.clone(),
+        retry_reason: request.retry_reason.clone(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -161,6 +175,8 @@ mod tests {
             model: None,
             yolo_mode: false,
             wrapper: None,
+            retry_reason: None,
+            resume_session_id: None,
         };
 
         let result = build_launch_options(&state, &request);
@@ -179,6 +195,8 @@ mod tests {
             model: None,
             yolo_mode: true,
             wrapper: Some("vscode".to_string()),
+            retry_reason: None,
+            resume_session_id: None,
         };
 
         let result = build_launch_options(&state, &request);
@@ -196,9 +214,35 @@ mod tests {
             model: None,
             yolo_mode: false,
             wrapper: None,
+            retry_reason: None,
+            resume_session_id: None,
         };
 
         let result = build_launch_options(&state, &request);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_build_relaunch_options() {
+        let state = make_state();
+        let request = LaunchTicketRequest {
+            provider: None,
+            model: None,
+            yolo_mode: false,
+            wrapper: None,
+            retry_reason: Some("Previous attempt timed out".to_string()),
+            resume_session_id: Some("abc-123".to_string()),
+        };
+
+        let result = build_relaunch_options(&state, &request);
+        assert!(result.is_ok());
+
+        let options = result.unwrap();
+        assert!(!options.launch_options.yolo_mode);
+        assert_eq!(
+            options.retry_reason,
+            Some("Previous attempt timed out".to_string())
+        );
+        assert_eq!(options.resume_session_id, Some("abc-123".to_string()));
     }
 }

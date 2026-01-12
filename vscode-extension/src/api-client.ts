@@ -9,28 +9,15 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-export interface LaunchTicketRequest {
-  provider?: string;
-  model?: string;
-  yolo_mode?: boolean;
-  wrapper?: string;
-}
+// Import generated types from Rust bindings (source of truth)
+import type {
+  LaunchTicketRequest,
+  LaunchTicketResponse,
+  HealthResponse,
+} from './generated';
 
-export interface LaunchTicketResponse {
-  agent_id: string;
-  ticket_id: string;
-  working_directory: string;
-  command: string;
-  terminal_name: string;
-  session_id: string;
-  worktree_created: boolean;
-  branch?: string;
-}
-
-export interface HealthResponse {
-  status: string;
-  version: string;
-}
+// Re-export generated types for consumers
+export type { LaunchTicketResponse, HealthResponse };
 
 export interface ApiError {
   error: string;

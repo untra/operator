@@ -599,6 +599,12 @@ pub struct LaunchTicketRequest {
     /// Session wrapper type: "vscode", "tmux", "terminal"
     #[serde(default)]
     pub wrapper: Option<String>,
+    /// Feedback for relaunch (what went wrong on previous attempt)
+    #[serde(default)]
+    pub retry_reason: Option<String>,
+    /// Existing session ID to resume (for continuing from where it left off)
+    #[serde(default)]
+    pub resume_session_id: Option<String>,
 }
 
 /// Response from launching a ticket
@@ -613,8 +619,10 @@ pub struct LaunchTicketResponse {
     pub working_directory: String,
     /// Command to execute in terminal
     pub command: String,
-    /// Terminal name to use
+    /// Terminal name to use (same value as tmux_session_name)
     pub terminal_name: String,
+    /// Tmux session name for attaching (same value as terminal_name)
+    pub tmux_session_name: String,
     /// Session UUID for the LLM tool
     pub session_id: String,
     /// Whether a worktree was created

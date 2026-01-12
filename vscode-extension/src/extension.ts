@@ -14,7 +14,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { TerminalManager } from './terminal-manager';
 import { WebhookServer } from './webhook-server';
-import { TicketTreeProvider } from './ticket-provider';
+import { TicketTreeProvider, TicketItem } from './ticket-provider';
 import { StatusTreeProvider } from './status-provider';
 import { LaunchManager } from './launch-manager';
 import { showLaunchOptionsDialog, showTicketPicker } from './launch-dialog';
@@ -354,15 +354,26 @@ function updateStatusBar(): void {
 
 /**
  * Command: Launch ticket (quick, uses defaults)
+ *
+ * When invoked from inline button on tree item, the TicketItem is passed.
+ * When invoked from command palette, shows a ticket picker.
  */
-async function launchTicketCommand(): Promise<void> {
-  const tickets = queueProvider.getTickets();
-  if (tickets.length === 0) {
-    vscode.window.showInformationMessage('No tickets in queue');
-    return;
+async function launchTicketCommand(treeItem?: TicketItem): Promise<void> {
+  let ticket: TicketInfo | undefined;
+
+  // If called from inline button, treeItem contains the ticket
+  if (treeItem?.ticket) {
+    ticket = treeItem.ticket;
+  } else {
+    // Called from command palette - show picker
+    const tickets = queueProvider.getTickets();
+    if (tickets.length === 0) {
+      vscode.window.showInformationMessage('No tickets in queue');
+      return;
+    }
+    ticket = await showTicketPicker(tickets);
   }
 
-  const ticket = await showTicketPicker(tickets);
   if (!ticket) {
     return;
   }
@@ -376,15 +387,28 @@ async function launchTicketCommand(): Promise<void> {
 
 /**
  * Command: Launch ticket with options dialog
+ *
+ * When invoked from inline button on tree item, the TicketItem is passed.
+ * When invoked from command palette, shows a ticket picker.
  */
-async function launchTicketWithOptionsCommand(): Promise<void> {
-  const tickets = queueProvider.getTickets();
-  if (tickets.length === 0) {
-    vscode.window.showInformationMessage('No tickets in queue');
-    return;
+async function launchTicketWithOptionsCommand(
+  treeItem?: TicketItem
+): Promise<void> {
+  let ticket: TicketInfo | undefined;
+
+  // If called from inline button, treeItem contains the ticket
+  if (treeItem?.ticket) {
+    ticket = treeItem.ticket;
+  } else {
+    // Called from command palette - show picker
+    const tickets = queueProvider.getTickets();
+    if (tickets.length === 0) {
+      vscode.window.showInformationMessage('No tickets in queue');
+      return;
+    }
+    ticket = await showTicketPicker(tickets);
   }
 
-  const ticket = await showTicketPicker(tickets);
   if (!ticket) {
     return;
   }

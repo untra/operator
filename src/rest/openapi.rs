@@ -4,8 +4,8 @@ use utoipa::OpenApi;
 
 use crate::rest::dto::{
     CollectionResponse, CreateFieldRequest, CreateIssueTypeRequest, CreateStepRequest,
-    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, StatusResponse,
-    StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, LaunchTicketRequest,
+    LaunchTicketResponse, StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
 };
 use crate::rest::error::ErrorResponse;
 
@@ -41,6 +41,8 @@ use crate::rest::error::ErrorResponse;
         crate::rest::routes::collections::get_active,
         crate::rest::routes::collections::get_one,
         crate::rest::routes::collections::activate,
+        // Launch endpoints
+        crate::rest::routes::launch::launch_ticket,
     ),
     components(
         schemas(
@@ -52,6 +54,7 @@ use crate::rest::error::ErrorResponse;
             FieldResponse,
             StepResponse,
             CollectionResponse,
+            LaunchTicketResponse,
             ErrorResponse,
             // Request types
             CreateIssueTypeRequest,
@@ -59,6 +62,7 @@ use crate::rest::error::ErrorResponse;
             CreateFieldRequest,
             CreateStepRequest,
             UpdateStepRequest,
+            LaunchTicketRequest,
         )
     ),
     tags(
@@ -66,20 +70,29 @@ use crate::rest::error::ErrorResponse;
         (name = "Issue Types", description = "Issue type CRUD operations"),
         (name = "Steps", description = "Step management within issue types"),
         (name = "Collections", description = "Issue type collection management"),
+        (name = "Launch", description = "Ticket launch operations"),
     )
 )]
 pub struct ApiDoc;
 
 impl ApiDoc {
     /// Generate the OpenAPI specification as a JSON string
+    ///
+    /// The version is automatically derived from Cargo.toml to stay in sync.
     pub fn json() -> Result<String, serde_json::Error> {
-        serde_json::to_string_pretty(&Self::openapi())
+        let mut spec = Self::openapi();
+        spec.info.version = env!("CARGO_PKG_VERSION").to_string();
+        serde_json::to_string_pretty(&spec)
     }
 
     /// Generate the OpenAPI specification as a YAML string
+    ///
+    /// The version is automatically derived from Cargo.toml to stay in sync.
     #[allow(dead_code)]
     pub fn yaml() -> Result<String, serde_yaml::Error> {
-        serde_yaml::to_string(&Self::openapi())
+        let mut spec = Self::openapi();
+        spec.info.version = env!("CARGO_PKG_VERSION").to_string();
+        serde_yaml::to_string(&spec)
     }
 }
 
@@ -102,5 +115,16 @@ mod tests {
         assert!(spec.contains("\"Issue Types\""));
         assert!(spec.contains("\"Steps\""));
         assert!(spec.contains("\"Collections\""));
+    }
+
+    #[test]
+    fn test_openapi_version_matches_cargo() {
+        let spec = ApiDoc::json().expect("Failed to generate OpenAPI spec");
+        let cargo_version = env!("CARGO_PKG_VERSION");
+        assert!(
+            spec.contains(&format!("\"version\": \"{}\"", cargo_version)),
+            "OpenAPI version should match Cargo.toml version ({}), but spec contains different version",
+            cargo_version
+        );
     }
 }

@@ -21,9 +21,13 @@ working_directory: string,
  */
 command: string, 
 /**
- * Terminal name to use
+ * Terminal name to use (same value as tmux_session_name)
  */
 terminal_name: string, 
+/**
+ * Tmux session name for attaching (same value as terminal_name)
+ */
+tmux_session_name: string, 
 /**
  * Session UUID for the LLM tool
  */

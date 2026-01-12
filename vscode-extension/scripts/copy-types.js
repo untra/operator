@@ -33,6 +33,7 @@ const TYPES_TO_COPY = [
   // Issue type metadata (for dynamic type styling)
   'IssueTypeSummary',
   // REST API types (for API client)
+  'HealthResponse',
   'LaunchTicketRequest',
   'LaunchTicketResponse',
   'LlmProvider',

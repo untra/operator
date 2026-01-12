@@ -41,7 +41,8 @@
     },
     "color": {
       "type": "string",
-      "enum": ["blue", "cyan", "green", "yellow", "magenta", "red"],
+      "enum": ["white", "blue", "cyan", "green", "yellow", "magenta", "red", "black"],
+      "default": "white",
       "description": "Optional color for the glyph in TUI display"
     },
     "project_required": {

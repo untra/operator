@@ -35,4 +35,6 @@ pub struct RelaunchOptions {
     /// Existing Claude session UUID to resume (optional)
     /// If provided, uses --resume flag with the existing prompt file
     pub resume_session_id: Option<String>,
+    /// Feedback from previous attempt (what went wrong)
+    pub retry_reason: Option<String>,
 }

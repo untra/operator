@@ -167,6 +167,28 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     },
 ];
 
+/// Embedded schema files for issue types that need structured output
+#[derive(Debug, Clone)]
+pub struct EmbeddedSchema {
+    pub name: &'static str,
+    pub content: &'static str,
+}
+
+/// All embedded schema files
+pub static EMBEDDED_SCHEMAS: &[EmbeddedSchema] = &[EmbeddedSchema {
+    name: "project_analysis.schema.json",
+    content: include_str!("../schemas/project_analysis.schema.json"),
+}];
+
+/// Get an embedded schema by name
+#[allow(dead_code)]
+pub fn get_embedded_schema(name: &str) -> Option<&'static str> {
+    EMBEDDED_SCHEMAS
+        .iter()
+        .find(|s| s.name == name)
+        .map(|s| s.content)
+}
+
 /// Get an embedded collection by name
 pub fn get_embedded_collection(name: &str) -> Option<&'static EmbeddedCollection> {
     EMBEDDED_COLLECTIONS.iter().find(|c| c.name == name)

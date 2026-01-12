@@ -104,12 +104,13 @@ export class LaunchManager {
       }
     }
 
-    // Try API launch first
+    // Try API launch
     try {
       await this.launchViaApi(ticket, options);
-      return;
     } catch (error) {
-      this.log(`API launch failed: ${error}.`);
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      this.log(`API launch failed: ${msg}`);
+      vscode.window.showErrorMessage(`Failed to launch ticket: ${msg}`);
     }
   }
 
@@ -134,9 +135,12 @@ export class LaunchManager {
     const response: LaunchTicketResponse = await apiClient.launchTicket(
       ticket.id,
       {
+        provider: null,
         model: options.model,
         yolo_mode: options.yoloMode,
         wrapper: 'vscode',
+        retry_reason: null,
+        resume_session_id: null,
       }
     );
 

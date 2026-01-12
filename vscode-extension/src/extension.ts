@@ -484,8 +484,12 @@ async function launchTicketFromEditorCommand(): Promise<void> {
   // Launch via Operator API
   try {
     const response = await apiClient.launchTicket(metadata.id, {
+      provider: null,
       wrapper: 'vscode',
       model: 'sonnet',
+      yolo_mode: false,
+      retry_reason: null,
+      resume_session_id: null,
     });
 
     // Create terminal and execute command
@@ -567,9 +571,12 @@ async function launchTicketFromEditorWithOptionsCommand(): Promise<void> {
   // Launch via Operator API
   try {
     const response = await apiClient.launchTicket(metadata.id, {
+      provider: null,
       wrapper: 'vscode',
       model: options.model,
       yolo_mode: options.yoloMode,
+      retry_reason: null,
+      resume_session_id: null,
     });
 
     // Create terminal and execute command

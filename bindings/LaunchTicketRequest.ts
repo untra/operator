@@ -19,4 +19,12 @@ yolo_mode: boolean,
 /**
  * Session wrapper type: "vscode", "tmux", "terminal"
  */
-wrapper: string | null, };
+wrapper: string | null, 
+/**
+ * Feedback for relaunch (what went wrong on previous attempt)
+ */
+retry_reason: string | null, 
+/**
+ * Existing session ID to resume (for continuing from where it left off)
+ */
+resume_session_id: string | null, };

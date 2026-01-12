@@ -27,6 +27,20 @@ cargo test                     # Run all tests
 
 If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)]` attributes to silence warnings unless there's a documented reason (e.g., code used only in tests).
 
+### Subproject Validation
+
+When changes touch subprojects, those must also pass validation:
+
+**vscode-extension** (TypeScript/npm):
+```bash
+cd vscode-extension && npm run lint && npm run compile
+```
+
+**backstage-server** (TypeScript/Bun):
+```bash
+cd backstage-server && bun run lint && bun run typecheck && bun test
+```
+
 ### Test-Driven Development (TDD)
 
 This project follows TDD practices:

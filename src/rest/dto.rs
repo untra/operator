@@ -599,6 +599,12 @@ pub struct LaunchTicketRequest {
     /// Session wrapper type: "vscode", "tmux", "terminal"
     #[serde(default)]
     pub wrapper: Option<String>,
+    /// Feedback for relaunch (what went wrong on previous attempt)
+    #[serde(default)]
+    pub retry_reason: Option<String>,
+    /// Existing session ID to resume (for continuing from where it left off)
+    #[serde(default)]
+    pub resume_session_id: Option<String>,
 }
 
 /// Response from launching a ticket

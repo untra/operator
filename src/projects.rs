@@ -37,6 +37,16 @@ pub struct DiscoveredProject {
     pub git_info: Option<GitRepoInfo>,
 }
 
+impl DiscoveredProject {
+    /// Returns true if the project has a git repository with a remote configured
+    pub fn has_git_remote(&self) -> bool {
+        self.git_info
+            .as_ref()
+            .and_then(|g| g.remote_url.as_ref())
+            .is_some()
+    }
+}
+
 /// Git repository information
 #[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
 #[ts(export)]
@@ -560,5 +570,57 @@ mod tests {
         assert!(projects[0].llm_tools.contains(&"claude".to_string()));
         assert!(projects[0].llm_tools.contains(&"gemini".to_string()));
         assert!(projects[0].llm_tools.contains(&"codex".to_string()));
+    }
+
+    #[test]
+    fn test_has_git_remote_returns_true_when_remote_exists() {
+        use crate::types::pr::{GitHubRepoInfo, GitProvider};
+
+        let project = DiscoveredProject {
+            name: "test-project".to_string(),
+            path: PathBuf::from("/test/path"),
+            llm_tools: vec!["claude".to_string()],
+            git_info: Some(GitRepoInfo {
+                remote_url: Some("https://github.com/user/repo.git".to_string()),
+                github_info: Some(GitHubRepoInfo {
+                    provider: GitProvider::GitHub,
+                    owner: "user".to_string(),
+                    repo_name: "repo".to_string(),
+                }),
+                default_branch: "main".to_string(),
+                is_dirty: false,
+            }),
+        };
+
+        assert!(project.has_git_remote());
+    }
+
+    #[test]
+    fn test_has_git_remote_returns_false_when_no_git() {
+        let project = DiscoveredProject {
+            name: "test-project".to_string(),
+            path: PathBuf::from("/test/path"),
+            llm_tools: vec!["claude".to_string()],
+            git_info: None,
+        };
+
+        assert!(!project.has_git_remote());
+    }
+
+    #[test]
+    fn test_has_git_remote_returns_false_when_no_remote() {
+        let project = DiscoveredProject {
+            name: "test-project".to_string(),
+            path: PathBuf::from("/test/path"),
+            llm_tools: vec!["claude".to_string()],
+            git_info: Some(GitRepoInfo {
+                remote_url: None,
+                github_info: None,
+                default_branch: "main".to_string(),
+                is_dirty: false,
+            }),
+        };
+
+        assert!(!project.has_git_remote());
     }
 }

@@ -10,7 +10,7 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.1.6"
+    "version": "0.1.13"
   },
   "paths": {
     "/api/v1/collections": {
@@ -924,9 +924,15 @@
           "mode",
           "glyph",
           "source",
-          "step_count"
+          "stepCount"
         ],
         "properties": {
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "description": {
             "type": "string"
           },
@@ -945,7 +951,7 @@
           "source": {
             "type": "string"
           },
-          "step_count": {
+          "stepCount": {
             "type": "integer",
             "minimum": 0
           }

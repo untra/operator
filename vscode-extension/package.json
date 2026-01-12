@@ -2,7 +2,7 @@
   "name": "operator-terminals",
   "displayName": "Operator! Terminals for vscode",
   "description": "VS Code terminal integration for Operator! multi-agent orchestration",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "publisher": "untra",
   "author": {
     "name": "Samuel Volin",
@@ -94,18 +94,20 @@
           "type": "string",
           "default": "http://localhost:7008",
           "description": "URL of the Operator REST API server"
+        },
+        "operator.opr8rPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to opr8r binary (leave empty to use bundled or PATH)"
+        },
+        "operator.operatorPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to operator binary (leave empty to use downloaded or PATH)"
         }
       }
     },
     "commands": [
-      {
-        "command": "operator.startServer",
-        "title": "Operator: Start Webhook Server"
-      },
-      {
-        "command": "operator.stopServer",
-        "title": "Operator: Stop Webhook Server"
-      },
       {
         "command": "operator.showStatus",
         "title": "Operator: Show Server Status"
@@ -147,6 +149,31 @@
       {
         "command": "operator.downloadOperator",
         "title": "Operator: Download Operator"
+      },
+      {
+        "command": "operator.pauseQueue",
+        "title": "Operator: Pause Queue Processing"
+      },
+      {
+        "command": "operator.resumeQueue",
+        "title": "Operator: Resume Queue Processing"
+      },
+      {
+        "command": "operator.syncKanban",
+        "title": "Operator: Sync Kanban Collections"
+      },
+      {
+        "command": "operator.approveReview",
+        "title": "Operator: Approve Review"
+      },
+      {
+        "command": "operator.rejectReview",
+        "title": "Operator: Reject Review"
+      },
+      {
+        "command": "operator.startOperatorServer",
+        "title": "Operator: Start Operator Server",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -184,6 +211,12 @@
           "command": "operator.launchTicketFromEditorWithOptions",
           "when": "resourcePath =~ /\\.tickets\\/(queue|in-progress)\\/.+\\.md$/",
           "group": "operator@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "operator.startOperatorServer",
+          "when": "operator.operatorAvailable && operator.ticketsParentFound"
         }
       ]
     }

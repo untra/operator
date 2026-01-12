@@ -79,13 +79,16 @@ export class TicketTreeProvider
       content.match(/^#\s+(.+)$/m) || content.match(/^title:\s*(.+)$/m);
     const title = titleMatch?.[1]?.trim() || id;
 
+    // Sanitize ID for terminal name (same as Rust sanitize_session_name)
+    const sanitizedId = id.replace(/[^a-zA-Z0-9_-]/g, '-');
+
     return {
       id,
       title,
       type,
       status: this.status,
       filePath,
-      terminalName: this.status === 'in-progress' ? `op-${id}` : undefined,
+      terminalName: this.status === 'in-progress' ? `op-${sanitizedId}` : undefined,
     };
   }
 

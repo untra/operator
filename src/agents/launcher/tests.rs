@@ -996,6 +996,7 @@ fn test_relaunch_inherits_yolo_mode() {
             ..Default::default()
         },
         resume_session_id: None,
+        retry_reason: None,
     };
 
     let result = launch_in_tmux_with_relaunch_options(
@@ -1037,6 +1038,7 @@ fn test_relaunch_inherits_docker_mode() {
             ..Default::default()
         },
         resume_session_id: None,
+        retry_reason: None,
     };
 
     let result = launch_in_tmux_with_relaunch_options(
@@ -1128,6 +1130,7 @@ fn test_relaunch_with_resume_adds_flag() {
     let options = RelaunchOptions {
         launch_options: LaunchOptions::default(),
         resume_session_id: Some(resume_uuid.to_string()),
+        retry_reason: None,
     };
 
     let result = launch_in_tmux_with_relaunch_options(
@@ -1174,6 +1177,7 @@ fn test_relaunch_missing_prompt_fresh_start() {
     let options = RelaunchOptions {
         launch_options: LaunchOptions::default(),
         resume_session_id: Some(resume_uuid.to_string()),
+        retry_reason: None,
     };
 
     let result = launch_in_tmux_with_relaunch_options(

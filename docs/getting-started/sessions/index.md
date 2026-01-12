@@ -29,3 +29,27 @@ Session managers provide:
 **tmux** is recommended for most users, especially those running agents on remote servers or headless environments. It works anywhere with a terminal.
 
 **VS Code Extension** is ideal for developers who prefer working within VS Code and want integrated ticket management alongside their editor.
+
+## Feature Parity: Core Operations
+
+All session management tools support the following Core Operations:
+
+| Operation | TUI | VS Code Extension | REST API |
+|-----------|-----|-------------------|----------|
+| Sync Kanban Collections | `S` | `Operator: Sync Kanban Collections` | `POST /api/v1/queue/sync` |
+| Pause Queue Processing | `P` | `Operator: Pause Queue Processing` | `POST /api/v1/queue/pause` |
+| Resume Queue Processing | `R` | `Operator: Resume Queue Processing` | `POST /api/v1/queue/resume` |
+| Approve Review | `Y` | `Operator: Approve Review` | `POST /api/v1/agents/{id}/approve` |
+| Reject Review | `X` | `Operator: Reject Review` | `POST /api/v1/agents/{id}/reject` |
+
+### Core Operations Explained
+
+1. **Sync Kanban Collections** - Fetch issues from external kanban providers (Jira, Linear) and create local tickets in the queue
+
+2. **Pause Queue Processing** - Temporarily stop automatic agent launches while maintaining queue state
+
+3. **Resume Queue Processing** - Continue automatic agent launches after pausing
+
+4. **Approve Review** - Approve an agent's pending plan or visual review to continue workflow
+
+5. **Reject Review** - Reject a review with feedback, triggering the agent to re-do the work

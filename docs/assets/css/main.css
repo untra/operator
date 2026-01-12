@@ -221,33 +221,60 @@ details[open] .nav-parent::before {
   margin: 0;
 }
 
-.nav-children summary {
+/* Nav item row with separate link and toggle */
+summary.nav-item-row {
+  display: flex;
+  align-items: stretch;
+  list-style: none;
+  cursor: default;
+}
+
+summary.nav-item-row::-webkit-details-marker {
+  display: none;
+}
+
+.nav-item-row .nav-parent-link,
+.nav-item-row .nav-parent-text {
+  flex: 1;
   display: block;
   padding: 6px 12px;
   background-color: var(--color-green-l1);
   color: var(--color-cream);
   font-size: 0.875rem;
-  border-radius: 4px;
-  cursor: pointer;
-  list-style: none;
+  border-radius: 4px 0 0 4px;
+  text-decoration: none;
+  transition: background-color 0.2s;
 }
 
-.nav-children summary::-webkit-details-marker {
-  display: none;
-}
-
-.nav-children summary:hover {
+.nav-item-row .nav-parent-link:hover {
   background-color: var(--color-green-l2);
 }
 
-.nav-children summary::before {
+.nav-item-row .nav-parent-link.active {
+  background-color: var(--color-green-l3);
+}
+
+.nav-item-row .nav-toggle {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  background-color: var(--color-green-l1);
+  color: var(--color-cream);
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+}
+
+.nav-item-row .nav-toggle::before {
   content: "▸";
-  margin-right: 8px;
   display: inline-block;
   transition: transform 0.2s;
 }
 
-.nav-children details[open] summary::before {
+.nav-item-row .nav-toggle:hover {
+  background-color: var(--color-green-l2);
+}
+
+.nav-children details[open] .nav-item-row .nav-toggle::before {
   transform: rotate(90deg);
 }
 

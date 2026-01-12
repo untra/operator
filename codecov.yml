@@ -22,6 +22,11 @@ coverage:
         threshold: 2%
         flags:
           - vscode-extension
+      opr8r:
+        target: auto
+        threshold: 2%
+        flags:
+          - opr8r
     patch:
       default:
         target: 80%
@@ -39,6 +44,10 @@ flags:
   vscode-extension:
     paths:
       - vscode-extension/src/
+    carryforward: true
+  opr8r:
+    paths:
+      - opr8r/src/
     carryforward: true
 
 comment:

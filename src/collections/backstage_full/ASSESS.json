@@ -43,7 +43,7 @@
       "name": "analyze",
       "display_name": "Analyzing",
       "outputs": ["report"],
-      "jsonSchemaFile": "src/schemas/project_analysis.schema.json",
+      "jsonSchemaFile": ".tickets/schemas/project_analysis.schema.json",
       "prompt": "Analyze the project structure and output structured JSON conforming to the schema:\n\n1. **Kind Detection**: Match file patterns against the 25-Kind taxonomy:\n   - Foundation: infrastructure, identity-access, config-policy, monorepo-meta\n   - Standards: design-system, software-library, proto-sdk, blueprint, security-tooling, compliance-audit\n   - Engines: ml-model, data-etl, microservice, api-gateway, ui-frontend, internal-tool\n   - Ecosystem: build-tool, e2e-test, docs-site, playbook, cli-devtool\n   - Noncurrent: reference-example, experiment-sandbox, archival-fork, test-data-fixtures\n\n2. **Languages/Frameworks/Databases**: Detect from manifest files (package.json, Cargo.toml, requirements.txt, go.mod), imports, and file extensions.\n\n3. **Commands**: Extract from:\n   - package.json scripts (start, dev, test, build, lint)\n   - Makefile targets\n   - Cargo.toml [[bin]] sections\n   - Scripts in bin/ or scripts/\n\n4. **Entry Points**: Identify key files:\n   - binary_entry: src/main.rs, index.js, main.py\n   - library_entry: src/lib.rs, lib/index.js\n   - config: config/*.toml, .env.example\n   - routes: src/routes.rs, routes/*.ts\n   - main_component: src/App.tsx, src/App.vue\n\n5. **Environment Variables**: Scan .env.example, docker-compose.yml, config files for required env vars.\n\nIf kind_override is set, use that instead of auto-detection.",
       "allowed_tools": ["Read", "Glob", "Grep"],
       "next_step": "generate"

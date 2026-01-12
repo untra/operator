@@ -1997,6 +1997,7 @@ impl App {
         let options = RelaunchOptions {
             launch_options: LaunchOptions::default(),
             resume_session_id,
+            retry_reason: None,
         };
 
         launcher.relaunch(&ticket, options).await?;
@@ -2102,7 +2103,10 @@ impl App {
         self.generate_tmux_config()?;
 
         // Discover projects (one-time scan during setup)
-        let discovered_projects = self.config.discover_projects();
+        // Use full discovery to get git info for filtering
+        let discovered_full = self.config.discover_projects_full();
+        let discovered_projects: Vec<String> =
+            discovered_full.iter().map(|p| p.name.clone()).collect();
 
         // Update config with discovered projects and save
         self.config.projects = discovered_projects.clone();
@@ -2127,20 +2131,33 @@ impl App {
                 if startup_tickets.contains(&"assess".to_string())
                     || startup_tickets.contains(&"project_init".to_string())
                 {
-                    match AssessTicketCreator::create_assess_ticket(
-                        &project_path,
-                        project,
-                        &self.config,
-                    ) {
-                        Ok(result) => {
-                            tracing::info!(
-                                ticket_id = %result.ticket_id,
-                                project = %project,
-                                "Created ASSESS startup ticket"
-                            );
-                        }
-                        Err(e) => {
-                            tracing::warn!(project = %project, error = %e, "Failed to create ASSESS ticket");
+                    // Check if project has git remote before creating ASSESS ticket
+                    let project_info = discovered_full.iter().find(|p| p.name == *project);
+                    let has_git_remote = project_info
+                        .map(|info| info.has_git_remote())
+                        .unwrap_or(false);
+
+                    if !has_git_remote {
+                        tracing::info!(
+                            project = %project,
+                            "Skipping ASSESS ticket - no git remote configured"
+                        );
+                    } else {
+                        match AssessTicketCreator::create_assess_ticket(
+                            &project_path,
+                            project,
+                            &self.config,
+                        ) {
+                            Ok(result) => {
+                                tracing::info!(
+                                    ticket_id = %result.ticket_id,
+                                    project = %project,
+                                    "Created ASSESS startup ticket"
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!(project = %project, error = %e, "Failed to create ASSESS ticket");
+                            }
                         }
                     }
                 }
@@ -2280,6 +2297,22 @@ impl App {
                 }
             }
             ProjectAction::AssessProject => {
+                // Check if project has git remote before creating ASSESS ticket
+                let discovered =
+                    crate::projects::discover_projects_with_git(&self.config.projects_path());
+                let project_info = discovered.iter().find(|p| p.name == result.project);
+                let has_git_remote = project_info
+                    .map(|info| info.has_git_remote())
+                    .unwrap_or(false);
+
+                if !has_git_remote {
+                    self.projects_dialog.set_creation_result(Err(
+                        "Cannot create ASSESS ticket: project has no git remote configured"
+                            .to_string(),
+                    ));
+                    return Ok(());
+                }
+
                 // Create ASSESS ticket for Backstage catalog assessment
                 let ticket_result = AssessTicketCreator::create_assess_ticket(
                     &result.project_path,

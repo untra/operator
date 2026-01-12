@@ -76,12 +76,28 @@ pub fn build_router(state: ApiState) -> Router {
         // Queue endpoints
         .route("/api/v1/queue/kanban", get(routes::queue::kanban))
         .route("/api/v1/queue/status", get(routes::queue::status))
+        .route("/api/v1/queue/pause", post(routes::queue::pause))
+        .route("/api/v1/queue/resume", post(routes::queue::resume))
+        .route("/api/v1/queue/sync", post(routes::queue::sync))
         // Agent endpoints
         .route("/api/v1/agents/active", get(routes::agents::active))
+        .route(
+            "/api/v1/agents/:agent_id/approve",
+            post(routes::agents::approve_review),
+        )
+        .route(
+            "/api/v1/agents/:agent_id/reject",
+            post(routes::agents::reject_review),
+        )
         // Launch endpoints
         .route(
             "/api/v1/tickets/:id/launch",
             post(routes::launch::launch_ticket),
+        )
+        // Step completion endpoint (for opr8r wrapper)
+        .route(
+            "/api/v1/tickets/:id/steps/:step/complete",
+            post(routes::launch::complete_step),
         )
         .layer(
             TraceLayer::new_for_http()

@@ -1,5 +1,6 @@
 # Rust build artifacts
 /target/
+opr8r/target/
 
 # Rust backup files
 *.rs.bk
@@ -29,6 +30,9 @@ node_modules/
 # Test coverage
 coverage/
 *.lcov
+
+# Docs output
+docs/_site/
 
 # built vscode extension
 *.vsix

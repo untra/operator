@@ -30,6 +30,9 @@ node_modules/
 coverage/
 *.lcov
 
+# Docs output
+docs/_site/
+
 # built vscode extension
 *.vsix
 

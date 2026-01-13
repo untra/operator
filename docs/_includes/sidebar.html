@@ -16,6 +16,9 @@
       {% assign section_active = false %}
       {% for item in section.children %}
       {% if item.children %}
+      {% if page.url == item.url %}
+      {% assign section_active = true %}
+      {% endif %}
       {% for grandchild in item.children %}
       {% if page.url == grandchild.url %}
       {% assign section_active = true %}
@@ -38,7 +41,10 @@
             {% endif %}
             {% endfor %}
             <details {% if item_active or page.url == item.url %}open{% endif %}>
-              <summary>{% if item.url %}<a href="{{ item.url | relative_url }}" class="nav-parent-link {% if page.url == item.url %}active{% endif %}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</summary>
+              <summary class="nav-item-row">
+                {% if item.url %}<a href="{{ item.url | relative_url }}" class="nav-parent-link {% if page.url == item.url %}active{% endif %}">{{ item.title }}</a>{% else %}<span class="nav-parent-text">{{ item.title }}</span>{% endif %}
+                <span class="nav-toggle"></span>
+              </summary>
               <ul class="nav-grandchildren">
                 {% for grandchild in item.children %}
                 <li>

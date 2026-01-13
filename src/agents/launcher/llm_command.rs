@@ -184,8 +184,17 @@ fn generate_config_flags(
             cli_flags.push("--json-schema".to_string());
             cli_flags.push(schema_str);
         } else if let Some(ref schema_file) = step_config.json_schema_file {
-            // Resolve path relative to project root
-            let schema_path = PathBuf::from(project_path).join(schema_file);
+            // Resolve path - .tickets/ paths are relative to tickets parent dir, others to project
+            let schema_path =
+                if schema_file.starts_with(".tickets/") || schema_file.starts_with(".tickets\\") {
+                    if let Some(parent) = config.tickets_path().parent() {
+                        parent.join(schema_file)
+                    } else {
+                        PathBuf::from(project_path).join(schema_file)
+                    }
+                } else {
+                    PathBuf::from(project_path).join(schema_file)
+                };
             let schema_content = fs::read_to_string(&schema_path)
                 .with_context(|| format!("Failed to read JSON schema file: {:?}", schema_path))?;
             cli_flags.push("--json-schema".to_string());

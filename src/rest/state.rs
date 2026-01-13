@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
-use crate::startup::templates::init_default_templates;
+use crate::startup::templates::{ensure_schemas, init_default_templates};
 
 /// Shared state for the REST API
 #[derive(Clone)]
@@ -31,6 +31,11 @@ impl ApiState {
     pub fn new(config: Config, tickets_path: PathBuf) -> Self {
         let mut registry = IssueTypeRegistry::new();
         let templates_path = tickets_path.join("templates");
+
+        // Ensure schema files exist (runs every time, even if templates exist)
+        if let Err(e) = ensure_schemas(&tickets_path) {
+            tracing::warn!("Failed to ensure schema files: {}", e);
+        }
 
         // Try to load from templates directory first
         match registry.load_from_templates_dir(&templates_path) {

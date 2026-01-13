@@ -433,6 +433,223 @@ impl Launcher {
         })
     }
 
+    /// Prepare a relaunch for an in-progress ticket without executing it
+    ///
+    /// Similar to prepare_launch() but does NOT claim the ticket (it's already in-progress).
+    /// Use this when relaunching a ticket that's already being worked on.
+    pub async fn prepare_relaunch(
+        &self,
+        ticket: &Ticket,
+        options: RelaunchOptions,
+    ) -> Result<PreparedLaunch> {
+        // Clone ticket so we can update worktree info if needed
+        let mut ticket = ticket.clone();
+
+        // Get project path (use override if provided)
+        let project_path =
+            if let Some(ref override_project) = options.launch_options.project_override {
+                PathBuf::from(self.get_project_path_for(override_project)?)
+            } else {
+                PathBuf::from(self.get_project_path(&ticket)?)
+            };
+
+        // Get working directory (reuse existing worktree or create new one)
+        let working_dir = if let Some(ref worktree_path) = ticket.worktree_path {
+            let path = PathBuf::from(worktree_path);
+            if path.exists() {
+                // Reuse existing worktree
+                path
+            } else {
+                // Worktree was deleted, recreate it
+                setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
+                    .await
+                    .context("Failed to recreate worktree for ticket")?
+            }
+        } else {
+            // No worktree yet, try to create one
+            setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
+                .await
+                .context("Failed to setup worktree for ticket")?
+        };
+
+        let worktree_created = ticket.worktree_path.is_some();
+        let branch = ticket.branch.clone();
+        let working_dir_str = working_dir.to_string_lossy().to_string();
+
+        // Generate terminal/session name
+        let terminal_name = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+
+        // Generate session UUID (or use existing for resume)
+        let session_uuid = options
+            .resume_session_id
+            .clone()
+            .unwrap_or_else(generate_session_uuid);
+
+        // Get the step name (use "initial" if not set)
+        let step_name = if ticket.step.is_empty() {
+            "initial".to_string()
+        } else {
+            ticket.step.clone()
+        };
+
+        // Store the session UUID in the ticket file
+        let ticket_in_progress_path = self
+            .config
+            .tickets_path()
+            .join("in-progress")
+            .join(&ticket.filename);
+        if ticket_in_progress_path.exists() {
+            if let Ok(mut updated_ticket) = Ticket::from_file(&ticket_in_progress_path) {
+                if let Err(e) = updated_ticket.set_session_id(&step_name, &session_uuid) {
+                    tracing::warn!(
+                        error = %e,
+                        ticket = %ticket.id,
+                        step = %step_name,
+                        "Failed to store session UUID in ticket"
+                    );
+                }
+            }
+        }
+
+        // Get the model and tool from options or use defaults
+        let (tool_name, model) = if let Some(ref provider) = options.launch_options.provider {
+            (provider.tool.clone(), provider.model.clone())
+        } else {
+            let default_tool = self
+                .config
+                .llm_tools
+                .detected
+                .first()
+                .map(|t| t.name.clone())
+                .unwrap_or_else(|| "claude".to_string());
+            let default_model =
+                get_default_model(&self.config).unwrap_or_else(|| "sonnet".to_string());
+            (default_tool, default_model)
+        };
+
+        // Build the full prompt using the interpolation engine
+        let initial_prompt = generate_prompt(&self.config, &ticket);
+        let mut full_prompt = if get_template_prompt(&ticket.ticket_type).is_some() {
+            let interpolator = PromptInterpolator::new();
+            match interpolator.build_launch_prompt(&self.config, &ticket, &working_dir_str) {
+                Ok(prompt) => prompt,
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        ticket = %ticket.id,
+                        "Failed to build interpolated prompt, falling back to initial prompt"
+                    );
+                    initial_prompt.clone()
+                }
+            }
+        } else if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
+            let ticket_path = format!("../.tickets/in-progress/{}", ticket.filename);
+            let message = format!(
+                "use the {} agent to implement the ticket at {}",
+                ticket.ticket_type.to_lowercase(),
+                ticket_path
+            );
+            format!("{}\n---\n{}", agent_prompt, message)
+        } else {
+            initial_prompt
+        };
+
+        // Append retry reason if provided
+        if let Some(ref retry_reason) = options.retry_reason {
+            full_prompt = format!(
+                "{}\n\n---\n## Relaunch Context\n\nThis ticket is being relaunched. Previous attempt feedback:\n{}",
+                full_prompt, retry_reason
+            );
+        }
+
+        // Write prompt to file
+        let prompt_file = write_prompt_file(&self.config, &session_uuid, &full_prompt)?;
+
+        // Build command using the detected tool's template (with permissions)
+        let mut llm_cmd = build_llm_command_with_permissions_for_tool(
+            &self.config,
+            &tool_name,
+            &model,
+            &session_uuid,
+            &prompt_file,
+            Some(&ticket),
+            Some(&working_dir_str),
+        )?;
+
+        // Apply YOLO flags if enabled
+        if options.launch_options.yolo_mode {
+            llm_cmd = apply_yolo_flags(&self.config, &llm_cmd, &tool_name);
+        }
+
+        // Wrap in docker command if docker mode is enabled
+        if options.launch_options.docker_mode {
+            llm_cmd = build_docker_command(&self.config, &llm_cmd, &working_dir_str)?;
+        }
+
+        // Determine tool name from options or default
+        let llm_tool = options
+            .launch_options
+            .provider
+            .as_ref()
+            .map(|p| p.tool.clone())
+            .or_else(|| {
+                self.config
+                    .llm_tools
+                    .detected
+                    .first()
+                    .map(|t| t.name.clone())
+            });
+
+        // Update state with launch
+        let mut state = State::load(&self.config)?;
+        let agent_id = state.add_agent_with_options(
+            ticket.id.clone(),
+            ticket.ticket_type.clone(),
+            ticket.project.clone(),
+            ticket.is_paired(),
+            llm_tool,
+            Some(options.launch_options.launch_mode_string()),
+        )?;
+
+        // Store session name in state for later recovery
+        state.update_agent_session(&agent_id, &terminal_name)?;
+
+        // Store worktree path in state (if one was created)
+        if let Some(ref worktree_path) = ticket.worktree_path {
+            state.update_agent_worktree_path(&agent_id, worktree_path)?;
+        }
+
+        // Set the current step in state
+        if !ticket.step.is_empty() {
+            state.update_agent_step(&agent_id, &ticket.step)?;
+        }
+
+        tracing::info!(
+            terminal = %terminal_name,
+            session_uuid = %session_uuid,
+            project = %ticket.project,
+            ticket = %ticket.id,
+            step = %step_name,
+            tool = %tool_name,
+            launch_mode = %options.launch_options.launch_mode_string(),
+            working_dir = %working_dir_str,
+            relaunch = true,
+            has_retry_reason = %options.retry_reason.is_some(),
+            "Prepared agent relaunch"
+        );
+
+        Ok(PreparedLaunch {
+            agent_id,
+            ticket_id: ticket.id.clone(),
+            working_directory: working_dir,
+            command: llm_cmd,
+            terminal_name,
+            session_id: session_uuid,
+            worktree_created,
+            branch,
+        })
+    }
+
     /// Relaunch an existing in-progress ticket (does NOT claim from queue)
     ///
     /// Used when a tmux session died but the ticket is still in progress.

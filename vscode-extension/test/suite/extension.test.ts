@@ -18,8 +18,7 @@ suite('Extension Test Suite', () => {
     }
 
     const commands = await vscode.commands.getCommands(true);
-    assert.ok(commands.includes('operator.startServer'));
-    assert.ok(commands.includes('operator.stopServer'));
+    assert.ok(commands.includes('operator.startOperatorServer'));
     assert.ok(commands.includes('operator.showStatus'));
   });
 });

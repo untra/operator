@@ -180,6 +180,14 @@ jobs:
             target: aarch64-apple-darwin
             bun_target: bun-darwin-arm64
             artifact_name: operator-macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bun_target: bun-windows-x64
+            artifact_name: operator-windows-x86_64.exe
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            bun_target: bun-windows-arm64
+            artifact_name: operator-windows-arm64.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -202,6 +210,7 @@ jobs:
       # Check if backstage-server exists (Milestone 6)
       - name: Check for backstage-server
         id: backstage
+        shell: bash
         run: |
           if [ -d "backstage-server" ] && [ -f "backstage-server/package.json" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -239,8 +248,13 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Rename binary
+        shell: bash
         run: |
-          cp target/${{ matrix.target }}/release/operator ${{ matrix.artifact_name }}
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            cp target/${{ matrix.target }}/release/operator.exe ${{ matrix.artifact_name }}
+          else
+            cp target/${{ matrix.target }}/release/operator ${{ matrix.artifact_name }}
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -295,6 +309,11 @@ jobs:
           jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' backstage-server/package.json > tmp.json && mv tmp.json backstage-server/package.json
           jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' vscode-extension/package.json > tmp.json && mv tmp.json vscode-extension/package.json
 
+      - name: Update opr8r Cargo.toml version
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.version }}"/' opr8r/Cargo.toml
+          cd opr8r && cargo update --workspace
+
       - name: Update TypeScript VERSION constant
         run: |
           sed -i "s/const VERSION = '[^']*'/const VERSION = '${{ steps.version.outputs.version }}'/" vscode-extension/src/webhook-server.ts
@@ -306,7 +325,8 @@ jobs:
           git add VERSION Cargo.toml Cargo.lock docs/_config.yml \
             backstage-server/package.json \
             vscode-extension/package.json \
-            vscode-extension/src/webhook-server.ts
+            vscode-extension/src/webhook-server.ts \
+            opr8r/Cargo.toml opr8r/Cargo.lock
           git commit -m "chore: bump version to v${{ steps.version.outputs.version }} [skip ci]"
           git push
 

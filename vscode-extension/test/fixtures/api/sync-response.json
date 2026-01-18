@@ -1,0 +1,6 @@
+{
+  "created": ["FEAT-201", "FIX-202"],
+  "skipped": ["FEAT-100"],
+  "errors": [],
+  "total_processed": 3
+}

@@ -42,6 +42,8 @@ pub struct SyncResult {
     pub skipped: Vec<String>,
     /// Issues that failed to sync
     pub errors: Vec<String>,
+    /// Total number of issues processed
+    pub total_processed: usize,
 }
 
 impl SyncResult {
@@ -176,7 +178,57 @@ impl KanbanSyncService {
             }
         }
 
+        result.total_processed = result.created.len() + result.skipped.len() + result.errors.len();
         Ok(result)
+    }
+
+    /// Sync all configured collections
+    ///
+    /// Iterates through all configured kanban providers/projects and syncs them.
+    pub async fn sync_all(&self) -> Result<SyncResult> {
+        info!("Starting sync of all configured collections");
+
+        let mut combined = SyncResult::default();
+        let collections = self.configured_collections();
+
+        if collections.is_empty() {
+            info!("No kanban collections configured");
+            return Ok(combined);
+        }
+
+        for collection in collections {
+            info!(
+                "Syncing collection: {}/{}",
+                collection.provider, collection.project_key
+            );
+
+            match self
+                .sync_collection(&collection.provider, &collection.project_key)
+                .await
+            {
+                Ok(result) => {
+                    combined.created.extend(result.created);
+                    combined.skipped.extend(result.skipped);
+                    combined.errors.extend(result.errors);
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to sync {}/{}: {}",
+                        collection.provider, collection.project_key, e
+                    );
+                    combined.errors.push(format!(
+                        "{}/{}: {}",
+                        collection.provider, collection.project_key, e
+                    ));
+                }
+            }
+        }
+
+        combined.total_processed =
+            combined.created.len() + combined.skipped.len() + combined.errors.len();
+
+        info!("Sync complete: {}", combined.summary());
+        Ok(combined)
     }
 
     /// Get project config for a provider/project combination

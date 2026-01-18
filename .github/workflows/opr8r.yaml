@@ -1,0 +1,237 @@
+name: opr8r
+
+on:
+  push:
+    paths:
+      - 'opr8r/**'
+      - '.github/workflows/opr8r.yaml'
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'opr8r/**'
+      - '.github/workflows/opr8r.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: opr8r-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: opr8r
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            opr8r/target
+          key: opr8r-${{ runner.os }}-cargo-${{ hashFiles('opr8r/Cargo.lock') }}
+          restore-keys: |
+            opr8r-${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --all-features
+
+  coverage:
+    name: Coverage
+    needs: lint-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: opr8r
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            opr8r/target
+          key: opr8r-${{ runner.os }}-cargo-coverage-${{ hashFiles('opr8r/Cargo.lock') }}
+          restore-keys: |
+            opr8r-${{ runner.os }}-cargo-coverage-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Generate coverage
+        run: cargo llvm-cov --all-features --codecov --output-path codecov.json
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: opr8r/codecov.json
+          flags: opr8r
+          fail_ci_if_error: true
+
+  build:
+    name: Build (${{ matrix.artifact }})
+    needs: lint-test
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: opr8r-linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            artifact: opr8r-linux-arm64
+          - target: x86_64-apple-darwin
+            os: macos-13
+            artifact: opr8r-macos-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-14
+            artifact: opr8r-macos-arm64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact: opr8r-windows-x86_64
+            extension: .exe
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            artifact: opr8r-windows-arm64
+            extension: .exe
+            cross_compile: true
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: opr8r
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            opr8r/target
+          key: opr8r-${{ matrix.artifact }}-cargo-${{ hashFiles('opr8r/Cargo.lock') }}
+          restore-keys: |
+            opr8r-${{ matrix.artifact }}-cargo-
+
+      - name: Install cross-compile target (Windows ARM64)
+        if: matrix.cross_compile == true
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+        if: matrix.cross_compile == true
+
+      - name: Build release binary (native)
+        run: cargo build --release
+        if: matrix.cross_compile != true
+
+      - name: Strip binary (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "${{ matrix.cross_compile }}" = "true" ]; then
+            strip target/${{ matrix.target }}/release/opr8r || true
+          else
+            strip target/release/opr8r || true
+          fi
+
+      - name: Upload artifact (native)
+        if: matrix.cross_compile != true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: opr8r/target/release/opr8r${{ matrix.extension || '' }}
+          retention-days: 30
+
+      - name: Upload artifact (cross-compiled)
+        if: matrix.cross_compile == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: opr8r/target/${{ matrix.target }}/release/opr8r${{ matrix.extension || '' }}
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          for dir in artifacts/opr8r-*; do
+            name=$(basename "$dir")
+            # Handle both .exe and non-.exe binaries
+            if [ -f "$dir/opr8r.exe" ]; then
+              cp "$dir/opr8r.exe" "release/${name}.exe"
+            else
+              cp "$dir/opr8r" "release/$name"
+              chmod +x "release/$name"
+            fi
+          done
+          ls -la release/
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(grep '^version' opr8r/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: opr8r-v${{ steps.version.outputs.version }}
+          name: opr8r v${{ steps.version.outputs.version }}
+          body: |
+            ## opr8r v${{ steps.version.outputs.version }}
+
+            Minimal CLI wrapper for LLM commands in multi-step ticket workflows.
+
+            ### Downloads
+            - **Linux x86_64**: `opr8r-linux-x86_64`
+            - **Linux ARM64**: `opr8r-linux-arm64`
+            - **macOS Intel**: `opr8r-macos-x86_64`
+            - **macOS Apple Silicon**: `opr8r-macos-arm64`
+            - **Windows x86_64**: `opr8r-windows-x86_64.exe`
+            - **Windows ARM64**: `opr8r-windows-arm64.exe`
+          files: release/*
+          draft: false
+          prerelease: false

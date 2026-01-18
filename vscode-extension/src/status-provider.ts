@@ -148,7 +148,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     // REST API status
     if (this.apiStatus.connected) {
       items.push(
-        new StatusItem('API', 'Connected', 'pass', `Operator REST API at ${this.apiStatus.url}`)
+        new StatusItem('API', this.apiStatus.url || '', 'pass', `Operator REST API at ${this.apiStatus.url}`)
       );
       if (this.apiStatus.version) {
         items.push(

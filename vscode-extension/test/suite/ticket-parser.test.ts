@@ -205,9 +205,9 @@ Body`;
       const content = '---\r\nid: WIN-001\r\nstatus: queue\r\n---\r\nBody';
       const result = parseTicketContent(content);
 
-      // The regex may not match Windows line endings perfectly
-      // This test documents current behavior
-      assert.ok(result === null || result.id === 'WIN-001');
+      assert.ok(result, 'Should parse Windows line endings');
+      assert.strictEqual(result.id, 'WIN-001');
+      assert.strictEqual(result.status, 'queue');
     });
   });
 

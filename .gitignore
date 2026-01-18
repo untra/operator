@@ -41,3 +41,4 @@ docs/_site/
 vscode-extension/src/generated/
 vscode-extension/out/
 vscode-extension/.vscode-test/
+test-output.txt

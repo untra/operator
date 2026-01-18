@@ -26,6 +26,9 @@ export async function parseTicketMetadata(
  * Parse ticket content string (for testing)
  */
 export function parseTicketContent(content: string): TicketMetadata | null {
+  // Normalize line endings (handle Windows CRLF)
+  content = content.replace(/\r\n/g, '\n');
+
   // Extract YAML frontmatter between --- markers
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) {

@@ -67,15 +67,10 @@ jobs:
             opr8r_artifact: opr8r-linux-x86_64
           - vscode_target: linux-arm64
             opr8r_artifact: opr8r-linux-arm64
-          - vscode_target: darwin-x64
-            opr8r_artifact: opr8r-macos-x86_64
           - vscode_target: darwin-arm64
             opr8r_artifact: opr8r-macos-arm64
           - vscode_target: win32-x64
             opr8r_artifact: opr8r-windows-x86_64
-            opr8r_extension: .exe
-          - vscode_target: win32-arm64
-            opr8r_artifact: opr8r-windows-arm64
             opr8r_extension: .exe
     runs-on: ubuntu-latest
     steps:

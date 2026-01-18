@@ -78,11 +78,6 @@ curl -L https://github.com/untra/operator/releases/latest/download/operator-maco
 chmod +x operator
 sudo mv operator /usr/local/bin/
 
-# macOS Intel
-curl -L https://github.com/untra/operator/releases/latest/download/operator-macos-x86_64 -o operator
-chmod +x operator
-sudo mv operator /usr/local/bin/
-
 # Linux x86_64
 curl -L https://github.com/untra/operator/releases/latest/download/operator-linux-x86_64 -o operator
 chmod +x operator

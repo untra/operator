@@ -1,0 +1,62 @@
+[
+  {
+    "key": "FEAT",
+    "name": "Feature",
+    "description": "New functionality",
+    "mode": "autonomous",
+    "glyph": "*",
+    "color": "cyan",
+    "source": "api",
+    "stepCount": 3
+  },
+  {
+    "key": "FIX",
+    "name": "Bug Fix",
+    "description": "Fix a bug",
+    "mode": "autonomous",
+    "glyph": "#",
+    "color": "red",
+    "source": "api",
+    "stepCount": 3
+  },
+  {
+    "key": "TASK",
+    "name": "Task",
+    "description": "General task",
+    "mode": "autonomous",
+    "glyph": ">",
+    "color": "green",
+    "source": "api",
+    "stepCount": 2
+  },
+  {
+    "key": "SPIKE",
+    "name": "Spike",
+    "description": "Research and investigation",
+    "mode": "paired",
+    "glyph": "?",
+    "color": "magenta",
+    "source": "api",
+    "stepCount": 2
+  },
+  {
+    "key": "INV",
+    "name": "Investigation",
+    "description": "Investigate a failure",
+    "mode": "paired",
+    "glyph": "!",
+    "color": "yellow",
+    "source": "api",
+    "stepCount": 2
+  },
+  {
+    "key": "CUSTOM",
+    "name": "Custom Type",
+    "description": "Custom issue type from API",
+    "mode": "autonomous",
+    "glyph": "+",
+    "color": "blue",
+    "source": "api",
+    "stepCount": 4
+  }
+]

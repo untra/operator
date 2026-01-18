@@ -1,0 +1,11 @@
+{
+  "agent_id": "agent-abc123",
+  "ticket_id": "FEAT-123",
+  "working_directory": "/path/to/worktree",
+  "command": "claude --session abc123",
+  "terminal_name": "op-FEAT-123",
+  "tmux_session_name": "op-FEAT-123",
+  "session_id": "abc123",
+  "worktree_created": true,
+  "branch": "feat/add-dark-mode"
+}

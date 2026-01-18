@@ -42,8 +42,7 @@ suite('Integration Test Suite', () => {
 
         // Verify all webhook-related commands are registered
         const requiredCommands = [
-            'operator.startServer',
-            'operator.stopServer',
+            'operator.startOperatorServer',
             'operator.showStatus',
             'operator.launchTicket',
             'operator.refreshTickets'

@@ -176,6 +176,11 @@ fn generate_config_flags(
             cli_flags.push(mode_str.to_string());
         }
 
+        // Add worktrees directory to allowed directories (bypasses trust dialog)
+        let worktrees_path = config.worktrees_path();
+        cli_flags.push("--add-dir".to_string());
+        cli_flags.push(worktrees_path.to_string_lossy().to_string());
+
         // Add JSON schema flag for structured output
         // Inline jsonSchema takes precedence over jsonSchemaFile
         if let Some(ref schema) = step_config.json_schema {

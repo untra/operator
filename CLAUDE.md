@@ -31,6 +31,11 @@ If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)
 
 When changes touch subprojects, those must also pass validation:
 
+**opr8r** (Rust/cargo):
+```bash
+cargo run 
+```
+
 **vscode-extension** (TypeScript/npm):
 ```bash
 cd vscode-extension && npm run lint && npm run compile

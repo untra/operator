@@ -1,15 +1,20 @@
 //! Queue management endpoints for the REST API.
 //!
 //! Provides the Kanban board data endpoint for displaying tickets
-//! grouped by status columns.
+//! grouped by status columns, and queue control endpoints for
+//! pause/resume/sync operations.
 
 use axum::{extract::State, Json};
 use chrono::Utc;
 
 use crate::queue::{Queue, Ticket};
-use crate::rest::dto::{KanbanBoardResponse, KanbanTicketCard, QueueByType, QueueStatusResponse};
+use crate::rest::dto::{
+    KanbanBoardResponse, KanbanSyncResponse, KanbanTicketCard, QueueByType, QueueControlResponse,
+    QueueStatusResponse,
+};
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
+use crate::state::State as OperatorState;
 
 /// Convert a Ticket to a KanbanTicketCard
 fn ticket_to_card(ticket: &Ticket) -> KanbanTicketCard {
@@ -222,6 +227,86 @@ pub async fn status(State(state): State<ApiState>) -> Result<Json<QueueStatusRes
             feat: feat_count,
             spike: spike_count,
         },
+    }))
+}
+
+/// Pause queue processing
+///
+/// Sets the queue paused state to true, stopping automatic ticket launches.
+#[utoipa::path(
+    post,
+    path = "/api/v1/queue/pause",
+    tag = "Queue",
+    responses(
+        (status = 200, description = "Queue paused successfully", body = QueueControlResponse)
+    )
+)]
+pub async fn pause(State(state): State<ApiState>) -> Result<Json<QueueControlResponse>, ApiError> {
+    let mut operator_state = OperatorState::load(&state.config)
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {}", e)))?;
+
+    operator_state
+        .set_paused(true)
+        .map_err(|e| ApiError::InternalError(format!("Failed to pause queue: {}", e)))?;
+
+    Ok(Json(QueueControlResponse {
+        paused: true,
+        message: "Queue processing paused".to_string(),
+    }))
+}
+
+/// Resume queue processing
+///
+/// Sets the queue paused state to false, resuming automatic ticket launches.
+#[utoipa::path(
+    post,
+    path = "/api/v1/queue/resume",
+    tag = "Queue",
+    responses(
+        (status = 200, description = "Queue resumed successfully", body = QueueControlResponse)
+    )
+)]
+pub async fn resume(State(state): State<ApiState>) -> Result<Json<QueueControlResponse>, ApiError> {
+    let mut operator_state = OperatorState::load(&state.config)
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {}", e)))?;
+
+    operator_state
+        .set_paused(false)
+        .map_err(|e| ApiError::InternalError(format!("Failed to resume queue: {}", e)))?;
+
+    Ok(Json(QueueControlResponse {
+        paused: false,
+        message: "Queue processing resumed".to_string(),
+    }))
+}
+
+/// Sync kanban collections
+///
+/// Fetches issues from configured external kanban providers (Jira, Linear, etc.)
+/// and creates local tickets in the queue.
+#[utoipa::path(
+    post,
+    path = "/api/v1/queue/sync",
+    tag = "Queue",
+    responses(
+        (status = 200, description = "Kanban sync completed", body = KanbanSyncResponse)
+    )
+)]
+pub async fn sync(State(state): State<ApiState>) -> Result<Json<KanbanSyncResponse>, ApiError> {
+    use crate::services::KanbanSyncService;
+
+    let sync_service = KanbanSyncService::new(&state.config);
+
+    let result = sync_service
+        .sync_all()
+        .await
+        .map_err(|e| ApiError::InternalError(format!("Kanban sync failed: {}", e)))?;
+
+    Ok(Json(KanbanSyncResponse {
+        created: result.created,
+        skipped: result.skipped,
+        errors: result.errors,
+        total_processed: result.total_processed,
     }))
 }
 

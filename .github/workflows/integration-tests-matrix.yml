@@ -1,0 +1,378 @@
+name: Integration Tests Matrix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'opr8r/**'
+      - 'vscode-extension/**'
+      - 'tests/**'
+      - '.github/workflows/integration-tests-matrix.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'opr8r/**'
+      - 'vscode-extension/**'
+      - 'tests/**'
+  workflow_dispatch:
+    inputs:
+      run_vscode_tests:
+        description: 'Run VSCode extension integration tests'
+        type: boolean
+        default: true
+      run_tmux_tests:
+        description: 'Run tmux-based launch tests'
+        type: boolean
+        default: true
+      run_api_tests:
+        description: 'Run REST API tests'
+        type: boolean
+        default: true
+      run_opr8r_tests:
+        description: 'Run opr8r CLI tests'
+        type: boolean
+        default: true
+
+jobs:
+  # ============================================================================
+  # BUILD ARTIFACTS FIRST
+  # ============================================================================
+
+  build-operator:
+    name: Build Operator (${{ matrix.artifact }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: operator-linux-x64
+          - os: ubuntu-24.04-arm
+            artifact: operator-linux-arm64
+          - os: macos-14
+            artifact: operator-macos-arm64
+          - os: windows-latest
+            artifact: operator-windows-x64
+            extension: .exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.artifact }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.artifact }}-cargo-
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/release/operator${{ matrix.extension || '' }}
+          retention-days: 1
+
+  build-opr8r:
+    name: Build opr8r (${{ matrix.artifact }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: opr8r-linux-x64
+          - os: ubuntu-24.04-arm
+            artifact: opr8r-linux-arm64
+          - os: macos-14
+            artifact: opr8r-macos-arm64
+          - os: windows-latest
+            artifact: opr8r-windows-x64
+            extension: .exe
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: opr8r
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            opr8r/target
+          key: opr8r-${{ matrix.artifact }}-cargo-${{ hashFiles('opr8r/Cargo.lock') }}
+          restore-keys: opr8r-${{ matrix.artifact }}-cargo-
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: opr8r/target/release/opr8r${{ matrix.extension || '' }}
+          retention-days: 1
+
+  # ============================================================================
+  # TMUX INTEGRATION TESTS (Linux/macOS only)
+  # ============================================================================
+
+  test-tmux-launch:
+    name: TMux Launch (${{ matrix.os }})
+    needs: [build-operator, build-opr8r]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_tmux_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            operator_artifact: operator-linux-x64
+            opr8r_artifact: opr8r-linux-x64
+          - os: ubuntu-24.04-arm
+            operator_artifact: operator-linux-arm64
+            opr8r_artifact: opr8r-linux-arm64
+          - os: macos-14
+            operator_artifact: operator-macos-arm64
+            opr8r_artifact: opr8r-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tmux (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Install tmux (macOS)
+        if: runner.os == 'macOS'
+        run: brew install tmux
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-test-
+
+      - name: Download operator binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.operator_artifact }}
+          path: target/release
+
+      - name: Download opr8r binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.opr8r_artifact }}
+          path: target/release
+
+      - name: Make binaries executable
+        run: chmod +x target/release/operator target/release/opr8r
+
+      - name: Run launch integration tests
+        env:
+          OPERATOR_LAUNCH_TEST_ENABLED: 'true'
+        run: cargo test --test launch_integration -- --nocapture --test-threads=1
+
+      - name: Cleanup tmux sessions
+        if: always()
+        run: tmux kill-server 2>/dev/null || true
+
+  # ============================================================================
+  # REST API INTEGRATION TESTS (All platforms)
+  # ============================================================================
+
+  test-rest-api:
+    name: REST API (${{ matrix.os }})
+    needs: build-operator
+    if: github.event_name != 'workflow_dispatch' || inputs.run_api_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: operator-linux-x64
+          - os: ubuntu-24.04-arm
+            artifact: operator-linux-arm64
+          - os: macos-14
+            artifact: operator-macos-arm64
+          - os: windows-latest
+            artifact: operator-windows-x64
+            extension: .exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-test-
+
+      - name: Download operator binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/release
+
+      - name: Make binary executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x target/release/operator
+
+      - name: Run REST API integration tests
+        env:
+          OPERATOR_REST_API_TEST_ENABLED: 'true'
+        run: cargo test --test rest_api_integration -- --nocapture --test-threads=1
+
+  # ============================================================================
+  # OPR8R CLI INTEGRATION TESTS (All platforms)
+  # ============================================================================
+
+  test-opr8r-cli:
+    name: opr8r CLI (${{ matrix.os }})
+    needs: [build-operator, build-opr8r]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_opr8r_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            operator_artifact: operator-linux-x64
+            opr8r_artifact: opr8r-linux-x64
+          - os: ubuntu-24.04-arm
+            operator_artifact: operator-linux-arm64
+            opr8r_artifact: opr8r-linux-arm64
+          - os: macos-14
+            operator_artifact: operator-macos-arm64
+            opr8r_artifact: opr8r-macos-arm64
+          - os: windows-latest
+            operator_artifact: operator-windows-x64
+            opr8r_artifact: opr8r-windows-x64
+            extension: .exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download operator binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.operator_artifact }}
+          path: target/release
+
+      - name: Download opr8r binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.opr8r_artifact }}
+          path: opr8r-bin
+
+      - name: Make binaries executable (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x target/release/operator
+          chmod +x opr8r-bin/opr8r
+
+      - name: Test opr8r --version (Unix)
+        if: runner.os != 'Windows'
+        run: ./opr8r-bin/opr8r --version
+
+      - name: Test opr8r --version (Windows)
+        if: runner.os == 'Windows'
+        run: .\opr8r-bin\opr8r.exe --version
+        shell: pwsh
+
+      - name: Test opr8r dry-run (Unix)
+        if: runner.os != 'Windows'
+        run: ./opr8r-bin/opr8r --ticket-id TEST-001 --step plan --dry-run -- echo "test"
+
+      - name: Test opr8r dry-run (Windows)
+        if: runner.os == 'Windows'
+        run: .\opr8r-bin\opr8r.exe --ticket-id TEST-001 --step plan --dry-run -- cmd /C "echo test"
+        shell: pwsh
+
+  # ============================================================================
+  # VSCODE EXTENSION INTEGRATION TESTS (Headless)
+  # ============================================================================
+
+  test-vscode-extension:
+    name: VSCode Extension (${{ matrix.os }})
+    needs: [build-operator, build-opr8r]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_vscode_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            operator_artifact: operator-linux-x64
+            opr8r_artifact: opr8r-linux-x64
+          - os: macos-14
+            operator_artifact: operator-macos-arm64
+            opr8r_artifact: opr8r-macos-arm64
+          - os: windows-latest
+            operator_artifact: operator-windows-x64
+            opr8r_artifact: opr8r-windows-x64
+            extension: .exe
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: vscode-extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: vscode-extension/package-lock.json
+
+      - name: Download opr8r binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.opr8r_artifact }}
+          path: vscode-extension/bin
+
+      - name: Make binary executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x bin/opr8r
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Run tests (Linux with xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm test
+        env:
+          DISPLAY: ':99.0'
+
+      - name: Run tests (macOS/Windows)
+        if: runner.os != 'Linux'
+        run: npm test

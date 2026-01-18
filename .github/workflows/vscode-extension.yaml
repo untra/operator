@@ -22,7 +22,7 @@ defaults:
     working-directory: vscode-extension
 
 jobs:
-  build:
+  lint-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,30 +43,6 @@ jobs:
       - name: Compile
         run: npm run compile
 
-      - name: Package extension
-        run: npm run package
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: operator-terminals.vsix
-          path: vscode-extension/*.vsix
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: vscode-extension/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
       - name: Run tests with coverage
         run: xvfb-run -a npm run test:coverage
         env:
@@ -79,10 +55,29 @@ jobs:
           flags: vscode-extension
           fail_ci_if_error: false
 
-  publish:
-    needs: [build, test]
+  build-vsix:
+    name: Build VSIX (${{ matrix.vscode_target }})
+    needs: lint-test
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vscode_target: linux-x64
+            opr8r_artifact: opr8r-linux-x86_64
+          - vscode_target: linux-arm64
+            opr8r_artifact: opr8r-linux-arm64
+          - vscode_target: darwin-x64
+            opr8r_artifact: opr8r-macos-x86_64
+          - vscode_target: darwin-arm64
+            opr8r_artifact: opr8r-macos-arm64
+          - vscode_target: win32-x64
+            opr8r_artifact: opr8r-windows-x86_64
+            opr8r_extension: .exe
+          - vscode_target: win32-arm64
+            opr8r_artifact: opr8r-windows-arm64
+            opr8r_extension: .exe
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -93,24 +88,64 @@ jobs:
           cache: 'npm'
           cache-dependency-path: vscode-extension/package-lock.json
 
+      - name: Download opr8r binary
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: opr8r.yaml
+          name: ${{ matrix.opr8r_artifact }}
+          path: vscode-extension/bin
+
+      - name: Prepare binary
+        run: |
+          # Unix binaries need execute permission, Windows binaries already have .exe extension
+          if [ -f "bin/opr8r" ]; then
+            chmod +x bin/opr8r
+          fi
+          ls -la bin/
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Publish to marketplace
-        run: npm run publish
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      - name: Package platform-specific VSIX
+        run: npx vsce package --target ${{ matrix.vscode_target }}
 
-  sync-version:
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.vscode_target }}
+          path: vscode-extension/*.vsix
+
+  publish:
+    name: Publish to Marketplace
+    needs: build-vsix
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read operator version
-        id: version
-        run: echo "version=$(cat ../VERSION)" >> $GITHUB_OUTPUT
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - name: Update extension version
+      - name: Install vsce
+        run: npm install -g @vscode/vsce
+
+      - name: Download all VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vsix-*
+          path: vsix-packages
+          merge-multiple: true
+
+      - name: List VSIX packages
+        run: ls -la vsix-packages/
+
+      - name: Publish all platforms
         run: |
-          npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
+          for vsix in vsix-packages/*.vsix; do
+            echo "Publishing $vsix"
+            vsce publish --packagePath "$vsix"
+          done
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

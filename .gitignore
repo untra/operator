@@ -1,5 +1,6 @@
 # Rust build artifacts
 /target/
+opr8r/target/
 
 # Rust backup files
 *.rs.bk
@@ -40,3 +41,4 @@ docs/_site/
 vscode-extension/src/generated/
 vscode-extension/out/
 vscode-extension/.vscode-test/
+test-output.txt

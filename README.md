@@ -31,6 +31,8 @@ When started for the first time, Operator will setup configuration to consume an
 
 Operator comes with a separate web component, unneeded to do work but purpose built to give you a developer portal to expand their workflows and administrate Operator with ease.
 
+Operator starts and runs it's own REST API, which can be reached by outside clients, including by the `opr8r` wrapper client. This is included to communicate with Operator api hosts outside of where it's hosted.
+
 ## Usage
 
 ```bash

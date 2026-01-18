@@ -632,6 +632,115 @@ pub struct LaunchTicketResponse {
     pub branch: Option<String>,
 }
 
+// =============================================================================
+// Step Completion DTOs (for opr8r wrapper)
+// =============================================================================
+
+/// Request to report step completion (from opr8r wrapper)
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct StepCompleteRequest {
+    /// Exit code from the LLM command
+    pub exit_code: i32,
+    /// Whether output validation passed (if schema was specified)
+    #[serde(default = "default_true")]
+    pub output_valid: bool,
+    /// List of validation errors (if output_valid is false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_schema_errors: Option<Vec<String>>,
+    /// Session ID from the LLM session
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    /// Duration of the step in seconds
+    pub duration_secs: u64,
+    /// Sample of the output (first N chars for debugging)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_sample: Option<String>,
+}
+
+/// Response from step completion endpoint
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct StepCompleteResponse {
+    /// Status of the step: "completed", "awaiting_review", "failed"
+    pub status: String,
+    /// Information about the next step (if any)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_step: Option<NextStepInfo>,
+    /// Whether to automatically proceed to the next step
+    pub auto_proceed: bool,
+    /// Command to execute for the next step (opr8r wrapped)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_command: Option<String>,
+}
+
+/// Information about the next step in the workflow
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct NextStepInfo {
+    /// Step name
+    pub name: String,
+    /// Display name for the step
+    pub display_name: String,
+    /// Review type: "none", "plan", "visual", "pr"
+    pub review_type: String,
+    /// Prompt template for the step
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
+}
+
+// =============================================================================
+// Queue Control DTOs
+// =============================================================================
+
+/// Response for queue pause/resume operations
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct QueueControlResponse {
+    /// Whether the queue is currently paused
+    pub paused: bool,
+    /// Human-readable message about the operation
+    pub message: String,
+}
+
+/// Response for kanban sync operations
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct KanbanSyncResponse {
+    /// Ticket IDs that were created
+    pub created: Vec<String>,
+    /// Ticket IDs that were skipped (already exist)
+    pub skipped: Vec<String>,
+    /// Error messages for failed syncs
+    pub errors: Vec<String>,
+    /// Total count of issues processed
+    pub total_processed: usize,
+}
+
+// =============================================================================
+// Agent Review DTOs
+// =============================================================================
+
+/// Response for agent review operations (approve/reject)
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ReviewResponse {
+    /// Agent ID that was reviewed
+    pub agent_id: String,
+    /// Review status: "approved" or "rejected"
+    pub status: String,
+    /// Human-readable message about the operation
+    pub message: String,
+}
+
+/// Request to reject an agent's review
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct RejectReviewRequest {
+    /// Reason for rejection (feedback for the agent)
+    pub reason: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

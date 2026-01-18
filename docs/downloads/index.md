@@ -1,6 +1,6 @@
 ---
 title: "Downloads"
-description: "Download Operator! binaries for macOS and Linux, including the optional Backstage server."
+description: "Download Operator! binaries for macOS, Linux, and Windows, including the optional Backstage server."
 layout: doc
 ---
 
@@ -8,7 +8,7 @@ layout: doc
 
 Download <span class="operator-brand">Operator!</span> for your platform. Current version: **v{{ site.version }}**
 
-> **Note:** Operator is currently available for **macOS and Linux only**. Windows support is not yet available.
+> **Note:** Windows builds run in **limited mode** - queue management, REST API, and backstage-server work normally, but agent launching requires tmux (available via WSL).
 
 <div id="recommended-download">
   <noscript>See the download tables below for all available platforms.</noscript>
@@ -22,6 +22,8 @@ Download <span class="operator-brand">Operator!</span> for your platform. Curren
 | macOS | x86_64 (Intel) | [operator-macos-x86_64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-macos-x86_64) |
 | Linux | ARM64 | [operator-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-arm64) |
 | Linux | x86_64 | [operator-linux-x86_64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-x86_64) |
+| Windows | x86_64 | [operator-windows-x86_64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-x86_64.exe) |
+| Windows | ARM64 | [operator-windows-arm64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-arm64.exe) |
 
 ## Backstage Server
 
@@ -33,6 +35,7 @@ Optional companion server for web-based project monitoring dashboard.
 | macOS | x64 | [backstage-server-bun-darwin-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-darwin-x64) |
 | Linux | ARM64 | [backstage-server-bun-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-linux-arm64) |
 | Linux | x64 | [backstage-server-bun-linux-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-linux-x64) |
+| Windows | x64 | [backstage-server-bun-windows-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-windows-x64) |
 
 ## All Releases
 
@@ -59,18 +62,24 @@ Optional companion server for web-based project monitoring dashboard.
 
   // Render the download recommendation
   function render(os, arch) {
-    if (os === 'windows') {
-      container.innerHTML = '<div class="recommended-box"><p><strong>Windows detected</strong> - Operator is not yet available for Windows. Please use macOS or Linux.</p></div>';
-      return;
-    }
+    var artifactName, url, label, archLabel, limitedModeNote = '';
 
-    var artifactName = 'operator-' + os + '-' + arch;
-    var url = '{{ site.github.repo }}/releases/download/v{{ site.version }}/' + artifactName;
-    var label = os === 'macos' ? 'macOS' : 'Linux';
-    var archLabel = arch === 'arm64' ? (os === 'macos' ? 'Apple Silicon' : 'ARM64') : 'x86_64';
+    if (os === 'windows') {
+      artifactName = 'operator-windows-' + arch + '.exe';
+      url = '{{ site.github.repo }}/releases/download/v{{ site.version }}/' + artifactName;
+      label = 'Windows';
+      archLabel = arch === 'arm64' ? 'ARM64' : 'x86_64';
+      limitedModeNote = '<p class="limited-mode-note" style="font-size: 0.9em; color: #666; margin-top: 0.5em;">Windows builds run in limited mode (no tmux agent launching)</p>';
+    } else {
+      artifactName = 'operator-' + os + '-' + arch;
+      url = '{{ site.github.repo }}/releases/download/v{{ site.version }}/' + artifactName;
+      label = os === 'macos' ? 'macOS' : 'Linux';
+      archLabel = arch === 'arm64' ? (os === 'macos' ? 'Apple Silicon' : 'ARM64') : 'x86_64';
+    }
 
     container.innerHTML = '<div class="recommended-box">' +
       '<p><strong>Recommended for your system:</strong> ' + label + ' ' + archLabel + '</p>' +
+      limitedModeNote +
       '<a href="' + url + '" class="download-button">Download ' + artifactName + '</a>' +
       '</div>';
   }

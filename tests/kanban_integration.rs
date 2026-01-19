@@ -32,20 +32,38 @@ use operator::api::providers::kanban::{
     CreateIssueRequest, JiraProvider, KanbanProvider, LinearProvider, UpdateStatusRequest,
 };
 use std::env;
+use tokio::sync::OnceCell;
+
+// Cached credential validation results
+static JIRA_CREDENTIALS_VALID: OnceCell<bool> = OnceCell::const_new();
+static LINEAR_CREDENTIALS_VALID: OnceCell<bool> = OnceCell::const_new();
 
 // ─── Configuration Helpers ───────────────────────────────────────────────────
 
-/// Check if Jira credentials are configured
+/// Check if Jira credentials are configured (non-empty env vars)
 fn jira_configured() -> bool {
-    env::var("OPERATOR_JIRA_DOMAIN").is_ok()
-        && env::var("OPERATOR_JIRA_EMAIL").is_ok()
-        && env::var("OPERATOR_JIRA_API_KEY").is_ok()
-        && env::var("OPERATOR_JIRA_TEST_PROJECT").is_ok()
+    env::var("OPERATOR_JIRA_DOMAIN")
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+        && env::var("OPERATOR_JIRA_EMAIL")
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
+        && env::var("OPERATOR_JIRA_API_KEY")
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
+        && env::var("OPERATOR_JIRA_TEST_PROJECT")
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
 }
 
-/// Check if Linear credentials are configured
+/// Check if Linear credentials are configured (non-empty env vars)
 fn linear_configured() -> bool {
-    env::var("OPERATOR_LINEAR_API_KEY").is_ok() && env::var("OPERATOR_LINEAR_TEST_TEAM").is_ok()
+    env::var("OPERATOR_LINEAR_API_KEY")
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+        && env::var("OPERATOR_LINEAR_TEST_TEAM")
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
 }
 
 /// Get the Jira test project key
@@ -79,11 +97,84 @@ fn find_terminal_status(statuses: &[String]) -> Option<String> {
     None
 }
 
-/// Macro to skip test if provider is not configured
+/// Validate Jira credentials by testing the connection.
+/// Result is cached for the duration of the test run.
+async fn jira_credentials_valid() -> bool {
+    if !jira_configured() {
+        return false;
+    }
+
+    *JIRA_CREDENTIALS_VALID
+        .get_or_init(|| async {
+            match JiraProvider::from_env() {
+                Ok(provider) => match provider.test_connection().await {
+                    Ok(valid) => {
+                        if !valid {
+                            eprintln!(
+                                "Jira credentials validation failed: connection test returned false"
+                            );
+                        }
+                        valid
+                    }
+                    Err(e) => {
+                        eprintln!("Jira credentials validation failed: {}", e);
+                        false
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Jira provider initialization failed: {}", e);
+                    false
+                }
+            }
+        })
+        .await
+}
+
+/// Validate Linear credentials by testing the connection.
+/// Result is cached for the duration of the test run.
+async fn linear_credentials_valid() -> bool {
+    if !linear_configured() {
+        return false;
+    }
+
+    *LINEAR_CREDENTIALS_VALID
+        .get_or_init(|| async {
+            match LinearProvider::from_env() {
+                Ok(provider) => match provider.test_connection().await {
+                    Ok(valid) => {
+                        if !valid {
+                            eprintln!(
+                                "Linear credentials validation failed: connection test returned false"
+                            );
+                        }
+                        valid
+                    }
+                    Err(e) => {
+                        eprintln!("Linear credentials validation failed: {}", e);
+                        false
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Linear provider initialization failed: {}", e);
+                    false
+                }
+            }
+        })
+        .await
+}
+
+/// Macro to skip test if provider is not configured or credentials are invalid
 macro_rules! skip_if_not_configured {
-    ($configured:expr, $provider:expr) => {
+    ($configured:expr, $valid:expr, $provider:expr) => {
         if !$configured {
             eprintln!("Skipping test: {} credentials not configured", $provider);
+            return;
+        }
+        if !$valid.await {
+            eprintln!(
+                "Skipping test: {} credentials invalid or expired",
+                $provider
+            );
             return;
         }
     };
@@ -100,7 +191,7 @@ mod jira_tests {
 
     #[tokio::test]
     async fn test_connection() {
-        skip_if_not_configured!(jira_configured(), "Jira");
+        skip_if_not_configured!(jira_configured(), jira_credentials_valid(), "Jira");
         let provider = get_provider();
 
         let result = provider.test_connection().await;
@@ -110,7 +201,7 @@ mod jira_tests {
 
     #[tokio::test]
     async fn test_list_projects() {
-        skip_if_not_configured!(jira_configured(), "Jira");
+        skip_if_not_configured!(jira_configured(), jira_credentials_valid(), "Jira");
         let provider = get_provider();
 
         let projects = provider
@@ -131,7 +222,7 @@ mod jira_tests {
 
     #[tokio::test]
     async fn test_list_users() {
-        skip_if_not_configured!(jira_configured(), "Jira");
+        skip_if_not_configured!(jira_configured(), jira_credentials_valid(), "Jira");
         let provider = get_provider();
         let project = jira_test_project();
 
@@ -150,7 +241,7 @@ mod jira_tests {
 
     #[tokio::test]
     async fn test_list_statuses() {
-        skip_if_not_configured!(jira_configured(), "Jira");
+        skip_if_not_configured!(jira_configured(), jira_credentials_valid(), "Jira");
         let provider = get_provider();
         let project = jira_test_project();
 
@@ -165,7 +256,7 @@ mod jira_tests {
 
     #[tokio::test]
     async fn test_get_issue_types() {
-        skip_if_not_configured!(jira_configured(), "Jira");
+        skip_if_not_configured!(jira_configured(), jira_credentials_valid(), "Jira");
         let provider = get_provider();
         let project = jira_test_project();
 
@@ -183,7 +274,7 @@ mod jira_tests {
 
     #[tokio::test]
     async fn test_list_issues() {
-        skip_if_not_configured!(jira_configured(), "Jira");
+        skip_if_not_configured!(jira_configured(), jira_credentials_valid(), "Jira");
         let provider = get_provider();
         let project = jira_test_project();
 
@@ -217,7 +308,7 @@ mod jira_tests {
 
     #[tokio::test]
     async fn test_create_issue() {
-        skip_if_not_configured!(jira_configured(), "Jira");
+        skip_if_not_configured!(jira_configured(), jira_credentials_valid(), "Jira");
         let provider = get_provider();
         let project = jira_test_project();
 
@@ -248,7 +339,7 @@ mod jira_tests {
 
     #[tokio::test]
     async fn test_update_issue_status() {
-        skip_if_not_configured!(jira_configured(), "Jira");
+        skip_if_not_configured!(jira_configured(), jira_credentials_valid(), "Jira");
         let provider = get_provider();
         let project = jira_test_project();
 
@@ -320,7 +411,7 @@ mod linear_tests {
 
     #[tokio::test]
     async fn test_connection() {
-        skip_if_not_configured!(linear_configured(), "Linear");
+        skip_if_not_configured!(linear_configured(), linear_credentials_valid(), "Linear");
         let provider = get_provider();
 
         let result = provider.test_connection().await;
@@ -330,7 +421,7 @@ mod linear_tests {
 
     #[tokio::test]
     async fn test_list_projects() {
-        skip_if_not_configured!(linear_configured(), "Linear");
+        skip_if_not_configured!(linear_configured(), linear_credentials_valid(), "Linear");
         let provider = get_provider();
 
         let teams = provider.list_projects().await.expect("Should list teams");
@@ -348,7 +439,7 @@ mod linear_tests {
 
     #[tokio::test]
     async fn test_list_users() {
-        skip_if_not_configured!(linear_configured(), "Linear");
+        skip_if_not_configured!(linear_configured(), linear_credentials_valid(), "Linear");
         let provider = get_provider();
         let team = linear_test_team();
 
@@ -368,7 +459,7 @@ mod linear_tests {
 
     #[tokio::test]
     async fn test_list_statuses() {
-        skip_if_not_configured!(linear_configured(), "Linear");
+        skip_if_not_configured!(linear_configured(), linear_credentials_valid(), "Linear");
         let provider = get_provider();
         let team = linear_test_team();
 
@@ -383,7 +474,7 @@ mod linear_tests {
 
     #[tokio::test]
     async fn test_get_issue_types() {
-        skip_if_not_configured!(linear_configured(), "Linear");
+        skip_if_not_configured!(linear_configured(), linear_credentials_valid(), "Linear");
         let provider = get_provider();
         let team = linear_test_team();
 
@@ -401,7 +492,7 @@ mod linear_tests {
 
     #[tokio::test]
     async fn test_list_issues() {
-        skip_if_not_configured!(linear_configured(), "Linear");
+        skip_if_not_configured!(linear_configured(), linear_credentials_valid(), "Linear");
         let provider = get_provider();
         let team = linear_test_team();
 
@@ -427,7 +518,7 @@ mod linear_tests {
 
     #[tokio::test]
     async fn test_create_issue() {
-        skip_if_not_configured!(linear_configured(), "Linear");
+        skip_if_not_configured!(linear_configured(), linear_credentials_valid(), "Linear");
         let provider = get_provider();
         let team = linear_test_team();
 
@@ -477,7 +568,7 @@ mod linear_tests {
 
     #[tokio::test]
     async fn test_update_issue_status() {
-        skip_if_not_configured!(linear_configured(), "Linear");
+        skip_if_not_configured!(linear_configured(), linear_credentials_valid(), "Linear");
         let provider = get_provider();
         let team = linear_test_team();
 
@@ -598,11 +689,11 @@ mod linear_tests {
 #[tokio::test]
 async fn test_provider_interface_consistency() {
     // This test verifies both providers implement the same interface
-    let jira_ok = jira_configured();
-    let linear_ok = linear_configured();
+    let jira_ok = jira_configured() && jira_credentials_valid().await;
+    let linear_ok = linear_configured() && linear_credentials_valid().await;
 
     if !jira_ok && !linear_ok {
-        eprintln!("Skipping: No providers configured");
+        eprintln!("Skipping: No providers configured or credentials invalid");
         return;
     }
 

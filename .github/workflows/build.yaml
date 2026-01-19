@@ -172,10 +172,6 @@ jobs:
             target: aarch64-unknown-linux-gnu
             bun_target: bun-linux-arm64
             artifact_name: operator-linux-arm64
-          - os: macos-15-intel
-            target: x86_64-apple-darwin
-            bun_target: bun-darwin-x64
-            artifact_name: operator-macos-x86_64
           - os: macos-14
             target: aarch64-apple-darwin
             bun_target: bun-darwin-arm64
@@ -184,10 +180,6 @@ jobs:
             target: x86_64-pc-windows-msvc
             bun_target: bun-windows-x64
             artifact_name: operator-windows-x86_64.exe
-          - os: windows-11-arm
-            target: aarch64-pc-windows-msvc
-            bun_target: bun-windows-arm64
-            artifact_name: operator-windows-arm64.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

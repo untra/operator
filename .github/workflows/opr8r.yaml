@@ -106,9 +106,6 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-24.04-arm
             artifact: opr8r-linux-arm64
-          - target: x86_64-apple-darwin
-            os: macos-13
-            artifact: opr8r-macos-x86_64
           - target: aarch64-apple-darwin
             os: macos-14
             artifact: opr8r-macos-arm64
@@ -116,11 +113,6 @@ jobs:
             os: windows-latest
             artifact: opr8r-windows-x86_64
             extension: .exe
-          - target: aarch64-pc-windows-msvc
-            os: windows-latest
-            artifact: opr8r-windows-arm64
-            extension: .exe
-            cross_compile: true
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -142,41 +134,18 @@ jobs:
           restore-keys: |
             opr8r-${{ matrix.artifact }}-cargo-
 
-      - name: Install cross-compile target (Windows ARM64)
-        if: matrix.cross_compile == true
-        run: rustup target add ${{ matrix.target }}
-
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
-        if: matrix.cross_compile == true
-
-      - name: Build release binary (native)
         run: cargo build --release
-        if: matrix.cross_compile != true
 
       - name: Strip binary (Linux/macOS)
         if: runner.os != 'Windows'
-        run: |
-          if [ "${{ matrix.cross_compile }}" = "true" ]; then
-            strip target/${{ matrix.target }}/release/opr8r || true
-          else
-            strip target/release/opr8r || true
-          fi
+        run: strip target/release/opr8r || true
 
-      - name: Upload artifact (native)
-        if: matrix.cross_compile != true
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: opr8r/target/release/opr8r${{ matrix.extension || '' }}
-          retention-days: 30
-
-      - name: Upload artifact (cross-compiled)
-        if: matrix.cross_compile == true
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: opr8r/target/${{ matrix.target }}/release/opr8r${{ matrix.extension || '' }}
           retention-days: 30
 
   release:
@@ -228,10 +197,8 @@ jobs:
             ### Downloads
             - **Linux x86_64**: `opr8r-linux-x86_64`
             - **Linux ARM64**: `opr8r-linux-arm64`
-            - **macOS Intel**: `opr8r-macos-x86_64`
             - **macOS Apple Silicon**: `opr8r-macos-arm64`
             - **Windows x86_64**: `opr8r-windows-x86_64.exe`
-            - **Windows ARM64**: `opr8r-windows-arm64.exe`
           files: release/*
           draft: false
           prerelease: false

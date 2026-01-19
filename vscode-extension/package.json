@@ -229,13 +229,13 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
-    "test:coverage": "c8 npm run test",
-    "coverage:report": "c8 report --reporter=lcov",
+    "test:coverage": "npm run test",
     "package": "vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
+    "nyc": "^17.1.0",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "20.x",

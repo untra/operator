@@ -28,11 +28,11 @@ export function getExtensionVersion(): string {
  *
  * Supported platforms:
  * - darwin + arm64 -> operator-macos-arm64
- * - darwin + x64 -> operator-macos-x86_64
  * - linux + arm64 -> operator-linux-arm64
  * - linux + x64 -> operator-linux-x86_64
  * - win32 + x64 -> operator-windows-x86_64.exe
- * - win32 + arm64 -> operator-windows-arm64.exe
+ *
+ * Unsupported platforms fall back to system PATH lookup
  */
 function getArtifactName(): string {
   const platform = process.platform; // 'darwin', 'linux', 'win32'

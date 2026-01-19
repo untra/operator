@@ -19,11 +19,9 @@ Download <span class="operator-brand">Operator!</span> for your platform. Curren
 | Platform | Architecture | Download |
 |----------|--------------|----------|
 | macOS | ARM64 (Apple Silicon) | [operator-macos-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-macos-arm64) |
-| macOS | x86_64 (Intel) | [operator-macos-x86_64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-macos-x86_64) |
 | Linux | ARM64 | [operator-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-arm64) |
 | Linux | x86_64 | [operator-linux-x86_64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-x86_64) |
 | Windows | x86_64 | [operator-windows-x86_64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-x86_64.exe) |
-| Windows | ARM64 | [operator-windows-arm64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-arm64.exe) |
 
 ## Backstage Server
 
@@ -32,7 +30,6 @@ Optional companion server for web-based project monitoring dashboard.
 | Platform | Architecture | Download |
 |----------|--------------|----------|
 | macOS | ARM64 | [backstage-server-bun-darwin-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-darwin-arm64) |
-| macOS | x64 | [backstage-server-bun-darwin-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-darwin-x64) |
 | Linux | ARM64 | [backstage-server-bun-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-linux-arm64) |
 | Linux | x64 | [backstage-server-bun-linux-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-linux-x64) |
 | Windows | x64 | [backstage-server-bun-windows-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-windows-x64) |

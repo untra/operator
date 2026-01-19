@@ -233,6 +233,7 @@ jobs:
       # This builds the React frontend, generates embedded assets, then compiles
       - name: Build backstage binary
         if: steps.backstage.outputs.exists == 'true'
+        shell: bash
         run: |
           cd backstage-server
           # Build frontend, generate embeds, compile binary
@@ -266,8 +267,70 @@ jobs:
           name: backstage-server-${{ matrix.bun_target }}
           path: target/backstage-server-${{ matrix.bun_target }}
 
+  build-opr8r:
+    needs: lint-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: opr8r-linux-x86_64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact_name: opr8r-linux-arm64
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact_name: opr8r-macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: opr8r-windows-x86_64.exe
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: opr8r
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            opr8r/target
+          key: opr8r-${{ matrix.artifact_name }}-cargo-${{ hashFiles('opr8r/Cargo.lock') }}
+          restore-keys: |
+            opr8r-${{ matrix.artifact_name }}-cargo-
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Strip binary (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: strip target/release/opr8r || true
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            cp target/release/opr8r.exe ../${{ matrix.artifact_name }}
+          else
+            cp target/release/opr8r ../${{ matrix.artifact_name }}
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
+
   release:
-    needs: build
+    needs: [build, build-opr8r]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -338,6 +401,8 @@ jobs:
           find artifacts -type f -name 'operator-*' -exec cp {} release-assets/ \;
           # Copy backstage-server binaries (if built)
           find artifacts -type f -name 'backstage-server-*' -exec cp {} release-assets/ \; 2>/dev/null || true
+          # Copy opr8r binaries
+          find artifacts -type f -name 'opr8r-*' -exec cp {} release-assets/ \;
           chmod +x release-assets/*
           ls -la release-assets/
 

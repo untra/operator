@@ -233,6 +233,7 @@ jobs:
       # This builds the React frontend, generates embedded assets, then compiles
       - name: Build backstage binary
         if: steps.backstage.outputs.exists == 'true'
+        shell: bash
         run: |
           cd backstage-server
           # Build frontend, generate embeds, compile binary

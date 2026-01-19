@@ -47,6 +47,12 @@ async function copyFileWithRetry(
       // This handles Windows dotfile issues where copyFile fails with EPERM
       if (error.code === "EPERM") {
         console.warn(`Using read+write fallback for ${src}`);
+        // Remove destination file if it exists (may have been partially created by failed copyFile)
+        try {
+          await rm(dest);
+        } catch {
+          // File doesn't exist, that's fine
+        }
         const content = await readFile(src);
         await writeFile(dest, content);
         return;

@@ -23,6 +23,9 @@ import {
 suite('Operator Binary Test Suite', () => {
   let sandbox: sinon.SinonSandbox;
 
+  // Platform-specific binary name
+  const binaryName = process.platform === 'win32' ? 'operator.exe' : 'operator';
+
   setup(() => {
     sandbox = sinon.createSandbox();
   });
@@ -179,7 +182,7 @@ suite('Operator Binary Test Suite', () => {
       // Create storage directory and binary
       const storagePath = path.join(tempDir, 'storage');
       await fs.mkdir(storagePath, { recursive: true });
-      const binaryPath = path.join(storagePath, 'operator');
+      const binaryPath = path.join(storagePath, binaryName);
       await fs.writeFile(binaryPath, '#!/bin/bash\necho "operator"');
       await fs.chmod(binaryPath, 0o755);
 
@@ -355,7 +358,7 @@ suite('Operator Binary Test Suite', () => {
       // Create storage directory and binary
       const storagePath = path.join(tempDir, 'storage');
       await fs.mkdir(storagePath, { recursive: true });
-      const binaryPath = path.join(storagePath, 'operator');
+      const binaryPath = path.join(storagePath, binaryName);
       await fs.writeFile(binaryPath, '#!/bin/bash\necho "operator"');
       await fs.chmod(binaryPath, 0o755);
 

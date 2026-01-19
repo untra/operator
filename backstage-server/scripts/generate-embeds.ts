@@ -43,6 +43,14 @@ async function copyFileWithRetry(
         await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
         continue;
       }
+      // Fallback: read source and write to destination
+      // This handles Windows dotfile issues where copyFile fails with EPERM
+      if (error.code === "EPERM") {
+        console.warn(`Using read+write fallback for ${src}`);
+        const content = await readFile(src);
+        await writeFile(dest, content);
+        return;
+      }
       throw err;
     }
   }

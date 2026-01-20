@@ -1,6 +1,6 @@
 [package]
 name = "opr8r"
-version = "0.1.14"
+version = "0.1.15"
 edition = "2021"
 description = "Minimal CLI wrapper for LLM commands in multi-step ticket workflows"
 license = "MIT"

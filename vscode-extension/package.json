@@ -2,7 +2,7 @@
   "name": "operator-terminals",
   "displayName": "Operator! Terminals for vscode",
   "description": "VS Code terminal integration for Operator! multi-agent orchestration",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "publisher": "untra",
   "author": {
     "name": "Samuel Volin",

@@ -47,11 +47,14 @@ async function copyFileWithRetry(
       // This handles Windows dotfile issues where copyFile fails with EPERM
       if (error.code === "EPERM") {
         console.warn(`Using read+write fallback for ${src}`);
+        // Small delay for Windows to release file locks from failed copyFile
+        await new Promise((resolve) => setTimeout(resolve, 100));
         // Remove destination file if it exists (may have been partially created by failed copyFile)
+        // recursive: true is required to enable maxRetries for EPERM errors on Windows
         try {
-          await rm(dest);
+          await rm(dest, { force: true, recursive: true, maxRetries: 3, retryDelay: 100 });
         } catch {
-          // File doesn't exist, that's fine
+          // Continue anyway - file might not exist
         }
         const content = await readFile(src);
         await writeFile(dest, content);
@@ -108,14 +111,15 @@ async function main() {
     const destPath = join(ASSETS_DIR, relativePath);
 
     // Create destination directory if needed
-    const destDir = join(ASSETS_DIR, relative(DIST_DIR, file.replace(/\/[^/]+$/, "")));
+    const destDir = join(ASSETS_DIR, relative(DIST_DIR, file.replace(/[/\\][^/\\]+$/, "")));
     await mkdir(destDir, { recursive: true }).catch(() => {});
 
     // Copy file (with retry for Windows file locking)
     await copyFileWithRetry(file, destPath);
 
     // Add to import paths (relative to src/)
-    importPaths.push(`./assets/${relativePath}`);
+    // Normalize to forward slashes for ES module imports (required regardless of OS)
+    importPaths.push(`./assets/${relativePath.replace(/\\/g, '/')}`);
   }
 
   // Generate embedded-assets.ts

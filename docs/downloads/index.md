@@ -30,10 +30,10 @@ For headless servers, CI/CD pipelines, or advanced workflows, download the CLI b
 
 | Platform | Architecture | Download |
 |----------|--------------|----------|
-| macOS | ARM64 (Apple Silicon) | [operator-macos-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-macos-arm64) |
-| Linux | ARM64 | [operator-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-arm64) |
-| Linux | x86_64 | [operator-linux-x86_64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-x86_64) |
-| Windows | x86_64 | [operator-windows-x86_64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-x86_64.exe) |
+| macOS | ARM64 (Apple Silicon) | [operator-macos-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-macos-arm64)<br><small>sha256:<code>{{ site.data.checksums.operator.macos_arm64 }}</code></small> |
+| Linux | ARM64 | [operator-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-arm64)<br><small>sha256:<code>{{ site.data.checksums.operator.linux_arm64 }}</code></small> |
+| Linux | x86_64 | [operator-linux-x86_64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-x86_64)<br><small>sha256:<code>{{ site.data.checksums.operator.linux_x86_64 }}</code></small> |
+| Windows | x86_64 | [operator-windows-x86_64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-x86_64.exe)<br><small>sha256:<code>{{ site.data.checksums.operator.windows_x86_64 }}</code></small> |
 
 ## Backstage Server
 
@@ -41,10 +41,10 @@ Optional companion server for web-based project monitoring dashboard.
 
 | Platform | Architecture | Download |
 |----------|--------------|----------|
-| macOS | ARM64 | [backstage-server-bun-darwin-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-darwin-arm64) |
-| Linux | ARM64 | [backstage-server-bun-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-linux-arm64) |
-| Linux | x64 | [backstage-server-bun-linux-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-linux-x64) |
-| Windows | x64 | [backstage-server-bun-windows-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-windows-x64) |
+| macOS | ARM64 | [backstage-server-bun-darwin-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-darwin-arm64)<br><small>sha256:<code>{{ site.data.checksums.backstage.darwin_arm64 }}</code></small> |
+| Linux | ARM64 | [backstage-server-bun-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-linux-arm64)<br><small>sha256:<code>{{ site.data.checksums.backstage.linux_arm64 }}</code></small> |
+| Linux | x64 | [backstage-server-bun-linux-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-linux-x64)<br><small>sha256:<code>{{ site.data.checksums.backstage.linux_x64 }}</code></small> |
+| Windows | x64 | [backstage-server-bun-windows-x64]({{ site.github.repo }}/releases/download/v{{ site.version }}/backstage-server-bun-windows-x64)<br><small>sha256:<code>{{ site.data.checksums.backstage.windows_x64 }}</code></small> |
 
 ## All Releases
 

@@ -6,6 +6,8 @@
 
 A multi-agent orchestration dashboard for [**AI-assisted**](https://operator.untra.io/getting-started/agents/) [_kanban-shaped_](https://operator.untra.io/getting-started/kanban/) [git-versioned](https://operator.untra.io/getting-started/git/) software development.
 
+<a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank" class="button">Install <b>Operator! Terminals</b> extension from Visual Studio Code Marketplace</a>
+
 Operator is for you if: 
 
 - you do work assigned from tickets on a kanban board , such as [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/) or [_Linear_](https://operator.untra.io/getting-started/kanban/linear/)

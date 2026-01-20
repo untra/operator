@@ -8,13 +8,25 @@ layout: doc
 
 Download <span class="operator-brand">Operator!</span> for your platform. Current version: **v{{ site.version }}**
 
-> **Note:** Windows builds run in **limited mode** - queue management, REST API, and backstage-server work normally, but agent launching requires tmux (available via WSL).
+## VS Code Extension (Recommended)
+
+The **VS Code Extension** is the recommended way to get started with Operator. It provides integrated terminal management, ticket tracking, and a streamlined workflow directly in your editor.
+
+<a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank" class="button">Install from VS Code Marketplace</a>
+
+Works on **macOS**, **Linux**, and **Windows** - no additional setup required.
+
+---
+
+## CLI Downloads
+
+For headless servers, CI/CD pipelines, or advanced workflows, download the CLI binary for your platform.
 
 <div id="recommended-download">
   <noscript>See the download tables below for all available platforms.</noscript>
 </div>
 
-## All <span class="operator-brand">Operator!</span> Downloads
+### All <span class="operator-brand">Operator!</span> Downloads
 
 | Platform | Architecture | Download |
 |----------|--------------|----------|
@@ -59,14 +71,13 @@ Optional companion server for web-based project monitoring dashboard.
 
   // Render the download recommendation
   function render(os, arch) {
-    var artifactName, url, label, archLabel, limitedModeNote = '';
+    var artifactName, url, label, archLabel;
 
     if (os === 'windows') {
       artifactName = 'operator-windows-' + arch + '.exe';
       url = '{{ site.github.repo }}/releases/download/v{{ site.version }}/' + artifactName;
       label = 'Windows';
       archLabel = arch === 'arm64' ? 'ARM64' : 'x86_64';
-      limitedModeNote = '<p class="limited-mode-note" style="font-size: 0.9em; color: #666; margin-top: 0.5em;">Windows builds run in limited mode (no tmux agent launching)</p>';
     } else {
       artifactName = 'operator-' + os + '-' + arch;
       url = '{{ site.github.repo }}/releases/download/v{{ site.version }}/' + artifactName;
@@ -76,7 +87,6 @@ Optional companion server for web-based project monitoring dashboard.
 
     container.innerHTML = '<div class="recommended-box">' +
       '<p><strong>Recommended for your system:</strong> ' + label + ' ' + archLabel + '</p>' +
-      limitedModeNote +
       '<a href="' + url + '" class="download-button">Download ' + artifactName + '</a>' +
       '</div>';
   }

@@ -6,9 +6,11 @@ layout: doc
 
 # VS Code Extension
 
+<span class="badge recommended">Recommended</span>
+
 <a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank" class="button">Install from VS Code Marketplace</a>
 
-Operator Terminals brings the Operator multi-agent orchestration experience directly into VS Code with integrated terminal management and ticket tracking.
+Operator Terminals brings the Operator multi-agent orchestration experience directly into VS Code with integrated terminal management and ticket tracking. This is the **recommended session manager** for most users, with full support for **macOS**, **Linux**, and **Windows** (no WSL required).
 
 ## Features
 

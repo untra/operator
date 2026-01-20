@@ -12,8 +12,8 @@ Operator supports multiple session management backends for running AI coding age
 
 | Option | Status | Notes |
 |--------|--------|-------|
-| [tmux](/getting-started/sessions/tmux/) | Recommended | Terminal multiplexer, works headless |
-| [VS Code Extension](/getting-started/sessions/vscode/) | Supported | Integrated terminals in VS Code |
+| [VS Code Extension](/getting-started/sessions/vscode/) | Recommended (Preferred) | Integrated terminals in VS Code, works on all platforms |
+| [tmux](/getting-started/sessions/tmux/) | Supported | Terminal multiplexer, ideal for headless/server environments |
 
 ## How It Works
 
@@ -26,9 +26,9 @@ Session managers provide:
 
 ## Choosing a Session Manager
 
-**tmux** is recommended for most users, especially those running agents on remote servers or headless environments. It works anywhere with a terminal.
+**VS Code Extension** is the recommended choice for most users. It provides an integrated experience with ticket management, color-coded terminals, and works seamlessly on macOS, Linux, and Windows without additional setup.
 
-**VS Code Extension** is ideal for developers who prefer working within VS Code and want integrated ticket management alongside their editor.
+**tmux** remains an excellent choice for headless/server environments, SSH sessions, and users who prefer terminal-based workflows. It's particularly useful for remote servers where VS Code may not be available.
 
 ## Feature Parity: Core Operations
 

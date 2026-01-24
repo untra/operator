@@ -6,7 +6,7 @@ layout: doc
 
 # Linear
 
-Connect Operator to Linear for modern issue tracking and project management.
+Connect Operator to [**Linear**](https://linear.app/features) for modern issue tracking and project management.
 
 ## Prerequisites
 

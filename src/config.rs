@@ -1018,6 +1018,10 @@ pub struct GitConfig {
     /// Branch naming format (e.g., "{type}/{ticket_id}-{slug}")
     #[serde(default = "default_branch_format")]
     pub branch_format: String,
+    /// Whether to use git worktrees for per-ticket isolation (default: false)
+    /// When false, tickets work directly in the project directory with branches
+    #[serde(default)]
+    pub use_worktrees: bool,
 }
 
 fn default_branch_format() -> String {
@@ -1031,6 +1035,7 @@ impl Default for GitConfig {
             github: GitHubConfig::default(),
             gitlab: GitLabConfig::default(),
             branch_format: default_branch_format(),
+            use_worktrees: false,
         }
     }
 }

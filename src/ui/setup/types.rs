@@ -197,6 +197,57 @@ impl SessionWrapperOption {
     }
 }
 
+/// Git workflow options shown in setup
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorktreeOption {
+    /// Work directly in the project directory with feature branches (default)
+    InPlace,
+    /// Use isolated git worktrees for parallel development
+    Worktrees,
+}
+
+impl WorktreeOption {
+    pub fn all() -> &'static [WorktreeOption] {
+        &[WorktreeOption::InPlace, WorktreeOption::Worktrees]
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            WorktreeOption::InPlace => "Work in project directory (recommended)",
+            WorktreeOption::Worktrees => "Use isolated worktrees",
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            WorktreeOption::InPlace => {
+                "Creates feature branches directly in the project. Simpler setup, no trust dialogs."
+            }
+            WorktreeOption::Worktrees => {
+                "Creates isolated worktrees per ticket. Enables parallel work but requires trust approval."
+            }
+        }
+    }
+
+    /// Convert to the config boolean value
+    pub fn to_use_worktrees(self) -> bool {
+        match self {
+            WorktreeOption::InPlace => false,
+            WorktreeOption::Worktrees => true,
+        }
+    }
+
+    /// Create from config boolean value
+    #[allow(dead_code)] // Useful for future config-to-UI state conversion
+    pub fn from_use_worktrees(use_worktrees: bool) -> Self {
+        if use_worktrees {
+            WorktreeOption::Worktrees
+        } else {
+            WorktreeOption::InPlace
+        }
+    }
+}
+
 /// Steps in the setup process
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupStep {
@@ -210,6 +261,8 @@ pub enum SetupStep {
     TaskFieldConfig,
     /// Select session wrapper (tmux or vscode)
     SessionWrapperChoice,
+    /// Git worktree preference (use worktrees vs in-place branches)
+    WorktreePreference,
     /// Tmux onboarding/help (only shown if tmux selected)
     TmuxOnboarding,
     /// VS Code extension setup (only shown if vscode selected)

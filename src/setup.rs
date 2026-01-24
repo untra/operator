@@ -33,6 +33,8 @@ pub struct SetupOptions {
     pub kanban_provider: Option<String>,
     /// Preferred LLM tool: claude, codex, gemini
     pub llm_tool: Option<String>,
+    /// Whether to use git worktrees for per-ticket isolation (default: false)
+    pub use_worktrees: bool,
 }
 
 /// Result of setup operation
@@ -147,6 +149,9 @@ pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Resu
 
     // Configure backstage if enabled
     config.backstage.enabled = options.backstage_enabled;
+
+    // Configure git worktree preference
+    config.git.use_worktrees = options.use_worktrees;
 
     // Generate tmux config
     generate_tmux_config(config)?;

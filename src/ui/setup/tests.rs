@@ -97,12 +97,24 @@ fn test_setup_wrapper_navigation_flow() {
 }
 
 #[test]
-fn test_setup_navigation_tmux_path() {
+fn test_setup_navigation_to_worktree_preference() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::SessionWrapperChoice;
     screen.selected_wrapper = SessionWrapperType::Tmux;
     screen.wrapper_state.select(Some(0)); // Select tmux
 
+    // SessionWrapperChoice -> WorktreePreference
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::WorktreePreference);
+}
+
+#[test]
+fn test_setup_navigation_tmux_path() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::WorktreePreference;
+    screen.selected_wrapper = SessionWrapperType::Tmux;
+
+    // WorktreePreference -> TmuxOnboarding (when tmux selected)
     screen.confirm();
     assert_eq!(screen.step, SetupStep::TmuxOnboarding);
 }
@@ -110,12 +122,21 @@ fn test_setup_navigation_tmux_path() {
 #[test]
 fn test_setup_navigation_vscode_path() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
-    screen.step = SetupStep::SessionWrapperChoice;
-    screen.wrapper_state.select(Some(1)); // Select vscode (index 1)
+    screen.step = SetupStep::WorktreePreference;
+    screen.selected_wrapper = SessionWrapperType::Vscode;
 
+    // WorktreePreference -> VSCodeSetup (when vscode selected)
     screen.confirm();
     assert_eq!(screen.step, SetupStep::VSCodeSetup);
-    assert_eq!(screen.selected_wrapper, SessionWrapperType::Vscode);
+}
+
+#[test]
+fn test_setup_worktree_preference_go_back() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::WorktreePreference;
+
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
 }
 
 #[test]
@@ -123,8 +144,9 @@ fn test_setup_tmux_onboarding_go_back() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::TmuxOnboarding;
 
+    // TmuxOnboarding -> WorktreePreference
     screen.go_back();
-    assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
+    assert_eq!(screen.step, SetupStep::WorktreePreference);
 }
 
 #[test]
@@ -132,8 +154,9 @@ fn test_setup_vscode_setup_go_back() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::VSCodeSetup;
 
+    // VSCodeSetup -> WorktreePreference
     screen.go_back();
-    assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
+    assert_eq!(screen.step, SetupStep::WorktreePreference);
 }
 
 #[test]
@@ -192,6 +215,58 @@ fn test_kanban_info_go_back_respects_wrapper_choice() {
     screen.selected_wrapper = SessionWrapperType::Vscode;
     screen.go_back();
     assert_eq!(screen.step, SetupStep::VSCodeSetup);
+}
+
+// ─── Worktree Preference Tests ────────────────────────────────────────────────
+
+#[test]
+fn test_setup_default_worktrees_is_false() {
+    let screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    assert!(!screen.use_worktrees);
+}
+
+#[test]
+fn test_setup_worktree_selection_toggle() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::WorktreePreference;
+
+    // Start with worktrees disabled (default)
+    assert!(!screen.use_worktrees);
+
+    // Navigate down to worktrees option
+    screen.select_next();
+    assert_eq!(screen.worktree_state.selected(), Some(1));
+
+    // Toggle selection
+    screen.toggle_selection();
+    assert!(screen.use_worktrees);
+}
+
+#[test]
+fn test_worktree_option_labels() {
+    assert_eq!(
+        WorktreeOption::InPlace.label(),
+        "Work in project directory (recommended)"
+    );
+    assert_eq!(WorktreeOption::Worktrees.label(), "Use isolated worktrees");
+}
+
+#[test]
+fn test_worktree_option_to_use_worktrees() {
+    assert!(!WorktreeOption::InPlace.to_use_worktrees());
+    assert!(WorktreeOption::Worktrees.to_use_worktrees());
+}
+
+#[test]
+fn test_worktree_option_from_use_worktrees() {
+    assert_eq!(
+        WorktreeOption::from_use_worktrees(false),
+        WorktreeOption::InPlace
+    );
+    assert_eq!(
+        WorktreeOption::from_use_worktrees(true),
+        WorktreeOption::Worktrees
+    );
 }
 
 #[test]

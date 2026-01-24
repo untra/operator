@@ -73,6 +73,11 @@ pub struct SetupScreen {
     pub tmux_status: TmuxDetectionStatus,
     /// VS Code extension status (checked during VSCodeSetup step)
     pub vscode_status: VSCodeDetectionStatus,
+    // ─── Git Worktree Setup State ──────────────────────────────────────────────
+    /// Whether to use git worktrees for ticket isolation (default: false)
+    pub use_worktrees: bool,
+    /// List state for worktree option selection
+    pub(crate) worktree_state: ListState,
 }
 
 impl SetupScreen {
@@ -96,6 +101,9 @@ impl SetupScreen {
 
         let mut wrapper_state = ListState::default();
         wrapper_state.select(Some(0));
+
+        let mut worktree_state = ListState::default();
+        worktree_state.select(Some(0));
 
         Self {
             visible: true,
@@ -132,6 +140,9 @@ impl SetupScreen {
             wrapper_state,
             tmux_status: TmuxDetectionStatus::NotChecked,
             vscode_status: VSCodeDetectionStatus::NotChecked,
+            // Git worktree state
+            use_worktrees: false,
+            worktree_state,
         }
     }
 
@@ -208,6 +219,15 @@ impl SetupScreen {
                     }
                 }
             }
+            SetupStep::WorktreePreference => {
+                // Select the currently highlighted worktree option
+                if let Some(i) = self.worktree_state.selected() {
+                    let options = WorktreeOption::all();
+                    if i < options.len() {
+                        self.use_worktrees = options[i].to_use_worktrees();
+                    }
+                }
+            }
             SetupStep::StartupTickets => {
                 // Toggle the currently highlighted startup ticket option
                 if let Some(i) = self.startup_state.selected() {
@@ -249,6 +269,11 @@ impl SetupScreen {
                 let len = SessionWrapperOption::all().len();
                 let i = self.wrapper_state.selected().map_or(0, |i| (i + 1) % len);
                 self.wrapper_state.select(Some(i));
+            }
+            SetupStep::WorktreePreference => {
+                let len = WorktreeOption::all().len();
+                let i = self.worktree_state.selected().map_or(0, |i| (i + 1) % len);
+                self.worktree_state.select(Some(i));
             }
             SetupStep::StartupTickets => {
                 let len = self.startup_ticket_options.len();
@@ -296,6 +321,14 @@ impl SetupScreen {
                         .selected()
                         .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
                 self.wrapper_state.select(Some(i));
+            }
+            SetupStep::WorktreePreference => {
+                let len = WorktreeOption::all().len();
+                let i =
+                    self.worktree_state
+                        .selected()
+                        .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
+                self.worktree_state.select(Some(i));
             }
             SetupStep::StartupTickets => {
                 let len = self.startup_ticket_options.len();
@@ -372,7 +405,19 @@ impl SetupScreen {
                         self.selected_wrapper = options[i].to_wrapper_type();
                     }
                 }
-                // Navigate to the appropriate next step
+                // Navigate to worktree preference step
+                self.step = SetupStep::WorktreePreference;
+                SetupResult::Continue
+            }
+            SetupStep::WorktreePreference => {
+                // Select the worktree option from the highlighted option
+                if let Some(i) = self.worktree_state.selected() {
+                    let options = WorktreeOption::all();
+                    if i < options.len() {
+                        self.use_worktrees = options[i].to_use_worktrees();
+                    }
+                }
+                // Navigate to the appropriate next step based on wrapper choice
                 match self.selected_wrapper {
                     SessionWrapperType::Tmux => {
                         // Check tmux availability when entering TmuxOnboarding
@@ -474,12 +519,16 @@ impl SetupScreen {
                 self.step = SetupStep::TaskFieldConfig;
                 SetupResult::Continue
             }
-            SetupStep::TmuxOnboarding => {
+            SetupStep::WorktreePreference => {
                 self.step = SetupStep::SessionWrapperChoice;
                 SetupResult::Continue
             }
+            SetupStep::TmuxOnboarding => {
+                self.step = SetupStep::WorktreePreference;
+                SetupResult::Continue
+            }
             SetupStep::VSCodeSetup => {
-                self.step = SetupStep::SessionWrapperChoice;
+                self.step = SetupStep::WorktreePreference;
                 SetupResult::Continue
             }
             SetupStep::KanbanInfo => {
@@ -535,6 +584,7 @@ impl SetupScreen {
             SetupStep::CustomCollection => self.render_custom_collection_step(frame),
             SetupStep::TaskFieldConfig => self.render_task_field_config_step(frame),
             SetupStep::SessionWrapperChoice => self.render_session_wrapper_choice_step(frame),
+            SetupStep::WorktreePreference => self.render_worktree_preference_step(frame),
             SetupStep::TmuxOnboarding => self.render_tmux_onboarding_step(frame),
             SetupStep::VSCodeSetup => self.render_vscode_setup_step(frame),
             SetupStep::KanbanInfo => self.render_kanban_info_step(frame),

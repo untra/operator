@@ -36,6 +36,26 @@ use app::App;
 use config::Config;
 use templates::glyph_for_key;
 
+/// Detect installed LLM tools in PATH
+fn detect_llm_tools() -> Vec<String> {
+    let tools = ["claude", "codex", "gemini"];
+    tools
+        .iter()
+        .filter(|tool| which::which(tool).is_ok())
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Check kanban environment variables
+#[allow(dead_code)]
+fn check_kanban_env_vars() -> (bool, bool) {
+    let jira =
+        std::env::var("OPERATOR_JIRA_API_KEY").is_ok() || std::env::var("JIRA_API_TOKEN").is_ok();
+    let linear =
+        std::env::var("OPERATOR_LINEAR_API_KEY").is_ok() || std::env::var("LINEAR_API_KEY").is_ok();
+    (jira, linear)
+}
+
 /// Check if tmux is available and meets version requirements
 fn check_tmux_available() -> Result<(), TmuxError> {
     let client = SystemTmuxClient::new();
@@ -206,6 +226,22 @@ enum Commands {
         /// Overwrite existing files
         #[arg(short, long)]
         force: bool,
+
+        /// Working directory (parent of .tickets/)
+        #[arg(short = 'w', long)]
+        working_dir: Option<PathBuf>,
+
+        /// Kanban provider to configure: jira, linear
+        #[arg(short = 'k', long)]
+        kanban_provider: Option<String>,
+
+        /// Preferred LLM tool: claude, codex, gemini
+        #[arg(short = 'l', long)]
+        llm_tool: Option<String>,
+
+        /// Skip LLM tool detection
+        #[arg(long)]
+        skip_llm_detection: bool,
     },
 }
 
@@ -263,8 +299,22 @@ async fn main() -> Result<()> {
             collection,
             backstage,
             force,
+            working_dir,
+            kanban_provider,
+            llm_tool,
+            skip_llm_detection,
         }) => {
-            cmd_setup(config, interactive, collection, backstage, force)?;
+            cmd_setup(
+                config,
+                interactive,
+                collection,
+                backstage,
+                force,
+                working_dir,
+                kanban_provider,
+                llm_tool,
+                skip_llm_detection,
+            )?;
         }
         None => {
             // No subcommand = launch TUI dashboard
@@ -650,12 +700,17 @@ async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn cmd_setup(
     mut config: Config,
     interactive: bool,
     collection: String,
     backstage: bool,
     force: bool,
+    working_dir: Option<PathBuf>,
+    kanban_provider: Option<String>,
+    llm_tool: Option<String>,
+    skip_llm_detection: bool,
 ) -> Result<()> {
     use setup::{initialize_workspace, parse_collection_preset, SetupOptions};
 
@@ -669,10 +724,47 @@ fn cmd_setup(
     // Parse collection preset
     let preset = parse_collection_preset(&collection)?;
 
+    // Validate kanban provider if specified
+    if let Some(ref provider) = kanban_provider {
+        match provider.to_lowercase().as_str() {
+            "jira" | "linear" => {}
+            other => {
+                anyhow::bail!(
+                    "Unknown kanban provider: {}. Use 'jira' or 'linear'.",
+                    other
+                );
+            }
+        }
+    }
+
+    // Validate LLM tool if specified
+    if let Some(ref tool) = llm_tool {
+        match tool.to_lowercase().as_str() {
+            "claude" | "codex" | "gemini" => {}
+            other => {
+                anyhow::bail!(
+                    "Unknown LLM tool: {}. Use 'claude', 'codex', or 'gemini'.",
+                    other
+                );
+            }
+        }
+    }
+
+    // Detect LLM tools unless skipped
+    if !skip_llm_detection && llm_tool.is_none() {
+        let detected = detect_llm_tools();
+        if !detected.is_empty() {
+            println!("Detected LLM tools: {}", detected.join(", "));
+        }
+    }
+
     let options = SetupOptions {
         preset,
         backstage_enabled: backstage,
         force,
+        working_dir,
+        kanban_provider,
+        llm_tool,
         ..Default::default()
     };
 
@@ -687,6 +779,15 @@ fn cmd_setup(
         }
     );
     println!("  Force:      {}", options.force);
+    if let Some(ref dir) = options.working_dir {
+        println!("  Working Dir: {}", dir.display());
+    }
+    if let Some(ref provider) = options.kanban_provider {
+        println!("  Kanban:     {}", provider);
+    }
+    if let Some(ref tool) = options.llm_tool {
+        println!("  LLM Tool:   {}", tool);
+    }
     println!();
 
     let result = initialize_workspace(&mut config, &options)?;
@@ -804,5 +905,180 @@ mod tests {
         // Unknown types should return a default glyph
         let unknown_glyph = glyph_for_key("UNKNOWN");
         assert!(!unknown_glyph.is_empty());
+    }
+
+    #[test]
+    fn test_cli_setup_with_working_dir() {
+        use clap::Parser;
+        let result = Cli::try_parse_from(["operator", "setup", "--working-dir", "/tmp/test"]);
+        assert!(result.is_ok());
+        if let Ok(cli) = result {
+            match cli.command {
+                Some(Commands::Setup { working_dir, .. }) => {
+                    assert_eq!(working_dir, Some(std::path::PathBuf::from("/tmp/test")));
+                }
+                _ => panic!("Expected Setup command"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_cli_setup_with_kanban_provider() {
+        use clap::Parser;
+        let result = Cli::try_parse_from(["operator", "setup", "--kanban-provider", "jira"]);
+        assert!(result.is_ok());
+        if let Ok(cli) = result {
+            match cli.command {
+                Some(Commands::Setup {
+                    kanban_provider, ..
+                }) => {
+                    assert_eq!(kanban_provider, Some("jira".to_string()));
+                }
+                _ => panic!("Expected Setup command"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_cli_setup_with_llm_tool() {
+        use clap::Parser;
+        let result = Cli::try_parse_from(["operator", "setup", "--llm-tool", "claude"]);
+        assert!(result.is_ok());
+        if let Ok(cli) = result {
+            match cli.command {
+                Some(Commands::Setup { llm_tool, .. }) => {
+                    assert_eq!(llm_tool, Some("claude".to_string()));
+                }
+                _ => panic!("Expected Setup command"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_cli_setup_with_skip_llm_detection() {
+        use clap::Parser;
+        let result = Cli::try_parse_from(["operator", "setup", "--skip-llm-detection"]);
+        assert!(result.is_ok());
+        if let Ok(cli) = result {
+            match cli.command {
+                Some(Commands::Setup {
+                    skip_llm_detection, ..
+                }) => {
+                    assert!(skip_llm_detection);
+                }
+                _ => panic!("Expected Setup command"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_cli_setup_all_new_flags() {
+        use clap::Parser;
+        let result = Cli::try_parse_from([
+            "operator",
+            "setup",
+            "-w",
+            "/tmp/workspace",
+            "-k",
+            "linear",
+            "-l",
+            "gemini",
+            "--skip-llm-detection",
+        ]);
+        assert!(result.is_ok());
+        if let Ok(cli) = result {
+            match cli.command {
+                Some(Commands::Setup {
+                    working_dir,
+                    kanban_provider,
+                    llm_tool,
+                    skip_llm_detection,
+                    ..
+                }) => {
+                    assert_eq!(
+                        working_dir,
+                        Some(std::path::PathBuf::from("/tmp/workspace"))
+                    );
+                    assert_eq!(kanban_provider, Some("linear".to_string()));
+                    assert_eq!(llm_tool, Some("gemini".to_string()));
+                    assert!(skip_llm_detection);
+                }
+                _ => panic!("Expected Setup command"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_detect_llm_tools_returns_vec() {
+        let tools = detect_llm_tools();
+        // Just verify it returns a Vec, actual content depends on environment
+        assert!(tools.len() <= 3);
+    }
+
+    #[test]
+    fn test_check_kanban_env_vars_no_vars_set() {
+        // Save original values
+        let orig_jira = std::env::var("OPERATOR_JIRA_API_KEY").ok();
+        let orig_jira_token = std::env::var("JIRA_API_TOKEN").ok();
+        let orig_linear = std::env::var("OPERATOR_LINEAR_API_KEY").ok();
+        let orig_linear_key = std::env::var("LINEAR_API_KEY").ok();
+
+        // Clear all
+        std::env::remove_var("OPERATOR_JIRA_API_KEY");
+        std::env::remove_var("JIRA_API_TOKEN");
+        std::env::remove_var("OPERATOR_LINEAR_API_KEY");
+        std::env::remove_var("LINEAR_API_KEY");
+
+        let (jira, linear) = check_kanban_env_vars();
+        assert!(!jira);
+        assert!(!linear);
+
+        // Restore
+        if let Some(v) = orig_jira {
+            std::env::set_var("OPERATOR_JIRA_API_KEY", v);
+        }
+        if let Some(v) = orig_jira_token {
+            std::env::set_var("JIRA_API_TOKEN", v);
+        }
+        if let Some(v) = orig_linear {
+            std::env::set_var("OPERATOR_LINEAR_API_KEY", v);
+        }
+        if let Some(v) = orig_linear_key {
+            std::env::set_var("LINEAR_API_KEY", v);
+        }
+    }
+
+    #[test]
+    fn test_check_kanban_env_vars_jira_set() {
+        // Save original
+        let orig = std::env::var("OPERATOR_JIRA_API_KEY").ok();
+
+        std::env::set_var("OPERATOR_JIRA_API_KEY", "test-key");
+        let (jira, _) = check_kanban_env_vars();
+        assert!(jira);
+
+        // Restore
+        if let Some(v) = orig {
+            std::env::set_var("OPERATOR_JIRA_API_KEY", v);
+        } else {
+            std::env::remove_var("OPERATOR_JIRA_API_KEY");
+        }
+    }
+
+    #[test]
+    fn test_check_kanban_env_vars_linear_set() {
+        // Save original
+        let orig = std::env::var("OPERATOR_LINEAR_API_KEY").ok();
+
+        std::env::set_var("OPERATOR_LINEAR_API_KEY", "lin_test");
+        let (_, linear) = check_kanban_env_vars();
+        assert!(linear);
+
+        // Restore
+        if let Some(v) = orig {
+            std::env::set_var("OPERATOR_LINEAR_API_KEY", v);
+        } else {
+            std::env::remove_var("OPERATOR_LINEAR_API_KEY");
+        }
     }
 }

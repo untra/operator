@@ -633,6 +633,50 @@ pub struct LaunchTicketResponse {
 }
 
 // =============================================================================
+// OperatorOutput DTOs (structured agent output)
+// =============================================================================
+
+/// Standardized agent output for progress tracking and step transitions.
+///
+/// Agents output a status block in their response which is parsed into this structure.
+/// Used for progress tracking, loop detection, and intelligent step transitions.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS, Default)]
+#[ts(export)]
+pub struct OperatorOutput {
+    /// Current work status: in_progress, complete, blocked, failed
+    pub status: String,
+    /// Agent signals done with step (true) or more work remains (false)
+    pub exit_signal: bool,
+    /// Agent's confidence in completion (0-100%)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<u8>,
+    /// Number of files changed this iteration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub files_modified: Option<u32>,
+    /// Test suite status: passing, failing, skipped, not_run
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tests_status: Option<String>,
+    /// Number of errors encountered
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_count: Option<u32>,
+    /// Number of sub-tasks completed this iteration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tasks_completed: Option<u32>,
+    /// Estimated remaining sub-tasks
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tasks_remaining: Option<u32>,
+    /// Brief description of work done (max 500 chars)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    /// Suggested next action (max 200 chars)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recommendation: Option<String>,
+    /// Issues preventing progress (signals intervention needed)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blockers: Option<Vec<String>>,
+}
+
+// =============================================================================
 // Step Completion DTOs (for opr8r wrapper)
 // =============================================================================
 
@@ -656,13 +700,16 @@ pub struct StepCompleteRequest {
     /// Sample of the output (first N chars for debugging)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_sample: Option<String>,
+    /// Structured output from agent (parsed OPERATOR_STATUS block)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<OperatorOutput>,
 }
 
 /// Response from step completion endpoint
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct StepCompleteResponse {
-    /// Status of the step: "completed", "awaiting_review", "failed"
+    /// Status of the step: "completed", "awaiting_review", "failed", "iterate"
     pub status: String,
     /// Information about the next step (if any)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -672,6 +719,38 @@ pub struct StepCompleteResponse {
     /// Command to execute for the next step (opr8r wrapped)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_command: Option<String>,
+
+    // Analysis results from OperatorOutput processing
+    /// Whether OperatorOutput was successfully parsed from agent output
+    #[serde(default)]
+    pub output_valid: bool,
+    /// Agent has more work (exit_signal=false) - indicates iteration needed
+    #[serde(default)]
+    pub should_iterate: bool,
+    /// How many times this step has run (for circuit breaker)
+    #[serde(default)]
+    pub iteration_count: u32,
+    /// Circuit breaker state: closed (normal), half_open (monitoring), open (halted)
+    #[serde(default = "default_circuit_closed")]
+    pub circuit_state: String,
+
+    // Context piped from agent output for next step
+    /// Summary from previous step's OperatorOutput
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_summary: Option<String>,
+    /// Recommendation from previous step's OperatorOutput
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_recommendation: Option<String>,
+    /// Cumulative files modified across iterations
+    #[serde(default)]
+    pub cumulative_files_modified: u32,
+    /// Cumulative errors across iterations
+    #[serde(default)]
+    pub cumulative_errors: u32,
+}
+
+fn default_circuit_closed() -> String {
+    "closed".to_string()
 }
 
 /// Information about the next step in the workflow
@@ -791,5 +870,103 @@ mod tests {
         assert_eq!(resp.key, "TEST");
         assert_eq!(resp.mode, "autonomous");
         assert_eq!(resp.source, "jira/PROJ");
+    }
+
+    #[test]
+    fn test_operator_output_default() {
+        let output = OperatorOutput::default();
+        assert_eq!(output.status, "");
+        assert!(!output.exit_signal);
+        assert!(output.confidence.is_none());
+        assert!(output.summary.is_none());
+    }
+
+    #[test]
+    fn test_operator_output_serialization() {
+        let output = OperatorOutput {
+            status: "complete".to_string(),
+            exit_signal: true,
+            confidence: Some(95),
+            files_modified: Some(3),
+            tests_status: Some("passing".to_string()),
+            error_count: Some(0),
+            tasks_completed: Some(5),
+            tasks_remaining: Some(0),
+            summary: Some("Implemented feature".to_string()),
+            recommendation: Some("Ready for review".to_string()),
+            blockers: None,
+        };
+
+        let json = serde_json::to_string(&output).unwrap();
+        assert!(json.contains("\"status\":\"complete\""));
+        assert!(json.contains("\"exit_signal\":true"));
+        assert!(json.contains("\"confidence\":95"));
+        assert!(!json.contains("blockers")); // None fields are skipped
+    }
+
+    #[test]
+    fn test_operator_output_deserialization() {
+        let json = r#"{
+            "status": "in_progress",
+            "exit_signal": false,
+            "confidence": 60,
+            "files_modified": 2,
+            "tests_status": "failing",
+            "summary": "Working on tests"
+        }"#;
+
+        let output: OperatorOutput = serde_json::from_str(json).unwrap();
+        assert_eq!(output.status, "in_progress");
+        assert!(!output.exit_signal);
+        assert_eq!(output.confidence, Some(60));
+        assert_eq!(output.tests_status, Some("failing".to_string()));
+    }
+
+    #[test]
+    fn test_step_complete_request_with_operator_output() {
+        let output = OperatorOutput {
+            status: "complete".to_string(),
+            exit_signal: true,
+            confidence: Some(90),
+            ..Default::default()
+        };
+
+        let request = StepCompleteRequest {
+            exit_code: 0,
+            output_valid: true,
+            output_schema_errors: None,
+            session_id: Some("session-123".to_string()),
+            duration_secs: 300,
+            output_sample: None,
+            output: Some(output),
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("\"exit_code\":0"));
+        assert!(json.contains("\"output\":{"));
+        assert!(json.contains("\"status\":\"complete\""));
+    }
+
+    #[test]
+    fn test_step_complete_response_with_analysis_fields() {
+        let json = r#"{
+            "status": "completed",
+            "auto_proceed": true,
+            "output_valid": true,
+            "should_iterate": false,
+            "iteration_count": 1,
+            "circuit_state": "closed",
+            "previous_summary": "Built feature",
+            "cumulative_files_modified": 5,
+            "cumulative_errors": 0
+        }"#;
+
+        let response: StepCompleteResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.status, "completed");
+        assert!(response.output_valid);
+        assert!(!response.should_iterate);
+        assert_eq!(response.iteration_count, 1);
+        assert_eq!(response.circuit_state, "closed");
+        assert_eq!(response.previous_summary, Some("Built feature".to_string()));
     }
 }

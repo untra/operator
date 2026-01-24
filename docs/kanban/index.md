@@ -4,7 +4,7 @@ description: "Understand the kanban-style workflow for managing tickets through 
 layout: doc
 ---
 
-<span class="operator-brand">Operator!</span> uses a kanban-style workflow to manage tickets through their lifecycle.
+<span class="operator-brand">Operator!</span> uses a **Kanban** style workflow to manage tickets through their lifecycle. Kanban is a visual framework used to organize workby displaying tasks on a board, organized into categories of _todo_, _doing_, and _done_.
 
 ## Ticket Lifecycle
 

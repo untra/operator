@@ -6,7 +6,7 @@ import type { NextStepInfo } from "./NextStepInfo";
  */
 export type StepCompleteResponse = { 
 /**
- * Status of the step: "completed", "awaiting_review", "failed"
+ * Status of the step: "completed", "awaiting_review", "failed", "iterate"
  */
 status: string, 
 /**
@@ -20,4 +20,36 @@ auto_proceed: boolean,
 /**
  * Command to execute for the next step (opr8r wrapped)
  */
-next_command: string | null, };
+next_command: string | null, 
+/**
+ * Whether OperatorOutput was successfully parsed from agent output
+ */
+output_valid: boolean, 
+/**
+ * Agent has more work (exit_signal=false) - indicates iteration needed
+ */
+should_iterate: boolean, 
+/**
+ * How many times this step has run (for circuit breaker)
+ */
+iteration_count: number, 
+/**
+ * Circuit breaker state: closed (normal), half_open (monitoring), open (halted)
+ */
+circuit_state: string, 
+/**
+ * Summary from previous step's OperatorOutput
+ */
+previous_summary: string | null, 
+/**
+ * Recommendation from previous step's OperatorOutput
+ */
+previous_recommendation: string | null, 
+/**
+ * Cumulative files modified across iterations
+ */
+cumulative_files_modified: number, 
+/**
+ * Cumulative errors across iterations
+ */
+cumulative_errors: number, };

@@ -29,6 +29,15 @@ import {
   getOperatorVersion,
   getExtensionVersion,
 } from './operator-binary';
+import {
+  updateWalkthroughContext,
+  selectWorkingDirectory,
+  checkKanbanConnection,
+  configureJira,
+  configureLinear,
+  detectLlmTools,
+  openWalkthrough,
+} from './walkthrough';
 
 let terminalManager: TerminalManager;
 let webhookServer: WebhookServer;
@@ -139,7 +148,25 @@ export async function activate(
     vscode.commands.registerCommand(
       'operator.startOperatorServer',
       startOperatorServerCommand
-    )
+    ),
+    vscode.commands.registerCommand(
+      'operator.selectWorkingDirectory',
+      async () => {
+        const operatorPath = await getOperatorPath(extensionContext);
+        await selectWorkingDirectory(extensionContext, operatorPath ?? undefined);
+      }
+    ),
+    vscode.commands.registerCommand(
+      'operator.checkKanbanConnection',
+      () => checkKanbanConnection(extensionContext)
+    ),
+    vscode.commands.registerCommand('operator.configureJira', configureJira),
+    vscode.commands.registerCommand('operator.configureLinear', configureLinear),
+    vscode.commands.registerCommand(
+      'operator.detectLlmTools',
+      () => detectLlmTools(extensionContext)
+    ),
+    vscode.commands.registerCommand('operator.openWalkthrough', openWalkthrough)
   );
 
   // Find tickets directory (check parent first, then workspace)
@@ -687,6 +714,9 @@ async function updateOperatorContext(): Promise<void> {
     'operator.ticketsParentFound',
     ticketsParentFound
   );
+
+  // Update walkthrough context keys
+  await updateWalkthroughContext(extensionContext);
 }
 
 /**

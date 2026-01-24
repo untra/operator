@@ -174,6 +174,30 @@
         "command": "operator.startOperatorServer",
         "title": "Operator: Start Operator Server",
         "icon": "$(play)"
+      },
+      {
+        "command": "operator.selectWorkingDirectory",
+        "title": "Operator: Select Working Directory"
+      },
+      {
+        "command": "operator.checkKanbanConnection",
+        "title": "Operator: Check Kanban Connection"
+      },
+      {
+        "command": "operator.configureJira",
+        "title": "Operator: Configure Jira"
+      },
+      {
+        "command": "operator.configureLinear",
+        "title": "Operator: Configure Linear"
+      },
+      {
+        "command": "operator.detectLlmTools",
+        "title": "Operator: Detect LLM Tools"
+      },
+      {
+        "command": "operator.openWalkthrough",
+        "title": "Operator: Open Setup Walkthrough"
       }
     ],
     "menus": {
@@ -219,7 +243,58 @@
           "when": "operator.operatorAvailable && operator.ticketsParentFound"
         }
       ]
-    }
+    },
+    "walkthroughs": [
+      {
+        "id": "operator-setup",
+        "title": "Operator! Setup",
+        "description": "Configure Operator! to orchestrate LLM coding agents across your code repositories",
+        "icon": "images/operator-icon-128.png",
+        "steps": [
+          {
+            "id": "welcome",
+            "title": "Welcome to Operator!",
+            "description": "Learn how Operator! orchestrates LLM coding agents across your repositories.\n\n[Continue Setup](command:workbench.action.openWalkthrough?%5B%22untra.operator-terminals%23operator-setup%22%2C%20true%5D)",
+            "media": {
+              "markdown": "walkthrough/welcome.md"
+            }
+          },
+          {
+            "id": "select-working-directory",
+            "title": "Select Working Directory",
+            "description": "Choose a parent directory for your repositories.\n\n[Select Directory](command:operator.selectWorkingDirectory)",
+            "media": {
+              "markdown": "walkthrough/select-directory.md"
+            },
+            "completionEvents": [
+              "onContext:operator.workingDirectorySet"
+            ]
+          },
+          {
+            "id": "connect-kanban",
+            "title": "Connect Kanban Provider",
+            "description": "Connect a [Supported Kanban Provider](https://operator.untra.io/getting-started/kanban/) via environment variables.\n\n[Check Connection](command:operator.checkKanbanConnection)",
+            "media": {
+              "markdown": "walkthrough/connect-kanban.md"
+            },
+            "completionEvents": [
+              "onContext:operator.kanbanConnected"
+            ]
+          },
+          {
+            "id": "install-llm-tool",
+            "title": "Install LLM Tool",
+            "description": "Install a [Supported Coding Agent](https://operator.untra.io/getting-started/agents/), such as **Claude Code**.\n\n[Detect Tools](command:operator.detectLlmTools)",
+            "media": {
+              "markdown": "walkthrough/install-llm-tool.md"
+            },
+            "completionEvents": [
+              "onContext:operator.llmToolInstalled"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

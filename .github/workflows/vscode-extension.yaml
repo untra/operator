@@ -169,6 +169,9 @@ jobs:
     needs: build-vsix
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: .  # Override global default - publish job runs from repo root
     steps:
       - uses: actions/checkout@v4
 

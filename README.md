@@ -1,4 +1,4 @@
-![Operator! logo](./img/operator_logo.svg)
+![Operator! logo](docs/assets/img/operator_logo.svg)
 
 # Operator!
 

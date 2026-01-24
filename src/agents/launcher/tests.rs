@@ -12,6 +12,15 @@ use crate::queue::Ticket;
 use super::prompt::{generate_session_uuid, shell_escape};
 use super::{LaunchOptions, Launcher, SESSION_PREFIX};
 
+/// Helper to read the command file content from a bash command sent to tmux.
+/// The command format is: `bash /path/to/script.sh`
+fn read_command_file_content(sent_cmd: &str) -> Option<String> {
+    // Extract the script path from "bash /path/to/script.sh [Enter]"
+    let cmd = sent_cmd.trim_end_matches(" [Enter]");
+    let path = cmd.strip_prefix("bash ")?;
+    std::fs::read_to_string(path).ok()
+}
+
 fn make_test_config(temp_dir: &TempDir) -> Config {
     let projects_path = temp_dir.path().join("projects");
     let tickets_path = temp_dir.path().join("tickets");
@@ -432,18 +441,22 @@ async fn test_launch_command_includes_cd_to_project() {
     let keys = keys_sent.unwrap();
     assert!(!keys.is_empty(), "At least one command should be sent");
 
-    // The command should start with cd to the project path
+    // The sent command should be a bash script call, read the script content
+    let sent_cmd = &keys[0];
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
+
+    // The script should contain cd to the project path
     let expected_path = temp_dir
         .path()
         .join("projects")
         .join("test-project")
         .to_string_lossy()
         .to_string();
-    let cmd = &keys[0];
     assert!(
-        cmd.contains(&format!("cd '{}'", expected_path)),
-        "Command should include cd to project path, got: {}",
-        cmd
+        script_content.contains(&format!("cd '{}'", expected_path)),
+        "Command file should include cd to project path, got: {}",
+        script_content
     );
 }
 
@@ -599,11 +612,22 @@ fn test_launch_in_tmux_sends_cd_command() {
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
     assert!(keys_sent.is_some(), "Keys should have been sent");
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Command should be a bash script execution
     assert!(
-        cmd.starts_with("cd "),
-        "Command should start with cd, got: {}",
-        cmd
+        sent_cmd.starts_with("bash "),
+        "Command should be a bash script execution, got: {}",
+        sent_cmd
+    );
+
+    // Read the script content and verify it contains cd
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
+    assert!(
+        script_content.contains("cd "),
+        "Command file should contain cd, got: {}",
+        script_content
     );
 }
 
@@ -634,16 +658,20 @@ fn test_launch_in_tmux_sends_llm_command() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it contains the LLM command
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
-        cmd.contains("claude"),
-        "Command should contain claude, got: {}",
-        cmd
+        script_content.contains("claude"),
+        "Command file should contain claude, got: {}",
+        script_content
     );
     assert!(
-        cmd.contains("--session-id"),
-        "Command should contain --session-id, got: {}",
-        cmd
+        script_content.contains("--session-id"),
+        "Command file should contain --session-id, got: {}",
+        script_content
     );
 }
 
@@ -677,11 +705,15 @@ fn test_launch_in_tmux_yolo_mode_applies_flags() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it contains the YOLO flag
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
-        cmd.contains("--dangerously-skip-permissions"),
-        "Command should contain YOLO flag, got: {}",
-        cmd
+        script_content.contains("--dangerously-skip-permissions"),
+        "Command file should contain YOLO flag, got: {}",
+        script_content
     );
 }
 
@@ -715,11 +747,15 @@ fn test_launch_in_tmux_yolo_mode_disabled_no_flags() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it does NOT contain the YOLO flag
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
-        !cmd.contains("--dangerously-skip-permissions"),
-        "Command should NOT contain YOLO flag when disabled, got: {}",
-        cmd
+        !script_content.contains("--dangerously-skip-permissions"),
+        "Command file should NOT contain YOLO flag when disabled, got: {}",
+        script_content
     );
 }
 
@@ -753,11 +789,15 @@ fn test_launch_in_tmux_docker_mode_wraps() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it contains docker run
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
-        cmd.contains("docker run"),
-        "Command should contain docker run, got: {}",
-        cmd
+        script_content.contains("docker run"),
+        "Command file should contain docker run, got: {}",
+        script_content
     );
 }
 
@@ -792,16 +832,20 @@ fn test_launch_in_tmux_both_modes() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it contains both docker and YOLO flag
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
-        cmd.contains("docker run"),
-        "Command should contain docker run, got: {}",
-        cmd
+        script_content.contains("docker run"),
+        "Command file should contain docker run, got: {}",
+        script_content
     );
     assert!(
-        cmd.contains("--dangerously-skip-permissions"),
-        "Command should contain YOLO flag, got: {}",
-        cmd
+        script_content.contains("--dangerously-skip-permissions"),
+        "Command file should contain YOLO flag, got: {}",
+        script_content
     );
 }
 
@@ -853,16 +897,20 @@ fn test_launch_in_tmux_uses_provider_from_options() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it uses the gemini tool
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
-        cmd.contains("gemini"),
-        "Command should use gemini tool, got: {}",
-        cmd
+        script_content.contains("gemini"),
+        "Command file should use gemini tool, got: {}",
+        script_content
     );
     assert!(
-        cmd.contains("--model pro"),
-        "Command should use pro model, got: {}",
-        cmd
+        script_content.contains("--model pro"),
+        "Command file should use pro model, got: {}",
+        script_content
     );
 }
 
@@ -1011,11 +1059,15 @@ fn test_relaunch_inherits_yolo_mode() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it contains the YOLO flag
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
-        cmd.contains("--dangerously-skip-permissions"),
-        "Relaunch should apply YOLO flags, got: {}",
-        cmd
+        script_content.contains("--dangerously-skip-permissions"),
+        "Relaunch command file should apply YOLO flags, got: {}",
+        script_content
     );
 }
 
@@ -1053,11 +1105,15 @@ fn test_relaunch_inherits_docker_mode() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it contains docker run
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
-        cmd.contains("docker run"),
-        "Relaunch should apply Docker wrapping, got: {}",
-        cmd
+        script_content.contains("docker run"),
+        "Relaunch command file should apply Docker wrapping, got: {}",
+        script_content
     );
 }
 
@@ -1145,16 +1201,20 @@ fn test_relaunch_with_resume_adds_flag() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it contains the resume flag
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
-        cmd.contains("--resume"),
-        "Resume mode should add --resume flag, got: {}",
-        cmd
+        script_content.contains("--resume"),
+        "Resume mode command file should add --resume flag, got: {}",
+        script_content
     );
     assert!(
-        cmd.contains(resume_uuid),
+        script_content.contains(resume_uuid),
         "Resume should use the provided session ID, got: {}",
-        cmd
+        script_content
     );
 }
 
@@ -1192,11 +1252,15 @@ fn test_relaunch_missing_prompt_fresh_start() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name);
-    let cmd = &keys_sent.unwrap()[0];
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    // Read the script content and verify it does NOT have resume flag
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     // Should NOT have resume flag since prompt file doesn't exist
     assert!(
-        !cmd.contains("--resume"),
+        !script_content.contains("--resume"),
         "Should fall back to fresh start when prompt file missing, got: {}",
-        cmd
+        script_content
     );
 }

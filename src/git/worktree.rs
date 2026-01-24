@@ -108,6 +108,15 @@ impl WorktreeManager {
             warn!("Failed to fetch from origin: {}", e);
         }
 
+        // Verify repository has at least one commit
+        if !GitCli::has_commits(repo_path).await? {
+            return Err(anyhow!(
+                "Cannot create worktree: repository '{}' has no commits. \
+                 Please make an initial commit first.",
+                repo_path.display()
+            ));
+        }
+
         // Get the base commit for the target branch (callers pass full ref like "origin/main")
         let base_ref = target_branch;
         let base_commit = GitCli::head_commit(repo_path)

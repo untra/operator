@@ -12,6 +12,7 @@ mod panels;
 pub mod projects_dialog;
 pub mod session_preview;
 pub mod setup;
+pub mod terminal_guard;
 pub mod terminal_suspend;
 
 pub use collection_dialog::{CollectionInfo, CollectionSwitchDialog, CollectionSwitchResult};
@@ -25,4 +26,5 @@ pub use kanban_view::{KanbanView, KanbanViewResult};
 pub use paginated_list::{render_paginated_list, PaginatedList};
 pub use projects_dialog::ProjectsDialog;
 pub use session_preview::SessionPreview;
+pub use terminal_guard::{install_panic_hook, TerminalGuard};
 pub use terminal_suspend::with_suspended_tui;

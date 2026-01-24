@@ -399,6 +399,25 @@ config_generated = false
         contents
     }
 
+    /// Read command file content from the commands directory
+    fn read_command_files(&self) -> Vec<(PathBuf, String)> {
+        let commands_dir = self.tickets_path.join("operator/commands");
+        let mut files = Vec::new();
+
+        if let Ok(entries) = fs::read_dir(commands_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "sh").unwrap_or(false) {
+                    if let Ok(content) = fs::read_to_string(&path) {
+                        files.push((path, content));
+                    }
+                }
+            }
+        }
+
+        files
+    }
+
     /// Check if ticket was moved to in-progress
     fn ticket_in_progress(&self) -> bool {
         let in_progress = self.tickets_path.join("in-progress");
@@ -770,6 +789,76 @@ status: queued
         assert!(
             !ctx.session_exists(&session_name),
             "Session should be killed"
+        );
+    }
+}
+
+#[test]
+fn test_command_file_is_created_during_launch() {
+    skip_if_not_configured!();
+
+    let ctx = LaunchTestContext::new("command_file");
+
+    let ticket_content = r#"---
+id: TASK-008
+priority: P2-medium
+status: queued
+---
+
+# Task: Test command file creation
+
+## Context
+This test verifies that a command shell script is created during launch.
+"#;
+    ctx.create_ticket("TASK", "TASK-008", ticket_content);
+
+    ctx.run_launch(&[]);
+    std::thread::sleep(Duration::from_secs(2));
+
+    // Check command files in the commands directory
+    let command_files = ctx.read_command_files();
+    assert!(
+        !command_files.is_empty(),
+        "Should have at least one command file"
+    );
+
+    // Verify command file structure
+    let (path, content) = &command_files[0];
+    eprintln!("Command file path: {:?}", path);
+    eprintln!("Command file content:\n{}", content);
+
+    // Should have shebang
+    assert!(
+        content.starts_with("#!/bin/bash"),
+        "Command file should start with shebang. Got: {}",
+        &content[..std::cmp::min(50, content.len())]
+    );
+
+    // Should have cd command
+    assert!(
+        content.contains("cd "),
+        "Command file should contain cd command. Got: {}",
+        content
+    );
+
+    // Should have exec command with LLM tool
+    assert!(
+        content.contains("exec "),
+        "Command file should contain exec command. Got: {}",
+        content
+    );
+
+    // Should be executable on Unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = fs::metadata(path).unwrap();
+        let permissions = metadata.permissions();
+        let mode = permissions.mode();
+        assert!(
+            mode & 0o111 != 0,
+            "Command file should be executable. Mode: {:o}",
+            mode
         );
     }
 }

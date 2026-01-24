@@ -146,6 +146,43 @@ pub fn write_prompt_file(config: &Config, session_uuid: &str, prompt: &str) -> R
     Ok(prompt_file)
 }
 
+/// Write a shell command to an executable script file and return the path
+/// Commands are stored in .tickets/operator/commands/{session_uuid}.sh
+///
+/// This solves issues with long commands and special characters when using tmux send-keys.
+/// Instead of pasting complex commands directly, we write them to a script and execute that.
+pub fn write_command_file(
+    config: &Config,
+    session_uuid: &str,
+    project_path: &str,
+    llm_command: &str,
+) -> Result<PathBuf> {
+    let commands_dir = config.tickets_path().join("operator/commands");
+    fs::create_dir_all(&commands_dir).context("Failed to create commands directory")?;
+
+    let command_file = commands_dir.join(format!("{}.sh", session_uuid));
+
+    // Build script content with shebang, cd, and exec
+    let script_content = format!(
+        "#!/bin/bash\ncd {}\nexec {}\n",
+        shell_escape(project_path),
+        llm_command
+    );
+
+    fs::write(&command_file, &script_content).context("Failed to write command file")?;
+
+    // Make the file executable on Unix systems
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = fs::Permissions::from_mode(0o755);
+        fs::set_permissions(&command_file, permissions)
+            .context("Failed to set command file permissions")?;
+    }
+
+    Ok(command_file)
+}
+
 /// Escape a string for safe use in shell command
 pub fn shell_escape(s: &str) -> String {
     // Use single quotes and escape any single quotes within
@@ -199,5 +236,128 @@ mod tests {
         assert_ne!(uuid1, uuid2);
         assert_ne!(uuid2, uuid3);
         assert_ne!(uuid1, uuid3);
+    }
+
+    fn make_test_config_with_tickets_path(tickets_path: &std::path::Path) -> Config {
+        use crate::config::PathsConfig;
+
+        Config {
+            paths: PathsConfig {
+                tickets: tickets_path.to_string_lossy().to_string(),
+                projects: tickets_path.parent().unwrap().to_string_lossy().to_string(),
+                state: tickets_path.join("operator").to_string_lossy().to_string(),
+                worktrees: tickets_path
+                    .join("operator/worktrees")
+                    .to_string_lossy()
+                    .to_string(),
+            },
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_write_command_file_creates_file_with_correct_content() {
+        use tempfile::tempdir;
+
+        // Create a temp directory to act as our tickets path
+        let temp_dir = tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp_dir.path());
+
+        let session_uuid = "test-uuid-1234";
+        let project_path = "/path/to/project";
+        let llm_command = "claude --session-id abc123 --print-prompt-path /tmp/prompt.txt";
+
+        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        assert!(result.is_ok());
+
+        let command_file = result.unwrap();
+        assert!(command_file.exists());
+        assert_eq!(command_file.file_name().unwrap(), "test-uuid-1234.sh");
+
+        let content = std::fs::read_to_string(&command_file).unwrap();
+        assert!(content.starts_with("#!/bin/bash\n"));
+        assert!(content.contains("cd '/path/to/project'"));
+        assert!(content.contains("exec claude --session-id abc123"));
+    }
+
+    #[test]
+    fn test_write_command_file_handles_spaces_in_path() {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp_dir.path());
+
+        let session_uuid = "test-uuid-spaces";
+        let project_path = "/path/with spaces/to/project";
+        let llm_command = "claude --arg value";
+
+        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(result.unwrap()).unwrap();
+        // Path with spaces should be properly escaped with single quotes
+        assert!(content.contains("cd '/path/with spaces/to/project'"));
+    }
+
+    #[test]
+    fn test_write_command_file_handles_special_chars_in_path() {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp_dir.path());
+
+        let session_uuid = "test-uuid-special";
+        let project_path = "/path/with'quotes/and$dollar";
+        let llm_command = "claude --arg value";
+
+        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(result.unwrap()).unwrap();
+        // Single quotes in path should be escaped properly
+        assert!(content.contains("cd '/path/with'\"'\"'quotes/and$dollar'"));
+    }
+
+    #[test]
+    fn test_write_command_file_preserves_complex_commands() {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp_dir.path());
+
+        let session_uuid = "test-uuid-complex";
+        let project_path = "/project";
+        let llm_command = r#"claude --session-id abc --print-prompt-path /tmp/file.txt --add-dir "/dir with spaces" --model sonnet"#;
+
+        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(result.unwrap()).unwrap();
+        // The full command should be preserved exactly
+        assert!(content.contains(llm_command));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_write_command_file_is_executable() {
+        use std::os::unix::fs::PermissionsExt;
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp_dir.path());
+
+        let session_uuid = "test-uuid-executable";
+        let project_path = "/project";
+        let llm_command = "claude --arg value";
+
+        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        assert!(result.is_ok());
+
+        let command_file = result.unwrap();
+        let metadata = std::fs::metadata(&command_file).unwrap();
+        let permissions = metadata.permissions();
+
+        // Check that the file is executable (0o755 = rwxr-xr-x)
+        assert_eq!(permissions.mode() & 0o777, 0o755);
     }
 }

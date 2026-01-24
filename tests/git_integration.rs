@@ -839,6 +839,80 @@ mod worktree_manager_tests {
 
 // ─── WorktreeManager Error Tests ─────────────────────────────────────────────
 
+// ─── GitCli Empty Repo Tests ──────────────────────────────────────────────────
+
+mod git_cli_empty_repo_tests {
+    use super::*;
+
+    /// Test: has_commits returns false for empty repo
+    #[tokio::test]
+    async fn test_has_commits_empty_repo() {
+        skip_if_not_configured!();
+        let temp = TempDir::new().expect("Failed to create temp dir");
+
+        // Initialize empty git repo
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(temp.path())
+            .output()
+            .expect("Failed to init repo");
+
+        let has = GitCli::has_commits(temp.path())
+            .await
+            .expect("Should check commits");
+
+        assert!(!has, "Empty repo should have no commits");
+    }
+
+    /// Test: has_commits returns true for repo with commits
+    #[tokio::test]
+    async fn test_has_commits_with_commit() {
+        skip_if_not_configured!();
+        let repo_path = get_repo_path();
+
+        let has = GitCli::has_commits(&repo_path)
+            .await
+            .expect("Should check commits");
+
+        assert!(has, "Operator repo should have commits");
+    }
+
+    /// Test: create_for_ticket fails gracefully on empty repo
+    #[tokio::test]
+    async fn test_create_worktree_empty_repo_fails() {
+        skip_if_not_configured!();
+        let temp_worktrees = TempDir::new().expect("temp dir");
+        let temp_repo = TempDir::new().expect("temp repo");
+
+        // Initialize empty git repo
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(temp_repo.path())
+            .output()
+            .expect("Failed to init repo");
+
+        let manager = WorktreeManager::new(temp_worktrees.path().to_path_buf());
+
+        let result = manager
+            .create_for_ticket(
+                temp_repo.path(),
+                "test-project",
+                "FEAT-001",
+                "test-branch",
+                "main",
+            )
+            .await;
+
+        assert!(result.is_err(), "Should fail on empty repo");
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("no commits"),
+            "Error should mention 'no commits': {}",
+            err
+        );
+    }
+}
+
 mod worktree_manager_error_tests {
     use super::*;
 

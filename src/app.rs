@@ -1,11 +1,5 @@
 use anyhow::Result;
-use crossterm::{
-    event::{
-        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
-    },
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::collections::HashMap;
 use std::fs;
@@ -37,7 +31,7 @@ use crate::ui::setup::{DetectedToolInfo, SetupResult, SetupScreen};
 use crate::ui::{
     with_suspended_tui, CollectionSwitchDialog, ConfirmDialog, ConfirmSelection, Dashboard,
     KanbanView, KanbanViewResult, SessionRecoveryDialog, SessionRecoverySelection,
-    SyncConfirmDialog, SyncConfirmResult,
+    SyncConfirmDialog, SyncConfirmResult, TerminalGuard,
 };
 use std::sync::Arc;
 
@@ -299,10 +293,11 @@ impl App {
         // Reconcile state with actual tmux sessions on startup
         self.reconcile_sessions()?;
 
-        // Setup terminal
-        enable_raw_mode()?;
-        let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        // Terminal guard handles setup and cleanup on drop
+        // This ensures terminal is restored even on early returns via `?` or panics
+        let _terminal_guard = TerminalGuard::new()?;
+
+        let stdout = io::stdout();
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
@@ -440,14 +435,7 @@ impl App {
             }
         }
 
-        // Restore terminal
-        disable_raw_mode()?;
-        execute!(
-            terminal.backend_mut(),
-            LeaveAlternateScreen,
-            DisableMouseCapture
-        )?;
-        terminal.show_cursor()?;
+        // Terminal cleanup is handled by _terminal_guard drop
 
         // Check for exit message (unimplemented features)
         if let Some(message) = &self.exit_message {

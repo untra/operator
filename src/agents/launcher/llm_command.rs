@@ -187,12 +187,18 @@ fn generate_config_flags(
         cli_flags.push(project_path.to_string());
 
         // Add JSON schema flag for structured output
+        // Write schema to a file to avoid shell escaping issues with inline JSON
         // Inline jsonSchema takes precedence over jsonSchemaFile
         if let Some(ref schema) = step_config.json_schema {
+            // Write inline schema to session_dir/schema.json
+            let schema_file_path = session_dir.join("schema.json");
             let schema_str =
-                serde_json::to_string(schema).context("Failed to serialize JSON schema")?;
+                serde_json::to_string_pretty(schema).context("Failed to serialize JSON schema")?;
+            fs::write(&schema_file_path, &schema_str).with_context(|| {
+                format!("Failed to write JSON schema file: {:?}", schema_file_path)
+            })?;
             cli_flags.push("--json-schema".to_string());
-            cli_flags.push(schema_str);
+            cli_flags.push(schema_file_path.to_string_lossy().to_string());
         } else if let Some(ref schema_file) = step_config.json_schema_file {
             // Resolve path - .tickets/ paths are relative to tickets parent dir, others to project
             let schema_path =
@@ -205,10 +211,12 @@ fn generate_config_flags(
                 } else {
                     PathBuf::from(project_path).join(schema_file)
                 };
-            let schema_content = fs::read_to_string(&schema_path)
-                .with_context(|| format!("Failed to read JSON schema file: {:?}", schema_path))?;
+            // Verify schema file exists, then pass the path (not content)
+            if !schema_path.exists() {
+                anyhow::bail!("JSON schema file not found: {:?}", schema_path);
+            }
             cli_flags.push("--json-schema".to_string());
-            cli_flags.push(schema_content);
+            cli_flags.push(schema_path.to_string_lossy().to_string());
         }
     }
 
@@ -914,6 +922,111 @@ mod tests {
                 1,
                 "Should have 1 denied tool after merge"
             );
+        }
+    }
+
+    // ========================================
+    // JSON schema file path tests
+    // ========================================
+    mod json_schema {
+        use std::path::PathBuf;
+        use tempfile::TempDir;
+
+        /// Test helper: verify that a JSON schema file is written correctly
+        #[test]
+        fn test_json_schema_written_to_file_is_valid_json() {
+            use serde_json::json;
+
+            let temp_dir = TempDir::new().unwrap();
+            let schema_path = temp_dir.path().join("schema.json");
+
+            // Simulate what generate_config_flags does for inline schema
+            let schema = json!({
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "properties": {
+                    "summary": { "type": "string" },
+                    "items": { "type": "array" }
+                },
+                "required": ["summary"]
+            });
+
+            let schema_str = serde_json::to_string_pretty(&schema).unwrap();
+            std::fs::write(&schema_path, &schema_str).unwrap();
+
+            // Verify the file was written and is valid JSON
+            let content = std::fs::read_to_string(&schema_path).unwrap();
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            assert_eq!(parsed["type"], "object");
+            assert!(parsed["properties"]["summary"].is_object());
+        }
+
+        /// Test that file path string conversion preserves the path
+        #[test]
+        fn test_schema_file_path_to_string() {
+            let path = PathBuf::from("/tmp/test/.tickets/operator/sessions/TEST-001/schema.json");
+            let path_str = path.to_string_lossy().to_string();
+
+            assert!(path_str.contains("schema.json"));
+            assert!(path_str.contains("sessions"));
+            assert!(!path_str.contains("{")); // No JSON content
+        }
+
+        /// Test that json_schema_file path existence check works
+        #[test]
+        fn test_schema_file_path_exists_check() {
+            let temp_dir = TempDir::new().unwrap();
+
+            // Create a schema file
+            let schema_path = temp_dir.path().join("test.schema.json");
+            std::fs::write(&schema_path, r#"{"type": "object"}"#).unwrap();
+
+            // Exists check should pass
+            assert!(schema_path.exists());
+
+            // Non-existent path should fail
+            let missing_path = temp_dir.path().join("nonexistent.json");
+            assert!(!missing_path.exists());
+        }
+
+        /// Test that a complex JSON schema with special characters is handled correctly
+        #[test]
+        fn test_complex_schema_with_special_chars() {
+            use serde_json::json;
+
+            let temp_dir = TempDir::new().unwrap();
+            let schema_path = temp_dir.path().join("schema.json");
+
+            // Schema with characters that would break shell if passed inline
+            let schema = json!({
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "title": "Test Schema with \"quotes\" and 'apostrophes'",
+                "description": "Contains special chars: $HOME, `backticks`, $(subshell)",
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "pattern": "^[a-z]+\\{.*\\}$"
+                    }
+                }
+            });
+
+            let schema_str = serde_json::to_string_pretty(&schema).unwrap();
+            std::fs::write(&schema_path, &schema_str).unwrap();
+
+            // Verify the path is simple and safe for shell
+            let path_str = schema_path.to_string_lossy().to_string();
+            assert!(!path_str.contains('\n'));
+            assert!(!path_str.contains("\""));
+            assert!(!path_str.contains("'"));
+
+            // Verify content is preserved
+            let content = std::fs::read_to_string(&schema_path).unwrap();
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            assert!(parsed["description"]
+                .as_str()
+                .unwrap()
+                .contains("$(subshell)"));
         }
     }
 }

@@ -15,7 +15,8 @@ use super::llm_command::{
 };
 use super::options::{LaunchOptions, RelaunchOptions};
 use super::prompt::{
-    generate_session_uuid, get_agent_prompt, get_template_prompt, shell_escape, write_prompt_file,
+    generate_session_uuid, get_agent_prompt, get_template_prompt, write_command_file,
+    write_prompt_file,
 };
 use super::SESSION_PREFIX;
 
@@ -180,11 +181,13 @@ pub fn launch_in_tmux_with_options(
         llm_cmd = build_docker_command(config, &llm_cmd, project_path)?;
     }
 
-    // Prepend cd to ensure correct working directory (belt and suspenders with tmux -c)
-    let full_cmd = format!("cd {} && {}", shell_escape(project_path), llm_cmd);
+    // Write the command to a shell script file to avoid issues with long commands
+    // and special characters when using tmux send-keys
+    let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
 
-    // Send the LLM command to the session
-    if let Err(e) = tmux.send_keys(&session_name, &full_cmd, true) {
+    // Send simple bash command to execute the script (always short, so no buffer needed)
+    let bash_cmd = format!("bash {}", command_file.display());
+    if let Err(e) = tmux.send_keys(&session_name, &bash_cmd, true) {
         // Clean up the session if we couldn't send the command
         let _ = tmux.kill_session(&session_name);
         anyhow::bail!("Failed to start LLM agent in tmux session: {}", e);
@@ -199,6 +202,7 @@ pub fn launch_in_tmux_with_options(
         tool = %tool_name,
         launch_mode = %options.launch_mode_string(),
         working_dir = %project_path,
+        command_file = %command_file.display(),
         "Launched agent in tmux session"
     );
 
@@ -396,11 +400,13 @@ pub fn launch_in_tmux_with_relaunch_options(
         llm_cmd = build_docker_command(config, &llm_cmd, project_path)?;
     }
 
-    // Prepend cd to ensure correct working directory (belt and suspenders with tmux -c)
-    let full_cmd = format!("cd {} && {}", shell_escape(project_path), llm_cmd);
+    // Write the command to a shell script file to avoid issues with long commands
+    // and special characters when using tmux send-keys
+    let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
 
-    // Send the LLM command to the session
-    if let Err(e) = tmux.send_keys(&session_name, &full_cmd, true) {
+    // Send simple bash command to execute the script (always short, so no buffer needed)
+    let bash_cmd = format!("bash {}", command_file.display());
+    if let Err(e) = tmux.send_keys(&session_name, &bash_cmd, true) {
         // Clean up the session if we couldn't send the command
         let _ = tmux.kill_session(&session_name);
         anyhow::bail!("Failed to start LLM agent in tmux session: {}", e);
@@ -416,6 +422,7 @@ pub fn launch_in_tmux_with_relaunch_options(
         is_resume = %is_resume,
         launch_mode = %options.launch_options.launch_mode_string(),
         working_dir = %project_path,
+        command_file = %command_file.display(),
         "Relaunched agent in tmux session"
     );
 

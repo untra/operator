@@ -4,7 +4,7 @@ description: "Operator! is an application for orchestrating LLM coding assist ag
 layout: doc
 ---
 
-Welcome friend! <span class="operator-brand">Operator!</span> is an application for orchestrating [Claude Code](/getting-started/agents/claude/) (and other [LLM coding agents](/getting-started/agents/)) across multi-repository codebases. It connects to [kanban-style ticket management software](/getting-started/kanban/) , and can spawn session from the [**VS Code** extension](/getting-started/sessions/vscode/) or from [`tmux` terminals](/getting-started/sessions/tmux/) to create a powerful workflow for managing AI-assisted software development.
+Welcome friend! <span class="operator-brand">Operator!</span> is an application for orchestrating [Claude Code](/getting-started/agents/claude/) (and other [LLM coding agents](/getting-started/agents/)) across multi-repository codebases. It connects to [kanban-style ticket management software](/getting-started/kanban/) , and can spawn session from the official [VS Code extension](/getting-started/sessions/vscode/) or from [`tmux` terminals](/getting-started/sessions/tmux/) to create a powerful workflow for managing AI-assisted software development.
 
 <span class="operator-brand">Operator!</span> was designed _by Software Engineers for Software Engineers_. Most software development happens [multi-repo rather than mono-repo](https://www.thoughtworks.com/en-us/insights/blog/agile-engineering-practices/monorepo-vs-multirepo){:target="_blank"}, and succeeding with AI software development requires coordinating LLM assist coding agents work across many codebases, with modern feature development requiring 2+ pull requests across an organization. The API server runs in the directory containing your work code repositories, where it can synchronize and direct markdown defined work orders under a `.tickets/` directory which stores your kanban synchronized work tickets.
 
@@ -23,9 +23,9 @@ Welcome friend! <span class="operator-brand">Operator!</span> is an application 
 
 1. Install <span class="operator-brand">Operator!</span> (downloads page)
 2. Configure your project management kanban workspaces
-3. Define your work shape issuetypes, and how AI combines them together
-3. Create tickets in `.tickets/queue/` (kanban connectors)
-4. Launch agents and watch them work (measuring success)
+3. Define your work shape issuetypes, and the steps AI follows to complete work
+3. Create markdown work tickets in `.tickets/queue/`
+4. Launch coding agents and watch them work, while measuring success
 
 ## Quick Links
 

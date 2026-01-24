@@ -1,0 +1,23 @@
+[extension]
+id = "operator"
+name = "Operator"
+description = "Integration with Operator multi-agent orchestration for Claude Code"
+version = "0.1.0"
+schema_version = 1
+authors = ["Samuel Volin <sam@untra.io>"]
+repository = "https://github.com/untra/operator"
+
+[language_servers]
+
+[slash_commands]
+op-status = { description = "Show Operator health and status" }
+op-queue = { description = "List tickets in queue" }
+op-launch = { description = "Launch a ticket by ID", requires_argument = true }
+op-active = { description = "List active agents" }
+op-completed = { description = "List recently completed tickets" }
+op-ticket = { description = "Show ticket details by ID", requires_argument = true }
+op-pause = { description = "Pause queue processing" }
+op-resume = { description = "Resume queue processing" }
+op-sync = { description = "Sync kanban collections" }
+op-approve = { description = "Approve agent review by agent ID", requires_argument = true }
+op-reject = { description = "Reject agent review with reason", requires_argument = true }

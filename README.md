@@ -14,7 +14,7 @@ Operator is for you if:
 - you use llm assisted coding agent tools to accomplish work, such as [_Claude Code_](https://operator.untra.io/getting-started/agents/claude/), [_OpenAI Codex_](https://operator.untra.io/getting-started/agents/codex/)
 - your work is version controlled with git repository provider (like [_Github_](https://operator.untra.io/getting-started/git/github/))
 
-- you are drowning in the soup
+- you are drowning in the AI software development soup.
 
 and you're ready to start seriously automating your work.
 

@@ -215,7 +215,8 @@ async function findParentTicketsDir(): Promise<string | undefined> {
 }
 
 /**
- * Find the .tickets directory in the workspace (for webhook session file)
+ * Find the .tickets directory for webhook session file.
+ * Walks up from workspace to find existing .tickets, or creates in parent (org level).
  */
 async function findTicketsDir(): Promise<string | undefined> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -223,27 +224,75 @@ async function findTicketsDir(): Promise<string | undefined> {
     return undefined;
   }
 
-  // Check configured tickets directory
   const configuredDir = vscode.workspace
     .getConfiguration('operator')
     .get<string>('ticketsDir', '.tickets');
 
-  const ticketsPath = path.isAbsolute(configuredDir)
-    ? configuredDir
-    : path.join(workspaceFolder.uri.fsPath, configuredDir);
-
-  try {
-    await fs.access(ticketsPath);
-    return ticketsPath;
-  } catch {
-    // .tickets directory doesn't exist yet - create it
+  // If absolute path configured, use it directly
+  if (path.isAbsolute(configuredDir)) {
     try {
-      await fs.mkdir(ticketsPath, { recursive: true });
-      return ticketsPath;
+      await fs.mkdir(configuredDir, { recursive: true });
+      return configuredDir;
     } catch {
       return undefined;
     }
   }
+
+  // Walk up from workspace to find existing .tickets directory
+  let currentDir = workspaceFolder.uri.fsPath;
+  const root = path.parse(currentDir).root;
+
+  while (currentDir !== root) {
+    const ticketsPath = path.join(currentDir, configuredDir);
+    try {
+      await fs.access(ticketsPath);
+      return ticketsPath; // Found existing .tickets
+    } catch {
+      // Not found, try parent
+      currentDir = path.dirname(currentDir);
+    }
+  }
+
+  // Not found - create in parent of workspace (org level)
+  const parentDir = path.dirname(workspaceFolder.uri.fsPath);
+  if (parentDir === workspaceFolder.uri.fsPath) {
+    // Workspace is at filesystem root
+    return undefined;
+  }
+
+  const ticketsPath = path.join(parentDir, configuredDir);
+  try {
+    await fs.mkdir(ticketsPath, { recursive: true });
+    return ticketsPath;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Find the directory to run the operator server in.
+ * Prefers parent directory if it has .tickets/operator/, otherwise uses workspace.
+ */
+async function findOperatorServerDir(): Promise<string | undefined> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) {
+    return undefined;
+  }
+
+  const workspaceDir = workspaceFolder.uri.fsPath;
+  const parentDir = path.dirname(workspaceDir);
+
+  // Check if parent has .tickets/operator/ (initialized operator setup)
+  const parentOperatorPath = path.join(parentDir, '.tickets', 'operator');
+  try {
+    await fs.access(parentOperatorPath);
+    return parentDir; // Parent has initialized operator
+  } catch {
+    // Parent doesn't have .tickets/operator
+  }
+
+  // Fall back to workspace directory
+  return workspaceDir;
 }
 
 /**
@@ -715,16 +764,12 @@ async function startOperatorServerCommand(): Promise<void> {
     return;
   }
 
-  // Find the parent directory containing .tickets
-  if (!currentTicketsDir) {
-    vscode.window.showErrorMessage(
-      'No .tickets directory found. Operator requires a .tickets directory.'
-    );
+  // Find the directory to run the operator server in
+  const serverDir = await findOperatorServerDir();
+  if (!serverDir) {
+    vscode.window.showErrorMessage('No workspace folder found.');
     return;
   }
-
-  // Get parent of .tickets (the project root)
-  const projectRoot = path.dirname(currentTicketsDir);
 
   // Check if Operator is already running
   const apiClient = new OperatorApiClient();
@@ -746,14 +791,14 @@ async function startOperatorServerCommand(): Promise<void> {
 
   await terminalManager.create({
     name: terminalName,
-    workingDir: projectRoot,
+    workingDir: serverDir,
   });
 
   await terminalManager.send(terminalName, `"${operatorPath}" api`);
   await terminalManager.focus(terminalName);
 
   vscode.window.showInformationMessage(
-    `Starting Operator API server in ${projectRoot}...`
+    `Starting Operator API server in ${serverDir}...`
   );
 
   // Wait a moment and refresh providers to pick up the new status

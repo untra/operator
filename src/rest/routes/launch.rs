@@ -245,11 +245,44 @@ pub async fn complete_step(
         None
     };
 
+    // Extract data from OperatorOutput if provided
+    let (output_valid, should_iterate, previous_summary, previous_recommendation) =
+        if let Some(ref output) = request.output {
+            (
+                true,
+                !output.exit_signal, // should_iterate when exit_signal is false
+                output.summary.clone(),
+                output.recommendation.clone(),
+            )
+        } else {
+            (false, false, None, None)
+        };
+
+    // Calculate cumulative values (for now, just use current values)
+    let cumulative_files_modified = request
+        .output
+        .as_ref()
+        .and_then(|o| o.files_modified)
+        .unwrap_or(0);
+    let cumulative_errors = request
+        .output
+        .as_ref()
+        .and_then(|o| o.error_count)
+        .unwrap_or(0);
+
     Ok(Json(StepCompleteResponse {
         status,
         next_step: next_step_info,
         auto_proceed,
         next_command,
+        output_valid,
+        should_iterate,
+        iteration_count: 1,                  // TODO: Track across iterations
+        circuit_state: "closed".to_string(), // TODO: Implement circuit breaker
+        previous_summary,
+        previous_recommendation,
+        cumulative_files_modified,
+        cumulative_errors,
     }))
 }
 

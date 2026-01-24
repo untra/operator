@@ -17,6 +17,36 @@ use crate::config::Config;
 use crate::queue::Ticket;
 use crate::templates::{schema::TemplateSchema, TemplateType};
 
+/// Standard operator output instructions appended to all prompts.
+/// This instructs agents to output a status block for progress tracking.
+const OPERATOR_OUTPUT_INSTRUCTIONS: &str = r#"
+---
+
+## Status Reporting
+
+When you complete your work or reach a stopping point, output a status block in this exact format:
+
+```
+---OPERATOR_STATUS---
+status: complete | in_progress | blocked | failed
+exit_signal: true | false
+confidence: 0-100
+files_modified: <count>
+tests_status: passing | failing | skipped | not_run
+error_count: <count>
+tasks_completed: <count>
+tasks_remaining: <count>
+summary: <brief description of work done this iteration>
+recommendation: <suggested next action or empty if done>
+blockers: <comma-separated list if blocked, otherwise empty>
+---END_OPERATOR_STATUS---
+```
+
+**Required fields:** status, exit_signal
+**Set exit_signal: true** when your work on this step is complete
+**Set exit_signal: false** if more work remains to be done
+"#;
+
 /// Handlebars-based prompt interpolator
 pub struct PromptInterpolator {
     handlebars: Handlebars<'static>,
@@ -45,6 +75,20 @@ impl PromptInterpolator {
         config: &Config,
         ticket: &Ticket,
         project_path: &str,
+    ) -> Result<Value> {
+        self.build_context_with_previous(config, ticket, project_path, None, None)
+    }
+
+    /// Build context with previous step's output for piping
+    ///
+    /// Used when transitioning between steps to pass context forward.
+    pub fn build_context_with_previous(
+        &self,
+        config: &Config,
+        ticket: &Ticket,
+        project_path: &str,
+        previous_summary: Option<&str>,
+        previous_recommendation: Option<&str>,
     ) -> Result<Value> {
         // Load the template schema for step information
         let schema = TemplateType::from_key(&ticket.ticket_type)
@@ -97,6 +141,13 @@ impl PromptInterpolator {
 
             // Ticket path for reference
             "ticket_path": format!("../.tickets/in-progress/{}", ticket.filename),
+
+            // Operator output instructions for status reporting
+            "operator_output_instructions": OPERATOR_OUTPUT_INSTRUCTIONS,
+
+            // Previous step context (for multi-step piping)
+            "previous_summary": previous_summary.unwrap_or(""),
+            "previous_recommendation": previous_recommendation.unwrap_or(""),
         });
 
         // Add branch name if available
@@ -116,16 +167,34 @@ impl PromptInterpolator {
 
     /// Build and render a combined prompt for launching an agent
     ///
-    /// Combines issuetype prompt, step prompt, and ticket contents.
-    /// Order: issuetype.prompt -> step.prompt -> ticket contents
+    /// Combines issuetype prompt, step prompt, ticket contents, and operator output instructions.
+    /// Order: issuetype.prompt -> step.prompt -> ticket contents -> previous context -> output instructions
     pub fn build_launch_prompt(
         &self,
         config: &Config,
         ticket: &Ticket,
         project_path: &str,
     ) -> Result<String> {
+        self.build_launch_prompt_with_context(config, ticket, project_path, None, None)
+    }
+
+    /// Build prompt with previous step context for multi-step piping
+    pub fn build_launch_prompt_with_context(
+        &self,
+        config: &Config,
+        ticket: &Ticket,
+        project_path: &str,
+        previous_summary: Option<&str>,
+        previous_recommendation: Option<&str>,
+    ) -> Result<String> {
         // Build the context for interpolation
-        let context = self.build_context(config, ticket, project_path)?;
+        let context = self.build_context_with_previous(
+            config,
+            ticket,
+            project_path,
+            previous_summary,
+            previous_recommendation,
+        )?;
 
         // Load the template schema
         let schema = TemplateType::from_key(&ticket.ticket_type)
@@ -173,6 +242,23 @@ impl PromptInterpolator {
                 }
             }
         }
+
+        // 4. Add previous step context if available
+        if let Some(summary) = previous_summary {
+            if !summary.is_empty() {
+                let mut context_section = String::from("## Previous Step Context\n\n");
+                context_section.push_str(&format!("**Summary:** {}\n", summary));
+                if let Some(rec) = previous_recommendation {
+                    if !rec.is_empty() {
+                        context_section.push_str(&format!("**Recommendation:** {}\n", rec));
+                    }
+                }
+                parts.push(context_section);
+            }
+        }
+
+        // 5. Always append operator output instructions
+        parts.push(OPERATOR_OUTPUT_INSTRUCTIONS.trim().to_string());
 
         // Join with separators
         Ok(parts.join("\n\n---\n\n"))
@@ -316,5 +402,81 @@ mod tests {
 
         let result = load_template_file(&file_path).unwrap();
         assert_eq!(result, "Test content");
+    }
+
+    #[test]
+    fn test_build_context_includes_operator_output_instructions() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = crate::config::Config {
+            paths: crate::config::PathsConfig {
+                tickets: temp_dir.path().to_string_lossy().to_string(),
+                projects: temp_dir.path().to_string_lossy().to_string(),
+                state: temp_dir.path().to_string_lossy().to_string(),
+                worktrees: temp_dir
+                    .path()
+                    .join("worktrees")
+                    .to_string_lossy()
+                    .to_string(),
+            },
+            ..Default::default()
+        };
+
+        let ticket = make_test_ticket();
+        let interpolator = PromptInterpolator::new();
+        let context = interpolator
+            .build_context(&config, &ticket, "/path/to/project")
+            .unwrap();
+
+        // Check operator_output_instructions is present
+        let instructions = context["operator_output_instructions"].as_str().unwrap();
+        assert!(instructions.contains("---OPERATOR_STATUS---"));
+        assert!(instructions.contains("exit_signal"));
+    }
+
+    #[test]
+    fn test_build_context_with_previous_step() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = crate::config::Config {
+            paths: crate::config::PathsConfig {
+                tickets: temp_dir.path().to_string_lossy().to_string(),
+                projects: temp_dir.path().to_string_lossy().to_string(),
+                state: temp_dir.path().to_string_lossy().to_string(),
+                worktrees: temp_dir
+                    .path()
+                    .join("worktrees")
+                    .to_string_lossy()
+                    .to_string(),
+            },
+            ..Default::default()
+        };
+
+        let ticket = make_test_ticket();
+        let interpolator = PromptInterpolator::new();
+        let context = interpolator
+            .build_context_with_previous(
+                &config,
+                &ticket,
+                "/path/to/project",
+                Some("Implemented auth"),
+                Some("Ready for tests"),
+            )
+            .unwrap();
+
+        assert_eq!(context["previous_summary"], "Implemented auth");
+        assert_eq!(context["previous_recommendation"], "Ready for tests");
+    }
+
+    #[test]
+    fn test_render_operator_output_template() {
+        let interpolator = PromptInterpolator::new();
+        let context = json!({
+            "operator_output_instructions": OPERATOR_OUTPUT_INSTRUCTIONS
+        });
+
+        let template = "Do the work.\n\n{{operator_output_instructions}}";
+        let result = interpolator.render(template, &context).unwrap();
+
+        assert!(result.contains("Do the work"));
+        assert!(result.contains("---OPERATOR_STATUS---"));
     }
 }

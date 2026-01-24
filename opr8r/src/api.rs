@@ -24,6 +24,60 @@ pub struct ApiSession {
     pub version: String,
 }
 
+/// Structured output from agent (parsed from OPERATOR_STATUS block)
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct OperatorOutput {
+    /// Current work status: in_progress, complete, blocked, failed
+    pub status: String,
+    /// Agent signals done with step (true) or more work remains (false)
+    pub exit_signal: bool,
+    /// Agent's confidence in completion (0-100%)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<u8>,
+    /// Number of files changed this iteration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub files_modified: Option<u32>,
+    /// Test suite status: passing, failing, skipped, not_run
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tests_status: Option<String>,
+    /// Number of errors encountered
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_count: Option<u32>,
+    /// Number of sub-tasks completed this iteration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tasks_completed: Option<u32>,
+    /// Estimated remaining sub-tasks
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tasks_remaining: Option<u32>,
+    /// Brief description of work done (max 500 chars)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    /// Suggested next action (max 200 chars)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recommendation: Option<String>,
+    /// Issues preventing progress (signals intervention needed)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blockers: Option<Vec<String>>,
+}
+
+impl From<crate::output_parser::ParsedOutput> for OperatorOutput {
+    fn from(parsed: crate::output_parser::ParsedOutput) -> Self {
+        Self {
+            status: parsed.status,
+            exit_signal: parsed.exit_signal,
+            confidence: parsed.confidence,
+            files_modified: parsed.files_modified,
+            tests_status: parsed.tests_status,
+            error_count: parsed.error_count,
+            tasks_completed: parsed.tasks_completed,
+            tasks_remaining: parsed.tasks_remaining,
+            summary: parsed.summary,
+            recommendation: parsed.recommendation,
+            blockers: parsed.blockers,
+        }
+    }
+}
+
 /// Request body for step completion
 #[derive(Debug, Serialize)]
 pub struct StepCompleteRequest {
@@ -31,10 +85,14 @@ pub struct StepCompleteRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
     pub duration_secs: u64,
+    /// Structured output from agent (parsed OPERATOR_STATUS block)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<OperatorOutput>,
 }
 
 /// Response from step completion endpoint
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Fields used for future loop/circuit breaker features
 pub struct StepCompleteResponse {
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -42,6 +100,34 @@ pub struct StepCompleteResponse {
     pub auto_proceed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_command: Option<String>,
+
+    // Analysis results from OperatorOutput processing
+    /// Whether OperatorOutput was successfully parsed from agent output
+    #[serde(default)]
+    pub output_valid: bool,
+    /// Agent has more work (exit_signal=false) - indicates iteration needed
+    #[serde(default)]
+    pub should_iterate: bool,
+    /// How many times this step has run (for circuit breaker)
+    #[serde(default)]
+    pub iteration_count: u32,
+    /// Circuit breaker state: closed (normal), half_open (monitoring), open (halted)
+    #[serde(default)]
+    pub circuit_state: String,
+
+    // Context piped from agent output for next step
+    /// Summary from previous step's OperatorOutput
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_summary: Option<String>,
+    /// Recommendation from previous step's OperatorOutput
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_recommendation: Option<String>,
+    /// Cumulative files modified across iterations
+    #[serde(default)]
+    pub cumulative_files_modified: u32,
+    /// Cumulative errors across iterations
+    #[serde(default)]
+    pub cumulative_errors: u32,
 }
 
 /// Information about the next step
@@ -202,12 +288,39 @@ mod tests {
             exit_code: 0,
             session_id: Some("abc-123".to_string()),
             duration_secs: 342,
+            output: None,
         };
 
         let json = serde_json::to_string(&request).unwrap();
         assert!(json.contains("\"exit_code\":0"));
         assert!(json.contains("\"session_id\":\"abc-123\""));
         assert!(json.contains("\"duration_secs\":342"));
+        assert!(!json.contains("\"output\"")); // None should be omitted
+    }
+
+    #[test]
+    fn test_step_complete_request_with_operator_output() {
+        let output = OperatorOutput {
+            status: "complete".to_string(),
+            exit_signal: true,
+            confidence: Some(95),
+            files_modified: Some(3),
+            tests_status: Some("passing".to_string()),
+            ..Default::default()
+        };
+
+        let request = StepCompleteRequest {
+            exit_code: 0,
+            session_id: Some("abc-123".to_string()),
+            duration_secs: 342,
+            output: Some(output),
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("\"output\":{"));
+        assert!(json.contains("\"status\":\"complete\""));
+        assert!(json.contains("\"exit_signal\":true"));
+        assert!(json.contains("\"confidence\":95"));
     }
 
     #[test]
@@ -239,6 +352,7 @@ mod tests {
             exit_code: 1,
             session_id: None,
             duration_secs: 60,
+            output: None,
         };
 
         let json = serde_json::to_string(&request).unwrap();
@@ -260,6 +374,37 @@ mod tests {
         assert!(response.auto_proceed);
         assert!(response.next_command.is_some());
         assert!(response.next_step.is_none());
+        // Check defaults for new fields
+        assert!(!response.output_valid);
+        assert!(!response.should_iterate);
+        assert_eq!(response.iteration_count, 0);
+    }
+
+    #[test]
+    fn test_step_complete_response_with_analysis_fields() {
+        let json = r#"{
+            "status": "completed",
+            "auto_proceed": true,
+            "output_valid": true,
+            "should_iterate": false,
+            "iteration_count": 1,
+            "circuit_state": "closed",
+            "previous_summary": "Implemented feature",
+            "previous_recommendation": "Ready for review",
+            "cumulative_files_modified": 5,
+            "cumulative_errors": 0
+        }"#;
+
+        let response: StepCompleteResponse = serde_json::from_str(json).unwrap();
+        assert!(response.output_valid);
+        assert!(!response.should_iterate);
+        assert_eq!(response.iteration_count, 1);
+        assert_eq!(response.circuit_state, "closed");
+        assert_eq!(
+            response.previous_summary,
+            Some("Implemented feature".to_string())
+        );
+        assert_eq!(response.cumulative_files_modified, 5);
     }
 
     #[test]
@@ -295,5 +440,25 @@ mod tests {
         let session: ApiSession = serde_json::from_str(json).unwrap();
         assert_eq!(session.port, 7008);
         assert_eq!(session.pid, 12345);
+    }
+
+    #[test]
+    fn test_operator_output_from_parsed_output() {
+        use crate::output_parser::ParsedOutput;
+
+        let parsed = ParsedOutput {
+            status: "complete".to_string(),
+            exit_signal: true,
+            confidence: Some(90),
+            files_modified: Some(3),
+            tests_status: Some("passing".to_string()),
+            ..Default::default()
+        };
+
+        let output: OperatorOutput = parsed.into();
+        assert_eq!(output.status, "complete");
+        assert!(output.exit_signal);
+        assert_eq!(output.confidence, Some(90));
+        assert_eq!(output.files_modified, Some(3));
     }
 }

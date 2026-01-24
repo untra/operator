@@ -1,5 +1,6 @@
 mod api;
 mod cli;
+mod output_parser;
 mod runner;
 mod transition;
 
@@ -38,11 +39,13 @@ fn build_step_complete_request(
     exit_code: i32,
     session_id: Option<String>,
     duration_secs: u64,
+    output: Option<api::OperatorOutput>,
 ) -> StepCompleteRequest {
     StepCompleteRequest {
         exit_code,
         session_id,
         duration_secs,
+        output,
     }
 }
 
@@ -74,8 +77,10 @@ async fn main() -> ExitCode {
 
     print_step_starting(&args.ticket_id, &args.step, args.verbose);
 
-    // Configure runner
-    let config = RunConfig::new().with_verbose(args.verbose);
+    // Configure runner with output capture enabled
+    let config = RunConfig::new()
+        .with_verbose(args.verbose)
+        .with_capture(true); // Always capture to parse OPERATOR_STATUS blocks
 
     // Run the LLM command
     let run_result = match run_command(program, cmd_args, config).await {
@@ -88,6 +93,24 @@ async fn main() -> ExitCode {
 
     let exit_code = run_result.exit_status.code().unwrap_or(1);
     let duration_secs = run_result.duration.as_secs();
+
+    // Parse OPERATOR_STATUS block from captured output
+    let operator_output = run_result
+        .captured_output
+        .as_deref()
+        .and_then(output_parser::find_last_status_block)
+        .map(api::OperatorOutput::from);
+
+    if args.verbose {
+        if let Some(ref output) = operator_output {
+            eprintln!(
+                "[opr8r] Parsed operator output: status={}, exit_signal={}",
+                output.status, output.exit_signal
+            );
+        } else {
+            eprintln!("[opr8r] No OPERATOR_STATUS block found in output");
+        }
+    }
 
     print_step_completed(&args.step, duration_secs, args.verbose);
 
@@ -105,8 +128,13 @@ async fn main() -> ExitCode {
         }
     };
 
-    // Report completion to API
-    let request = build_step_complete_request(exit_code, args.session_id.clone(), duration_secs);
+    // Report completion to API with operator output
+    let request = build_step_complete_request(
+        exit_code,
+        args.session_id.clone(),
+        duration_secs,
+        operator_output,
+    );
 
     let response = match api_client
         .complete_step(&args.ticket_id, &args.step, request)
@@ -190,17 +218,35 @@ mod tests {
 
     #[test]
     fn test_build_step_complete_request_minimal() {
-        let request = build_step_complete_request(0, None, 120);
+        let request = build_step_complete_request(0, None, 120, None);
         assert_eq!(request.exit_code, 0);
         assert!(request.session_id.is_none());
         assert_eq!(request.duration_secs, 120);
+        assert!(request.output.is_none());
     }
 
     #[test]
     fn test_build_step_complete_request_with_session() {
-        let request = build_step_complete_request(1, Some("session-abc".to_string()), 300);
+        let request = build_step_complete_request(1, Some("session-abc".to_string()), 300, None);
         assert_eq!(request.exit_code, 1);
         assert_eq!(request.session_id, Some("session-abc".to_string()));
         assert_eq!(request.duration_secs, 300);
+    }
+
+    #[test]
+    fn test_build_step_complete_request_with_operator_output() {
+        let output = api::OperatorOutput {
+            status: "complete".to_string(),
+            exit_signal: true,
+            confidence: Some(95),
+            ..Default::default()
+        };
+
+        let request = build_step_complete_request(0, None, 120, Some(output));
+        assert_eq!(request.exit_code, 0);
+        assert!(request.output.is_some());
+        let output = request.output.unwrap();
+        assert_eq!(output.status, "complete");
+        assert!(output.exit_signal);
     }
 }

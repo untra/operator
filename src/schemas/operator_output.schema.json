@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://operator.dev/schemas/operator_output.schema.json",
+  "title": "OperatorOutput",
+  "description": "Standardized agent output for progress tracking and step transitions. Used by agents to report their status, progress, and recommendations to the Operator system.",
+  "type": "object",
+  "required": ["status", "exit_signal"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["in_progress", "complete", "blocked", "failed"],
+      "description": "Current work status. 'in_progress' means work is ongoing, 'complete' means step work is done, 'blocked' means cannot proceed without intervention, 'failed' means unrecoverable error."
+    },
+    "exit_signal": {
+      "type": "boolean",
+      "description": "Set to true when the agent is done with the current step, false if more work remains. Used with status to determine step transition."
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Agent's confidence in completion as a percentage (0-100). Used for threshold-based completion detection."
+    },
+    "files_modified": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of files changed during this iteration. Used for progress tracking and circuit breaker analysis."
+    },
+    "tests_status": {
+      "type": "string",
+      "enum": ["passing", "failing", "skipped", "not_run"],
+      "description": "Test suite status after this iteration."
+    },
+    "error_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of errors encountered during this iteration. Used for circuit breaker analysis."
+    },
+    "tasks_completed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of sub-tasks completed during this iteration."
+    },
+    "tasks_remaining": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Estimated number of remaining sub-tasks."
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Brief description of work done during this iteration. Piped to next step as context."
+    },
+    "recommendation": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Suggested next action or empty if done. Piped to next step as context."
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of issues preventing progress. Signals intervention needed."
+    }
+  },
+  "examples": [
+    {
+      "status": "complete",
+      "exit_signal": true,
+      "confidence": 95,
+      "files_modified": 3,
+      "tests_status": "passing",
+      "error_count": 0,
+      "tasks_completed": 5,
+      "tasks_remaining": 0,
+      "summary": "Implemented user authentication with JWT tokens and added unit tests",
+      "recommendation": "Ready for code review"
+    },
+    {
+      "status": "in_progress",
+      "exit_signal": false,
+      "confidence": 60,
+      "files_modified": 2,
+      "tests_status": "failing",
+      "error_count": 3,
+      "tasks_completed": 2,
+      "tasks_remaining": 3,
+      "summary": "Added login endpoint, working on fixing test failures",
+      "recommendation": "Continue with test fixes"
+    },
+    {
+      "status": "blocked",
+      "exit_signal": false,
+      "confidence": 30,
+      "files_modified": 0,
+      "tests_status": "not_run",
+      "error_count": 1,
+      "tasks_completed": 0,
+      "tasks_remaining": 5,
+      "summary": "Cannot proceed without database credentials",
+      "recommendation": "Need operator to provide DATABASE_URL environment variable",
+      "blockers": ["Missing DATABASE_URL environment variable", "Cannot connect to test database"]
+    }
+  ]
+}

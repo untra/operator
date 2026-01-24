@@ -16,7 +16,7 @@ use crate::templates::TemplateType;
 pub const COMMON_OPTIONAL_FIELDS: &[&str] = &["priority", "points", "user_story"];
 
 /// Options for workspace setup
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SetupOptions {
     /// Collection preset to use
     pub preset: CollectionPreset,
@@ -27,21 +27,12 @@ pub struct SetupOptions {
     /// Optional fields to include (propagated to all types)
     /// Only common fields (priority, points, user_story) are filtered
     pub task_fields: Vec<String>,
-}
-
-impl Default for SetupOptions {
-    fn default() -> Self {
-        Self {
-            preset: CollectionPreset::Simple,
-            backstage_enabled: false,
-            force: false,
-            // Default: all optional fields enabled
-            task_fields: COMMON_OPTIONAL_FIELDS
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-        }
-    }
+    /// Working directory (parent of .tickets/)
+    pub working_dir: Option<PathBuf>,
+    /// Kanban provider to configure: jira, linear
+    pub kanban_provider: Option<String>,
+    /// Preferred LLM tool: claude, codex, gemini
+    pub llm_tool: Option<String>,
 }
 
 /// Result of setup operation
@@ -341,9 +332,13 @@ mod tests {
     #[test]
     fn test_setup_options_default() {
         let options = SetupOptions::default();
-        assert_eq!(options.preset, CollectionPreset::Simple);
+        // CollectionPreset defaults to DevKanban via its #[default] attribute
+        assert_eq!(options.preset, CollectionPreset::DevKanban);
         assert!(!options.backstage_enabled);
         assert!(!options.force);
+        assert!(options.working_dir.is_none());
+        assert!(options.kanban_provider.is_none());
+        assert!(options.llm_tool.is_none());
     }
 
     #[test]

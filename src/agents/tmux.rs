@@ -40,6 +40,15 @@ pub enum TmuxError {
     #[error("failed to send keys to session '{0}': {1}")]
     SendKeysFailed(String, String),
 
+    #[error("failed to set buffer '{0}': {1}")]
+    SetBufferFailed(String, String),
+
+    #[error("failed to paste buffer '{0}' to session '{1}': {2}")]
+    PasteBufferFailed(String, String, String),
+
+    #[error("failed to delete buffer '{0}': {1}")]
+    DeleteBufferFailed(String, String),
+
     #[error("tmux command failed: {0}")]
     CommandFailed(String),
 }
@@ -146,6 +155,24 @@ pub trait TmuxClient: Send + Sync {
     /// Attach to session with detach hook that creates a signal file
     /// Returns the path to the signal file that will be created on detach
     fn attach_session_with_detach_signal(&self, session: &str) -> Result<String, TmuxError>;
+
+    /// Set a named tmux buffer with the given content
+    fn set_buffer(&self, buffer_name: &str, content: &str) -> Result<(), TmuxError>;
+
+    /// Paste a named buffer to a session
+    fn paste_buffer(&self, buffer_name: &str, session: &str) -> Result<(), TmuxError>;
+
+    /// Delete a named buffer
+    fn delete_buffer(&self, buffer_name: &str) -> Result<(), TmuxError>;
+
+    /// Send a command to a session via buffer (bypasses send-keys length limit)
+    /// Uses: set-buffer -> paste-buffer -> send Enter -> delete-buffer
+    fn send_command_via_buffer(&self, session: &str, command: &str) -> Result<(), TmuxError>;
+
+    /// Safe version of send_keys that automatically uses buffer for long commands
+    /// Commands over SEND_KEYS_THRESHOLD bytes use the buffer method to avoid tmux limits
+    fn send_keys_safe(&self, session: &str, keys: &str, press_enter: bool)
+        -> Result<(), TmuxError>;
 }
 
 /// Real implementation using system tmux
@@ -159,6 +186,10 @@ pub struct SystemTmuxClient {
 
 /// Default socket name for operator-managed tmux sessions
 pub const OPERATOR_SOCKET: &str = "operator";
+
+/// Threshold in bytes for switching from send_keys to buffer method
+/// tmux 1.8 has ~2KB limit, tmux 1.9+ has ~16KB limit. Use conservative value.
+const SEND_KEYS_THRESHOLD: usize = 2000;
 
 impl SystemTmuxClient {
     /// Create a new client using default tmux config and socket
@@ -509,6 +540,143 @@ impl TmuxClient for SystemTmuxClient {
 
         Ok(signal_file)
     }
+
+    fn set_buffer(&self, buffer_name: &str, content: &str) -> Result<(), TmuxError> {
+        use std::io::Write;
+        use std::process::Stdio;
+
+        // Use load-buffer with stdin ("-") to avoid CLI argument length limits (ARG_MAX).
+        // tmux load-buffer reads from path, where "-" means stdin.
+        // This allows setting buffers with content of any size.
+        let mut cmd = Command::new("tmux");
+
+        // Use dedicated socket if configured (must come before -f)
+        if let Some(ref socket) = self.socket_name {
+            cmd.arg("-L").arg(socket);
+        }
+
+        // If custom config is set, add -f flag
+        if let Some(ref config_path) = self.config_path {
+            cmd.arg("-f").arg(config_path);
+        }
+
+        cmd.args(["load-buffer", "-b", buffer_name, "-"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let mut child = cmd.spawn().map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                TmuxError::NotInstalled
+            } else {
+                TmuxError::CommandFailed(e.to_string())
+            }
+        })?;
+
+        // Write content to stdin
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(content.as_bytes())
+                .map_err(|e| TmuxError::SetBufferFailed(buffer_name.to_string(), e.to_string()))?;
+        }
+
+        let output = child
+            .wait_with_output()
+            .map_err(|e| TmuxError::SetBufferFailed(buffer_name.to_string(), e.to_string()))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(TmuxError::SetBufferFailed(
+                buffer_name.to_string(),
+                stderr.to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn paste_buffer(&self, buffer_name: &str, session: &str) -> Result<(), TmuxError> {
+        let output = self.run_tmux(&["paste-buffer", "-b", buffer_name, "-t", session])?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(TmuxError::PasteBufferFailed(
+                buffer_name.to_string(),
+                session.to_string(),
+                stderr.to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn delete_buffer(&self, buffer_name: &str) -> Result<(), TmuxError> {
+        let output = self.run_tmux(&["delete-buffer", "-b", buffer_name])?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(TmuxError::DeleteBufferFailed(
+                buffer_name.to_string(),
+                stderr.to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn send_command_via_buffer(&self, session: &str, command: &str) -> Result<(), TmuxError> {
+        // Use unique buffer name to avoid conflicts with concurrent launches
+        let buffer_name = format!("op-cmd-{}", session);
+
+        // Set buffer with the command
+        self.set_buffer(&buffer_name, command)?;
+
+        // Paste buffer to session (cleanup buffer on failure)
+        if let Err(e) = self.paste_buffer(&buffer_name, session) {
+            let _ = self.delete_buffer(&buffer_name);
+            return Err(e);
+        }
+
+        // Send Enter to execute the command (cleanup buffer on failure)
+        if let Err(e) = self.send_keys(session, "", true) {
+            let _ = self.delete_buffer(&buffer_name);
+            return Err(e);
+        }
+
+        // Clean up the buffer
+        let _ = self.delete_buffer(&buffer_name);
+
+        Ok(())
+    }
+
+    fn send_keys_safe(
+        &self,
+        session: &str,
+        keys: &str,
+        press_enter: bool,
+    ) -> Result<(), TmuxError> {
+        if keys.len() > SEND_KEYS_THRESHOLD {
+            // Long command: use buffer method
+            if press_enter {
+                self.send_command_via_buffer(session, keys)
+            } else {
+                // For non-enter case with long content, still use buffer but don't press enter
+                let buffer_name = format!("op-cmd-{}", session);
+                self.set_buffer(&buffer_name, keys)?;
+
+                if let Err(e) = self.paste_buffer(&buffer_name, session) {
+                    let _ = self.delete_buffer(&buffer_name);
+                    return Err(e);
+                }
+
+                let _ = self.delete_buffer(&buffer_name);
+                Ok(())
+            }
+        } else {
+            // Short command: use regular send_keys
+            self.send_keys(session, keys, press_enter)
+        }
+    }
 }
 
 /// Mock implementation for testing
@@ -516,6 +684,8 @@ impl TmuxClient for SystemTmuxClient {
 pub struct MockTmuxClient {
     /// Simulated sessions: name -> (working_dir, content, attached)
     sessions: Arc<Mutex<HashMap<String, MockSession>>>,
+    /// Simulated buffers: buffer_name -> content
+    buffers: Arc<Mutex<HashMap<String, String>>>,
     /// Whether tmux is "installed"
     pub installed: Arc<Mutex<bool>>,
     /// Version to report
@@ -553,6 +723,7 @@ impl MockTmuxClient {
     pub fn new() -> Self {
         Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
+            buffers: Arc::new(Mutex::new(HashMap::new())),
             installed: Arc::new(Mutex::new(true)),
             version: Arc::new(Mutex::new(Some(TmuxVersion {
                 major: 3,
@@ -910,6 +1081,129 @@ impl TmuxClient for MockTmuxClient {
             Ok(signal_file)
         } else {
             Err(TmuxError::SessionNotFound(session.to_string()))
+        }
+    }
+
+    fn set_buffer(&self, buffer_name: &str, content: &str) -> Result<(), TmuxError> {
+        self.log_command("set_buffer", &[buffer_name, content]);
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        self.buffers
+            .lock()
+            .unwrap()
+            .insert(buffer_name.to_string(), content.to_string());
+        Ok(())
+    }
+
+    fn paste_buffer(&self, buffer_name: &str, session: &str) -> Result<(), TmuxError> {
+        self.log_command("paste_buffer", &[buffer_name, session]);
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        // Check if buffer exists
+        let buffers = self.buffers.lock().unwrap();
+        let content = buffers.get(buffer_name).ok_or_else(|| {
+            TmuxError::PasteBufferFailed(
+                buffer_name.to_string(),
+                session.to_string(),
+                "buffer not found".to_string(),
+            )
+        })?;
+        let content = content.clone();
+        drop(buffers);
+
+        // Check if session exists and paste content
+        let mut sessions = self.sessions.lock().unwrap();
+        if let Some(s) = sessions.get_mut(session) {
+            // In mock, pasting buffer is like sending keys without Enter
+            s.keys_sent
+                .push(format!("[buffer:{}] {}", buffer_name, content));
+            Ok(())
+        } else {
+            Err(TmuxError::SessionNotFound(session.to_string()))
+        }
+    }
+
+    fn delete_buffer(&self, buffer_name: &str) -> Result<(), TmuxError> {
+        self.log_command("delete_buffer", &[buffer_name]);
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        self.buffers.lock().unwrap().remove(buffer_name);
+        Ok(())
+    }
+
+    fn send_command_via_buffer(&self, session: &str, command: &str) -> Result<(), TmuxError> {
+        self.log_command("send_command_via_buffer", &[session, command]);
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        let buffer_name = format!("op-cmd-{}", session);
+
+        // Set buffer
+        self.set_buffer(&buffer_name, command)?;
+
+        // Paste buffer (cleanup on failure)
+        if let Err(e) = self.paste_buffer(&buffer_name, session) {
+            let _ = self.delete_buffer(&buffer_name);
+            return Err(e);
+        }
+
+        // Send Enter
+        if let Err(e) = self.send_keys(session, "", true) {
+            let _ = self.delete_buffer(&buffer_name);
+            return Err(e);
+        }
+
+        // Clean up buffer
+        let _ = self.delete_buffer(&buffer_name);
+
+        Ok(())
+    }
+
+    fn send_keys_safe(
+        &self,
+        session: &str,
+        keys: &str,
+        press_enter: bool,
+    ) -> Result<(), TmuxError> {
+        self.log_command(
+            "send_keys_safe",
+            &[session, keys, if press_enter { "Enter" } else { "" }],
+        );
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        if keys.len() > SEND_KEYS_THRESHOLD {
+            // Long command: use buffer method
+            if press_enter {
+                self.send_command_via_buffer(session, keys)
+            } else {
+                let buffer_name = format!("op-cmd-{}", session);
+                self.set_buffer(&buffer_name, keys)?;
+
+                if let Err(e) = self.paste_buffer(&buffer_name, session) {
+                    let _ = self.delete_buffer(&buffer_name);
+                    return Err(e);
+                }
+
+                let _ = self.delete_buffer(&buffer_name);
+                Ok(())
+            }
+        } else {
+            // Short command: use regular send_keys
+            self.send_keys(session, keys, press_enter)
         }
     }
 }
@@ -1390,5 +1684,329 @@ mod tests {
 
         let result = client.attach_session_with_detach_signal("nonexistent");
         assert!(matches!(result, Err(TmuxError::SessionNotFound(_))));
+    }
+
+    // ========================================================================
+    // Buffer method tests
+    // ========================================================================
+
+    #[test]
+    fn test_set_buffer_stores_content() {
+        let client = MockTmuxClient::new();
+
+        client.set_buffer("test-buf", "hello world").unwrap();
+
+        let buffers = client.buffers.lock().unwrap();
+        assert_eq!(buffers.get("test-buf"), Some(&"hello world".to_string()));
+    }
+
+    #[test]
+    fn test_paste_buffer_to_session() {
+        let client = MockTmuxClient::new();
+
+        // Create session and buffer
+        client.create_session("test-session", "/tmp").unwrap();
+        client.set_buffer("test-buf", "echo hello").unwrap();
+
+        // Paste buffer
+        client.paste_buffer("test-buf", "test-session").unwrap();
+
+        // Verify it was recorded in session's keys_sent
+        let keys = client.get_session_keys_sent("test-session").unwrap();
+        assert!(keys.iter().any(|k| k.contains("echo hello")));
+    }
+
+    #[test]
+    fn test_paste_buffer_nonexistent_buffer() {
+        let client = MockTmuxClient::new();
+
+        client.create_session("test-session", "/tmp").unwrap();
+
+        let result = client.paste_buffer("nonexistent-buf", "test-session");
+        assert!(matches!(result, Err(TmuxError::PasteBufferFailed(_, _, _))));
+    }
+
+    #[test]
+    fn test_paste_buffer_nonexistent_session() {
+        let client = MockTmuxClient::new();
+
+        client.set_buffer("test-buf", "content").unwrap();
+
+        let result = client.paste_buffer("test-buf", "nonexistent-session");
+        assert!(matches!(result, Err(TmuxError::SessionNotFound(_))));
+    }
+
+    #[test]
+    fn test_delete_buffer_removes_content() {
+        let client = MockTmuxClient::new();
+
+        client.set_buffer("test-buf", "content").unwrap();
+        assert!(client.buffers.lock().unwrap().contains_key("test-buf"));
+
+        client.delete_buffer("test-buf").unwrap();
+        assert!(!client.buffers.lock().unwrap().contains_key("test-buf"));
+    }
+
+    #[test]
+    fn test_send_command_via_buffer() {
+        let client = MockTmuxClient::new();
+
+        client.create_session("test-session", "/tmp").unwrap();
+
+        // Send a command via buffer
+        client
+            .send_command_via_buffer("test-session", "echo 'hello world'")
+            .unwrap();
+
+        // Verify the command was logged
+        let commands = client.get_commands();
+        assert!(commands
+            .iter()
+            .any(|c| c.operation == "send_command_via_buffer"));
+
+        // Verify buffer was cleaned up
+        let buffers = client.buffers.lock().unwrap();
+        assert!(!buffers.contains_key("op-cmd-test-session"));
+    }
+
+    #[test]
+    fn test_send_keys_safe_short_command_uses_send_keys() {
+        let client = MockTmuxClient::new();
+
+        client.create_session("test-session", "/tmp").unwrap();
+
+        // Short command (under threshold)
+        let short_cmd = "echo hello";
+        client
+            .send_keys_safe("test-session", short_cmd, true)
+            .unwrap();
+
+        // Should have used regular send_keys, not buffer
+        let commands = client.get_commands();
+        let has_send_keys = commands.iter().any(|c| c.operation == "send_keys");
+        let has_buffer = commands.iter().any(|c| c.operation == "set_buffer");
+        assert!(has_send_keys);
+        assert!(!has_buffer);
+    }
+
+    #[test]
+    fn test_send_keys_safe_long_command_uses_buffer() {
+        let client = MockTmuxClient::new();
+
+        client.create_session("test-session", "/tmp").unwrap();
+
+        // Long command (over threshold of 2000 bytes)
+        let long_cmd = "x".repeat(2500);
+        client
+            .send_keys_safe("test-session", &long_cmd, true)
+            .unwrap();
+
+        // Should have used buffer method
+        let commands = client.get_commands();
+        let has_buffer = commands.iter().any(|c| c.operation == "set_buffer");
+        assert!(has_buffer);
+    }
+
+    #[test]
+    fn test_send_keys_safe_very_long_command_10kb() {
+        let client = MockTmuxClient::new();
+
+        client.create_session("test-session", "/tmp").unwrap();
+
+        // Very long command (10KB)
+        let very_long_cmd = "y".repeat(10240);
+        client
+            .send_keys_safe("test-session", &very_long_cmd, true)
+            .unwrap();
+
+        // Should have used buffer method
+        let commands = client.get_commands();
+        let has_buffer = commands.iter().any(|c| c.operation == "set_buffer");
+        assert!(has_buffer);
+
+        // Buffer should be cleaned up after
+        let buffers = client.buffers.lock().unwrap();
+        assert!(buffers.is_empty());
+    }
+
+    #[test]
+    fn test_send_keys_safe_threshold_boundary() {
+        let client = MockTmuxClient::new();
+
+        client.create_session("test-session", "/tmp").unwrap();
+
+        // Exactly at threshold (2000 bytes) - should use send_keys
+        let at_threshold = "a".repeat(2000);
+        client
+            .send_keys_safe("test-session", &at_threshold, true)
+            .unwrap();
+
+        let commands = client.get_commands();
+        // Count operations - should have send_keys but no buffer for at-threshold
+        let send_keys_count = commands
+            .iter()
+            .filter(|c| c.operation == "send_keys")
+            .count();
+        let buffer_count = commands
+            .iter()
+            .filter(|c| c.operation == "set_buffer")
+            .count();
+
+        // At 2000 bytes (not over), should use send_keys
+        assert!(send_keys_count > 0);
+        assert_eq!(buffer_count, 0);
+    }
+
+    #[test]
+    fn test_send_keys_safe_just_over_threshold() {
+        let client = MockTmuxClient::new();
+
+        client.create_session("test-session", "/tmp").unwrap();
+
+        // Just over threshold (2001 bytes) - should use buffer
+        let over_threshold = "b".repeat(2001);
+        client
+            .send_keys_safe("test-session", &over_threshold, true)
+            .unwrap();
+
+        let commands = client.get_commands();
+        let has_buffer = commands.iter().any(|c| c.operation == "set_buffer");
+        assert!(has_buffer);
+    }
+
+    #[test]
+    fn test_buffer_cleanup_on_paste_failure() {
+        let client = MockTmuxClient::new();
+
+        // Don't create session - paste will fail
+        let result = client.send_command_via_buffer("nonexistent", "echo hello");
+        assert!(result.is_err());
+
+        // Buffer should still be cleaned up
+        let buffers = client.buffers.lock().unwrap();
+        assert!(!buffers.contains_key("op-cmd-nonexistent"));
+    }
+
+    #[test]
+    fn test_buffer_methods_not_installed() {
+        let client = MockTmuxClient::not_installed();
+
+        let result = client.set_buffer("buf", "content");
+        assert!(matches!(result, Err(TmuxError::NotInstalled)));
+
+        let result = client.paste_buffer("buf", "session");
+        assert!(matches!(result, Err(TmuxError::NotInstalled)));
+
+        let result = client.delete_buffer("buf");
+        assert!(matches!(result, Err(TmuxError::NotInstalled)));
+
+        let result = client.send_command_via_buffer("session", "cmd");
+        assert!(matches!(result, Err(TmuxError::NotInstalled)));
+
+        let result = client.send_keys_safe("session", "keys", true);
+        assert!(matches!(result, Err(TmuxError::NotInstalled)));
+    }
+
+    #[test]
+    fn test_send_keys_safe_without_enter() {
+        let client = MockTmuxClient::new();
+
+        client.create_session("test-session", "/tmp").unwrap();
+
+        // Long command without pressing enter
+        let long_cmd = "z".repeat(2500);
+        client
+            .send_keys_safe("test-session", &long_cmd, false)
+            .unwrap();
+
+        // Should have used buffer but not sent Enter
+        let commands = client.get_commands();
+        let has_buffer = commands.iter().any(|c| c.operation == "set_buffer");
+        assert!(has_buffer);
+
+        // send_command_via_buffer should NOT have been called (that always presses Enter)
+        let has_send_command_via_buffer = commands
+            .iter()
+            .any(|c| c.operation == "send_command_via_buffer");
+        assert!(!has_send_command_via_buffer);
+    }
+
+    #[test]
+    fn test_send_keys_safe_3kb_command_via_stdin() {
+        let client = MockTmuxClient::new();
+
+        client.create_session("test-session", "/tmp").unwrap();
+
+        // Create a 3.5KB command - exceeds both send-keys limit (~2KB) and typical CLI arg limits
+        // This verifies that the buffer method can handle content that would fail with CLI args
+        let long_content = "a".repeat(3500);
+        let long_cmd = format!("echo '{}'", long_content);
+        assert!(long_cmd.len() > 3500, "Command should be >3.5KB");
+
+        client
+            .send_keys_safe("test-session", &long_cmd, true)
+            .unwrap();
+
+        // Verify buffer was used (not direct send_keys)
+        let commands = client.get_commands();
+        assert!(
+            commands.iter().any(|c| c.operation == "set_buffer"),
+            "Should use set_buffer for 3KB+ commands"
+        );
+        assert!(
+            commands.iter().any(|c| c.operation == "paste_buffer"),
+            "Should paste buffer to session"
+        );
+
+        // Verify the full content was passed to set_buffer
+        let set_buffer_cmd = commands
+            .iter()
+            .find(|c| c.operation == "set_buffer")
+            .unwrap();
+        assert!(
+            set_buffer_cmd.args.len() >= 2,
+            "set_buffer should have buffer name and content"
+        );
+        assert!(
+            set_buffer_cmd.args[1].contains(&long_content),
+            "Full content should be passed to set_buffer"
+        );
+
+        // Buffer should be cleaned up after
+        let buffers = client.buffers.lock().unwrap();
+        assert!(buffers.is_empty(), "Buffer should be cleaned up after use");
+    }
+
+    #[test]
+    fn test_set_buffer_handles_special_characters() {
+        let client = MockTmuxClient::new();
+
+        // Test content with special shell characters that would need escaping with CLI args
+        let special_content =
+            r#"echo "hello $USER" && cat /etc/passwd | grep 'root' ; rm -rf /tmp/*"#;
+        client.set_buffer("special-buf", special_content).unwrap();
+
+        let buffers = client.buffers.lock().unwrap();
+        assert_eq!(
+            buffers.get("special-buf"),
+            Some(&special_content.to_string()),
+            "Special characters should be preserved exactly"
+        );
+    }
+
+    #[test]
+    fn test_set_buffer_handles_binary_like_content() {
+        let client = MockTmuxClient::new();
+
+        // Test content with null-like and other problematic characters
+        let binary_like = "hello\x00world\x01\x02\x03";
+        client.set_buffer("binary-buf", binary_like).unwrap();
+
+        let buffers = client.buffers.lock().unwrap();
+        assert_eq!(
+            buffers.get("binary-buf"),
+            Some(&binary_like.to_string()),
+            "Binary-like content should be handled"
+        );
     }
 }

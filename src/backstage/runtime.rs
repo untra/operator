@@ -91,6 +91,7 @@ pub enum RuntimeError {
     LocalFileNotFound(PathBuf),
 
     #[error("Local file is not executable: {0}")]
+    #[allow(dead_code)] // Only used on Unix platforms
     LocalFileNotExecutable(PathBuf),
 
     #[error("IO error: {0}")]

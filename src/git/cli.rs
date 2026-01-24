@@ -225,6 +225,29 @@ impl GitCli {
         Self::run_git(&["rev-parse", "HEAD"], path).await
     }
 
+    /// Check if a repository has at least one commit
+    #[instrument(skip_all, fields(path = %path.display()))]
+    pub async fn has_commits(path: &Path) -> Result<bool> {
+        match Self::run_git(&["rev-parse", "--verify", "HEAD"], path).await {
+            Ok(_) => Ok(true),
+            Err(e) => {
+                let err_msg = e.to_string();
+                // Various error messages indicate no commits exist:
+                // - "unknown revision" - older git versions
+                // - "ambiguous argument" - some git configurations
+                // - "Needed a single revision" - newer git versions with --verify
+                if err_msg.contains("unknown revision")
+                    || err_msg.contains("ambiguous argument")
+                    || err_msg.contains("Needed a single revision")
+                {
+                    Ok(false)
+                } else {
+                    Err(e)
+                }
+            }
+        }
+    }
+
     /// Read a symbolic reference (like refs/remotes/origin/HEAD)
     #[instrument(skip_all, fields(path = %path.display(), refname))]
     pub async fn symbolic_ref(path: &Path, refname: &str) -> Result<String> {

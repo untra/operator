@@ -1,6 +1,7 @@
 # Rust build artifacts
 /target/
 opr8r/target/
+zed-extension/target/
 
 # Rust backup files
 *.rs.bk

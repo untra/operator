@@ -276,6 +276,10 @@ async fn main() -> Result<()> {
 }
 
 async fn run_tui(config: Config, log_file_path: Option<PathBuf>, start_web: bool) -> Result<()> {
+    // Install panic hook before any terminal operations
+    // This ensures terminal is restored even on panic
+    crate::ui::install_panic_hook();
+
     // Note: tmux availability is now checked in the setup wizard (TmuxOnboarding step)
     // when the user selects tmux as their session wrapper
     let mut app = App::new(config, start_web)?;

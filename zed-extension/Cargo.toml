@@ -1,0 +1,16 @@
+[package]
+name = "operator-zed"
+version = "0.1.0"
+edition = "2021"
+description = "Zed extension for Operator multi-agent orchestration"
+license = "MIT"
+authors = ["Samuel Volin <sam@untra.io>"]
+repository = "https://github.com/untra/operator"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zed_extension_api = "0.7.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

@@ -6,6 +6,8 @@ layout: doc
 
 Operator uses [**tmux**](https://github.com/tmux/tmux/wiki){:target="_blank"} for terminal session management, providing a customized experience for managing multiple LLM tool agent sessions from a single terminal.
 
+> **Note:** For most users, the [VS Code Extension](/getting-started/sessions/vscode/) is now the recommended session manager. It provides an integrated experience that works on all platforms including Windows. The `tmux` interface remains ideal for headless/server environments, SSH sessions, and for use from containerized terminal-centric workflows.
+
 ## What is `tmux`?
 
 tmux is a program which runs in a terminal and allows multiple other terminal programs to be run inside it. Each program inside tmux gets its own terminal managed by tmux, which can be accessed from the single terminal where tmux is running - this called multiplexing and tmux is a terminal multiplexer.

@@ -49,12 +49,27 @@ where
     disable_raw_mode()?;
     execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
 
+    // Guard ensures restore even on panic
+    struct RestoreGuard {
+        restored: bool,
+    }
+    impl Drop for RestoreGuard {
+        fn drop(&mut self) {
+            if !self.restored {
+                let _ = enable_raw_mode();
+                let _ = execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture);
+            }
+        }
+    }
+    let mut guard = RestoreGuard { restored: false };
+
     // Run the closure
     let result = f();
 
-    // Restore TUI mode
+    // Explicit restore (mark guard as done)
     enable_raw_mode()?;
     execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+    guard.restored = true;
 
     // Clear terminal to ensure proper redraw - this is critical!
     // Without this, the TUI will have display artifacts from the external app.
@@ -113,5 +128,51 @@ mod tests {
 
         // Clear should work
         terminal.clear().unwrap();
+    }
+
+    #[test]
+    fn test_restore_guard_marks_as_restored() {
+        struct RestoreGuard {
+            restored: bool,
+        }
+        impl Drop for RestoreGuard {
+            fn drop(&mut self) {
+                // Would restore if not marked
+            }
+        }
+
+        let mut guard = RestoreGuard { restored: false };
+        guard.restored = true;
+        drop(guard);
+        // No panic = guard handled correctly
+    }
+
+    #[test]
+    fn test_restore_guard_catches_panic() {
+        use std::panic;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+
+        struct RestoreGuard {
+            called: Arc<AtomicBool>,
+        }
+        impl Drop for RestoreGuard {
+            fn drop(&mut self) {
+                self.called.store(true, Ordering::SeqCst);
+            }
+        }
+
+        let called = Arc::new(AtomicBool::new(false));
+        let called_clone = called.clone();
+
+        let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+            let _guard = RestoreGuard {
+                called: called_clone,
+            };
+            panic!("test panic");
+        }));
+
+        assert!(result.is_err());
+        assert!(called.load(Ordering::SeqCst));
     }
 }

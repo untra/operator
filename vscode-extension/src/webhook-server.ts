@@ -22,7 +22,7 @@ import {
   SessionInfo,
 } from './types';
 
-const VERSION = '0.1.17';
+const VERSION = '0.1.18';
 
 /**
  * HTTP server for operator <-> extension communication

@@ -24,7 +24,7 @@ opr8r --ticket-id=FEAT-123 --step=plan -- claude --prompt 'Plan the feature'
 | `--step` | Yes | Current step name (e.g., "plan", "build") |
 | `--api-url` | No | Operator API URL (auto-discovers from `.tickets/operator/api-session.json`) |
 | `--session-id` | No | Session ID for LLM session tracking |
-| `--json-schema` | No | Path to JSON schema file for output validation |
+| `--json-schema` | No | Path to JSON schema file for output validation (:x: temporarily disabled - causes command line length issues) |
 | `--no-auto-proceed` | No | Disable automatic step transition |
 | `--verbose` | No | Enable verbose logging to stderr |
 | `--dry-run` | No | Show what would happen without executing |

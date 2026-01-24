@@ -74,7 +74,7 @@ body {
   width: 120px;
   height: 120px;
   background-color: var(--color-white);
-  background-image: url('../patricia_512.png');
+  background-image: url('../img/patricia_512.png');
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;

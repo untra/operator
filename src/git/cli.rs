@@ -88,6 +88,25 @@ impl GitCli {
         Self::run_git_silent(&["branch", branch, base], path).await
     }
 
+    /// Check if a local branch exists
+    #[instrument(skip_all, fields(path = %path.display(), branch))]
+    pub async fn branch_exists(path: &Path, branch: &str) -> Result<bool> {
+        let result = Self::run_git(&["rev-parse", "--verify", branch], path).await;
+        Ok(result.is_ok())
+    }
+
+    /// Checkout an existing branch
+    #[instrument(skip_all, fields(path = %path.display(), branch))]
+    pub async fn checkout(path: &Path, branch: &str) -> Result<()> {
+        Self::run_git_silent(&["checkout", branch], path).await
+    }
+
+    /// Create and checkout a new branch from a base
+    #[instrument(skip_all, fields(path = %path.display(), branch, base))]
+    pub async fn checkout_new_branch(path: &Path, branch: &str, base: &str) -> Result<()> {
+        Self::run_git_silent(&["checkout", "-b", branch, base], path).await
+    }
+
     /// Delete a branch (local)
     #[instrument(skip_all, fields(path = %path.display(), branch, force))]
     pub async fn delete_branch(path: &Path, branch: &str, force: bool) -> Result<()> {

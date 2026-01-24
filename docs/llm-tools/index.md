@@ -59,6 +59,18 @@ max_concurrent = 4
 path = "/Applications/Claude.app"
 ```
 
+## Known Limitations
+
+### JSON Schema for Structured Output (Temporarily Disabled)
+
+The `jsonSchema` and `jsonSchemaFile` step properties are currently disabled. These properties configure the `--json-schema` flag for Claude Code to enable structured output validation.
+
+**Issue**: Even when writing schemas to files (rather than passing inline JSON), the command line length can exceed OS limits when combined with other flags.
+
+**Workaround**: Until this is resolved, use Claude Code's native structured output capabilities without the `--json-schema` flag, or validate outputs manually in subsequent steps.
+
+**Tracking**: See `JSON_SCHEMA_ENABLED` constant in `src/agents/launcher/llm_command.rs`.
+
 ## Best Practices
 
 1. **Clear tickets** - Write detailed ticket descriptions

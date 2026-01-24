@@ -10,3 +10,20 @@ tsconfig.json
 node_modules/**
 *.vsix
 coverage/
+
+# Test configuration and output
+.nycrc.json
+.vscode-test.mjs
+test-output.txt
+
+# Local/dev settings
+.claude/**
+
+# Compiled tests (not needed at runtime)
+out/test/**
+
+# Build scripts
+scripts/**
+
+# Git placeholders
+bin/.gitkeep

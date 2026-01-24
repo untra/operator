@@ -56,6 +56,12 @@ pub async fn setup_worktree_for_ticket(
     ticket: &mut Ticket,
     project_path: &Path,
 ) -> Result<PathBuf> {
+    // Check if worktrees are enabled in config
+    if !config.git.use_worktrees {
+        // Use branch-only workflow instead
+        return setup_branch_for_ticket(config, ticket, project_path).await;
+    }
+
     // Check if already has a worktree (e.g., on relaunch)
     if let Some(ref existing) = ticket.worktree_path {
         let existing_path = PathBuf::from(existing);
@@ -124,6 +130,90 @@ pub async fn setup_worktree_for_ticket(
     );
 
     Ok(worktree_info.path)
+}
+
+/// Setup a branch for a ticket directly in the project directory (no worktree)
+///
+/// This is the default workflow when `config.git.use_worktrees` is false.
+/// Creates or checks out the ticket's feature branch in the project directory.
+///
+/// # Arguments
+/// * `config` - Operator configuration (unused but kept for API consistency)
+/// * `ticket` - The ticket to create a branch for (will be mutated to set branch)
+/// * `project_path` - Path to the project directory
+///
+/// # Returns
+/// * `Ok(PathBuf)` - The project path (working directory is unchanged)
+/// * `Err` - If branch creation/checkout fails
+pub async fn setup_branch_for_ticket(
+    _config: &Config,
+    ticket: &mut Ticket,
+    project_path: &Path,
+) -> Result<PathBuf> {
+    // Check if project is a git repository
+    let git_dir = project_path.join(".git");
+    if !git_dir.exists() {
+        debug!(
+            project = %project_path.display(),
+            "Project is not a git repository, skipping branch setup"
+        );
+        return Ok(project_path.to_path_buf());
+    }
+
+    // Generate branch name
+    let branch_name = branch_name_for_ticket(ticket);
+
+    // Determine target branch (use "main" or "master" by default)
+    let target_branch = detect_default_branch(project_path)
+        .await
+        .unwrap_or_else(|| "main".to_string());
+
+    info!(
+        project = %ticket.project,
+        ticket_id = %ticket.id,
+        branch = %branch_name,
+        base = %target_branch,
+        "Setting up branch for ticket (in-place, no worktree)"
+    );
+
+    // Check for uncommitted changes before switching branches
+    if GitCli::is_dirty(project_path).await? {
+        warn!(
+            project = %project_path.display(),
+            "Working directory has uncommitted changes, proceeding anyway"
+        );
+        // Note: We warn but don't abort - the agent may need to handle this
+    }
+
+    // Check if branch already exists
+    let branch_exists = GitCli::branch_exists(project_path, &branch_name).await?;
+
+    if branch_exists {
+        // Checkout existing branch
+        debug!(branch = %branch_name, "Branch exists, checking out");
+        GitCli::checkout(project_path, &branch_name)
+            .await
+            .context("Failed to checkout existing branch")?;
+    } else {
+        // Create and checkout new branch from target
+        debug!(branch = %branch_name, base = %target_branch, "Creating new branch");
+        GitCli::checkout_new_branch(project_path, &branch_name, &target_branch)
+            .await
+            .context("Failed to create and checkout new branch")?;
+    }
+
+    // Update ticket with branch info (no worktree_path - stays None)
+    ticket
+        .set_branch(&branch_name)
+        .context("Failed to update ticket branch")?;
+
+    info!(
+        branch = %branch_name,
+        project = %project_path.display(),
+        "Branch ready for ticket"
+    );
+
+    Ok(project_path.to_path_buf())
 }
 
 /// Detect the default branch for a repository

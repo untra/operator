@@ -22,4 +22,9 @@ gitlab: GitLabConfig,
 /**
  * Branch naming format (e.g., "{type}/{ticket_id}-{slug}")
  */
-branch_format: string, };
+branch_format: string, 
+/**
+ * Whether to use git worktrees for per-ticket isolation (default: false)
+ * When false, tickets work directly in the project directory with branches
+ */
+use_worktrees: boolean, };

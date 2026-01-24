@@ -3,6 +3,15 @@
 use std::fs;
 use std::path::PathBuf;
 
+/// TEMPORARILY DISABLED: JSON schema support causes command line length issues.
+/// Even when writing schemas to files (rather than inline), the --json-schema flag
+/// with large schema file paths can exceed OS command line limits.
+///
+/// TODO: Re-enable when Claude Code supports reading schema from a config file,
+/// environment variable, or stdin.
+#[allow(dead_code)]
+const JSON_SCHEMA_ENABLED: bool = false;
+
 use anyhow::{Context, Result};
 
 use crate::config::{Config, DetectedTool};
@@ -176,33 +185,40 @@ fn generate_config_flags(
             cli_flags.push(mode_str.to_string());
         }
 
-        // Add worktrees base directory to allowed directories
-        let worktrees_path = config.worktrees_path();
-        cli_flags.push("--add-dir".to_string());
-        cli_flags.push(worktrees_path.to_string_lossy().to_string());
+        // Add worktrees base directory to allowed directories (only if worktrees enabled)
+        if config.git.use_worktrees {
+            let worktrees_path = config.worktrees_path();
+            cli_flags.push("--add-dir".to_string());
+            cli_flags.push(worktrees_path.to_string_lossy().to_string());
+        }
 
-        // Add the specific working directory (worktree path) to bypass CWD trust dialog
+        // Always add the working directory (project path or worktree path) to bypass CWD trust dialog
         // Claude Code checks if the CWD is trusted, not just parent directories
         cli_flags.push("--add-dir".to_string());
         cli_flags.push(project_path.to_string());
 
-        // Add JSON schema flag for structured output
+        // Add JSON schema flag for structured output (when enabled)
         // Write schema to a file to avoid shell escaping issues with inline JSON
         // Inline jsonSchema takes precedence over jsonSchemaFile
-        if let Some(ref schema) = step_config.json_schema {
-            // Write inline schema to session_dir/schema.json
-            let schema_file_path = session_dir.join("schema.json");
-            let schema_str =
-                serde_json::to_string_pretty(schema).context("Failed to serialize JSON schema")?;
-            fs::write(&schema_file_path, &schema_str).with_context(|| {
-                format!("Failed to write JSON schema file: {:?}", schema_file_path)
-            })?;
-            cli_flags.push("--json-schema".to_string());
-            cli_flags.push(schema_file_path.to_string_lossy().to_string());
-        } else if let Some(ref schema_file) = step_config.json_schema_file {
-            // Resolve path - .tickets/ paths are relative to tickets parent dir, others to project
-            let schema_path =
-                if schema_file.starts_with(".tickets/") || schema_file.starts_with(".tickets\\") {
+        //
+        // NOTE: JSON schema support is temporarily disabled due to command line length
+        // issues. See JSON_SCHEMA_ENABLED constant at the top of this file.
+        if JSON_SCHEMA_ENABLED {
+            if let Some(ref schema) = step_config.json_schema {
+                // Write inline schema to session_dir/schema.json
+                let schema_file_path = session_dir.join("schema.json");
+                let schema_str = serde_json::to_string_pretty(schema)
+                    .context("Failed to serialize JSON schema")?;
+                fs::write(&schema_file_path, &schema_str).with_context(|| {
+                    format!("Failed to write JSON schema file: {:?}", schema_file_path)
+                })?;
+                cli_flags.push("--json-schema".to_string());
+                cli_flags.push(schema_file_path.to_string_lossy().to_string());
+            } else if let Some(ref schema_file) = step_config.json_schema_file {
+                // Resolve path - .tickets/ paths are relative to tickets parent dir, others to project
+                let schema_path = if schema_file.starts_with(".tickets/")
+                    || schema_file.starts_with(".tickets\\")
+                {
                     if let Some(parent) = config.tickets_path().parent() {
                         parent.join(schema_file)
                     } else {
@@ -211,12 +227,13 @@ fn generate_config_flags(
                 } else {
                     PathBuf::from(project_path).join(schema_file)
                 };
-            // Verify schema file exists, then pass the path (not content)
-            if !schema_path.exists() {
-                anyhow::bail!("JSON schema file not found: {:?}", schema_path);
+                // Verify schema file exists, then pass the path (not content)
+                if !schema_path.exists() {
+                    anyhow::bail!("JSON schema file not found: {:?}", schema_path);
+                }
+                cli_flags.push("--json-schema".to_string());
+                cli_flags.push(schema_path.to_string_lossy().to_string());
             }
-            cli_flags.push("--json-schema".to_string());
-            cli_flags.push(schema_path.to_string_lossy().to_string());
         }
     }
 
@@ -934,6 +951,7 @@ mod tests {
 
         /// Test helper: verify that a JSON schema file is written correctly
         #[test]
+        #[ignore = "JSON schema flag temporarily disabled - see JSON_SCHEMA_ENABLED"]
         fn test_json_schema_written_to_file_is_valid_json() {
             use serde_json::json;
 
@@ -963,6 +981,7 @@ mod tests {
 
         /// Test that file path string conversion preserves the path
         #[test]
+        #[ignore = "JSON schema flag temporarily disabled - see JSON_SCHEMA_ENABLED"]
         fn test_schema_file_path_to_string() {
             let path = PathBuf::from("/tmp/test/.tickets/operator/sessions/TEST-001/schema.json");
             let path_str = path.to_string_lossy().to_string();
@@ -974,6 +993,7 @@ mod tests {
 
         /// Test that json_schema_file path existence check works
         #[test]
+        #[ignore = "JSON schema flag temporarily disabled - see JSON_SCHEMA_ENABLED"]
         fn test_schema_file_path_exists_check() {
             let temp_dir = TempDir::new().unwrap();
 
@@ -991,6 +1011,7 @@ mod tests {
 
         /// Test that a complex JSON schema with special characters is handled correctly
         #[test]
+        #[ignore = "JSON schema flag temporarily disabled - see JSON_SCHEMA_ENABLED"]
         fn test_complex_schema_with_special_chars() {
             use serde_json::json;
 

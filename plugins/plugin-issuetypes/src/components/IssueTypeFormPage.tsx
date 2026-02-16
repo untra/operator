@@ -142,7 +142,7 @@ function StepEditor({
           </Grid>
           <Grid item xs={12} sm={4}>
             <FormControl fullWidth>
-              <InputLabel>Permission Mode</InputLabel>
+              <InputLabel margin='dense'>Permission Mode</InputLabel>
               <Select
                 value={step.permission_mode}
                 onChange={e =>
@@ -382,7 +382,7 @@ export function IssueTypeFormPage() {
                 </Grid>
                 <Grid item xs={12} sm={4}>
                   <FormControl fullWidth>
-                    <InputLabel>Execution Mode</InputLabel>
+                    <InputLabel margin='dense'>Execution Mode</InputLabel>
                     <Select
                       value={mode}
                       onChange={e => setMode(e.target.value as ExecutionMode)}

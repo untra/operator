@@ -5,79 +5,73 @@
  *
  * This script is run as part of the prebuild step to ensure the extension
  * uses types generated from Rust source via ts-rs.
+ *
+ * Copies ALL .ts files (including subdirectories like serde_json/)
+ * and generates a barrel export (index.ts).
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// Types to copy from bindings/
-const TYPES_TO_COPY = [
-  // VSCode webhook API types
-  'VsCodeSessionInfo',
-  'VsCodeHealthResponse',
-  'VsCodeActivityState',
-  'VsCodeTerminalState',
-  'VsCodeTerminalCreateOptions',
-  'VsCodeSendCommandRequest',
-  'VsCodeSuccessResponse',
-  'VsCodeExistsResponse',
-  'VsCodeActivityResponse',
-  'VsCodeListResponse',
-  'VsCodeErrorResponse',
-  // Domain types (VsCodeTicketType removed - now dynamic string)
-  'VsCodeTicketStatus',
-  'VsCodeTicketInfo',
-  'VsCodeModelOption',
-  'VsCodeLaunchOptions',
-  'VsCodeTicketMetadata',
-  // Issue type metadata (for dynamic type styling)
-  'IssueTypeSummary',
-  // REST API types (for API client)
-  'HealthResponse',
-  'LaunchTicketRequest',
-  'LaunchTicketResponse',
-  'LlmProvider',
-];
-
 const BINDINGS_DIR = path.resolve(__dirname, '../../bindings');
 const GENERATED_DIR = path.resolve(__dirname, '../src/generated');
 
-// Ensure generated directory exists
-if (!fs.existsSync(GENERATED_DIR)) {
-  fs.mkdirSync(GENERATED_DIR, { recursive: true });
+/**
+ * Recursively copy all .ts files from src to dest, preserving directory structure.
+ * Returns an array of relative paths (from dest root) that were copied.
+ */
+function copyTsFiles(srcDir, destDir, relativeBase = '') {
+  const copied = [];
+
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true });
+  }
+
+  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(srcDir, entry.name);
+    const destPath = path.join(destDir, entry.name);
+    const relativePath = relativeBase ? `${relativeBase}/${entry.name}` : entry.name;
+
+    if (entry.isDirectory()) {
+      const subCopied = copyTsFiles(srcPath, destPath, relativePath);
+      copied.push(...subCopied);
+    } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+      fs.copyFileSync(srcPath, destPath);
+      copied.push(relativePath);
+    }
+  }
+
+  return copied;
 }
+
+// Clean generated directory
+if (fs.existsSync(GENERATED_DIR)) {
+  fs.rmSync(GENERATED_DIR, { recursive: true });
+}
+fs.mkdirSync(GENERATED_DIR, { recursive: true });
 
 console.log('Copying generated TypeScript types...');
 
-const copiedTypes = [];
-const missingTypes = [];
+const copiedFiles = copyTsFiles(BINDINGS_DIR, GENERATED_DIR);
 
-for (const typeName of TYPES_TO_COPY) {
-  const srcFile = path.join(BINDINGS_DIR, `${typeName}.ts`);
-  const destFile = path.join(GENERATED_DIR, `${typeName}.ts`);
+// Generate barrel export (index.ts) for top-level .ts files only
+const topLevelTypes = copiedFiles
+  .filter(f => !f.includes('/')) // exclude subdirectory files
+  .map(f => f.replace('.ts', ''));
 
-  if (fs.existsSync(srcFile)) {
-    fs.copyFileSync(srcFile, destFile);
-    copiedTypes.push(typeName);
-  } else {
-    missingTypes.push(typeName);
-  }
-}
-
-// Generate barrel export (index.ts)
 const indexContent = `// AUTO-GENERATED - DO NOT EDIT
 // Copied from ../bindings/ by scripts/copy-types.js
-// Regenerate with: npm run prebuild
+// Regenerate with: npm run copy-types
 
-${copiedTypes.map(t => `export * from './${t}';`).join('\n')}
+${topLevelTypes.map(t => `export * from './${t}';`).join('\n')}
+
+// Subdirectory re-exports
+export * from './serde_json/JsonValue';
 `;
 
 fs.writeFileSync(path.join(GENERATED_DIR, 'index.ts'), indexContent);
 
-console.log(`  Copied ${copiedTypes.length} type files`);
-if (missingTypes.length > 0) {
-  console.warn(`  Warning: ${missingTypes.length} types not found in bindings:`);
-  missingTypes.forEach(t => console.warn(`    - ${t}`));
-}
+console.log(`  Copied ${copiedFiles.length} type files`);
 console.log('  Generated: src/generated/index.ts');
 console.log('Done!');

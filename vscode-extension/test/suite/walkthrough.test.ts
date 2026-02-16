@@ -292,13 +292,17 @@ suite('Walkthrough Test Suite', () => {
       assert.ok(Array.isArray(result));
     });
 
-    test('only returns known LLM tools', async () => {
+    test('only returns known LLM tools with required fields', async () => {
       const result = await detectInstalledLlmTools();
       for (const tool of result) {
         assert.ok(
-          (LLM_TOOLS as readonly string[]).includes(tool),
-          `${tool} should be in LLM_TOOLS`
+          (LLM_TOOLS as readonly string[]).includes(tool.name),
+          `${tool.name} should be in LLM_TOOLS`
         );
+        assert.ok(typeof tool.name === 'string', 'tool.name should be a string');
+        assert.ok(typeof tool.path === 'string', 'tool.path should be a string');
+        assert.ok(typeof tool.version === 'string', 'tool.version should be a string');
+        assert.ok(typeof tool.version_ok === 'boolean', 'tool.version_ok should be a boolean');
       }
     });
   });

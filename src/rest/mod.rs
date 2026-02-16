@@ -79,6 +79,10 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/api/v1/queue/pause", post(routes::queue::pause))
         .route("/api/v1/queue/resume", post(routes::queue::resume))
         .route("/api/v1/queue/sync", post(routes::queue::sync))
+        .route(
+            "/api/v1/queue/sync/:provider/:project_key",
+            post(routes::queue::sync_collection),
+        )
         // Agent endpoints
         .route("/api/v1/agents/active", get(routes::agents::active))
         .route(

@@ -1,4 +1,6 @@
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 import Mocha from 'mocha';
 import { glob } from 'glob';
 
@@ -9,6 +11,23 @@ const NYC = require('nyc');
 export async function run(): Promise<void> {
   const testsRoot = path.resolve(__dirname, '.');
   const workspaceRoot = path.join(__dirname, '..', '..', '..');
+
+  // Create a minimal config.toml for tests to prevent activation from hanging
+  // when showConfigMissingNotification() is triggered
+  const configDir = path.join(os.homedir(), '.config', 'operator');
+  const configPath = path.join(configDir, 'config.toml');
+  let createdConfig = false;
+
+  if (!fs.existsSync(configPath)) {
+    try {
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, '# Test config\nworking_directory = "/tmp"\n');
+      createdConfig = true;
+    } catch {
+      // Failed to create config, tests may timeout
+      console.warn('Warning: Could not create test config.toml');
+    }
+  }
 
   // Setup NYC for coverage inside VS Code process
   const nyc = new NYC({
@@ -56,6 +75,15 @@ export async function run(): Promise<void> {
       // Generate and display coverage report
       console.log('\n--- Coverage Report ---');
       await captureStdout(nyc.report.bind(nyc));
+
+      // Clean up test config if we created it
+      if (createdConfig) {
+        try {
+          fs.unlinkSync(configPath);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
 
       if (failures > 0) {
         reject(new Error(`${failures} tests failed.`));

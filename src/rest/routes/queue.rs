@@ -4,7 +4,10 @@
 //! grouped by status columns, and queue control endpoints for
 //! pause/resume/sync operations.
 
-use axum::{extract::State, Json};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 use chrono::Utc;
 
 use crate::queue::{Queue, Ticket};
@@ -299,6 +302,43 @@ pub async fn sync(State(state): State<ApiState>) -> Result<Json<KanbanSyncRespon
 
     let result = sync_service
         .sync_all()
+        .await
+        .map_err(|e| ApiError::InternalError(format!("Kanban sync failed: {}", e)))?;
+
+    Ok(Json(KanbanSyncResponse {
+        created: result.created,
+        skipped: result.skipped,
+        errors: result.errors,
+        total_processed: result.total_processed,
+    }))
+}
+
+/// Sync a specific kanban collection
+///
+/// Fetches issues from a single provider/project combination and creates
+/// local tickets in the queue.
+#[utoipa::path(
+    post,
+    path = "/api/v1/queue/sync/{provider}/{project_key}",
+    tag = "Queue",
+    params(
+        ("provider" = String, Path, description = "Provider name (jira or linear)"),
+        ("project_key" = String, Path, description = "Project/team key"),
+    ),
+    responses(
+        (status = 200, description = "Collection sync completed", body = KanbanSyncResponse)
+    )
+)]
+pub async fn sync_collection(
+    State(state): State<ApiState>,
+    Path((provider, project_key)): Path<(String, String)>,
+) -> Result<Json<KanbanSyncResponse>, ApiError> {
+    use crate::services::KanbanSyncService;
+
+    let sync_service = KanbanSyncService::new(&state.config);
+
+    let result = sync_service
+        .sync_collection(&provider, &project_key)
         .await
         .map_err(|e| ApiError::InternalError(format!("Kanban sync failed: {}", e)))?;
 

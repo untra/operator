@@ -1,4 +1,4 @@
-# Install LLM Tool
+# Detect & Configure LLM Tools
 
 Operator launches LLM coding agents to work on tickets. You need at least one of these tools installed:
 
@@ -34,8 +34,8 @@ npm install -g @google/generative-ai-cli
 
 [Documentation](https://ai.google.dev/)
 
-## Verification
+## Detection & Configuration
 
-After installing, click **Detect Tools** to verify the installation.
+Click **Detect Tools** above to scan your PATH for installed tools. If tools are found, you can configure each one individually. Configuration delegates to `operator setup --llm-tool <tool>` which writes version detection, model aliases, and command templates to your config.
 
 Operator will use whichever tool is available in your PATH.

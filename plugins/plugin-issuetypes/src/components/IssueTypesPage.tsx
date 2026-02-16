@@ -165,7 +165,7 @@ export function IssueTypesPage() {
 
         <Box className={classes.filterBar}>
           <FormControl variant="outlined" size="small" style={{ minWidth: 150 }}>
-            <InputLabel>Source</InputLabel>
+            <InputLabel margin='dense'>Source</InputLabel>
             <Select
               value={sourceFilter}
               onChange={e => setSourceFilter(e.target.value as string)}

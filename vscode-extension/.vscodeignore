@@ -8,6 +8,7 @@ tsconfig.json
 **/*.ts
 **/*.map
 node_modules/**
+!node_modules/smol-toml/**
 *.vsix
 coverage/
 
@@ -24,6 +25,11 @@ out/test/**
 
 # Build scripts
 scripts/**
+
+# Webview source (bundled into dist/webview/)
+webview-ui/**
+tsconfig.webview.json
+webpack.webview.config.js
 
 # Git placeholders
 bin/.gitkeep

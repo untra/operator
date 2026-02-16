@@ -217,6 +217,32 @@ export class OperatorApiClient {
   }
 
   /**
+   * Sync a specific kanban collection
+   *
+   * Fetches issues from a single provider/project combination and creates
+   * local tickets in the queue.
+   */
+  async syncKanbanCollection(
+    provider: string,
+    projectKey: string
+  ): Promise<KanbanSyncResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/queue/sync/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}`,
+      { method: 'POST' }
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as KanbanSyncResponse;
+  }
+
+  /**
    * Approve an agent's pending review
    *
    * Clears the review state and signals the agent to continue.

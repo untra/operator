@@ -7,17 +7,12 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
 import { SectionHeader } from '../SectionHeader';
-
-interface DetectedToolInfo {
-  name: string;
-  path: string;
-  version: string;
-  version_ok: boolean;
-}
+import type { AgentsConfig } from '../../../src/generated/AgentsConfig';
+import type { LlmToolsConfig } from '../../../src/generated/LlmToolsConfig';
 
 interface CodingAgentsSectionProps {
-  agents: Record<string, unknown>;
-  llm_tools: Record<string, unknown>;
+  agents: AgentsConfig;
+  llm_tools: LlmToolsConfig;
   onUpdate: (section: string, key: string, value: unknown) => void;
   onDetectTools: () => void;
 }
@@ -28,17 +23,11 @@ export function CodingAgentsSection({
   onUpdate,
   onDetectTools,
 }: CodingAgentsSectionProps) {
-  const maxParallel = Number(agents.max_parallel ?? 2);
-  const generationTimeout = Number(agents.generation_timeout_secs ?? 300);
-  const stepTimeout = Number(agents.step_timeout ?? 1800);
-  const silenceThreshold = Number(agents.silence_threshold ?? 30);
-  const rawDetected = llm_tools.detected;
-  const detected: DetectedToolInfo[] = Array.isArray(rawDetected)
-    ? rawDetected.filter(
-        (entry): entry is DetectedToolInfo =>
-          typeof entry === 'object' && entry !== null && 'name' in entry
-      )
-    : [];
+  const maxParallel = agents.max_parallel;
+  const generationTimeout = Number(agents.generation_timeout_secs);
+  const stepTimeout = Number(agents.step_timeout);
+  const silenceThreshold = Number(agents.silence_threshold);
+  const detected = llm_tools.detected;
 
   return (
     <Box sx={{ mb: 4 }}>

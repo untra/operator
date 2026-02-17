@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
+import * as path from 'path';
 // smol-toml is ESM-only, must use dynamic import
 async function importSmolToml() {
   return await import('smol-toml');
@@ -22,6 +23,7 @@ import {
   getResolvedConfigPath,
   resolveWorkingDirectory,
 } from './config-paths';
+import { OperatorApiClient, discoverApiUrl } from './api-client';
 
 /** Message types from the webview */
 interface WebviewMessage {
@@ -241,6 +243,69 @@ export class ConfigPanel {
               config: { llm_tools: { detected: tools, providers: [], detection_complete: true } },
             },
           });
+        }
+        break;
+      }
+
+      case 'checkApiHealth': {
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          await client.health();
+          this._panel.webview.postMessage({ type: 'apiHealthResult', reachable: true });
+        } catch {
+          this._panel.webview.postMessage({ type: 'apiHealthResult', reachable: false });
+        }
+        break;
+      }
+
+      case 'getProjects': {
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          const projects = await client.getProjects();
+          this._panel.webview.postMessage({ type: 'projectsLoaded', projects });
+        } catch (err) {
+          this._panel.webview.postMessage({
+            type: 'projectsError',
+            error: err instanceof Error ? err.message : 'Failed to load projects',
+          });
+        }
+        break;
+      }
+
+      case 'assessProject': {
+        const projectName = message.projectName as string;
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          const result = await client.assessProject(projectName);
+          this._panel.webview.postMessage({
+            type: 'assessTicketCreated',
+            ticketId: result.ticket_id,
+            projectName: result.project_name,
+          });
+        } catch (err) {
+          this._panel.webview.postMessage({
+            type: 'assessTicketError',
+            error: err instanceof Error ? err.message : 'Failed to create ASSESS ticket',
+            projectName,
+          });
+        }
+        break;
+      }
+
+      case 'openProjectFolder': {
+        const projectPath = message.projectPath as string;
+        if (projectPath) {
+          const uri = vscode.Uri.file(projectPath);
+          await vscode.commands.executeCommand('vscode.openFolder', uri, { forceNewWindow: true });
         }
         break;
       }

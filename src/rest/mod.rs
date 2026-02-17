@@ -93,6 +93,12 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/agents/:agent_id/reject",
             post(routes::agents::reject_review),
         )
+        // Project endpoints
+        .route("/api/v1/projects", get(routes::projects::list))
+        .route(
+            "/api/v1/projects/:name/assess",
+            post(routes::projects::assess),
+        )
         // Launch endpoints
         .route(
             "/api/v1/tickets/:id/launch",

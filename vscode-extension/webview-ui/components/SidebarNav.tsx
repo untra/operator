@@ -9,6 +9,7 @@ import { OperatorBrand } from './OperatorBrand';
 export interface NavItem {
   id: string;
   label: string;
+  disabled?: boolean;
 }
 
 interface SidebarNavProps {
@@ -19,8 +20,9 @@ interface SidebarNavProps {
 export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
   const [activeId, setActiveId] = useState<string>(items[0]?.id ?? '');
 
-  const handleClick = useCallback((id: string) => {
-    const element = document.getElementById(id);
+  const handleClick = useCallback((item: NavItem) => {
+    if (item.disabled) { return; }
+    const element = document.getElementById(item.id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -31,6 +33,7 @@ export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
     if (!container) { return; }
 
     const sectionElements = items
+      .filter((item) => !item.disabled)
       .map((item) => document.getElementById(item.id))
       .filter((el): el is HTMLElement => el !== null);
 
@@ -88,8 +91,9 @@ export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
         {items.map((item) => (
           <ListItemButton
             key={item.id}
-            selected={activeId === item.id}
-            onClick={() => handleClick(item.id)}
+            selected={activeId === item.id && !item.disabled}
+            disabled={item.disabled}
+            onClick={() => handleClick(item)}
             sx={{ py: 0.5, px: 2 }}
           >
             <ListItemText

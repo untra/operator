@@ -19,6 +19,38 @@ import type {
 // Re-export generated types for consumers
 export type { LaunchTicketResponse, HealthResponse };
 
+/**
+ * Summary of a project from the Operator REST API
+ */
+export interface ProjectSummary {
+  project_name: string;
+  project_path: string;
+  exists: boolean;
+  has_catalog_info: boolean;
+  has_project_context: boolean;
+  kind: string | null;
+  kind_confidence: number | null;
+  kind_tier: string | null;
+  languages: string[];
+  frameworks: string[];
+  databases: string[];
+  has_docker: boolean | null;
+  has_tests: boolean | null;
+  ports: number[];
+  env_var_count: number;
+  entry_point_count: number;
+  commands: string[];
+}
+
+/**
+ * Response from creating an ASSESS ticket
+ */
+export interface AssessTicketResponse {
+  ticket_id: string;
+  ticket_path: string;
+  project_name: string;
+}
+
 export interface ApiError {
   error: string;
   message: string;
@@ -290,5 +322,42 @@ export class OperatorApiClient {
     }
 
     return (await response.json()) as ReviewResponse;
+  }
+
+  /**
+   * List all configured projects with analysis data
+   */
+  async getProjects(): Promise<ProjectSummary[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects`);
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as ProjectSummary[];
+  }
+
+  /**
+   * Create an ASSESS ticket for a project
+   */
+  async assessProject(name: string): Promise<AssessTicketResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(name)}/assess`,
+      { method: 'POST' }
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as AssessTicketResponse;
   }
 }

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -8,14 +8,8 @@ import { PrimaryConfigSection } from './sections/PrimaryConfigSection';
 import { CodingAgentsSection } from './sections/CodingAgentsSection';
 import { KanbanProvidersSection } from './sections/KanbanProvidersSection';
 import { GitRepositoriesSection } from './sections/GitRepositoriesSection';
-import type { WebviewConfig, JiraValidationInfo, LinearValidationInfo } from '../types/messages';
-
-const NAV_ITEMS: NavItem[] = [
-  { id: 'section-primary', label: 'Primary' },
-  { id: 'section-agents', label: 'Coding Agents' },
-  { id: 'section-kanban', label: 'Kanban' },
-  { id: 'section-git', label: 'Git Repos' },
-];
+import { ProjectsSection } from './sections/ProjectsSection';
+import type { WebviewConfig, JiraValidationInfo, LinearValidationInfo, ProjectSummary } from '../types/messages';
 
 interface ConfigPageProps {
   config: WebviewConfig;
@@ -29,6 +23,13 @@ interface ConfigPageProps {
   linearResult: LinearValidationInfo | null;
   validatingJira: boolean;
   validatingLinear: boolean;
+  apiReachable: boolean;
+  projects: ProjectSummary[];
+  projectsLoading: boolean;
+  projectsError: string | null;
+  onAssessProject: (name: string) => void;
+  onRefreshProjects: () => void;
+  onOpenProject: (path: string) => void;
 }
 
 export function ConfigPage({
@@ -43,12 +44,28 @@ export function ConfigPage({
   linearResult,
   validatingJira,
   validatingLinear,
+  apiReachable,
+  projects,
+  projectsLoading,
+  projectsError,
+  onAssessProject,
+  onRefreshProjects,
+  onOpenProject,
 }: ConfigPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasWorkDir = Boolean(config.working_directory);
+
+  const navItems: NavItem[] = useMemo(() => [
+    { id: 'section-primary', label: 'Workspace Configuration' },
+    { id: 'section-kanban', label: 'Kanban Providers', disabled: !hasWorkDir },
+    { id: 'section-agents', label: 'Coding Agents', disabled: !hasWorkDir },
+    { id: 'section-git', label: 'Git Version Control', disabled: !hasWorkDir },
+    { id: 'section-projects', label: 'Operator Managed Projects', disabled: !apiReachable },
+  ], [hasWorkDir, apiReachable]);
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <SidebarNav items={NAV_ITEMS} scrollContainerRef={scrollRef} />
+      <SidebarNav items={navItems} scrollContainerRef={scrollRef} />
 
       <Box
         ref={scrollRef}
@@ -81,12 +98,12 @@ export function ConfigPage({
         </Box>
         <PrimaryConfigSection
           working_directory={config.working_directory}
-          sessions_wrapper={(config.config.sessions as Record<string, unknown>)?.wrapper as string ?? 'vscode'}
+          sessions_wrapper={config.config.sessions.wrapper ?? 'vscode'}
           onUpdate={onUpdate}
           onBrowseFolder={onBrowseFolder}
         />
         <KanbanProvidersSection
-          kanban={config.config.kanban as Record<string, unknown>}
+          kanban={config.config.kanban}
           onUpdate={onUpdate}
           onValidateJira={onValidateJira}
           onValidateLinear={onValidateLinear}
@@ -96,15 +113,22 @@ export function ConfigPage({
           validatingLinear={validatingLinear}
         />
         <CodingAgentsSection
-          agents={config.config.agents as Record<string, unknown>}
-          llm_tools={config.config.llm_tools as Record<string, unknown>}
+          agents={config.config.agents}
+          llm_tools={config.config.llm_tools}
           onUpdate={onUpdate}
           onDetectTools={onDetectTools}
         />
         <GitRepositoriesSection
-          git={config.config.git as Record<string, unknown>}
-          projects={(config.config.projects as string[]) ?? []}
+          git={config.config.git}
           onUpdate={onUpdate}
+        />
+        <ProjectsSection
+          projects={projects}
+          loading={projectsLoading}
+          error={projectsError}
+          onAssess={onAssessProject}
+          onOpenProject={onOpenProject}
+          onRefresh={onRefreshProjects}
         />
       </Box>
     </Box>

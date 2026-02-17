@@ -12,7 +12,11 @@ import type {
   ExtensionToWebviewMessage,
   JiraValidationInfo,
   LinearValidationInfo,
+  ProjectSummary,
 } from './types/messages';
+import type { JiraConfig } from '../src/generated/JiraConfig';
+import type { LinearConfig } from '../src/generated/LinearConfig';
+import type { ProjectSyncConfig } from '../src/generated/ProjectSyncConfig';
 
 export function App() {
   const [config, setConfig] = useState<WebviewConfig | null>(null);
@@ -21,6 +25,10 @@ export function App() {
   const [linearResult, setLinearResult] = useState<LinearValidationInfo | null>(null);
   const [validatingJira, setValidatingJira] = useState(false);
   const [validatingLinear, setValidatingLinear] = useState(false);
+  const [apiReachable, setApiReachable] = useState(false);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
 
   useEffect(() => {
     const cleanup = onMessage((msg: ExtensionToWebviewMessage) => {
@@ -53,12 +61,36 @@ export function App() {
         case 'llmToolsDetected':
           setConfig(mergeWithDefaults(msg.config));
           break;
+        case 'apiHealthResult':
+          setApiReachable(msg.reachable);
+          if (msg.reachable) {
+            setProjectsLoading(true);
+            postMessage({ type: 'getProjects' });
+          }
+          break;
+        case 'projectsLoaded':
+          setProjects(msg.projects);
+          setProjectsLoading(false);
+          setProjectsError(null);
+          break;
+        case 'projectsError':
+          setProjectsError(msg.error);
+          setProjectsLoading(false);
+          break;
+        case 'assessTicketCreated':
+          // Refresh projects after successful assess ticket creation
+          postMessage({ type: 'getProjects' });
+          break;
+        case 'assessTicketError':
+          setProjectsError(`Failed to assess ${msg.projectName}: ${msg.error}`);
+          break;
       }
     });
 
     // Signal ready and request config
     postMessage({ type: 'ready' });
     postMessage({ type: 'getConfig' });
+    postMessage({ type: 'checkApiHealth' });
 
     return cleanup;
   }, []);
@@ -75,10 +107,6 @@ export function App() {
     },
     []
   );
-
-  const handleBrowseFile = useCallback((field: string) => {
-    postMessage({ type: 'browseFile', field });
-  }, []);
 
   const handleBrowseFolder = useCallback((field: string) => {
     postMessage({ type: 'browseFolder', field });
@@ -107,6 +135,20 @@ export function App() {
     postMessage({ type: 'detectLlmTools' });
   }, []);
 
+  const handleAssessProject = useCallback((projectName: string) => {
+    postMessage({ type: 'assessProject', projectName });
+  }, []);
+
+  const handleRefreshProjects = useCallback(() => {
+    setProjectsLoading(true);
+    setProjectsError(null);
+    postMessage({ type: 'getProjects' });
+  }, []);
+
+  const handleOpenProject = useCallback((projectPath: string) => {
+    postMessage({ type: 'openProjectFolder', projectPath });
+  }, []);
+
   return (
     <ThemeWrapper>
       {error && (
@@ -127,6 +169,13 @@ export function App() {
           linearResult={linearResult}
           validatingJira={validatingJira}
           validatingLinear={validatingLinear}
+          apiReachable={apiReachable}
+          projects={projects}
+          projectsLoading={projectsLoading}
+          projectsError={projectsError}
+          onAssessProject={handleAssessProject}
+          onRefreshProjects={handleRefreshProjects}
+          onOpenProject={handleOpenProject}
         />
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 2 }}>
@@ -146,16 +195,16 @@ function mergeWithDefaults(incoming: WebviewConfig): WebviewConfig {
   return {
     config_path: incoming.config_path || defaults.config_path,
     working_directory: incoming.working_directory || defaults.working_directory,
-    config: deepMerge(defaults.config as Record<string, unknown>, (incoming.config ?? {}) as Record<string, unknown>) as WebviewConfig['config'],
+    config: deepMerge(defaults.config, incoming.config),
   };
 }
 
 /** Recursively merge source into target (source wins for leaf values) */
-function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+function deepMerge<T extends Record<string, unknown>>(target: T, source: T): T {
   const result: Record<string, unknown> = { ...target };
   for (const key of Object.keys(source)) {
-    const srcVal = source[key];
-    const tgtVal = target[key];
+    const srcVal = (source as Record<string, unknown>)[key];
+    const tgtVal = (target as Record<string, unknown>)[key];
     if (
       srcVal !== null &&
       srcVal !== undefined &&
@@ -165,13 +214,20 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
       tgtVal !== null &&
       !Array.isArray(tgtVal)
     ) {
-      result[key] = deepMerge(tgtVal as Record<string, unknown>, srcVal as Record<string, unknown>);
+      result[key] = deepMerge(
+        tgtVal as Record<string, unknown>,
+        srcVal as Record<string, unknown>,
+      );
     } else if (srcVal !== undefined) {
       result[key] = srcVal;
     }
   }
-  return result;
+  return result as T;
 }
+
+const DEFAULT_JIRA: JiraConfig = { enabled: false, api_key_env: 'OPERATOR_JIRA_API_KEY', email: '', projects: {} };
+const DEFAULT_LINEAR: LinearConfig = { enabled: false, api_key_env: 'OPERATOR_LINEAR_API_KEY', projects: {} };
+const DEFAULT_PROJECT_SYNC: ProjectSyncConfig = { sync_user_id: '', sync_statuses: [], collection_name: '' };
 
 /** Apply an update to the config object by section/key path */
 function applyUpdate(
@@ -181,87 +237,95 @@ function applyUpdate(
   value: unknown
 ): WebviewConfig {
   const next = { ...config, config: { ...config.config } };
-  const c = next.config as Record<string, unknown>;
 
   switch (section) {
     case 'primary':
       if (key === 'working_directory') { next.working_directory = value as string; }
       break;
 
-    case 'agents':
-      c.agents = { ...(c.agents as Record<string, unknown> ?? {}), [key]: value };
+    case 'agents': {
+      const updated = { ...next.config.agents };
+      (updated as Record<string, unknown>)[key] = value;
+      next.config.agents = updated;
       break;
+    }
 
-    case 'sessions':
-      c.sessions = { ...(c.sessions as Record<string, unknown> ?? {}), [key]: value };
+    case 'sessions': {
+      const updated = { ...next.config.sessions };
+      (updated as Record<string, unknown>)[key] = value;
+      next.config.sessions = updated;
       break;
+    }
 
     case 'kanban.jira': {
-      const kanban = { ...(c.kanban as Record<string, unknown> ?? {}) };
-      const jiraMap = { ...(kanban.jira as Record<string, unknown> ?? {}) };
+      const jiraMap = { ...next.config.kanban.jira };
       const domains = Object.keys(jiraMap);
       const domain = domains[0] ?? 'your-org.atlassian.net';
-      const ws = { ...(jiraMap[domain] as Record<string, unknown> ?? {}) };
+      const ws: JiraConfig = { ...(jiraMap[domain] ?? DEFAULT_JIRA) };
 
       if (key === 'enabled' || key === 'email' || key === 'api_key_env') {
-        ws[key] = value;
+        (ws as Record<string, unknown>)[key] = value;
         jiraMap[domain] = ws;
       } else if (key === 'domain' && typeof value === 'string' && value !== domain) {
         delete jiraMap[domain];
         jiraMap[value] = ws;
       } else if (key === 'project_key' || key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id') {
-        const projects = { ...(ws.projects as Record<string, unknown> ?? {}) };
+        const projects = { ...ws.projects };
         const pKeys = Object.keys(projects);
         const pKey = pKeys[0] ?? 'default';
         if (key === 'project_key') {
-          const oldProject = projects[pKey] ?? {};
+          const oldProject = projects[pKey] ?? DEFAULT_PROJECT_SYNC;
           delete projects[pKey];
           projects[value as string] = oldProject;
         } else {
-          projects[pKey] = { ...(projects[pKey] as Record<string, unknown> ?? {}), [key]: value };
+          const existing = { ...(projects[pKey] ?? DEFAULT_PROJECT_SYNC) };
+          (existing as Record<string, unknown>)[key] = value;
+          projects[pKey] = existing;
         }
         ws.projects = projects;
         jiraMap[domain] = ws;
       }
-      kanban.jira = jiraMap;
-      c.kanban = kanban;
+      next.config.kanban = { ...next.config.kanban, jira: jiraMap };
       break;
     }
 
     case 'kanban.linear': {
-      const kanban = { ...(c.kanban as Record<string, unknown> ?? {}) };
-      const linearMap = { ...(kanban.linear as Record<string, unknown> ?? {}) };
+      const linearMap = { ...next.config.kanban.linear };
       const teams = Object.keys(linearMap);
       const teamId = teams[0] ?? 'default-team';
-      const ws = { ...(linearMap[teamId] as Record<string, unknown> ?? {}) };
+      const ws: LinearConfig = { ...(linearMap[teamId] ?? DEFAULT_LINEAR) };
 
       if (key === 'enabled' || key === 'api_key_env') {
-        ws[key] = value;
+        (ws as Record<string, unknown>)[key] = value;
         linearMap[teamId] = ws;
       } else if (key === 'team_id' && typeof value === 'string' && value !== teamId) {
         delete linearMap[teamId];
         linearMap[value] = ws;
       } else if (key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id') {
-        const projects = { ...(ws.projects as Record<string, unknown> ?? {}) };
+        const projects = { ...ws.projects };
         const pKeys = Object.keys(projects);
         const pKey = pKeys[0] ?? 'default';
-        projects[pKey] = { ...(projects[pKey] as Record<string, unknown> ?? {}), [key]: value };
+        const existing = { ...(projects[pKey] ?? DEFAULT_PROJECT_SYNC) };
+        (existing as Record<string, unknown>)[key] = value;
+        projects[pKey] = existing;
         ws.projects = projects;
         linearMap[teamId] = ws;
       }
-      kanban.linear = linearMap;
-      c.kanban = kanban;
+      next.config.kanban = { ...next.config.kanban, linear: linearMap };
       break;
     }
 
-    case 'git':
-      c.git = { ...(c.git as Record<string, unknown> ?? {}), [key]: value };
+    case 'git': {
+      const updated = { ...next.config.git };
+      (updated as Record<string, unknown>)[key] = value;
+      next.config.git = updated;
       break;
+    }
 
     case 'git.github': {
-      const git = { ...(c.git as Record<string, unknown> ?? {}) };
-      git.github = { ...(git.github as Record<string, unknown> ?? {}), [key]: value };
-      c.git = git;
+      const github = { ...next.config.git.github };
+      (github as Record<string, unknown>)[key] = value;
+      next.config.git = { ...next.config.git, github };
       break;
     }
   }

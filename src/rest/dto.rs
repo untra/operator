@@ -820,6 +820,67 @@ pub struct RejectReviewRequest {
     pub reason: String,
 }
 
+// =============================================================================
+// Project DTOs
+// =============================================================================
+
+/// Summary of a project with analysis data
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ProjectSummary {
+    /// Project directory name
+    pub project_name: String,
+    /// Absolute path to project root
+    pub project_path: String,
+    /// Whether the project directory exists on disk
+    pub exists: bool,
+    /// Whether catalog-info.yaml exists
+    pub has_catalog_info: bool,
+    /// Whether project-context.json exists
+    pub has_project_context: bool,
+    /// Primary Kind from kind_assessment (e.g., "microservice")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    /// Kind confidence score 0.0-1.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind_confidence: Option<f64>,
+    /// Taxonomy tier (e.g., "engines")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind_tier: Option<String>,
+    /// Language display names
+    pub languages: Vec<String>,
+    /// Framework display names
+    pub frameworks: Vec<String>,
+    /// Database display names
+    pub databases: Vec<String>,
+    /// Has Dockerfile or docker-compose
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has_docker: Option<bool>,
+    /// Has test frameworks detected
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has_tests: Option<bool>,
+    /// Detected port numbers
+    pub ports: Vec<u16>,
+    /// Number of environment variables
+    pub env_var_count: usize,
+    /// Number of entry points
+    pub entry_point_count: usize,
+    /// Available command names (start, dev, test, etc.)
+    pub commands: Vec<String>,
+}
+
+/// Response from creating an ASSESS ticket
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct AssessTicketResponse {
+    /// Ticket ID (e.g., "ASSESS-1234")
+    pub ticket_id: String,
+    /// Path to the created ticket file
+    pub ticket_path: String,
+    /// Project name that was assessed
+    pub project_name: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

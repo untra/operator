@@ -26,7 +26,7 @@ export function PrimaryConfigSection({
 }: PrimaryConfigSectionProps) {
   return (
     <Box sx={{ mb: 4 }}>
-      <SectionHeader id="section-primary" title="Workspace Extension Configuration" />
+      <SectionHeader id="section-primary" title="Workspace Configuration" />
       <Typography color="text.secondary" gutterBottom>
         These are settings for <b>Operator!</b> configuration for the VS Code extension. For more details see the <Link href="https://operator.untra.io/configuration/">configuration documentation</Link>
       </Typography>

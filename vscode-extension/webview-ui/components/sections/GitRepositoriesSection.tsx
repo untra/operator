@@ -7,29 +7,25 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
 import { SectionHeader } from '../SectionHeader';
+import type { GitConfig } from '../../../src/generated/GitConfig';
 
 interface GitRepositoriesSectionProps {
-  git: Record<string, unknown>;
-  projects: string[];
+  git: GitConfig;
   onUpdate: (section: string, key: string, value: unknown) => void;
 }
 
 export function GitRepositoriesSection({
   git,
-  projects,
   onUpdate,
 }: GitRepositoriesSectionProps) {
-  const provider = (git.provider as string) ?? '';
-  const github = (git.github ?? {}) as Record<string, unknown>;
-  const githubEnabled = (github.enabled as boolean) ?? true;
-  const githubTokenEnv = (github.token_env as string) ?? 'GITHUB_TOKEN';
-  const branchFormat = (git.branch_format as string) ?? '{type}/{ticket_id}-{slug}';
-  const useWorktrees = (git.use_worktrees as boolean) ?? false;
+  const provider = git.provider;
+  const githubEnabled = git.github.enabled;
+  const githubTokenEnv = git.github.token_env;
+  const branchFormat = git.branch_format;
+  const useWorktrees = git.use_worktrees;
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -93,23 +89,6 @@ export function GitRepositoriesSection({
           }
           label="Use git worktrees for parallel agent branches"
         />
-
-        <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Projects
-          </Typography>
-          {projects.length > 0 ? (
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {projects.map((project) => (
-                <Chip key={project} label={project} size="small" variant="outlined" />
-              ))}
-            </Stack>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              No projects configured. Set a working directory to discover projects.
-            </Typography>
-          )}
-        </Box>
       </Box>
     </Box>
   );

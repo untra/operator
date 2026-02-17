@@ -343,7 +343,7 @@
     "watch": "npm run copy-types && tsc -watch -p ./",
     "watch:webview": "webpack --config webpack.webview.config.js --mode development --watch",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src --ext ts && eslint webview-ui --ext ts,tsx",
     "test": "vscode-test",
     "test:coverage": "npm run test",
     "package": "vsce package",

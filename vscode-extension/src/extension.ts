@@ -209,11 +209,11 @@ export async function activate(
     ),
     vscode.commands.registerCommand(
       'operator.addJiraProject',
-      (workspaceKey?: string) => addJiraProjectCommand(workspaceKey)
+      (workspaceKey: string) => addJiraProjectCommand(workspaceKey)
     ),
     vscode.commands.registerCommand(
       'operator.addLinearTeam',
-      (workspaceKey?: string) => addLinearTeamCommand(workspaceKey)
+      (workspaceKey: string) => addLinearTeamCommand(workspaceKey)
     ),
     vscode.commands.registerCommand(
       'operator.revealTicketsDir',
@@ -1009,9 +1009,9 @@ async function syncKanbanCommand(): Promise<void> {
 /**
  * Command: Approve agent review
  */
-async function approveReviewCommand(agentId?: string): Promise<void> {
+async function approveReviewCommand(agentId: string): Promise<void> {
   const apiClient = new OperatorApiClient();
-
+  let selectedAgentId : string | undefined = agentId;
   try {
     await apiClient.health();
   } catch {
@@ -1023,14 +1023,14 @@ async function approveReviewCommand(agentId?: string): Promise<void> {
 
   // If no agent ID provided, show picker for awaiting agents
   if (!agentId) {
-    agentId = await showAwaitingAgentPicker(apiClient);
-    if (!agentId) {
+    selectedAgentId = await showAwaitingAgentPicker(apiClient);
+    if (!selectedAgentId) {
       return;
     }
   }
 
   try {
-    const result = await apiClient.approveReview(agentId);
+    const result = await apiClient.approveReview(selectedAgentId);
     vscode.window.showInformationMessage(result.message);
     await refreshAllProviders();
   } catch (err) {
@@ -1042,9 +1042,9 @@ async function approveReviewCommand(agentId?: string): Promise<void> {
 /**
  * Command: Reject agent review
  */
-async function rejectReviewCommand(agentId?: string): Promise<void> {
+async function rejectReviewCommand(agentId: string): Promise<void> {
   const apiClient = new OperatorApiClient();
-
+  let selectedAgentId : string | undefined = agentId;
   try {
     await apiClient.health();
   } catch {
@@ -1056,8 +1056,8 @@ async function rejectReviewCommand(agentId?: string): Promise<void> {
 
   // If no agent ID provided, show picker for awaiting agents
   if (!agentId) {
-    agentId = await showAwaitingAgentPicker(apiClient);
-    if (!agentId) {
+    selectedAgentId = await showAwaitingAgentPicker(apiClient);
+    if (!selectedAgentId) {
       return;
     }
   }
@@ -1079,7 +1079,7 @@ async function rejectReviewCommand(agentId?: string): Promise<void> {
   }
 
   try {
-    const result = await apiClient.rejectReview(agentId, reason);
+    const result = await apiClient.rejectReview(selectedAgentId, reason);
     vscode.window.showInformationMessage(result.message);
     await refreshAllProviders();
   } catch (err) {
@@ -1142,9 +1142,9 @@ async function showAwaitingAgentPicker(
 /**
  * Command: Sync a specific kanban collection
  */
-async function syncKanbanCollectionCommand(item?: StatusItem): Promise<void> {
-  const provider = item?.provider;
-  const projectKey = item?.projectKey;
+async function syncKanbanCollectionCommand(item: StatusItem): Promise<void> {
+  const provider = item.provider;
+  const projectKey = item.projectKey;
 
   if (!provider || !projectKey) {
     vscode.window.showWarningMessage('No collection selected for sync.');
@@ -1183,7 +1183,7 @@ async function syncKanbanCollectionCommand(item?: StatusItem): Promise<void> {
 /**
  * Command: Add a Jira project to an existing workspace
  */
-async function addJiraProjectCommand(workspaceKey?: string): Promise<void> {
+async function addJiraProjectCommand(workspaceKey: string): Promise<void> {
   await addJiraProject(extensionContext, workspaceKey);
   await refreshAllProviders();
 }
@@ -1191,7 +1191,7 @@ async function addJiraProjectCommand(workspaceKey?: string): Promise<void> {
 /**
  * Command: Add a Linear team to an existing workspace
  */
-async function addLinearTeamCommand(workspaceKey?: string): Promise<void> {
+async function addLinearTeamCommand(workspaceKey: string): Promise<void> {
   await addLinearTeam(extensionContext, workspaceKey);
   await refreshAllProviders();
 }

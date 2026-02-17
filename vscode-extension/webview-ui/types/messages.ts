@@ -7,6 +7,27 @@ export interface WebviewConfig {
   config: Config;
 }
 
+/** Summary of a project from the Operator REST API */
+export interface ProjectSummary {
+  project_name: string;
+  project_path: string;
+  exists: boolean;
+  has_catalog_info: boolean;
+  has_project_context: boolean;
+  kind: string | null;
+  kind_confidence: number | null;
+  kind_tier: string | null;
+  languages: string[];
+  frameworks: string[];
+  databases: string[];
+  has_docker: boolean | null;
+  has_tests: boolean | null;
+  ports: number[];
+  env_var_count: number;
+  entry_point_count: number;
+  commands: string[];
+}
+
 /** Messages from the webview to the extension host */
 export type WebviewToExtensionMessage =
   | { type: 'ready' }
@@ -18,7 +39,11 @@ export type WebviewToExtensionMessage =
   | { type: 'validateLinear'; apiKey: string }
   | { type: 'detectLlmTools' }
   | { type: 'openExternal'; url: string }
-  | { type: 'openFile'; filePath: string };
+  | { type: 'openFile'; filePath: string }
+  | { type: 'checkApiHealth' }
+  | { type: 'getProjects' }
+  | { type: 'assessProject'; projectName: string }
+  | { type: 'openProjectFolder'; projectPath: string };
 
 /** Messages from the extension host to the webview */
 export type ExtensionToWebviewMessage =
@@ -28,7 +53,12 @@ export type ExtensionToWebviewMessage =
   | { type: 'browseResult'; field: string; path: string }
   | { type: 'jiraValidationResult'; result: JiraValidationInfo }
   | { type: 'linearValidationResult'; result: LinearValidationInfo }
-  | { type: 'llmToolsDetected'; config: WebviewConfig };
+  | { type: 'llmToolsDetected'; config: WebviewConfig }
+  | { type: 'apiHealthResult'; reachable: boolean }
+  | { type: 'projectsLoaded'; projects: ProjectSummary[] }
+  | { type: 'projectsError'; error: string }
+  | { type: 'assessTicketCreated'; ticketId: string; projectName: string }
+  | { type: 'assessTicketError'; error: string; projectName: string };
 
 export interface JiraValidationInfo {
   valid: boolean;

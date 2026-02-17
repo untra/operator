@@ -12,9 +12,13 @@ import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
 import { SectionHeader } from '../SectionHeader';
 import type { JiraValidationInfo, LinearValidationInfo } from '../../types/messages';
+import type { KanbanConfig } from '../../../src/generated/KanbanConfig';
+import type { JiraConfig } from '../../../src/generated/JiraConfig';
+import type { LinearConfig } from '../../../src/generated/LinearConfig';
+import type { ProjectSyncConfig } from '../../../src/generated/ProjectSyncConfig';
 
 interface KanbanProvidersSectionProps {
-  kanban: Record<string, unknown>;
+  kanban: KanbanConfig;
   onUpdate: (section: string, key: string, value: unknown) => void;
   onValidateJira: (domain: string, email: string, apiToken: string) => void;
   onValidateLinear: (apiKey: string) => void;
@@ -25,22 +29,21 @@ interface KanbanProvidersSectionProps {
 }
 
 /** Extract first entry from a domain-keyed map */
-function firstEntry(map: Record<string, unknown>): [string, Record<string, unknown>] {
+function firstEntry<T>(map: { [key in string]?: T }): [string, T | undefined] {
   const keys = Object.keys(map);
   if (keys.length === 0) {
-    return ['', {}];
+    return ['', undefined];
   }
-  return [keys[0], (map[keys[0]] ?? {}) as Record<string, unknown>];
+  return [keys[0], map[keys[0]]];
 }
 
 /** Extract first project from projects sub-map */
-function firstProject(ws: Record<string, unknown>): [string, Record<string, unknown>] {
-  const projects = (ws.projects ?? {}) as Record<string, unknown>;
+function firstProject(projects: { [key in string]?: ProjectSyncConfig }): [string, ProjectSyncConfig | undefined] {
   const keys = Object.keys(projects);
   if (keys.length === 0) {
-    return ['', {}];
+    return ['', undefined];
   }
-  return [keys[0], (projects[keys[0]] ?? {}) as Record<string, unknown>];
+  return [keys[0], projects[keys[0]]];
 }
 
 export function KanbanProvidersSection({
@@ -53,19 +56,16 @@ export function KanbanProvidersSection({
   validatingJira,
   validatingLinear,
 }: KanbanProvidersSectionProps) {
-  const jiraMap = (kanban.jira ?? {}) as Record<string, unknown>;
-  const linearMap = (kanban.linear ?? {}) as Record<string, unknown>;
+  const [jiraDomain, jiraWs] = firstEntry<JiraConfig>(kanban.jira);
+  const [jiraProjectKey, jiraProject] = firstProject(jiraWs?.projects ?? {});
+  const jiraEnabled = jiraWs?.enabled ?? false;
+  const jiraEmail = jiraWs?.email ?? '';
+  const jiraApiKeyEnv = jiraWs?.api_key_env ?? 'OPERATOR_JIRA_API_KEY';
 
-  const [jiraDomain, jiraWs] = firstEntry(jiraMap);
-  const [jiraProjectKey, jiraProject] = firstProject(jiraWs);
-  const jiraEnabled = (jiraWs.enabled as boolean) ?? false;
-  const jiraEmail = (jiraWs.email as string) ?? '';
-  const jiraApiKeyEnv = (jiraWs.api_key_env as string) ?? 'OPERATOR_JIRA_API_KEY';
-
-  const [linearTeamId, linearWs] = firstEntry(linearMap);
-  const [, linearProject] = firstProject(linearWs);
-  const linearEnabled = (linearWs.enabled as boolean) ?? false;
-  const linearApiKeyEnv = (linearWs.api_key_env as string) ?? 'OPERATOR_LINEAR_API_KEY';
+  const [linearTeamId, linearWs] = firstEntry<LinearConfig>(kanban.linear);
+  const [, linearProject] = firstProject(linearWs?.projects ?? {});
+  const linearEnabled = linearWs?.enabled ?? false;
+  const linearApiKeyEnv = linearWs?.api_key_env ?? 'OPERATOR_LINEAR_API_KEY';
 
   const [jiraApiToken, setJiraApiToken] = useState('');
   const [linearApiKey, setLinearApiKey] = useState('');
@@ -153,7 +153,7 @@ export function KanbanProvidersSection({
                 size="small"
                 label="Sync Statuses"
                 InputLabelProps={{ margin: 'dense' }}
-                value={((jiraProject.sync_statuses as string[]) ?? []).join(', ')}
+                value={(jiraProject?.sync_statuses ?? []).join(', ')}
                 onChange={(e) => {
                   const statuses = e.target.value
                     .split(',')
@@ -171,7 +171,7 @@ export function KanbanProvidersSection({
                 size="small"
                 label="Collection Name"
                 InputLabelProps={{ margin: 'dense' }}
-                value={(jiraProject.collection_name as string) ?? ''}
+                value={jiraProject?.collection_name ?? ''}
                 onChange={(e) => onUpdate('kanban.jira', 'collection_name', e.target.value)}
                 placeholder="dev_kanban"
                 disabled={!jiraEnabled}
@@ -265,7 +265,7 @@ export function KanbanProvidersSection({
                 fullWidth
                 size="small"
                 label="Sync Statuses"
-                value={((linearProject.sync_statuses as string[]) ?? []).join(', ')}
+                value={(linearProject?.sync_statuses ?? []).join(', ')}
                 onChange={(e) => {
                   const statuses = e.target.value
                     .split(',')
@@ -282,7 +282,7 @@ export function KanbanProvidersSection({
                 fullWidth
                 size="small"
                 label="Collection Name"
-                value={(linearProject.collection_name as string) ?? ''}
+                value={linearProject?.collection_name ?? ''}
                 onChange={(e) => onUpdate('kanban.linear', 'collection_name', e.target.value)}
                 placeholder="dev_kanban"
                 disabled={!linearEnabled}

@@ -1,0 +1,29 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module",
+    "ecmaFeatures": { "jsx": true }
+  },
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "../../.eslintrc.base.json"
+  ],
+  "env": { "browser": true, "es2022": true },
+  "rules": {
+    "@typescript-eslint/consistent-type-assertions": ["error", {
+      "assertionStyle": "as",
+      "objectLiteralTypeAssertions": "never"
+    }],
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/naming-convention": ["warn", {
+      "selector": "import",
+      "format": ["camelCase", "PascalCase"]
+    }],
+    "@typescript-eslint/semi": "warn",
+    "semi": "off"
+  }
+}

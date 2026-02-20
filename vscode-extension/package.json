@@ -104,6 +104,11 @@
           "type": "string",
           "default": "",
           "description": "Path to operator binary (leave empty to use downloaded or PATH)"
+        },
+        "operator.workingDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Working directory where Operator server runs (contains .tickets/ and project repos)"
         }
       }
     },
@@ -192,12 +197,36 @@
         "title": "Operator: Configure Linear"
       },
       {
+        "command": "operator.startKanbanOnboarding",
+        "title": "Operator: Configure Kanban Provider"
+      },
+      {
         "command": "operator.detectLlmTools",
         "title": "Operator: Detect LLM Tools"
       },
       {
         "command": "operator.openWalkthrough",
         "title": "Operator: Open Setup Walkthrough"
+      },
+      {
+        "command": "operator.openSettings",
+        "title": "Operator: Open Settings"
+      },
+      {
+        "command": "operator.syncKanbanCollection",
+        "title": "Operator: Sync Collection"
+      },
+      {
+        "command": "operator.addJiraProject",
+        "title": "Operator: Add Jira Project"
+      },
+      {
+        "command": "operator.addLinearTeam",
+        "title": "Operator: Add Linear Team"
+      },
+      {
+        "command": "operator.revealTicketsDir",
+        "title": "Operator: Reveal Tickets Directory"
       }
     ],
     "menus": {
@@ -222,6 +251,11 @@
         {
           "command": "operator.launchTicket",
           "when": "view == operator-queue",
+          "group": "inline"
+        },
+        {
+          "command": "operator.syncKanbanCollection",
+          "when": "view == operator-status && viewItem == kanbanSyncConfig",
           "group": "inline"
         }
       ],
@@ -248,16 +282,21 @@
       {
         "id": "operator-setup",
         "title": "Operator! Setup",
-        "description": "Configure Operator! to orchestrate LLM coding agents across your code repositories",
+        "when": "!operator.workingDirectorySet",
+        "description": "Configure Operator! to orchestrate LLM coding agents across many code repositories",
         "icon": "images/operator-icon-128.png",
+        "featuredFor": ["CLAUDE.md", "AGENTS.md"],
         "steps": [
           {
-            "id": "welcome",
-            "title": "Welcome to Operator!",
-            "description": "Learn how Operator! orchestrates LLM coding agents across your repositories.\n\n[Continue Setup](command:workbench.action.openWalkthrough?%5B%22untra.operator-terminals%23operator-setup%22%2C%20true%5D)",
+            "id": "download-operator",
+            "title": "Download Operator",
+            "description": "Download the Operator server binary to orchestrate LLM coding agents.\n\n[Download Operator](command:operator.downloadOperator)",
             "media": {
               "markdown": "walkthrough/welcome.md"
-            }
+            },
+            "completionEvents": [
+              "onContext:operator.operatorAvailable"
+            ]
           },
           {
             "id": "select-working-directory",
@@ -273,7 +312,7 @@
           {
             "id": "connect-kanban",
             "title": "Connect Kanban Provider",
-            "description": "Connect a [Supported Kanban Provider](https://operator.untra.io/getting-started/kanban/) via environment variables.\n\n[Check Connection](command:operator.checkKanbanConnection)",
+            "description": "Connect to Jira Cloud or Linear.\n\n[Configure Now](command:operator.startKanbanOnboarding)",
             "media": {
               "markdown": "walkthrough/connect-kanban.md"
             },
@@ -283,7 +322,7 @@
           },
           {
             "id": "install-llm-tool",
-            "title": "Install LLM Tool",
+            "title": "Detect LLM Tools",
             "description": "Install a [Supported Coding Agent](https://operator.untra.io/getting-started/agents/), such as **Claude Code**.\n\n[Detect Tools](command:operator.detectLlmTools)",
             "media": {
               "markdown": "walkthrough/install-llm-tool.md"
@@ -297,16 +336,27 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm run compile:webview",
     "copy-types": "node scripts/copy-types.js",
     "compile": "npm run copy-types && tsc -p ./",
+    "compile:webview": "webpack --config webpack.webview.config.js --mode production",
     "watch": "npm run copy-types && tsc -watch -p ./",
+    "watch:webview": "webpack --config webpack.webview.config.js --mode development --watch",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src --ext ts && eslint webview-ui --ext ts,tsx",
     "test": "vscode-test",
     "test:coverage": "npm run test",
     "package": "vsce package",
     "publish": "vsce publish"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@mui/material": "^5.18.0",
+    "@mui/icons-material": "^5.18.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "smol-toml": "^1.3.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
@@ -327,6 +377,13 @@
     "mocha": "^10.2.0",
     "sinon": "^17.0.1",
     "source-map-support": "^0.5.21",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "webpack": "^5.97.0",
+    "webpack-cli": "^6.0.0",
+    "ts-loader": "^9.5.0",
+    "css-loader": "^7.1.0",
+    "style-loader": "^4.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0"
   }
 }

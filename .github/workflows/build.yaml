@@ -253,6 +253,37 @@ jobs:
             cp target/${{ matrix.target }}/release/operator ${{ matrix.artifact_name }}
           fi
 
+      # Apple code signing + notarization (macOS only)
+      - name: Codesign operator binary
+        if: matrix.os == 'macos-14'
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: scripts/codesign.sh "${{ matrix.artifact_name }}"
+
+      - name: Notarize operator binary
+        if: matrix.os == 'macos-14'
+        env:
+          APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: scripts/notarize.sh "${{ matrix.artifact_name }}"
+
+      - name: Codesign backstage-server binary
+        if: matrix.os == 'macos-14' && steps.backstage.outputs.exists == 'true'
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: scripts/codesign.sh "target/backstage-server-${{ matrix.bun_target }}"
+
+      - name: Notarize backstage-server binary
+        if: matrix.os == 'macos-14' && steps.backstage.outputs.exists == 'true'
+        env:
+          APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: scripts/notarize.sh "target/backstage-server-${{ matrix.bun_target }}"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -314,6 +345,24 @@ jobs:
         if: runner.os != 'Windows'
         run: strip target/release/opr8r || true
 
+      # Apple code signing + notarization (macOS only)
+      - name: Codesign opr8r binary
+        if: matrix.os == 'macos-14'
+        working-directory: .
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: scripts/codesign.sh opr8r/target/release/opr8r
+
+      - name: Notarize opr8r binary
+        if: matrix.os == 'macos-14'
+        working-directory: .
+        env:
+          APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: scripts/notarize.sh opr8r/target/release/opr8r
+
       - name: Rename binary
         shell: bash
         run: |
@@ -329,8 +378,26 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}
 
-  release:
+  sign-windows:
     needs: [build, build-opr8r]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        artifact:
+          - operator-windows-x86_64.exe
+          - opr8r-windows-x86_64.exe
+    uses: ./.github/workflows/sign-windows.yaml
+    with:
+      artifact-name: ${{ matrix.artifact }}
+    secrets:
+      AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+      AZ_PIPELINES_PAT: ${{ secrets.AZ_PIPELINES_PAT }}
+      AZ_ORG: ${{ secrets.AZ_ORG }}
+      AZ_PROJECT: ${{ secrets.AZ_PROJECT }}
+      AZ_PIPELINE_DEFINITION_ID: ${{ secrets.AZ_PIPELINE_DEFINITION_ID }}
+
+  release:
+    needs: [build, build-opr8r, sign-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

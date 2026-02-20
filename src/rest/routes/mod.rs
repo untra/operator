@@ -5,5 +5,6 @@ pub mod collections;
 pub mod health;
 pub mod issuetypes;
 pub mod launch;
+pub mod projects;
 pub mod queue;
 pub mod steps;

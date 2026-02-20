@@ -39,7 +39,7 @@ export interface WalkthroughState {
   llmToolInstalled: boolean;
   workingDirectory?: string;
   kanbanWorkspaces: KanbanWorkspace[];
-  installedLlmTools: string[];
+  installedLlmTools: DetectedToolResult[];
 }
 
 /** Environment variable names for kanban providers */
@@ -72,6 +72,73 @@ export function findEnvVar(keys: readonly string[]): string | undefined {
 
 /** LLM tools to detect */
 export const LLM_TOOLS = ['claude', 'codex', 'gemini'] as const;
+
+/** Minimal detected tool info (mirrors Rust DetectedTool subset) */
+export interface DetectedToolResult {
+  name: string;
+  path: string;
+  version: string;
+  version_ok: boolean;
+}
+
+/** Tool metadata for version detection (mirrors src/llm/tools/*.json) */
+const TOOL_META: Record<string, { versionCmd: string; minVersion: string }> = {
+  claude: { versionCmd: 'claude --version', minVersion: '2.1.0' },
+  codex:  { versionCmd: 'codex --version',  minVersion: '0.1.0' },
+  gemini: { versionCmd: 'gemini --version',  minVersion: '0.1.0' },
+};
+
+/**
+ * Compare two semver-like version strings.
+ * Returns true if `version` >= `minVersion`.
+ */
+export function compareVersions(version: string, minVersion: string): boolean {
+  const parse = (v: string): number[] => {
+    const match = v.match(/(\d+(?:\.\d+)*)/);
+    if (!match) { return [0]; }
+    return match[1].split('.').map(Number);
+  };
+  const a = parse(version);
+  const b = parse(minVersion);
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const av = a[i] ?? 0;
+    const bv = b[i] ?? 0;
+    if (av > bv) { return true; }
+    if (av < bv) { return false; }
+  }
+  return true; // equal
+}
+
+/**
+ * Detect a single LLM tool: resolve path, version, and version_ok
+ */
+async function detectSingleTool(tool: string): Promise<DetectedToolResult | null> {
+  const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+  let toolPath: string;
+  try {
+    const { stdout } = await execAsync(`${whichCmd} ${tool}`);
+    toolPath = stdout.trim().split('\n')[0];
+  } catch {
+    return null;
+  }
+
+  const meta = TOOL_META[tool];
+  let version = 'unknown';
+  let versionOk = false;
+
+  if (meta) {
+    try {
+      const { stdout } = await execAsync(meta.versionCmd);
+      version = stdout.trim();
+      versionOk = compareVersions(version, meta.minVersion);
+    } catch {
+      // Tool exists but version command failed
+    }
+  }
+
+  return { name: tool, path: toolPath, version, version_ok: versionOk };
+}
 
 /**
  * Check if kanban environment variables are set and return workspace info
@@ -195,16 +262,13 @@ export async function checkLlmToolInPath(tool: string): Promise<boolean> {
 }
 
 /**
- * Detect all installed LLM tools
+ * Detect all installed LLM tools with path, version, and version check
  */
-export async function detectInstalledLlmTools(): Promise<string[]> {
-  const results: (string | null)[] = await Promise.all(
-    LLM_TOOLS.map(async (tool): Promise<string | null> => {
-      const installed = await checkLlmToolInPath(tool);
-      return installed ? tool : null;
-    })
+export async function detectInstalledLlmTools(): Promise<DetectedToolResult[]> {
+  const results = await Promise.all(
+    LLM_TOOLS.map((tool) => detectSingleTool(tool))
   );
-  return results.filter((tool): tool is string => tool !== null);
+  return results.filter((r): r is DetectedToolResult => r !== null);
 }
 
 /**
@@ -347,6 +411,11 @@ export async function selectWorkingDirectory(
   // Store in global state
   await context.globalState.update('operator.workingDirectory', selectedPath);
 
+  // Persist to VS Code user settings for cross-workspace access
+  const config = vscode.workspace.getConfiguration('operator');
+  await config.update('workingDirectory', selectedPath, vscode.ConfigurationTarget.Global);
+  await config.update('ticketsDir', path.join(selectedPath, '.tickets'), vscode.ConfigurationTarget.Global);
+
   // Update context
   await updateWalkthroughContext(context);
 
@@ -390,111 +459,18 @@ export async function checkKanbanConnection(
   await updateWalkthroughContext(context);
 }
 
-/**
- * Command: Configure Jira
- */
-export async function configureJira(): Promise<void> {
-  const panel = vscode.window.createWebviewPanel(
-    'operatorJiraSetup',
-    'Configure Jira for Operator',
-    vscode.ViewColumn.One,
-    { enableScripts: false }
-  );
-
-  panel.webview.html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: var(--vscode-font-family); padding: 20px; }
-        h1 { color: var(--vscode-editor-foreground); }
-        code { background: var(--vscode-textCodeBlock-background); padding: 2px 6px; border-radius: 3px; }
-        pre { background: var(--vscode-textCodeBlock-background); padding: 12px; border-radius: 6px; overflow-x: auto; }
-        .step { margin: 16px 0; }
-        a { color: var(--vscode-textLink-foreground); }
-      </style>
-    </head>
-    <body>
-      <h1>Configure Jira for Operator</h1>
-
-      <div class="step">
-        <h3>Step 1: Create an API Token</h3>
-        <p>Go to <a href="https://id.atlassian.com/manage-profile/security/api-tokens">Atlassian API Tokens</a> and create a new token.</p>
-      </div>
-
-      <div class="step">
-        <h3>Step 2: Set Environment Variables</h3>
-        <p>Add the following to your shell profile (<code>~/.zshrc</code> or <code>~/.bashrc</code>):</p>
-        <pre>
-export OPERATOR_JIRA_API_KEY="your-api-token"
-export OPERATOR_JIRA_EMAIL="your-email@example.com"
-export OPERATOR_JIRA_URL="https://your-domain.atlassian.net"
-        </pre>
-      </div>
-
-      <div class="step">
-        <h3>Step 3: Restart VS Code</h3>
-        <p>After setting the environment variables, restart VS Code for the changes to take effect.</p>
-      </div>
-    </body>
-    </html>
-  `;
-}
-
-/**
- * Command: Configure Linear
- */
-export async function configureLinear(): Promise<void> {
-  const panel = vscode.window.createWebviewPanel(
-    'operatorLinearSetup',
-    'Configure Linear for Operator',
-    vscode.ViewColumn.One,
-    { enableScripts: false }
-  );
-
-  panel.webview.html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: var(--vscode-font-family); padding: 20px; }
-        h1 { color: var(--vscode-editor-foreground); }
-        code { background: var(--vscode-textCodeBlock-background); padding: 2px 6px; border-radius: 3px; }
-        pre { background: var(--vscode-textCodeBlock-background); padding: 12px; border-radius: 6px; overflow-x: auto; }
-        .step { margin: 16px 0; }
-        a { color: var(--vscode-textLink-foreground); }
-      </style>
-    </head>
-    <body>
-      <h1>Configure Linear for Operator</h1>
-
-      <div class="step">
-        <h3>Step 1: Create an API Key</h3>
-        <p>Go to <a href="https://linear.app/settings/api">Linear API Settings</a> and create a new personal API key.</p>
-      </div>
-
-      <div class="step">
-        <h3>Step 2: Set Environment Variable</h3>
-        <p>Add the following to your shell profile (<code>~/.zshrc</code> or <code>~/.bashrc</code>):</p>
-        <pre>
-export OPERATOR_LINEAR_API_KEY="lin_api_xxxxxxxxxxxxx"
-        </pre>
-      </div>
-
-      <div class="step">
-        <h3>Step 3: Restart VS Code</h3>
-        <p>After setting the environment variable, restart VS Code for the changes to take effect.</p>
-      </div>
-    </body>
-    </html>
-  `;
-}
+// Re-export interactive onboarding flows (replaces old webview-based configureJira/configureLinear)
+export { onboardJira as configureJira, onboardLinear as configureLinear, startKanbanOnboarding } from './kanban-onboarding';
 
 /**
  * Command: Detect LLM tools
+ *
+ * Scans PATH for installed LLM tools. If found, shows a modal with
+ * per-tool "Configure" buttons that run `operator setup --llm-tool <tool>`.
  */
 export async function detectLlmTools(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
+  getOperatorPathFn?: (ctx: vscode.ExtensionContext) => Promise<string | undefined>
 ): Promise<void> {
   const tools = await detectInstalledLlmTools();
 
@@ -514,13 +490,64 @@ export async function detectLlmTools(
       vscode.env.openExternal(vscode.Uri.parse('https://github.com/google/generative-ai-docs'));
     }
   } else {
-    const toolList = tools.join(', ');
-    vscode.window.showInformationMessage(
-      `Detected LLM tools: ${toolList}`
+    // Build per-tool configure buttons
+    const buttons = tools.map(tool => `Configure ${tool.name}`);
+    const toolList = tools.map(tool => tool.name).join(', ');
+
+    const choice = await vscode.window.showInformationMessage(
+      `Detected LLM tools: ${toolList}`,
+      { modal: true },
+      ...buttons
     );
+
+    if (choice) {
+      // Extract tool name from "Configure <tool>"
+      const toolName = choice.replace('Configure ', '');
+      await configureLlmTool(context, toolName, getOperatorPathFn);
+    }
   }
 
   await updateWalkthroughContext(context);
+}
+
+/**
+ * Configure a single LLM tool via `operator setup --llm-tool <tool>`
+ */
+async function configureLlmTool(
+  context: vscode.ExtensionContext,
+  tool: string,
+  getOperatorPathFn?: (ctx: vscode.ExtensionContext) => Promise<string | undefined>
+): Promise<void> {
+  const operatorPath = getOperatorPathFn
+    ? await getOperatorPathFn(context)
+    : undefined;
+
+  if (!operatorPath) {
+    vscode.window.showWarningMessage(
+      `Operator binary not found. Download it first to configure ${tool}.`
+    );
+    return;
+  }
+
+  const workingDir = vscode.workspace.getConfiguration('operator').get<string>('workingDirectory')
+    || context.globalState.get<string>('operator.workingDirectory');
+
+  if (!workingDir) {
+    vscode.window.showWarningMessage(
+      'Working directory not set. Select a working directory first.'
+    );
+    return;
+  }
+
+  try {
+    await execAsync(
+      `"${operatorPath}" setup --llm-tool "${tool}" --working-dir "${workingDir}" --skip-llm-detection`
+    );
+    vscode.window.showInformationMessage(`Configured ${tool} successfully.`);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    vscode.window.showErrorMessage(`Failed to configure ${tool}: ${msg}`);
+  }
 }
 
 /**

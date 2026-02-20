@@ -15,7 +15,7 @@ import * as fs from 'fs/promises';
 import { TerminalManager } from './terminal-manager';
 import { WebhookServer } from './webhook-server';
 import { TicketTreeProvider, TicketItem } from './ticket-provider';
-import { StatusTreeProvider } from './status-provider';
+import { StatusTreeProvider, StatusItem } from './status-provider';
 import { LaunchManager } from './launch-manager';
 import { showLaunchOptionsDialog, showTicketPicker } from './launch-dialog';
 import { parseTicketMetadata, getCurrentSessionId } from './ticket-parser';
@@ -37,7 +37,30 @@ import {
   configureLinear,
   detectLlmTools,
   openWalkthrough,
+  startKanbanOnboarding,
 } from './walkthrough';
+import { addJiraProject, addLinearTeam } from './kanban-onboarding';
+import { ConfigPanel } from './config-panel';
+import { configFileExists, getResolvedConfigPath } from './config-paths';
+
+/**
+ * Show a notification when config.toml is missing, with a button to open the walkthrough.
+ */
+function showConfigMissingNotification(): void {
+  // Fire notification without awaiting to prevent blocking activation
+  void vscode.window.showInformationMessage(
+    `Operator! could not find configuration ${getResolvedConfigPath() || 'config.toml'}. Run the setup walkthrough to create it and get started`,
+    'Open Setup'
+  ).then((choice) => {
+    if (choice === 'Open Setup') {
+      void vscode.commands.executeCommand(
+        'workbench.action.openWalkthrough',
+        'untra.operator-terminals#operator-setup',
+        true
+      );
+    }
+  });
+}
 
 let terminalManager: TerminalManager;
 let webhookServer: WebhookServer;
@@ -91,7 +114,7 @@ export async function activate(
   context.subscriptions.push(statusBarItem);
 
   // Create TreeView providers (with issue type service)
-  statusProvider = new StatusTreeProvider();
+  statusProvider = new StatusTreeProvider(context);
   inProgressProvider = new TicketTreeProvider('in-progress', issueTypeService, terminalManager);
   queueProvider = new TicketTreeProvider('queue', issueTypeService);
   completedProvider = new TicketTreeProvider('completed', issueTypeService);
@@ -160,13 +183,42 @@ export async function activate(
       'operator.checkKanbanConnection',
       () => checkKanbanConnection(extensionContext)
     ),
-    vscode.commands.registerCommand('operator.configureJira', configureJira),
-    vscode.commands.registerCommand('operator.configureLinear', configureLinear),
+    vscode.commands.registerCommand(
+      'operator.configureJira',
+      () => configureJira(extensionContext)
+    ),
+    vscode.commands.registerCommand(
+      'operator.configureLinear',
+      () => configureLinear(extensionContext)
+    ),
+    vscode.commands.registerCommand(
+      'operator.startKanbanOnboarding',
+      () => startKanbanOnboarding(extensionContext)
+    ),
     vscode.commands.registerCommand(
       'operator.detectLlmTools',
-      () => detectLlmTools(extensionContext)
+      () => detectLlmTools(extensionContext, getOperatorPath)
     ),
-    vscode.commands.registerCommand('operator.openWalkthrough', openWalkthrough)
+    vscode.commands.registerCommand('operator.openWalkthrough', openWalkthrough),
+    vscode.commands.registerCommand('operator.openSettings', () =>
+      ConfigPanel.createOrShow(context.extensionUri)
+    ),
+    vscode.commands.registerCommand(
+      'operator.syncKanbanCollection',
+      syncKanbanCollectionCommand
+    ),
+    vscode.commands.registerCommand(
+      'operator.addJiraProject',
+      (workspaceKey: string) => addJiraProjectCommand(workspaceKey)
+    ),
+    vscode.commands.registerCommand(
+      'operator.addLinearTeam',
+      (workspaceKey: string) => addLinearTeamCommand(workspaceKey)
+    ),
+    vscode.commands.registerCommand(
+      'operator.revealTicketsDir',
+      revealTicketsDirCommand
+    )
   );
 
   // Find tickets directory (check parent first, then workspace)
@@ -184,18 +236,39 @@ export async function activate(
     context.subscriptions.push(watcher);
   }
 
-  // Auto-start if configured
+  // Auto-start if configured and config.toml exists
   const autoStart = vscode.workspace
     .getConfiguration('operator')
     .get('autoStart', true);
   if (autoStart) {
-    await startServer();
+    const hasConfig = await configFileExists();
+    if (hasConfig) {
+      await startServer();
+    } else {
+      showConfigMissingNotification();
+    }
   }
 
   updateStatusBar();
 
   // Set initial context for command visibility
   await updateOperatorContext();
+
+  // Restore working directory from persistent VS Code settings if globalState is empty
+  const configWorkingDir = vscode.workspace.getConfiguration('operator').get<string>('workingDirectory');
+  if (configWorkingDir && !context.globalState.get('operator.workingDirectory')) {
+    await context.globalState.update('operator.workingDirectory', configWorkingDir);
+  }
+
+  // Auto-open walkthrough for new users with no working directory
+  const workingDirectory = context.globalState.get<string>('operator.workingDirectory');
+  if (!workingDirectory) {
+    vscode.commands.executeCommand(
+      'workbench.action.openWalkthrough',
+      'untra.operator-terminals#operator-setup',
+      false
+    );
+  }
 }
 
 /**
@@ -372,6 +445,13 @@ function openTicketFile(filePath: string): void {
  * Start the webhook server
  */
 async function startServer(): Promise<void> {
+  // Require config.toml before starting webhook server
+  const hasConfig = await configFileExists();
+  if (!hasConfig) {
+    showConfigMissingNotification();
+    return;
+  }
+
   if (webhookServer.isRunning()) {
     vscode.window.showInformationMessage(
       'Operator webhook server already running'
@@ -779,6 +859,13 @@ async function downloadOperatorCommand(): Promise<void> {
  * Command: Start Operator API server
  */
 async function startOperatorServerCommand(): Promise<void> {
+  // Ensure config.toml exists before starting the server
+  const hasConfig = await configFileExists();
+  if (!hasConfig) {
+    showConfigMissingNotification();
+    return;
+  }
+
   const operatorPath = await getOperatorPath(extensionContext);
 
   if (!operatorPath) {
@@ -922,9 +1009,9 @@ async function syncKanbanCommand(): Promise<void> {
 /**
  * Command: Approve agent review
  */
-async function approveReviewCommand(agentId?: string): Promise<void> {
+async function approveReviewCommand(agentId: string): Promise<void> {
   const apiClient = new OperatorApiClient();
-
+  let selectedAgentId : string | undefined = agentId;
   try {
     await apiClient.health();
   } catch {
@@ -936,14 +1023,14 @@ async function approveReviewCommand(agentId?: string): Promise<void> {
 
   // If no agent ID provided, show picker for awaiting agents
   if (!agentId) {
-    agentId = await showAwaitingAgentPicker(apiClient);
-    if (!agentId) {
+    selectedAgentId = await showAwaitingAgentPicker(apiClient);
+    if (!selectedAgentId) {
       return;
     }
   }
 
   try {
-    const result = await apiClient.approveReview(agentId);
+    const result = await apiClient.approveReview(selectedAgentId);
     vscode.window.showInformationMessage(result.message);
     await refreshAllProviders();
   } catch (err) {
@@ -955,9 +1042,9 @@ async function approveReviewCommand(agentId?: string): Promise<void> {
 /**
  * Command: Reject agent review
  */
-async function rejectReviewCommand(agentId?: string): Promise<void> {
+async function rejectReviewCommand(agentId: string): Promise<void> {
   const apiClient = new OperatorApiClient();
-
+  let selectedAgentId : string | undefined = agentId;
   try {
     await apiClient.health();
   } catch {
@@ -969,8 +1056,8 @@ async function rejectReviewCommand(agentId?: string): Promise<void> {
 
   // If no agent ID provided, show picker for awaiting agents
   if (!agentId) {
-    agentId = await showAwaitingAgentPicker(apiClient);
-    if (!agentId) {
+    selectedAgentId = await showAwaitingAgentPicker(apiClient);
+    if (!selectedAgentId) {
       return;
     }
   }
@@ -992,7 +1079,7 @@ async function rejectReviewCommand(agentId?: string): Promise<void> {
   }
 
   try {
-    const result = await apiClient.rejectReview(agentId, reason);
+    const result = await apiClient.rejectReview(selectedAgentId, reason);
     vscode.window.showInformationMessage(result.message);
     await refreshAllProviders();
   } catch (err) {
@@ -1050,6 +1137,76 @@ async function showAwaitingAgentPicker(
     vscode.window.showErrorMessage('Failed to fetch agents');
     return undefined;
   }
+}
+
+/**
+ * Command: Sync a specific kanban collection
+ */
+async function syncKanbanCollectionCommand(item: StatusItem): Promise<void> {
+  const provider = item.provider;
+  const projectKey = item.projectKey;
+
+  if (!provider || !projectKey) {
+    vscode.window.showWarningMessage('No collection selected for sync.');
+    return;
+  }
+
+  const apiClient = new OperatorApiClient();
+
+  try {
+    await apiClient.health();
+  } catch {
+    vscode.window.showErrorMessage(
+      'Operator API not running. Start operator first.'
+    );
+    return;
+  }
+
+  try {
+    const result = await apiClient.syncKanbanCollection(provider, projectKey);
+    const createdList = result.created.length > 0
+      ? ` (${result.created.join(', ')})`
+      : '';
+    const message = `Synced ${projectKey}: ${result.created.length} created${createdList}, ${result.skipped.length} skipped`;
+    if (result.errors.length > 0) {
+      vscode.window.showWarningMessage(`${message}, ${result.errors.length} errors`);
+    } else {
+      vscode.window.showInformationMessage(message);
+    }
+    await refreshAllProviders();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    vscode.window.showErrorMessage(`Failed to sync collection: ${msg}`);
+  }
+}
+
+/**
+ * Command: Add a Jira project to an existing workspace
+ */
+async function addJiraProjectCommand(workspaceKey: string): Promise<void> {
+  await addJiraProject(extensionContext, workspaceKey);
+  await refreshAllProviders();
+}
+
+/**
+ * Command: Add a Linear team to an existing workspace
+ */
+async function addLinearTeamCommand(workspaceKey: string): Promise<void> {
+  await addLinearTeam(extensionContext, workspaceKey);
+  await refreshAllProviders();
+}
+
+/**
+ * Command: Reveal .tickets directory in the OS file explorer
+ */
+async function revealTicketsDirCommand(): Promise<void> {
+  if (!currentTicketsDir) {
+    vscode.window.showWarningMessage('No .tickets directory found.');
+    return;
+  }
+
+  const uri = vscode.Uri.file(currentTicketsDir);
+  await vscode.commands.executeCommand('revealFileInOS', uri);
 }
 
 /**

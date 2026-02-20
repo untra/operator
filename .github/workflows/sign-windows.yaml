@@ -1,0 +1,148 @@
+name: Sign Windows Binary
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        description: GitHub Actions artifact name containing the unsigned .exe
+        required: true
+        type: string
+    secrets:
+      AZURE_STORAGE_CONNECTION_STRING:
+        required: true
+      AZ_PIPELINES_PAT:
+        required: true
+      AZ_ORG:
+        required: true
+      AZ_PROJECT:
+        required: true
+      AZ_PIPELINE_DEFINITION_ID:
+        required: true
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    env:
+      BLOB_NAME: ${{ github.run_id }}-${{ inputs.artifact-name }}
+      SIGNED_BLOB_NAME: signed-${{ github.run_id }}-${{ inputs.artifact-name }}
+    steps:
+      - name: Download unsigned artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: unsigned
+
+      - name: Find .exe file
+        id: find-exe
+        run: |
+          EXE_PATH=$(find unsigned -name '*.exe' -type f | head -n 1)
+          if [ -z "$EXE_PATH" ]; then
+            echo "::error::No .exe file found in artifact ${{ inputs.artifact-name }}"
+            exit 1
+          fi
+          EXE_NAME=$(basename "$EXE_PATH")
+          echo "exe_path=$EXE_PATH" >> "$GITHUB_OUTPUT"
+          echo "exe_name=$EXE_NAME" >> "$GITHUB_OUTPUT"
+          echo "Found: $EXE_PATH"
+
+      - name: Upload unsigned binary to Azure Blob
+        run: |
+          az storage blob upload \
+            --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            --container-name signing-stage \
+            --name "$BLOB_NAME" \
+            --file "${{ steps.find-exe.outputs.exe_path }}" \
+            --overwrite
+
+      - name: Trigger Azure Pipeline
+        id: trigger
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -u ":${{ secrets.AZ_PIPELINES_PAT }}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "templateParameters": {
+                "blobName": "'"$BLOB_NAME"'",
+                "signedBlobName": "'"$SIGNED_BLOB_NAME"'"
+              }
+            }' \
+            "https://dev.azure.com/${{ secrets.AZ_ORG }}/${{ secrets.AZ_PROJECT }}/_apis/pipelines/${{ secrets.AZ_PIPELINE_DEFINITION_ID }}/runs?api-version=7.1")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Azure Pipeline trigger failed (HTTP $HTTP_CODE): $BODY"
+            exit 1
+          fi
+
+          BUILD_ID=$(echo "$BODY" | jq -r '.id')
+          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+          echo "Triggered Azure Pipeline build $BUILD_ID"
+
+      - name: Poll for Azure Pipeline completion
+        run: |
+          BUILD_ID=${{ steps.trigger.outputs.build_id }}
+          MAX_ATTEMPTS=40  # 40 × 15s = 10 minutes
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep 15
+
+            RESPONSE=$(curl -s \
+              -u ":${{ secrets.AZ_PIPELINES_PAT }}" \
+              "https://dev.azure.com/${{ secrets.AZ_ORG }}/${{ secrets.AZ_PROJECT }}/_apis/build/builds/${BUILD_ID}?api-version=7.1")
+
+            STATUS=$(echo "$RESPONSE" | jq -r '.status')
+            RESULT=$(echo "$RESPONSE" | jq -r '.result')
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: status=$STATUS result=$RESULT"
+
+            if [ "$STATUS" = "completed" ]; then
+              if [ "$RESULT" = "succeeded" ]; then
+                echo "Azure Pipeline succeeded"
+                exit 0
+              else
+                echo "::error::Azure Pipeline finished with result: $RESULT"
+                exit 1
+              fi
+            fi
+          done
+
+          echo "::error::Azure Pipeline timed out after 10 minutes"
+          exit 1
+
+      - name: Download signed binary
+        run: |
+          mkdir -p signed
+          az storage blob download \
+            --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            --container-name signing-stage \
+            --name "$SIGNED_BLOB_NAME" \
+            --file "signed/${{ steps.find-exe.outputs.exe_name }}"
+
+      - name: Upload signed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: signed/${{ steps.find-exe.outputs.exe_name }}
+          overwrite: true
+
+      - name: Cleanup unsigned blob
+        if: always()
+        run: |
+          az storage blob delete \
+            --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            --container-name signing-stage \
+            --name "$BLOB_NAME" \
+            --delete-snapshots include 2>/dev/null || true
+
+      - name: Cleanup signed blob
+        if: always()
+        run: |
+          az storage blob delete \
+            --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            --container-name signing-stage \
+            --name "$SIGNED_BLOB_NAME" \
+            --delete-snapshots include 2>/dev/null || true

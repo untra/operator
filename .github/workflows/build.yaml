@@ -378,8 +378,26 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}
 
-  release:
+  sign-windows:
     needs: [build, build-opr8r]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        artifact:
+          - operator-windows-x86_64.exe
+          - opr8r-windows-x86_64.exe
+    uses: ./.github/workflows/sign-windows.yaml
+    with:
+      artifact-name: ${{ matrix.artifact }}
+    secrets:
+      AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+      AZ_PIPELINES_PAT: ${{ secrets.AZ_PIPELINES_PAT }}
+      AZ_ORG: ${{ secrets.AZ_ORG }}
+      AZ_PROJECT: ${{ secrets.AZ_PROJECT }}
+      AZ_PIPELINE_DEFINITION_ID: ${{ secrets.AZ_PIPELINE_DEFINITION_ID }}
+
+  release:
+    needs: [build, build-opr8r, sign-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

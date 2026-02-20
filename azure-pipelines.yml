@@ -1,0 +1,66 @@
+trigger: none
+
+parameters:
+  - name: blobName
+    type: string
+  - name: signedBlobName
+    type: string
+
+variables:
+  - group: signing-secrets
+
+pool:
+  vmImage: windows-latest
+
+steps:
+  - task: AzureCLI@2
+    displayName: Download unsigned binary from blob
+    inputs:
+      azureSubscription: signing-service-connection
+      scriptType: ps
+      scriptLocation: inlineScript
+      inlineScript: |
+        az storage blob download `
+          --connection-string "$(AZURE_STORAGE_CONNECTION_STRING)" `
+          --container-name signing-stage `
+          --name "${{ parameters.blobName }}" `
+          --file "$(Build.StagingDirectory)\unsigned.exe"
+
+  - task: AzureCodeSigning@0
+    displayName: Sign with Trusted Signing
+    inputs:
+      ConnectedServiceName: trusted-signing-service-connection
+      AccountEndpoint: $(TrustedSigningEndpoint)
+      CertificateProfileName: $(TrustedSigningProfile)
+      FilesFolder: $(Build.StagingDirectory)
+      FilesFolderFilter: unsigned.exe
+      FileDigest: SHA256
+      TimestampDigest: SHA256
+
+  - task: AzureCLI@2
+    displayName: Upload signed binary to blob
+    inputs:
+      azureSubscription: signing-service-connection
+      scriptType: ps
+      scriptLocation: inlineScript
+      inlineScript: |
+        az storage blob upload `
+          --connection-string "$(AZURE_STORAGE_CONNECTION_STRING)" `
+          --container-name signing-stage `
+          --name "${{ parameters.signedBlobName }}" `
+          --file "$(Build.StagingDirectory)\unsigned.exe" `
+          --overwrite
+
+  - task: PowerShell@2
+    displayName: Verify Authenticode signature
+    inputs:
+      targetType: inline
+      script: |
+        $sig = Get-AuthenticodeSignature "$(Build.StagingDirectory)\unsigned.exe"
+        Write-Host "Signature status: $($sig.Status)"
+        Write-Host "Signer: $($sig.SignerCertificate.Subject)"
+        Write-Host "Timestamp: $($sig.TimeStamperCertificate.Subject)"
+        if ($sig.Status -ne 'Valid') {
+          Write-Error "Authenticode signature is not valid: $($sig.Status)"
+          exit 1
+        }

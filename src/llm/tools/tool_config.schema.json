@@ -151,6 +151,25 @@
         ["--auto-approve", "-y"],
         ["--full-auto"]
       ]
+    },
+    "skill_directories": {
+      "type": "object",
+      "description": "Well-known directories where this tool stores skill/command files. Used for skill discovery across tools.",
+      "properties": {
+        "global": {
+          "type": "array",
+          "description": "Global skill directories (absolute paths, ~ expanded to home). Shared across all projects.",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "project": {
+          "type": "array",
+          "description": "Project-relative skill directories. Resolved relative to working directory.",
+          "items": { "type": "string" },
+          "default": []
+        }
+      },
+      "additionalProperties": false
     }
   },
   "examples": [

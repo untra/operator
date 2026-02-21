@@ -106,6 +106,18 @@ webhook_port = 7009
 # Connection timeout in milliseconds
 connect_timeout_ms = 5000
 
+# Agent delegator configurations
+# Delegators are named {tool, model} pairings for autonomous ticket launching
+# [[delegators]]
+# name = "claude-opus-auto"
+# llm_tool = "claude"
+# model = "opus"
+# display_name = "Claude Opus (Auto)"
+# [delegators.launch_config]
+# yolo = true
+# permission_mode = "delegate"
+# flags = []
+
 [version_check]
 # Enable automatic version checking on startup
 enabled = true

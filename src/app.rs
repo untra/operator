@@ -2389,6 +2389,7 @@ mod tests {
                     ..Default::default()
                 }],
                 detection_complete: true,
+                skill_directory_overrides: std::collections::HashMap::new(),
             },
             // Disable notifications in tests
             notifications: crate::config::NotificationsConfig {

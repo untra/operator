@@ -29,16 +29,18 @@ use operator::api::providers::kanban::{
     JiraProjectStatus, JiraSearchResponse, JiraStatus, JiraStatusRef, JiraUser,
 };
 use operator::config::{
-    AgentsConfig, ApiConfig, BackstageConfig, BrandingConfig, CollectionPreset, Config,
-    DetectedTool, DockerConfig, LaunchConfig, LlmProvider, LlmToolsConfig, LoggingConfig,
-    NotificationsConfig, PanelNamesConfig, PathsConfig, QueueConfig, RestApiConfig,
-    TemplatesConfig, ThemeColors, TmuxConfig, ToolCapabilities, UiConfig, YoloConfig,
+    AgentsConfig, ApiConfig, BackstageConfig, BrandingConfig, CollectionPreset, Config, Delegator,
+    DelegatorLaunchConfig, DetectedTool, DockerConfig, LaunchConfig, LlmProvider, LlmToolsConfig,
+    LoggingConfig, NotificationsConfig, PanelNamesConfig, PathsConfig, QueueConfig, RestApiConfig,
+    SkillDirectoriesOverride, TemplatesConfig, ThemeColors, TmuxConfig, ToolCapabilities, UiConfig,
+    YoloConfig,
 };
 use operator::queue::LlmTask;
 use operator::rest::dto::{
-    CollectionResponse, CreateFieldRequest, CreateIssueTypeRequest, CreateStepRequest,
-    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, StatusResponse,
-    StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    CollectionResponse, CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest,
+    CreateStepRequest, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
+    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, SkillEntry, SkillsResponse,
+    StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
 };
 use operator::state::{AgentState, CompletedTicket, State};
 use operator::types::{
@@ -111,6 +113,9 @@ fn generate_typescript() -> String {
         DetectedTool::decl(),
         ToolCapabilities::decl(),
         LlmProvider::decl(),
+        SkillDirectoriesOverride::decl(),
+        Delegator::decl(),
+        DelegatorLaunchConfig::decl(),
         CollectionPreset::decl(),
         TemplatesConfig::decl(),
         LoggingConfig::decl(),
@@ -132,6 +137,14 @@ fn generate_typescript() -> String {
         CollectionResponse::decl(),
         HealthResponse::decl(),
         StatusResponse::decl(),
+        // Skills DTOs
+        SkillEntry::decl(),
+        SkillsResponse::decl(),
+        // Delegator DTOs
+        DelegatorResponse::decl(),
+        DelegatorsResponse::decl(),
+        CreateDelegatorRequest::decl(),
+        DelegatorLaunchConfigDto::decl(),
         // Queue types (src/queue/ticket.rs)
         LlmTask::decl(),
         // Jira API types (src/api/providers/kanban/jira.rs)

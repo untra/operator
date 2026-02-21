@@ -41,6 +41,9 @@ pub struct Config {
     /// Version check configuration for automatic update notifications
     #[serde(default)]
     pub version_check: VersionCheckConfig,
+    /// Agent delegator configurations for autonomous ticket launching
+    #[serde(default)]
+    pub delegators: Vec<Delegator>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -678,6 +681,10 @@ pub struct LlmToolsConfig {
     /// Whether detection has been completed
     #[serde(default)]
     pub detection_complete: bool,
+
+    /// Per-tool overrides for skill directories (keyed by tool_name)
+    #[serde(default)]
+    pub skill_directory_overrides: std::collections::HashMap<String, SkillDirectoriesOverride>,
 }
 
 /// A detected CLI tool (e.g., claude binary)
@@ -758,6 +765,57 @@ pub struct LlmProvider {
     /// Sandbox mode (Codex: "danger-full-access", "workspace-write")
     #[serde(default)]
     pub sandbox: Option<String>,
+}
+
+/// Per-tool skill directory overrides
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct SkillDirectoriesOverride {
+    /// Additional global skill directories
+    #[serde(default)]
+    pub global: Vec<String>,
+    /// Additional project-relative skill directories
+    #[serde(default)]
+    pub project: Vec<String>,
+}
+
+/// Agent delegator configuration for autonomous ticket launching
+///
+/// A delegator is a named {tool, model} pairing with optional launch configuration
+/// that can be used to launch agents for tickets.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct Delegator {
+    /// Unique name for this delegator (e.g., "claude-opus-auto")
+    pub name: String,
+    /// LLM tool name (must match a detected tool, e.g., "claude", "codex")
+    pub llm_tool: String,
+    /// Model alias (e.g., "opus", "sonnet", "gpt-4o")
+    pub model: String,
+    /// Optional display name for UI
+    #[serde(default)]
+    pub display_name: Option<String>,
+    /// Arbitrary model properties (e.g., reasoning_effort, sandbox)
+    #[serde(default)]
+    pub model_properties: std::collections::HashMap<String, String>,
+    /// Optional launch configuration
+    #[serde(default)]
+    pub launch_config: Option<DelegatorLaunchConfig>,
+}
+
+/// Launch configuration for a delegator
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct DelegatorLaunchConfig {
+    /// Run in YOLO (auto-accept) mode
+    #[serde(default)]
+    pub yolo: bool,
+    /// Permission mode override
+    #[serde(default)]
+    pub permission_mode: Option<String>,
+    /// Additional CLI flags
+    #[serde(default)]
+    pub flags: Vec<String>,
 }
 
 /// Predefined issue type collections
@@ -1348,6 +1406,7 @@ impl Default for Config {
             git: GitConfig::default(),
             kanban: KanbanConfig::default(),
             version_check: VersionCheckConfig::default(),
+            delegators: Vec::new(),
         }
     }
 }
@@ -1374,6 +1433,36 @@ mod tests {
         assert!(types.contains(&"TASK".to_string()));
         assert!(types.contains(&"FEAT".to_string()));
         assert!(types.contains(&"FIX".to_string()));
+    }
+
+    #[test]
+    fn test_delegator_serde_roundtrip() {
+        let delegator = Delegator {
+            name: "claude-opus-auto".to_string(),
+            llm_tool: "claude".to_string(),
+            model: "opus".to_string(),
+            display_name: Some("Claude Opus Auto".to_string()),
+            model_properties: std::collections::HashMap::new(),
+            launch_config: Some(DelegatorLaunchConfig {
+                yolo: true,
+                permission_mode: Some("delegate".to_string()),
+                flags: vec!["--verbose".to_string()],
+            }),
+        };
+
+        let json = serde_json::to_string(&delegator).unwrap();
+        let parsed: Delegator = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, "claude-opus-auto");
+        assert_eq!(parsed.llm_tool, "claude");
+        assert_eq!(parsed.model, "opus");
+        assert!(parsed.launch_config.unwrap().yolo);
+    }
+
+    #[test]
+    fn test_skill_directories_override_default() {
+        let override_config = SkillDirectoriesOverride::default();
+        assert!(override_config.global.is_empty());
+        assert!(override_config.project.is_empty());
     }
 
     #[test]

@@ -881,6 +881,104 @@ pub struct AssessTicketResponse {
     pub project_name: String,
 }
 
+// =============================================================================
+// Skills DTOs
+// =============================================================================
+
+/// A single discovered skill file
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct SkillEntry {
+    /// Tool this skill belongs to (e.g., "claude", "codex")
+    pub tool_name: String,
+    /// Filename of the skill (e.g., "commit.md")
+    pub filename: String,
+    /// Full path to the skill file
+    pub file_path: String,
+    /// Scope: "global" or "project"
+    pub scope: String,
+}
+
+/// Response for skills listing
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct SkillsResponse {
+    /// List of discovered skills
+    pub skills: Vec<SkillEntry>,
+    /// Total count
+    pub total: usize,
+}
+
+// =============================================================================
+// Delegator DTOs
+// =============================================================================
+
+/// Response for a single delegator
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct DelegatorResponse {
+    /// Unique name
+    pub name: String,
+    /// LLM tool name (e.g., "claude")
+    pub llm_tool: String,
+    /// Model alias (e.g., "opus")
+    pub model: String,
+    /// Optional display name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    /// Arbitrary model properties
+    pub model_properties: std::collections::HashMap<String, String>,
+    /// Optional launch configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub launch_config: Option<DelegatorLaunchConfigDto>,
+}
+
+/// Request to create a new delegator
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct CreateDelegatorRequest {
+    /// Unique name for the delegator
+    pub name: String,
+    /// LLM tool name (must match a detected tool)
+    pub llm_tool: String,
+    /// Model alias
+    pub model: String,
+    /// Optional display name
+    #[serde(default)]
+    pub display_name: Option<String>,
+    /// Arbitrary model properties
+    #[serde(default)]
+    pub model_properties: std::collections::HashMap<String, String>,
+    /// Optional launch configuration
+    #[serde(default)]
+    pub launch_config: Option<DelegatorLaunchConfigDto>,
+}
+
+/// Launch configuration DTO for delegators
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct DelegatorLaunchConfigDto {
+    /// Run in YOLO mode
+    #[serde(default)]
+    pub yolo: bool,
+    /// Permission mode override
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub permission_mode: Option<String>,
+    /// Additional CLI flags
+    #[serde(default)]
+    pub flags: Vec<String>,
+}
+
+/// Response listing all delegators
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct DelegatorsResponse {
+    /// List of delegators
+    pub delegators: Vec<DelegatorResponse>,
+    /// Total count
+    pub total: usize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -70,6 +70,7 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
                 ..Default::default()
             }],
             detection_complete: true,
+            skill_directory_overrides: std::collections::HashMap::new(),
         },
         // Disable notifications in tests to avoid DBus requirement on Linux CI
         notifications: crate::config::NotificationsConfig {

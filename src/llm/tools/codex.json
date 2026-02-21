@@ -1,4 +1,5 @@
 {
+  "$schema": "tool_config.schema.json",
   "tool_name": "codex",
   "display_name": "OpenAI Codex",
   "version_command": "codex --version",
@@ -18,9 +19,8 @@
   },
   "command_template": "codex exec {{config_flags}}-m {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
   "yolo_flags": ["--full-auto"],
-  "idle_detection": {
-    "idle_patterns": ["^>\\s*$", "^\\$\\s*$"],
-    "activity_patterns": ["Thinking", "Working", "Waiting", "⠋", "⠙", "⠹", "⠸"],
-    "hook_config": null
+  "skill_directories": {
+    "global": [],
+    "project": [".codex/", "AGENTS.md"]
   }
 }

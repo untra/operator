@@ -2,6 +2,7 @@
 import type { AgentsConfig } from "./AgentsConfig";
 import type { ApiConfig } from "./ApiConfig";
 import type { BackstageConfig } from "./BackstageConfig";
+import type { Delegator } from "./Delegator";
 import type { GitConfig } from "./GitConfig";
 import type { KanbanConfig } from "./KanbanConfig";
 import type { LaunchConfig } from "./LaunchConfig";
@@ -33,4 +34,8 @@ kanban: KanbanConfig,
 /**
  * Version check configuration for automatic update notifications
  */
-version_check: VersionCheckConfig, };
+version_check: VersionCheckConfig, 
+/**
+ * Agent delegator configurations for autonomous ticket launching
+ */
+delegators: Array<Delegator>, };

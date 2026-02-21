@@ -3,9 +3,11 @@
 use utoipa::OpenApi;
 
 use crate::rest::dto::{
-    CollectionResponse, CreateFieldRequest, CreateIssueTypeRequest, CreateStepRequest,
+    CollectionResponse, CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest,
+    CreateStepRequest, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
     FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, LaunchTicketRequest,
-    LaunchTicketResponse, StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    LaunchTicketResponse, SkillEntry, SkillsResponse, StatusResponse, StepResponse,
+    UpdateIssueTypeRequest, UpdateStepRequest,
 };
 use crate::rest::error::ErrorResponse;
 
@@ -43,6 +45,13 @@ use crate::rest::error::ErrorResponse;
         crate::rest::routes::collections::activate,
         // Launch endpoints
         crate::rest::routes::launch::launch_ticket,
+        // Skills endpoints
+        crate::rest::routes::skills::list,
+        // Delegator endpoints
+        crate::rest::routes::delegators::list,
+        crate::rest::routes::delegators::get_one,
+        crate::rest::routes::delegators::create,
+        crate::rest::routes::delegators::delete,
     ),
     components(
         schemas(
@@ -63,6 +72,14 @@ use crate::rest::error::ErrorResponse;
             CreateStepRequest,
             UpdateStepRequest,
             LaunchTicketRequest,
+            // Skills types
+            SkillEntry,
+            SkillsResponse,
+            // Delegator types
+            DelegatorResponse,
+            DelegatorsResponse,
+            CreateDelegatorRequest,
+            DelegatorLaunchConfigDto,
         )
     ),
     tags(
@@ -71,6 +88,8 @@ use crate::rest::error::ErrorResponse;
         (name = "Steps", description = "Step management within issue types"),
         (name = "Collections", description = "Issue type collection management"),
         (name = "Launch", description = "Ticket launch operations"),
+        (name = "Skills", description = "Skill discovery across LLM tools"),
+        (name = "Delegators", description = "Agent delegator CRUD operations"),
     )
 )]
 pub struct ApiDoc;

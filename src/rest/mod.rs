@@ -109,6 +109,16 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/tickets/:id/steps/:step/complete",
             post(routes::launch::complete_step),
         )
+        // Skills endpoint
+        .route("/api/v1/skills", get(routes::skills::list))
+        // Delegator endpoints
+        .route("/api/v1/delegators", get(routes::delegators::list))
+        .route("/api/v1/delegators", post(routes::delegators::create))
+        .route("/api/v1/delegators/:name", get(routes::delegators::get_one))
+        .route(
+            "/api/v1/delegators/:name",
+            delete(routes::delegators::delete),
+        )
         .layer(
             TraceLayer::new_for_http()
                 .on_request(DefaultOnRequest::new().level(Level::INFO))

@@ -41,6 +41,17 @@ pub struct HookConfig {
     pub settings_path: String,
 }
 
+/// Well-known directories where a tool stores skill/command files
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SkillDirectories {
+    /// Global directories (absolute paths, ~ expanded to home)
+    #[serde(default)]
+    pub global: Vec<String>,
+    /// Project-relative directories
+    #[serde(default)]
+    pub project: Vec<String>,
+}
+
 /// Configuration for idle state detection
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct IdleDetectionConfig {
@@ -83,6 +94,9 @@ pub struct ToolConfig {
     /// Configuration for idle/awaiting state detection
     #[serde(default)]
     pub idle_detection: Option<IdleDetectionConfig>,
+    /// Well-known directories for skill/command files
+    #[serde(default)]
+    pub skill_directories: Option<SkillDirectories>,
 }
 
 impl ToolConfig {
@@ -178,5 +192,41 @@ mod tests {
         let configs = load_all_tool_configs();
         let claude = configs.iter().find(|c| c.tool_name == "claude").unwrap();
         assert_eq!(claude.display_name(), "Claude Code");
+    }
+
+    #[test]
+    fn test_skill_directories_claude() {
+        let configs = load_all_tool_configs();
+        let claude = configs.iter().find(|c| c.tool_name == "claude").unwrap();
+        let dirs = claude
+            .skill_directories
+            .as_ref()
+            .expect("claude should have skill_directories");
+        assert_eq!(dirs.global, vec!["~/.claude/commands/"]);
+        assert_eq!(dirs.project, vec![".claude/commands/"]);
+    }
+
+    #[test]
+    fn test_skill_directories_codex() {
+        let configs = load_all_tool_configs();
+        let codex = configs.iter().find(|c| c.tool_name == "codex").unwrap();
+        let dirs = codex
+            .skill_directories
+            .as_ref()
+            .expect("codex should have skill_directories");
+        assert!(dirs.global.is_empty());
+        assert_eq!(dirs.project, vec![".codex/", "AGENTS.md"]);
+    }
+
+    #[test]
+    fn test_skill_directories_gemini() {
+        let configs = load_all_tool_configs();
+        let gemini = configs.iter().find(|c| c.tool_name == "gemini").unwrap();
+        let dirs = gemini
+            .skill_directories
+            .as_ref()
+            .expect("gemini should have skill_directories");
+        assert!(dirs.global.is_empty());
+        assert_eq!(dirs.project, vec![".gemini/"]);
     }
 }

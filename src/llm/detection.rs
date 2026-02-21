@@ -35,6 +35,7 @@ pub fn detect_all_tools() -> LlmToolsConfig {
         detected,
         providers,
         detection_complete: true,
+        skill_directory_overrides: std::collections::HashMap::new(),
     }
 }
 

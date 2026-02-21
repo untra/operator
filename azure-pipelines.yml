@@ -3,8 +3,10 @@ trigger: none
 parameters:
   - name: blobName
     type: string
+    default: ''
   - name: signedBlobName
     type: string
+    default: ''
 
 variables:
   - group: signing-secrets
@@ -26,15 +28,19 @@ steps:
           --name "${{ parameters.blobName }}" `
           --file "$(Build.StagingDirectory)\unsigned.exe"
 
-  - task: AzureCodeSigning@0
+  - task: ArtifactSigning@0
     displayName: Sign with Trusted Signing
     inputs:
-      ConnectedServiceName: trusted-signing-service-connection
-      AccountEndpoint: $(TrustedSigningEndpoint)
-      CertificateProfileName: $(TrustedSigningProfile)
+      AzureTenantID: $(AzureTenantID)
+      AzureClientID: $(AzureClientID)
+      AzureClientSecret: $(AzureClientSecret)
+      Endpoint: https://ncus.codesigning.azure.net
+      ArtifactSigningAccountName: $(TrustedSigningAccountName)
+      CertificateProfileName: Operator
       FilesFolder: $(Build.StagingDirectory)
-      FilesFolderFilter: unsigned.exe
+      FilesFolderFilter: exe
       FileDigest: SHA256
+      TimestampRfc3161: http://timestamp.acs.microsoft.com
       TimestampDigest: SHA256
 
   - task: AzureCLI@2

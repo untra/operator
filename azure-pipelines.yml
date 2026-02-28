@@ -29,7 +29,7 @@ steps:
           --name "${{ parameters.blobName }}" `
           --file "$(Build.StagingDirectory)\unsigned.exe"
 
-  - task: ArtifactSigning@0
+  - task: ArtifactSigning@1
     displayName: Sign with Trusted Signing
     inputs:
       AzureTenantID: $(AzureTenantID)

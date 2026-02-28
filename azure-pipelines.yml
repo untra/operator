@@ -16,13 +16,11 @@ pool:
   vmImage: windows-latest
 
 steps:
-  - task: AzureCLI@2
+  - task: PowerShell@2
     displayName: Download unsigned binary from blob
     inputs:
-      azureSubscription: signing-service-connection
-      scriptType: ps
-      scriptLocation: inlineScript
-      inlineScript: |
+      targetType: inline
+      script: |
         az storage blob download `
           --connection-string "$(AZURE_STORAGE_CONNECTION_STRING)" `
           --container-name signing-stage `
@@ -44,13 +42,11 @@ steps:
       TimestampRfc3161: http://timestamp.acs.microsoft.com
       TimestampDigest: SHA256
 
-  - task: AzureCLI@2
+  - task: PowerShell@2
     displayName: Upload signed binary to blob
     inputs:
-      azureSubscription: signing-service-connection
-      scriptType: ps
-      scriptLocation: inlineScript
-      inlineScript: |
+      targetType: inline
+      script: |
         az storage blob upload `
           --connection-string "$(AZURE_STORAGE_CONNECTION_STRING)" `
           --container-name signing-stage `

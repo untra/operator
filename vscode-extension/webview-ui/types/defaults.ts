@@ -86,6 +86,7 @@ const DEFAULT_CONFIG: Config = {
     detected: [],
     providers: [],
     detection_complete: false,
+    skill_directory_overrides: {},
   },
   backstage: {
     enabled: false,
@@ -129,6 +130,7 @@ const DEFAULT_CONFIG: Config = {
     url: null,
     timeout_secs: BigInt(10),
   },
+  delegators: [],
 };
 
 export const DEFAULT_WEBVIEW_CONFIG: WebviewConfig = {

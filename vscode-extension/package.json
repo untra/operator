@@ -2,7 +2,7 @@
   "name": "operator-terminals",
   "displayName": "Operator! Terminals for vscode",
   "description": "VS Code terminal integration for Operator! multi-agent orchestration",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "publisher": "untra",
   "author": {
     "name": "Samuel Volin",
@@ -285,7 +285,10 @@
         "when": "!operator.workingDirectorySet",
         "description": "Configure Operator! to orchestrate LLM coding agents across many code repositories",
         "icon": "images/operator-icon-128.png",
-        "featuredFor": ["CLAUDE.md", "AGENTS.md"],
+        "featuredFor": [
+          "CLAUDE.md",
+          "AGENTS.md"
+        ],
         "steps": [
           {
             "id": "download-operator",

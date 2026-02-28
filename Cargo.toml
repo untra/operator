@@ -1,6 +1,6 @@
 [package]
 name = "operator"
-version = "0.1.21"
+version = "0.1.22"
 edition = "2021"
 description = "Multi-agent orchestration dashboard for gbqr.us"
 authors = ["gbqr.us"]

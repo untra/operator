@@ -43,6 +43,9 @@ jobs:
       - name: Compile
         run: npm run compile
 
+      - name: Compile webview
+        run: npm run compile:webview
+
       - name: Run tests with coverage
         run: xvfb-run -a npm run test:coverage
         env:

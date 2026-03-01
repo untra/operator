@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Provider Support | Operator! Documentation</title>
+  <meta name="description" content="Architecture guide for adding new Git provider integrations.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Provider Support | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Provider Support" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Architecture guide for adding new Git provider integrations." />
+<meta property="og:description" content="Architecture guide for adding new Git provider integrations." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/git/provider-support/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/git/provider-support/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Provider Support" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Architecture guide for adding new Git provider integrations.","headline":"Provider Support","url":"https://operator.untra.io/getting-started/git/provider-support/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/claude-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/claude-dark.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/codex-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/codex-dark.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/gemini-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/gemini-dark.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/jira-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/jira-dark.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/linear-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/linear-dark.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/github-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/github-dark.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/webhook-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/webhook-dark.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/notification-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/notification-dark.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/tmux-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/tmux-dark.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/vscode-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/vscode-dark.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/agents/" >Agents</a>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Backstage</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/git/provider-support.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.26</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-03-01</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Provider Support</h1>
+  
+
+  <h1 id="provider-support">Provider Support</h1>
+
+<p>This guide explains how Operator integrates with Git hosting providers and how to add support for new providers.</p>
+
+<h2 id="architecture-overview">Architecture Overview</h2>
+
+<p>Operator uses a trait-based architecture for Git provider support:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>┌─────────────────────────────────────────┐
+│            PrService trait              │
+│  (get_pr, is_ready_to_merge, etc.)     │
+├─────────────────────────────────────────┤
+│  GitHubService  │  NewProviderService  │
+├─────────────────────────────────────────┤
+│     GhCli       │    ProviderCli       │
+│   (gh binary)   │   (cli binary)       │
+└─────────────────────────────────────────┘
+</code></pre></div></div>
+
+<h2 id="implementation-approaches">Implementation Approaches</h2>
+
+<h3 id="cli-based-recommended">CLI-Based (Recommended)</h3>
+
+<p>Uses the provider’s official CLI tool:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Provider</th>
+      <th>CLI Tool</th>
+      <th>Install</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>GitHub</td>
+      <td><code class="language-plaintext highlighter-rouge">gh</code></td>
+      <td><code class="language-plaintext highlighter-rouge">brew install gh</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Advantages:</strong></p>
+<ul>
+  <li>Built-in authentication management</li>
+  <li>OAuth flows handled by CLI</li>
+  <li>Credentials stored securely in system keychain</li>
+  <li>Consistent behavior with official tooling</li>
+</ul>
+
+<p><strong>Disadvantages:</strong></p>
+<ul>
+  <li>Requires external binary installation</li>
+  <li>May have version compatibility concerns</li>
+</ul>
+
+<h3 id="api-based">API-Based</h3>
+
+<p>Direct REST/GraphQL API calls:</p>
+
+<p><strong>Advantages:</strong></p>
+<ul>
+  <li>No external dependencies</li>
+  <li>Fine-grained control</li>
+  <li>Works in restricted environments</li>
+</ul>
+
+<p><strong>Disadvantages:</strong></p>
+<ul>
+  <li>Manual token management</li>
+  <li>Must implement OAuth flows</li>
+  <li>API versioning complexity</li>
+</ul>
+
+<h2 id="core-traits">Core Traits</h2>
+
+<h3 id="prservice">PrService</h3>
+
+<p>Provider-agnostic interface for PR/MR operations:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[async_trait]</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="n">PrService</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="nb">Sync</span> <span class="p">{</span>
+    <span class="cd">/// Get PR/MR information</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_pr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">i64</span><span class="p">)</span>
+        <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">PullRequestInfo</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Check if PR/MR is ready to merge</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">is_ready_to_merge</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">i64</span><span class="p">)</span>
+        <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">bool</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Get review/approval state</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_review_state</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">i64</span><span class="p">)</span>
+        <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">ReviewState</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Create a new PR/MR</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">create_pr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CreatePrRequest</span><span class="p">)</span>
+        <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">PullRequestInfo</span><span class="p">,</span> <span class="n">CreatePrError</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="repoprovider">RepoProvider</h3>
+
+<p>For status tracking and CI integration:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[async_trait]</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="n">RepoProvider</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="nb">Sync</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">name</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">is_configured</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">bool</span><span class="p">;</span>
+
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_pr_status</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">u64</span><span class="p">)</span>
+        <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">PrStatus</span><span class="p">,</span> <span class="n">ApiError</span><span class="o">&gt;</span><span class="p">;</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_check_runs</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">,</span> <span class="n">ref_sha</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span>
+        <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">CheckStatus</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">ApiError</span><span class="o">&gt;</span><span class="p">;</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">test_connection</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="n">ApiError</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="adding-a-new-provider">Adding a New Provider</h2>
+
+<h3 id="1-create-cli-wrapper-if-cli-based">1. Create CLI Wrapper (if CLI-based)</h3>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// src/api/newprovider_cli.rs</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">NewProviderCli</span><span class="p">;</span>
+
+<span class="k">impl</span> <span class="n">NewProviderCli</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">async</span> <span class="k">fn</span> <span class="nf">is_installed</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="nb">bool</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+    <span class="k">pub</span> <span class="k">async</span> <span class="k">fn</span> <span class="nf">check_auth</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">bool</span><span class="o">&gt;</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+    <span class="k">pub</span> <span class="k">async</span> <span class="k">fn</span> <span class="nf">create_pr</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">PullRequestInfo</span><span class="o">&gt;</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="2-implement-prservice">2. Implement PrService</h3>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// src/api/newprovider_service.rs</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">NewProviderService</span> <span class="p">{</span>
+    <span class="n">cli</span><span class="p">:</span> <span class="n">NewProviderCli</span><span class="p">,</span>
+    <span class="c1">// or api_client for API-based</span>
+<span class="p">}</span>
+
+<span class="nd">#[async_trait]</span>
+<span class="k">impl</span> <span class="n">PrService</span> <span class="k">for</span> <span class="n">NewProviderService</span> <span class="p">{</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_pr</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">PullRequestInfo</span><span class="o">&gt;</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+    <span class="c1">// ... other methods</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="3-implement-repoprovider">3. Implement RepoProvider</h3>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// src/api/providers/repo/newprovider.rs</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">NewProviderProvider</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+
+<span class="nd">#[async_trait]</span>
+<span class="k">impl</span> <span class="n">RepoProvider</span> <span class="k">for</span> <span class="n">NewProviderProvider</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="4-add-configuration">4. Add Configuration</h3>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// src/config.rs</span>
+<span class="nd">#[derive(Debug,</span> <span class="nd">Clone,</span> <span class="nd">Deserialize)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">NewProviderConfig</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">token_env</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">host</span><span class="p">:</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="5-register-provider">5. Register Provider</h3>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// src/api/providers/mod.rs</span>
+<span class="k">pub</span> <span class="k">fn</span> <span class="nf">create_pr_service</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Config</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span> <span class="n">PrService</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">match</span> <span class="n">config</span><span class="py">.git.provider</span> <span class="p">{</span>
+        <span class="nn">GitProvider</span><span class="p">::</span><span class="n">GitHub</span> <span class="k">=&gt;</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">GitHubService</span><span class="p">::</span><span class="nf">new</span><span class="p">()),</span>
+        <span class="nn">GitProvider</span><span class="p">::</span><span class="n">NewProvider</span> <span class="k">=&gt;</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">NewProviderService</span><span class="p">::</span><span class="nf">new</span><span class="p">()),</span>
+        <span class="c1">// ...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="6-add-tests">6. Add Tests</h3>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// tests/providers/newprovider_test.rs</span>
+<span class="nd">#[tokio::test]</span>
+<span class="k">async</span> <span class="k">fn</span> <span class="nf">test_newprovider_create_pr</span><span class="p">()</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="terminology-mapping">Terminology Mapping</h2>
+
+<p>Different providers use different terminology for similar concepts:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Concept</th>
+      <th>GitHub</th>
+      <th>Other Providers</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Code Review Request</td>
+      <td>Pull Request</td>
+      <td>Merge Request, Pull Request</td>
+    </tr>
+    <tr>
+      <td>CI Status</td>
+      <td>Checks</td>
+      <td>Pipelines, Builds</td>
+    </tr>
+    <tr>
+      <td>CI Automation</td>
+      <td>Actions</td>
+      <td>CI/CD, Pipelines</td>
+    </tr>
+    <tr>
+      <td>Approval</td>
+      <td>Review</td>
+      <td>Approval, Review</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="provider-detection">Provider Detection</h2>
+
+<p>Operator auto-detects the provider from git remote URLs:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="nf">detect_provider</span><span class="p">(</span><span class="n">remote_url</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">GitProvider</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="n">remote_url</span><span class="nf">.contains</span><span class="p">(</span><span class="s">"github.com"</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nf">Some</span><span class="p">(</span><span class="nn">GitProvider</span><span class="p">::</span><span class="n">GitHub</span><span class="p">)</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="c1">// Future providers can be detected here</span>
+        <span class="nb">None</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="shared-vs-provider-specific-config">Shared vs Provider-Specific Config</h2>
+
+<h3 id="shared-configuration">Shared Configuration</h3>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">git</span><span class="k">]</span>
+<span class="n">provider</span> <span class="o">=</span><span class="w"> </span><span class="s">"github"</span>  <span class="c"># Auto-detected if not specified</span>
+<span class="n">branch_format</span> <span class="o">=</span><span class="w"> </span><span class="s">"{type}/{ticket_id}-{slug}"</span>
+</code></pre></div></div>
+
+<h3 id="provider-specific">Provider-Specific</h3>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">git</span><span class="k">.</span><span class="n">github</span><span class="k">]</span>
+<span class="n">token_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"GITHUB_TOKEN"</span>
+</code></pre></div></div>
+
+<h2 id="testing-guidelines">Testing Guidelines</h2>
+
+<ol>
+  <li><strong>Unit tests</strong>: Mock CLI output / API responses</li>
+  <li><strong>Integration tests</strong>: Use test repositories (opt-in, requires tokens)</li>
+  <li><strong>Mock responses</strong>: Store in <code class="language-plaintext highlighter-rouge">tests/fixtures/providers/</code></li>
+</ol>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[test]</span>
+<span class="k">fn</span> <span class="nf">test_parse_pr_response</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">json</span> <span class="o">=</span> <span class="nd">include_str!</span><span class="p">(</span><span class="s">"../fixtures/providers/github_pr.json"</span><span class="p">);</span>
+    <span class="k">let</span> <span class="n">pr</span><span class="p">:</span> <span class="n">PullRequestInfo</span> <span class="o">=</span> <span class="nn">serde_json</span><span class="p">::</span><span class="nf">from_str</span><span class="p">(</span><span class="n">json</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">pr</span><span class="py">.state</span><span class="p">,</span> <span class="nn">PrState</span><span class="p">::</span><span class="n">Open</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+</article>
+
+  </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

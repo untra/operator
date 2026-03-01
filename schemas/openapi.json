@@ -1,0 +1,1681 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Operator API",
+    "description": "REST API for managing issue types and collections in the Operator system.",
+    "contact": {
+      "name": "gbqr.us",
+      "url": "https://github.com/untra/operator"
+    },
+    "license": {
+      "name": "MIT"
+    },
+    "version": "0.1.26"
+  },
+  "paths": {
+    "/api/v1/collections": {
+      "get": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "List all collections",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "List of all collections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/active": {
+      "get": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "Get the currently active collection",
+        "operationId": "get_active",
+        "responses": {
+          "200": {
+            "description": "Active collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{name}": {
+      "get": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "Get a single collection by name",
+        "operationId": "get_one",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Collection name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{name}/activate": {
+      "put": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "Activate a collection",
+        "operationId": "activate",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Collection name to activate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/delegators": {
+      "get": {
+        "tags": [
+          "Delegators"
+        ],
+        "summary": "List all configured delegators",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "List of delegators",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegatorsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Delegators"
+        ],
+        "summary": "Create a new delegator",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDelegatorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Delegator created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegatorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Delegator already exists"
+          }
+        }
+      }
+    },
+    "/api/v1/delegators/{name}": {
+      "get": {
+        "tags": [
+          "Delegators"
+        ],
+        "summary": "Get a single delegator by name",
+        "operationId": "get_one",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Delegator name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delegator details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegatorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Delegator not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Delegators"
+        ],
+        "summary": "Delete a delegator by name",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Delegator name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delegator deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegatorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Delegator not found"
+          }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health check endpoint",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/issuetypes": {
+      "get": {
+        "tags": [
+          "Issue Types"
+        ],
+        "summary": "List all issue types",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "List of all issue types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IssueTypeSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Issue Types"
+        ],
+        "summary": "Create a new issue type",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIssueTypeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Issue type created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueTypeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Issue type already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/issuetypes/{key}": {
+      "get": {
+        "tags": [
+          "Issue Types"
+        ],
+        "summary": "Get a single issue type by key",
+        "operationId": "get_one",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key (e.g., FEAT, FIX)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Issue type details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueTypeResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Issue Types"
+        ],
+        "summary": "Update an existing issue type",
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIssueTypeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Issue type updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueTypeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cannot modify builtin type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Issue Types"
+        ],
+        "summary": "Delete an issue type",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Issue type deleted"
+          },
+          "403": {
+            "description": "Cannot delete builtin type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/issuetypes/{key}/steps": {
+      "get": {
+        "tags": [
+          "Steps"
+        ],
+        "summary": "List all steps for an issue type",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of steps",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StepResponse"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/issuetypes/{key}/steps/{step_name}": {
+      "get": {
+        "tags": [
+          "Steps"
+        ],
+        "summary": "Get a single step by name",
+        "operationId": "get_one",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "step_name",
+            "in": "path",
+            "description": "Step name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Step details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type or step not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Steps"
+        ],
+        "summary": "Update a step",
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "step_name",
+            "in": "path",
+            "description": "Step name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStepRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Step updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cannot modify builtin type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type or step not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/skills": {
+      "get": {
+        "tags": [
+          "Skills"
+        ],
+        "summary": "List all discovered skills across LLM tools",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "List of discovered skill files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Get service status with registry info",
+        "operationId": "status",
+        "responses": {
+          "200": {
+            "description": "Service status with registry info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{id}/launch": {
+      "post": {
+        "tags": [
+          "Launch"
+        ],
+        "summary": "Launch a ticket from the queue",
+        "description": "Claims the ticket, sets up worktree if needed, generates the LLM command,\nand returns all details needed to execute in an external terminal (VS Code, etc.).",
+        "operationId": "launch_ticket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Ticket ID to launch",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchTicketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Ticket launched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchTicketResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Ticket not found"
+          },
+          "409": {
+            "description": "Ticket already in progress"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CollectionResponse": {
+        "type": "object",
+        "description": "Response for a collection",
+        "required": [
+          "name",
+          "description",
+          "types",
+          "is_active"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateDelegatorRequest": {
+        "type": "object",
+        "description": "Request to create a new delegator",
+        "required": [
+          "name",
+          "llm_tool",
+          "model"
+        ],
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional display name"
+          },
+          "launch_config": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DelegatorLaunchConfigDto",
+                "description": "Optional launch configuration"
+              }
+            ]
+          },
+          "llm_tool": {
+            "type": "string",
+            "description": "LLM tool name (must match a detected tool)"
+          },
+          "model": {
+            "type": "string",
+            "description": "Model alias"
+          },
+          "model_properties": {
+            "type": "object",
+            "description": "Arbitrary model properties",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string",
+            "description": "Unique name for the delegator"
+          }
+        }
+      },
+      "CreateFieldRequest": {
+        "type": "object",
+        "description": "Request to create a field",
+        "required": [
+          "name",
+          "description"
+        ],
+        "properties": {
+          "default": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "field_type": {
+            "type": "string"
+          },
+          "max_length": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "placeholder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "user_editable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateIssueTypeRequest": {
+        "type": "object",
+        "description": "Request to create a new issue type",
+        "required": [
+          "key",
+          "name",
+          "description",
+          "glyph",
+          "steps"
+        ],
+        "properties": {
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateFieldRequest"
+            }
+          },
+          "glyph": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project_required": {
+            "type": "boolean"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateStepRequest"
+            }
+          }
+        }
+      },
+      "CreateStepRequest": {
+        "type": "object",
+        "description": "Request to create a step",
+        "required": [
+          "name",
+          "prompt"
+        ],
+        "properties": {
+          "allowed_tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "next_step": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permission_mode": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "review_type": {
+            "type": "string",
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
+          }
+        }
+      },
+      "DelegatorLaunchConfigDto": {
+        "type": "object",
+        "description": "Launch configuration DTO for delegators",
+        "properties": {
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Additional CLI flags"
+          },
+          "permission_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Permission mode override"
+          },
+          "yolo": {
+            "type": "boolean",
+            "description": "Run in YOLO mode"
+          }
+        }
+      },
+      "DelegatorResponse": {
+        "type": "object",
+        "description": "Response for a single delegator",
+        "required": [
+          "name",
+          "llm_tool",
+          "model",
+          "model_properties"
+        ],
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional display name"
+          },
+          "launch_config": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DelegatorLaunchConfigDto",
+                "description": "Optional launch configuration"
+              }
+            ]
+          },
+          "llm_tool": {
+            "type": "string",
+            "description": "LLM tool name (e.g., \"claude\")"
+          },
+          "model": {
+            "type": "string",
+            "description": "Model alias (e.g., \"opus\")"
+          },
+          "model_properties": {
+            "type": "object",
+            "description": "Arbitrary model properties",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string",
+            "description": "Unique name"
+          }
+        }
+      },
+      "DelegatorsResponse": {
+        "type": "object",
+        "description": "Response listing all delegators",
+        "required": [
+          "delegators",
+          "total"
+        ],
+        "properties": {
+          "delegators": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegatorResponse"
+            },
+            "description": "List of delegators"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total count",
+            "minimum": 0
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error response body",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "FieldResponse": {
+        "type": "object",
+        "description": "Response for a field",
+        "required": [
+          "name",
+          "description",
+          "field_type",
+          "required",
+          "user_editable"
+        ],
+        "properties": {
+          "default": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "field_type": {
+            "type": "string"
+          },
+          "max_length": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "placeholder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "user_editable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "description": "Health check response",
+        "required": [
+          "status",
+          "version"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "IssueTypeResponse": {
+        "type": "object",
+        "description": "Response for a single issue type",
+        "required": [
+          "key",
+          "name",
+          "description",
+          "mode",
+          "glyph",
+          "project_required",
+          "source",
+          "fields",
+          "steps"
+        ],
+        "properties": {
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldResponse"
+            }
+          },
+          "glyph": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project_required": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepResponse"
+            }
+          }
+        }
+      },
+      "IssueTypeSummary": {
+        "type": "object",
+        "description": "Summary response for listing issue types",
+        "required": [
+          "key",
+          "name",
+          "description",
+          "mode",
+          "glyph",
+          "source",
+          "stepCount"
+        ],
+        "properties": {
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "glyph": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "stepCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "LaunchTicketRequest": {
+        "type": "object",
+        "description": "Request to launch a ticket",
+        "properties": {
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Model to use (e.g., \"sonnet\", \"opus\")"
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "LLM provider to use (e.g., \"claude\")"
+          },
+          "resume_session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Existing session ID to resume (for continuing from where it left off)"
+          },
+          "retry_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Feedback for relaunch (what went wrong on previous attempt)"
+          },
+          "wrapper": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session wrapper type: \"vscode\", \"tmux\", \"terminal\""
+          },
+          "yolo_mode": {
+            "type": "boolean",
+            "description": "Run in YOLO mode (auto-accept all prompts)"
+          }
+        }
+      },
+      "LaunchTicketResponse": {
+        "type": "object",
+        "description": "Response from launching a ticket",
+        "required": [
+          "agent_id",
+          "ticket_id",
+          "working_directory",
+          "command",
+          "terminal_name",
+          "tmux_session_name",
+          "session_id",
+          "worktree_created"
+        ],
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "Agent ID assigned to this launch"
+          },
+          "branch": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Branch name (if worktree was created)"
+          },
+          "command": {
+            "type": "string",
+            "description": "Command to execute in terminal"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session UUID for the LLM tool"
+          },
+          "terminal_name": {
+            "type": "string",
+            "description": "Terminal name to use (same value as tmux_session_name)"
+          },
+          "ticket_id": {
+            "type": "string",
+            "description": "Ticket ID that was launched"
+          },
+          "tmux_session_name": {
+            "type": "string",
+            "description": "Tmux session name for attaching (same value as terminal_name)"
+          },
+          "working_directory": {
+            "type": "string",
+            "description": "Working directory (worktree if created, else project path)"
+          },
+          "worktree_created": {
+            "type": "boolean",
+            "description": "Whether a worktree was created"
+          }
+        }
+      },
+      "SkillEntry": {
+        "type": "object",
+        "description": "A single discovered skill file",
+        "required": [
+          "tool_name",
+          "filename",
+          "file_path",
+          "scope"
+        ],
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Full path to the skill file"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Filename of the skill (e.g., \"commit.md\")"
+          },
+          "scope": {
+            "type": "string",
+            "description": "Scope: \"global\" or \"project\""
+          },
+          "tool_name": {
+            "type": "string",
+            "description": "Tool this skill belongs to (e.g., \"claude\", \"codex\")"
+          }
+        }
+      },
+      "SkillsResponse": {
+        "type": "object",
+        "description": "Response for skills listing",
+        "required": [
+          "skills",
+          "total"
+        ],
+        "properties": {
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillEntry"
+            },
+            "description": "List of discovered skills"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total count",
+            "minimum": 0
+          }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "description": "Status response with registry info",
+        "required": [
+          "status",
+          "version",
+          "issuetype_count",
+          "collection_count",
+          "active_collection"
+        ],
+        "properties": {
+          "active_collection": {
+            "type": "string"
+          },
+          "collection_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "issuetype_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "StepResponse": {
+        "type": "object",
+        "description": "Response for a step",
+        "required": [
+          "name",
+          "prompt",
+          "outputs",
+          "allowed_tools",
+          "review_type",
+          "permission_mode"
+        ],
+        "properties": {
+          "allowed_tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "next_step": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permission_mode": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "review_type": {
+            "type": "string",
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
+          }
+        }
+      },
+      "UpdateIssueTypeRequest": {
+        "type": "object",
+        "description": "Request to update an issue type",
+        "properties": {
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fields": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CreateFieldRequest"
+            }
+          },
+          "glyph": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_required": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "steps": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CreateStepRequest"
+            }
+          }
+        }
+      },
+      "UpdateStepRequest": {
+        "type": "object",
+        "description": "Request to update a step",
+        "properties": {
+          "allowed_tools": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "next_step": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputs": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "permission_mode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prompt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "review_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Health check and status endpoints"
+    },
+    {
+      "name": "Issue Types",
+      "description": "Issue type CRUD operations"
+    },
+    {
+      "name": "Steps",
+      "description": "Step management within issue types"
+    },
+    {
+      "name": "Collections",
+      "description": "Issue type collection management"
+    },
+    {
+      "name": "Launch",
+      "description": "Ticket launch operations"
+    },
+    {
+      "name": "Skills",
+      "description": "Skill discovery across LLM tools"
+    },
+    {
+      "name": "Delegators",
+      "description": "Agent delegator CRUD operations"
+    }
+  ]
+}

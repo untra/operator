@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Operator! | Operator! Documentation</title>
+  <meta name="description" content="Operator! is an application for orchestrating LLM coding assist agents across multi-repository codebases with kanban-style ticket management.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Operator! | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Operator!" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Operator! is an application for orchestrating LLM coding assist agents across multi-repository codebases with kanban-style ticket management." />
+<meta property="og:description" content="Operator! is an application for orchestrating LLM coding assist agents across multi-repository codebases with kanban-style ticket management." />
+<link rel="canonical" href="https://operator.untra.io/" />
+<meta property="og:url" content="https://operator.untra.io/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Operator!" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","description":"Operator! is an application for orchestrating LLM coding assist agents across multi-repository codebases with kanban-style ticket management.","headline":"Operator!","name":"Operator! Documentation","url":"https://operator.untra.io/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" class="active" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/claude-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/claude-dark.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/codex-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/codex-dark.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/gemini-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/gemini-dark.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/jira-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/jira-dark.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/linear-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/linear-dark.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/github-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/github-dark.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/webhook-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/webhook-dark.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/notification-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/notification-dark.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/tmux-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/tmux-dark.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/vscode-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/vscode-dark.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/agents/" >Agents</a>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Backstage</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/index.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.26</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-03-01</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Operator!</h1>
+  
+
+  <p>Welcome friend! <span class="operator-brand">Operator!</span> is an application for orchestrating <a href="/getting-started/agents/claude/">Claude Code</a> (and other <a href="/getting-started/agents/">LLM coding agents</a>) across multi-repository codebases. It connects to <a href="/getting-started/kanban/">kanban-style ticket management software</a> , and can spawn session from the official <a href="/getting-started/sessions/vscode/">VS Code extension</a> or from <a href="/getting-started/sessions/tmux/"><code class="language-plaintext highlighter-rouge">tmux</code> terminals</a> to create a powerful workflow for managing AI-assisted software development.</p>
+
+<p><span class="operator-brand">Operator!</span> was designed <em>by Software Engineers for Software Engineers</em>. Most software development happens <a href="https://www.thoughtworks.com/en-us/insights/blog/agile-engineering-practices/monorepo-vs-multirepo" target="_blank">multi-repo rather than mono-repo</a>, and succeeding with AI software development requires coordinating LLM assist coding agents work across many codebases, with modern feature development requiring 2+ pull requests across an organization. The API server runs in the directory containing your work code repositories, where it can synchronize and direct markdown defined work orders under a <code class="language-plaintext highlighter-rouge">.tickets/</code> directory which stores your kanban synchronized work tickets.</p>
+
+<h2 id="what-is-operator">What is <span class="operator-brand">Operator!</span>?</h2>
+
+<p><span class="operator-brand">Operator!</span> helps you:</p>
+
+<ul>
+  <li><strong>Manage ticket queues</strong> - Organize and prioritize ticket shaped work into reproducible workflows.</li>
+  <li><strong>Launch LLM agents</strong> - Start Claude Code sessions with context from tickets and your teams established software development standards and practices.</li>
+  <li><strong>Track progress</strong> - Monitor agent status and work completion in real-time, keeping you in focus of what needs to get done, starting work in sessions.</li>
+  <li><strong>Parallelize Work</strong> - Work multiple tickets at once, across many code repositories, using the right models for the job, to get the most of your LLM credits.</li>
+  <li><strong>Enforce Standards</strong> - Define how work gets done by AI tools, across many defined software services. Enforce standards and practices on your AI agents.</li>
+  <li><strong>Catalog your Code</strong> - Get a net overview of your codebase, composed from project files, organized and maintained implicitly by Operator.</li>
+</ul>
+
+<h2 id="getting-started">Getting Started</h2>
+
+<ol>
+  <li>Install <span class="operator-brand">Operator!</span> (downloads page)</li>
+  <li>Configure your project management kanban workspaces</li>
+  <li>Define your work shape issuetypes, and the steps AI follows to complete work</li>
+  <li>Create markdown work tickets in <code class="language-plaintext highlighter-rouge">.tickets/queue/</code></li>
+  <li>Launch coding agents and watch them work, while measuring success</li>
+</ol>
+
+<h2 id="quick-links">Quick Links</h2>
+
+<ul>
+  <li><a href="/kanban/">Kanban</a> - Understand the kanban workflow</li>
+  <li><a href="/llm-tools/">LLM Tools</a> - Configure LLM integration</li>
+  <li><a href="/tickets/">Tickets</a> - Create and manage work tickets</li>
+  <li><a href="/agents/">Agents</a> - Agent lifecycle and modes</li>
+  <li><a href="/tmux/">Tmux</a> - Terminal session management</li>
+</ul>
+
+<h2 id="similar">Similar</h2>
+
+<p>These are tools that comparable and aspirational for Operator</p>
+
+<ul>
+  <li><a href="https://github.com/fynnfluegge/agtx">agtx</a></li>
+</ul>
+
+<h2 id="similar-but-worse">Similar, but Worse:</h2>
+
+<p>These are tools that are almost as good, and are inspirational, but just don’t quite cut it:</p>
+
+<ul>
+  <li><a href="https://github.com/frankbria/ralph-claude-code">Ralph Code</a></li>
+  <li><a href="https://www.vibekanban.com/">Vibe Kanban</a></li>
+</ul>
+
+</article>
+
+  </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

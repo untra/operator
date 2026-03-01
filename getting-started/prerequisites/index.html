@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prerequisites | Operator! Documentation</title>
+  <meta name="description" content="System requirements and dependencies for running Operator.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Prerequisites | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Prerequisites" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="System requirements and dependencies for running Operator." />
+<meta property="og:description" content="System requirements and dependencies for running Operator." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/prerequisites/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/prerequisites/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Prerequisites" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"System requirements and dependencies for running Operator.","headline":"Prerequisites","url":"https://operator.untra.io/getting-started/prerequisites/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" class="active" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/claude-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/claude-dark.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/codex-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/codex-dark.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/gemini-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/gemini-dark.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/jira-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/jira-dark.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/linear-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/linear-dark.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/github-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/github-dark.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/webhook-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/webhook-dark.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/notification-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/notification-dark.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/tmux-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/tmux-dark.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/vscode-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/vscode-dark.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/agents/" >Agents</a>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Backstage</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/prerequisites.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.26</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-03-01</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Prerequisites</h1>
+  
+
+  <h1 id="prerequisites">Prerequisites</h1>
+
+<p>Before installing Operator, ensure your system meets the following requirements.</p>
+
+<h2 id="system-requirements">System Requirements</h2>
+
+<h3 id="supported-platforms">Supported Platforms</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Platform</th>
+      <th>Versions</th>
+      <th>Architectures</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>macOS</td>
+      <td>12.0+ (Monterey or later)</td>
+      <td>Apple Silicon (arm64), Intel (x86_64)</td>
+    </tr>
+    <tr>
+      <td>Linux</td>
+      <td>Modern distributions</td>
+      <td>arm64, x86_64</td>
+    </tr>
+    <tr>
+      <td>Windows</td>
+      <td>10+</td>
+      <td>x86_64</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="hardware-requirements">Hardware Requirements</h3>
+
+<ul>
+  <li><strong>Memory</strong>: 4GB RAM minimum, 8GB recommended</li>
+  <li><strong>Disk Space</strong>: 100MB for Operator, plus space for project files</li>
+</ul>
+
+<h2 id="required-software">Required Software</h2>
+
+<h3 id="git">Git</h3>
+
+<p>Version control is required for project management. Verify installation:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git <span class="nt">--version</span>  <span class="c"># Should be 2.30+</span>
+</code></pre></div></div>
+
+<p><strong>Installation by platform:</strong></p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Platform</th>
+      <th>Installation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>macOS</td>
+      <td><code class="language-plaintext highlighter-rouge">brew install git</code> or install Xcode Command Line Tools</td>
+    </tr>
+    <tr>
+      <td>Linux</td>
+      <td>Use package manager (<code class="language-plaintext highlighter-rouge">apt install git</code>, <code class="language-plaintext highlighter-rouge">dnf install git</code>, etc.)</td>
+    </tr>
+    <tr>
+      <td>Windows</td>
+      <td>Download <a href="https://git-scm.com/download/win">Git for Windows</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="session-manager">Session Manager</h3>
+
+<p>Operator requires a session manager for launching and managing coding agents:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Platform</th>
+      <th>Recommended</th>
+      <th>Alternative</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>macOS</td>
+      <td><a href="/getting-started/vscode-extension/">VS Code Extension</a></td>
+      <td>tmux</td>
+    </tr>
+    <tr>
+      <td>Linux</td>
+      <td><a href="/getting-started/vscode-extension/">VS Code Extension</a></td>
+      <td>tmux</td>
+    </tr>
+    <tr>
+      <td>Windows</td>
+      <td><a href="/getting-started/vscode-extension/">VS Code Extension</a> (required)</td>
+      <td>N/A</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="vs-code-extension">VS Code Extension</h4>
+
+<p>The VS Code Extension provides the best experience across all platforms and is <strong>required on Windows</strong>. See <a href="/getting-started/vscode-extension/">VS Code Extension Setup</a> for installation instructions.</p>
+
+<h4 id="tmux-macoslinux-only">tmux (macOS/Linux only)</h4>
+
+<p>For terminal-based workflows on macOS and Linux, tmux can be used as an alternative session manager:</p>
+
+<p><strong>macOS:</strong></p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>brew <span class="nb">install </span>tmux
+</code></pre></div></div>
+
+<p><strong>Linux:</strong></p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Debian/Ubuntu</span>
+apt <span class="nb">install </span>tmux
+
+<span class="c"># Fedora/RHEL</span>
+dnf <span class="nb">install </span>tmux
+</code></pre></div></div>
+
+<blockquote>
+  <p><strong>Note</strong>: tmux is not available on Windows. Windows users must use the VS Code Extension.</p>
+</blockquote>
+
+<h2 id="windows-specific-notes">Windows-Specific Notes</h2>
+
+<p>Windows support has some limitations:</p>
+
+<ul>
+  <li><strong>Session Manager</strong>: VS Code Extension is required (tmux not available)</li>
+  <li><strong>Backstage Server</strong>: Not supported on Windows</li>
+  <li><strong>Notifications</strong>: Native notifications are planned; currently logs only</li>
+</ul>
+
+<h2 id="optional-dependencies">Optional Dependencies</h2>
+
+<h3 id="coding-agent">Coding Agent</h3>
+
+<p>At least one AI coding agent should be installed:</p>
+
+<ul>
+  <li><a href="/getting-started/agents/claude/">Claude Code</a> (recommended)</li>
+  <li><a href="/getting-started/agents/codex/">Codex</a></li>
+  <li><a href="/getting-started/agents/gemini/">Gemini</a></li>
+</ul>
+
+<h3 id="backstage-server-macoslinux-only">Backstage Server (macOS/Linux only)</h3>
+
+<p>For centralized project management across multiple repositories, see <a href="/getting-started/backstage-server/">Backstage Server Setup</a>. Note: Not supported on Windows.</p>
+
+<h3 id="kanban-integration">Kanban Integration</h3>
+
+<p>For issue tracking integration, configure:</p>
+
+<ul>
+  <li><a href="/getting-started/kanban/jira/">Jira Cloud</a></li>
+</ul>
+
+<h2 id="next-steps">Next Steps</h2>
+
+<p>Once prerequisites are met, proceed to <a href="/getting-started/installation/">Installation</a>.</p>
+
+</article>
+
+  </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

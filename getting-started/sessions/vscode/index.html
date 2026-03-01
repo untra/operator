@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VS Code Extension | Operator! Documentation</title>
+  <meta name="description" content="VS Code terminal integration for Operator multi-agent orchestration.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>VS Code Extension | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="VS Code Extension" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="VS Code terminal integration for Operator multi-agent orchestration." />
+<meta property="og:description" content="VS Code terminal integration for Operator multi-agent orchestration." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/sessions/vscode/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/sessions/vscode/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="VS Code Extension" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"VS Code terminal integration for Operator multi-agent orchestration.","headline":"VS Code Extension","url":"https://operator.untra.io/getting-started/sessions/vscode/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/claude-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/claude-dark.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/codex-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/codex-dark.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/gemini-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/gemini-dark.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/jira-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/jira-dark.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/linear-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/linear-dark.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/github-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/github-dark.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/webhook-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/webhook-dark.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/notification-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/notification-dark.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/tmux-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/tmux-dark.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" class="active"
+                    ><span class="nav-icon"><img class="icon-light" src="/assets/icons/vscode-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/vscode-dark.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/agents/" >Agents</a>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Backstage</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/sessions/vscode.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.26</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-03-01</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">VS Code Extension</h1>
+  
+
+  <h1 id="vs-code-extension">VS Code Extension</h1>
+
+<p><span class="badge recommended">Recommended</span></p>
+
+<p><a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank" class="button">Install from VS Code Marketplace</a></p>
+
+<p>Operator Terminals brings the Operator multi-agent orchestration experience directly into VS Code with integrated terminal management and ticket tracking. This is the <strong>recommended session manager</strong> for most users, with full support for <strong>macOS</strong>, <strong>Linux</strong>, and <strong>Windows</strong> (no WSL required).</p>
+
+<h2 id="features">Features</h2>
+
+<ul>
+  <li><strong>Sidebar Integration</strong>: View Queue, In Progress, and Completed tickets directly in VS Code</li>
+  <li><strong>Styled Terminals</strong>: Color-coded terminals by ticket type
+    <ul>
+      <li>FEAT (cyan, sparkle icon)</li>
+      <li>FIX (red, wrench icon)</li>
+      <li>TASK (green, tasklist icon)</li>
+      <li>SPIKE (magenta, beaker icon)</li>
+      <li>INV (yellow, search icon)</li>
+    </ul>
+  </li>
+  <li><strong>Activity Tracking</strong>: Monitors shell execution to detect idle/running states</li>
+  <li><strong>Webhook Server</strong>: Local HTTP server for Operator communication</li>
+</ul>
+
+<h2 id="installation">Installation</h2>
+
+<h3 id="from-marketplace-recommended">From Marketplace (Recommended)</h3>
+
+<ol>
+  <li>Open VS Code</li>
+  <li>Go to Extensions (<code class="language-plaintext highlighter-rouge">Ctrl+Shift+X</code> / <code class="language-plaintext highlighter-rouge">Cmd+Shift+X</code>)</li>
+  <li>Search for “Operator Terminals”</li>
+  <li>Click Install</li>
+</ol>
+
+<p>Or install directly: <a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank">VS Code Marketplace</a></p>
+
+<h3 id="manual-installation">Manual Installation</h3>
+
+<ol>
+  <li>Download the <code class="language-plaintext highlighter-rouge">.vsix</code> file from <a href="https://github.com/untra/operator/releases" target="_blank">GitHub releases</a></li>
+  <li>In VS Code, go to Extensions</li>
+  <li>Click the “…” menu</li>
+  <li>Select “Install from VSIX…”</li>
+</ol>
+
+<h2 id="configuration">Configuration</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Setting</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.webhookPort</code></td>
+      <td><code class="language-plaintext highlighter-rouge">7009</code></td>
+      <td>Port for webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.autoStart</code></td>
+      <td><code class="language-plaintext highlighter-rouge">true</code></td>
+      <td>Start server on VS Code launch</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.terminalPrefix</code></td>
+      <td><code class="language-plaintext highlighter-rouge">op-</code></td>
+      <td>Prefix for managed terminal names</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.ticketsDir</code></td>
+      <td><code class="language-plaintext highlighter-rouge">.tickets</code></td>
+      <td>Path to tickets directory</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.apiUrl</code></td>
+      <td><code class="language-plaintext highlighter-rouge">http://localhost:7008</code></td>
+      <td>Operator REST API URL</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="commands">Commands</h2>
+
+<p>Access via Command Palette (<code class="language-plaintext highlighter-rouge">Ctrl+Shift+P</code> / <code class="language-plaintext highlighter-rouge">Cmd+Shift+P</code>):</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Start Webhook Server</code></td>
+      <td>Start the webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Stop Webhook Server</code></td>
+      <td>Stop the webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Show Server Status</code></td>
+      <td>Display server status</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Launch Ticket</code></td>
+      <td>Launch a ticket in a new terminal</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Launch Ticket (with options)</code></td>
+      <td>Launch with agent/mode selection</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Download Operator</code></td>
+      <td>Download the Operator CLI</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="sidebar-views">Sidebar Views</h2>
+
+<p>The extension adds an Operator sidebar with four views:</p>
+
+<ol>
+  <li><strong>Status</strong>: Server status and connection info</li>
+  <li><strong>In Progress</strong>: Currently running agent sessions</li>
+  <li><strong>Queue</strong>: Pending tickets waiting to be launched</li>
+  <li><strong>Completed</strong>: Recently completed tickets (collapsed by default)</li>
+</ol>
+
+<h2 id="api-endpoints">API Endpoints</h2>
+
+<p>The extension exposes a local HTTP API for Operator communication:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Endpoint</th>
+      <th>Method</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /health</code></td>
+      <td>GET</td>
+      <td>Server health check</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /terminal/create</code></td>
+      <td>POST</td>
+      <td>Create a new terminal</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /terminal/:name/send</code></td>
+      <td>POST</td>
+      <td>Send command to terminal</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /terminal/:name/show</code></td>
+      <td>POST</td>
+      <td>Reveal terminal (keep focus)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /terminal/:name/focus</code></td>
+      <td>POST</td>
+      <td>Focus terminal (take focus)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">DELETE /terminal/:name/kill</code></td>
+      <td>DELETE</td>
+      <td>Dispose terminal</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /terminal/:name/exists</code></td>
+      <td>GET</td>
+      <td>Check if terminal exists</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /terminal/:name/activity</code></td>
+      <td>GET</td>
+      <td>Get idle/running state</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /terminal/list</code></td>
+      <td>GET</td>
+      <td>List all managed terminals</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="requirements">Requirements</h2>
+
+<ul>
+  <li>VS Code 1.85.0 or later</li>
+  <li>Operator CLI (for full functionality)</li>
+</ul>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="server-wont-start">Server won’t start</h3>
+
+<p>Check if another process is using the configured port:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>lsof <span class="nt">-i</span> :7009
+</code></pre></div></div>
+
+<p>Try a different port in settings: <code class="language-plaintext highlighter-rouge">operator.webhookPort</code>.</p>
+
+<h3 id="terminals-not-appearing-in-sidebar">Terminals not appearing in sidebar</h3>
+
+<ol>
+  <li>Ensure the webhook server is running (check Status view)</li>
+  <li>Verify <code class="language-plaintext highlighter-rouge">operator.ticketsDir</code> points to your tickets directory</li>
+  <li>Refresh the views using the refresh button</li>
+</ol>
+
+</article>
+
+  </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

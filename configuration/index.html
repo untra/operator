@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuration | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Configuration | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Configuration" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/configuration/" />
+<meta property="og:url" content="https://operator.untra.io/configuration/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Configuration" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Configuration","url":"https://operator.untra.io/configuration/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/claude-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/claude-dark.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/codex-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/codex-dark.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/gemini-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/gemini-dark.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/jira-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/jira-dark.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/linear-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/linear-dark.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/github-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/github-dark.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/webhook-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/webhook-dark.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/notification-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/notification-dark.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/tmux-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/tmux-dark.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/vscode-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/vscode-dark.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/agents/" >Agents</a>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" class="active" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Backstage</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/configuration/index.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.26</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-03-01</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Configuration</h1>
+  
+
+  <!-- AUTO-GENERATED FROM src/config.rs - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+<h1 id="configuration">Configuration</h1>
+
+<p>Operator configuration is stored in <code class="language-plaintext highlighter-rouge">.tickets/operator/config.toml</code>.</p>
+
+<h2 id="configuration-sections">Configuration Sections</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Section</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[agents]</code></td>
+      <td>Agent lifecycle, parallelism, and health monitoring</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[notifications]</code></td>
+      <td>macOS notification preferences</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[queue]</code></td>
+      <td>Queue processing and ticket assignment</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[paths]</code></td>
+      <td>Directory paths for tickets, projects, and state</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[ui]</code></td>
+      <td>Terminal UI appearance and behavior</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[launch]</code></td>
+      <td>Agent launch behavior and confirmations</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[templates]</code></td>
+      <td>Issue type collections and presets</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[api]</code></td>
+      <td>External API integration settings</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[logging]</code></td>
+      <td>Log level and output configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[tmux]</code></td>
+      <td>Tmux integration settings</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[backstage]</code></td>
+      <td>Backstage server integration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">[llm_tools]</code></td>
+      <td>LLM CLI tool detection and providers</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="agents"><code class="language-plaintext highlighter-rouge">[agents]</code></h2>
+
+<p>Agent lifecycle, parallelism, and health monitoring</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">max_parallel</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>5</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">cores_reserved</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>1</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">health_check_interval</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>30</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">generation_timeout_secs</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>300</td>
+      <td>Timeout in seconds for each agent generation (default: 300 = 5 min)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">sync_interval</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>60</td>
+      <td>Interval in seconds between ticket-session syncs (default: 60)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">step_timeout</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>1800</td>
+      <td>Maximum seconds a step can run before timing out (default: 1800 = 30 min)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">silence_threshold</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>30</td>
+      <td>Seconds of tmux silence before considering agent awaiting input (default: 30)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="notifications"><code class="language-plaintext highlighter-rouge">[notifications]</code></h2>
+
+<p>macOS notification preferences</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>true</td>
+      <td>Global enabled flag for all notifications</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">os</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">OsNotificationConfig</code></td>
+      <td>-</td>
+      <td>OS notification configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">webhook</code></td>
+      <td><code class="language-plaintext highlighter-rouge">any</code></td>
+      <td>-</td>
+      <td>Single webhook configuration (for simple setups)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">webhooks</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code>[→ <code class="language-plaintext highlighter-rouge">WebhookConfig</code>]</td>
+      <td>-</td>
+      <td>Multiple webhook configurations</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="queue"><code class="language-plaintext highlighter-rouge">[queue]</code></h2>
+
+<p>Queue processing and ticket assignment</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">auto_assign</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>true</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">priority_order</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">array</code>[<code class="language-plaintext highlighter-rouge">string</code>]</td>
+      <td>[“INV”, “FIX”, “TASK”, “FEAT”, “SPIKE”]</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">poll_interval_ms</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>1000</td>
+      <td> </td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="paths"><code class="language-plaintext highlighter-rouge">[paths]</code></h2>
+
+<p>Directory paths for tickets, projects, and state</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tickets</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>.tickets</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">projects</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>.</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">state</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>.tickets/operator</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">worktrees</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>-</td>
+      <td>Base directory for per-ticket worktrees (default: ~/.operator/worktrees)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="ui"><code class="language-plaintext highlighter-rouge">[ui]</code></h2>
+
+<p>Terminal UI appearance and behavior</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">refresh_rate_ms</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>250</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">completed_history_hours</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>24</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">summary_max_length</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>40</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">panel_names</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">PanelNamesConfig</code></td>
+      <td>-</td>
+      <td> </td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="launch"><code class="language-plaintext highlighter-rouge">[launch]</code></h2>
+
+<p>Agent launch behavior and confirmations</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">confirm_autonomous</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>true</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">confirm_paired</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>true</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">launch_delay_ms</code> *</td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>2000</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">docker</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">DockerConfig</code></td>
+      <td>-</td>
+      <td>Docker execution configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">yolo</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">YoloConfig</code></td>
+      <td>-</td>
+      <td>YOLO (auto-accept) mode configuration</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="templates"><code class="language-plaintext highlighter-rouge">[templates]</code></h2>
+
+<p>Issue type collections and presets</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">preset</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">CollectionPreset</code></td>
+      <td>-</td>
+      <td>Named preset for issue type collection Options: simple, dev_kanban, devops_kanban, custom</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">collection</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code>[<code class="language-plaintext highlighter-rouge">string</code>]</td>
+      <td>-</td>
+      <td>Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">active_collection</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>-</td>
+      <td>Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="api"><code class="language-plaintext highlighter-rouge">[api]</code></h2>
+
+<p>External API integration settings</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">pr_check_interval_secs</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>60</td>
+      <td>Interval in seconds between PR status checks (default: 60)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">rate_limit_check_interval_secs</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>300</td>
+      <td>Interval in seconds between rate limit checks (default: 300)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">rate_limit_warning_threshold</code></td>
+      <td><code class="language-plaintext highlighter-rouge">number</code></td>
+      <td>0.2</td>
+      <td>Show warning when rate limit remaining is below this percentage (default: 0.2)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="logging"><code class="language-plaintext highlighter-rouge">[logging]</code></h2>
+
+<p>Log level and output configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">level</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>info</td>
+      <td>Log level filter (trace, debug, info, warn, error)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">to_file</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>true</td>
+      <td>Whether to log to file in TUI mode (false = stderr for debugging)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="tmux"><code class="language-plaintext highlighter-rouge">[tmux]</code></h2>
+
+<p>Tmux integration settings</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">config_generated</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>-</td>
+      <td>Whether custom tmux config has been generated</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="backstage"><code class="language-plaintext highlighter-rouge">[backstage]</code></h2>
+
+<p>Backstage server integration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>true</td>
+      <td>Whether Backstage integration is enabled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">port</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>7007</td>
+      <td>Port for the Backstage server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">auto_start</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>false</td>
+      <td>Auto-start Backstage server when TUI launches</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">subpath</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>backstage</td>
+      <td>Subdirectory within state_path for Backstage installation</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">branding_subpath</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>branding</td>
+      <td>Subdirectory within backstage path for branding customization</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">release_url</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>-</td>
+      <td>Base URL for downloading backstage-server binary</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">local_binary_path</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>-</td>
+      <td>Optional local path to backstage-server binary If set, this is used instead of downloading from release_url</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">branding</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">BrandingConfig</code></td>
+      <td>-</td>
+      <td>Branding and theming configuration</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="llm_tools"><code class="language-plaintext highlighter-rouge">[llm_tools]</code></h2>
+
+<p>LLM CLI tool detection and providers</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">detected</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code>[→ <code class="language-plaintext highlighter-rouge">DetectedTool</code>]</td>
+      <td>-</td>
+      <td>Detected CLI tools (populated on first startup)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">providers</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code>[→ <code class="language-plaintext highlighter-rouge">LlmProvider</code>]</td>
+      <td>-</td>
+      <td>Available {tool, model} pairs for launching tickets Built from detected tools + their model aliases</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">detection_complete</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>-</td>
+      <td>Whether detection has been completed</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">skill_directory_overrides</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>-</td>
+      <td>Per-tool overrides for skill directories (keyed by tool_name)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="example-configuration">Example Configuration</h2>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">projects</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+<span class="n">delegators</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+
+<span class="k">[</span><span class="n">agents</span><span class="k">]</span>
+<span class="n">max_parallel</span> <span class="o">=</span><span class="w"> </span><span class="mi">5</span>
+<span class="n">cores_reserved</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="n">health_check_interval</span> <span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+<span class="n">generation_timeout_secs</span> <span class="o">=</span><span class="w"> </span><span class="mi">300</span>
+<span class="n">sync_interval</span> <span class="o">=</span><span class="w"> </span><span class="mi">60</span>
+<span class="n">step_timeout</span> <span class="o">=</span><span class="w"> </span><span class="mi">1800</span>
+<span class="n">silence_threshold</span> <span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+
+<span class="k">[</span><span class="n">notifications</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">webhooks</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+<span class="n">on_agent_start</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">on_agent_complete</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">on_agent_needs_input</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">on_pr_created</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">on_investigation_created</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">sound</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+
+<span class="k">[</span><span class="n">notifications</span><span class="k">.</span><span class="n">os</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">sound</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">events</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+
+<span class="k">[</span><span class="n">queue</span><span class="k">]</span>
+<span class="n">auto_assign</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">priority_order</span> <span class="o">=</span><span class="w"> </span><span class="p">[</span>
+    <span class="s">"INV"</span><span class="p">,</span>
+    <span class="s">"FIX"</span><span class="p">,</span>
+    <span class="s">"TASK"</span><span class="p">,</span>
+    <span class="s">"FEAT"</span><span class="p">,</span>
+    <span class="s">"SPIKE"</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">poll_interval_ms</span> <span class="o">=</span><span class="w"> </span><span class="mi">1000</span>
+
+<span class="k">[</span><span class="n">paths</span><span class="k">]</span>
+<span class="n">tickets</span> <span class="o">=</span><span class="w"> </span><span class="s">".tickets"</span>
+<span class="n">projects</span> <span class="o">=</span><span class="w"> </span><span class="s">"."</span>
+<span class="n">state</span> <span class="o">=</span><span class="w"> </span><span class="s">".tickets/operator"</span>
+<span class="n">worktrees</span> <span class="o">=</span><span class="w"> </span><span class="s">"/home/runner/.operator/worktrees"</span>
+
+<span class="k">[</span><span class="n">ui</span><span class="k">]</span>
+<span class="n">refresh_rate_ms</span> <span class="o">=</span><span class="w"> </span><span class="mi">250</span>
+<span class="n">completed_history_hours</span> <span class="o">=</span><span class="w"> </span><span class="mi">24</span>
+<span class="n">summary_max_length</span> <span class="o">=</span><span class="w"> </span><span class="mi">40</span>
+
+<span class="k">[</span><span class="n">ui</span><span class="k">.</span><span class="n">panel_names</span><span class="k">]</span>
+<span class="n">queue</span> <span class="o">=</span><span class="w"> </span><span class="s">"TODO QUEUE"</span>
+<span class="n">agents</span> <span class="o">=</span><span class="w"> </span><span class="s">"DOING"</span>
+<span class="n">awaiting</span> <span class="o">=</span><span class="w"> </span><span class="s">"AWAITING"</span>
+<span class="n">completed</span> <span class="o">=</span><span class="w"> </span><span class="s">"DONE"</span>
+
+<span class="k">[</span><span class="n">launch</span><span class="k">]</span>
+<span class="n">confirm_autonomous</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">confirm_paired</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">launch_delay_ms</span> <span class="o">=</span><span class="w"> </span><span class="mi">2000</span>
+
+<span class="k">[</span><span class="n">launch</span><span class="k">.</span><span class="n">docker</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">image</span> <span class="o">=</span><span class="w"> </span><span class="s">""</span>
+<span class="n">extra_args</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+<span class="n">mount_path</span> <span class="o">=</span><span class="w"> </span><span class="s">"/workspace"</span>
+<span class="n">env_vars</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+
+<span class="k">[</span><span class="n">launch</span><span class="k">.</span><span class="n">yolo</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+
+<span class="k">[</span><span class="n">templates</span><span class="k">]</span>
+<span class="n">preset</span> <span class="o">=</span><span class="w"> </span><span class="s">"dev_kanban"</span>
+<span class="n">collection</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+
+<span class="k">[</span><span class="n">api</span><span class="k">]</span>
+<span class="n">pr_check_interval_secs</span> <span class="o">=</span><span class="w"> </span><span class="mi">60</span>
+<span class="n">rate_limit_check_interval_secs</span> <span class="o">=</span><span class="w"> </span><span class="mi">300</span>
+<span class="n">rate_limit_warning_threshold</span> <span class="o">=</span><span class="w"> </span><span class="mf">0.20000000298023224</span>
+
+<span class="k">[</span><span class="n">logging</span><span class="k">]</span>
+<span class="n">level</span> <span class="o">=</span><span class="w"> </span><span class="s">"info"</span>
+<span class="n">to_file</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+
+<span class="k">[</span><span class="n">tmux</span><span class="k">]</span>
+<span class="n">config_generated</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+
+<span class="k">[</span><span class="n">sessions</span><span class="k">]</span>
+<span class="n">wrapper</span> <span class="o">=</span><span class="w"> </span><span class="s">"tmux"</span>
+
+<span class="k">[</span><span class="n">sessions</span><span class="k">.</span><span class="n">tmux</span><span class="k">]</span>
+<span class="n">config_generated</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">socket_name</span> <span class="o">=</span><span class="w"> </span><span class="s">"operator"</span>
+
+<span class="k">[</span><span class="n">sessions</span><span class="k">.</span><span class="n">vscode</span><span class="k">]</span>
+<span class="n">webhook_port</span> <span class="o">=</span><span class="w"> </span><span class="mi">7009</span>
+<span class="n">connect_timeout_ms</span> <span class="o">=</span><span class="w"> </span><span class="mi">5000</span>
+
+<span class="k">[</span><span class="n">llm_tools</span><span class="k">]</span>
+<span class="n">detected</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+<span class="n">providers</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+<span class="n">detection_complete</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+
+<span class="k">[</span><span class="n">llm_tools</span><span class="k">.</span><span class="n">skill_directory_overrides</span><span class="k">]</span>
+
+<span class="k">[</span><span class="n">backstage</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">port</span> <span class="o">=</span><span class="w"> </span><span class="mi">7007</span>
+<span class="n">auto_start</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">subpath</span> <span class="o">=</span><span class="w"> </span><span class="s">"backstage"</span>
+<span class="n">branding_subpath</span> <span class="o">=</span><span class="w"> </span><span class="s">"branding"</span>
+<span class="n">release_url</span> <span class="o">=</span><span class="w"> </span><span class="s">"https://github.com/untra/operator/releases/latest/download"</span>
+
+<span class="k">[</span><span class="n">backstage</span><span class="k">.</span><span class="n">branding</span><span class="k">]</span>
+<span class="n">app_title</span> <span class="o">=</span><span class="w"> </span><span class="s">"Operator Portal"</span>
+<span class="n">org_name</span> <span class="o">=</span><span class="w"> </span><span class="s">"Operator"</span>
+<span class="n">logo_path</span> <span class="o">=</span><span class="w"> </span><span class="s">"logo.svg"</span>
+
+<span class="k">[</span><span class="n">backstage</span><span class="k">.</span><span class="n">branding</span><span class="k">.</span><span class="n">colors</span><span class="k">]</span>
+<span class="n">primary</span> <span class="o">=</span><span class="w"> </span><span class="s">"#cc6c55"</span>
+<span class="n">secondary</span> <span class="o">=</span><span class="w"> </span><span class="s">"#114145"</span>
+<span class="n">accent</span> <span class="o">=</span><span class="w"> </span><span class="s">"#f4dbb7"</span>
+<span class="n">warning</span> <span class="o">=</span><span class="w"> </span><span class="s">"#d46048"</span>
+<span class="n">muted</span> <span class="o">=</span><span class="w"> </span><span class="s">"#8a4a3a"</span>
+
+<span class="k">[</span><span class="n">rest_api</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">port</span> <span class="o">=</span><span class="w"> </span><span class="mi">7008</span>
+<span class="n">cors_origins</span> <span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+
+<span class="k">[</span><span class="n">git</span><span class="k">]</span>
+<span class="n">branch_format</span> <span class="o">=</span><span class="w"> </span><span class="s">"{type}/{ticket_id}"</span>
+<span class="n">use_worktrees</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+
+<span class="k">[</span><span class="n">git</span><span class="k">.</span><span class="n">github</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">token_env</span> <span class="o">=</span><span class="w"> </span><span class="s">""</span>
+
+<span class="k">[</span><span class="n">git</span><span class="k">.</span><span class="n">gitlab</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">token_env</span> <span class="o">=</span><span class="w"> </span><span class="s">""</span>
+
+<span class="k">[</span><span class="n">kanban</span><span class="k">.</span><span class="n">jira</span><span class="k">]</span>
+
+<span class="k">[</span><span class="n">kanban</span><span class="k">.</span><span class="n">linear</span><span class="k">]</span>
+
+<span class="k">[</span><span class="n">version_check</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">url</span> <span class="o">=</span><span class="w"> </span><span class="s">"https://operator.untra.io/VERSION"</span>
+<span class="n">timeout_secs</span> <span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+
+</code></pre></div></div>
+
+<h2 id="configuration-files">Configuration Files</h2>
+
+<p>Configuration is loaded in this order (later sources override earlier):</p>
+
+<ol>
+  <li><strong>Built-in defaults</strong> - Embedded in the binary</li>
+  <li><strong>Project config</strong> - <code class="language-plaintext highlighter-rouge">.tickets/operator/config.toml</code></li>
+  <li><strong>User config</strong> - <code class="language-plaintext highlighter-rouge">~/.config/operator/config.toml</code></li>
+  <li><strong>CLI flag</strong> - <code class="language-plaintext highlighter-rouge">--config &lt;path&gt;</code></li>
+  <li><strong>Environment variables</strong> - <code class="language-plaintext highlighter-rouge">OPERATOR_*</code> prefix with <code class="language-plaintext highlighter-rouge">__</code> separator</li>
+</ol>
+
+<h3 id="environment-variable-override">Environment Variable Override</h3>
+
+<p>Any configuration option can be overridden via environment variables.</p>
+
+<p><strong>Format</strong>: <code class="language-plaintext highlighter-rouge">OPERATOR_&lt;SECTION&gt;__&lt;FIELD&gt;</code></p>
+
+<p><strong>Examples</strong>:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">OPERATOR_AGENTS__MAX_PARALLEL=2</code></li>
+  <li><code class="language-plaintext highlighter-rouge">OPERATOR_LOGGING__LEVEL=debug</code></li>
+  <li><code class="language-plaintext highlighter-rouge">OPERATOR_BACKSTAGE__PORT=8080</code></li>
+</ul>
+
+
+</article>
+
+  </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

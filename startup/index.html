@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Setup Wizard | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Setup Wizard | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Setup Wizard" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/startup/" />
+<meta property="og:url" content="https://operator.untra.io/startup/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Setup Wizard" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Setup Wizard","url":"https://operator.untra.io/startup/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/claude-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/claude-dark.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/codex-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/codex-dark.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/gemini-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/gemini-dark.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/jira-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/jira-dark.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/linear-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/linear-dark.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/github-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/github-dark.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/webhook-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/webhook-dark.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/notification-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/notification-dark.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/tmux-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/tmux-dark.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img class="icon-light" src="/assets/icons/vscode-light.svg" alt="" width="16" height="16"><img class="icon-dark" src="/assets/icons/vscode-dark.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/agents/" >Agents</a>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Backstage</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/startup/index.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.26</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-03-01</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Setup Wizard</h1>
+  
+
+  <!-- AUTO-GENERATED FROM src/startup/mod.rs - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+<h1 id="setup-wizard">Setup Wizard</h1>
+
+<p>When Operator starts and no <code class="language-plaintext highlighter-rouge">.tickets/</code> directory exists, the setup wizard guides you through first-time initialization. This reference documents each step of the wizard.</p>
+
+<h2 id="steps-overview">Steps Overview</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Step</th>
+      <th>Name</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>Welcome</td>
+      <td>Splash screen showing detected LLM tools and discovered projects</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Collection Source</td>
+      <td>Choose which ticket template collection to use</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Custom Collection</td>
+      <td>Select individual issue types (only shown if Custom Selection chosen)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Task Field Config</td>
+      <td>Configure optional fields for TASK issue type</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Tmux Onboarding</td>
+      <td>Help and documentation about tmux session management</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Startup Tickets</td>
+      <td>Optionally create tickets to bootstrap your projects</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Confirm</td>
+      <td>Review settings and confirm initialization</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="step-details">Step Details</h2>
+
+<h3 id="1-welcome">1. Welcome</h3>
+
+<p><em>Splash screen showing detected LLM tools and discovered projects</em></p>
+
+<p>The welcome screen displays:</p>
+<ul>
+  <li>Detected LLM tools (Claude, Gemini, Codex, etc.) with version and model count</li>
+  <li>Discovered projects organized by which LLM tool marker files they contain</li>
+  <li>The path where the tickets directory will be created</li>
+</ul>
+
+<p>This gives you an overview of your development environment before proceeding.</p>
+
+<p><strong>Navigation</strong>: Enter to continue, Esc to cancel</p>
+
+<h3 id="2-collection-source">2. Collection Source</h3>
+
+<p><em>Choose which ticket template collection to use</em></p>
+
+<p>Select a preset collection of issue types:</p>
+<ul>
+  <li><strong>Simple</strong>: Just TASK - minimal setup for general work</li>
+  <li><strong>Dev Kanban</strong>: 3 types (TASK, FEAT, FIX) for development workflows</li>
+  <li><strong>DevOps Kanban</strong>: 5 types (TASK, SPIKE, INV, FEAT, FIX) for full DevOps</li>
+  <li><strong>Import from Jira</strong>: (Coming soon)</li>
+  <li><strong>Import from Notion</strong>: (Coming soon)</li>
+  <li><strong>Custom Selection</strong>: Choose individual issue types</li>
+</ul>
+
+<p><strong>Navigation</strong>: ↑/↓ or j/k to navigate, Enter to select, Esc to go back</p>
+
+<h3 id="3-custom-collection">3. Custom Collection</h3>
+
+<p><em>Select individual issue types (only shown if Custom Selection chosen)</em></p>
+
+<p>Toggle individual issue types to include:</p>
+<ul>
+  <li><strong>TASK</strong>: Focused task that executes one specific thing</li>
+  <li><strong>FEAT</strong>: New feature or enhancement</li>
+  <li><strong>FIX</strong>: Bug fix, follow-up work, tech debt</li>
+  <li><strong>SPIKE</strong>: Research or exploration (paired mode)</li>
+  <li><strong>INV</strong>: Incident investigation (paired mode)</li>
+</ul>
+
+<p>At least one issue type must be selected to proceed.</p>
+
+<p><strong>Navigation</strong>: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back</p>
+
+<h3 id="4-task-field-config">4. Task Field Config</h3>
+
+<p><em>Configure optional fields for TASK issue type</em></p>
+
+<p>TASK is the foundational issue type. Configure which optional fields to include:</p>
+<ul>
+  <li><strong>priority</strong>: Priority level (P0-critical to P3-low)</li>
+  <li><strong>context</strong>: Background context for the task</li>
+</ul>
+
+<p>These choices propagate to other issue types. The ‘summary’ field is always required, and ‘id’ is auto-generated.</p>
+
+<p><strong>Navigation</strong>: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back</p>
+
+<h3 id="5-tmux-onboarding">5. Tmux Onboarding</h3>
+
+<p><em>Help and documentation about tmux session management</em></p>
+
+<p>Operator launches Coding agents in tmux sessions. Essential commands:</p>
+<ul>
+  <li><strong>Detach from session</strong>: Ctrl+a (quick, no prefix needed!)</li>
+  <li><strong>Fallback detach</strong>: Ctrl+b then d</li>
+  <li><strong>List sessions</strong>: <code class="language-plaintext highlighter-rouge">tmux ls</code></li>
+  <li><strong>Attach to session</strong>: <code class="language-plaintext highlighter-rouge">tmux attach -t &lt;name&gt;</code></li>
+</ul>
+
+<p>Operator session names start with ‘op-‘ for easy identification.</p>
+
+<p><strong>Navigation</strong>: Enter to continue, Esc to go back</p>
+
+<h3 id="6-startup-tickets">6. Startup Tickets</h3>
+
+<p><em>Optionally create tickets to bootstrap your projects</em></p>
+
+<p>Create startup tickets to help initialize your projects:</p>
+<ul>
+  <li><strong>ASSESS tickets</strong>: Scan projects for catalog-info.yaml, create if missing</li>
+  <li><strong>AGENT-SETUP tickets</strong>: Configure Claude agents for each project</li>
+  <li><strong>PROJECT-INIT tickets</strong>: Run both ASSESS and AGENT-SETUP for each project</li>
+</ul>
+
+<p>These tickets are optional and help automate common setup tasks.</p>
+
+<p><strong>Navigation</strong>: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back</p>
+
+<h3 id="7-confirm">7. Confirm</h3>
+
+<p><em>Review settings and confirm initialization</em></p>
+
+<p>Review your configuration before initialization:</p>
+<ul>
+  <li>Path where <code class="language-plaintext highlighter-rouge">.tickets/</code> will be created</li>
+  <li>Selected issue types and preset name</li>
+  <li>Directories that will be created: queue/, in-progress/, completed/, templates/</li>
+</ul>
+
+<p>Choose Initialize to create the ticket queue, or Cancel to exit without changes.</p>
+
+<p><strong>Navigation</strong>: Tab or Space to toggle selection, Enter to confirm, Esc to go back</p>
+
+<h2 id="keyboard-shortcuts">Keyboard Shortcuts</h2>
+
+<p>Common keys used throughout the setup wizard:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Enter</code></td>
+      <td>Confirm/Continue</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Esc</code></td>
+      <td>Go back/Cancel</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">↑</code>/<code class="language-plaintext highlighter-rouge">↓</code> or <code class="language-plaintext highlighter-rouge">j</code>/<code class="language-plaintext highlighter-rouge">k</code></td>
+      <td>Navigate list items</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Space</code></td>
+      <td>Toggle selection</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Tab</code></td>
+      <td>Switch between options</td>
+    </tr>
+  </tbody>
+</table>
+
+
+</article>
+
+  </main>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

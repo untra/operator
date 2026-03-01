@@ -35,6 +35,12 @@ Welcome friend! <span class="operator-brand">Operator!</span> is an application 
 - [Agents](/agents/) - Agent lifecycle and modes
 - [Tmux](/tmux/) - Terminal session management
 
+## Similar
+
+These are tools that comparable and aspirational for Operator
+
+- [agtx](https://github.com/fynnfluegge/agtx)
+
 ## Similar, but Worse:
 
 These are tools that are almost as good, and are inspirational, but just don't quite cut it:

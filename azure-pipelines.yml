@@ -33,7 +33,7 @@ steps:
       AzureTenantID: $(AzureTenantID)
       AzureClientID: $(AzureClientID)
       AzureClientSecret: $(AzureClientSecret)
-      Endpoint: https://ncus.codesigning.azure.net
+      Endpoint: https://eus.codesigning.azure.net
       ArtifactSigningAccountName: $(TrustedSigningAccountName)
       CertificateProfileName: Operator
       FilesFolder: $(Build.StagingDirectory)

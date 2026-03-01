@@ -28,7 +28,7 @@ steps:
           --file "$(Build.StagingDirectory)\unsigned.exe"
 
   - task: ArtifactSigning@1
-    displayName: Sign with Trusted Signing
+    displayName: Sign with Artifact Signing
     inputs:
       AzureTenantID: $(AzureTenantID)
       AzureClientID: $(AzureClientID)

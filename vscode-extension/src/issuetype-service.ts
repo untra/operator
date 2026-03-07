@@ -239,7 +239,7 @@ export class IssueTypeService {
    */
   extractTypeFromId(ticketId: string): string {
     const parts = ticketId.split('-');
-    if (parts.length >= 2) {
+    if (parts.length >= 2 && parts[0]) {
       const prefix = parts[0].toUpperCase();
       // Validate it looks like a type key (uppercase letters only)
       if (/^[A-Z]+$/.test(prefix)) {
@@ -261,7 +261,7 @@ export class IssueTypeService {
     const baseName = filename.replace(/\.md$/, '');
     const match = baseName.match(/^([A-Z]+)-(\d+)/i);
 
-    if (match) {
+    if (match?.[1] && match[2]) {
       const type = match[1].toUpperCase();
       const id = `${type}-${match[2]}`;
       return { id, type };
@@ -276,7 +276,7 @@ export class IssueTypeService {
   getIconForTerminal(name: string): vscode.ThemeIcon {
     // Terminal names are like "op-FEAT-123"
     const typeMatch = name.match(/op-([A-Z]+)-/i);
-    if (typeMatch) {
+    if (typeMatch?.[1]) {
       return this.getIcon(typeMatch[1]);
     }
     return new vscode.ThemeIcon('terminal');
@@ -288,7 +288,7 @@ export class IssueTypeService {
   getColorForTerminal(name: string): vscode.ThemeColor {
     // Terminal names are like "op-FEAT-123"
     const typeMatch = name.match(/op-([A-Z]+)-/i);
-    if (typeMatch) {
+    if (typeMatch?.[1]) {
       return this.getColor(typeMatch[1]) ?? new vscode.ThemeColor('terminal.ansiWhite');
     }
     return new vscode.ThemeColor('terminal.ansiWhite');

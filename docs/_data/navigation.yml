@@ -62,6 +62,9 @@ docs:
         url: /tickets/
       - title: Agents
         url: /agents/
+        children:
+          - title: Artifact Detection
+            url: /agents/artifact-detection/
   - title: Reference
     children:
       - title: CLI

@@ -21,13 +21,21 @@ working_directory: string,
  */
 command: string, 
 /**
- * Terminal name to use (same value as tmux_session_name)
+ * Terminal name to use (same value as `tmux_session_name`)
  */
 terminal_name: string, 
 /**
- * Tmux session name for attaching (same value as terminal_name)
+ * Tmux session name for attaching (same value as `terminal_name`, kept for backward compat)
  */
 tmux_session_name: string, 
+/**
+ * Which session wrapper was used: "tmux", "vscode", or "cmux"
+ */
+session_wrapper: string | null, 
+/**
+ * Session window reference ID (e.g. cmux window, tmux session)
+ */
+session_window_ref: string | null, 
 /**
  * Session UUID for the LLM tool
  */

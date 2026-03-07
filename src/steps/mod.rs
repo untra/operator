@@ -5,7 +5,7 @@
 //! **Purpose**: Multi-step workflow orchestration for complex tickets. Enables breaking
 //! down large tickets into sequential steps that can be executed, monitored, and resumed.
 //!
-//! **Integration Point**: `agents/launcher.rs` - wrap ticket launches in StepSession
+//! **Integration Point**: `agents/launcher.rs` - wrap ticket launches in `StepSession`
 //!
 //! **Milestone**: TBD - Define when step-based workflows are needed for complex multi-phase work
 //!

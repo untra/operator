@@ -65,6 +65,7 @@
       "prompt": "You are implementing a new feature. First, read the ticket and explore the codebase to understand:\n1. Where the feature should be implemented\n2. What existing code/patterns to follow\n3. What tests need to be added\n\nCreate a detailed implementation plan in `.tickets/plans/{{ id }}.md` with:\n- Files to create/modify\n- Key implementation steps\n- Test coverage requirements\n- Any dependencies or risks",
       "allowed_tools": ["Read", "Glob", "Grep", "Write"],
       "review_type": "plan",
+      "artifact_patterns": [".tickets/plans/{{ id }}.md"],
       "on_reject": {
         "goto_step": "plan",
         "prompt": "Plan rejected: {{ rejection_reason }}\n\nRevise the plan based on feedback."

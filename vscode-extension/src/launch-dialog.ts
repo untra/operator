@@ -93,7 +93,7 @@ export async function showTicketPicker(
   tickets: TicketInfo[]
 ): Promise<TicketInfo | undefined> {
   if (tickets.length === 0) {
-    vscode.window.showInformationMessage('No tickets available');
+    void vscode.window.showInformationMessage('No tickets available');
     return undefined;
   }
 

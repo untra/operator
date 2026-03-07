@@ -74,9 +74,9 @@ pub fn load_project_permissions(_config: &Config, project_path: &str) -> Result<
 
     if permissions_path.exists() {
         let content = fs::read_to_string(&permissions_path)
-            .with_context(|| format!("Failed to read permissions file: {:?}", permissions_path))?;
+            .with_context(|| format!("Failed to read permissions file: {permissions_path:?}"))?;
         let proj_perms: ProjectPermissions = serde_json::from_str(&content)
-            .with_context(|| format!("Failed to parse permissions file: {:?}", permissions_path))?;
+            .with_context(|| format!("Failed to parse permissions file: {permissions_path:?}"))?;
         Ok(proj_perms.base)
     } else {
         // No project permissions file, use empty defaults

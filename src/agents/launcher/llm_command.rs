@@ -34,13 +34,12 @@ pub fn build_llm_command_with_permissions_for_tool(
     // Find the specified tool
     let tool = get_detected_tool(config, tool_name).ok_or_else(|| {
         anyhow::anyhow!(
-            "LLM tool '{}' not detected. Install it or choose a different provider.",
-            tool_name
+            "LLM tool '{tool_name}' not detected. Install it or choose a different provider."
         )
     })?;
 
     // Build model flag based on tool's arg_mapping
-    let model_flag = format!("--model {} ", model);
+    let model_flag = format!("--model {model} ");
 
     // Generate config flags from permissions
     let config_flags = if let (Some(ticket), Some(project_path)) = (ticket, project_path) {
@@ -71,7 +70,7 @@ pub fn apply_yolo_flags(config: &Config, cmd: &str, tool_name: &str) -> String {
             if let Some(pos) = cmd.find(tool_name) {
                 let insert_pos = pos + tool_name.len();
                 let mut result = cmd.to_string();
-                result.insert_str(insert_pos, &format!(" {}", yolo_flags_str));
+                result.insert_str(insert_pos, &format!(" {yolo_flags_str}"));
                 return result;
             }
         }
@@ -158,7 +157,7 @@ fn generate_config_flags(
         .join("sessions")
         .join(&ticket.id);
     fs::create_dir_all(&session_dir)
-        .with_context(|| format!("Failed to create session dir: {:?}", session_dir))?;
+        .with_context(|| format!("Failed to create session dir: {session_dir:?}"))?;
 
     // Generate config using translator
     let translator = TranslatorManager::new();
@@ -210,7 +209,7 @@ fn generate_config_flags(
                 let schema_str = serde_json::to_string_pretty(schema)
                     .context("Failed to serialize JSON schema")?;
                 fs::write(&schema_file_path, &schema_str).with_context(|| {
-                    format!("Failed to write JSON schema file: {:?}", schema_file_path)
+                    format!("Failed to write JSON schema file: {schema_file_path:?}")
                 })?;
                 cli_flags.push("--json-schema".to_string());
                 cli_flags.push(schema_file_path.to_string_lossy().to_string());
@@ -229,7 +228,7 @@ fn generate_config_flags(
                 };
                 // Verify schema file exists, then pass the path (not content)
                 if !schema_path.exists() {
-                    anyhow::bail!("JSON schema file not found: {:?}", schema_path);
+                    anyhow::bail!("JSON schema file not found: {schema_path:?}");
                 }
                 cli_flags.push("--json-schema".to_string());
                 cli_flags.push(schema_path.to_string_lossy().to_string());

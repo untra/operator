@@ -25,7 +25,7 @@ pub struct SyncableCollection {
     pub provider: String,
     /// Project/team key in the provider
     pub project_key: String,
-    /// IssueTypeCollection name in Operator
+    /// `IssueTypeCollection` name in Operator
     pub collection_name: String,
     /// User ID to sync issues for
     pub sync_user_id: String,
@@ -125,16 +125,14 @@ impl KanbanSyncService {
 
         // Get the provider
         let provider = get_provider(provider_name)
-            .ok_or_else(|| anyhow::anyhow!("Provider '{}' not configured", provider_name))?;
+            .ok_or_else(|| anyhow::anyhow!("Provider '{provider_name}' not configured"))?;
 
         // Get the project config
         let project_config = self
             .get_project_config(provider_name, project_key)
             .ok_or_else(|| {
                 anyhow::anyhow!(
-                    "Project '{}' not configured for provider '{}'",
-                    project_key,
-                    provider_name
+                    "Project '{project_key}' not configured for provider '{provider_name}'"
                 )
             })?;
 
@@ -300,11 +298,11 @@ impl KanbanSyncService {
         let timestamp = now.format("%Y%m%d-%H%M").to_string();
         let ticket_type = map_issue_type_to_operator(&issue.issue_type);
         let slug = slugify(&issue.summary, 50);
-        let filename = format!("{}-{}-{}-{}.md", timestamp, ticket_type, project_key, slug);
+        let filename = format!("{timestamp}-{ticket_type}-{project_key}-{slug}.md");
 
         // Build frontmatter
         let frontmatter = format!(
-            r#"---
+            r"---
 id: {}-{}
 status: queued
 priority: {}
@@ -312,7 +310,7 @@ step: plan
 external_id: {}
 external_url: {}
 external_provider: {}
----"#,
+---",
             ticket_type,
             issue.key.replace('-', ""),
             map_priority(&issue.priority),
@@ -327,7 +325,7 @@ external_provider: {}
             .as_deref()
             .unwrap_or("No description provided.");
         let content = format!(
-            r#"{}
+            r"{}
 
 # {}: {}
 
@@ -337,7 +335,7 @@ external_provider: {}
 
 - **Provider**: {}
 - **Issue**: [{}]({})
-"#,
+",
             frontmatter, ticket_type, issue.summary, description, provider, issue.key, issue.url,
         );
 
@@ -348,7 +346,7 @@ external_provider: {}
     }
 }
 
-/// Extract external_id from ticket content frontmatter
+/// Extract `external_id` from ticket content frontmatter
 fn extract_external_id(content: &str) -> Option<String> {
     // Simple extraction - look for "external_id: <value>" in frontmatter
     if !content.starts_with("---") {
@@ -380,12 +378,12 @@ fn map_issue_type_to_operator(issue_type: &str) -> &'static str {
 
 /// Map external priority to Operator priority
 fn map_priority(priority: &Option<String>) -> &'static str {
-    match priority.as_deref().map(|s| s.to_lowercase()).as_deref() {
-        Some("highest") | Some("critical") | Some("urgent") | Some("p0") => "P0-critical",
-        Some("high") | Some("p1") => "P1-high",
-        Some("medium") | Some("normal") | Some("p2") => "P2-medium",
-        Some("low") | Some("p3") => "P3-low",
-        Some("lowest") | Some("trivial") | Some("p4") => "P4-trivial",
+    match priority.as_deref().map(str::to_lowercase).as_deref() {
+        Some("highest" | "critical" | "urgent" | "p0") => "P0-critical",
+        Some("high" | "p1") => "P1-high",
+        Some("medium" | "normal" | "p2") => "P2-medium",
+        Some("low" | "p3") => "P3-low",
+        Some("lowest" | "trivial" | "p4") => "P4-trivial",
         _ => "P2-medium", // Default to medium
     }
 }

@@ -49,7 +49,7 @@ impl AnthropicProvider {
         })
     }
 
-    /// Create provider from OPERATOR_ANTHROPIC_API_KEY environment variable
+    /// Create provider from `OPERATOR_ANTHROPIC_API_KEY` environment variable
     pub fn from_env() -> Result<Option<Self>, ApiError> {
         match env::var("OPERATOR_ANTHROPIC_API_KEY") {
             Ok(key) if !key.is_empty() => Ok(Some(Self::new(key)?)),
@@ -88,7 +88,7 @@ impl AnthropicProvider {
             headers
                 .get(name)
                 .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
         };
 
         RateLimitInfo {

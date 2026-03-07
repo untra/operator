@@ -1,11 +1,11 @@
-//! Step execution types - unified from vibe-kanban TaskAttempt + Operator AgentState
+//! Step execution types - unified from vibe-kanban `TaskAttempt` + Operator `AgentState`
 //!
 //! In Operator's model:
-//! - A Ticket has an IssueType which defines Steps
-//! - Each Step can have multiple StepAttempts (retries, different approaches)
-//! - Each StepAttempt runs in an isolated git worktree with its own branch
-//! - Each StepAttempt contains Sessions (conversational continuity)
-//! - Each Session spawns ExecutionProcesses (setup, agent, cleanup)
+//! - A Ticket has an `IssueType` which defines Steps
+//! - Each Step can have multiple `StepAttempts` (retries, different approaches)
+//! - Each `StepAttempt` runs in an isolated git worktree with its own branch
+//! - Each `StepAttempt` contains Sessions (conversational continuity)
+//! - Each Session spawns `ExecutionProcesses` (setup, agent, cleanup)
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -80,9 +80,13 @@ pub struct StepAttempt {
     #[serde(default)]
     pub paired: bool,
 
-    /// Tmux session name (for Operator's terminal-based execution)
+    /// Terminal session name (for Operator's terminal-based execution)
+    #[serde(default, alias = "tmux_session")]
+    pub terminal_session: Option<String>,
+
+    /// Which session wrapper manages this attempt: "tmux", "vscode", or "cmux"
     #[serde(default)]
-    pub tmux_session: Option<String>,
+    pub session_wrapper: Option<String>,
 
     /// Hash of last captured terminal content (for change detection)
     #[serde(default)]
@@ -103,7 +107,7 @@ pub struct StepAttempt {
     #[serde(default)]
     pub github_repo: Option<String>,
 
-    /// Current PR status ("open", "approved", "changes_requested", "merged", "closed")
+    /// Current PR status ("open", "approved", "`changes_requested`", "merged", "closed")
     #[serde(default)]
     pub pr_status: Option<String>,
 
@@ -176,7 +180,7 @@ impl std::fmt::Display for AttemptStatus {
 /// An individual execution process within an attempt
 ///
 /// Each attempt can spawn multiple processes: setup script, coding agent, cleanup.
-/// This maps to vibe-kanban's ExecutionProcess concept.
+/// This maps to vibe-kanban's `ExecutionProcess` concept.
 #[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
 #[ts(export)]
 pub struct ExecutionProcess {
@@ -274,11 +278,15 @@ pub struct Session {
     pub attempt_id: Uuid,
 
     // ─────────────────────────────────────────────────────────────────────
-    // Operator's tmux tracking
+    // Operator's terminal tracking
     // ─────────────────────────────────────────────────────────────────────
-    /// Tmux session name for terminal-based execution
+    /// Terminal session name for terminal-based execution
+    #[serde(default, alias = "tmux_session_name")]
+    pub terminal_session_name: Option<String>,
+
+    /// Which session wrapper manages this session: "tmux", "vscode", or "cmux"
     #[serde(default)]
-    pub tmux_session_name: Option<String>,
+    pub session_wrapper: Option<String>,
 
     /// Hash of terminal content for change detection
     #[serde(default)]
@@ -331,7 +339,8 @@ impl StepAttempt {
             launch_mode: None,
             status: AttemptStatus::Pending,
             paired: false,
-            tmux_session: None,
+            terminal_session: None,
+            session_wrapper: None,
             content_hash: None,
             pr_url: None,
             pr_number: None,
@@ -394,7 +403,8 @@ impl Session {
         Self {
             id: Uuid::new_v4(),
             attempt_id,
-            tmux_session_name: None,
+            terminal_session_name: None,
+            session_wrapper: None,
             content_hash: None,
             agent_session_id: None,
             summary: None,
@@ -464,8 +474,63 @@ mod tests {
         let session = Session::new(attempt_id);
 
         assert_eq!(session.attempt_id, attempt_id);
-        assert!(session.tmux_session_name.is_none());
+        assert!(session.terminal_session_name.is_none());
         assert!(session.agent_session_id.is_none());
+    }
+
+    #[test]
+    fn test_step_attempt_serde_backward_compat_tmux_session() {
+        let json = r#"{
+            "id": "00000000-0000-0000-0000-000000000001",
+            "ticket_id": "FEAT-001",
+            "step_name": "implement",
+            "project": "test",
+            "branch": "feat/001",
+            "target_branch": "main",
+            "executor": "claude",
+            "status": "running",
+            "last_activity": "2024-01-01T00:00:00Z",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+            "tmux_session": "op-FEAT-001"
+        }"#;
+
+        let attempt: StepAttempt = serde_json::from_str(json).unwrap();
+        assert_eq!(attempt.terminal_session, Some("op-FEAT-001".to_string()));
+        assert_eq!(attempt.session_wrapper, None);
+    }
+
+    #[test]
+    fn test_session_serde_backward_compat_tmux_session_name() {
+        let json = r#"{
+            "id": "00000000-0000-0000-0000-000000000001",
+            "attempt_id": "00000000-0000-0000-0000-000000000002",
+            "tmux_session_name": "op-FEAT-001",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z"
+        }"#;
+
+        let session: Session = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            session.terminal_session_name,
+            Some("op-FEAT-001".to_string())
+        );
+        assert_eq!(session.session_wrapper, None);
+    }
+
+    #[test]
+    fn test_step_attempt_new_default_fields() {
+        let attempt = StepAttempt::new(
+            "FEAT-001".to_string(),
+            "plan".to_string(),
+            "proj".to_string(),
+            "feat/001".to_string(),
+            "main".to_string(),
+            "claude".to_string(),
+        );
+
+        assert_eq!(attempt.terminal_session, None);
+        assert_eq!(attempt.session_wrapper, None);
     }
 
     #[test]

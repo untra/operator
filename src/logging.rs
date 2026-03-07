@@ -49,7 +49,7 @@ pub fn init_logging(
 
         // Generate log filename with ISO8601 timestamp
         let timestamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
-        let log_filename = format!("operator-{}.log", timestamp);
+        let log_filename = format!("operator-{timestamp}.log");
         let log_file_path = logs_dir.join(&log_filename);
 
         // Create file appender

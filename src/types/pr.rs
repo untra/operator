@@ -70,7 +70,7 @@ pub struct RepoInfo {
 }
 
 impl RepoInfo {
-    /// Create a new RepoInfo with explicit provider
+    /// Create a new `RepoInfo` with explicit provider
     pub fn new(
         provider: GitProvider,
         owner: impl Into<String>,
@@ -134,7 +134,7 @@ fn parse_owner_repo(
         .map_err(|e| RepoInfoError::InvalidUrl(format!("Failed to compile regex: {e}")))?;
 
     let caps = re.captures(remote_url).ok_or_else(|| {
-        RepoInfoError::InvalidUrl(format!("Invalid {} URL format: {remote_url}", provider))
+        RepoInfoError::InvalidUrl(format!("Invalid {provider} URL format: {remote_url}"))
     })?;
 
     let owner = caps

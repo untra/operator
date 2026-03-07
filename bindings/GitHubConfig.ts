@@ -9,6 +9,6 @@ export type GitHubConfig = {
  */
 enabled: boolean, 
 /**
- * Environment variable containing the GitHub token (default: GITHUB_TOKEN)
+ * Environment variable containing the GitHub token (default: `GITHUB_TOKEN`)
  */
 token_env: string, };

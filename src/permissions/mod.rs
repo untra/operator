@@ -54,7 +54,7 @@ use std::collections::HashMap;
 /// Provider-agnostic tool pattern
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct ToolPattern {
-    /// Tool name: Read, Write, Edit, Bash, Glob, Grep, WebFetch, etc.
+    /// Tool name: Read, Write, Edit, Bash, Glob, Grep, `WebFetch`, etc.
     pub tool: String,
     /// Optional pattern for tool arguments (e.g., "cargo test:*" for Bash)
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -182,7 +182,7 @@ impl PermissionSet {
     /// Merge step permissions additively with project permissions
     ///
     /// Both allow and deny lists are concatenated (additive merge).
-    /// For custom_flags, step values override project values for the same key.
+    /// For `custom_flags`, step values override project values for the same key.
     pub fn merge(
         project: &StepPermissions,
         step: &StepPermissions,
@@ -227,7 +227,7 @@ impl PermissionSet {
         }
     }
 
-    /// Create a PermissionSet from just step permissions (no project permissions)
+    /// Create a `PermissionSet` from just step permissions (no project permissions)
     pub fn from_step(step: &StepPermissions, cli_args: &ProviderCliArgs) -> Self {
         Self::merge(&StepPermissions::default(), step, cli_args)
     }
@@ -245,7 +245,7 @@ fn merge_flags(
     result
 }
 
-/// Helper to check if a value is default (for skip_serializing_if)
+/// Helper to check if a value is default (for `skip_serializing_if`)
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     *t == T::default()
 }

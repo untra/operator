@@ -4,7 +4,7 @@
 //! Provider trait definitions for external service integrations
 //!
 //! This module defines the trait interfaces for different provider categories:
-//! - AI providers (Anthropic, OpenAI, Gemini)
+//! - AI providers (Anthropic, `OpenAI`, Gemini)
 //! - Repository providers (GitHub, GitLab, Azure Repos)
 //! - Kanban providers (Jira, Linear) for importing issue types
 

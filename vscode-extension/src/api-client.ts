@@ -14,10 +14,25 @@ import type {
   LaunchTicketRequest,
   LaunchTicketResponse,
   HealthResponse,
+  IssueTypeSummary,
+  IssueTypeResponse,
+  CollectionResponse,
+  ExternalIssueTypeSummary,
+  CreateIssueTypeRequest,
+  UpdateIssueTypeRequest,
 } from './generated';
 
 // Re-export generated types for consumers
-export type { LaunchTicketResponse, HealthResponse };
+export type {
+  LaunchTicketResponse,
+  HealthResponse,
+  IssueTypeSummary,
+  IssueTypeResponse,
+  CollectionResponse,
+  ExternalIssueTypeSummary,
+  CreateIssueTypeRequest,
+  UpdateIssueTypeRequest,
+};
 
 /**
  * Summary of a project from the Operator REST API
@@ -115,7 +130,7 @@ export async function discoverApiUrl(
     const sessionFile = path.join(ticketsDir, 'operator', 'api-session.json');
     try {
       const content = await fs.readFile(sessionFile, 'utf-8');
-      const session: ApiSessionInfo = JSON.parse(content);
+      const session = JSON.parse(content) as ApiSessionInfo;
       return `http://localhost:${session.port}`;
     } catch {
       // Session file doesn't exist or is invalid, fall through
@@ -359,5 +374,161 @@ export class OperatorApiClient {
     }
 
     return (await response.json()) as AssessTicketResponse;
+  }
+
+  /**
+   * List all issue types from the registry
+   */
+  async listIssueTypes(): Promise<IssueTypeSummary[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/issuetypes`);
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as IssueTypeSummary[];
+  }
+
+  /**
+   * Get a single issue type by key
+   */
+  async getIssueType(key: string): Promise<IssueTypeResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/issuetypes/${encodeURIComponent(key)}`
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as IssueTypeResponse;
+  }
+
+  /**
+   * Create a new issue type
+   */
+  async createIssueType(request: CreateIssueTypeRequest): Promise<IssueTypeResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/issuetypes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as IssueTypeResponse;
+  }
+
+  /**
+   * Update an existing issue type
+   */
+  async updateIssueType(key: string, request: UpdateIssueTypeRequest): Promise<IssueTypeResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/issuetypes/${encodeURIComponent(key)}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      }
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as IssueTypeResponse;
+  }
+
+  /**
+   * Delete an issue type by key
+   */
+  async deleteIssueType(key: string): Promise<void> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/issuetypes/${encodeURIComponent(key)}`,
+      { method: 'DELETE' }
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+  }
+
+  /**
+   * List all collections
+   */
+  async listCollections(): Promise<CollectionResponse[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/collections`);
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as CollectionResponse[];
+  }
+
+  /**
+   * Activate a collection by name
+   */
+  async activateCollection(name: string): Promise<void> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/collections/${encodeURIComponent(name)}/activate`,
+      { method: 'PUT' }
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+  }
+
+  /**
+   * Get external issue types from a kanban provider for a project
+   */
+  async getExternalIssueTypes(
+    provider: string,
+    projectKey: string
+  ): Promise<ExternalIssueTypeSummary[]> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/kanban/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}/issuetypes`
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as ExternalIssueTypeSummary[];
   }
 }

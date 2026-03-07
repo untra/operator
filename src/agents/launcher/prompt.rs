@@ -20,7 +20,7 @@ pub fn generate_prompt(config: &Config, ticket: &Ticket) -> String {
     match ticket.ticket_type.as_str() {
         "FEAT" | "FIX" => {
             format!(
-                r#"I'm starting work on ticket {}-{}.
+                r"I'm starting work on ticket {}-{}.
 
 Please read the ticket at: {}
 
@@ -39,7 +39,7 @@ Then:
 5. Create a pull request
 6. Move the ticket to completed: `mv {} {}`
 
-Let me know when you've read the ticket and are ready to begin."#,
+Let me know when you've read the ticket and are ready to begin.",
                 ticket.ticket_type,
                 ticket.id,
                 ticket_path.display(),
@@ -57,7 +57,7 @@ Let me know when you've read the ticket and are ready to begin."#,
         }
         "SPIKE" => {
             format!(
-                r#"Starting spike session for {}.
+                r"Starting spike session for {}.
 
 Please read the spike ticket at: {}
 
@@ -69,14 +69,14 @@ This is a paired research session. I'll be here to:
 
 The output of this spike will be new feature/fix tickets based on what we learn.
 
-Let me know when you've read the ticket and what you'd like to explore first."#,
+Let me know when you've read the ticket and what you'd like to explore first.",
                 ticket.id,
                 ticket_path.display(),
             )
         }
         "INV" => {
             format!(
-                r#"URGENT: Investigation needed for {}.
+                r"URGENT: Investigation needed for {}.
 
 Please read the investigation ticket at: {}
 
@@ -88,19 +88,19 @@ This is a priority incident. Let's:
 5. Recommend immediate mitigation
 6. Generate fix tickets
 
-I'm here to help investigate. What information do you have about the incident so far?"#,
+I'm here to help investigate. What information do you have about the incident so far?",
                 ticket.id,
                 ticket_path.display(),
             )
         }
         "TASK" => {
             format!(
-                r#"Starting task: {}
+                r"Starting task: {}
 
 Please read the task ticket at: {}
 
 Follow the instructions in the ticket's Context section to complete this task.
-When done, move the ticket to completed."#,
+When done, move the ticket to completed.",
                 ticket.id,
                 ticket_path.display()
             )
@@ -115,7 +115,7 @@ When done, move the ticket to completed."#,
     }
 }
 
-/// Get the agent_prompt from a template if it exists
+/// Get the `agent_prompt` from a template if it exists
 pub fn get_agent_prompt(ticket_type: &str) -> Option<String> {
     TemplateType::from_key(ticket_type)
         .and_then(|tt| TemplateSchema::from_json(tt.schema()).ok())
@@ -135,19 +135,19 @@ pub fn generate_session_uuid() -> String {
 }
 
 /// Write a prompt to a file and return the path
-/// Prompts are stored in .tickets/operator/prompts/{session_uuid}.txt
+/// Prompts are stored in .`tickets/operator/prompts/{session_uuid}.txt`
 pub fn write_prompt_file(config: &Config, session_uuid: &str, prompt: &str) -> Result<PathBuf> {
     let prompts_dir = config.tickets_path().join("operator/prompts");
     fs::create_dir_all(&prompts_dir).context("Failed to create prompts directory")?;
 
-    let prompt_file = prompts_dir.join(format!("{}.txt", session_uuid));
+    let prompt_file = prompts_dir.join(format!("{session_uuid}.txt"));
     fs::write(&prompt_file, prompt).context("Failed to write prompt file")?;
 
     Ok(prompt_file)
 }
 
 /// Write a shell command to an executable script file and return the path
-/// Commands are stored in .tickets/operator/commands/{session_uuid}.sh
+/// Commands are stored in .`tickets/operator/commands/{session_uuid}.sh`
 ///
 /// This solves issues with long commands and special characters when using tmux send-keys.
 /// Instead of pasting complex commands directly, we write them to a script and execute that.
@@ -160,7 +160,7 @@ pub fn write_command_file(
     let commands_dir = config.tickets_path().join("operator/commands");
     fs::create_dir_all(&commands_dir).context("Failed to create commands directory")?;
 
-    let command_file = commands_dir.join(format!("{}.sh", session_uuid));
+    let command_file = commands_dir.join(format!("{session_uuid}.sh"));
 
     // Build script content with shebang, cd, and exec
     let script_content = format!(
@@ -187,7 +187,7 @@ pub fn write_command_file(
 pub fn shell_escape(s: &str) -> String {
     // Use single quotes and escape any single quotes within
     let escaped = s.replace('\'', "'\"'\"'");
-    format!("'{}'", escaped)
+    format!("'{escaped}'")
 }
 
 #[cfg(test)]

@@ -43,7 +43,7 @@ impl PrWorkflow {
             .context("Failed to get remote URL")?;
 
         GitHubRepoInfo::from_remote_url(&remote_url)
-            .map_err(|e| anyhow::anyhow!("Failed to parse GitHub URL: {}", e))
+            .map_err(|e| anyhow::anyhow!("Failed to parse GitHub URL: {e}"))
     }
 
     /// Push branch to remote
@@ -77,7 +77,7 @@ impl PrWorkflow {
 
         let current_branch = GitCli::current_branch(worktree_path).await.map_err(|e| {
             CreatePrError::GithubApiError {
-                message: format!("Failed to get current branch: {}", e),
+                message: format!("Failed to get current branch: {e}"),
             }
         })?;
 
@@ -143,7 +143,7 @@ impl PrWorkflow {
         // Create new PR
         self.create_pr(worktree_path, title, body, base_branch, draft)
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to create PR: {:?}", e))
+            .map_err(|e| anyhow::anyhow!("Failed to create PR: {e:?}"))
     }
 
     /// Start tracking a PR for merge detection
@@ -214,7 +214,6 @@ impl PrWorkflow {
     /// 3. Start tracking
     /// 4. Open in browser
     #[instrument(skip(self, monitor))]
-    #[allow(clippy::too_many_arguments)]
     pub async fn run_pr_flow(
         &self,
         worktree_path: &Path,

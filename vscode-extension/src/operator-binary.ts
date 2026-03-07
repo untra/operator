@@ -19,7 +19,9 @@ const GITHUB_REPO = 'untra/operator';
  */
 export function getExtensionVersion(): string {
   const extension = vscode.extensions.getExtension('untra.operator-terminals');
-  return extension?.packageJSON.version || '0.2.0';
+  const packageJSON = extension?.packageJSON as Record<string, unknown> | undefined;
+  const version = typeof packageJSON?.version === 'string' ? packageJSON.version : '0.2.0';
+  return version;
 }
 
 /**
@@ -240,17 +242,16 @@ async function downloadWithRedirects(
         }
       });
 
-      response.on('end', async () => {
+      response.on('end', () => {
         writeStream.end();
         // Make executable on Unix
         if (process.platform !== 'win32') {
-          try {
-            await fs.chmod(destPath, 0o755);
-          } catch {
-            // Ignore chmod errors
-          }
+          fs.chmod(destPath, 0o755)
+            .catch(() => { /* Ignore chmod errors */ })
+            .finally(() => { resolve(destPath); });
+        } else {
+          resolve(destPath);
         }
-        resolve(destPath);
       });
 
       response.on('error', (err) => {

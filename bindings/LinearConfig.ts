@@ -4,7 +4,7 @@ import type { ProjectSyncConfig } from "./ProjectSyncConfig";
 /**
  * Linear provider configuration
  *
- * The workspace slug is specified as the HashMap key in KanbanConfig.linear
+ * The workspace slug is specified as the `HashMap` key in KanbanConfig.linear
  */
 export type LinearConfig = { 
 /**
@@ -12,7 +12,7 @@ export type LinearConfig = {
  */
 enabled: boolean, 
 /**
- * Environment variable name containing the API key (default: OPERATOR_LINEAR_API_KEY)
+ * Environment variable name containing the API key (default: `OPERATOR_LINEAR_API_KEY`)
  */
 api_key_env: string, 
 /**

@@ -291,10 +291,15 @@ mod tests {
             pr_status: None,
             completed_steps: vec![],
             llm_tool: None,
+            llm_model: None,
             launch_mode: None,
             review_state: None,
             dev_server_pid: None,
             worktree_path: None,
+            session_wrapper: None,
+            session_window_ref: None,
+            session_context_ref: None,
+            session_pane_ref: None,
         }
     }
 

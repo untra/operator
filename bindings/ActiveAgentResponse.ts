@@ -21,7 +21,7 @@ ticket_type: string,
  */
 project: string, 
 /**
- * Agent status: running, awaiting_input, completing
+ * Agent status: running, `awaiting_input`, completing
  */
 status: string, 
 /**

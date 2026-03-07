@@ -18,7 +18,7 @@ use crate::rest::dto::{
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 
-/// Convert PreparedLaunch to LaunchTicketResponse
+/// Convert `PreparedLaunch` to `LaunchTicketResponse`
 fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse {
     LaunchTicketResponse {
         agent_id: prepared.agent_id,
@@ -27,6 +27,8 @@ fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse
         command: prepared.command,
         terminal_name: prepared.terminal_name.clone(),
         tmux_session_name: prepared.terminal_name,
+        session_wrapper: None,
+        session_window_ref: None,
         session_id: prepared.session_id,
         worktree_created: prepared.worktree_created,
         branch: prepared.branch,
@@ -64,7 +66,7 @@ pub async fn launch_ticket(
     let ticket = queue
         .find_ticket(&ticket_id)
         .map_err(|e| ApiError::InternalError(e.to_string()))?
-        .ok_or_else(|| ApiError::NotFound(format!("Ticket '{}' not found", ticket_id)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Ticket '{ticket_id}' not found")))?;
 
     // Check if ticket is in-progress directory
     let in_progress_path = state
@@ -96,7 +98,7 @@ pub async fn launch_ticket(
     Ok(Json(prepared_launch_to_response(prepared)))
 }
 
-/// Build LaunchOptions from the request
+/// Build `LaunchOptions` from the request
 fn build_launch_options(
     state: &ApiState,
     request: &LaunchTicketRequest,
@@ -127,8 +129,7 @@ fn build_launch_options(
             });
         } else {
             return Err(ApiError::BadRequest(format!(
-                "Unknown provider '{}'",
-                provider_name
+                "Unknown provider '{provider_name}'"
             )));
         }
     } else if let Some(ref model) = request.model {
@@ -145,7 +146,7 @@ fn build_launch_options(
     Ok(options)
 }
 
-/// Build RelaunchOptions from the request
+/// Build `RelaunchOptions` from the request
 fn build_relaunch_options(
     state: &ApiState,
     request: &LaunchTicketRequest,
@@ -190,7 +191,7 @@ pub async fn complete_step(
     let ticket = queue
         .find_ticket(&ticket_id)
         .map_err(|e| ApiError::InternalError(e.to_string()))?
-        .ok_or_else(|| ApiError::NotFound(format!("Ticket '{}' not found", ticket_id)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Ticket '{ticket_id}' not found")))?;
 
     // Get the issue type to find step info
     let registry = state.registry.read().await;

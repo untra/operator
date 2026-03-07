@@ -6,7 +6,7 @@ mod ticket;
 mod watcher;
 
 pub use creator::TicketCreator;
-pub use ticket::{LlmTask, Ticket};
+pub use ticket::{LlmTask, StepAdvanceResult, Ticket};
 pub use watcher::QueueWatcher;
 
 use anyhow::{Context, Result};
@@ -179,11 +179,11 @@ impl Queue {
         let id = format!("{:04}", now.timestamp() % 10000);
         let project_str = project.as_deref().unwrap_or("global");
         let short_desc = slugify(&message, 30);
-        let filename = format!("{}-INV-{}-{}.md", timestamp, project_str, short_desc);
+        let filename = format!("{timestamp}-INV-{project_str}-{short_desc}.md");
 
         // Fill in template
         let content = template
-            .replace("INV-XXXX", &format!("INV-{}", id))
+            .replace("INV-XXXX", &format!("INV-{id}"))
             .replace(
                 "[global|adminsvc|apisvc|gamesvc|g|hushsvc|uzersvc|outboundsvc|www|iac|proto|e2e]",
                 project_str,

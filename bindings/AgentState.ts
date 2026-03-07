@@ -2,9 +2,25 @@
 
 export type AgentState = { id: string, ticket_id: string, ticket_type: string, project: string, status: string, started_at: string, last_activity: string, last_message: string | null, paired: boolean, 
 /**
- * The tmux session name for this agent (for recovery)
+ * The terminal session name for this agent (for recovery)
  */
 session_name: string | null, 
+/**
+ * Which session wrapper manages this agent: "tmux", "vscode", or "cmux" (None = legacy tmux)
+ */
+session_wrapper: string | null, 
+/**
+ * Session window reference ID (top-level grouping: cmux window, tmux session, etc.)
+ */
+session_window_ref: string | null, 
+/**
+ * Session context reference ID (mid-level: cmux workspace, tmux window, etc.)
+ */
+session_context_ref: string | null, 
+/**
+ * Session pane reference ID (leaf-level: cmux surface, tmux pane, etc.)
+ */
+session_pane_ref: string | null, 
 /**
  * Hash of the last captured pane content (for change detection)
  */
@@ -34,7 +50,7 @@ pr_number: bigint | null,
  */
 github_repo: string | null, 
 /**
- * Last known PR status ("open", "approved", "changes_requested", "merged", "closed")
+ * Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed")
  */
 pr_status: string | null, 
 /**
@@ -46,12 +62,16 @@ completed_steps: Array<string>,
  */
 llm_tool: string | null, 
 /**
+ * LLM model alias (e.g., "opus", "sonnet", "gpt-4o")
+ */
+llm_model: string | null, 
+/**
  * Launch mode: "default", "yolo", "docker", "docker-yolo"
  */
 launch_mode: string | null, 
 /**
- * Review state for awaiting_input agents
- * Values: "pending_plan", "pending_visual", "pending_pr_creation", "pending_pr_merge"
+ * Review state for `awaiting_input` agents
+ * Values: "`pending_plan`", "`pending_visual`", "`pending_pr_creation`", "`pending_pr_merge`"
  */
 review_state: string | null, 
 /**

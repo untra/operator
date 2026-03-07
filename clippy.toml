@@ -1,0 +1,5 @@
+cognitive-complexity-threshold = 80
+too-many-arguments-threshold = 8
+type-complexity-threshold = 300
+allowed-idents-below-min-chars = ["x", "y", "r", "f", "e", "i", "n", "s", "k", "v"]
+doc-valid-idents = ["GitHub", "GitLab", "macOS", "OpenAPI", "OAuth", "TypeScript", "WebSocket", "VsCode", "DevOps", "SubPath", "TodoApp","TOML", "JSON", "YAML", "UUID", "URL", "API", "CLI", "TUI", "PR", "SSH", "HTTP", "HTTPS", "stdin", "stdout", "tmux", "stderr"]

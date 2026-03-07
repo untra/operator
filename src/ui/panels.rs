@@ -13,8 +13,8 @@ use crate::state::{AgentState, CompletedTicket, OrphanSession};
 use crate::templates::{color_for_key, glyph_for_key};
 
 /// Format the ticket ID for display.
-/// The ticket_id field already contains the full ID (e.g., "FEAT-1234"),
-/// so we should NOT prepend the ticket_type again.
+/// The `ticket_id` field already contains the full ID (e.g., "FEAT-1234"),
+/// so we should NOT prepend the `ticket_type` again.
 pub fn format_display_id(ticket_id: &str) -> String {
     ticket_id.to_string()
 }
@@ -58,8 +58,8 @@ impl QueuePanel {
                 };
 
                 // Get glyph color from template, fall back to priority color
-                let glyph_color = color_for_key(&t.ticket_type)
-                    .map(|c| match c {
+                let glyph_color =
+                    color_for_key(&t.ticket_type).map_or(priority_color, |c| match c {
                         "blue" => Color::Blue,
                         "cyan" => Color::Cyan,
                         "green" => Color::Green,
@@ -67,8 +67,7 @@ impl QueuePanel {
                         "magenta" => Color::Magenta,
                         "red" => Color::Red,
                         _ => priority_color,
-                    })
-                    .unwrap_or(priority_color);
+                    });
 
                 // Trim summary to fit
                 let summary = if t.summary.len() > max_summary_len {
@@ -78,7 +77,7 @@ impl QueuePanel {
                 };
 
                 ListItem::new(Line::from(vec![
-                    Span::styled(format!("{} ", glyph), Style::default().fg(glyph_color)),
+                    Span::styled(format!("{glyph} "), Style::default().fg(glyph_color)),
                     Span::styled(summary, Style::default().fg(priority_color)),
                 ]))
             })
@@ -154,16 +153,8 @@ impl AgentsPanel {
                 };
 
                 // Check launch mode for docker and yolo
-                let is_docker = a
-                    .launch_mode
-                    .as_ref()
-                    .map(|m| m.contains("docker"))
-                    .unwrap_or(false);
-                let is_yolo = a
-                    .launch_mode
-                    .as_ref()
-                    .map(|m| m.contains("yolo"))
-                    .unwrap_or(false);
+                let is_docker = a.launch_mode.as_ref().is_some_and(|m| m.contains("docker"));
+                let is_yolo = a.launch_mode.as_ref().is_some_and(|m| m.contains("yolo"));
 
                 // YOLO indicator with rainbow animation (6-second cycle: R -> G -> B)
                 let yolo_indicator = if is_yolo {
@@ -195,7 +186,7 @@ impl AgentsPanel {
                 let step_display = a
                     .current_step
                     .as_ref()
-                    .map(|s| format!("[{}]", s))
+                    .map(|s| format!("[{s}]"))
                     .unwrap_or_default();
 
                 // Calculate elapsed time
@@ -207,7 +198,7 @@ impl AgentsPanel {
                 } else if elapsed >= 60 {
                     format!("{}m", elapsed / 60)
                 } else {
-                    format!("{}s", elapsed)
+                    format!("{elapsed}s")
                 };
 
                 // Build the first line with tool indicators
@@ -404,7 +395,7 @@ impl AwaitingPanel {
                 let step_display = a
                     .current_step
                     .as_ref()
-                    .map(|s| format!("[{}]", s))
+                    .map(|s| format!("[{s}]"))
                     .unwrap_or_default();
 
                 let lines = vec![
@@ -531,7 +522,7 @@ impl StatusBar {
         };
 
         Span::styled(
-            format!("  {}", hint_text),
+            format!("  {hint_text}"),
             Style::default().fg(Color::DarkGray),
         )
     }
@@ -555,8 +546,7 @@ impl StatusBar {
         if let Some(ref new_version) = self.update_available_version {
             let current_version = env!("CARGO_PKG_VERSION");
             let message = format!(
-                "  Update available: v{} -> v{} | Run: cargo install operator-tui",
-                current_version, new_version
+                "  Update available: v{current_version} -> v{new_version} | Run: cargo install operator-tui"
             );
 
             let content = Line::from(vec![Span::styled(
@@ -589,14 +579,12 @@ impl StatusBar {
         let web_indicator = match (&self.backstage_status, &self.rest_api_status) {
             // Both running - green filled circle with port
             (ServerStatus::Running { port, .. }, RestApiStatus::Running { .. }) => Span::styled(
-                format!("  [W]eb ●:{}", port),
+                format!("  [W]eb ●:{port}"),
                 Style::default().fg(Color::Green),
             ),
             // Either starting or stopping - yellow filled circle
-            (ServerStatus::Starting, _)
-            | (_, RestApiStatus::Starting)
-            | (ServerStatus::Stopping, _)
-            | (_, RestApiStatus::Stopping) => {
+            (ServerStatus::Starting | ServerStatus::Stopping, _)
+            | (_, RestApiStatus::Starting | RestApiStatus::Stopping) => {
                 Span::styled("  [W]eb ●", Style::default().fg(Color::Yellow))
             }
             // Either errored - red filled circle

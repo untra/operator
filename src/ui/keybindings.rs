@@ -100,7 +100,7 @@ impl Shortcut {
     }
 }
 
-/// Format a KeyCode for display
+/// Format a `KeyCode` for display
 fn format_keycode(key: &KeyCode) -> String {
     match key {
         KeyCode::Char(c) => c.to_string(),
@@ -118,8 +118,8 @@ fn format_keycode(key: &KeyCode) -> String {
         KeyCode::End => "End".to_string(),
         KeyCode::Delete => "Del".to_string(),
         KeyCode::Backspace => "Backspace".to_string(),
-        KeyCode::F(n) => format!("F{}", n),
-        _ => format!("{:?}", key),
+        KeyCode::F(n) => format!("F{n}"),
+        _ => format!("{key:?}"),
     }
 }
 

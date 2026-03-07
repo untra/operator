@@ -118,7 +118,7 @@ fn default_true() -> bool {
 }
 
 impl CreateIssueTypeRequest {
-    /// Convert request to IssueType
+    /// Convert request to `IssueType`
     pub fn into_issue_type(self) -> IssueType {
         IssueType {
             key: self.key.to_uppercase(),
@@ -132,8 +132,16 @@ impl CreateIssueTypeRequest {
             glyph: self.glyph,
             color: self.color,
             project_required: self.project_required,
-            fields: self.fields.into_iter().map(|f| f.into()).collect(),
-            steps: self.steps.into_iter().map(|s| s.into()).collect(),
+            fields: self
+                .fields
+                .into_iter()
+                .map(std::convert::Into::into)
+                .collect(),
+            steps: self
+                .steps
+                .into_iter()
+                .map(std::convert::Into::into)
+                .collect(),
             agent_prompt: None,
             source: IssueTypeSource::User,
             external_id: None,
@@ -392,6 +400,8 @@ impl From<CreateStepRequest> for StepSchema {
             },
             json_schema: None,
             json_schema_file: None,
+            artifact_patterns: vec![],
+            agent: None,
         }
     }
 }
@@ -440,6 +450,26 @@ impl CollectionResponse {
             is_active,
         }
     }
+}
+
+// =============================================================================
+// External Issue Type DTOs (from kanban providers)
+// =============================================================================
+
+/// Summary of an issue type from an external kanban provider (Jira, Linear)
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ExternalIssueTypeSummary {
+    /// Provider-specific unique identifier
+    pub id: String,
+    /// Issue type name (e.g., "Bug", "Story", "Task")
+    pub name: String,
+    /// Description of the issue type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Icon/avatar URL from the provider
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
 }
 
 // =============================================================================
@@ -558,7 +588,7 @@ pub struct ActiveAgentResponse {
     pub ticket_type: String,
     /// Project being worked on
     pub project: String,
-    /// Agent status: running, awaiting_input, completing
+    /// Agent status: running, `awaiting_input`, completing
     pub status: String,
     /// Execution mode: autonomous, paired
     pub mode: String,
@@ -596,7 +626,7 @@ pub struct LaunchTicketRequest {
     /// Run in YOLO mode (auto-accept all prompts)
     #[serde(default)]
     pub yolo_mode: bool,
-    /// Session wrapper type: "vscode", "tmux", "terminal"
+    /// Session wrapper type: "vscode", "tmux", "cmux", "terminal"
     #[serde(default)]
     pub wrapper: Option<String>,
     /// Feedback for relaunch (what went wrong on previous attempt)
@@ -619,10 +649,16 @@ pub struct LaunchTicketResponse {
     pub working_directory: String,
     /// Command to execute in terminal
     pub command: String,
-    /// Terminal name to use (same value as tmux_session_name)
+    /// Terminal name to use (same value as `tmux_session_name`)
     pub terminal_name: String,
-    /// Tmux session name for attaching (same value as terminal_name)
+    /// Tmux session name for attaching (same value as `terminal_name`, kept for backward compat)
     pub tmux_session_name: String,
+    /// Which session wrapper was used: "tmux", "vscode", or "cmux"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_wrapper: Option<String>,
+    /// Session window reference ID (e.g. cmux window, tmux session)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_window_ref: Option<String>,
     /// Session UUID for the LLM tool
     pub session_id: String,
     /// Whether a worktree was created
@@ -643,7 +679,7 @@ pub struct LaunchTicketResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS, Default)]
 #[ts(export)]
 pub struct OperatorOutput {
-    /// Current work status: in_progress, complete, blocked, failed
+    /// Current work status: `in_progress`, complete, blocked, failed
     pub status: String,
     /// Agent signals done with step (true) or more work remains (false)
     pub exit_signal: bool,
@@ -653,7 +689,7 @@ pub struct OperatorOutput {
     /// Number of files changed this iteration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub files_modified: Option<u32>,
-    /// Test suite status: passing, failing, skipped, not_run
+    /// Test suite status: passing, failing, skipped, `not_run`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tests_status: Option<String>,
     /// Number of errors encountered
@@ -689,7 +725,7 @@ pub struct StepCompleteRequest {
     /// Whether output validation passed (if schema was specified)
     #[serde(default = "default_true")]
     pub output_valid: bool,
-    /// List of validation errors (if output_valid is false)
+    /// List of validation errors (if `output_valid` is false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_schema_errors: Option<Vec<String>>,
     /// Session ID from the LLM session
@@ -700,7 +736,7 @@ pub struct StepCompleteRequest {
     /// Sample of the output (first N chars for debugging)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_sample: Option<String>,
-    /// Structured output from agent (parsed OPERATOR_STATUS block)
+    /// Structured output from agent (parsed `OPERATOR_STATUS` block)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output: Option<OperatorOutput>,
 }
@@ -709,7 +745,7 @@ pub struct StepCompleteRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct StepCompleteResponse {
-    /// Status of the step: "completed", "awaiting_review", "failed", "iterate"
+    /// Status of the step: "completed", "`awaiting_review`", "failed", "iterate"
     pub status: String,
     /// Information about the next step (if any)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -721,24 +757,24 @@ pub struct StepCompleteResponse {
     pub next_command: Option<String>,
 
     // Analysis results from OperatorOutput processing
-    /// Whether OperatorOutput was successfully parsed from agent output
+    /// Whether `OperatorOutput` was successfully parsed from agent output
     #[serde(default)]
     pub output_valid: bool,
-    /// Agent has more work (exit_signal=false) - indicates iteration needed
+    /// Agent has more work (`exit_signal=false`) - indicates iteration needed
     #[serde(default)]
     pub should_iterate: bool,
     /// How many times this step has run (for circuit breaker)
     #[serde(default)]
     pub iteration_count: u32,
-    /// Circuit breaker state: closed (normal), half_open (monitoring), open (halted)
+    /// Circuit breaker state: closed (normal), `half_open` (monitoring), open (halted)
     #[serde(default = "default_circuit_closed")]
     pub circuit_state: String,
 
     // Context piped from agent output for next step
-    /// Summary from previous step's OperatorOutput
+    /// Summary from previous step's `OperatorOutput`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub previous_summary: Option<String>,
-    /// Recommendation from previous step's OperatorOutput
+    /// Recommendation from previous step's `OperatorOutput`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub previous_recommendation: Option<String>,
     /// Cumulative files modified across iterations
@@ -838,7 +874,7 @@ pub struct ProjectSummary {
     pub has_catalog_info: bool,
     /// Whether project-context.json exists
     pub has_project_context: bool,
-    /// Primary Kind from kind_assessment (e.g., "microservice")
+    /// Primary Kind from `kind_assessment` (e.g., "microservice")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
     /// Kind confidence score 0.0-1.0
@@ -1104,6 +1140,48 @@ mod tests {
         assert!(json.contains("\"exit_code\":0"));
         assert!(json.contains("\"output\":{"));
         assert!(json.contains("\"status\":\"complete\""));
+    }
+
+    #[test]
+    fn test_launch_response_cmux_fields_present_when_set() {
+        let resp = LaunchTicketResponse {
+            agent_id: "a1".to_string(),
+            ticket_id: "FEAT-001".to_string(),
+            working_directory: "/tmp".to_string(),
+            command: "claude".to_string(),
+            terminal_name: "op-FEAT-001".to_string(),
+            tmux_session_name: "op-FEAT-001".to_string(),
+            session_wrapper: Some("cmux".to_string()),
+            session_window_ref: Some("win-1".to_string()),
+            session_id: "uuid-1".to_string(),
+            worktree_created: false,
+            branch: None,
+        };
+
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"session_wrapper\":\"cmux\""));
+        assert!(json.contains("\"session_window_ref\":\"win-1\""));
+    }
+
+    #[test]
+    fn test_launch_response_cmux_fields_absent_when_none() {
+        let resp = LaunchTicketResponse {
+            agent_id: "a1".to_string(),
+            ticket_id: "FEAT-001".to_string(),
+            working_directory: "/tmp".to_string(),
+            command: "claude".to_string(),
+            terminal_name: "op-FEAT-001".to_string(),
+            tmux_session_name: "op-FEAT-001".to_string(),
+            session_wrapper: None,
+            session_window_ref: None,
+            session_id: "uuid-1".to_string(),
+            worktree_created: false,
+            branch: None,
+        };
+
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(!json.contains("session_wrapper"));
+        assert!(!json.contains("session_window_ref"));
     }
 
     #[test]

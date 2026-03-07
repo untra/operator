@@ -16,9 +16,13 @@ id: string,
  */
 attempt_id: string, 
 /**
- * Tmux session name for terminal-based execution
+ * Terminal session name for terminal-based execution
  */
-tmux_session_name: string | null, 
+terminal_session_name: string | null, 
+/**
+ * Which session wrapper manages this session: "tmux", "vscode", or "cmux"
+ */
+session_wrapper: string | null, 
 /**
  * Hash of terminal content for change detection
  */

@@ -11,6 +11,7 @@ use super::NotificationEvent;
 use crate::config::WebhookConfig;
 
 /// Webhook authentication type.
+#[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
 #[derive(Debug, Clone)]
 pub enum WebhookAuth {
     None,
@@ -21,6 +22,7 @@ pub enum WebhookAuth {
 /// Webhook notification integration.
 ///
 /// Sends HTTP POST requests to configured endpoints when events occur.
+#[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
 pub struct WebhookIntegration {
     name: String,
     url: String,
@@ -31,6 +33,7 @@ pub struct WebhookIntegration {
 }
 
 /// Webhook payload format.
+#[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
 #[derive(Debug, Serialize)]
 struct WebhookPayload {
     /// Event type string (e.g., "agent.started")
@@ -43,6 +46,7 @@ struct WebhookPayload {
 
 impl WebhookIntegration {
     /// Create a new webhook integration from config.
+    #[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
     pub fn new(config: &WebhookConfig) -> Result<Self> {
         let auth = match config.auth_type.as_deref() {
             Some("bearer") => {

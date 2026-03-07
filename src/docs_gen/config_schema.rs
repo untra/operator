@@ -121,7 +121,7 @@ impl ConfigSchemaDocGenerator {
                 output.push_str(&heading(3, name));
 
                 if let Some(desc) = def.get("description").and_then(|d| d.as_str()) {
-                    output.push_str(&format!("{}\n\n", desc));
+                    output.push_str(&format!("{desc}\n\n"));
                 }
 
                 // Show properties if object type

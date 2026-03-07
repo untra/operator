@@ -18,7 +18,7 @@ port: number,
  */
 auto_start: boolean, 
 /**
- * Subdirectory within state_path for Backstage installation
+ * Subdirectory within `state_path` for Backstage installation
  */
 subpath: string, 
 /**
@@ -31,7 +31,7 @@ branding_subpath: string,
 release_url: string, 
 /**
  * Optional local path to backstage-server binary
- * If set, this is used instead of downloading from release_url
+ * If set, this is used instead of downloading from `release_url`
  */
 local_binary_path: string | null, 
 /**

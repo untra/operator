@@ -36,9 +36,9 @@ impl JiraProvider {
     /// Create from environment variables
     ///
     /// Required environment variables:
-    /// - OPERATOR_JIRA_DOMAIN: Your Jira domain (e.g., "your-domain.atlassian.net")
-    /// - OPERATOR_JIRA_EMAIL: Your Atlassian account email
-    /// - OPERATOR_JIRA_API_KEY: Your Jira API key/token
+    /// - `OPERATOR_JIRA_DOMAIN`: Your Jira domain (e.g., "your-domain.atlassian.net")
+    /// - `OPERATOR_JIRA_EMAIL`: Your Atlassian account email
+    /// - `OPERATOR_JIRA_API_KEY`: Your Jira API key/token
     pub fn from_env() -> Result<Self, ApiError> {
         let domain = env::var("OPERATOR_JIRA_DOMAIN").ok();
         let email = env::var("OPERATOR_JIRA_EMAIL").ok();
@@ -54,8 +54,8 @@ impl JiraProvider {
 
     /// Create from config with domain as key
     ///
-    /// The domain is passed separately since it's the HashMap key in KanbanConfig.
-    /// The api_key is read from the environment variable specified in config.api_key_env.
+    /// The domain is passed separately since it's the `HashMap` key in `KanbanConfig`.
+    /// The `api_key` is read from the environment variable specified in `config.api_key_env`.
     pub fn from_config(domain: &str, config: &crate::config::JiraConfig) -> Result<Self, ApiError> {
         let api_key = env::var(&config.api_key_env).ok();
 
@@ -76,7 +76,7 @@ impl JiraProvider {
     fn auth_header(&self) -> String {
         let credentials = format!("{}:{}", self.email, self.api_token);
         let encoded = simple_base64_encode(credentials.as_bytes());
-        format!("Basic {}", encoded)
+        format!("Basic {encoded}")
     }
 
     /// Make an authenticated GET request
@@ -102,7 +102,7 @@ impl JiraProvider {
                 404 => Err(ApiError::http(
                     PROVIDER_NAME,
                     404,
-                    format!("Not found: {}", path),
+                    format!("Not found: {path}"),
                 )),
                 429 => Err(ApiError::rate_limited(PROVIDER_NAME, None)),
                 _ => Err(ApiError::http(PROVIDER_NAME, status.as_u16(), body)),
@@ -112,7 +112,7 @@ impl JiraProvider {
         response
             .json()
             .await
-            .map_err(|e| ApiError::http(PROVIDER_NAME, 0, format!("Parse error: {}", e)))
+            .map_err(|e| ApiError::http(PROVIDER_NAME, 0, format!("Parse error: {e}")))
     }
 
     /// Make an authenticated POST request
@@ -144,7 +144,7 @@ impl JiraProvider {
                 404 => Err(ApiError::http(
                     PROVIDER_NAME,
                     404,
-                    format!("Not found: {}", path),
+                    format!("Not found: {path}"),
                 )),
                 429 => Err(ApiError::rate_limited(PROVIDER_NAME, None)),
                 _ => Err(ApiError::http(PROVIDER_NAME, status.as_u16(), body)),
@@ -154,7 +154,7 @@ impl JiraProvider {
         response
             .json()
             .await
-            .map_err(|e| ApiError::http(PROVIDER_NAME, 0, format!("Parse error: {}", e)))
+            .map_err(|e| ApiError::http(PROVIDER_NAME, 0, format!("Parse error: {e}")))
     }
 
     /// Make an authenticated POST request that returns no content (204)
@@ -182,7 +182,7 @@ impl JiraProvider {
                 404 => Err(ApiError::http(
                     PROVIDER_NAME,
                     404,
-                    format!("Not found: {}", path),
+                    format!("Not found: {path}"),
                 )),
                 429 => Err(ApiError::rate_limited(PROVIDER_NAME, None)),
                 _ => Err(ApiError::http(PROVIDER_NAME, status.as_u16(), body)),
@@ -192,9 +192,9 @@ impl JiraProvider {
         Ok(())
     }
 
-    /// Fetch a single issue by key and convert to ExternalIssue
+    /// Fetch a single issue by key and convert to `ExternalIssue`
     async fn fetch_issue(&self, issue_key: &str) -> Result<ExternalIssue, ApiError> {
-        let path = format!("/issue/{}", issue_key);
+        let path = format!("/issue/{issue_key}");
         let issue: JiraIssue = self.get(&path).await?;
 
         let url = format!("https://{}/browse/{}", self.domain, issue.key);
@@ -263,7 +263,7 @@ fn simple_url_encode(s: &str) -> String {
             ',' => result.push_str("%2C"),
             _ => {
                 for b in c.to_string().as_bytes() {
-                    result.push_str(&format!("%{:02X}", b));
+                    result.push_str(&format!("%{b:02X}"));
                 }
             }
         }
@@ -496,7 +496,7 @@ impl KanbanProvider for JiraProvider {
     }
 
     async fn get_issue_types(&self, project_key: &str) -> Result<Vec<ExternalIssueType>, ApiError> {
-        let path = format!("/issue/createmeta/{}/issuetypes", project_key);
+        let path = format!("/issue/createmeta/{project_key}/issuetypes");
         let response: JiraIssueTypesResponse = self.get(&path).await?;
 
         Ok(response
@@ -517,14 +517,14 @@ impl KanbanProvider for JiraProvider {
         let key: String = external
             .name
             .chars()
-            .filter(|c| c.is_ascii_alphabetic())
+            .filter(char::is_ascii_alphabetic)
             .take(10)
             .collect::<String>()
             .to_uppercase();
 
         // Ensure minimum key length
         let key = if key.len() < 2 {
-            format!("{}X", key)
+            format!("{key}X")
         } else {
             key
         };
@@ -562,7 +562,7 @@ impl KanbanProvider for JiraProvider {
     }
 
     async fn list_users(&self, project_key: &str) -> Result<Vec<ExternalUser>, ApiError> {
-        let path = format!("/user/assignable/search?project={}", project_key);
+        let path = format!("/user/assignable/search?project={project_key}");
         let users: Vec<JiraUser> = self.get(&path).await?;
 
         Ok(users
@@ -577,7 +577,7 @@ impl KanbanProvider for JiraProvider {
     }
 
     async fn list_statuses(&self, project_key: &str) -> Result<Vec<String>, ApiError> {
-        let path = format!("/project/{}/statuses", project_key);
+        let path = format!("/project/{project_key}/statuses");
         let response: Vec<JiraProjectStatus> = self.get(&path).await?;
 
         // Flatten statuses from all issue types, deduplicate
@@ -600,16 +600,14 @@ impl KanbanProvider for JiraProvider {
         let status_clause = if statuses.is_empty() {
             String::new()
         } else {
-            let quoted: Vec<String> = statuses.iter().map(|s| format!("\"{}\"", s)).collect();
+            let quoted: Vec<String> = statuses.iter().map(|s| format!("\"{s}\"")).collect();
             format!(" AND status IN ({})", quoted.join(","))
         };
 
-        let jql = format!(
-            "project = \"{}\" AND assignee = \"{}\"{}",
-            project_key, user_id, status_clause
-        );
+        let jql =
+            format!("project = \"{project_key}\" AND assignee = \"{user_id}\"{status_clause}");
         let encoded_jql = simple_url_encode(&jql);
-        let path = format!("/search/jql?jql={}&maxResults=100", encoded_jql);
+        let path = format!("/search/jql?jql={encoded_jql}&maxResults=100");
 
         let response: JiraSearchResponse = self.get(&path).await?;
 
@@ -690,7 +688,7 @@ impl KanbanProvider for JiraProvider {
         request: super::UpdateStatusRequest,
     ) -> Result<ExternalIssue, ApiError> {
         // Get available transitions
-        let path = format!("/issue/{}/transitions", issue_key);
+        let path = format!("/issue/{issue_key}/transitions");
         let transitions_response: JiraTransitionsResponse = self.get(&path).await?;
 
         // Find the transition to the target status
@@ -719,7 +717,7 @@ impl KanbanProvider for JiraProvider {
         let transition_body = serde_json::json!({
             "transition": { "id": transition.id }
         });
-        let transitions_path = format!("/issue/{}/transitions", issue_key);
+        let transitions_path = format!("/issue/{issue_key}/transitions");
         self.post_no_content(&transitions_path, &transition_body)
             .await?;
 

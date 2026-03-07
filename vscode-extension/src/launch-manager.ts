@@ -95,10 +95,10 @@ export class LaunchManager {
       );
 
       if (choice === 'Focus Existing') {
-        await this.terminalManager.focus(terminalName);
+        this.terminalManager.focus(terminalName);
         return;
       } else if (choice === 'Kill and Relaunch') {
-        await this.terminalManager.kill(terminalName);
+        this.terminalManager.kill(terminalName);
       } else {
         return; // Cancelled
       }
@@ -110,7 +110,7 @@ export class LaunchManager {
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       this.log(`API launch failed: ${msg}`);
-      vscode.window.showErrorMessage(`Failed to launch ticket: ${msg}`);
+      void vscode.window.showErrorMessage(`Failed to launch ticket: ${msg}`);
     }
   }
 
@@ -151,17 +151,17 @@ export class LaunchManager {
     );
 
     // Create terminal with API response
-    await this.terminalManager.create({
+    this.terminalManager.create({
       name: response.terminal_name,
       workingDir: response.working_directory,
     });
 
-    await this.terminalManager.send(response.terminal_name, response.command);
-    await this.terminalManager.focus(response.terminal_name);
+    this.terminalManager.send(response.terminal_name, response.command);
+    this.terminalManager.focus(response.terminal_name);
 
     const worktreeMsg = response.worktree_created ? ' (worktree created)' : '';
     const branchMsg = response.branch ? ` on branch ${response.branch}` : '';
-    vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       `Launched agent for ${ticket.id}${worktreeMsg}${branchMsg}`
     );
   }

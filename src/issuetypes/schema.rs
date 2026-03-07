@@ -25,7 +25,7 @@ pub enum IssueTypeSource {
     },
 }
 
-/// An issue type definition (dynamic version of TemplateSchema)
+/// An issue type definition (dynamic version of `TemplateSchema`)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueType {
     /// Unique issuetype key (e.g., FEAT, FIX, STORY, BUG)
@@ -90,7 +90,7 @@ impl IssueType {
             IssueTypeSource::Builtin => "builtin".to_string(),
             IssueTypeSource::User => "user".to_string(),
             IssueTypeSource::Import { provider, project } => {
-                format!("{}/{}", provider, project)
+                format!("{provider}/{project}")
             }
         }
     }
@@ -165,6 +165,8 @@ impl IssueType {
                 permission_mode: PermissionMode::Default,
                 json_schema: None,
                 json_schema_file: None,
+                artifact_patterns: vec![],
+                agent: None,
             }],
             agent_prompt: None,
             source: IssueTypeSource::Import { provider, project },
@@ -196,22 +198,22 @@ impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ValidationError::InvalidKey(key) => {
-                write!(f, "Key '{}' must be uppercase letters only", key)
+                write!(f, "Key '{key}' must be uppercase letters only")
             }
             ValidationError::KeyLength(key) => {
-                write!(f, "Key '{}' must be 2-10 characters", key)
+                write!(f, "Key '{key}' must be 2-10 characters")
             }
             ValidationError::InvalidGlyph(glyph) => {
-                write!(f, "Glyph '{}' must be 1-4 characters", glyph)
+                write!(f, "Glyph '{glyph}' must be 1-4 characters")
             }
             ValidationError::MissingDefault(field) => {
-                write!(f, "Required field '{}' must have a default value", field)
+                write!(f, "Required field '{field}' must have a default value")
             }
             ValidationError::MissingEnumOptions(field) => {
-                write!(f, "Enum field '{}' must have options", field)
+                write!(f, "Enum field '{field}' must have options")
             }
             ValidationError::InvalidStepRef(step) => {
-                write!(f, "References unknown step '{}'", step)
+                write!(f, "References unknown step '{step}'")
             }
             ValidationError::NoSteps => {
                 write!(f, "Issue type must have at least one step")
@@ -331,6 +333,8 @@ mod tests {
                 permission_mode: PermissionMode::Default,
                 json_schema: None,
                 json_schema_file: None,
+                artifact_patterns: vec![],
+                agent: None,
             }],
             agent_prompt: None,
             source: IssueTypeSource::User,

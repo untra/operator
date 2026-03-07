@@ -21,7 +21,7 @@ use super::tmux::TmuxClient;
 use super::visual_review::VisualReviewHandler;
 use crate::agents::launcher::worktree_setup::cleanup_ticket_worktree;
 use crate::config::Config;
-use crate::queue::{Queue, Ticket};
+use crate::queue::{Queue, StepAdvanceResult, Ticket};
 use crate::state::{AgentState, State};
 use crate::templates::schema::ReviewType;
 
@@ -123,8 +123,7 @@ impl TicketSessionSync {
                         // Get the ticket's current step review type
                         let review_type = ticket
                             .current_step_schema()
-                            .map(|s| s.review_type.clone())
-                            .unwrap_or(ReviewType::None);
+                            .map_or(ReviewType::None, |s| s.review_type);
 
                         let step_display = ticket.current_step_display_name();
 
@@ -248,9 +247,60 @@ impl TicketSessionSync {
                         state.update_agent_status(&agent_id, &new_status, None)?;
                     }
                     SyncAction::StepCompleted => {
-                        // This would be handled by the agent detecting completion
-                        // and advancing to the next step
-                        result.completed.push(ticket.id.clone());
+                        let step_display = ticket.current_step_display_name();
+
+                        match ticket.advance_step() {
+                            Ok(StepAdvanceResult::Advanced { step, switch_agent }) => {
+                                state.update_agent_step(&agent_id, &step)?;
+
+                                if let Err(e) = ticket.append_history(&format!(
+                                    "- **{}** - Step \"{}\" completed (artifact detected), advancing to \"{}\"",
+                                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                                    step_display,
+                                    step,
+                                )) {
+                                    result.errors.push(format!(
+                                        "Failed to add history for {}: {}",
+                                        ticket.id, e
+                                    ));
+                                }
+
+                                if let Some(ref delegator_name) = switch_agent {
+                                    state.set_agent_review_state(
+                                        &agent_id,
+                                        &format!("switching_agent:{delegator_name}"),
+                                    )?;
+                                }
+
+                                result.completed.push(ticket.id.clone());
+                                tracing::info!(
+                                    ticket_id = %ticket.id,
+                                    from_step = %step_display,
+                                    to_step = %step,
+                                    switch_agent = ?switch_agent,
+                                    "Step completed via artifact detection, advanced to next step"
+                                );
+                            }
+                            Ok(StepAdvanceResult::FinalStep) => {
+                                state.update_agent_status(
+                                    &agent_id,
+                                    "completing",
+                                    Some("All steps completed".to_string()),
+                                )?;
+                                result.completed.push(ticket.id.clone());
+                                tracing::info!(
+                                    ticket_id = %ticket.id,
+                                    step = %step_display,
+                                    "Final step completed via artifact detection"
+                                );
+                            }
+                            Err(e) => {
+                                result.errors.push(format!(
+                                    "Failed to advance step for {}: {}",
+                                    ticket.id, e
+                                ));
+                            }
+                        }
                     }
                     SyncAction::Hung => {
                         // Session is hung but not necessarily awaiting input
@@ -302,6 +352,14 @@ impl TicketSessionSync {
             .iter()
             .any(|s| s == session_name)
         {
+            // If artifacts are ready, this is a step completion (positive signal)
+            if health_result
+                .artifact_ready
+                .iter()
+                .any(|s| s == session_name)
+            {
+                return SyncAction::StepCompleted;
+            }
             return SyncAction::MovedToAwaiting;
         }
 
@@ -392,7 +450,7 @@ impl TicketSessionSync {
             };
 
             // Check for signal file
-            let signal_file = format!("/tmp/operator-detach-{}.signal", session_name);
+            let signal_file = format!("/tmp/operator-detach-{session_name}.signal");
             let signal_path = Path::new(&signal_file);
 
             if signal_path.exists() {
@@ -401,7 +459,7 @@ impl TicketSessionSync {
 
                 // Handle based on review state
                 match agent.review_state.as_deref() {
-                    Some("pending_plan") | Some("pending_visual") => {
+                    Some("pending_plan" | "pending_visual") => {
                         // Review was approved via TUI (signal file written by approval handler)
                         // Resume without needing content change
                         state.update_agent_status(&agent.id, "running", None)?;
@@ -415,7 +473,7 @@ impl TicketSessionSync {
                             "Agent resumed from review - approved"
                         );
                     }
-                    Some("pending_pr_merge") | Some("pending_pr_creation") => {
+                    Some("pending_pr_merge" | "pending_pr_creation") => {
                         // PR review doesn't use signal files for resume
                         // PR merge is detected by PrMonitorService
                         // Skip - signal file may have been created accidentally
@@ -433,11 +491,7 @@ impl TicketSessionSync {
                             let new_hash = format!("{:x}", hasher.finalize());
 
                             // Compare with stored hash
-                            let content_changed = agent
-                                .content_hash
-                                .as_ref()
-                                .map(|old_hash| old_hash != &new_hash)
-                                .unwrap_or(true);
+                            let content_changed = agent.content_hash.as_ref() != Some(&new_hash);
 
                             if content_changed {
                                 // Content changed - LLM is working, resume agent
@@ -462,16 +516,16 @@ impl TicketSessionSync {
 
     /// Handle a PR that has been merged - cleanup worktree and complete ticket
     ///
-    /// This should be called when PrStatusEvent::Merged is received.
+    /// This should be called when `PrStatusEvent::Merged` is received.
     ///
     /// # Arguments
     /// * `ticket` - The ticket whose PR was merged
     /// * `agent` - The agent state for this ticket
-    /// * `cleanup_script` - Optional cleanup script from ProjectRepo
+    /// * `cleanup_script` - Optional cleanup script from `ProjectRepo`
     ///
     /// # Cleanup steps:
-    /// 1. Run cleanup_script in worktree (if provided)
-    /// 2. Remove worktree via WorktreeManager
+    /// 1. Run `cleanup_script` in worktree (if provided)
+    /// 2. Remove worktree via `WorktreeManager`
     /// 3. Delete local branch (remote branch already merged)
     pub async fn handle_pr_merged(
         &self,
@@ -479,15 +533,14 @@ impl TicketSessionSync {
         agent: &AgentState,
         cleanup_script: Option<&str>,
     ) -> Result<()> {
-        let worktree_path = match &agent.worktree_path {
-            Some(path) => PathBuf::from(path),
-            None => {
-                tracing::debug!(
-                    ticket_id = %ticket.id,
-                    "No worktree to cleanup for merged PR"
-                );
-                return Ok(());
-            }
+        let worktree_path = if let Some(path) = &agent.worktree_path {
+            PathBuf::from(path)
+        } else {
+            tracing::debug!(
+                ticket_id = %ticket.id,
+                "No worktree to cleanup for merged PR"
+            );
+            return Ok(());
         };
 
         if !worktree_path.exists() {
@@ -542,7 +595,7 @@ impl TicketSessionSync {
         };
 
         if !project_path.exists() {
-            anyhow::bail!("Project path does not exist: {:?}", project_path);
+            anyhow::bail!("Project path does not exist: {project_path:?}");
         }
 
         Ok(project_path)
@@ -737,6 +790,80 @@ mod tests {
         let action = sync.determine_action(&ticket, "op-FEAT-789", &health);
         // Timeout should take priority
         assert_eq!(action, SyncAction::TimedOut);
+    }
+
+    #[test]
+    fn test_determine_action_awaiting_with_artifact_ready() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        let mock = Arc::new(MockTmuxClient::new());
+
+        let sync = TicketSessionSync::new(&config, mock);
+
+        let mut health = HealthCheckResult::default();
+        health.awaiting_input.push("op-FEAT-123".to_string());
+        health.artifact_ready.push("op-FEAT-123".to_string());
+
+        let ticket = Ticket {
+            filename: "test.md".to_string(),
+            filepath: "/tmp/test.md".to_string(),
+            timestamp: "20241221-1430".to_string(),
+            ticket_type: "FEAT".to_string(),
+            project: "test".to_string(),
+            id: "FEAT-123".to_string(),
+            summary: "Test ticket".to_string(),
+            priority: "P2-medium".to_string(),
+            status: "running".to_string(),
+            step: "plan".to_string(),
+            content: "# Test".to_string(),
+            sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
+        };
+
+        let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
+        assert_eq!(action, SyncAction::StepCompleted);
+    }
+
+    #[test]
+    fn test_determine_action_awaiting_without_artifact_ready() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        let mock = Arc::new(MockTmuxClient::new());
+
+        let sync = TicketSessionSync::new(&config, mock);
+
+        let mut health = HealthCheckResult::default();
+        health.awaiting_input.push("op-FEAT-123".to_string());
+        // artifact_ready is empty — agent is idle but no artifacts found
+
+        let ticket = Ticket {
+            filename: "test.md".to_string(),
+            filepath: "/tmp/test.md".to_string(),
+            timestamp: "20241221-1430".to_string(),
+            ticket_type: "FEAT".to_string(),
+            project: "test".to_string(),
+            id: "FEAT-123".to_string(),
+            summary: "Test ticket".to_string(),
+            priority: "P2-medium".to_string(),
+            status: "running".to_string(),
+            step: "plan".to_string(),
+            content: "# Test".to_string(),
+            sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
+        };
+
+        let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
+        assert_eq!(action, SyncAction::MovedToAwaiting);
     }
 
     #[test]

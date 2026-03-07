@@ -7,7 +7,7 @@
 //!
 //! **Current Integration**:
 //! - Schema definitions used internally by `templates` module
-//! - Builtin collections (simple, dev_kanban, devops_kanban) defined
+//! - Builtin collections (simple, `dev_kanban`, `devops_kanban`) defined
 //! - Registry loading and validation implemented
 //!
 //! **Not Yet Integrated**:
@@ -21,7 +21,7 @@
 //!
 //! ## Components
 //!
-//! - [`IssueType`]: Dynamic issue type definitions (extends TemplateSchema)
+//! - [`IssueType`]: Dynamic issue type definitions (extends `TemplateSchema`)
 //! - [`IssueTypeCollection`]: Named groupings of issue types with priority ordering
 //! - [`IssueTypeRegistry`]: Central manager for all issue types and collections
 //! - [`BuiltinPreset`]: Predefined collection configurations
@@ -229,7 +229,12 @@ impl IssueTypeRegistry {
 
             // Create and register the collection
             let collection = IssueTypeCollection::new(&name, &loaded_collection.description)
-                .with_types(loaded_collection.type_order.iter().map(|s| s.as_str()));
+                .with_types(
+                    loaded_collection
+                        .type_order
+                        .iter()
+                        .map(std::string::String::as_str),
+                );
 
             self.collections.insert(name, collection);
         }
@@ -251,7 +256,7 @@ impl IssueTypeRegistry {
             info!("Activated collection preset: {}", name);
             Ok(())
         } else {
-            anyhow::bail!("Preset '{}' not found in collections", name)
+            anyhow::bail!("Preset '{name}' not found in collections")
         }
     }
 
@@ -268,7 +273,7 @@ impl IssueTypeRegistry {
             info!("Activated collection: {}", name);
             Ok(())
         } else {
-            anyhow::bail!("Collection '{}' not found", name)
+            anyhow::bail!("Collection '{name}' not found")
         }
     }
 
@@ -293,7 +298,7 @@ impl IssueTypeRegistry {
 
         // Create or update the "custom" collection
         let collection = IssueTypeCollection::new("custom", "Custom collection")
-            .with_types(valid_keys.iter().map(|s| s.as_str()));
+            .with_types(valid_keys.iter().map(std::string::String::as_str));
 
         self.collections.insert("custom".to_string(), collection);
         self.active_collection = "custom".to_string();
@@ -339,16 +344,13 @@ impl IssueTypeRegistry {
 
     /// Check if a key exists in the active collection
     pub fn is_active(&self, key: &str) -> bool {
-        self.active_collection()
-            .map(|c| c.contains(key))
-            .unwrap_or(false)
+        self.active_collection().is_some_and(|c| c.contains(key))
     }
 
     /// Get priority index for a type in the active collection
     pub fn priority_index(&self, key: &str) -> usize {
         self.active_collection()
-            .map(|c| c.priority_index(key))
-            .unwrap_or(usize::MAX)
+            .map_or(usize::MAX, |c| c.priority_index(key))
     }
 
     /// Get all available collections
@@ -364,7 +366,10 @@ impl IssueTypeRegistry {
     /// Register a new issue type
     pub fn register(&mut self, issue_type: IssueType) -> Result<()> {
         issue_type.validate().map_err(|errors| {
-            let msgs: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
+            let msgs: Vec<String> = errors
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect();
             anyhow::anyhow!("Validation errors: {}", msgs.join("; "))
         })?;
 

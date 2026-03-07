@@ -5,6 +5,7 @@
 
 #![allow(dead_code)]
 
+mod cmux_session;
 pub mod interpolation;
 mod llm_command;
 mod options;
@@ -12,6 +13,7 @@ mod prompt;
 mod step_config;
 mod tmux_session;
 pub mod worktree_setup;
+mod zellij_session;
 
 #[cfg(test)]
 mod tests;
@@ -21,16 +23,20 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 
+use crate::agents::cmux::{CmuxClient, SystemCmuxClient};
 use crate::agents::tmux::{sanitize_session_name, SystemTmuxClient, TmuxClient, TmuxError};
-use crate::config::Config;
+use crate::agents::zellij::{SystemZellijClient, ZellijClient};
+use crate::config::{Config, SessionWrapperType};
 use crate::notifications;
 use crate::queue::{Queue, Ticket};
 use crate::state::State;
 
+use cmux_session::{launch_in_cmux_with_options, launch_in_cmux_with_relaunch_options};
 pub use options::{LaunchOptions, RelaunchOptions};
 use prompt::generate_prompt;
 use tmux_session::{launch_in_tmux_with_options, launch_in_tmux_with_relaunch_options};
 use worktree_setup::setup_worktree_for_ticket;
+use zellij_session::{launch_in_zellij_with_options, launch_in_zellij_with_relaunch_options};
 
 use self::interpolation::PromptInterpolator;
 use self::llm_command::{
@@ -74,12 +80,15 @@ pub const MIN_TMUX_VERSION: (u32, u32) = (2, 1);
 pub struct Launcher {
     config: Config,
     tmux: Arc<dyn TmuxClient>,
+    cmux: Option<Arc<dyn CmuxClient>>,
+    zellij: Option<Arc<dyn ZellijClient>>,
 }
 
 impl Launcher {
     /// Create a new Launcher with the system tmux client
     ///
     /// Uses custom tmux config if it has been generated and exists.
+    /// Also creates a cmux client if the wrapper type is Cmux.
     pub fn new(config: &Config) -> Result<Self> {
         // Use custom tmux config if it exists
         let tmux: Arc<dyn TmuxClient> = if config.tmux.config_generated {
@@ -93,9 +102,29 @@ impl Launcher {
             Arc::new(SystemTmuxClient::new())
         };
 
+        // Create cmux client if wrapper type is Cmux
+        let cmux: Option<Arc<dyn CmuxClient>> =
+            if config.sessions.wrapper == SessionWrapperType::Cmux {
+                Some(Arc::new(SystemCmuxClient::from_config(
+                    &config.sessions.cmux,
+                )))
+            } else {
+                None
+            };
+
+        // Create zellij client if wrapper type is Zellij
+        let zellij: Option<Arc<dyn ZellijClient>> =
+            if config.sessions.wrapper == SessionWrapperType::Zellij {
+                Some(Arc::new(SystemZellijClient::new()))
+            } else {
+                None
+            };
+
         Ok(Self {
             config: config.clone(),
             tmux,
+            cmux,
+            zellij,
         })
     }
 
@@ -104,7 +133,56 @@ impl Launcher {
         Ok(Self {
             config: config.clone(),
             tmux,
+            cmux: None,
+            zellij: None,
         })
+    }
+
+    /// Create a new Launcher with a custom cmux client (for testing)
+    pub fn with_cmux_client(config: &Config, cmux: Arc<dyn CmuxClient>) -> Result<Self> {
+        Ok(Self {
+            config: config.clone(),
+            tmux: Arc::new(SystemTmuxClient::new()),
+            cmux: Some(cmux),
+            zellij: None,
+        })
+    }
+
+    /// Create a new Launcher with a custom zellij client (for testing)
+    pub fn with_zellij_client(config: &Config, zellij: Arc<dyn ZellijClient>) -> Result<Self> {
+        Ok(Self {
+            config: config.clone(),
+            tmux: Arc::new(SystemTmuxClient::new()),
+            cmux: None,
+            zellij: Some(zellij),
+        })
+    }
+
+    /// Collect all LLM tools needed across a ticket's steps (for multi-tool skill deployment).
+    ///
+    /// When steps specify different agents via the `agent` field, skills need to be
+    /// deployed for all tools so they're available when agent switching occurs.
+    fn collect_tools_for_ticket(&self, ticket: &Ticket, primary_tool: &str) -> Vec<String> {
+        let mut tools = vec![primary_tool.to_string()];
+
+        if let Some(template) = ticket.template_schema() {
+            for step in &template.steps {
+                if let Some(ref agent_name) = step.agent {
+                    if let Some(delegator) = self
+                        .config
+                        .delegators
+                        .iter()
+                        .find(|d| &d.name == agent_name)
+                    {
+                        if !tools.contains(&delegator.llm_tool) {
+                            tools.push(delegator.llm_tool.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        tools
     }
 
     /// Check if tmux is available and meets minimum version requirements
@@ -157,20 +235,66 @@ impl Launcher {
             .await
             .context("Failed to setup worktree for ticket")?;
 
+        // Deploy operator skills for all tools this ticket may use across steps
+        let primary_tool = options
+            .provider
+            .as_ref()
+            .map_or("claude", |p| p.tool.as_str());
+        let tools = self.collect_tools_for_ticket(&ticket, primary_tool);
+        let tool_refs: Vec<&str> = tools.iter().map(std::string::String::as_str).collect();
+        if let Err(e) = crate::llm::deploy_skills(&working_dir, &project_path, &tool_refs) {
+            tracing::warn!(error = %e, "Failed to deploy skills (non-fatal)");
+        }
+
         let working_dir_str = working_dir.to_string_lossy().to_string();
 
         // Generate the initial prompt for the agent
         let initial_prompt = generate_prompt(&self.config, &ticket);
 
-        // Launch in tmux session (using worktree as working directory)
-        let session_name = launch_in_tmux_with_options(
-            &self.config,
-            &self.tmux,
-            &ticket,
-            &working_dir_str,
-            &initial_prompt,
-            &options,
-        )?;
+        // Dispatch based on session wrapper type
+        let (session_name, wrapper_name, cmux_refs) =
+            if self.config.sessions.wrapper == SessionWrapperType::Cmux {
+                let cmux = self.cmux.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("cmux client not initialized but wrapper type is cmux")
+                })?;
+                let result = launch_in_cmux_with_options(
+                    &self.config,
+                    cmux,
+                    &ticket,
+                    &working_dir_str,
+                    &initial_prompt,
+                    &options,
+                )?;
+                (
+                    result.session_name,
+                    "cmux",
+                    Some((result.window_ref, result.workspace_ref)),
+                )
+            } else if self.config.sessions.wrapper == SessionWrapperType::Zellij {
+                let zellij = self.zellij.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("zellij client not initialized but wrapper type is zellij")
+                })?;
+                let result = launch_in_zellij_with_options(
+                    &self.config,
+                    zellij,
+                    &ticket,
+                    &working_dir_str,
+                    &initial_prompt,
+                    &options,
+                )?;
+                (result.session_name, "zellij", None)
+            } else {
+                // Tmux (default) and Vscode (uses prepare_launch path)
+                let name = launch_in_tmux_with_options(
+                    &self.config,
+                    &self.tmux,
+                    &ticket,
+                    &working_dir_str,
+                    &initial_prompt,
+                    &options,
+                )?;
+                (name, "tmux", None)
+            };
 
         // Determine tool name from options or default
         let llm_tool = options
@@ -198,6 +322,19 @@ impl Launcher {
 
         // Store session name in state for later recovery
         state.update_agent_session(&agent_id, &session_name)?;
+
+        // Store session wrapper type
+        state.update_agent_session_wrapper(&agent_id, wrapper_name)?;
+
+        // Store session refs if applicable (e.g. cmux window + workspace)
+        if let Some((window_ref, workspace_ref)) = cmux_refs {
+            state.update_agent_session_refs(
+                &agent_id,
+                Some(&window_ref),
+                Some(&workspace_ref),
+                None,
+            )?;
+        }
 
         // Store worktree path in state (if one was created)
         if let Some(ref worktree_path) = ticket.worktree_path {
@@ -227,8 +364,13 @@ impl Launcher {
             notifications::send(
                 "Agent Started",
                 &format!(
-                    "{} - {} (tmux: {}){}{}",
-                    ticket.project, ticket.ticket_type, session_name, mode_suffix, worktree_suffix
+                    "{} - {} ({}: {}){}{}",
+                    ticket.project,
+                    ticket.ticket_type,
+                    wrapper_name,
+                    session_name,
+                    mode_suffix,
+                    worktree_suffix
                 ),
                 &ticket.summary,
                 self.config.notifications.sound,
@@ -268,6 +410,17 @@ impl Launcher {
         let working_dir = setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
             .await
             .context("Failed to setup worktree for ticket")?;
+
+        // Deploy operator skills for all tools this ticket may use across steps
+        let primary_tool = options
+            .provider
+            .as_ref()
+            .map_or("claude", |p| p.tool.as_str());
+        let tools = self.collect_tools_for_ticket(&ticket, primary_tool);
+        let tool_refs: Vec<&str> = tools.iter().map(std::string::String::as_str).collect();
+        if let Err(e) = crate::llm::deploy_skills(&working_dir, &project_path, &tool_refs) {
+            tracing::warn!(error = %e, "Failed to deploy skills (non-fatal)");
+        }
 
         let worktree_created = ticket.worktree_path.is_some();
         let branch = ticket.branch.clone();
@@ -314,8 +467,7 @@ impl Launcher {
                 .llm_tools
                 .detected
                 .first()
-                .map(|t| t.name.clone())
-                .unwrap_or_else(|| "claude".to_string());
+                .map_or_else(|| "claude".to_string(), |t| t.name.clone());
             let default_model =
                 get_default_model(&self.config).unwrap_or_else(|| "sonnet".to_string());
             (default_tool, default_model)
@@ -333,7 +485,7 @@ impl Launcher {
                         ticket = %ticket.id,
                         "Failed to build interpolated prompt, falling back to initial prompt"
                     );
-                    initial_prompt.clone()
+                    initial_prompt
                 }
             }
         } else if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
@@ -343,7 +495,7 @@ impl Launcher {
                 ticket.ticket_type.to_lowercase(),
                 ticket_path
             );
-            format!("{}\n---\n{}", agent_prompt, message)
+            format!("{agent_prompt}\n---\n{message}")
         } else {
             initial_prompt
         };
@@ -435,7 +587,7 @@ impl Launcher {
 
     /// Prepare a relaunch for an in-progress ticket without executing it
     ///
-    /// Similar to prepare_launch() but does NOT claim the ticket (it's already in-progress).
+    /// Similar to `prepare_launch()` but does NOT claim the ticket (it's already in-progress).
     /// Use this when relaunching a ticket that's already being worked on.
     pub async fn prepare_relaunch(
         &self,
@@ -471,6 +623,18 @@ impl Launcher {
                 .await
                 .context("Failed to setup worktree for ticket")?
         };
+
+        // Deploy operator skills for all tools this ticket may use across steps
+        let primary_tool = options
+            .launch_options
+            .provider
+            .as_ref()
+            .map_or("claude", |p| p.tool.as_str());
+        let tools = self.collect_tools_for_ticket(&ticket, primary_tool);
+        let tool_refs: Vec<&str> = tools.iter().map(std::string::String::as_str).collect();
+        if let Err(e) = crate::llm::deploy_skills(&working_dir, &project_path, &tool_refs) {
+            tracing::warn!(error = %e, "Failed to deploy skills (non-fatal)");
+        }
 
         let worktree_created = ticket.worktree_path.is_some();
         let branch = ticket.branch.clone();
@@ -520,8 +684,7 @@ impl Launcher {
                 .llm_tools
                 .detected
                 .first()
-                .map(|t| t.name.clone())
-                .unwrap_or_else(|| "claude".to_string());
+                .map_or_else(|| "claude".to_string(), |t| t.name.clone());
             let default_model =
                 get_default_model(&self.config).unwrap_or_else(|| "sonnet".to_string());
             (default_tool, default_model)
@@ -539,7 +702,7 @@ impl Launcher {
                         ticket = %ticket.id,
                         "Failed to build interpolated prompt, falling back to initial prompt"
                     );
-                    initial_prompt.clone()
+                    initial_prompt
                 }
             }
         } else if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
@@ -549,7 +712,7 @@ impl Launcher {
                 ticket.ticket_type.to_lowercase(),
                 ticket_path
             );
-            format!("{}\n---\n{}", agent_prompt, message)
+            format!("{agent_prompt}\n---\n{message}")
         } else {
             initial_prompt
         };
@@ -557,8 +720,7 @@ impl Launcher {
         // Append retry reason if provided
         if let Some(ref retry_reason) = options.retry_reason {
             full_prompt = format!(
-                "{}\n\n---\n## Relaunch Context\n\nThis ticket is being relaunched. Previous attempt feedback:\n{}",
-                full_prompt, retry_reason
+                "{full_prompt}\n\n---\n## Relaunch Context\n\nThis ticket is being relaunched. Previous attempt feedback:\n{retry_reason}"
             );
         }
 
@@ -659,6 +821,7 @@ impl Launcher {
         let mut ticket = ticket.clone();
 
         // Get working directory (use existing worktree, or setup new one)
+        let project_path = PathBuf::from(self.get_project_path(&ticket)?);
         let working_dir = if let Some(ref worktree_path) = ticket.worktree_path {
             let path = PathBuf::from(worktree_path);
             if path.exists() {
@@ -666,33 +829,77 @@ impl Launcher {
                 path
             } else {
                 // Worktree was deleted, recreate it
-                let project_path = PathBuf::from(self.get_project_path(&ticket)?);
                 setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
                     .await
                     .context("Failed to recreate worktree for ticket")?
             }
         } else {
             // No worktree yet, try to create one
-            let project_path = PathBuf::from(self.get_project_path(&ticket)?);
             setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
                 .await
                 .context("Failed to setup worktree for ticket")?
         };
+
+        // Deploy operator skills for all tools this ticket may use across steps
+        let primary_tool = options
+            .launch_options
+            .provider
+            .as_ref()
+            .map_or("claude", |p| p.tool.as_str());
+        let tools = self.collect_tools_for_ticket(&ticket, primary_tool);
+        let tool_refs: Vec<&str> = tools.iter().map(std::string::String::as_str).collect();
+        if let Err(e) = crate::llm::deploy_skills(&working_dir, &project_path, &tool_refs) {
+            tracing::warn!(error = %e, "Failed to deploy skills (non-fatal)");
+        }
 
         let working_dir_str = working_dir.to_string_lossy().to_string();
 
         // Generate the initial prompt for the agent
         let initial_prompt = generate_prompt(&self.config, &ticket);
 
-        // Launch in tmux session with resume support
-        let session_name = launch_in_tmux_with_relaunch_options(
-            &self.config,
-            &self.tmux,
-            &ticket,
-            &working_dir_str,
-            &initial_prompt,
-            &options,
-        )?;
+        // Dispatch based on session wrapper type
+        let (session_name, wrapper_name, cmux_refs) =
+            if self.config.sessions.wrapper == SessionWrapperType::Cmux {
+                let cmux = self.cmux.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("cmux client not initialized but wrapper type is cmux")
+                })?;
+                let result = launch_in_cmux_with_relaunch_options(
+                    &self.config,
+                    cmux,
+                    &ticket,
+                    &working_dir_str,
+                    &initial_prompt,
+                    &options,
+                )?;
+                (
+                    result.session_name,
+                    "cmux",
+                    Some((result.window_ref, result.workspace_ref)),
+                )
+            } else if self.config.sessions.wrapper == SessionWrapperType::Zellij {
+                let zellij = self.zellij.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("zellij client not initialized but wrapper type is zellij")
+                })?;
+                let result = launch_in_zellij_with_relaunch_options(
+                    &self.config,
+                    zellij,
+                    &ticket,
+                    &working_dir_str,
+                    &initial_prompt,
+                    &options,
+                )?;
+                (result.session_name, "zellij", None)
+            } else {
+                let name = launch_in_tmux_with_relaunch_options(
+                    &self.config,
+                    &self.tmux,
+                    &ticket,
+                    &working_dir_str,
+                    &initial_prompt,
+                    &options,
+                )?;
+                (name, "tmux", None)
+            };
 
         // Determine tool name from options or default
         let llm_tool = options
@@ -722,6 +929,19 @@ impl Launcher {
         // Store session name in state for later recovery
         state.update_agent_session(&agent_id, &session_name)?;
 
+        // Store session wrapper type
+        state.update_agent_session_wrapper(&agent_id, wrapper_name)?;
+
+        // Store session refs if applicable (e.g. cmux window + workspace)
+        if let Some((window_ref, workspace_ref)) = cmux_refs {
+            state.update_agent_session_refs(
+                &agent_id,
+                Some(&window_ref),
+                Some(&workspace_ref),
+                None,
+            )?;
+        }
+
         // Store worktree path in state (if one was created)
         if let Some(ref worktree_path) = ticket.worktree_path {
             state.update_agent_worktree_path(&agent_id, worktree_path)?;
@@ -749,8 +969,13 @@ impl Launcher {
             notifications::send(
                 "Agent Relaunched",
                 &format!(
-                    "{} - {} (tmux: {}){}{}",
-                    ticket.project, ticket.ticket_type, session_name, mode_suffix, worktree_suffix
+                    "{} - {} ({}: {}){}{}",
+                    ticket.project,
+                    ticket.ticket_type,
+                    wrapper_name,
+                    session_name,
+                    mode_suffix,
+                    worktree_suffix
                 ),
                 &ticket.summary,
                 self.config.notifications.sound,
@@ -776,7 +1001,7 @@ impl Launcher {
         };
 
         if !project_path.exists() {
-            anyhow::bail!("Project path does not exist: {:?}", project_path);
+            anyhow::bail!("Project path does not exist: {project_path:?}");
         }
 
         Ok(project_path.to_string_lossy().to_string())
@@ -819,6 +1044,6 @@ impl Launcher {
 
     /// Attach to a tmux session (returns the command to run)
     pub fn attach_command(session_name: &str) -> String {
-        format!("tmux attach -t {}", session_name)
+        format!("tmux attach -t {session_name}")
     }
 }

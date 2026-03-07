@@ -9,7 +9,7 @@ export type GitLabConfig = {
  */
 enabled: boolean, 
 /**
- * Environment variable containing the GitLab token (default: GITLAB_TOKEN)
+ * Environment variable containing the GitLab token (default: `GITLAB_TOKEN`)
  */
 token_env: string, 
 /**

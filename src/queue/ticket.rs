@@ -12,6 +12,18 @@ use ts_rs::TS;
 
 use crate::templates::{schema::TemplateSchema, TemplateType};
 
+/// Result of advancing to the next workflow step
+#[derive(Debug, Clone, PartialEq)]
+pub enum StepAdvanceResult {
+    /// Advanced to next step; includes agent name if agent switch needed
+    Advanced {
+        step: String,
+        switch_agent: Option<String>,
+    },
+    /// Already on the final step, no advancement possible
+    FinalStep,
+}
+
 /// LLM task metadata for delegate mode integration
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
 #[ts(export)]
@@ -40,7 +52,7 @@ pub struct Ticket {
     pub status: String,
     pub step: String,
     pub content: String,
-    /// Claude session IDs per step (step_name -> session_uuid)
+    /// Claude session IDs per step (`step_name` -> `session_uuid`)
     pub sessions: HashMap<String, String>,
     /// LLM task metadata for delegate mode integration
     pub llm_task: LlmTask,
@@ -216,14 +228,14 @@ impl Ticket {
             // Rebuild the frontmatter
             let mut yaml_lines = Vec::new();
             for (k, v) in &frontmatter {
-                yaml_lines.push(format!("{}: {}", k, v));
+                yaml_lines.push(format!("{k}: {v}"));
             }
 
             // Add sessions if present
             if !sessions.is_empty() {
                 yaml_lines.push("sessions:".to_string());
                 for (step, session_id) in &sessions {
-                    yaml_lines.push(format!("  {}: {}", step, session_id));
+                    yaml_lines.push(format!("  {step}: {session_id}"));
                 }
             }
 
@@ -232,15 +244,15 @@ impl Ticket {
             {
                 yaml_lines.push("llm_task:".to_string());
                 if let Some(ref id) = llm_task.id {
-                    yaml_lines.push(format!("  id: {}", id));
+                    yaml_lines.push(format!("  id: {id}"));
                 }
                 if let Some(ref status) = llm_task.status {
-                    yaml_lines.push(format!("  status: {}", status));
+                    yaml_lines.push(format!("  status: {status}"));
                 }
                 if !llm_task.blocked_by.is_empty() {
                     yaml_lines.push("  blocked_by:".to_string());
                     for task_id in &llm_task.blocked_by {
-                        yaml_lines.push(format!("    - {}", task_id));
+                        yaml_lines.push(format!("    - {task_id}"));
                     }
                 }
             }
@@ -278,16 +290,15 @@ impl Ticket {
             let after_header = &self.content[pos + history_header.len()..];
             let section_end = after_header
                 .find("\n## ")
-                .map(|p| pos + history_header.len() + p)
-                .unwrap_or(self.content.len());
+                .map_or(self.content.len(), |p| pos + history_header.len() + p);
 
             // Insert the new entry at the end of the History section
             let insert_pos = section_end;
-            self.content.insert_str(insert_pos, &format!("\n{}", entry));
+            self.content.insert_str(insert_pos, &format!("\n{entry}"));
         } else {
             // No History section exists, add it at the end
             self.content
-                .push_str(&format!("\n\n{}\n\n{}", history_header, entry));
+                .push_str(&format!("\n\n{history_header}\n\n{entry}"));
         }
 
         // Write back to file
@@ -298,14 +309,12 @@ impl Ticket {
     /// Add a timestamped AWAITING entry to the History section
     pub fn add_awaiting_entry(&mut self, step_display_name: &str) -> Result<()> {
         let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-        let entry = format!(
-            "- **{}** - Moved to AWAITING during \"{}\" step",
-            timestamp, step_display_name
-        );
+        let entry =
+            format!("- **{timestamp}** - Moved to AWAITING during \"{step_display_name}\" step");
         self.append_history(&entry)
     }
 
-    /// Get the TemplateSchema for this ticket's type
+    /// Get the `TemplateSchema` for this ticket's type
     pub fn template_schema(&self) -> Option<TemplateSchema> {
         TemplateType::from_key(&self.ticket_type)
             .and_then(|tt| TemplateSchema::from_json(tt.schema()).ok())
@@ -320,28 +329,36 @@ impl Ticket {
     /// Get the display name of the current step
     pub fn current_step_display_name(&self) -> String {
         self.current_step_schema()
-            .and_then(|s| s.display_name.clone())
+            .and_then(|s| s.display_name)
             .unwrap_or_else(|| self.step.clone())
     }
 
     /// Advance to the next step in the workflow
-    /// Returns the name of the new step, or None if this was the final step
-    pub fn advance_step(&mut self) -> Result<Option<String>> {
+    /// Returns a `StepAdvanceResult` indicating the new step and whether an agent switch is needed
+    pub fn advance_step(&mut self) -> Result<StepAdvanceResult> {
         let current_step = self.current_step_schema();
         if let Some(step) = current_step {
-            if let Some(next_step) = step.next_step {
-                self.update_field("step", &next_step)?;
-                return Ok(Some(next_step));
+            if let Some(next_name) = step.next_step {
+                // Look up next step's agent override
+                let switch_agent = self
+                    .template_schema()
+                    .and_then(|t| t.get_step(&next_name).cloned())
+                    .and_then(|s| s.agent);
+
+                self.update_field("step", &next_name)?;
+                return Ok(StepAdvanceResult::Advanced {
+                    step: next_name,
+                    switch_agent,
+                });
             }
         }
-        Ok(None)
+        Ok(StepAdvanceResult::FinalStep)
     }
 
     /// Check if the current step requires review before advancing
     pub fn step_requires_review(&self) -> bool {
         self.current_step_schema()
-            .map(|s| s.requires_review())
-            .unwrap_or(false)
+            .is_some_and(|s| s.requires_review())
     }
 
     /// Get the session ID for a specific step
@@ -368,7 +385,7 @@ impl Ticket {
         self.save_llm_task_to_frontmatter()
     }
 
-    /// Set the LLM task blocked_by list and save to frontmatter
+    /// Set the LLM task `blocked_by` list and save to frontmatter
     pub fn set_llm_task_blocked_by(&mut self, blocked_by: Vec<String>) -> Result<()> {
         self.llm_task.blocked_by = blocked_by;
         self.save_llm_task_to_frontmatter()
@@ -459,7 +476,7 @@ impl Ticket {
             let new_yaml =
                 serde_yaml::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
 
-            let new_content = format!("---\n{}---{}", new_yaml, rest);
+            let new_content = format!("---\n{new_yaml}---{rest}");
             self.content = new_content.clone();
             fs::write(&self.filepath, new_content).context("Failed to write ticket file")?;
         }
@@ -478,15 +495,15 @@ impl Ticket {
 
         let mut lines = vec!["llm_task:".to_string()];
         if let Some(ref id) = self.llm_task.id {
-            lines.push(format!("  id: {}", id));
+            lines.push(format!("  id: {id}"));
         }
         if let Some(ref status) = self.llm_task.status {
-            lines.push(format!("  status: {}", status));
+            lines.push(format!("  status: {status}"));
         }
         if !self.llm_task.blocked_by.is_empty() {
             lines.push("  blocked_by:".to_string());
             for task_id in &self.llm_task.blocked_by {
-                lines.push(format!("    - {}", task_id));
+                lines.push(format!("    - {task_id}"));
             }
         }
         lines.join("\n")
@@ -538,7 +555,7 @@ impl Ticket {
             let new_yaml =
                 serde_yaml::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
 
-            let new_content = format!("---\n{}---{}", new_yaml, rest);
+            let new_content = format!("---\n{new_yaml}---{rest}");
             self.content = new_content.clone();
             fs::write(&self.filepath, new_content).context("Failed to write ticket file")?;
         }
@@ -554,7 +571,7 @@ impl Ticket {
 
         let mut lines = vec!["sessions:".to_string()];
         for (step, session_id) in &self.sessions {
-            lines.push(format!("  {}: {}", step, session_id));
+            lines.push(format!("  {step}: {session_id}"));
         }
         lines.join("\n")
     }
@@ -611,7 +628,7 @@ fn extract_llm_task_from_yaml(frontmatter: &HashMap<String, serde_yaml::Value>) 
 }
 
 /// Extract YAML frontmatter from markdown content
-/// Returns the parsed frontmatter as a HashMap, sessions HashMap, LlmTask, and the content after the frontmatter
+/// Returns the parsed frontmatter as a `HashMap`, sessions `HashMap`, `LlmTask`, and the content after the frontmatter
 #[allow(clippy::type_complexity)]
 fn extract_frontmatter(
     content: &str,
@@ -682,13 +699,13 @@ fn parse_filename(filename: &str) -> Result<(String, String, String)> {
                 parts[3].to_string(),
             ))
         } else {
-            anyhow::bail!("Could not parse filename: {}", filename)
+            anyhow::bail!("Could not parse filename: {filename}")
         }
     }
 }
 
 fn extract_field(content: &str, field: &str) -> Option<String> {
-    let pattern = format!(r"\*\*{}\*\*:\s*(.+)", field);
+    let pattern = format!(r"\*\*{field}\*\*:\s*(.+)");
     let re = Regex::new(&pattern).ok()?;
 
     re.captures(content)
@@ -1209,5 +1226,90 @@ step: plan
         // Reload from file and verify persistence
         let reloaded = Ticket::from_file(&ticket_path).unwrap();
         assert_eq!(reloaded.llm_task.blocked_by, blockers);
+    }
+
+    #[test]
+    fn test_advance_step_returns_switch_agent() {
+        // FEAT "build" step has next_step "code", and "code" has agent: "claude-opus"
+        let content = r#"---
+id: FEAT-2001
+status: running
+step: build
+---
+
+# Feature: Test advance with agent switch
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir
+            .path()
+            .join("20241221-1430-FEAT-operator-advance.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let mut ticket = Ticket::from_file(&ticket_path).unwrap();
+        let result = ticket.advance_step().unwrap();
+
+        assert_eq!(
+            result,
+            StepAdvanceResult::Advanced {
+                step: "code".to_string(),
+                switch_agent: Some("claude-opus".to_string()),
+            }
+        );
+        assert_eq!(ticket.step, "code");
+    }
+
+    #[test]
+    fn test_advance_step_no_switch_agent() {
+        // FEAT "plan" step has next_step "build", and "build" has no agent override
+        let content = r#"---
+id: FEAT-2002
+status: running
+step: plan
+---
+
+# Feature: Test advance without agent switch
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir
+            .path()
+            .join("20241221-1430-FEAT-operator-advance2.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let mut ticket = Ticket::from_file(&ticket_path).unwrap();
+        let result = ticket.advance_step().unwrap();
+
+        assert_eq!(
+            result,
+            StepAdvanceResult::Advanced {
+                step: "build".to_string(),
+                switch_agent: None,
+            }
+        );
+        assert_eq!(ticket.step, "build");
+    }
+
+    #[test]
+    fn test_advance_step_final() {
+        // FEAT "deploy" is the last step (no next_step)
+        let content = r#"---
+id: FEAT-2003
+status: running
+step: deploy
+---
+
+# Feature: Test advance from final step
+"#;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir
+            .path()
+            .join("20241221-1430-FEAT-operator-advance3.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let mut ticket = Ticket::from_file(&ticket_path).unwrap();
+        let result = ticket.advance_step().unwrap();
+
+        assert_eq!(result, StepAdvanceResult::FinalStep);
+        // Step should remain unchanged
+        assert_eq!(ticket.step, "deploy");
     }
 }

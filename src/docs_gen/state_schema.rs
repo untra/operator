@@ -134,7 +134,7 @@ impl StateSchemaDocGenerator {
                 output.push_str(&heading(3, name));
 
                 if let Some(desc) = def.get("description").and_then(|d| d.as_str()) {
-                    output.push_str(&format!("{}\n\n", desc));
+                    output.push_str(&format!("{desc}\n\n"));
                 }
 
                 if let Some(properties) = def.get("properties").and_then(|p| p.as_object()) {

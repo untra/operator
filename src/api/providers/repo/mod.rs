@@ -34,7 +34,7 @@ pub struct PrStatus {
     pub mergeable: Option<bool>,
     /// Head commit SHA
     pub head_sha: String,
-    /// Review status: "approved", "changes_requested", "pending", "none"
+    /// Review status: "approved", "`changes_requested`", "pending", "none"
     pub review_status: String,
     /// Whether all required checks have passed
     pub checks_passed: Option<bool>,
@@ -89,9 +89,9 @@ pub struct IssueStatus {
 pub struct CheckStatus {
     /// Check name
     pub name: String,
-    /// Status: "queued", "in_progress", "completed"
+    /// Status: "queued", "`in_progress`", "completed"
     pub status: String,
-    /// Conclusion: "success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"
+    /// Conclusion: "success", "failure", "neutral", "cancelled", "skipped", "`timed_out`", "`action_required`"
     pub conclusion: Option<String>,
 }
 
@@ -102,8 +102,7 @@ impl CheckStatus {
             && self
                 .conclusion
                 .as_ref()
-                .map(|c| c == "success" || c == "skipped" || c == "neutral")
-                .unwrap_or(false)
+                .is_some_and(|c| c == "success" || c == "skipped" || c == "neutral")
     }
 }
 
@@ -148,7 +147,7 @@ pub trait RepoProvider: Send + Sync {
     }
 }
 
-/// Parse repo string into (owner, repo) tuple - standalone function for use with dyn RepoProvider
+/// Parse repo string into (owner, repo) tuple - standalone function for use with dyn `RepoProvider`
 pub fn parse_repo_string(repo_str: &str) -> Option<(&str, &str)> {
     let parts: Vec<&str> = repo_str.split('/').collect();
     if parts.len() == 2 {

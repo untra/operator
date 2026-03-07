@@ -136,7 +136,7 @@ pub struct StepSchema {
     /// Type of review required for this step (none, plan, visual, pr)
     #[serde(default)]
     pub review_type: ReviewType,
-    /// Configuration for visual review (required when review_type is "visual")
+    /// Configuration for visual review (required when `review_type` is "visual")
     #[serde(default)]
     pub visual_config: Option<VisualReviewConfig>,
     /// What to do if step output is rejected
@@ -154,12 +154,18 @@ pub struct StepSchema {
     /// Preferred LLM permission mode for this step
     #[serde(default)]
     pub permission_mode: PermissionMode,
+    /// Optional agent (delegator) name for this step (overrides ticket's default agent)
+    #[serde(default)]
+    pub agent: Option<String>,
     /// Inline JSON schema for structured output (Claude-specific)
     #[serde(default, rename = "jsonSchema")]
     pub json_schema: Option<serde_json::Value>,
     /// Path to JSON schema file for structured output (Claude-specific)
     #[serde(default, rename = "jsonSchemaFile")]
     pub json_schema_file: Option<String>,
+    /// File glob patterns in the worktree that signal this step is complete
+    #[serde(default)]
+    pub artifact_patterns: Vec<String>,
 }
 
 /// Status category for a step
@@ -351,6 +357,11 @@ impl StepSchema {
     /// Check if this step outputs a review
     pub fn outputs_review(&self) -> bool {
         self.outputs.contains(&StepOutput::Review)
+    }
+
+    /// Check if this step has artifact patterns for completion detection
+    pub fn has_artifact_patterns(&self) -> bool {
+        !self.artifact_patterns.is_empty()
     }
 }
 
@@ -699,5 +710,172 @@ mod tests {
         let schema = TemplateSchema::from_json(json).unwrap();
         assert!(schema.steps[0].json_schema.is_none());
         assert!(schema.steps[0].json_schema_file.is_none());
+    }
+
+    #[test]
+    fn test_artifact_patterns_parsed_from_step() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "plan",
+                    "outputs": ["plan"],
+                    "prompt": "Plan it",
+                    "allowed_tools": ["Read"],
+                    "artifact_patterns": [".tickets/plans/*.md"]
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert_eq!(
+            schema.steps[0].artifact_patterns,
+            vec![".tickets/plans/*.md".to_string()]
+        );
+        assert!(schema.steps[0].has_artifact_patterns());
+    }
+
+    #[test]
+    fn test_artifact_patterns_defaults_to_empty_vec() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "build",
+                    "outputs": ["code"],
+                    "prompt": "Build it",
+                    "allowed_tools": ["Read", "Write"]
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert!(schema.steps[0].artifact_patterns.is_empty());
+        assert!(!schema.steps[0].has_artifact_patterns());
+    }
+
+    #[test]
+    fn test_artifact_patterns_multiple_patterns() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "build",
+                    "outputs": ["code"],
+                    "prompt": "Build it",
+                    "allowed_tools": ["Read", "Write"],
+                    "artifact_patterns": ["src/**/*.rs", "tests/**/*.rs", "Cargo.toml"]
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert_eq!(schema.steps[0].artifact_patterns.len(), 3);
+        assert_eq!(schema.steps[0].artifact_patterns[0], "src/**/*.rs");
+        assert_eq!(schema.steps[0].artifact_patterns[1], "tests/**/*.rs");
+        assert_eq!(schema.steps[0].artifact_patterns[2], "Cargo.toml");
+        assert!(schema.steps[0].has_artifact_patterns());
+    }
+
+    #[test]
+    fn test_step_agent_deserializes() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "plan",
+                    "outputs": ["plan"],
+                    "prompt": "Plan it",
+                    "allowed_tools": ["Read"],
+                    "agent": "claude-opus"
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert_eq!(schema.steps[0].agent, Some("claude-opus".to_string()));
+    }
+
+    #[test]
+    fn test_step_agent_default_none() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "build",
+                    "outputs": ["code"],
+                    "prompt": "Build it",
+                    "allowed_tools": ["Read", "Write"]
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert!(schema.steps[0].agent.is_none());
     }
 }

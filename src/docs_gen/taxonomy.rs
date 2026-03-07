@@ -105,7 +105,7 @@ impl TaxonomyDocGenerator {
             output.push_str(&heading(2, &heading_text));
             output.push_str(&format!("{}\n\n", t.description));
         } else {
-            output.push_str(&heading(2, &format!("Tier: {}", tier)));
+            output.push_str(&heading(2, &format!("Tier: {tier}")));
         }
 
         // Table for this tier

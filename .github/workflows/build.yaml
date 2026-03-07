@@ -153,10 +153,11 @@ jobs:
           OPERATOR_LAUNCH_TEST_ENABLED: 'true'
         run: cargo test --test launch_integration -- --test-threads=1 --nocapture
 
-      - name: Cleanup tmux sessions
+      - name: Cleanup sessions
         if: always()
         run: |
           tmux list-sessions -F '#{session_name}' 2>/dev/null | grep '^op' | xargs -I {} tmux kill-session -t {} || true
+          zellij delete-all-sessions --yes --force 2>/dev/null || true
 
   build:
     needs: lint-test

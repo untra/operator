@@ -28,7 +28,7 @@ use crate::state::State as OperatorState;
 pub async fn active(State(state): State<ApiState>) -> Result<Json<ActiveAgentsResponse>, ApiError> {
     // Load operator state from state.json
     let operator_state = OperatorState::load(&state.config)
-        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     // Map AgentState to ActiveAgentResponse
     let agents: Vec<ActiveAgentResponse> = operator_state
@@ -79,14 +79,14 @@ pub async fn approve_review(
     Path(agent_id): Path<String>,
 ) -> Result<Json<ReviewResponse>, ApiError> {
     let mut operator_state = OperatorState::load(&state.config)
-        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     // Find the agent
     let agent = operator_state
         .agents
         .iter()
         .find(|a| a.id == agent_id)
-        .ok_or_else(|| ApiError::NotFound(format!("Agent '{}' not found", agent_id)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
 
     // Verify agent is awaiting review
     if agent.status != "awaiting_input" {
@@ -99,11 +99,11 @@ pub async fn approve_review(
     // Clear review state and update status
     operator_state
         .clear_review_state(&agent_id)
-        .map_err(|e| ApiError::InternalError(format!("Failed to clear review state: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to clear review state: {e}")))?;
 
     operator_state
         .update_agent_status(&agent_id, "running", Some("Review approved".to_string()))
-        .map_err(|e| ApiError::InternalError(format!("Failed to update agent status: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to update agent status: {e}")))?;
 
     // Write approval signal file for the agent to pick up
     write_review_signal(&state, &agent_id, "approved", None)?;
@@ -138,14 +138,14 @@ pub async fn reject_review(
     Json(request): Json<RejectReviewRequest>,
 ) -> Result<Json<ReviewResponse>, ApiError> {
     let mut operator_state = OperatorState::load(&state.config)
-        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     // Find the agent
     let agent = operator_state
         .agents
         .iter()
         .find(|a| a.id == agent_id)
-        .ok_or_else(|| ApiError::NotFound(format!("Agent '{}' not found", agent_id)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
 
     // Verify agent is awaiting review
     if agent.status != "awaiting_input" {
@@ -158,7 +158,7 @@ pub async fn reject_review(
     // Update review state to rejected
     operator_state
         .set_agent_review_state(&agent_id, "rejected")
-        .map_err(|e| ApiError::InternalError(format!("Failed to set review state: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to set review state: {e}")))?;
 
     // Write rejection signal file with reason
     write_review_signal(&state, &agent_id, "rejected", Some(&request.reason))?;
@@ -179,9 +179,9 @@ fn write_review_signal(
 ) -> Result<(), ApiError> {
     let operator_dir = state.tickets_path.join("operator");
     std::fs::create_dir_all(&operator_dir)
-        .map_err(|e| ApiError::InternalError(format!("Failed to create operator dir: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to create operator dir: {e}")))?;
 
-    let signal_file = operator_dir.join(format!("{}-review-signal.json", agent_id));
+    let signal_file = operator_dir.join(format!("{agent_id}-review-signal.json"));
     let content = if let Some(reason) = reason {
         serde_json::json!({
             "decision": decision,
@@ -196,7 +196,7 @@ fn write_review_signal(
     };
 
     std::fs::write(&signal_file, content.to_string())
-        .map_err(|e| ApiError::InternalError(format!("Failed to write signal file: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to write signal file: {e}")))?;
 
     Ok(())
 }

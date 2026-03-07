@@ -55,12 +55,12 @@ export class TerminalManager {
   /**
    * Create a new terminal with Operator styling
    */
-  async create(options: TerminalCreateOptions): Promise<vscode.Terminal> {
+  create(options: TerminalCreateOptions): vscode.Terminal {
     const { name, workingDir, env } = options;
 
     // Dispose existing terminal with same name if present
     if (this.terminals.has(name)) {
-      await this.kill(name);
+      this.kill(name);
     }
 
     // Use ticket-specific colors and icons
@@ -89,7 +89,7 @@ export class TerminalManager {
   /**
    * Send a command to a terminal
    */
-  async send(name: string, command: string): Promise<void> {
+  send(name: string, command: string): void {
     const terminal = this.terminals.get(name);
     if (!terminal) {
       throw new Error(`Terminal '${name}' not found`);
@@ -100,7 +100,7 @@ export class TerminalManager {
   /**
    * Reveal a terminal without taking focus (show in panel)
    */
-  async show(name: string): Promise<void> {
+  show(name: string): void {
     const terminal = this.terminals.get(name);
     if (!terminal) {
       throw new Error(`Terminal '${name}' not found`);
@@ -111,7 +111,7 @@ export class TerminalManager {
   /**
    * Focus a terminal (takes keyboard focus)
    */
-  async focus(name: string): Promise<void> {
+  focus(name: string): void {
     const terminal = this.terminals.get(name);
     if (!terminal) {
       throw new Error(`Terminal '${name}' not found`);
@@ -122,7 +122,7 @@ export class TerminalManager {
   /**
    * Kill/dispose a terminal
    */
-  async kill(name: string): Promise<void> {
+  kill(name: string): void {
     const terminal = this.terminals.get(name);
     if (terminal) {
       terminal.dispose();
@@ -202,8 +202,8 @@ export class TerminalManager {
    * Dispose all resources
    */
   dispose(): void {
-    this.disposables.forEach((d) => d.dispose());
-    this.terminals.forEach((t) => t.dispose());
+    this.disposables.forEach((d) => { d.dispose(); });
+    this.terminals.forEach((t) => { t.dispose(); });
     this.terminals.clear();
     this.activityState.clear();
     this.createdAt.clear();

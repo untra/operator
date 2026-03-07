@@ -31,7 +31,7 @@ export function GitRepositoriesSection({
     <Box sx={{ mb: 4 }}>
       <SectionHeader id="section-git" title="Git Repositories" />
       <Typography color="text.secondary" gutterBottom>
-        Configure git provider and branch settings. For more details see the <Link href="https://operator.untra.io/getting-started/git/">git documentation</Link>
+        Configure workspace git provider and branch settings. For more details see the <Link href="https://operator.untra.io/getting-started/git/">git documentation</Link>
       </Typography>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>

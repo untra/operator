@@ -14,7 +14,7 @@ exit_code: number,
  */
 output_valid: boolean, 
 /**
- * List of validation errors (if output_valid is false)
+ * List of validation errors (if `output_valid` is false)
  */
 output_schema_errors: Array<string> | null, 
 /**
@@ -30,6 +30,6 @@ duration_secs: bigint,
  */
 output_sample: string | null, 
 /**
- * Structured output from agent (parsed OPERATOR_STATUS block)
+ * Structured output from agent (parsed `OPERATOR_STATUS` block)
  */
 output: OperatorOutput | null, };

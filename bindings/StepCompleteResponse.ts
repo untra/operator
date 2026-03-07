@@ -6,7 +6,7 @@ import type { NextStepInfo } from "./NextStepInfo";
  */
 export type StepCompleteResponse = { 
 /**
- * Status of the step: "completed", "awaiting_review", "failed", "iterate"
+ * Status of the step: "completed", "`awaiting_review`", "failed", "iterate"
  */
 status: string, 
 /**
@@ -22,11 +22,11 @@ auto_proceed: boolean,
  */
 next_command: string | null, 
 /**
- * Whether OperatorOutput was successfully parsed from agent output
+ * Whether `OperatorOutput` was successfully parsed from agent output
  */
 output_valid: boolean, 
 /**
- * Agent has more work (exit_signal=false) - indicates iteration needed
+ * Agent has more work (`exit_signal=false`) - indicates iteration needed
  */
 should_iterate: boolean, 
 /**
@@ -34,15 +34,15 @@ should_iterate: boolean,
  */
 iteration_count: number, 
 /**
- * Circuit breaker state: closed (normal), half_open (monitoring), open (halted)
+ * Circuit breaker state: closed (normal), `half_open` (monitoring), open (halted)
  */
 circuit_state: string, 
 /**
- * Summary from previous step's OperatorOutput
+ * Summary from previous step's `OperatorOutput`
  */
 previous_summary: string | null, 
 /**
- * Recommendation from previous step's OperatorOutput
+ * Recommendation from previous step's `OperatorOutput`
  */
 previous_recommendation: string | null, 
 /**

@@ -146,7 +146,7 @@ impl SetupScreen {
         let items: Vec<ListItem> = ALL_ISSUE_TYPES
             .iter()
             .map(|t| {
-                let is_selected = self.custom_collection.contains(&t.to_string());
+                let is_selected = self.custom_collection.contains(&(*t).to_string());
                 let checkbox = if is_selected { "[x]" } else { "[ ]" };
                 let description = match *t {
                     "TASK" => "Focused task that executes one specific thing",
@@ -196,7 +196,7 @@ impl SetupScreen {
         let selected_count = self.custom_collection.len();
         let footer = Paragraph::new(Line::from(vec![
             Span::styled(
-                format!("{} selected", selected_count),
+                format!("{selected_count} selected"),
                 Style::default().fg(if selected_count > 0 {
                     Color::Green
                 } else {

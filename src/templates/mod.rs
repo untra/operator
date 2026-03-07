@@ -8,12 +8,11 @@
 pub mod schema;
 
 use crate::issuetypes::IssueTypeRegistry;
-use once_cell::sync::Lazy;
 use schema::TemplateSchema;
 use std::collections::HashMap;
 
 /// Cached map of issuetype key to glyph (built at startup from builtin types)
-static GLYPH_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
+static GLYPH_MAP: std::sync::LazyLock<HashMap<String, String>> = std::sync::LazyLock::new(|| {
     let mut map = HashMap::new();
     for tt in TemplateType::all() {
         if let Ok(schema) = TemplateSchema::from_json(tt.schema()) {
@@ -24,7 +23,7 @@ static GLYPH_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
 });
 
 /// Cached map of issuetype key to color (built at startup from builtin types)
-static COLOR_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
+static COLOR_MAP: std::sync::LazyLock<HashMap<String, String>> = std::sync::LazyLock::new(|| {
     let mut map = HashMap::new();
     for tt in TemplateType::all() {
         if let Ok(schema) = TemplateSchema::from_json(tt.schema()) {
@@ -39,7 +38,7 @@ static COLOR_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
 /// Get glyph for a ticket type key
 /// Returns "?" if not found in static maps
 pub fn glyph_for_key(key: &str) -> &str {
-    GLYPH_MAP.get(key).map(|s| s.as_str()).unwrap_or("?")
+    GLYPH_MAP.get(key).map_or("?", std::string::String::as_str)
 }
 
 /// Get glyph for a ticket type key, checking registry first
@@ -54,7 +53,7 @@ pub fn glyph_for_key_with_registry(key: &str, registry: &IssueTypeRegistry) -> S
 
 /// Get color for a ticket type key, returns None if not set
 pub fn color_for_key(key: &str) -> Option<&str> {
-    COLOR_MAP.get(key).map(|s| s.as_str())
+    COLOR_MAP.get(key).map(std::string::String::as_str)
 }
 
 /// Get color for a ticket type key, checking registry first
@@ -63,7 +62,7 @@ pub fn color_for_key_with_registry(key: &str, registry: &IssueTypeRegistry) -> O
     if let Some(issue_type) = registry.get(key) {
         issue_type.color.clone()
     } else {
-        color_for_key(key).map(|s| s.to_string())
+        color_for_key(key).map(std::string::ToString::to_string)
     }
 }
 
@@ -149,7 +148,7 @@ impl TemplateType {
     }
 
     /// Returns the embedded markdown template content
-    /// Source of truth: src/collections/backstage_full/
+    /// Source of truth: `src/collections/backstage_full`/
     pub fn template_content(&self) -> &'static str {
         match self {
             TemplateType::Feature => include_str!("../collections/backstage_full/FEAT.md"),
@@ -164,7 +163,7 @@ impl TemplateType {
     }
 
     /// Returns the embedded JSON schema content
-    /// Source of truth: src/collections/backstage_full/
+    /// Source of truth: `src/collections/backstage_full`/
     pub fn schema(&self) -> &'static str {
         match self {
             TemplateType::Feature => include_str!("../collections/backstage_full/FEAT.json"),

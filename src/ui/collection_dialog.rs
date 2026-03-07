@@ -82,7 +82,7 @@ impl CollectionSwitchDialog {
     ) {
         self.visible = true;
         self.active_collection = current_active.to_string();
-        self.project_context = project_context.map(|s| s.to_string());
+        self.project_context = project_context.map(std::string::ToString::to_string);
 
         // Build collection info list
         self.collections = registry
@@ -236,7 +236,7 @@ impl CollectionSwitchDialog {
                 let sync_badge = c
                     .sync_source
                     .as_ref()
-                    .map(|s| format!(" [{}]", s))
+                    .map(|s| format!(" [{s}]"))
                     .unwrap_or_default();
 
                 let builtin_badge = if c.is_builtin { "" } else { " (custom)" };

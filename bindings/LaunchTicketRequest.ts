@@ -17,7 +17,7 @@ model: string | null,
  */
 yolo_mode: boolean, 
 /**
- * Session wrapper type: "vscode", "tmux", "terminal"
+ * Session wrapper type: "vscode", "tmux", "cmux", "terminal"
  */
 wrapper: string | null, 
 /**

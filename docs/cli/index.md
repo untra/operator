@@ -112,6 +112,10 @@ Initialize operator workspace (non-interactive by default)
 | `-C, --collection` | Collection preset: simple, dev-kanban, devops-kanban (default: simple) |
 | `--backstage` | Enable backstage configuration |
 | `-f, --force` | Overwrite existing files |
+| `-w, --working-dir` | Working directory (parent of .tickets/) |
+| `-k, --kanban-provider` | Kanban provider to configure: jira, linear |
+| `-l, --llm-tool` | Preferred LLM tool: claude, codex, gemini |
+| `--skip-llm-detection` | Skip LLM tool detection |
 
 ## Environment Variables
 

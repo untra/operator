@@ -47,13 +47,10 @@ macOS notification preferences
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `enabled` * | `boolean` | true |  |
-| `on_agent_start` * | `boolean` | true |  |
-| `on_agent_complete` * | `boolean` | true |  |
-| `on_agent_needs_input` * | `boolean` | true |  |
-| `on_pr_created` * | `boolean` | true |  |
-| `on_investigation_created` * | `boolean` | true |  |
-| `sound` * | `boolean` | false |  |
+| `enabled` * | `boolean` | true | Global enabled flag for all notifications |
+| `os` | → `OsNotificationConfig` | - | OS notification configuration |
+| `webhook` | `any` | - | Single webhook configuration (for simple setups) |
+| `webhooks` | `array`[→ `WebhookConfig`] | - | Multiple webhook configurations |
 
 ## `[queue]`
 
@@ -160,11 +157,13 @@ LLM CLI tool detection and providers
 | `detected` | `array`[→ `DetectedTool`] | - | Detected CLI tools (populated on first startup) |
 | `providers` | `array`[→ `LlmProvider`] | - | Available {tool, model} pairs for launching tickets Built from detected tools + their model aliases |
 | `detection_complete` | `boolean` | - | Whether detection has been completed |
+| `skill_directory_overrides` | `object` | - | Per-tool overrides for skill directories (keyed by tool_name) |
 
 ## Example Configuration
 
 ```toml
 projects = []
+delegators = []
 
 [agents]
 max_parallel = 5
@@ -177,12 +176,18 @@ silence_threshold = 30
 
 [notifications]
 enabled = true
+webhooks = []
 on_agent_start = true
 on_agent_complete = true
 on_agent_needs_input = true
 on_pr_created = true
 on_investigation_created = true
 sound = false
+
+[notifications.os]
+enabled = true
+sound = false
+events = []
 
 [queue]
 auto_assign = true
@@ -243,10 +248,28 @@ to_file = true
 [tmux]
 config_generated = false
 
+[sessions]
+wrapper = "tmux"
+
+[sessions.tmux]
+config_generated = false
+socket_name = "operator"
+
+[sessions.vscode]
+webhook_port = 7009
+connect_timeout_ms = 5000
+
+[sessions.cmux]
+binary_path = "/Applications/cmux.app/Contents/Resources/bin/cmux"
+require_in_cmux = true
+placement = "auto"
+
 [llm_tools]
 detected = []
 providers = []
 detection_complete = false
+
+[llm_tools.skill_directory_overrides]
 
 [backstage]
 enabled = true
@@ -272,6 +295,27 @@ muted = "#8a4a3a"
 enabled = true
 port = 7008
 cors_origins = []
+
+[git]
+branch_format = "{type}/{ticket_id}"
+use_worktrees = false
+
+[git.github]
+enabled = false
+token_env = ""
+
+[git.gitlab]
+enabled = false
+token_env = ""
+
+[kanban.jira]
+
+[kanban.linear]
+
+[version_check]
+enabled = true
+url = "https://operator.untra.io/VERSION"
+timeout_secs = 3
 
 ```
 

@@ -353,7 +353,7 @@ impl ProjectsDialog {
         frame.render_widget(Clear, area);
 
         let title = match &self.selected_project {
-            Some(p) => format!(" {} - Actions ", p),
+            Some(p) => format!(" {p} - Actions "),
             None => " Actions ".to_string(),
         };
 
@@ -469,7 +469,7 @@ impl ProjectsDialog {
                         lines.push(Line::from(vec![
                             Span::raw("  "),
                             Span::styled(
-                                format!("> {}", ticket_id),
+                                format!("> {ticket_id}"),
                                 Style::default().fg(Color::Cyan),
                             ),
                         ]));
@@ -514,7 +514,7 @@ impl ProjectsDialog {
                     for (key, error) in &result.errors {
                         lines.push(Line::from(vec![
                             Span::raw("  "),
-                            Span::styled(format!("x {}: ", key), Style::default().fg(Color::Red)),
+                            Span::styled(format!("x {key}: "), Style::default().fg(Color::Red)),
                             Span::styled(
                                 truncate_str(error, 40),
                                 Style::default().fg(Color::DarkGray),

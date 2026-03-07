@@ -22,20 +22,21 @@ mod webhook_integration;
 pub use integration::NotificationIntegration;
 #[allow(unused_imports)]
 pub use os_integration::OsIntegration;
+#[allow(unused_imports)] // Used by main.rs binary
 pub use service::NotificationService;
 #[allow(unused_imports)]
 pub use webhook_integration::WebhookIntegration;
 
 /// Send a notification using the platform-specific implementation.
 ///
-/// This is a compatibility shim - new code should use NotificationService.notify().
+/// This is a compatibility shim - new code should use `NotificationService.notify()`.
 #[deprecated(note = "Use NotificationService.notify() instead")]
 pub fn send(title: &str, subtitle: &str, message: &str, sound: bool) -> Result<()> {
     send_os_notification(title, subtitle, message, sound)
 }
 
 /// Send a notification using the platform-specific implementation.
-/// This is a low-level function used by OsIntegration.
+/// This is a low-level function used by `OsIntegration`.
 pub fn send_os_notification(title: &str, subtitle: &str, message: &str, sound: bool) -> Result<()> {
     #[cfg(target_os = "macos")]
     {
@@ -57,6 +58,7 @@ pub fn send_os_notification(title: &str, subtitle: &str, message: &str, sound: b
 }
 
 /// All notification events that can be dispatched to integrations.
+#[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "event", content = "data")]
 pub enum NotificationEvent {
@@ -195,14 +197,11 @@ impl NotificationEvent {
             } => {
                 let mode_suffix = launch_mode
                     .as_ref()
-                    .map(|m| format!(" [{}]", m))
+                    .map(|m| format!(" [{m}]"))
                     .unwrap_or_default();
                 (
                     "Agent Started".to_string(),
-                    format!(
-                        "{} - {} (tmux: {}){}",
-                        project, ticket_type, session_name, mode_suffix
-                    ),
+                    format!("{project} - {ticket_type} (tmux: {session_name}){mode_suffix}"),
                     ticket_id.clone(),
                 )
             }
@@ -215,13 +214,13 @@ impl NotificationEvent {
                 ..
             } => {
                 let message = if let Some(url) = pr_url {
-                    format!("{} complete - PR: {}", ticket_id, url)
+                    format!("{ticket_id} complete - PR: {url}")
                 } else {
-                    format!("{} complete", ticket_id)
+                    format!("{ticket_id} complete")
                 };
                 (
                     "Agent Complete".to_string(),
-                    format!("{} - {}", project, ticket_type),
+                    format!("{project} - {ticket_type}"),
                     message,
                 )
             }
@@ -232,7 +231,7 @@ impl NotificationEvent {
                 error,
             } => (
                 "Agent Failed".to_string(),
-                format!("{} - {}", project, ticket_id),
+                format!("{project} - {ticket_id}"),
                 error.clone(),
             ),
 
@@ -243,7 +242,7 @@ impl NotificationEvent {
                 reason,
             } => (
                 "Agent Awaiting Input".to_string(),
-                format!("{} - {} ({})", project, ticket_type, ticket_id),
+                format!("{project} - {ticket_type} ({ticket_id})"),
                 reason.clone(),
             ),
 
@@ -260,8 +259,8 @@ impl NotificationEvent {
                 pr_number,
             } => (
                 "PR Created".to_string(),
-                format!("{} - {}", project, ticket_id),
-                format!("PR #{}: {}", pr_number, pr_url),
+                format!("{project} - {ticket_id}"),
+                format!("PR #{pr_number}: {pr_url}"),
             ),
 
             NotificationEvent::PrMerged {
@@ -271,7 +270,7 @@ impl NotificationEvent {
             } => (
                 "PR Merged".to_string(),
                 project.clone(),
-                format!("PR #{} merged for {}", pr_number, ticket_id),
+                format!("PR #{pr_number} merged for {ticket_id}"),
             ),
 
             NotificationEvent::PrClosed {
@@ -281,7 +280,7 @@ impl NotificationEvent {
             } => (
                 "PR Closed".to_string(),
                 ticket_id.clone(),
-                format!("PR #{} closed without merge", pr_number),
+                format!("PR #{pr_number} closed without merge"),
             ),
 
             NotificationEvent::PrReadyToMerge {
@@ -291,7 +290,7 @@ impl NotificationEvent {
             } => (
                 "PR Ready to Merge".to_string(),
                 ticket_id.clone(),
-                format!("PR #{} is approved and ready to merge", pr_number),
+                format!("PR #{pr_number} is approved and ready to merge"),
             ),
 
             NotificationEvent::PrChangesRequested {
@@ -301,7 +300,7 @@ impl NotificationEvent {
             } => (
                 "PR Changes Requested".to_string(),
                 ticket_id.clone(),
-                format!("PR #{} has changes requested", pr_number),
+                format!("PR #{pr_number} has changes requested"),
             ),
 
             NotificationEvent::TicketReturned {
@@ -311,7 +310,7 @@ impl NotificationEvent {
             } => (
                 "Ticket Returned to Queue".to_string(),
                 project.clone(),
-                format!("{} - {}", ticket_id, summary),
+                format!("{ticket_id} - {summary}"),
             ),
 
             NotificationEvent::InvestigationCreated {

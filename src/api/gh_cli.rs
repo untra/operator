@@ -1,6 +1,6 @@
 //! GitHub CLI (`gh`) wrapper for PR operations.
 //!
-//! Uses the `gh` CLI (https://cli.github.com) for GitHub operations.
+//! Uses the `gh` CLI (<https://cli.github.com>) for GitHub operations.
 //! This approach, following vibe-kanban patterns, provides:
 //! - Built-in authentication management (gh auth login)
 //! - Simpler PR creation with automatic remote detection
@@ -154,7 +154,7 @@ impl GhCli {
         // Parse the JSON response
         let pr_response: GhPrCreateResponse =
             serde_json::from_str(&output).map_err(|e| CreatePrError::GithubApiError {
-                message: format!("Failed to parse PR response: {}", e),
+                message: format!("Failed to parse PR response: {e}"),
             })?;
 
         Ok(PullRequestInfo {
@@ -328,7 +328,7 @@ impl GhCli {
         all_comments.extend(review);
 
         // Sort by creation time
-        all_comments.sort_by_key(|c| c.created_at());
+        all_comments.sort_by_key(super::super::types::pr::UnifiedPrComment::created_at);
 
         Ok(all_comments)
     }
@@ -499,7 +499,7 @@ fn extract_existing_pr_info(error: &str) -> Option<(i64, String)> {
     let num_regex = regex::Regex::new(r"#(\d+)").ok()?;
     if let Some(caps) = num_regex.captures(error) {
         let number: i64 = caps.get(1)?.as_str().parse().ok()?;
-        return Some((number, format!("(PR #{})", number)));
+        return Some((number, format!("(PR #{number})")));
     }
 
     None

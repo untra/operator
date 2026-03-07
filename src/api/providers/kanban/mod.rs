@@ -145,7 +145,7 @@ pub trait KanbanProvider: Send + Sync {
     /// Get issue types for a project
     async fn get_issue_types(&self, project_key: &str) -> Result<Vec<ExternalIssueType>, ApiError>;
 
-    /// Convert an external issue type to an Operator IssueType
+    /// Convert an external issue type to an Operator `IssueType`
     fn convert_to_issuetype(&self, external: &ExternalIssueType, project_key: &str) -> IssueType;
 
     /// Test connectivity to the API
@@ -345,9 +345,9 @@ pub fn detect_kanban_env_vars() -> Vec<DetectedKanbanProvider> {
     for (key, _value) in env::vars() {
         if let Some(instance_name) = parse_custom_jira_env_var(&key) {
             // Check if we already have this instance
-            let domain_env = format!("OPERATOR_JIRA_{}_DOMAIN", instance_name);
-            let email_env = format!("OPERATOR_JIRA_{}_EMAIL", instance_name);
-            let api_key_env = format!("OPERATOR_JIRA_{}_API_KEY", instance_name);
+            let domain_env = format!("OPERATOR_JIRA_{instance_name}_DOMAIN");
+            let email_env = format!("OPERATOR_JIRA_{instance_name}_EMAIL");
+            let api_key_env = format!("OPERATOR_JIRA_{instance_name}_API_KEY");
 
             let domain = env::var(&domain_env).ok();
             let email = env::var(&email_env).ok();
@@ -392,9 +392,9 @@ pub fn detect_kanban_env_vars() -> Vec<DetectedKanbanProvider> {
 /// Parse a custom Jira environment variable name to extract the instance name
 ///
 /// Matches patterns like:
-/// - OPERATOR_JIRA_FOOBAR_API_KEY -> Some("FOOBAR")
-/// - OPERATOR_JIRA_FOOBAR_DOMAIN -> Some("FOOBAR")
-/// - OPERATOR_JIRA_API_KEY -> None (standard, not custom)
+/// - `OPERATOR_JIRA_FOOBAR_API_KEY` -> Some("FOOBAR")
+/// - `OPERATOR_JIRA_FOOBAR_DOMAIN` -> Some("FOOBAR")
+/// - `OPERATOR_JIRA_API_KEY` -> None (standard, not custom)
 fn parse_custom_jira_env_var(key: &str) -> Option<&str> {
     if !key.starts_with("OPERATOR_JIRA_") {
         return None;
@@ -440,23 +440,23 @@ pub async fn test_provider_credentials(provider: &DetectedKanbanProvider) -> Res
 
     match provider.provider_type {
         KanbanProviderType::Jira => {
-            let jira = JiraProvider::from_env()
-                .map_err(|e| format!("Failed to create provider: {}", e))?;
+            let jira =
+                JiraProvider::from_env().map_err(|e| format!("Failed to create provider: {e}"))?;
 
             jira.test_connection()
                 .await
-                .map_err(|e| format!("Connection failed: {}", e))?;
+                .map_err(|e| format!("Connection failed: {e}"))?;
 
             Ok(())
         }
         KanbanProviderType::Linear => {
             let linear = LinearProvider::from_env()
-                .map_err(|e| format!("Failed to create provider: {}", e))?;
+                .map_err(|e| format!("Failed to create provider: {e}"))?;
 
             linear
                 .test_connection()
                 .await
-                .map_err(|e| format!("Connection failed: {}", e))?;
+                .map_err(|e| format!("Connection failed: {e}"))?;
 
             Ok(())
         }
@@ -473,6 +473,40 @@ pub fn get_provider(name: &str) -> Option<Box<dyn KanbanProvider>> {
             .ok()
             .map(|p| Box::new(p) as Box<dyn KanbanProvider>),
         _ => None,
+    }
+}
+
+/// Get a provider from `KanbanConfig` for a specific provider name and project key.
+///
+/// Looks up the appropriate provider config and creates a provider instance.
+pub fn get_provider_from_config(
+    kanban: &crate::config::KanbanConfig,
+    provider_name: &str,
+    project_key: &str,
+) -> Result<Box<dyn KanbanProvider>, ApiError> {
+    match provider_name.to_lowercase().as_str() {
+        "jira" => {
+            let (domain, cfg) = kanban
+                .jira
+                .iter()
+                .find(|(_, cfg)| cfg.enabled && cfg.projects.contains_key(project_key))
+                .or_else(|| kanban.jira.iter().find(|(_, cfg)| cfg.enabled))
+                .ok_or_else(|| ApiError::not_configured("No enabled Jira provider configured"))?;
+            JiraProvider::from_config(domain, cfg).map(|p| Box::new(p) as Box<dyn KanbanProvider>)
+        }
+        "linear" => {
+            let (workspace, cfg) = kanban
+                .linear
+                .iter()
+                .find(|(_, cfg)| cfg.enabled && cfg.projects.contains_key(project_key))
+                .or_else(|| kanban.linear.iter().find(|(_, cfg)| cfg.enabled))
+                .ok_or_else(|| ApiError::not_configured("No enabled Linear provider configured"))?;
+            LinearProvider::from_config(workspace, cfg)
+                .map(|p| Box::new(p) as Box<dyn KanbanProvider>)
+        }
+        _ => Err(ApiError::not_configured(format!(
+            "Unknown provider: '{provider_name}'. Supported: jira, linear"
+        ))),
     }
 }
 

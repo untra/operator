@@ -4,7 +4,7 @@ import type { ProjectSyncConfig } from "./ProjectSyncConfig";
 /**
  * Jira Cloud provider configuration
  *
- * The domain is specified as the HashMap key in KanbanConfig.jira
+ * The domain is specified as the `HashMap` key in KanbanConfig.jira
  */
 export type JiraConfig = { 
 /**
@@ -12,7 +12,7 @@ export type JiraConfig = {
  */
 enabled: boolean, 
 /**
- * Environment variable name containing the API key (default: OPERATOR_JIRA_API_KEY)
+ * Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`)
  */
 api_key_env: string, 
 /**

@@ -213,7 +213,7 @@ pub fn render_paginated_list<T, F>(
         .collect();
 
     let block = Block::default()
-        .title(format!(" {} ", title))
+        .title(format!(" {title} "))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan));
 

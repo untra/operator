@@ -135,4 +135,10 @@ mod tests {
         dialog.toggle();
         assert!(!dialog.visible);
     }
+
+    #[test]
+    fn test_help_dialog_new_starts_hidden() {
+        let dialog = HelpDialog::new();
+        assert!(!dialog.visible);
+    }
 }

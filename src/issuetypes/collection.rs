@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// Metadata about where a collection was synced from (e.g., Jira, Linear)
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CollectionSyncSource {
-    /// Provider type (e.g., "jira", "linear", "github_projects")
+    /// Provider type (e.g., "jira", "linear", "`github_projects`")
     pub provider: String,
     /// Base URL of the provider instance
     #[serde(default)]
@@ -59,12 +59,13 @@ impl IssueTypeCollection {
 
     /// Add multiple issue types to the collection
     pub fn with_types(mut self, keys: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.types.extend(keys.into_iter().map(|k| k.into()));
+        self.types
+            .extend(keys.into_iter().map(std::convert::Into::into));
         self
     }
 
     /// Get position index for a type in the collection
-    /// Returns usize::MAX if type not in collection
+    /// Returns `usize::MAX` if type not in collection
     pub fn priority_index(&self, key: &str) -> usize {
         self.types
             .iter()
@@ -137,7 +138,7 @@ impl BuiltinPreset {
         }
     }
 
-    /// Convert to an IssueTypeCollection
+    /// Convert to an `IssueTypeCollection`
     pub fn into_collection(self) -> IssueTypeCollection {
         match self {
             BuiltinPreset::Simple => {

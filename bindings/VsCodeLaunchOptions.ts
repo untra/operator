@@ -14,6 +14,6 @@ model: VsCodeModelOption,
  */
 yoloMode: boolean, 
 /**
- * Resume from existing session (uses session_id from ticket)
+ * Resume from existing session (uses `session_id` from ticket)
  */
 resumeSession: boolean, };

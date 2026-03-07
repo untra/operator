@@ -304,8 +304,7 @@ impl ConfirmDialog {
         // Check if priority should be shown (only if the schema has a priority field)
         let show_priority = ticket
             .template_schema()
-            .map(|schema| schema.fields.iter().any(|f| f.name == "priority"))
-            .unwrap_or(false);
+            .is_some_and(|schema| schema.fields.iter().any(|f| f.name == "priority"));
 
         // Calculate dialog height based on options
         let has_options = self.has_options();
@@ -884,5 +883,39 @@ mod tests {
 
         assert!(!dialog.visible);
         assert!(dialog.ticket.is_none());
+    }
+
+    #[test]
+    fn test_is_project_overridden_after_cycling() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.project_options = vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()];
+        dialog.original_project = "alpha".to_string();
+        dialog.selected_project = 0;
+
+        assert!(!dialog.is_project_overridden());
+
+        dialog.cycle_project(); // now "beta"
+        assert!(dialog.is_project_overridden());
+
+        dialog.cycle_project(); // now "gamma"
+        assert!(dialog.is_project_overridden());
+
+        dialog.cycle_project(); // wraps to "alpha"
+        assert!(!dialog.is_project_overridden());
+    }
+
+    #[test]
+    fn test_focus_options_noop_when_no_options() {
+        let mut dialog = ConfirmDialog::new();
+        // No options configured — has_options() is false
+        dialog.focus_options();
+        assert!(matches!(dialog.focus, ConfirmDialogFocus::Buttons));
+    }
+
+    #[test]
+    fn test_confirm_dialog_starts_with_no_ticket() {
+        let dialog = ConfirmDialog::new();
+        assert!(dialog.ticket.is_none());
+        assert!(!dialog.visible);
     }
 }

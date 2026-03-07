@@ -65,7 +65,7 @@ pub struct PrConfig {
     pub title_format: String,
 
     /// PR body template (handlebars template)
-    /// If not set, uses body_template_file or a default template
+    /// If not set, uses `body_template_file` or a default template
     #[serde(default)]
     pub body_template: Option<String>,
 
@@ -333,7 +333,7 @@ fn extract_description(content: &str) -> String {
 
 /// Extract a specific section from ticket content
 fn extract_section(content: &str, section_name: &str) -> String {
-    let header = format!("## {}", section_name);
+    let header = format!("## {section_name}");
     if let Some(start) = content.find(&header) {
         let after_header = &content[start + header.len()..];
         // Find end of section (next ## or end of content)
@@ -346,7 +346,7 @@ fn extract_section(content: &str, section_name: &str) -> String {
 
 /// Default PR body template
 fn default_body_template() -> String {
-    r#"## Summary
+    r"## Summary
 
 {{ summary }}
 
@@ -371,7 +371,7 @@ fn default_body_template() -> String {
 
 ---
 *Automated PR by Operator*
-"#
+"
     .to_string()
 }
 

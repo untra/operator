@@ -25,7 +25,7 @@ impl DocGenerator for OpenApiDocGenerator {
 
     fn generate(&self) -> Result<String> {
         let spec =
-            ApiDoc::json().map_err(|e| anyhow::anyhow!("Failed to generate OpenAPI: {}", e))?;
+            ApiDoc::json().map_err(|e| anyhow::anyhow!("Failed to generate OpenAPI: {e}"))?;
         Ok(spec)
     }
 }

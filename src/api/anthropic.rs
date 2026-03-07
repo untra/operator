@@ -88,7 +88,7 @@ impl RateLimitInfo {
     /// Returns something like "87% tokens", "45% input", or "Rate limited"
     pub fn summary(&self) -> String {
         if let Some(retry) = self.retry_after_seconds {
-            return format!("Rate limited ({}s)", retry);
+            return format!("Rate limited ({retry}s)");
         }
 
         // Prefer input tokens as they're more limiting
@@ -107,8 +107,7 @@ impl RateLimitInfo {
     pub fn is_below_threshold(&self, threshold: f32) -> bool {
         self.input_tokens_remaining_pct()
             .or(self.tokens_remaining_pct())
-            .map(|pct| pct < threshold)
-            .unwrap_or(false)
+            .is_some_and(|pct| pct < threshold)
     }
 }
 
@@ -133,7 +132,7 @@ struct Message {
 }
 
 impl AnthropicClient {
-    /// Create a new Anthropic client from the OPERATOR_ANTHROPIC_API_KEY environment variable
+    /// Create a new Anthropic client from the `OPERATOR_ANTHROPIC_API_KEY` environment variable
     pub fn from_env() -> Result<Option<Self>> {
         match env::var("OPERATOR_ANTHROPIC_API_KEY") {
             Ok(key) if !key.is_empty() => {
@@ -160,7 +159,7 @@ impl AnthropicClient {
     /// Check rate limits by making a minimal API call and reading response headers
     /// This uses the smallest possible request to minimize token usage
     pub async fn check_rate_limits(&self) -> Result<RateLimitInfo> {
-        let url = format!("{}/v1/messages", ANTHROPIC_API_BASE);
+        let url = format!("{ANTHROPIC_API_BASE}/v1/messages");
 
         let request_body = MinimalMessageRequest {
             model: "claude-haiku-4-20250514".to_string(),
@@ -212,7 +211,7 @@ impl AnthropicClient {
             headers
                 .get(name)
                 .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
         };
 
         RateLimitInfo {

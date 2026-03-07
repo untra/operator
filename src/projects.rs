@@ -93,7 +93,7 @@ pub fn discover_projects_with_git(projects_path: &Path) -> Vec<DiscoveredProject
                 let llm_tools: Vec<String> = TOOL_MARKERS
                     .iter()
                     .filter(|(_, marker)| path.join(marker).exists())
-                    .map(|(tool, _)| tool.to_string())
+                    .map(|(tool, _)| (*tool).to_string())
                     .collect();
 
                 // Include if has git OR has LLM markers
@@ -172,11 +172,11 @@ fn detect_default_branch(path: &Path) -> String {
     // Fallback: check common default branch names
     for branch in &["main", "master", "develop"] {
         let check = Command::new("git")
-            .args(["rev-parse", "--verify", &format!("origin/{}", branch)])
+            .args(["rev-parse", "--verify", &format!("origin/{branch}")])
             .current_dir(path)
             .output();
         if check.map(|o| o.status.success()).unwrap_or(false) {
-            return branch.to_string();
+            return (*branch).to_string();
         }
     }
 
@@ -186,7 +186,7 @@ fn detect_default_branch(path: &Path) -> String {
 
 /// Discover projects by tool, scanning for tool-specific marker files
 ///
-/// Returns a map of tool_name → list of project names.
+/// Returns a map of `tool_name` → list of project names.
 /// A project can appear under multiple tools if it has multiple marker files.
 pub fn discover_projects_by_tool(projects_path: &Path) -> HashMap<String, Vec<String>> {
     let mut projects_by_tool: HashMap<String, Vec<String>> = HashMap::new();
@@ -202,7 +202,7 @@ pub fn discover_projects_by_tool(projects_path: &Path) -> HashMap<String, Vec<St
                     for (tool, marker) in TOOL_MARKERS {
                         if path.join(marker).exists() {
                             projects_by_tool
-                                .entry(tool.to_string())
+                                .entry((*tool).to_string())
                                 .or_default()
                                 .push(name.clone());
                         }

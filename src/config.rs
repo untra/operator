@@ -24,7 +24,7 @@ pub struct Config {
     pub logging: LoggingConfig,
     #[serde(default)]
     pub tmux: TmuxConfig,
-    /// Session wrapper configuration (tmux or vscode)
+    /// Session wrapper configuration (tmux, vscode, or cmux)
     #[serde(default)]
     pub sessions: SessionsConfig,
     #[serde(default)]
@@ -165,8 +165,8 @@ pub struct OsNotificationConfig {
 
     /// Events to send (empty = all events)
     /// Possible values: agent.started, agent.completed, agent.failed,
-    /// agent.awaiting_input, agent.session_lost, pr.created, pr.merged,
-    /// pr.closed, pr.ready_to_merge, pr.changes_requested,
+    /// `agent.awaiting_input`, `agent.session_lost`, pr.created, pr.merged,
+    /// pr.closed, `pr.ready_to_merge`, `pr.changes_requested`,
     /// ticket.returned, investigation.created
     #[serde(default)]
     pub events: Vec<String>,
@@ -239,9 +239,10 @@ pub struct PathsConfig {
 }
 
 fn default_worktrees_dir() -> String {
-    dirs::home_dir()
-        .map(|h| h.join(".operator/worktrees").to_string_lossy().to_string())
-        .unwrap_or_else(|| ".operator/worktrees".to_string())
+    dirs::home_dir().map_or_else(
+        || ".operator/worktrees".to_string(),
+        |h| h.join(".operator/worktrees").to_string_lossy().to_string(),
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -376,6 +377,10 @@ pub enum SessionWrapperType {
     Tmux,
     /// VS Code integrated terminal (via extension webhook)
     Vscode,
+    /// cmux macOS terminal multiplexer
+    Cmux,
+    /// Zellij terminal workspace manager
+    Zellij,
 }
 
 impl std::fmt::Display for SessionWrapperType {
@@ -383,6 +388,8 @@ impl std::fmt::Display for SessionWrapperType {
         match self {
             SessionWrapperType::Tmux => write!(f, "tmux"),
             SessionWrapperType::Vscode => write!(f, "vscode"),
+            SessionWrapperType::Cmux => write!(f, "cmux"),
+            SessionWrapperType::Zellij => write!(f, "zellij"),
         }
     }
 }
@@ -390,9 +397,11 @@ impl std::fmt::Display for SessionWrapperType {
 /// Session wrapper configuration
 ///
 /// Controls how operator creates and manages terminal sessions for agents.
-/// Two modes are supported:
+/// Four modes are supported:
 /// - tmux: Standalone tmux sessions (default)
 /// - vscode: VS Code integrated terminal (requires extension)
+/// - cmux: macOS terminal multiplexer (requires running inside cmux)
+/// - zellij: Zellij terminal workspace manager
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct SessionsConfig {
@@ -407,6 +416,14 @@ pub struct SessionsConfig {
     /// VS Code-specific configuration
     #[serde(default)]
     pub vscode: SessionsVSCodeConfig,
+
+    /// cmux-specific configuration
+    #[serde(default)]
+    pub cmux: SessionsCmuxConfig,
+
+    /// Zellij-specific configuration
+    #[serde(default)]
+    pub zellij: SessionsZellijConfig,
 }
 
 impl Default for SessionsConfig {
@@ -415,6 +432,8 @@ impl Default for SessionsConfig {
             wrapper: SessionWrapperType::Tmux,
             tmux: SessionsTmuxConfig::default(),
             vscode: SessionsVSCodeConfig::default(),
+            cmux: SessionsCmuxConfig::default(),
+            zellij: SessionsZellijConfig::default(),
         }
     }
 }
@@ -475,6 +494,82 @@ impl Default for SessionsVSCodeConfig {
     }
 }
 
+/// Placement policy for cmux sessions: where to create new agent terminals
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum CmuxPlacementPolicy {
+    /// Automatically choose: 0-1 windows → new workspace, >1 windows → new window
+    #[default]
+    Auto,
+    /// Always create a new workspace in the active window
+    Workspace,
+    /// Always create a new window for each ticket
+    Window,
+}
+
+impl std::fmt::Display for CmuxPlacementPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CmuxPlacementPolicy::Auto => write!(f, "auto"),
+            CmuxPlacementPolicy::Workspace => write!(f, "workspace"),
+            CmuxPlacementPolicy::Window => write!(f, "window"),
+        }
+    }
+}
+
+/// cmux macOS terminal multiplexer session configuration
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct SessionsCmuxConfig {
+    /// Path to the cmux binary
+    #[serde(default = "default_cmux_binary_path")]
+    pub binary_path: String,
+
+    /// Require running inside cmux (`CMUX_WORKSPACE_ID` env var present)
+    #[serde(default = "default_true_val")]
+    pub require_in_cmux: bool,
+
+    /// Where to place new agent sessions: "auto", "workspace", or "window"
+    #[serde(default)]
+    pub placement: CmuxPlacementPolicy,
+}
+
+fn default_cmux_binary_path() -> String {
+    "/Applications/cmux.app/Contents/Resources/bin/cmux".to_string()
+}
+
+fn default_true_val() -> bool {
+    true
+}
+
+impl Default for SessionsCmuxConfig {
+    fn default() -> Self {
+        Self {
+            binary_path: default_cmux_binary_path(),
+            require_in_cmux: default_true_val(),
+            placement: CmuxPlacementPolicy::default(),
+        }
+    }
+}
+
+/// Zellij terminal workspace manager session configuration
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct SessionsZellijConfig {
+    /// Require running inside Zellij (ZELLIJ env var present)
+    #[serde(default = "default_true_val")]
+    pub require_in_zellij: bool,
+}
+
+impl Default for SessionsZellijConfig {
+    fn default() -> Self {
+        Self {
+            require_in_zellij: default_true_val(),
+        }
+    }
+}
+
 /// Backstage integration configuration
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
@@ -488,7 +583,7 @@ pub struct BackstageConfig {
     /// Auto-start Backstage server when TUI launches
     #[serde(default)]
     pub auto_start: bool,
-    /// Subdirectory within state_path for Backstage installation
+    /// Subdirectory within `state_path` for Backstage installation
     #[serde(default = "default_backstage_subpath")]
     pub subpath: String,
     /// Subdirectory within backstage path for branding customization
@@ -498,7 +593,7 @@ pub struct BackstageConfig {
     #[serde(default = "default_backstage_release_url")]
     pub release_url: String,
     /// Optional local path to backstage-server binary
-    /// If set, this is used instead of downloading from release_url
+    /// If set, this is used instead of downloading from `release_url`
     #[serde(default)]
     pub local_binary_path: Option<String>,
     /// Branding and theming configuration
@@ -682,7 +777,7 @@ pub struct LlmToolsConfig {
     #[serde(default)]
     pub detection_complete: bool,
 
-    /// Per-tool overrides for skill directories (keyed by tool_name)
+    /// Per-tool overrides for skill directories (keyed by `tool_name`)
     #[serde(default)]
     pub skill_directory_overrides: std::collections::HashMap<String, SkillDirectoriesOverride>,
 }
@@ -705,7 +800,7 @@ pub struct DetectedTool {
     pub version_ok: bool,
     /// Available model aliases (e.g., ["opus", "sonnet", "haiku"])
     pub model_aliases: Vec<String>,
-    /// Command template with {{model}}, {{session_id}}, {{prompt_file}} placeholders
+    /// Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders
     #[serde(default)]
     pub command_template: String,
     /// Tool capabilities
@@ -795,7 +890,7 @@ pub struct Delegator {
     /// Optional display name for UI
     #[serde(default)]
     pub display_name: Option<String>,
-    /// Arbitrary model properties (e.g., reasoning_effort, sandbox)
+    /// Arbitrary model properties (e.g., `reasoning_effort`, sandbox)
     #[serde(default)]
     pub model_properties: std::collections::HashMap<String, String>,
     /// Optional launch configuration
@@ -868,7 +963,7 @@ impl CollectionPreset {
 #[ts(export)]
 pub struct TemplatesConfig {
     /// Named preset for issue type collection
-    /// Options: simple, dev_kanban, devops_kanban, custom
+    /// Options: simple, `dev_kanban`, `devops_kanban`, custom
     #[serde(default)]
     pub preset: CollectionPreset,
     /// Custom issuetype collection (only used when preset = custom)
@@ -978,14 +1073,14 @@ pub struct KanbanConfig {
 
 /// Jira Cloud provider configuration
 ///
-/// The domain is specified as the HashMap key in KanbanConfig.jira
+/// The domain is specified as the `HashMap` key in KanbanConfig.jira
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct JiraConfig {
     /// Whether this provider is enabled
     #[serde(default)]
     pub enabled: bool,
-    /// Environment variable name containing the API key (default: OPERATOR_JIRA_API_KEY)
+    /// Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`)
     #[serde(default = "default_jira_api_key_env")]
     pub api_key_env: String,
     /// Atlassian account email for authentication
@@ -1012,14 +1107,14 @@ impl Default for JiraConfig {
 
 /// Linear provider configuration
 ///
-/// The workspace slug is specified as the HashMap key in KanbanConfig.linear
+/// The workspace slug is specified as the `HashMap` key in KanbanConfig.linear
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct LinearConfig {
     /// Whether this provider is enabled
     #[serde(default)]
     pub enabled: bool,
-    /// Environment variable name containing the API key (default: OPERATOR_LINEAR_API_KEY)
+    /// Environment variable name containing the API key (default: `OPERATOR_LINEAR_API_KEY`)
     #[serde(default = "default_linear_api_key_env")]
     pub api_key_env: String,
     /// Per-team sync configuration
@@ -1053,9 +1148,13 @@ pub struct ProjectSyncConfig {
     /// Workflow statuses to sync (empty = default/first status only)
     #[serde(default)]
     pub sync_statuses: Vec<String>,
-    /// IssueTypeCollection name this project maps to
+    /// `IssueTypeCollection` name this project maps to
     #[serde(default)]
     pub collection_name: String,
+    /// Optional explicit mapping overrides: external issue type name → operator issue type key
+    /// When empty, convention-based auto-matching is used (Bug→FIX, Story→FEAT, etc.)
+    #[serde(default)]
+    pub type_mappings: std::collections::HashMap<String, String>,
 }
 
 // ─── Git Provider Configuration ────────────────────────────────────────────
@@ -1120,7 +1219,7 @@ pub struct GitHubConfig {
     /// Whether GitHub integration is enabled
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// Environment variable containing the GitHub token (default: GITHUB_TOKEN)
+    /// Environment variable containing the GitHub token (default: `GITHUB_TOKEN`)
     #[serde(default = "default_github_token_env")]
     pub token_env: String,
 }
@@ -1136,7 +1235,7 @@ pub struct GitLabConfig {
     /// Whether GitLab integration is enabled
     #[serde(default)]
     pub enabled: bool,
-    /// Environment variable containing the GitLab token (default: GITLAB_TOKEN)
+    /// Environment variable containing the GitLab token (default: `GITLAB_TOKEN`)
     #[serde(default = "default_gitlab_token_env")]
     pub token_env: String,
     /// GitLab host (default: gitlab.com, can be self-hosted)
@@ -1466,6 +1565,52 @@ mod tests {
     }
 
     #[test]
+    fn test_session_wrapper_type_cmux_display() {
+        assert_eq!(SessionWrapperType::Cmux.to_string(), "cmux");
+    }
+
+    #[test]
+    fn test_session_wrapper_type_cmux_serde_roundtrip() {
+        let json = serde_json::to_string(&SessionWrapperType::Cmux).unwrap();
+        let parsed: SessionWrapperType = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, SessionWrapperType::Cmux);
+    }
+
+    #[test]
+    fn test_sessions_cmux_config_defaults() {
+        let config = SessionsCmuxConfig::default();
+        assert_eq!(
+            config.binary_path,
+            "/Applications/cmux.app/Contents/Resources/bin/cmux"
+        );
+        assert!(config.require_in_cmux);
+        assert_eq!(config.placement, CmuxPlacementPolicy::Auto);
+    }
+
+    #[test]
+    fn test_cmux_placement_policy_display() {
+        assert_eq!(CmuxPlacementPolicy::Auto.to_string(), "auto");
+        assert_eq!(CmuxPlacementPolicy::Workspace.to_string(), "workspace");
+        assert_eq!(CmuxPlacementPolicy::Window.to_string(), "window");
+    }
+
+    #[test]
+    fn test_config_deserialize_with_cmux_wrapper() {
+        let toml_str = r#"
+            wrapper = "cmux"
+            [cmux]
+            binary_path = "/usr/local/bin/cmux"
+            require_in_cmux = false
+            placement = "window"
+        "#;
+        let config: SessionsConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.wrapper, SessionWrapperType::Cmux);
+        assert_eq!(config.cmux.binary_path, "/usr/local/bin/cmux");
+        assert!(!config.cmux.require_in_cmux);
+        assert_eq!(config.cmux.placement, CmuxPlacementPolicy::Window);
+    }
+
+    #[test]
     fn test_devops_kanban_has_five_issue_types() {
         let types = CollectionPreset::DevopsKanban.issue_types();
         assert_eq!(types.len(), 5);
@@ -1474,5 +1619,122 @@ mod tests {
         assert!(types.contains(&"FIX".to_string()));
         assert!(types.contains(&"SPIKE".to_string()));
         assert!(types.contains(&"INV".to_string()));
+    }
+
+    // --- effective_max_agents tests ---
+
+    #[test]
+    fn test_effective_max_agents_never_returns_zero() {
+        let mut config = Config::default();
+        config.agents.max_parallel = 0;
+        config.agents.cores_reserved = 100;
+        assert!(config.effective_max_agents() >= 1);
+    }
+
+    #[test]
+    fn test_effective_max_agents_respects_max_parallel() {
+        let mut config = Config::default();
+        config.agents.max_parallel = 2;
+        config.agents.cores_reserved = 0;
+        assert!(config.effective_max_agents() <= 2);
+    }
+
+    #[test]
+    fn test_effective_max_agents_reserves_cores() {
+        let config = Config::default();
+        let cpu_count = sysinfo::System::new_all().cpus().len();
+        let effective = config.effective_max_agents();
+        assert!(effective <= cpu_count.saturating_sub(config.agents.cores_reserved));
+    }
+
+    // --- Path resolution tests ---
+
+    #[test]
+    fn test_tickets_path_absolute_passthrough() {
+        let mut config = Config::default();
+        config.paths.tickets = "/absolute/path/tickets".to_string();
+        assert_eq!(
+            config.tickets_path(),
+            std::path::PathBuf::from("/absolute/path/tickets")
+        );
+    }
+
+    #[test]
+    fn test_tickets_path_relative_resolves() {
+        let config = Config::default();
+        let path = config.tickets_path();
+        assert!(path.is_absolute());
+        assert!(path.ends_with(".tickets"));
+    }
+
+    #[test]
+    fn test_projects_path_absolute_passthrough() {
+        let mut config = Config::default();
+        config.paths.projects = "/my/projects".to_string();
+        assert_eq!(
+            config.projects_path(),
+            std::path::PathBuf::from("/my/projects")
+        );
+    }
+
+    #[test]
+    fn test_state_path_relative_resolves() {
+        let config = Config::default();
+        let path = config.state_path();
+        assert!(path.is_absolute());
+        assert!(path.ends_with("operator"));
+    }
+
+    // --- priority_index tests ---
+
+    #[test]
+    fn test_priority_index_known_types() {
+        let config = Config::default();
+        assert_eq!(config.priority_index("INV"), 0);
+        assert_eq!(config.priority_index("FIX"), 1);
+        assert_eq!(config.priority_index("TASK"), 2);
+        assert_eq!(config.priority_index("FEAT"), 3);
+        assert_eq!(config.priority_index("SPIKE"), 4);
+    }
+
+    #[test]
+    fn test_priority_index_unknown_returns_max() {
+        let config = Config::default();
+        assert_eq!(config.priority_index("UNKNOWN"), usize::MAX);
+    }
+
+    #[test]
+    fn test_priority_index_empty_order() {
+        let mut config = Config::default();
+        config.queue.priority_order.clear();
+        assert_eq!(config.priority_index("INV"), usize::MAX);
+    }
+
+    // --- Default value function tests ---
+
+    #[test]
+    fn test_default_generation_timeout_is_300() {
+        assert_eq!(default_generation_timeout(), 300);
+    }
+
+    #[test]
+    fn test_default_sync_interval_is_60() {
+        assert_eq!(default_sync_interval(), 60);
+    }
+
+    #[test]
+    fn test_default_step_timeout_is_1800() {
+        assert_eq!(default_step_timeout(), 1800);
+    }
+
+    #[test]
+    fn test_default_silence_threshold_is_6() {
+        assert_eq!(default_silence_threshold(), 6);
+    }
+
+    #[test]
+    fn test_default_worktrees_dir_contains_worktrees() {
+        let dir = default_worktrees_dir();
+        assert!(dir.contains("worktrees"));
     }
 }

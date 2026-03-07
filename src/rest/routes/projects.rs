@@ -144,8 +144,7 @@ pub async fn assess(
     // Validate project exists in config
     if !config.projects.contains(&name) {
         return Err(ApiError::NotFound(format!(
-            "Project '{}' not found in configuration",
-            name
+            "Project '{name}' not found in configuration"
         )));
     }
 
@@ -156,7 +155,7 @@ pub async fn assess(
     let mut values = creator.generate_default_values(template_type, &name);
     values.insert(
         "summary".to_string(),
-        format!("Assess {} for Backstage catalog", name),
+        format!("Assess {name} for Backstage catalog"),
     );
 
     // Render template content
@@ -170,15 +169,15 @@ pub async fn assess(
         .unwrap_or_else(|| "ASSESS-0000".to_string());
     let queue_path = config.tickets_path().join("queue");
     std::fs::create_dir_all(&queue_path)
-        .map_err(|e| ApiError::InternalError(format!("Failed to create queue directory: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to create queue directory: {e}")))?;
 
     let now = chrono::Utc::now();
     let timestamp = now.format("%Y%m%d-%H%M").to_string();
-    let filename = format!("{}-ASSESS-{}-new-ticket.md", timestamp, name);
+    let filename = format!("{timestamp}-ASSESS-{name}-new-ticket.md");
     let filepath = queue_path.join(&filename);
 
     std::fs::write(&filepath, &content)
-        .map_err(|e| ApiError::InternalError(format!("Failed to write ticket file: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to write ticket file: {e}")))?;
 
     Ok(Json(AssessTicketResponse {
         ticket_id,

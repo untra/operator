@@ -86,8 +86,7 @@ impl FormField {
                 let value = schema
                     .default
                     .as_ref()
-                    .map(|d| d == "true" || d == "yes")
-                    .unwrap_or(false);
+                    .is_some_and(|d| d == "true" || d == "yes");
                 FormField::Toggle {
                     value,
                     true_label: "Yes".to_string(),
@@ -383,7 +382,7 @@ impl FormField {
                         .border_style(Style::default().fg(border_color)),
                 );
 
-                if textarea.lines().iter().all(|l| l.is_empty()) && !focused {
+                if textarea.lines().iter().all(std::string::String::is_empty) && !focused {
                     textarea.set_placeholder_text(placeholder.clone());
                     textarea.set_placeholder_style(Style::default().fg(Color::DarkGray));
                 }
@@ -430,16 +429,16 @@ impl FormField {
                 } else {
                     Style::default().fg(Color::DarkGray)
                 };
-                let no_style = if !*value {
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
-                } else {
+                let no_style = if *value {
                     Style::default().fg(Color::DarkGray)
+                } else {
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
                 };
 
                 let line = Line::from(vec![
-                    Span::styled(format!("[{}]", true_label), yes_style),
+                    Span::styled(format!("[{true_label}]"), yes_style),
                     Span::raw(" / "),
-                    Span::styled(format!("[{}]", false_label), no_style),
+                    Span::styled(format!("[{false_label}]"), no_style),
                 ]);
 
                 let para = Paragraph::new(line);
@@ -515,7 +514,9 @@ impl TicketForm {
 
     /// Get the currently focused field name
     pub fn focused_field_name(&self) -> Option<&str> {
-        self.field_order.get(self.focused_index).map(|s| s.as_str())
+        self.field_order
+            .get(self.focused_index)
+            .map(std::string::String::as_str)
     }
 
     /// Get a mutable reference to the focused field

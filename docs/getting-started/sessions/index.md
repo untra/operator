@@ -14,6 +14,8 @@ Operator supports multiple session management backends for running AI coding age
 |--------|--------|-------|
 | [VS Code Extension](/getting-started/sessions/vscode/) | Recommended (Preferred) | Integrated terminals in VS Code, works on all platforms |
 | [tmux](/getting-started/sessions/tmux/) | Supported | Terminal multiplexer, ideal for headless/server environments |
+| [cmux](/getting-started/sessions/cmux/) | Supported | macOS terminal multiplexer, manages workspaces within cmux |
+| [Zellij](/getting-started/sessions/zellij/) | Supported | Terminal workspace manager, tab-per-agent model (macOS/Linux) |
 
 ## How It Works
 
@@ -29,6 +31,10 @@ Session managers provide:
 **VS Code Extension** is the recommended choice for most users. It provides an integrated experience with ticket management, color-coded terminals, and works seamlessly on macOS, Linux, and Windows without additional setup.
 
 **tmux** remains an excellent choice for headless/server environments, SSH sessions, and users who prefer terminal-based workflows. It's particularly useful for remote servers where VS Code may not be available.
+
+**cmux** is a macOS-native option for users already working within cmux. It launches agents as cmux windows or workspaces. Requires macOS and that Operator is running inside a cmux session.
+
+**Zellij** is a Rust-native terminal workspace manager that works on macOS and Linux. Operator creates a dedicated tab per agent within your existing Zellij session. A good choice for users already working in Zellij who want native tab-based agent management.
 
 ## Feature Parity: Core Operations
 

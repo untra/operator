@@ -1,7 +1,7 @@
 //! Terminal session wrapper abstraction layer.
 //!
 //! Provides a trait-based abstraction over terminal session operations to enable:
-//! - Multiple backend implementations (tmux, VS Code terminals)
+//! - Multiple backend implementations (tmux, VS Code terminals, cmux)
 //! - Composition with activity detectors (hooks, shell execution events)
 //! - Testability via mock implementations
 
@@ -44,6 +44,10 @@ pub enum WrapperType {
     Tmux,
     /// VS Code integrated terminal (via extension webhook)
     VSCode,
+    /// cmux macOS terminal multiplexer
+    Cmux,
+    /// Zellij terminal workspace manager
+    Zellij,
 }
 
 impl std::fmt::Display for WrapperType {
@@ -51,6 +55,8 @@ impl std::fmt::Display for WrapperType {
         match self {
             WrapperType::Tmux => write!(f, "tmux"),
             WrapperType::VSCode => write!(f, "vscode"),
+            WrapperType::Cmux => write!(f, "cmux"),
+            WrapperType::Zellij => write!(f, "zellij"),
         }
     }
 }
@@ -98,7 +104,7 @@ pub trait SessionWrapper: Send + Sync {
     async fn focus_session(&self, session: &str) -> Result<(), SessionError>;
 
     /// Optional: capture terminal content
-    /// Default implementation returns NotSupported - only tmux provides this.
+    /// Default implementation returns `NotSupported` - only tmux provides this.
     /// VS Code terminals don't need content capture (user sees terminal directly).
     fn capture_content(&self, _session: &str) -> Result<String, SessionError> {
         Err(SessionError::NotSupported(
@@ -133,14 +139,14 @@ impl Default for ActivityConfig {
 /// Activity detection - knows when a session is idle vs working
 ///
 /// Multiple implementations exist:
-/// - LlmHookDetector: Uses Claude/Gemini hooks (fastest, most reliable)
-/// - VSCodeActivityDetector: Uses shell execution events via extension
-/// - TmuxActivityDetector: Uses silence flags + content patterns (fallback)
+/// - `LlmHookDetector`: Uses Claude/Gemini hooks (fastest, most reliable)
+/// - `VSCodeActivityDetector`: Uses shell execution events via extension
+/// - `TmuxActivityDetector`: Uses silence flags + content patterns (fallback)
 pub trait ActivityDetector: Send + Sync {
     /// Check if session is idle (waiting for input)
     fn is_idle(&self, session_id: &str) -> Result<bool, SessionError>;
 
-    /// Check if session has resumed activity (for awaiting_input -> running transition)
+    /// Check if session has resumed activity (for `awaiting_input` -> running transition)
     fn has_resumed(&self, session_id: &str) -> Result<bool, SessionError>;
 
     /// Configure activity detection for a session
@@ -199,6 +205,13 @@ mod tests {
     fn test_wrapper_type_display() {
         assert_eq!(WrapperType::Tmux.to_string(), "tmux");
         assert_eq!(WrapperType::VSCode.to_string(), "vscode");
+        assert_eq!(WrapperType::Cmux.to_string(), "cmux");
+        assert_eq!(WrapperType::Zellij.to_string(), "zellij");
+    }
+
+    #[test]
+    fn test_wrapper_type_display_cmux() {
+        assert_eq!(WrapperType::Cmux.to_string(), "cmux");
     }
 
     #[test]

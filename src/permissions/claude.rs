@@ -10,7 +10,7 @@ use super::{PermissionSet, ToolPattern};
 pub struct ClaudeTranslator;
 
 impl ClaudeTranslator {
-    /// Format a ToolPattern into Claude's permission syntax
+    /// Format a `ToolPattern` into Claude's permission syntax
     ///
     /// Examples:
     /// - `ToolPattern { tool: "Bash", pattern: Some("cargo:*") }` -> `"Bash(cargo:*)"`
@@ -33,7 +33,7 @@ impl ClaudeTranslator {
 }
 
 impl PermissionTranslator for ClaudeTranslator {
-    fn provider_name(&self) -> &str {
+    fn provider_name(&self) -> &'static str {
         "claude"
     }
 

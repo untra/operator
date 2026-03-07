@@ -1,6 +1,6 @@
-//! Types for VSCode extension webhook server API.
+//! Types for `VSCode` extension webhook server API.
 //!
-//! These types define the HTTP API contract between Operator and the VSCode extension
+//! These types define the HTTP API contract between Operator and the `VSCode` extension
 //! webhook server. They are exported to TypeScript via ts-rs to ensure type safety
 //! on both sides.
 
@@ -197,7 +197,7 @@ pub struct VsCodeLaunchOptions {
     pub model: VsCodeModelOption,
     /// YOLO mode - auto-accept all prompts
     pub yolo_mode: bool,
-    /// Resume from existing session (uses session_id from ticket)
+    /// Resume from existing session (uses `session_id` from ticket)
     pub resume_session: bool,
 }
 

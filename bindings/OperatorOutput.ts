@@ -8,7 +8,7 @@
  */
 export type OperatorOutput = { 
 /**
- * Current work status: in_progress, complete, blocked, failed
+ * Current work status: `in_progress`, complete, blocked, failed
  */
 status: string, 
 /**
@@ -24,7 +24,7 @@ confidence: number | null,
  */
 files_modified: number | null, 
 /**
- * Test suite status: passing, failing, skipped, not_run
+ * Test suite status: passing, failing, skipped, `not_run`
  */
 tests_status: string | null, 
 /**

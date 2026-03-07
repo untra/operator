@@ -9,6 +9,6 @@ export type State = { paused: boolean, agents: Array<AgentState>, completed: Arr
  */
 project_llm_stats: { [key in string]?: ProjectLlmStats }, 
 /**
- * Per-project issue type collection preferences (project_name -> collection_name)
+ * Per-project issue type collection preferences (`project_name` -> `collection_name`)
  */
 project_collection_prefs: { [key in string]?: string }, };

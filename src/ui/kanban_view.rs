@@ -167,7 +167,7 @@ impl KanbanView {
                 self.select_next();
                 None
             }
-            KeyCode::Char('s') | KeyCode::Char('S') => {
+            KeyCode::Char('s' | 'S') => {
                 // Sync the selected collection
                 self.selected_collection()
                     .map(|collection| KanbanViewResult::Sync {

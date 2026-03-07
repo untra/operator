@@ -271,6 +271,11 @@
         "jsonSchemaFile": {
           "type": "string",
           "description": "Path to a local JSON schema file for structured output, relative to the project root. Claude-specific: sets --json-schema flag."
+        },
+        "artifact_patterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "File glob patterns in the worktree that signal this step is complete (e.g., '.tickets/plans/*.md')"
         }
       }
     },

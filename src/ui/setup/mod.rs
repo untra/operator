@@ -24,7 +24,7 @@ pub struct SetupScreen {
     pub confirm_selected: bool,
     /// Path where tickets directory will be created
     pub(crate) tickets_path: String,
-    /// Detected LLM tools (from LlmToolsConfig)
+    /// Detected LLM tools (from `LlmToolsConfig`)
     pub(crate) detected_tools: Vec<DetectedToolInfo>,
     /// Projects grouped by tool
     pub(crate) projects_by_tool: HashMap<String, Vec<String>>,
@@ -69,9 +69,9 @@ pub struct SetupScreen {
     pub selected_wrapper: SessionWrapperType,
     /// List state for wrapper selection
     pub(crate) wrapper_state: ListState,
-    /// Tmux availability status (checked during TmuxOnboarding step)
+    /// Tmux availability status (checked during `TmuxOnboarding` step)
     pub tmux_status: TmuxDetectionStatus,
-    /// VS Code extension status (checked during VSCodeSetup step)
+    /// VS Code extension status (checked during `VSCodeSetup` step)
     pub vscode_status: VSCodeDetectionStatus,
     // ─── Git Worktree Setup State ──────────────────────────────────────────────
     /// Whether to use git worktrees for ticket isolation (default: false)
@@ -113,14 +113,14 @@ impl SetupScreen {
             detected_tools,
             projects_by_tool,
             selected_preset: CollectionPreset::DevopsKanban,
-            custom_collection: ALL_ISSUE_TYPES.iter().map(|s| s.to_string()).collect(),
+            custom_collection: ALL_ISSUE_TYPES.iter().map(|s| (*s).to_string()).collect(),
             source_state,
             collection_state,
             from_custom: false,
             // Default: all optional fields enabled
             task_optional_fields: TASK_OPTIONAL_FIELDS
                 .iter()
-                .map(|(name, _)| name.to_string())
+                .map(|(name, _)| (*name).to_string())
                 .collect(),
             field_state,
             startup_ticket_options: StartupTicketOption::all(),
@@ -427,6 +427,12 @@ impl SetupScreen {
                     SessionWrapperType::Vscode => {
                         self.step = SetupStep::VSCodeSetup;
                     }
+                    SessionWrapperType::Cmux => {
+                        self.step = SetupStep::CmuxSetup;
+                    }
+                    SessionWrapperType::Zellij => {
+                        self.step = SetupStep::ZellijSetup;
+                    }
                 }
                 SetupResult::Continue
             }
@@ -446,6 +452,26 @@ impl SetupScreen {
             }
             SetupStep::VSCodeSetup => {
                 // For now, allow proceeding (extension check will be added later)
+                // Detect kanban providers if not already done
+                if !self.kanban_detection_complete {
+                    self.detected_kanban_providers =
+                        crate::api::providers::kanban::detect_kanban_env_vars();
+                    self.kanban_detection_complete = true;
+                }
+                self.step = SetupStep::KanbanInfo;
+                SetupResult::Continue
+            }
+            SetupStep::CmuxSetup => {
+                // Detect kanban providers if not already done
+                if !self.kanban_detection_complete {
+                    self.detected_kanban_providers =
+                        crate::api::providers::kanban::detect_kanban_env_vars();
+                    self.kanban_detection_complete = true;
+                }
+                self.step = SetupStep::KanbanInfo;
+                SetupResult::Continue
+            }
+            SetupStep::ZellijSetup => {
                 // Detect kanban providers if not already done
                 if !self.kanban_detection_complete {
                     self.detected_kanban_providers =
@@ -531,11 +557,21 @@ impl SetupScreen {
                 self.step = SetupStep::WorktreePreference;
                 SetupResult::Continue
             }
+            SetupStep::CmuxSetup => {
+                self.step = SetupStep::WorktreePreference;
+                SetupResult::Continue
+            }
+            SetupStep::ZellijSetup => {
+                self.step = SetupStep::WorktreePreference;
+                SetupResult::Continue
+            }
             SetupStep::KanbanInfo => {
                 // Go back to the appropriate wrapper setup step
                 match self.selected_wrapper {
                     SessionWrapperType::Tmux => self.step = SetupStep::TmuxOnboarding,
                     SessionWrapperType::Vscode => self.step = SetupStep::VSCodeSetup,
+                    SessionWrapperType::Cmux => self.step = SetupStep::CmuxSetup,
+                    SessionWrapperType::Zellij => self.step = SetupStep::ZellijSetup,
                 }
                 SetupResult::Continue
             }
@@ -587,9 +623,11 @@ impl SetupScreen {
             SetupStep::WorktreePreference => self.render_worktree_preference_step(frame),
             SetupStep::TmuxOnboarding => self.render_tmux_onboarding_step(frame),
             SetupStep::VSCodeSetup => self.render_vscode_setup_step(frame),
+            SetupStep::CmuxSetup => self.render_cmux_setup_step(frame),
+            SetupStep::ZellijSetup => self.render_zellij_setup_step(frame),
             SetupStep::KanbanInfo => self.render_kanban_info_step(frame),
             SetupStep::KanbanProviderSetup { provider_index } => {
-                self.render_kanban_provider_setup_step(frame, provider_index)
+                self.render_kanban_provider_setup_step(frame, provider_index);
             }
             SetupStep::AcceptanceCriteria => self.render_acceptance_criteria_step(frame),
             SetupStep::StartupTickets => self.render_startup_tickets_step(frame),
@@ -613,7 +651,7 @@ impl SetupScreen {
                 } else {
                     self.tmux_status = TmuxDetectionStatus::VersionTooOld {
                         current: version.raw,
-                        required: format!("{}.{}", MIN_MAJOR, MIN_MINOR),
+                        required: format!("{MIN_MAJOR}.{MIN_MINOR}"),
                     };
                 }
             }

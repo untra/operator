@@ -27,6 +27,7 @@ import {
   getKanbanWorkspaces,
   DetectedToolResult,
 } from './walkthrough';
+import { getOperatorPath, getOperatorVersion } from './operator-binary';
 
 // smol-toml is ESM-only, must use dynamic import
 async function importSmolToml() {
@@ -113,6 +114,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
 
   private webhookStatus: WebhookStatus = { running: false };
   private apiStatus: ApiStatus = { connected: false };
+  private operatorVersion: string | undefined;
   private ticketsDir: string | undefined;
 
   private configState: ConfigState = {
@@ -137,13 +139,14 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   async refresh(): Promise<void> {
     this.parsedConfig = null;
 
-    await Promise.all([
+    await Promise.allSettled([
       this.checkConfigState(),
       this.checkKanbanState(),
       this.checkLlmState(),
       this.checkGitState(),
       this.checkWebhookStatus(),
       this.checkApiStatus(),
+      this.checkOperatorVersion(),
     ]);
 
     this._onDidChangeTreeData.fire(undefined);
@@ -358,7 +361,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     const webhookSessionFile = path.join(this.ticketsDir, 'operator', 'vscode-session.json');
     try {
       const content = await fs.readFile(webhookSessionFile, 'utf-8');
-      const session: SessionInfo = JSON.parse(content);
+      const session = JSON.parse(content) as SessionInfo;
 
       this.webhookStatus = {
         running: true,
@@ -380,7 +383,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       const apiSessionFile = path.join(this.ticketsDir, 'operator', 'api-session.json');
       try {
         const content = await fs.readFile(apiSessionFile, 'utf-8');
-        const session: ApiSessionInfo = JSON.parse(content);
+        const session = JSON.parse(content) as ApiSessionInfo;
         const apiUrl = `http://localhost:${session.port}`;
 
         if (await this.tryHealthCheck(apiUrl, session.version)) {
@@ -393,6 +396,27 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
 
     const apiUrl = await discoverApiUrl(this.ticketsDir);
     await this.tryHealthCheck(apiUrl);
+  }
+
+  /**
+   * Check for locally installed operator version, or fetch latest from remote
+   */
+  private async checkOperatorVersion(): Promise<void> {
+    const operatorPath = await getOperatorPath(this.context);
+    if (operatorPath) {
+      this.operatorVersion = await getOperatorVersion(operatorPath) || undefined;
+      return;
+    }
+
+    // No binary installed — fetch latest version from remote
+    try {
+      const response = await fetch('https://operator.untra.io/VERSION');
+      if (response.ok) {
+        this.operatorVersion = (await response.text()).trim() || undefined;
+      }
+    } catch {
+      this.operatorVersion = undefined;
+    }
   }
 
   /**
@@ -455,6 +479,19 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   private getTopLevelSections(): StatusItem[] {
     const configuredBoth = this.configState.workingDirSet && this.configState.configExists;
 
+    // Determine the right command when not fully configured
+    const configCommand = !configuredBoth
+      ? this.configState.workingDirSet
+        ? {
+            command: 'operator.runSetup',
+            title: 'Run Operator Setup',
+          }
+        : {
+            command: 'operator.selectWorkingDirectory',
+            title: 'Select Working Directory',
+          }
+      : undefined;
+
     return [
       // 1. Configuration
       new StatusItem({
@@ -467,18 +504,16 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
           ? vscode.TreeItemCollapsibleState.Collapsed
           : vscode.TreeItemCollapsibleState.Expanded,
         sectionId: 'config',
-        command: configuredBoth ? undefined : {
-          command: 'operator.selectWorkingDirectory',
-          title: 'Select Working Directory',
-        },
+        command: configCommand,
       }),
       // 2. Connections
       new StatusItem({
         label: 'Connections',
-        description: this.getConnectionsSummary(),
-        icon: this.getConnectionsIcon(),
+        description: configuredBoth ? this.getConnectionsSummary() : 'Not Ready',
+        icon: configuredBoth ? this.getConnectionsIcon() : 'debug-configure',
         collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
         sectionId: 'connections',
+        command: configuredBoth ? undefined : configCommand,
       }),
 
       // 3. Kanban Providers
@@ -595,15 +630,13 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       // One collapsible item per workspace
       for (const prov of this.kanbanState.providers) {
         const providerLabel = prov.provider === 'jira' ? 'Jira' : 'Linear';
-        const hasProjects = prov.projects.length > 0;
+        const providerIcon = prov.provider === 'jira' ? 'operator-atlassian' : 'operator-linear';
         items.push(new StatusItem({
           label: providerLabel,
           description: prov.displayName,
-          icon: 'cloud',
+          icon: providerIcon,
           tooltip: prov.url,
-          collapsibleState: hasProjects
-            ? vscode.TreeItemCollapsibleState.Collapsed
-            : vscode.TreeItemCollapsibleState.None,
+          collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
           command: {
             command: 'vscode.open',
             title: 'Open in Browser',
@@ -628,7 +661,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       // Nudge items
       items.push(new StatusItem({
         label: 'Configure Jira',
-        icon: 'cloud',
+        icon: 'operator-atlassian',
         command: {
           command: 'operator.configureJira',
           title: 'Configure Jira',
@@ -636,7 +669,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       }));
       items.push(new StatusItem({
         label: 'Configure Linear',
-        icon: 'cloud',
+        icon: 'operator-linear',
         command: {
           command: 'operator.configureLinear',
           title: 'Configure Linear',
@@ -659,7 +692,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       items.push(new StatusItem({
         label: proj.key,
         description: proj.collectionName,
-        icon: 'package',
+        icon: 'project',
         tooltip: proj.url,
         command: {
           command: 'vscode.open',
@@ -674,7 +707,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     }
 
     // Add Project / Add Team button
-    const addLabel = provider === 'jira' ? 'Add Jira Project' : 'Add Linear Team';
+    const addLabel = provider === 'jira' ? 'Add Jira Project' : 'Add Linear Workspace';
     const addCommand = provider === 'jira' ? 'operator.addJiraProject' : 'operator.addLinearTeam';
     items.push(new StatusItem({
       label: addLabel,
@@ -698,20 +731,22 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
 
       for (const tool of this.llmState.configDetected) {
         shown.add(tool.name);
+        const icon = `operator-${tool.name}`;
         items.push(new StatusItem({
           label: tool.name,
           description: tool.version,
-          icon: 'terminal',
+          icon: icon,
         }));
       }
 
       // Show PATH-detected tools not already in config
       for (const tool of this.llmState.tools) {
         if (!shown.has(tool.name)) {
+          const icon = `operator-${tool.name}`;
           items.push(new StatusItem({
             label: tool.name,
             description: tool.version !== 'unknown' ? tool.version : undefined,
-            icon: 'terminal',
+            icon: icon,
           }));
         }
       }
@@ -798,64 +833,100 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   }
 
   private getConnectionsChildren(): StatusItem[] {
-    const items: StatusItem[] = [];
+    const configuredBoth = this.configState.workingDirSet && this.configState.configExists;
 
-    // REST API
-    if (this.apiStatus.connected) {
-      items.push(new StatusItem({
-        label: 'API',
-        description: this.apiStatus.url || '',
-        icon: 'pass',
-        tooltip: `Operator REST API at ${this.apiStatus.url}`,
-      }));
-      if (this.apiStatus.version) {
-        items.push(new StatusItem({
-          label: 'API Version',
-          description: this.apiStatus.version,
-          icon: 'versions',
-        }));
-      }
-      if (this.apiStatus.port) {
-        items.push(new StatusItem({
-          label: 'API Port',
-          description: this.apiStatus.port.toString(),
-          icon: 'plug',
-        }));
-      }
+    // 1. API Version — always shown
+    let versionItem: StatusItem;
+    if (this.apiStatus.connected && this.apiStatus.version) {
+      const swaggerUrl = `http://localhost:${this.apiStatus.port || 7008}/swagger-ui`;
+      versionItem = new StatusItem({
+        label: 'Operator',
+        description: 'Version ' + this.apiStatus.version,
+        icon: 'versions',
+        tooltip: 'Open Swagger UI',
+        command: {
+          command: 'vscode.open',
+          title: 'Open Swagger UI',
+          arguments: [vscode.Uri.parse(swaggerUrl)],
+        },
+      });
     } else {
-      items.push(new StatusItem({
-        label: 'API',
-        description: 'Disconnected',
-        icon: 'error',
-        tooltip: 'Operator REST API not running. Use "Operator: Download Operator" command if not installed.',
-      }));
+      versionItem = new StatusItem({
+        label: 'Operator Version',
+        description: this.operatorVersion ? 'Version ' + this.operatorVersion : 'Not installed',
+        icon: 'versions',
+        tooltip: this.operatorVersion
+          ? `Installed: ${this.operatorVersion} — click to update`
+          : 'Click to download Operator',
+        command: {
+          command: 'operator.downloadOperator',
+          title: 'Download Operator',
+        },
+      });
     }
 
-    // Webhook
-    if (this.webhookStatus.running) {
-      items.push(new StatusItem({
-        label: 'Webhook',
-        description: 'Running',
-        icon: 'pass',
-        tooltip: 'Local webhook server for terminal management',
-      }));
-      if (this.webhookStatus.port) {
-        items.push(new StatusItem({
-          label: 'Webhook Port',
-          description: this.webhookStatus.port.toString(),
-          icon: 'plug',
-        }));
-      }
-    } else {
-      items.push(new StatusItem({
-        label: 'Webhook',
-        description: 'Stopped',
-        icon: 'circle-slash',
-        tooltip: 'Local webhook server not running',
-      }));
-    }
+    // 2. API Connection — always shown
+    const apiItem = this.apiStatus.connected
+      ? new StatusItem({
+          label: 'API',
+          description: this.apiStatus.url || 'Connected',
+          icon: 'pass',
+          tooltip: `Operator REST API at ${this.apiStatus.url}`,
+        })
+      : new StatusItem({
+          label: 'API',
+          description: configuredBoth ? 'Disconnected' : 'Not Ready',
+          icon: 'error',
+          tooltip: configuredBoth
+            ? 'Click to start Operator API server'
+            : 'Complete configuration first',
+          command: configuredBoth ? {
+            command: 'operator.startOperatorServer',
+            title: 'Start Operator Server',
+          } : undefined,
+        });
 
-    return items;
+    // 3. Webhook Connection — always shown
+    const webhookItem = this.webhookStatus.running
+      ? new StatusItem({
+          label: 'Webhook',
+          description: `Running${this.webhookStatus.port ? ` :${this.webhookStatus.port}` : ''}`,
+          icon: 'pass',
+          tooltip: 'Local webhook server for terminal management',
+        })
+      : new StatusItem({
+          label: 'Webhook',
+          description: configuredBoth ? 'Stopped' : 'Not Ready',
+          icon: 'circle-slash',
+          tooltip: configuredBoth
+            ? 'Click to start webhook server'
+            : 'Complete configuration first',
+          command: configuredBoth ? {
+            command: 'operator.startWebhookServer',
+            title: 'Start Webhook Server',
+          } : undefined,
+        });
+
+    // 4. MCP Connection
+    const mcpItem = this.apiStatus.connected
+      ? new StatusItem({
+          label: 'MCP',
+          description: 'Connect',
+          icon: 'plug',
+          tooltip: 'Connect Operator as MCP server in VS Code',
+          command: {
+            command: 'operator.connectMcpServer',
+            title: 'Connect MCP Server',
+          },
+        })
+      : new StatusItem({
+          label: 'MCP',
+          description: 'API required',
+          icon: 'circle-slash',
+          tooltip: 'Start the Operator API to enable MCP connection',
+        });
+
+    return [versionItem, apiItem, webhookItem, mcpItem];
   }
 
   // ─── Summary Helpers ───────────────────────────────────────────────────
@@ -872,12 +943,12 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   private getLlmSummary(): string {
     // Prefer config-detected (has version info)
     if (this.llmState.configDetected.length > 0) {
-      const first = this.llmState.configDetected[0];
+      const first = this.llmState.configDetected[0]!;
       return first.version ? `${first.name} v${first.version}` : first.name;
     }
     // Fall back to PATH-detected
     if (this.llmState.tools.length > 0) {
-      const first = this.llmState.tools[0];
+      const first = this.llmState.tools[0]!;
       return first.version !== 'unknown' ? `${first.name} v${first.version}` : first.name;
     }
     return '';

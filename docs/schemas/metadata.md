@@ -3,7 +3,7 @@ title: "Ticket Metadata Schema"
 layout: doc
 ---
 
-<!-- AUTO-GENERATED FROM src/templates/ticket_metadata.schema.json - DO NOT EDIT MANUALLY -->
+<!-- AUTO-GENERATED FROM src/schemas/ticket_metadata.schema.json - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
 # Ticket Metadata Schema

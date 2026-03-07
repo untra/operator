@@ -2,9 +2,9 @@
 //!
 //! Provides template variable substitution for agent prompts, supporting:
 //! - Ticket frontmatter metadata
-//! - Step information (step_count, step_names)
+//! - Step information (`step_count`, `step_names`)
 //! - Project context (project, cwd)
-//! - Template files (acceptance_criteria, definition_of_done, definition_of_ready)
+//! - Template files (`acceptance_criteria`, `definition_of_done`, `definition_of_ready`)
 
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ use crate::templates::{schema::TemplateSchema, TemplateType};
 
 /// Standard operator output instructions appended to all prompts.
 /// This instructs agents to output a status block for progress tracking.
-const OPERATOR_OUTPUT_INSTRUCTIONS: &str = r#"
+const OPERATOR_OUTPUT_INSTRUCTIONS: &str = r"
 ---
 
 ## Status Reporting
@@ -45,7 +45,7 @@ blockers: <comma-separated list if blocked, otherwise empty>
 **Required fields:** status, exit_signal
 **Set exit_signal: true** when your work on this step is complete
 **Set exit_signal: false** if more work remains to be done
-"#;
+";
 
 /// Handlebars-based prompt interpolator
 pub struct PromptInterpolator {
@@ -238,7 +238,7 @@ impl PromptInterpolator {
         if ticket_path.exists() {
             if let Ok(contents) = fs::read_to_string(&ticket_path) {
                 if !contents.trim().is_empty() {
-                    parts.push(format!("## Ticket Contents\n\n{}", contents));
+                    parts.push(format!("## Ticket Contents\n\n{contents}"));
                 }
             }
         }
@@ -247,10 +247,10 @@ impl PromptInterpolator {
         if let Some(summary) = previous_summary {
             if !summary.is_empty() {
                 let mut context_section = String::from("## Previous Step Context\n\n");
-                context_section.push_str(&format!("**Summary:** {}\n", summary));
+                context_section.push_str(&format!("**Summary:** {summary}\n"));
                 if let Some(rec) = previous_recommendation {
                     if !rec.is_empty() {
-                        context_section.push_str(&format!("**Recommendation:** {}\n", rec));
+                        context_section.push_str(&format!("**Recommendation:** {rec}\n"));
                     }
                 }
                 parts.push(context_section);

@@ -10,17 +10,21 @@
 //! 2. Content pattern detection - checks for idle prompts
 //! 3. Tmux silence flag - fallback for all tools
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
 
+use super::artifact_detector::{ArtifactDetector, ArtifactStatus};
+use super::cmux::{CmuxClient, SystemCmuxClient};
 use super::hooks::HookManager;
 use super::idle_detector::IdleDetector;
 use super::tmux::{SystemTmuxClient, TmuxClient};
-use crate::config::Config;
+use super::zellij::{SystemZellijClient, ZellijClient};
+use crate::config::{Config, SessionWrapperType};
 use crate::llm::tool_config::load_all_tool_configs;
 use crate::state::{OrphanSession, State};
 
@@ -35,24 +39,30 @@ pub struct HealthCheckResult {
     pub orphaned: Vec<String>,
     /// Sessions with content changes
     pub changed: Vec<String>,
-    /// Sessions that have timed out (past step_timeout)
+    /// Sessions that have timed out (past `step_timeout`)
     pub timed_out: Vec<String>,
     /// Sessions detected as awaiting input (via hooks, patterns, or silence)
     pub awaiting_input: Vec<String>,
     /// Sessions that resumed from awaiting state (content changed while awaiting)
     pub resumed: Vec<String>,
+    /// Sessions where all artifact patterns matched (step produced expected output)
+    pub artifact_ready: Vec<String>,
 }
 
 /// Session health monitor
 pub struct SessionMonitor {
     config: Config,
     tmux: Arc<dyn TmuxClient>,
+    cmux: Option<Arc<dyn CmuxClient>>,
+    zellij: Option<Arc<dyn ZellijClient>>,
     last_check: Instant,
     check_interval: Duration,
     /// Hook manager for Claude/Gemini hook-based detection
     hook_manager: HookManager,
     /// Idle detector for pattern-based detection
     idle_detector: IdleDetector,
+    /// Artifact detector for positive step-completion signals
+    artifact_detector: ArtifactDetector,
 }
 
 impl SessionMonitor {
@@ -60,6 +70,7 @@ impl SessionMonitor {
     ///
     /// Uses custom tmux config if it has been generated and exists,
     /// matching the socket used by the Launcher.
+    /// Also creates a cmux client if the wrapper type is Cmux.
     pub fn new(config: &Config) -> Self {
         let tmux: Arc<dyn TmuxClient> = if config.tmux.config_generated {
             let config_path = config.tmux_config_path();
@@ -72,6 +83,22 @@ impl SessionMonitor {
             Arc::new(SystemTmuxClient::new())
         };
 
+        let cmux: Option<Arc<dyn CmuxClient>> =
+            if config.sessions.wrapper == SessionWrapperType::Cmux {
+                Some(Arc::new(SystemCmuxClient::from_config(
+                    &config.sessions.cmux,
+                )))
+            } else {
+                None
+            };
+
+        let zellij: Option<Arc<dyn ZellijClient>> =
+            if config.sessions.wrapper == SessionWrapperType::Zellij {
+                Some(Arc::new(SystemZellijClient::new()))
+            } else {
+                None
+            };
+
         // Initialize idle detector from tool configs
         let tool_configs = load_all_tool_configs();
         let idle_detector = IdleDetector::from_tool_configs(&tool_configs);
@@ -79,10 +106,13 @@ impl SessionMonitor {
         Self {
             config: config.clone(),
             tmux,
+            cmux,
+            zellij,
             last_check: Instant::now(),
             check_interval: Duration::from_secs(config.agents.health_check_interval),
             hook_manager: HookManager::new(),
             idle_detector,
+            artifact_detector: ArtifactDetector::new(),
         }
     }
 
@@ -94,10 +124,43 @@ impl SessionMonitor {
         Self {
             config: config.clone(),
             tmux,
+            cmux: None,
+            zellij: None,
             last_check: Instant::now(),
             check_interval: Duration::from_secs(config.agents.health_check_interval),
             hook_manager: HookManager::new(),
             idle_detector,
+            artifact_detector: ArtifactDetector::new(),
+        }
+    }
+
+    /// Capture content for an agent, dispatching to the correct wrapper.
+    /// For cmux agents, reads from the session context (workspace); for tmux, captures pane.
+    fn capture_agent_content(
+        &self,
+        session_name: &str,
+        session_wrapper: Option<&str>,
+        session_context_ref: Option<&str>,
+    ) -> Option<String> {
+        match session_wrapper {
+            Some("cmux") => {
+                if let (Some(cmux), Some(ws_ref)) = (&self.cmux, session_context_ref) {
+                    cmux.read_screen(ws_ref, false).ok()
+                } else {
+                    None
+                }
+            }
+            Some("zellij") => {
+                if let Some(ref zellij) = self.zellij {
+                    zellij.read_screen(session_name).ok()
+                } else {
+                    None
+                }
+            }
+            _ => {
+                // Default to tmux (backward compat)
+                self.tmux.capture_pane(session_name, false).ok()
+            }
         }
     }
 
@@ -113,14 +176,21 @@ impl SessionMonitor {
     /// 2. Content pattern detection - checks for idle prompts
     /// 3. Tmux silence flag - fallback for all tools
     ///
-    /// Also detects resume: content changed while in awaiting status
-    pub fn check_health(&mut self) -> Result<HealthCheckResult> {
+    /// Also detects resume: content changed while in awaiting status.
+    ///
+    /// `artifact_context` maps `agent_id` → (`worktree_path`, `artifact_patterns`) for
+    /// positive completion detection. When an agent is idle AND its artifacts exist,
+    /// the session is added to `artifact_ready` instead of just `awaiting_input`.
+    pub fn check_health(
+        &mut self,
+        artifact_context: &HashMap<String, (PathBuf, Vec<String>)>,
+    ) -> Result<HealthCheckResult> {
         self.last_check = Instant::now();
 
         let mut result = HealthCheckResult::default();
         let mut state = State::load(&self.config)?;
 
-        // Get all agents that should have sessions, including their status and tool
+        // Get all agents that should have sessions, including their status, tool, and wrapper info
         let agents_with_sessions: Vec<_> = state
             .agents_with_sessions()
             .iter()
@@ -130,6 +200,8 @@ impl SessionMonitor {
                     a.session_name.clone().unwrap_or_default(),
                     a.status.clone(),
                     a.llm_tool.clone(),
+                    a.session_wrapper.clone(),
+                    a.session_context_ref.clone(),
                 )
             })
             .collect();
@@ -146,12 +218,43 @@ impl SessionMonitor {
             .collect();
 
         // Check each agent
-        for (agent_id, session_name, agent_status, llm_tool) in agents_with_sessions {
+        for (
+            agent_id,
+            session_name,
+            agent_status,
+            llm_tool,
+            session_wrapper,
+            session_context_ref,
+        ) in agents_with_sessions
+        {
             if session_name.is_empty() {
                 continue;
             }
 
-            if active_sessions.contains(&session_name) {
+            // For cmux/zellij agents, check aliveness differently
+            let is_cmux = session_wrapper.as_deref() == Some("cmux");
+            let is_zellij = session_wrapper.as_deref() == Some("zellij");
+
+            // For tmux agents, check against active tmux sessions
+            // For cmux agents, assume alive if we have a workspace ref (cmux doesn't have list-sessions in the same way)
+            // For zellij agents, check if the tab still exists
+            let is_alive = if is_cmux {
+                session_context_ref.is_some()
+            } else if is_zellij {
+                // Check if the zellij tab still exists
+                if let Some(ref zellij) = self.zellij {
+                    zellij
+                        .list_tab_names()
+                        .map(|tabs| tabs.iter().any(|t| t == &session_name))
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            } else {
+                active_sessions.contains(&session_name)
+            };
+
+            if is_alive {
                 result.alive += 1;
 
                 // Track if this session is detected as awaiting (avoid duplicate detection)
@@ -170,8 +273,13 @@ impl SessionMonitor {
                     }
                 }
 
-                // Capture pane content for pattern detection and change tracking
-                if let Ok(content) = self.tmux.capture_pane(&session_name, false) {
+                // Capture content for pattern detection and change tracking
+                // Dispatches to correct wrapper based on session_wrapper field
+                if let Some(content) = self.capture_agent_content(
+                    &session_name,
+                    session_wrapper.as_deref(),
+                    session_context_ref.as_deref(),
+                ) {
                     let hash = hash_content(&content);
                     let content_changed = state
                         .update_agent_content_hash(&agent_id, &hash)
@@ -217,8 +325,8 @@ impl SessionMonitor {
                     }
                 }
 
-                // 3. Fallback: Silence flag check (if not already detected)
-                if !detected_awaiting {
+                // 3. Fallback: Silence flag check (tmux only — cmux/zellij don't have silence monitoring)
+                if !detected_awaiting && !is_cmux && !is_zellij {
                     if let Ok(is_silent) = self.tmux.check_silence_flag(&session_name) {
                         if is_silent {
                             result.awaiting_input.push(session_name.clone());
@@ -226,6 +334,23 @@ impl SessionMonitor {
                                 agent_id = %agent_id,
                                 session = %session_name,
                                 "Silence flag: agent is silent (awaiting input)"
+                            );
+                        }
+                    }
+                }
+
+                // Check artifacts for positive completion signal
+                if detected_awaiting {
+                    if let Some((worktree, patterns)) = artifact_context.get(&agent_id) {
+                        if !patterns.is_empty()
+                            && self.artifact_detector.check_artifacts(worktree, patterns)
+                                == ArtifactStatus::Ready
+                        {
+                            result.artifact_ready.push(session_name.clone());
+                            tracing::info!(
+                                agent_id = %agent_id,
+                                session = %session_name,
+                                "Artifact detection: all expected outputs found"
                             );
                         }
                     }
@@ -258,8 +383,11 @@ impl SessionMonitor {
     }
 
     /// Force an immediate health check (resets the timer)
-    pub fn force_check(&mut self) -> Result<HealthCheckResult> {
-        self.check_health()
+    pub fn force_check(
+        &mut self,
+        artifact_context: &HashMap<String, (PathBuf, Vec<String>)>,
+    ) -> Result<HealthCheckResult> {
+        self.check_health(artifact_context)
     }
 
     /// Get the time until the next scheduled check
@@ -368,7 +496,7 @@ impl SessionMonitor {
 
     /// Detect orphan tmux sessions (op-* sessions with no matching agent in state).
     ///
-    /// Returns a list of OrphanSession structs representing tmux sessions that
+    /// Returns a list of `OrphanSession` structs representing tmux sessions that
     /// have the operator prefix but are not tracked by any agent in state.
     /// Unlike `reconcile_on_startup`, this does not modify state - it's purely
     /// for display purposes.
@@ -465,7 +593,7 @@ mod tests {
         let mock = Arc::new(MockTmuxClient::new());
 
         let mut monitor = SessionMonitor::with_tmux_client(&config, mock);
-        let result = monitor.check_health().unwrap();
+        let result = monitor.check_health(&HashMap::new()).unwrap();
 
         assert_eq!(result.checked, 0);
         assert_eq!(result.alive, 0);
@@ -497,7 +625,7 @@ mod tests {
         mock.set_session_content("op-TASK-123", "Claude is working...");
 
         let mut monitor = SessionMonitor::with_tmux_client(&config, mock);
-        let result = monitor.check_health().unwrap();
+        let result = monitor.check_health(&HashMap::new()).unwrap();
 
         assert_eq!(result.checked, 1);
         assert_eq!(result.alive, 1);
@@ -528,7 +656,7 @@ mod tests {
         // Note: NOT adding the session
 
         let mut monitor = SessionMonitor::with_tmux_client(&config, mock);
-        let result = monitor.check_health().unwrap();
+        let result = monitor.check_health(&HashMap::new()).unwrap();
 
         assert_eq!(result.checked, 1);
         assert_eq!(result.alive, 0);
@@ -570,7 +698,7 @@ mod tests {
         mock.set_session_content("op-TASK-789", "New different content!");
 
         let mut monitor = SessionMonitor::with_tmux_client(&config, mock);
-        let result = monitor.check_health().unwrap();
+        let result = monitor.check_health(&HashMap::new()).unwrap();
 
         assert_eq!(result.checked, 1);
         assert_eq!(result.alive, 1);
@@ -827,5 +955,185 @@ mod tests {
         // Only the unmatched session is an orphan
         assert_eq!(orphans.len(), 1);
         assert_eq!(orphans[0].session_name, "op-ORPHAN-777");
+    }
+
+    /// Helper: write a hook signal file to trigger idle detection in check_health
+    fn write_hook_signal(agent_id: &str) -> PathBuf {
+        use crate::agents::hooks::HookSignal;
+
+        let signal_dir = PathBuf::from("/tmp/operator-signals");
+        std::fs::create_dir_all(&signal_dir).unwrap();
+        let signal = HookSignal {
+            event: "stop".to_string(),
+            timestamp: 1234567890,
+            session_id: agent_id.to_string(),
+        };
+        let signal_path = signal_dir.join(format!("{}.signal", agent_id));
+        std::fs::write(&signal_path, serde_json::to_string(&signal).unwrap()).unwrap();
+        signal_path
+    }
+
+    #[test]
+    fn test_health_check_artifact_ready_when_idle_and_artifacts_exist() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        // Create agent with session
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "FEAT-ART-1".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_session(&agent_id, "op-FEAT-ART-1")
+            .unwrap();
+
+        let mock = Arc::new(MockTmuxClient::new());
+        mock.add_session("op-FEAT-ART-1", "/tmp");
+        mock.set_session_content("op-FEAT-ART-1", "Working...");
+
+        // Write hook signal to trigger idle detection
+        let signal_path = write_hook_signal(&agent_id);
+
+        // Create artifact files in a temp worktree
+        let worktree = TempDir::new().unwrap();
+        let plans_dir = worktree.path().join(".tickets").join("plans");
+        std::fs::create_dir_all(&plans_dir).unwrap();
+        std::fs::write(plans_dir.join("FEAT-ART-1.md"), "# Plan").unwrap();
+
+        // Build artifact context
+        let mut artifact_context: HashMap<String, (PathBuf, Vec<String>)> = HashMap::new();
+        artifact_context.insert(
+            agent_id.clone(),
+            (
+                worktree.path().to_path_buf(),
+                vec![".tickets/plans/*.md".to_string()],
+            ),
+        );
+
+        let mut monitor = SessionMonitor::with_tmux_client(&config, mock);
+        let result = monitor.check_health(&artifact_context).unwrap();
+
+        // Cleanup
+        let _ = std::fs::remove_file(&signal_path);
+
+        // Agent should be detected as idle AND artifacts found
+        assert!(
+            result.awaiting_input.contains(&"op-FEAT-ART-1".to_string()),
+            "Session should be in awaiting_input"
+        );
+        assert!(
+            result.artifact_ready.contains(&"op-FEAT-ART-1".to_string()),
+            "Session should be in artifact_ready"
+        );
+    }
+
+    #[test]
+    fn test_health_check_no_artifact_ready_when_idle_but_artifacts_missing() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "FEAT-ART-2".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_session(&agent_id, "op-FEAT-ART-2")
+            .unwrap();
+
+        let mock = Arc::new(MockTmuxClient::new());
+        mock.add_session("op-FEAT-ART-2", "/tmp");
+        mock.set_session_content("op-FEAT-ART-2", "Working...");
+
+        // Write hook signal to trigger idle detection
+        let signal_path = write_hook_signal(&agent_id);
+
+        // Empty worktree — no artifact files
+        let worktree = TempDir::new().unwrap();
+
+        let mut artifact_context: HashMap<String, (PathBuf, Vec<String>)> = HashMap::new();
+        artifact_context.insert(
+            agent_id.clone(),
+            (
+                worktree.path().to_path_buf(),
+                vec![".tickets/plans/*.md".to_string()],
+            ),
+        );
+
+        let mut monitor = SessionMonitor::with_tmux_client(&config, mock);
+        let result = monitor.check_health(&artifact_context).unwrap();
+
+        let _ = std::fs::remove_file(&signal_path);
+
+        // Agent is idle but artifacts are missing
+        assert!(
+            result.awaiting_input.contains(&"op-FEAT-ART-2".to_string()),
+            "Session should be in awaiting_input"
+        );
+        assert!(
+            result.artifact_ready.is_empty(),
+            "artifact_ready should be empty when artifacts are missing"
+        );
+    }
+
+    #[test]
+    fn test_health_check_no_artifact_check_when_not_idle() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "FEAT-ART-3".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_session(&agent_id, "op-FEAT-ART-3")
+            .unwrap();
+
+        let mock = Arc::new(MockTmuxClient::new());
+        mock.add_session("op-FEAT-ART-3", "/tmp");
+        mock.set_session_content("op-FEAT-ART-3", "Actively working...");
+        // No hook signal, no silence flag — agent is NOT idle
+
+        // Artifacts exist but agent isn't idle
+        let worktree = TempDir::new().unwrap();
+        let plans_dir = worktree.path().join(".tickets").join("plans");
+        std::fs::create_dir_all(&plans_dir).unwrap();
+        std::fs::write(plans_dir.join("FEAT-ART-3.md"), "# Plan").unwrap();
+
+        let mut artifact_context: HashMap<String, (PathBuf, Vec<String>)> = HashMap::new();
+        artifact_context.insert(
+            agent_id.clone(),
+            (
+                worktree.path().to_path_buf(),
+                vec![".tickets/plans/*.md".to_string()],
+            ),
+        );
+
+        let mut monitor = SessionMonitor::with_tmux_client(&config, mock);
+        let result = monitor.check_health(&artifact_context).unwrap();
+
+        // Not idle — artifacts should not be checked
+        assert!(
+            result.awaiting_input.is_empty(),
+            "Session should NOT be in awaiting_input"
+        );
+        assert!(
+            result.artifact_ready.is_empty(),
+            "artifact_ready should be empty when agent is not idle"
+        );
     }
 }

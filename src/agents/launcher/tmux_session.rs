@@ -36,9 +36,7 @@ pub fn launch_in_tmux_with_options(
     match tmux.session_exists(&session_name) {
         Ok(true) => {
             anyhow::bail!(
-                "Tmux session '{}' already exists. Attach with: tmux attach -t {}",
-                session_name,
-                session_name
+                "Tmux session '{session_name}' already exists. Attach with: tmux attach -t {session_name}"
             );
         }
         Err(TmuxError::NotInstalled) => {
@@ -63,11 +61,9 @@ pub fn launch_in_tmux_with_options(
                  On Ubuntu/Debian: sudo apt install tmux"
             ),
             TmuxError::SessionExists(_) => anyhow::anyhow!(
-                "Tmux session '{}' already exists. Attach with: tmux attach -t {}",
-                session_name,
-                session_name
+                "Tmux session '{session_name}' already exists. Attach with: tmux attach -t {session_name}"
             ),
-            _ => anyhow::anyhow!("Failed to create tmux session '{}': {}", session_name, e),
+            _ => anyhow::anyhow!("Failed to create tmux session '{session_name}': {e}"),
         })?;
 
     // Wait for the shell to initialize before sending keys
@@ -120,8 +116,7 @@ pub fn launch_in_tmux_with_options(
             .llm_tools
             .detected
             .first()
-            .map(|t| t.name.clone())
-            .unwrap_or_else(|| "claude".to_string());
+            .map_or_else(|| "claude".to_string(), |t| t.name.clone());
         let default_model = get_default_model(config).unwrap_or_else(|| "sonnet".to_string());
         (default_tool, default_model)
     };
@@ -151,7 +146,7 @@ pub fn launch_in_tmux_with_options(
             ticket_path
         );
         // Combine prompt and message with separator
-        format!("{}\n---\n{}", agent_prompt, message)
+        format!("{agent_prompt}\n---\n{message}")
     } else {
         // Fallback: templates without any prompt (TASK) - use original detailed prompt
         initial_prompt.to_string()
@@ -190,7 +185,7 @@ pub fn launch_in_tmux_with_options(
     if let Err(e) = tmux.send_keys(&session_name, &bash_cmd, true) {
         // Clean up the session if we couldn't send the command
         let _ = tmux.kill_session(&session_name);
-        anyhow::bail!("Failed to start LLM agent in tmux session: {}", e);
+        anyhow::bail!("Failed to start LLM agent in tmux session: {e}");
     }
 
     tracing::info!(
@@ -225,9 +220,7 @@ pub fn launch_in_tmux_with_relaunch_options(
     match tmux.session_exists(&session_name) {
         Ok(true) => {
             anyhow::bail!(
-                "Tmux session '{}' already exists. Attach with: tmux attach -t {}",
-                session_name,
-                session_name
+                "Tmux session '{session_name}' already exists. Attach with: tmux attach -t {session_name}"
             );
         }
         Err(TmuxError::NotInstalled) => {
@@ -252,11 +245,9 @@ pub fn launch_in_tmux_with_relaunch_options(
                  On Ubuntu/Debian: sudo apt install tmux"
             ),
             TmuxError::SessionExists(_) => anyhow::anyhow!(
-                "Tmux session '{}' already exists. Attach with: tmux attach -t {}",
-                session_name,
-                session_name
+                "Tmux session '{session_name}' already exists. Attach with: tmux attach -t {session_name}"
             ),
-            _ => anyhow::anyhow!("Failed to create tmux session '{}': {}", session_name, e),
+            _ => anyhow::anyhow!("Failed to create tmux session '{session_name}': {e}"),
         })?;
 
     // Wait for the shell to initialize before sending keys
@@ -284,7 +275,7 @@ pub fn launch_in_tmux_with_relaunch_options(
         if let Some(ref resume_id) = options.resume_session_id {
             // Resume mode: use existing session ID and prompt file
             let prompts_dir = config.tickets_path().join("operator").join("prompts");
-            let existing_prompt_file = prompts_dir.join(format!("{}.txt", resume_id));
+            let existing_prompt_file = prompts_dir.join(format!("{resume_id}.txt"));
 
             if existing_prompt_file.exists() {
                 (resume_id.clone(), existing_prompt_file, true)
@@ -326,7 +317,7 @@ pub fn launch_in_tmux_with_relaunch_options(
                     ticket.ticket_type.to_lowercase(),
                     ticket_path
                 );
-                format!("{}\n---\n{}", agent_prompt, message)
+                format!("{agent_prompt}\n---\n{message}")
             } else {
                 // Fallback: templates without any prompt
                 initial_prompt.to_string()
@@ -363,8 +354,7 @@ pub fn launch_in_tmux_with_relaunch_options(
             .llm_tools
             .detected
             .first()
-            .map(|t| t.name.clone())
-            .unwrap_or_else(|| "claude".to_string());
+            .map_or_else(|| "claude".to_string(), |t| t.name.clone());
         let default_model = get_default_model(config).unwrap_or_else(|| "sonnet".to_string());
         (default_tool, default_model)
     };
@@ -386,7 +376,7 @@ pub fn launch_in_tmux_with_relaunch_options(
         // Claude CLI: claude --resume <session_id> ...
         if let Some(pos) = llm_cmd.find(&tool_name) {
             let insert_pos = pos + tool_name.len();
-            llm_cmd.insert_str(insert_pos, &format!(" --resume {}", session_uuid));
+            llm_cmd.insert_str(insert_pos, &format!(" --resume {session_uuid}"));
         }
     }
 
@@ -409,7 +399,7 @@ pub fn launch_in_tmux_with_relaunch_options(
     if let Err(e) = tmux.send_keys(&session_name, &bash_cmd, true) {
         // Clean up the session if we couldn't send the command
         let _ = tmux.kill_session(&session_name);
-        anyhow::bail!("Failed to start LLM agent in tmux session: {}", e);
+        anyhow::bail!("Failed to start LLM agent in tmux session: {e}");
     }
 
     tracing::info!(

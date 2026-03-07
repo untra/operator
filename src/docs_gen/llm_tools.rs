@@ -1,7 +1,7 @@
 //! LLM Tools documentation generator.
 //!
 //! Generates documentation for adding and configuring LLM CLI tools
-//! from the tool_config.schema.json and existing tool configurations.
+//! from the `tool_config.schema.json` and existing tool configurations.
 
 use anyhow::Result;
 

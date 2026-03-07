@@ -49,7 +49,7 @@ pub fn load_builtins() -> Result<HashMap<String, IssueType>> {
     Ok(types)
 }
 
-/// Convert a TemplateSchema to an IssueType
+/// Convert a `TemplateSchema` to an `IssueType`
 fn template_schema_to_issuetype(schema: TemplateSchema, source: IssueTypeSource) -> IssueType {
     IssueType {
         key: schema.key,
@@ -69,7 +69,7 @@ fn template_schema_to_issuetype(schema: TemplateSchema, source: IssueTypeSource)
 
 /// Load user-defined issue types from a directory
 ///
-/// Scans for *.json files in the directory and attempts to parse each as an IssueType.
+/// Scans for *.json files in the directory and attempts to parse each as an `IssueType`.
 /// Invalid files are logged as warnings and skipped.
 pub fn load_user_types(path: &Path) -> Result<HashMap<String, IssueType>> {
     let mut types = HashMap::new();
@@ -251,7 +251,10 @@ pub fn load_issuetype_file(path: &Path) -> Result<IssueType> {
 
     // Validate the issue type
     if let Err(errors) = issue_type.validate() {
-        let error_msgs: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
+        let error_msgs: Vec<String> = errors
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         anyhow::bail!("Validation errors: {}", error_msgs.join("; "));
     }
 
@@ -276,7 +279,7 @@ pub fn load_collections(path: &Path) -> Result<HashMap<String, IssueTypeCollecti
 
 /// Validate a collection against available types, returning types that are missing
 ///
-/// Returns a tuple of (valid_types, missing_types)
+/// Returns a tuple of (`valid_types`, `missing_types`)
 pub fn validate_collection_types(
     collection: &IssueTypeCollection,
     available_types: &HashMap<String, IssueType>,
@@ -447,7 +450,7 @@ fn load_types_from_collection_dir(
 
 /// Load optional collection metadata from collection.toml
 ///
-/// Returns (description, type_order) where type_order is read from the `types` field
+/// Returns (description, `type_order`) where `type_order` is read from the `types` field
 /// in collection.toml, or derived alphabetically from the loaded types.
 fn load_collection_metadata(
     collection_path: &Path,
@@ -470,7 +473,7 @@ fn load_collection_metadata(
                     .and_then(|v| v.as_array())
                     .map(|arr| {
                         arr.iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .filter_map(|v| v.as_str().map(std::string::ToString::to_string))
                             .collect()
                     })
                     .unwrap_or_else(|| derive_type_order(types));

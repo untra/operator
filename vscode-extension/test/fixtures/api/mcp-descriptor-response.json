@@ -1,0 +1,8 @@
+{
+  "server_name": "operator",
+  "server_id": "operator-mcp",
+  "version": "0.1.26",
+  "transport_url": "http://localhost:7008/api/v1/mcp/sse",
+  "label": "Operator MCP Server",
+  "openapi_url": "http://localhost:7008/api-docs/openapi.json"
+}

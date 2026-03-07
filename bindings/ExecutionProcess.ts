@@ -7,7 +7,7 @@ import type { RunReason } from "./RunReason";
  * An individual execution process within an attempt
  *
  * Each attempt can spawn multiple processes: setup script, coding agent, cleanup.
- * This maps to vibe-kanban's ExecutionProcess concept.
+ * This maps to vibe-kanban's `ExecutionProcess` concept.
  */
 export type ExecutionProcess = { 
 /**

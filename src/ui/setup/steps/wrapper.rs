@@ -172,7 +172,7 @@ impl SetupScreen {
                 Span::styled("Tmux status: ", Style::default().fg(Color::Gray)),
                 Span::styled("[+] ", Style::default().fg(Color::Green)),
                 Span::styled(
-                    format!("Available (v{})", version),
+                    format!("Available (v{version})"),
                     Style::default().fg(Color::Green),
                 ),
             ]),
@@ -185,7 +185,7 @@ impl SetupScreen {
                 Span::styled("Tmux status: ", Style::default().fg(Color::Gray)),
                 Span::styled("[x] ", Style::default().fg(Color::Red)),
                 Span::styled(
-                    format!("Version too old (v{}, need {}+)", current, required),
+                    format!("Version too old (v{current}, need {required}+)"),
                     Style::default().fg(Color::Red),
                 ),
             ]),
@@ -344,7 +344,7 @@ impl SetupScreen {
                 Span::styled("Extension status: ", Style::default().fg(Color::Gray)),
                 Span::styled("[+] ", Style::default().fg(Color::Green)),
                 Span::styled(
-                    format!("Connected (v{})", version),
+                    format!("Connected (v{version})"),
                     Style::default().fg(Color::Green),
                 ),
             ]),
@@ -401,6 +401,211 @@ impl SetupScreen {
         let footer = Paragraph::new(Line::from(vec![
             Span::styled("[T]", Style::default().fg(Color::Yellow)),
             Span::raw(" test connection  "),
+            Span::styled("Enter", Style::default().fg(Color::Yellow)),
+            Span::raw(" continue  "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" back"),
+        ]))
+        .alignment(Alignment::Center);
+        frame.render_widget(footer, chunks[5]);
+    }
+
+    pub(crate) fn render_cmux_setup_step(&self, frame: &mut Frame) {
+        let area = centered_rect(70, 70, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(" cmux Configuration ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(1), // Spacer
+                Constraint::Length(3), // Status
+                Constraint::Length(1), // Spacer
+                Constraint::Min(12),   // Instructions
+                Constraint::Length(3), // Footer
+            ])
+            .split(inner);
+
+        // Title
+        let title = Paragraph::new(Line::from(vec![Span::styled(
+            "cmux Session Configuration",
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        )]))
+        .alignment(Alignment::Center);
+        frame.render_widget(title, chunks[0]);
+
+        // Status indicator - check binary and env var
+        let binary_exists =
+            std::path::Path::new("/Applications/cmux.app/Contents/Resources/bin/cmux").exists();
+        let in_cmux = std::env::var("CMUX_WORKSPACE_ID").is_ok();
+
+        let status_lines = vec![
+            Line::from(vec![
+                Span::styled("cmux binary: ", Style::default().fg(Color::Gray)),
+                if binary_exists {
+                    Span::styled("[+] Found", Style::default().fg(Color::Green))
+                } else {
+                    Span::styled("[x] Not found", Style::default().fg(Color::Red))
+                },
+            ]),
+            Line::from(vec![
+                Span::styled("Running in cmux: ", Style::default().fg(Color::Gray)),
+                if in_cmux {
+                    Span::styled("[+] Yes", Style::default().fg(Color::Green))
+                } else {
+                    Span::styled("[x] No", Style::default().fg(Color::Yellow))
+                },
+            ]),
+        ];
+        let status = Paragraph::new(status_lines).alignment(Alignment::Center);
+        frame.render_widget(status, chunks[2]);
+
+        // Instructions
+        let instructions = vec![
+            Line::from(Span::styled(
+                "cmux is a macOS terminal multiplexer:",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  - ", Style::default().fg(Color::Cyan)),
+                Span::raw("Agents run in cmux workspaces"),
+            ]),
+            Line::from(vec![
+                Span::styled("  - ", Style::default().fg(Color::Cyan)),
+                Span::raw("Operator must be running inside cmux"),
+            ]),
+            Line::from(vec![
+                Span::styled("  - ", Style::default().fg(Color::Cyan)),
+                Span::raw("0-1 windows: new workspace in active window"),
+            ]),
+            Line::from(vec![
+                Span::styled("  - ", Style::default().fg(Color::Cyan)),
+                Span::raw(">1 windows: new window for each ticket"),
+            ]),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Requires macOS and cmux installed",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ];
+        frame.render_widget(Paragraph::new(instructions), chunks[4]);
+
+        // Footer
+        let footer = Paragraph::new(Line::from(vec![
+            Span::styled("Enter", Style::default().fg(Color::Yellow)),
+            Span::raw(" continue  "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" back"),
+        ]))
+        .alignment(Alignment::Center);
+        frame.render_widget(footer, chunks[5]);
+    }
+
+    pub(crate) fn render_zellij_setup_step(&self, frame: &mut Frame) {
+        let area = centered_rect(70, 70, frame.area());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(" Zellij Configuration ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(1), // Spacer
+                Constraint::Length(3), // Status
+                Constraint::Length(1), // Spacer
+                Constraint::Min(12),   // Instructions
+                Constraint::Length(3), // Footer
+            ])
+            .split(inner);
+
+        // Title
+        let title = Paragraph::new(Line::from(vec![Span::styled(
+            "Zellij Session Configuration",
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        )]))
+        .alignment(Alignment::Center);
+        frame.render_widget(title, chunks[0]);
+
+        // Status indicator - check zellij binary and env var
+        let binary_available = which::which("zellij").is_ok();
+        let in_zellij = std::env::var("ZELLIJ").is_ok();
+
+        let status_lines = vec![
+            Line::from(vec![
+                Span::styled("zellij binary: ", Style::default().fg(Color::Gray)),
+                if binary_available {
+                    Span::styled("[+] Found", Style::default().fg(Color::Green))
+                } else {
+                    Span::styled("[x] Not found", Style::default().fg(Color::Red))
+                },
+            ]),
+            Line::from(vec![
+                Span::styled("Running in Zellij: ", Style::default().fg(Color::Gray)),
+                if in_zellij {
+                    Span::styled("[+] Yes", Style::default().fg(Color::Green))
+                } else {
+                    Span::styled("[x] No", Style::default().fg(Color::Yellow))
+                },
+            ]),
+        ];
+        let status = Paragraph::new(status_lines).alignment(Alignment::Center);
+        frame.render_widget(status, chunks[2]);
+
+        // Instructions
+        let instructions = vec![
+            Line::from(Span::styled(
+                "Zellij is a terminal workspace manager:",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  - ", Style::default().fg(Color::Cyan)),
+                Span::raw("Agents run in Zellij panes"),
+            ]),
+            Line::from(vec![
+                Span::styled("  - ", Style::default().fg(Color::Cyan)),
+                Span::raw("Operator must be running inside Zellij"),
+            ]),
+            Line::from(vec![
+                Span::styled("  - ", Style::default().fg(Color::Cyan)),
+                Span::raw("Each agent gets its own named pane"),
+            ]),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Requires Zellij installed (https://zellij.dev)",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ];
+        frame.render_widget(Paragraph::new(instructions), chunks[4]);
+
+        // Footer
+        let footer = Paragraph::new(Line::from(vec![
             Span::styled("Enter", Style::default().fg(Color::Yellow)),
             Span::raw(" continue  "),
             Span::styled("Esc", Style::default().fg(Color::Yellow)),

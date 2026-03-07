@@ -24,6 +24,7 @@
 pub mod templates;
 
 /// Information about a setup wizard step for documentation purposes.
+#[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
 #[derive(Debug, Clone)]
 pub struct SetupStepInfo {
     /// Display name of the step (e.g., "Welcome")
@@ -40,6 +41,7 @@ pub struct SetupStepInfo {
 ///
 /// These steps correspond to the `SetupStep` enum in `src/ui/setup.rs`.
 /// When adding new steps to the setup wizard, add corresponding entries here.
+#[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
 pub static SETUP_STEPS: &[SetupStepInfo] = &[
     SetupStepInfo {
         name: "Welcome",

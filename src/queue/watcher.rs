@@ -62,7 +62,7 @@ impl QueueWatcher {
         }
     }
 
-    /// Classify a filesystem event into a QueueEvent.
+    /// Classify a filesystem event into a `QueueEvent`.
     /// Made pub(crate) for testing.
     pub(crate) fn classify_event(&self, event: Event) -> Option<QueueEvent> {
         use notify::EventKind;

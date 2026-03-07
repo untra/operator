@@ -8,7 +8,7 @@ use serde_json::Value;
 /// Schema JSON embedded at compile time
 const METADATA_SCHEMA: &str = include_str!("../schemas/ticket_metadata.schema.json");
 
-/// Generates documentation from ticket_metadata.schema.json
+/// Generates documentation from `ticket_metadata.schema.json`
 pub struct MetadataSchemaDocGenerator;
 
 impl DocGenerator for MetadataSchemaDocGenerator {
@@ -32,7 +32,7 @@ impl DocGenerator for MetadataSchemaDocGenerator {
         output.push_str(&heading(1, "Ticket Metadata Schema"));
 
         if let Some(desc) = schema.get("description").and_then(|d| d.as_str()) {
-            output.push_str(&format!("{}\n\n", desc));
+            output.push_str(&format!("{desc}\n\n"));
         }
 
         // Schema metadata
@@ -58,7 +58,7 @@ impl DocGenerator for MetadataSchemaDocGenerator {
                 bold("Additional Properties"),
                 if schema
                     .get("additionalProperties")
-                    .and_then(|v| v.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false)
                 {
                     "Allowed"
@@ -139,7 +139,7 @@ impl MetadataSchemaDocGenerator {
             output.push_str(&table(headers, &rows));
 
             // Detailed property descriptions
-            for (name, prop) in properties.iter() {
+            for (name, prop) in properties {
                 output.push_str(&heading(3, name));
 
                 let mut details = vec![];
@@ -241,10 +241,10 @@ impl MetadataSchemaDocGenerator {
 
         if let Some(definitions) = schema.get("definitions").and_then(|d| d.as_object()) {
             for (name, def) in definitions {
-                output.push_str(&heading(3, &format!("Definition: {}", name)));
+                output.push_str(&heading(3, &format!("Definition: {name}")));
 
                 if let Some(desc) = def.get("description").and_then(|d| d.as_str()) {
-                    output.push_str(&format!("{}\n\n", desc));
+                    output.push_str(&format!("{desc}\n\n"));
                 }
 
                 // Show the definition structure
@@ -287,7 +287,7 @@ impl MetadataSchemaDocGenerator {
 
             // Add format info if present
             if let Some(format) = prop.get("format").and_then(|f| f.as_str()) {
-                format!("{} ({})", base_type, format)
+                format!("{base_type} ({format})")
             } else {
                 base_type
             }

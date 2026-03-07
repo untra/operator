@@ -24,7 +24,7 @@ pub struct State {
     #[serde(default)]
     pub project_llm_stats: HashMap<String, ProjectLlmStats>,
 
-    /// Per-project issue type collection preferences (project_name -> collection_name)
+    /// Per-project issue type collection preferences (`project_name` -> `collection_name`)
     #[serde(default)]
     pub project_collection_prefs: HashMap<String, String>,
 
@@ -47,9 +47,21 @@ pub struct AgentState {
     pub last_activity: DateTime<Utc>,
     pub last_message: Option<String>,
     pub paired: bool, // true for SPIKE/INV
-    /// The tmux session name for this agent (for recovery)
+    /// The terminal session name for this agent (for recovery)
     #[serde(default)]
     pub session_name: Option<String>,
+    /// Which session wrapper manages this agent: "tmux", "vscode", or "cmux" (None = legacy tmux)
+    #[serde(default)]
+    pub session_wrapper: Option<String>,
+    /// Session window reference ID (top-level grouping: cmux window, tmux session, etc.)
+    #[serde(default)]
+    pub session_window_ref: Option<String>,
+    /// Session context reference ID (mid-level: cmux workspace, tmux window, etc.)
+    #[serde(default)]
+    pub session_context_ref: Option<String>,
+    /// Session pane reference ID (leaf-level: cmux surface, tmux pane, etc.)
+    #[serde(default)]
+    pub session_pane_ref: Option<String>,
     /// Hash of the last captured pane content (for change detection)
     #[serde(default)]
     pub content_hash: Option<String>,
@@ -73,7 +85,7 @@ pub struct AgentState {
     /// GitHub repo in format "owner/repo"
     #[serde(default)]
     pub github_repo: Option<String>,
-    /// Last known PR status ("open", "approved", "changes_requested", "merged", "closed")
+    /// Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed")
     #[serde(default)]
     pub pr_status: Option<String>,
     /// Completed steps for this ticket
@@ -82,11 +94,14 @@ pub struct AgentState {
     /// LLM tool used (e.g., "claude", "gemini", "codex")
     #[serde(default)]
     pub llm_tool: Option<String>,
+    /// LLM model alias (e.g., "opus", "sonnet", "gpt-4o")
+    #[serde(default)]
+    pub llm_model: Option<String>,
     /// Launch mode: "default", "yolo", "docker", "docker-yolo"
     #[serde(default)]
     pub launch_mode: Option<String>,
-    /// Review state for awaiting_input agents
-    /// Values: "pending_plan", "pending_visual", "pending_pr_creation", "pending_pr_merge"
+    /// Review state for `awaiting_input` agents
+    /// Values: "`pending_plan`", "`pending_visual`", "`pending_pr_creation`", "`pending_pr_merge`"
     #[serde(default)]
     pub review_state: Option<String>,
     /// Server process ID for visual review cleanup (if applicable)
@@ -110,7 +125,7 @@ pub struct CompletedTicket {
     pub output_tickets: Vec<String>,
 }
 
-/// Represents a tmux session with op-* prefix that has no matching agent in state.
+/// Represents a terminal session with op-* prefix that has no matching agent in state.
 /// These are "orphan" sessions that exist but are not tracked.
 #[derive(Debug, Clone)]
 pub struct OrphanSession {
@@ -180,7 +195,7 @@ impl State {
         self.add_agent_with_options(ticket_id, ticket_type, project, paired, None, None)
     }
 
-    /// Add an agent with launch options (llm_tool and launch_mode)
+    /// Add an agent with launch options (`llm_tool`, `launch_mode`, and `llm_model`)
     pub fn add_agent_with_options(
         &mut self,
         ticket_id: String,
@@ -189,6 +204,28 @@ impl State {
         paired: bool,
         llm_tool: Option<String>,
         launch_mode: Option<String>,
+    ) -> Result<String> {
+        self.add_agent_with_full_options(
+            ticket_id,
+            ticket_type,
+            project,
+            paired,
+            llm_tool,
+            launch_mode,
+            None,
+        )
+    }
+
+    /// Add an agent with full launch options including `llm_model`
+    pub fn add_agent_with_full_options(
+        &mut self,
+        ticket_id: String,
+        ticket_type: String,
+        project: String,
+        paired: bool,
+        llm_tool: Option<String>,
+        launch_mode: Option<String>,
+        llm_model: Option<String>,
     ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = Utc::now();
@@ -204,6 +241,10 @@ impl State {
             last_message: None,
             paired,
             session_name: None,
+            session_wrapper: None,
+            session_window_ref: None,
+            session_context_ref: None,
+            session_pane_ref: None,
             content_hash: None,
             current_step: None,
             step_started_at: None,
@@ -214,6 +255,7 @@ impl State {
             pr_status: None,
             completed_steps: Vec::new(),
             llm_tool,
+            llm_model,
             launch_mode,
             review_state: None,
             dev_server_pid: None,
@@ -287,10 +329,35 @@ impl State {
             .any(|a| a.project == project && a.status == "running")
     }
 
-    /// Update the tmux session name for an agent
+    /// Update the terminal session name for an agent
     pub fn update_agent_session(&mut self, agent_id: &str, session_name: &str) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             agent.session_name = Some(session_name.to_string());
+            agent.last_activity = Utc::now();
+        }
+        self.save()
+    }
+
+    /// Update the session wrapper type for an agent
+    pub fn update_agent_session_wrapper(&mut self, agent_id: &str, wrapper: &str) -> Result<()> {
+        if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
+            agent.session_wrapper = Some(wrapper.to_string());
+        }
+        self.save()
+    }
+
+    /// Update session-level references for an agent (window/context/pane)
+    pub fn update_agent_session_refs(
+        &mut self,
+        agent_id: &str,
+        window_ref: Option<&str>,
+        context_ref: Option<&str>,
+        pane_ref: Option<&str>,
+    ) -> Result<()> {
+        if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
+            agent.session_window_ref = window_ref.map(std::string::ToString::to_string);
+            agent.session_context_ref = context_ref.map(std::string::ToString::to_string);
+            agent.session_pane_ref = pane_ref.map(std::string::ToString::to_string);
             agent.last_activity = Utc::now();
         }
         self.save()
@@ -322,14 +389,14 @@ impl State {
         Ok(false)
     }
 
-    /// Get an agent by its tmux session name
+    /// Get an agent by its terminal session name
     pub fn agent_by_session(&self, session_name: &str) -> Option<&AgentState> {
         self.agents
             .iter()
             .find(|a| a.session_name.as_ref() == Some(&session_name.to_string()))
     }
 
-    /// Get a mutable agent by its tmux session name
+    /// Get a mutable agent by its terminal session name
     pub fn agent_by_session_mut(&mut self, session_name: &str) -> Option<&mut AgentState> {
         self.agents
             .iter_mut()
@@ -361,7 +428,7 @@ impl State {
             .collect()
     }
 
-    /// Remove agent by tmux session name (for session recovery cleanup)
+    /// Remove agent by terminal session name (for session recovery cleanup)
     pub fn remove_agent_by_session(&mut self, session_name: &str) -> Result<Option<AgentState>> {
         let pos = self
             .agents
@@ -388,7 +455,23 @@ impl State {
         self.save()
     }
 
-    /// Record that content changed in the session (updates last_content_change)
+    /// Update the agent's LLM tool and model (used during agent switching)
+    pub fn update_agent_tool_and_model(
+        &mut self,
+        agent_id: &str,
+        tool: &str,
+        model: &str,
+    ) -> Result<()> {
+        if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
+            agent.llm_tool = Some(tool.to_string());
+            agent.llm_model = Some(model.to_string());
+            agent.last_activity = Utc::now();
+            self.save()?;
+        }
+        Ok(())
+    }
+
+    /// Record that content changed in the session (updates `last_content_change`)
     pub fn record_content_change(&mut self, agent_id: &str) -> Result<()> {
         let now = Utc::now();
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
@@ -419,7 +502,7 @@ impl State {
         self.agents.iter_mut().find(|a| a.ticket_id == ticket_id)
     }
 
-    /// Record step completion and add to completed_steps list
+    /// Record step completion and add to `completed_steps` list
     pub fn complete_step(&mut self, agent_id: &str, step: &str) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             if !agent.completed_steps.contains(&step.to_string()) {
@@ -465,8 +548,7 @@ impl State {
                 a.pr_number.is_some()
                     && a.pr_status
                         .as_ref()
-                        .map(|s| s == "open" || s == "pending")
-                        .unwrap_or(false)
+                        .is_some_and(|s| s == "open" || s == "pending")
             })
             .collect()
     }
@@ -479,7 +561,7 @@ impl State {
             .collect()
     }
 
-    /// Set the review state for an agent (used when entering awaiting_input with a review type)
+    /// Set the review state for an agent (used when entering `awaiting_input` with a review type)
     pub fn set_agent_review_state(&mut self, agent_id: &str, review_state: &str) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             agent.review_state = Some(review_state.to_string());
@@ -488,7 +570,7 @@ impl State {
         self.save()
     }
 
-    /// Clear the review state for an agent (used when resuming from awaiting_input)
+    /// Clear the review state for an agent (used when resuming from `awaiting_input`)
     pub fn clear_review_state(&mut self, agent_id: &str) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             agent.review_state = None;
@@ -513,10 +595,7 @@ impl State {
             .iter()
             .filter(|a| {
                 a.status == "awaiting_input"
-                    && a.review_state
-                        .as_ref()
-                        .map(|s| s == "pending_plan")
-                        .unwrap_or(false)
+                    && a.review_state.as_ref().is_some_and(|s| s == "pending_plan")
             })
             .collect()
     }
@@ -529,8 +608,7 @@ impl State {
                 a.status == "awaiting_input"
                     && a.review_state
                         .as_ref()
-                        .map(|s| s == "pending_visual")
-                        .unwrap_or(false)
+                        .is_some_and(|s| s == "pending_visual")
             })
             .collect()
     }
@@ -543,8 +621,7 @@ impl State {
                 a.status == "awaiting_input"
                     && a.review_state
                         .as_ref()
-                        .map(|s| s == "pending_pr_merge")
-                        .unwrap_or(false)
+                        .is_some_and(|s| s == "pending_pr_merge")
             })
             .collect()
     }
@@ -649,7 +726,10 @@ impl State {
 
     /// Get all projects with LLM stats
     pub fn projects_with_stats(&self) -> Vec<&str> {
-        self.project_llm_stats.keys().map(|s| s.as_str()).collect()
+        self.project_llm_stats
+            .keys()
+            .map(std::string::String::as_str)
+            .collect()
     }
 
     // ─── Collection Preferences Methods ──────────────────────────────────────────
@@ -658,7 +738,7 @@ impl State {
     pub fn get_project_collection(&self, project: &str) -> Option<&str> {
         self.project_collection_prefs
             .get(project)
-            .map(|s| s.as_str())
+            .map(std::string::String::as_str)
     }
 
     /// Set the preferred collection for a project
@@ -1090,5 +1170,160 @@ mod tests {
         assert_eq!(state.completed[0].ticket_id, "FEAT-001");
         // Last ticket should be present
         assert_eq!(state.completed[99].ticket_id, "FEAT-100");
+    }
+
+    // ─── Agent Tool and Model Tests ─────────────────────────────────────────────
+
+    #[test]
+    fn test_update_agent_tool_and_model() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let id = state
+            .add_agent_with_options(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+                Some("claude".to_string()),
+                None,
+            )
+            .unwrap();
+
+        // Initially has claude, no model
+        assert_eq!(state.agents[0].llm_tool, Some("claude".to_string()));
+        assert_eq!(state.agents[0].llm_model, None);
+
+        // Update to gemini + pro
+        state
+            .update_agent_tool_and_model(&id, "gemini", "pro")
+            .unwrap();
+
+        assert_eq!(state.agents[0].llm_tool, Some("gemini".to_string()));
+        assert_eq!(state.agents[0].llm_model, Some("pro".to_string()));
+
+        // Verify persistence
+        let state2 = State::load(&config).unwrap();
+        assert_eq!(state2.agents[0].llm_tool, Some("gemini".to_string()));
+        assert_eq!(state2.agents[0].llm_model, Some("pro".to_string()));
+    }
+
+    #[test]
+    fn test_add_agent_with_full_options() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        state
+            .add_agent_with_full_options(
+                "FEAT-002".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+                Some("claude".to_string()),
+                Some("yolo".to_string()),
+                Some("opus".to_string()),
+            )
+            .unwrap();
+
+        assert_eq!(state.agents[0].llm_tool, Some("claude".to_string()));
+        assert_eq!(state.agents[0].llm_model, Some("opus".to_string()));
+        assert_eq!(state.agents[0].launch_mode, Some("yolo".to_string()));
+    }
+
+    #[test]
+    fn test_agent_state_session_refs_roundtrip() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let id = state
+            .add_agent(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+
+        state.update_agent_session_wrapper(&id, "cmux").unwrap();
+        state
+            .update_agent_session_refs(&id, Some("win-1"), Some("ws-1"), Some("surf-1"))
+            .unwrap();
+
+        // Reload and verify
+        let state2 = State::load(&config).unwrap();
+        let agent = state2.agents.iter().find(|a| a.id == id).unwrap();
+        assert_eq!(agent.session_wrapper, Some("cmux".to_string()));
+        assert_eq!(agent.session_window_ref, Some("win-1".to_string()));
+        assert_eq!(agent.session_context_ref, Some("ws-1".to_string()));
+        assert_eq!(agent.session_pane_ref, Some("surf-1".to_string()));
+    }
+
+    #[test]
+    fn test_backward_compat_missing_session_wrapper() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+
+        // Write old-format state without session_wrapper field
+        let old_json = r#"{
+            "paused": false,
+            "agents": [{
+                "id": "test-id",
+                "ticket_id": "FEAT-001",
+                "ticket_type": "FEAT",
+                "project": "test",
+                "status": "running",
+                "started_at": "2024-01-01T00:00:00Z",
+                "last_activity": "2024-01-01T00:00:00Z",
+                "paired": false,
+                "session_name": "op-FEAT-001",
+                "completed_steps": []
+            }],
+            "completed": [],
+            "project_llm_stats": {},
+            "project_collection_prefs": {}
+        }"#;
+        let state_file = temp_dir.path().join("state.json");
+        fs::write(&state_file, old_json).unwrap();
+
+        let state = State::load(&config).unwrap();
+        assert_eq!(state.agents[0].session_wrapper, None);
+        assert_eq!(state.agents[0].session_window_ref, None);
+    }
+
+    #[test]
+    fn test_agents_with_sessions_includes_cmux() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let id = state
+            .add_agent(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+
+        state.update_agent_session(&id, "op-FEAT-001").unwrap();
+        state.update_agent_session_wrapper(&id, "cmux").unwrap();
+
+        let agents = state.agents_with_sessions();
+        assert_eq!(agents.len(), 1);
+        assert_eq!(agents[0].session_wrapper, Some("cmux".to_string()));
+    }
+
+    #[test]
+    fn test_update_agent_tool_and_model_nonexistent() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        // Should not error on nonexistent agent
+        let result = state.update_agent_tool_and_model("nonexistent-id", "gemini", "pro");
+        assert!(result.is_ok());
     }
 }

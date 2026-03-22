@@ -938,7 +938,13 @@ export async function addJiraProject(
   // Filter out already-configured projects
   const available = projects.filter((p) => !existingProjects.has(p.key));
   if (available.length === 0) {
-    void vscode.window.showInformationMessage('All available projects are already configured.');
+    const action = await vscode.window.showInformationMessage(
+      `All projects on ${domain} are already configured.`,
+      'Connect Another Workspace'
+    );
+    if (action === 'Connect Another Workspace') {
+      await vscode.commands.executeCommand('operator.startKanbanOnboarding');
+    }
     return;
   }
 

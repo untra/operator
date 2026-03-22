@@ -22,8 +22,6 @@ use super::prompt::{
     generate_session_uuid, get_agent_prompt, get_template_prompt, write_command_file,
     write_prompt_file,
 };
-use super::SESSION_PREFIX;
-
 /// Result of launching in zellij — includes tab name for state tracking
 #[derive(Debug, Clone)]
 pub struct ZellijLaunchResult {
@@ -49,8 +47,12 @@ pub fn launch_in_zellij_with_options(
         .check_in_zellij()
         .map_err(|e| anyhow::anyhow!("Not running inside zellij: {e}"))?;
 
-    // Create session name from ticket ID
-    let session_name = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    // Create session name from ticket ID with project for scannable Zellij tab bar
+    let session_name = format!(
+        "op:{}:{}",
+        sanitize_session_name(&ticket.project),
+        sanitize_session_name(&ticket.id)
+    );
 
     // Tab name = session name (1:1 mapping)
     let tab_name = session_name.clone();
@@ -174,7 +176,11 @@ pub fn launch_in_zellij_with_relaunch_options(
         .check_in_zellij()
         .map_err(|e| anyhow::anyhow!("Not running inside zellij: {e}"))?;
 
-    let session_name = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    let session_name = format!(
+        "op:{}:{}",
+        sanitize_session_name(&ticket.project),
+        sanitize_session_name(&ticket.id)
+    );
 
     // Tab name = session name (1:1 mapping)
     let tab_name = session_name.clone();

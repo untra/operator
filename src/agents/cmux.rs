@@ -19,7 +19,9 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use thiserror::Error;
 
-use crate::agents::terminal_wrapper::{SessionError, SessionInfo, SessionWrapper, WrapperType};
+use crate::agents::terminal_wrapper::{
+    SessionError, SessionInfo, SessionTopology, SessionWrapper, WrapperType,
+};
 use crate::config::{CmuxPlacementPolicy, SessionsCmuxConfig};
 
 /// Errors specific to cmux operations
@@ -107,6 +109,9 @@ pub trait CmuxClient: Send + Sync {
 
     /// Rename a window
     fn rename_window(&self, window_ref: &str, name: &str) -> Result<(), CmuxError>;
+
+    /// Set the subtitle/metadata for a workspace (shown in cmux sidebar)
+    fn set_workspace_subtitle(&self, workspace_ref: &str, subtitle: &str) -> Result<(), CmuxError>;
 }
 
 // ============================================================================
@@ -268,6 +273,28 @@ impl CmuxClient for SystemCmuxClient {
         self.run_cmux_success(&["rename-window", "--window", window_ref, "--name", name])?;
         Ok(())
     }
+
+    fn set_workspace_subtitle(&self, workspace_ref: &str, subtitle: &str) -> Result<(), CmuxError> {
+        let output = std::process::Command::new(&self.binary_path)
+            .args([
+                "set-workspace-subtitle",
+                "--workspace",
+                workspace_ref,
+                "--subtitle",
+                subtitle,
+            ])
+            .output()
+            .map_err(|e| CmuxError::CommandFailed(format!("failed to run cmux: {e}")))?;
+
+        if !output.status.success() {
+            // cmux may not support this command yet — log and continue
+            tracing::debug!(
+                "cmux set-workspace-subtitle not supported or failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -304,6 +331,7 @@ struct MockState {
     next_window_id: u32,
     active_window_id: String,
     sent_texts: Vec<(String, String)>, // (workspace_ref, text)
+    subtitles: HashMap<String, String>,
 }
 
 /// Mock implementation for testing
@@ -328,6 +356,7 @@ impl MockCmuxClient {
                 next_window_id: 2,
                 active_window_id: "win-1".to_string(),
                 sent_texts: vec![],
+                subtitles: HashMap::new(),
             }),
         }
     }
@@ -394,6 +423,12 @@ impl MockCmuxClient {
                 .find(|ws| ws.name.as_deref() == Some(name))
                 .map(|ws| ws.id.clone())
         })
+    }
+
+    /// Get the subtitle set for a workspace (for test assertions)
+    pub fn get_subtitle(&self, workspace_ref: &str) -> Option<String> {
+        let state = self.state.lock().unwrap();
+        state.subtitles.get(workspace_ref).cloned()
     }
 }
 
@@ -610,6 +645,14 @@ impl CmuxClient for MockCmuxClient {
             .ok_or_else(|| CmuxError::WindowNotFound(window_ref.to_string()))?;
 
         w.name = Some(name.to_string());
+        Ok(())
+    }
+
+    fn set_workspace_subtitle(&self, workspace_ref: &str, subtitle: &str) -> Result<(), CmuxError> {
+        let mut state = self.state.lock().unwrap();
+        state
+            .subtitles
+            .insert(workspace_ref.to_string(), subtitle.to_string());
         Ok(())
     }
 }
@@ -838,6 +881,33 @@ impl SessionWrapper for CmuxWrapper {
     fn supports_content_capture(&self) -> bool {
         true
     }
+
+    fn session_topology(&self, session: &str) -> Result<SessionTopology, SessionError> {
+        let mut refs = Vec::new();
+
+        if let Some(window_ref) = self.window_ref(session) {
+            refs.push(("window".to_string(), window_ref));
+        }
+        if let Some(workspace_ref) = self.workspace_ref(session) {
+            refs.push(("workspace".to_string(), workspace_ref));
+        }
+
+        if refs.is_empty() {
+            return Err(SessionError::SessionNotFound(session.to_string()));
+        }
+
+        let placement_hint = Some(match self.placement {
+            CmuxPlacementPolicy::Auto => "auto".to_string(),
+            CmuxPlacementPolicy::Workspace => "workspace (same window)".to_string(),
+            CmuxPlacementPolicy::Window => "window (new window)".to_string(),
+        });
+
+        Ok(SessionTopology {
+            wrapper_type: WrapperType::Cmux,
+            refs,
+            placement_hint,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -943,6 +1013,33 @@ mod tests {
         assert!(client.focus_workspace("ws-999").is_err());
         assert!(client.close_workspace("ws-999").is_err());
         assert!(client.rename_workspace("ws-999", "x").is_err());
+    }
+
+    #[tokio::test]
+    async fn test_cmux_set_workspace_subtitle() {
+        let client = MockCmuxClient::new();
+        let client_arc: Arc<MockCmuxClient> = Arc::new(client);
+        let config = SessionsCmuxConfig {
+            binary_path: "/mock/cmux".to_string(),
+            require_in_cmux: true,
+            placement: CmuxPlacementPolicy::Auto,
+        };
+        let wrapper = CmuxWrapper::new(client_arc.clone(), &config);
+
+        wrapper
+            .create_session("op-TASK-030", "/tmp/project")
+            .await
+            .unwrap();
+
+        let ws_ref = wrapper.workspace_ref("op-TASK-030").unwrap();
+        client_arc
+            .set_workspace_subtitle(&ws_ref, "implement | ▶")
+            .unwrap();
+
+        assert_eq!(
+            client_arc.get_subtitle(&ws_ref).as_deref(),
+            Some("implement | ▶")
+        );
     }
 
     // ========================================================================
@@ -1192,5 +1289,29 @@ mod tests {
 
         // Verify wrapper type
         assert_eq!(tasks[0].wrapper_type, WrapperType::Cmux);
+    }
+
+    #[tokio::test]
+    async fn test_cmux_session_topology() {
+        let wrapper = make_wrapper(MockCmuxClient::new(), CmuxPlacementPolicy::Auto);
+
+        wrapper
+            .create_session("op-TASK-020", "/tmp/project")
+            .await
+            .unwrap();
+
+        let topology = wrapper.session_topology("op-TASK-020").unwrap();
+        assert_eq!(topology.wrapper_type, WrapperType::Cmux);
+        assert!(!topology.refs.is_empty());
+        assert!(topology.refs.iter().any(|(label, _)| label == "workspace"));
+        assert!(topology.refs.iter().any(|(label, _)| label == "window"));
+        assert_eq!(topology.placement_hint.as_deref(), Some("auto"));
+    }
+
+    #[tokio::test]
+    async fn test_cmux_session_topology_not_found() {
+        let wrapper = make_wrapper(MockCmuxClient::new(), CmuxPlacementPolicy::Auto);
+        let err = wrapper.session_topology("nonexistent").unwrap_err();
+        assert!(matches!(err, SessionError::SessionNotFound(_)));
     }
 }

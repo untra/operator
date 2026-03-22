@@ -7,6 +7,7 @@ pub mod health;
 pub mod issuetypes;
 pub mod kanban;
 pub mod launch;
+pub mod llm_tools;
 pub mod projects;
 pub mod queue;
 pub mod skills;

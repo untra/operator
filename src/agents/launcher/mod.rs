@@ -72,6 +72,12 @@ pub struct PreparedLaunch {
     pub worktree_created: bool,
     /// Branch name (if worktree was created)
     pub branch: Option<String>,
+    /// Which session wrapper was used: "tmux", "vscode", "cmux", or "zellij"
+    pub session_wrapper: Option<String>,
+    /// Session window reference ID (e.g. cmux window, tmux session)
+    pub session_window_ref: Option<String>,
+    /// Session context reference (e.g. cmux workspace, zellij session)
+    pub session_context_ref: Option<String>,
 }
 
 /// Minimum required tmux version
@@ -519,6 +525,11 @@ impl Launcher {
             llm_cmd = apply_yolo_flags(&self.config, &llm_cmd, &tool_name);
         }
 
+        // Apply extra flags from delegator launch_config
+        if !options.extra_flags.is_empty() {
+            llm_cmd = format!("{} {}", llm_cmd, options.extra_flags.join(" "));
+        }
+
         // Wrap in docker command if docker mode is enabled
         if options.docker_mode {
             llm_cmd = build_docker_command(&self.config, &llm_cmd, &working_dir_str)?;
@@ -582,6 +593,9 @@ impl Launcher {
             session_id: session_uuid,
             worktree_created,
             branch,
+            session_wrapper: None,
+            session_window_ref: None,
+            session_context_ref: None,
         })
     }
 
@@ -743,6 +757,15 @@ impl Launcher {
             llm_cmd = apply_yolo_flags(&self.config, &llm_cmd, &tool_name);
         }
 
+        // Apply extra flags from delegator launch_config
+        if !options.launch_options.extra_flags.is_empty() {
+            llm_cmd = format!(
+                "{} {}",
+                llm_cmd,
+                options.launch_options.extra_flags.join(" ")
+            );
+        }
+
         // Wrap in docker command if docker mode is enabled
         if options.launch_options.docker_mode {
             llm_cmd = build_docker_command(&self.config, &llm_cmd, &working_dir_str)?;
@@ -809,6 +832,9 @@ impl Launcher {
             session_id: session_uuid,
             worktree_created,
             branch,
+            session_wrapper: None,
+            session_window_ref: None,
+            session_context_ref: None,
         })
     }
 

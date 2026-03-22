@@ -383,14 +383,21 @@ pub enum SessionWrapperType {
     Zellij,
 }
 
+impl SessionWrapperType {
+    /// Short display name for the wrapper (used in header bar, logs)
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            SessionWrapperType::Tmux => "tmux",
+            SessionWrapperType::Vscode => "vscode",
+            SessionWrapperType::Cmux => "cmux",
+            SessionWrapperType::Zellij => "zellij",
+        }
+    }
+}
+
 impl std::fmt::Display for SessionWrapperType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SessionWrapperType::Tmux => write!(f, "tmux"),
-            SessionWrapperType::Vscode => write!(f, "vscode"),
-            SessionWrapperType::Cmux => write!(f, "cmux"),
-            SessionWrapperType::Zellij => write!(f, "zellij"),
-        }
+        write!(f, "{}", self.display_name())
     }
 }
 
@@ -783,7 +790,7 @@ pub struct LlmToolsConfig {
 }
 
 /// A detected CLI tool (e.g., claude binary)
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub struct DetectedTool {
     /// Tool name (e.g., "claude")
@@ -799,6 +806,7 @@ pub struct DetectedTool {
     #[serde(default)]
     pub version_ok: bool,
     /// Available model aliases (e.g., ["opus", "sonnet", "haiku"])
+    #[serde(default)]
     pub model_aliases: Vec<String>,
     /// Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders
     #[serde(default)]
@@ -812,7 +820,7 @@ pub struct DetectedTool {
 }
 
 /// Tool capabilities
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub struct ToolCapabilities {
     /// Whether the tool supports session continuity via UUID
@@ -1084,6 +1092,7 @@ pub struct JiraConfig {
     #[serde(default = "default_jira_api_key_env")]
     pub api_key_env: String,
     /// Atlassian account email for authentication
+    #[serde(default)]
     pub email: String,
     /// Per-project sync configuration
     #[serde(default)]
@@ -1328,9 +1337,30 @@ impl Config {
         );
 
         let config = builder.build().context("Failed to load configuration")?;
-        config
-            .try_deserialize()
-            .context("Failed to deserialize configuration")
+        config.try_deserialize().map_err(|e| {
+            let mut sources = vec![];
+            let operator_config = Self::operator_config_path();
+            if operator_config.exists() {
+                sources.push(format!("  - {}", operator_config.display()));
+            }
+            if let Some(config_dir) = dirs::config_dir() {
+                let user_config = config_dir.join("operator").join("config.toml");
+                if user_config.exists() {
+                    sources.push(format!("  - {}", user_config.display()));
+                }
+            }
+            if let Some(path) = config_path {
+                sources.push(format!("  - {path}"));
+            }
+            let sources_str = if sources.is_empty() {
+                String::from("  (no config files found)")
+            } else {
+                sources.join("\n")
+            };
+            anyhow::anyhow!(
+                "Failed to deserialize configuration: {e}\n\nConfig files loaded:\n{sources_str}\n\nCheck these files for missing or invalid fields."
+            )
+        })
     }
 
     /// Save config to .tickets/operator/config.toml

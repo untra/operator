@@ -193,7 +193,10 @@ pub enum VsCodeModelOption {
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct VsCodeLaunchOptions {
-    /// Model to use (sonnet, opus, haiku)
+    /// Named delegator to use (takes precedence over model)
+    #[serde(default)]
+    pub delegator: Option<String>,
+    /// Model to use (sonnet, opus, haiku) — fallback when no delegator
     pub model: VsCodeModelOption,
     /// YOLO mode - auto-accept all prompts
     pub yolo_mode: bool,

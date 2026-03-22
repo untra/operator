@@ -158,6 +158,14 @@ export class WebhookServer {
   }
 
   /**
+   * Re-write the session file if the server is running but the file was lost
+   */
+  async ensureSessionFile(ticketsDir: string): Promise<void> {
+    if (!this.server) { return; }
+    await this.writeSessionFile(ticketsDir);
+  }
+
+  /**
    * Get the configured port preference
    */
   getConfiguredPort(): number {

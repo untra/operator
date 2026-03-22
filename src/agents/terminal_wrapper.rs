@@ -70,6 +70,17 @@ pub struct SessionInfo {
     pub wrapper_type: WrapperType,
 }
 
+/// Topology information about a session's placement in its wrapper hierarchy
+#[derive(Debug, Clone)]
+pub struct SessionTopology {
+    /// Type of wrapper hosting this session
+    pub wrapper_type: WrapperType,
+    /// Hierarchical refs as label-value pairs (e.g. [("window", "abc123"), ("workspace", "def456")])
+    pub refs: Vec<(String, String)>,
+    /// Human-readable placement hint (e.g. "auto (same window)" or "new window")
+    pub placement_hint: Option<String>,
+}
+
 /// Core terminal session operations
 ///
 /// This trait abstracts the terminal-level operations needed to manage
@@ -115,6 +126,14 @@ pub trait SessionWrapper: Send + Sync {
     /// Check if this wrapper supports content capture
     fn supports_content_capture(&self) -> bool {
         false
+    }
+
+    /// Get topology info for a session (hierarchy refs, placement info)
+    /// Default returns `NotSupported` — only wrappers with rich hierarchy implement this.
+    fn session_topology(&self, _session: &str) -> Result<SessionTopology, SessionError> {
+        Err(SessionError::NotSupported(
+            "topology not available for this wrapper".into(),
+        ))
     }
 }
 

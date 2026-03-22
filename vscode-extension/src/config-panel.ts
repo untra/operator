@@ -87,6 +87,17 @@ export class ConfigPanel {
     ConfigPanel.currentPanel = new ConfigPanel(panel, extensionUri);
   }
 
+  /** Send a navigation message to the webview to scroll to a section */
+  public static navigateTo(section: string, prefill?: Record<string, unknown>): void {
+    if (ConfigPanel.currentPanel) {
+      void ConfigPanel.currentPanel._panel.webview.postMessage({
+        type: 'navigateTo',
+        section,
+        prefill,
+      });
+    }
+  }
+
   private _getHtmlContent(): string {
     const webview = this._panel.webview;
 

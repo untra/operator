@@ -49,7 +49,7 @@
                 {% for grandchild in item.children %}
                 <li>
                   <a href="{{ grandchild.url | relative_url }}" {% if page.url == grandchild.url %}class="active"
-                    {% endif %}>{% if grandchild.icon %}<span class="nav-icon"><img class="icon-light" src="{{ '/assets/icons/' | append: grandchild.icon | append: '-light.svg' | relative_url }}" alt="" width="16" height="16"><img class="icon-dark" src="{{ '/assets/icons/' | append: grandchild.icon | append: '-dark.svg' | relative_url }}" alt="" width="16" height="16"></span>{% endif %}{{ grandchild.title }}</a>
+                    {% endif %}>{% if grandchild.icon %}<span class="nav-icon"><img src="{{ '/assets/icons/' | append: grandchild.icon | append: '.svg' | relative_url }}" alt="" width="16" height="16"></span>{% endif %}{{ grandchild.title }}</a>
                 </li>
                 {% endfor %}
               </ul>

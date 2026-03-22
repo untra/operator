@@ -102,6 +102,20 @@ pub struct ConfirmDialog {
     pub selected_project: usize,
     /// The original project from the ticket (for display reference)
     pub original_project: String,
+
+    /// Session placement preview (populated before showing dialog)
+    pub session_preview: Option<SessionPlacementPreview>,
+}
+
+/// Preview of where the agent session will land
+#[derive(Debug, Clone)]
+pub struct SessionPlacementPreview {
+    /// Wrapper type name (e.g., "cmux", "tmux")
+    pub wrapper_type: String,
+    /// Human-readable placement description (e.g., "auto -> same window")
+    pub placement_description: String,
+    /// Key-value pairs with target details
+    pub target_info: Vec<(String, String)>,
 }
 
 impl ConfirmDialog {
@@ -121,6 +135,7 @@ impl ConfirmDialog {
             project_options: Vec::new(),
             selected_project: 0,
             original_project: String::new(),
+            session_preview: None,
         }
     }
 
@@ -308,11 +323,13 @@ impl ConfirmDialog {
 
         // Calculate dialog height based on options
         let has_options = self.has_options();
+        let has_session_preview = self.session_preview.is_some();
+        let session_preview_height: u16 = if has_session_preview { 3 } else { 0 };
         let base_height = if has_options { 60 } else { 45 };
         let dialog_height = if show_priority {
-            base_height
+            base_height + session_preview_height
         } else {
-            base_height - 2
+            base_height - 2 + session_preview_height
         };
 
         // Center the dialog
@@ -337,12 +354,13 @@ impl ConfirmDialog {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(2),               // Type/ID
-                Constraint::Min(3),                  // Summary
-                Constraint::Length(2),               // Project
-                Constraint::Length(priority_height), // Priority (conditional)
-                Constraint::Length(options_height),  // Options (if any)
-                Constraint::Length(3),               // Buttons
+                Constraint::Length(2),                      // Type/ID
+                Constraint::Min(3),                         // Summary
+                Constraint::Length(2),                      // Project
+                Constraint::Length(priority_height),        // Priority (conditional)
+                Constraint::Length(session_preview_height), // Session target (conditional)
+                Constraint::Length(options_height),         // Options (if any)
+                Constraint::Length(3),                      // Buttons
             ])
             .margin(1)
             .split(inner);
@@ -393,9 +411,29 @@ impl ConfirmDialog {
             frame.render_widget(Paragraph::new(priority_line), chunks[3]);
         }
 
+        // Render session placement preview if available
+        if let Some(ref preview) = self.session_preview {
+            let mut preview_spans = vec![
+                Span::styled("Target: ", Style::default().fg(Color::Gray)),
+                Span::styled(&preview.wrapper_type, Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    format!(" ({})", preview.placement_description),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ];
+            for (key, value) in &preview.target_info {
+                preview_spans.push(Span::styled(
+                    format!("  {key}: "),
+                    Style::default().fg(Color::Gray),
+                ));
+                preview_spans.push(Span::styled(value, Style::default().fg(Color::White)));
+            }
+            frame.render_widget(Paragraph::new(Line::from(preview_spans)), chunks[4]);
+        }
+
         // Render options section if any are available
         if has_options {
-            self.render_options(frame, chunks[4]);
+            self.render_options(frame, chunks[5]);
         }
 
         // Dim buttons when options are focused
@@ -460,7 +498,7 @@ impl ConfirmDialog {
         };
 
         let buttons_para = Paragraph::new(vec![buttons, hint]).alignment(Alignment::Center);
-        frame.render_widget(buttons_para, chunks[5]);
+        frame.render_widget(buttons_para, chunks[6]);
     }
 
     /// Render the options section (provider, project, docker, yolo toggles)

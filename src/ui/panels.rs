@@ -182,6 +182,15 @@ impl AgentsPanel {
                     Color::Reset
                 };
 
+                // Wrapper badge: C=cmux, T=tmux, Z=zellij, V=vscode
+                let wrapper_badge = match a.session_wrapper.as_deref() {
+                    Some("cmux") => "C",
+                    Some("tmux") => "T",
+                    Some("zellij") => "Z",
+                    Some("vscode") => "V",
+                    _ => " ",
+                };
+
                 // Get the current step display text
                 let step_display = a
                     .current_step
@@ -221,6 +230,12 @@ impl AgentsPanel {
                     ));
                 }
 
+                // Wrapper badge
+                line1_spans.push(Span::styled(
+                    wrapper_badge,
+                    Style::default().fg(Color::DarkGray),
+                ));
+
                 line1_spans.extend(vec![
                     Span::styled(status_icon, Style::default().fg(status_color)),
                     Span::raw(" "),
@@ -229,18 +244,36 @@ impl AgentsPanel {
                     Span::styled(step_display, Style::default().fg(Color::Cyan)),
                 ]);
 
-                let mut lines = vec![
-                    Line::from(line1_spans),
-                    Line::from(vec![
-                        Span::raw("  "),
-                        Span::styled(
-                            format_display_id(&a.ticket_id),
-                            Style::default().fg(Color::Gray),
-                        ),
-                        Span::raw(" "),
-                        Span::styled(elapsed_display, Style::default().fg(Color::DarkGray)),
-                    ]),
+                // Build line 2: ticket ID, elapsed, and cmux refs if applicable
+                let mut line2_spans = vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        format_display_id(&a.ticket_id),
+                        Style::default().fg(Color::Gray),
+                    ),
+                    Span::raw(" "),
+                    Span::styled(elapsed_display, Style::default().fg(Color::DarkGray)),
                 ];
+
+                // Add cmux workspace/window refs (abbreviated to first 6 chars)
+                if a.session_wrapper.as_deref() == Some("cmux") {
+                    if let Some(ref ws_ref) = a.session_context_ref {
+                        let abbrev = &ws_ref[..ws_ref.len().min(6)];
+                        line2_spans.push(Span::styled(
+                            format!(" ws:{abbrev}"),
+                            Style::default().fg(Color::DarkGray),
+                        ));
+                    }
+                    if let Some(ref win_ref) = a.session_window_ref {
+                        let abbrev = &win_ref[..win_ref.len().min(6)];
+                        line2_spans.push(Span::styled(
+                            format!(" win:{abbrev}"),
+                            Style::default().fg(Color::DarkGray),
+                        ));
+                    }
+                }
+
+                let mut lines = vec![Line::from(line1_spans), Line::from(line2_spans)];
 
                 // Add review hint line for agents awaiting review
                 if a.status == "awaiting_input" {
@@ -391,6 +424,15 @@ impl AwaitingPanel {
             .agents
             .iter()
             .map(|a| {
+                // Wrapper badge
+                let wrapper_badge = match a.session_wrapper.as_deref() {
+                    Some("cmux") => "C",
+                    Some("tmux") => "T",
+                    Some("zellij") => "Z",
+                    Some("vscode") => "V",
+                    _ => " ",
+                };
+
                 // Get the current step display text
                 let step_display = a
                     .current_step
@@ -398,8 +440,34 @@ impl AwaitingPanel {
                     .map(|s| format!("[{s}]"))
                     .unwrap_or_default();
 
+                // Build line 2 with optional cmux refs
+                let mut line2_spans = vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        a.last_message.as_deref().unwrap_or("Awaiting input..."),
+                        Style::default()
+                            .fg(Color::White)
+                            .add_modifier(Modifier::ITALIC),
+                    ),
+                ];
+
+                // Add cmux refs for cmux agents
+                if a.session_wrapper.as_deref() == Some("cmux") {
+                    if let Some(ref ws_ref) = a.session_context_ref {
+                        let abbrev = &ws_ref[..ws_ref.len().min(6)];
+                        line2_spans.push(Span::styled(
+                            format!(" ws:{abbrev}"),
+                            Style::default().fg(Color::DarkGray),
+                        ));
+                    }
+                }
+
                 let lines = vec![
                     Line::from(vec![
+                        Span::styled(
+                            wrapper_badge.to_string(),
+                            Style::default().fg(Color::DarkGray),
+                        ),
                         Span::styled("⏸ ", Style::default().fg(Color::Yellow)),
                         Span::styled(&a.project, Style::default().add_modifier(Modifier::BOLD)),
                         Span::raw(" "),
@@ -410,15 +478,7 @@ impl AwaitingPanel {
                             Style::default().fg(Color::Gray),
                         ),
                     ]),
-                    Line::from(vec![
-                        Span::raw("  "),
-                        Span::styled(
-                            a.last_message.as_deref().unwrap_or("Awaiting input..."),
-                            Style::default()
-                                .fg(Color::White)
-                                .add_modifier(Modifier::ITALIC),
-                        ),
-                    ]),
+                    Line::from(line2_spans),
                 ];
 
                 ListItem::new(lines)
@@ -497,6 +557,7 @@ pub struct StatusBar {
     pub rest_api_status: RestApiStatus,
     pub exit_confirmation_mode: bool,
     pub update_available_version: Option<String>,
+    pub status_message: Option<String>,
 }
 
 impl StatusBar {
@@ -597,7 +658,19 @@ impl StatusBar {
 
         let help = Self::build_hints(area.width);
 
-        let content = Line::from(vec![status, agents, web_indicator, help]);
+        let mut spans = vec![status, agents, web_indicator];
+
+        // Show transient status message if present
+        if let Some(ref msg) = self.status_message {
+            spans.push(Span::styled(
+                format!("  {msg}"),
+                Style::default().fg(Color::Yellow),
+            ));
+        }
+
+        spans.push(help);
+
+        let content = Line::from(spans);
 
         let bar = Paragraph::new(content).block(Block::default().borders(Borders::TOP));
 
@@ -607,6 +680,7 @@ impl StatusBar {
 
 pub struct HeaderBar {
     pub version: &'static str,
+    pub wrapper_name: &'static str,
 }
 
 impl HeaderBar {
@@ -621,6 +695,10 @@ impl HeaderBar {
             Span::styled(
                 format!(" v{}", self.version),
                 Style::default().fg(Color::Gray),
+            ),
+            Span::styled(
+                format!(" \u{2502} {}", self.wrapper_name),
+                Style::default().fg(Color::DarkGray),
             ),
         ];
 

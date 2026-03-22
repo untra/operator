@@ -50,6 +50,10 @@ pub async fn active(State(state): State<ApiState>) -> Result<Json<ActiveAgentsRe
             },
             started_at: a.started_at.to_rfc3339(),
             current_step: a.current_step.clone(),
+            session_wrapper: a.session_wrapper.clone(),
+            session_window_ref: a.session_window_ref.clone(),
+            session_context_ref: a.session_context_ref.clone(),
+            session_pane_ref: a.session_pane_ref.clone(),
         })
         .collect();
 

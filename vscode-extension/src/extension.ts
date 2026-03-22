@@ -42,6 +42,7 @@ import {
   initializeTicketsDirectory,
 } from './walkthrough';
 import { addJiraProject, addLinearTeam } from './kanban-onboarding';
+import { startGitOnboarding, onboardGitHub, onboardGitLab } from './git-onboarding';
 import { ConfigPanel } from './config-panel';
 import { configFileExists } from './config-paths';
 import { connectMcpServer } from './mcp-connect';
@@ -68,6 +69,7 @@ function showConfigMissingNotification(): void {
 let terminalManager: TerminalManager;
 let webhookServer: WebhookServer;
 let statusBarItem: vscode.StatusBarItem;
+let createBarItem: vscode.StatusBarItem;
 let launchManager: LaunchManager;
 let issueTypeService: IssueTypeService;
 
@@ -116,8 +118,20 @@ export async function activate(
   statusBarItem.command = 'operator.showStatus';
   context.subscriptions.push(statusBarItem);
 
+  // Create "New" status bar item
+  createBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    99
+  );
+  createBarItem.text = '$(add) New';
+  createBarItem.tooltip = 'Create new delegator, issue type, or project';
+  createBarItem.command = 'operator.showCreateMenu';
+  createBarItem.show();
+  context.subscriptions.push(createBarItem);
+
   // Create TreeView providers (with issue type service)
   statusProvider = new StatusTreeProvider(context);
+  statusProvider.setWebhookServer(webhookServer);
   inProgressProvider = new TicketTreeProvider('in-progress', issueTypeService, terminalManager);
   queueProvider = new TicketTreeProvider('queue', issueTypeService);
   completedProvider = new TicketTreeProvider('completed', issueTypeService);
@@ -240,6 +254,26 @@ export async function activate(
     vscode.commands.registerCommand(
       'operator.startKanbanOnboarding',
       () => startKanbanOnboarding(extensionContext)
+    ),
+    vscode.commands.registerCommand(
+      'operator.startGitOnboarding',
+      () => startGitOnboarding().then(() => refreshAllProviders())
+    ),
+    vscode.commands.registerCommand(
+      'operator.configureGitHub',
+      () => onboardGitHub().then(() => refreshAllProviders())
+    ),
+    vscode.commands.registerCommand(
+      'operator.configureGitLab',
+      () => onboardGitLab().then(() => refreshAllProviders())
+    ),
+    vscode.commands.registerCommand(
+      'operator.showCreateMenu',
+      showCreateMenu
+    ),
+    vscode.commands.registerCommand(
+      'operator.openCreateDelegator',
+      (tool?: string, model?: string) => openCreateDelegator(tool, model)
     ),
     vscode.commands.registerCommand(
       'operator.detectLlmTools',
@@ -489,9 +523,15 @@ async function startServer(): Promise<void> {
   }
 
   if (webhookServer.isRunning()) {
+    // Re-register session file if it was lost (fixes status showing "Stopped")
+    const ticketsDir = await findTicketsDir();
+    if (ticketsDir) {
+      await webhookServer.ensureSessionFile(ticketsDir);
+    }
     void vscode.window.showInformationMessage(
-      'Operator webhook server already running'
+      `Webhook connected on port ${webhookServer.getPort()}`
     );
+    await refreshAllProviders();
     return;
   }
 
@@ -516,6 +556,7 @@ async function startServer(): Promise<void> {
     }
 
     updateStatusBar();
+    await refreshAllProviders();
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     void vscode.window.showErrorMessage(`Failed to start webhook server: ${msg}`);
@@ -591,6 +632,7 @@ async function launchTicketCommand(treeItem?: TicketItem): Promise<void> {
   }
 
   await launchManager.launchTicket(ticket, {
+    delegator: null,
     model: 'sonnet',
     yoloMode: false,
     resumeSession: false,
@@ -696,6 +738,7 @@ async function launchTicketFromEditorCommand(): Promise<void> {
   // Launch via Operator API
   try {
     const response = await apiClient.launchTicket(metadata.id, {
+      delegator: null,
       provider: null,
       wrapper: 'vscode',
       model: 'sonnet',
@@ -783,6 +826,7 @@ async function launchTicketFromEditorWithOptionsCommand(): Promise<void> {
   // Launch via Operator API
   try {
     const response = await apiClient.launchTicket(metadata.id, {
+      delegator: options.delegator ?? null,
       provider: null,
       wrapper: 'vscode',
       model: options.model,
@@ -1243,6 +1287,51 @@ async function revealTicketsDirCommand(): Promise<void> {
 
   const uri = vscode.Uri.file(currentTicketsDir);
   await vscode.commands.executeCommand('revealFileInOS', uri);
+}
+
+/**
+ * Command: Show "Create New" menu
+ */
+async function showCreateMenu(): Promise<void> {
+  const choice = await vscode.window.showQuickPick(
+    [
+      { label: '$(rocket) New Delegator', detail: 'delegator', description: 'Create a tool+model pairing for autonomous launches' },
+      { label: '$(list-tree) New Issue Type', detail: 'issuetype', description: 'Define a custom issue type with steps' },
+      { label: '$(project) New Managed Project', detail: 'project', description: 'Assess and register a project' },
+    ],
+    {
+      title: 'Create New',
+      placeHolder: 'What would you like to create?',
+    }
+  );
+
+  if (!choice) { return; }
+
+  switch (choice.detail) {
+    case 'delegator':
+      openCreateDelegator();
+      break;
+    case 'issuetype':
+      ConfigPanel.createOrShow(extensionContext.extensionUri);
+      ConfigPanel.navigateTo('section-kanban', { action: 'createIssueType' });
+      break;
+    case 'project':
+      ConfigPanel.createOrShow(extensionContext.extensionUri);
+      ConfigPanel.navigateTo('section-projects');
+      break;
+  }
+}
+
+/**
+ * Command: Open delegator creation, optionally pre-filled with tool+model
+ */
+function openCreateDelegator(tool?: string, model?: string): void {
+  ConfigPanel.createOrShow(extensionContext.extensionUri);
+  ConfigPanel.navigateTo('section-agents', {
+    action: 'createDelegator',
+    tool,
+    model,
+  });
 }
 
 /**

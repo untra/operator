@@ -118,6 +118,8 @@ pub fn build_router(state: ApiState) -> Router {
         )
         // Skills endpoint
         .route("/api/v1/skills", get(routes::skills::list))
+        // LLM tools endpoint
+        .route("/api/v1/llm-tools", get(routes::llm_tools::list))
         // Delegator endpoints
         .route("/api/v1/delegators", get(routes::delegators::list))
         .route("/api/v1/delegators", post(routes::delegators::create))

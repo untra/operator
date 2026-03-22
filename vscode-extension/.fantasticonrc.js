@@ -1,6 +1,6 @@
 /** @type {import('fantasticon').RunnerOptions} */
 module.exports = {
-  inputDir: './images/icons',
+  inputDir: '../icons',
   outputDir: './images/icons/dist',
   name: 'operator-icons',
   fontTypes: ['woff'],

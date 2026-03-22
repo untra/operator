@@ -180,6 +180,7 @@ export class OperatorApiClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          delegator: options.delegator ?? null,
           provider: options.provider,
           model: options.model,
           yolo_mode: options.yolo_mode ?? false,

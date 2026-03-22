@@ -2,8 +2,7 @@
  * MCP connection logic for Operator VS Code extension.
  *
  * Discovers the local Operator API, fetches the MCP descriptor,
- * builds a vscode:// deep link, and opens it to register the
- * Operator MCP server in VS Code.
+ * and registers the Operator MCP server in VS Code workspace settings.
  */
 
 import * as vscode from 'vscode';
@@ -54,34 +53,21 @@ export async function fetchMcpDescriptor(
 }
 
 /**
- * Build a VS Code MCP deep link URI from an MCP descriptor.
- *
- * The deep link format is:
- *   vscode://modelcontextprotocol.mcp/connect?config=<base64-json>
- *
- * Where the JSON config contains:
- *   { name, type: "sse", url: transport_url }
+ * Check whether an MCP server named "operator" is already registered
+ * in VS Code workspace settings.
  */
-export function buildMcpDeepLink(
-  descriptor: McpDescriptorResponse
-): vscode.Uri {
-  const config = {
-    name: descriptor.server_name,
-    type: 'sse',
-    url: descriptor.transport_url,
-  };
-
-  const base64 = Buffer.from(JSON.stringify(config)).toString('base64');
-  return vscode.Uri.parse(
-    `vscode://modelcontextprotocol.mcp/connect?config=${base64}`
-  );
+export function isMcpServerRegistered(): boolean {
+  const mcpConfig = vscode.workspace.getConfiguration('mcp');
+  const servers = mcpConfig.get<Record<string, unknown>>('servers') || {};
+  return 'operator' in servers;
 }
 
 /**
  * Connect Operator as an MCP server in VS Code.
  *
  * Discovers the running API, fetches the MCP descriptor,
- * builds a deep link, and opens it.
+ * and writes the server config into VS Code workspace settings
+ * under the `mcp.servers` key.
  */
 export async function connectMcpServer(
   ticketsDir: string | undefined
@@ -101,15 +87,24 @@ export async function connectMcpServer(
       return;
     }
 
-    // 3. Build and open the deep link
-    const uri = buildMcpDeepLink(descriptor);
+    // 3. Write MCP server config to workspace settings
+    const mcpConfig = vscode.workspace.getConfiguration('mcp');
+    const servers = mcpConfig.get<Record<string, unknown>>('servers') || {};
 
-    const opened = await vscode.env.openExternal(uri);
-    if (!opened) {
-      void vscode.window.showErrorMessage(
-        'Failed to open MCP connection. VS Code may not support MCP deep links in this version.'
-      );
-    }
+    servers['operator'] = {
+      type: 'sse',
+      url: descriptor.transport_url,
+    };
+
+    await mcpConfig.update(
+      'servers',
+      servers,
+      vscode.ConfigurationTarget.Workspace
+    );
+
+    void vscode.window.showInformationMessage(
+      `Operator MCP server registered (${descriptor.transport_url})`
+    );
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Failed to connect MCP server';

@@ -6,8 +6,10 @@ use crate::agents::cmux::{CmuxClient, SystemCmuxClient};
 use crate::agents::tmux::{SystemTmuxClient, TmuxClient};
 use crate::agents::zellij::{SystemZellijClient, ZellijClient};
 use crate::agents::{LaunchOptions, Launcher};
+use crate::config::SessionWrapperType;
 use crate::state::State;
 use crate::ui::dashboard::FocusedPanel;
+use crate::ui::dialogs::SessionPlacementPreview;
 use crate::ui::with_suspended_tui;
 
 use super::{App, AppTerminal};
@@ -142,14 +144,17 @@ impl App {
         // Check if we can launch
         let state = State::load(&self.config)?;
         let running_count = state.running_agents().len();
+        let max = self.config.effective_max_agents();
 
-        if running_count >= self.config.effective_max_agents() {
-            // Could show an error dialog here
+        if running_count >= max {
+            self.dashboard.set_status(&format!(
+                "Cannot launch: {running_count}/{max} agents active"
+            ));
             return Ok(());
         }
 
         if self.dashboard.paused {
-            // Could show an error dialog here
+            self.dashboard.set_status("Cannot launch: queue is paused");
             return Ok(());
         }
 
@@ -157,7 +162,10 @@ impl App {
         if let Some(ticket) = self.dashboard.selected_ticket().cloned() {
             // Check if project is already busy
             if state.is_project_busy(&ticket.project) {
-                // Could show an error dialog here
+                self.dashboard.set_status(&format!(
+                    "Cannot launch: {} has an active agent",
+                    ticket.project
+                ));
                 return Ok(());
             }
 
@@ -168,6 +176,9 @@ impl App {
                 self.config.launch.docker.enabled,
                 self.config.launch.yolo.enabled,
             );
+
+            // Build session placement preview
+            self.confirm_dialog.session_preview = self.build_session_placement_preview();
 
             // Show confirmation
             self.confirm_dialog.show(ticket);
@@ -190,6 +201,8 @@ impl App {
 
             let options = LaunchOptions {
                 provider: self.confirm_dialog.selected_provider().cloned(),
+                delegator_name: None,
+                extra_flags: Vec::new(),
                 docker_mode: self.confirm_dialog.docker_selected,
                 yolo_mode: self.confirm_dialog.yolo_selected,
                 project_override,
@@ -257,12 +270,15 @@ impl App {
                         error = %e,
                         "Failed to focus cmux workspace"
                     );
+                    self.dashboard.set_status(&format!("Focus failed: {e}"));
                 }
             } else {
                 tracing::warn!(
                     session = %session_name,
                     "cmux agent has no workspace ref"
                 );
+                self.dashboard
+                    .set_status("Cannot focus: no cmux workspace ref");
             }
         } else if let Some("zellij") = session_wrapper.as_deref() {
             // For zellij agents, focus the tab (no TUI suspension needed)
@@ -325,6 +341,94 @@ impl App {
 
         // Refresh data after returning
         self.refresh_data()?;
+
+        Ok(())
+    }
+
+    /// Build a session placement preview for the launch confirmation dialog.
+    fn build_session_placement_preview(&self) -> Option<SessionPlacementPreview> {
+        match self.config.sessions.wrapper {
+            SessionWrapperType::Cmux => {
+                let cmux = SystemCmuxClient::from_config(&self.config.sessions.cmux);
+                if cmux.check_available().is_err() || cmux.check_in_cmux().is_err() {
+                    return Some(SessionPlacementPreview {
+                        wrapper_type: "cmux".to_string(),
+                        placement_description: "unavailable".to_string(),
+                        target_info: vec![],
+                    });
+                }
+
+                let window_count = cmux.window_count().unwrap_or(0);
+                let policy = &self.config.sessions.cmux.placement;
+                let placement_desc = match policy {
+                    crate::config::CmuxPlacementPolicy::Auto => {
+                        if window_count <= 1 {
+                            "auto -> same window".to_string()
+                        } else {
+                            "auto -> new window".to_string()
+                        }
+                    }
+                    crate::config::CmuxPlacementPolicy::Workspace => {
+                        "workspace (same window)".to_string()
+                    }
+                    crate::config::CmuxPlacementPolicy::Window => "new window".to_string(),
+                };
+
+                let mut target_info = vec![];
+                if let Ok(win_id) = cmux.active_window_id() {
+                    target_info.push(("window".to_string(), win_id));
+                }
+                target_info.push(("windows".to_string(), window_count.to_string()));
+
+                Some(SessionPlacementPreview {
+                    wrapper_type: "cmux".to_string(),
+                    placement_description: placement_desc,
+                    target_info,
+                })
+            }
+            SessionWrapperType::Tmux => Some(SessionPlacementPreview {
+                wrapper_type: "tmux".to_string(),
+                placement_description: "new session".to_string(),
+                target_info: vec![],
+            }),
+            SessionWrapperType::Zellij => Some(SessionPlacementPreview {
+                wrapper_type: "zellij".to_string(),
+                placement_description: "new tab".to_string(),
+                target_info: vec![],
+            }),
+            SessionWrapperType::Vscode => Some(SessionPlacementPreview {
+                wrapper_type: "vscode".to_string(),
+                placement_description: "terminal".to_string(),
+                target_info: vec![],
+            }),
+        }
+    }
+
+    /// Focus the cmux window containing the selected agent's workspace.
+    /// This is a cmux power-user action — other wrappers show a status message.
+    pub(super) fn focus_agent_window(&mut self) -> Result<()> {
+        let agent = self.dashboard.selected_agent().cloned();
+        let Some(agent) = agent else {
+            return Ok(());
+        };
+
+        if agent.session_wrapper.as_deref() != Some("cmux") {
+            self.dashboard
+                .set_status("F: cmux window focus — not a cmux agent");
+            return Ok(());
+        }
+
+        let Some(ref window_ref) = agent.session_window_ref else {
+            self.dashboard
+                .set_status("Cannot focus: no cmux window ref");
+            return Ok(());
+        };
+
+        let cmux = SystemCmuxClient::from_config(&self.config.sessions.cmux);
+        if let Err(e) = cmux.focus_window(window_ref) {
+            self.dashboard
+                .set_status(&format!("Failed to focus window: {e}"));
+        }
 
         Ok(())
     }

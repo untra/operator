@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'vscode-extension/**'
+      - 'icons/**'
       - '.github/workflows/vscode-extension.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'vscode-extension/**'
+      - 'icons/**'
   workflow_dispatch:
     inputs:
       publish:
@@ -41,7 +43,7 @@ jobs:
         run: npm run copy-types
 
       - name: Generate icon font
-        run: npm run generate:icons
+        run: mkdir -p images/icons/dist && npm run generate:icons
 
       - name: Lint
         run: npm run lint
@@ -183,7 +185,7 @@ jobs:
         run: npm ci
 
       - name: Generate icon font
-        run: npm run generate:icons
+        run: mkdir -p images/icons/dist && npm run generate:icons
 
       - name: Package platform-specific VSIX
         run: npx vsce package --target ${{ matrix.vscode_target }}

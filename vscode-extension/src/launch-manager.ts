@@ -135,8 +135,9 @@ export class LaunchManager {
     const response: LaunchTicketResponse = await apiClient.launchTicket(
       ticket.id,
       {
+        delegator: options.delegator ?? null,
         provider: null,
-        model: options.model,
+        model: options.delegator ? null : options.model,
         yolo_mode: options.yoloMode,
         wrapper: 'vscode',
         retry_reason: null,
@@ -186,12 +187,14 @@ export class LaunchManager {
 
     if (choice === 'Launch Fresh') {
       await this.launchTicket(ticket, {
+        delegator: null,
         model: 'sonnet',
         yoloMode: false,
         resumeSession: false,
       });
     } else if (choice === 'Resume Session') {
       await this.launchTicket(ticket, {
+        delegator: null,
         model: 'sonnet',
         yoloMode: false,
         resumeSession: true,

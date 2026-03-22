@@ -48,7 +48,7 @@ require_in_zellij = true
 When Operator launches a ticket:
 
 1. Checks that Zellij is available and Operator is running inside Zellij
-2. Creates a new tab named `op-{TICKET_ID}` with the project directory as the working directory
+2. Creates a new tab named `op:{PROJECT}:{TICKET_ID}` with the project directory as the working directory
 3. Sends the LLM agent command to the tab
 
 ### Focusing Agents
@@ -115,5 +115,5 @@ require_in_zellij = false
 ### Agent tab not appearing
 
 1. Check that you're running Operator inside a Zellij session
-2. Look at Zellij's tab bar for tabs prefixed with `op-`
+2. Look at Zellij's tab bar for tabs prefixed with `op:`
 3. Check Operator logs for zellij-related errors

@@ -3,16 +3,17 @@
 # Operator!
 [![GitHub Tag](https://img.shields.io/github/v/tag/untra/operator)](https://github.com/untra/operator/releases) [![codecov](https://codecov.io/gh/untra/operator/branch/main/graph/badge.svg)](https://codecov.io/gh/untra/operator) [![VS Code Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/untra.operator-terminals?label=VS%20Code%20Installs)](https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals)
 
+**Session** [![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=white)](https://operator.untra.io/getting-started/sessions/tmux/) [![cmux](https://img.shields.io/badge/cmux-333333)](https://operator.untra.io/getting-started/sessions/cmux/) [![Zellij](https://img.shields.io/badge/Zellij-E8590C)](https://operator.untra.io/getting-started/sessions/zellij/) [![VS Code](https://img.shields.io/badge/VS_Code-007ACC?logo=visualstudiocode&logoColor=white)](https://operator.untra.io/getting-started/sessions/vscode/) **|** **LLM Tool** [![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/agents/claude/) [![Codex](https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/agents/codex/) [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](https://operator.untra.io/getting-started/agents/gemini-cli/) **|** **Kanban Provider** [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) **|** **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/) [![GitLab](https://img.shields.io/badge/GitLab-FC6D26?logo=gitlab&logoColor=white)](https://operator.untra.io/getting-started/git/gitlab/)
 
 An orchestration tool for [**AI-assisted**](https://operator.untra.io/getting-started/agents/) [_kanban-shaped_](https://operator.untra.io/getting-started/kanban/) [git-versioned](https://operator.untra.io/getting-started/git/) software development.
 
 <a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank" class="button">Install <b>Operator! Terminals</b> extension from Visual Studio Code Marketplace</a>
 
-**Operator** is for you if: 
+**Operator** is for you if:
 
-- you do work assigned from tickets on a kanban board , such as [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/) or [_Linear_](https://operator.untra.io/getting-started/kanban/linear/)
-- you use llm assisted coding agent tools to accomplish work, such as [_Claude Code_](https://operator.untra.io/getting-started/agents/claude/), [_OpenAI Codex_](https://operator.untra.io/getting-started/agents/codex/)
-- your work is version controlled with git repository provider (like [_Github_](https://operator.untra.io/getting-started/git/github/))
+- you do work assigned from tickets on a kanban board, such as [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/) or [_Linear_](https://operator.untra.io/getting-started/kanban/linear/)
+- you use LLM assisted coding agent tools to accomplish work, such as [_Claude Code_](https://operator.untra.io/getting-started/agents/claude/), [_OpenAI Codex_](https://operator.untra.io/getting-started/agents/codex/), or [_Gemini CLI_](https://operator.untra.io/getting-started/agents/gemini-cli/)
+- your work is version controlled with a git repository provider like [_GitHub_](https://operator.untra.io/getting-started/git/github/) or [_GitLab_](https://operator.untra.io/getting-started/git/gitlab/)
 
 - you are drowning in the AI software development soup.
 
@@ -20,7 +21,7 @@ and you are ready to start seriously automating your work.
 
 ## Overview
 
-`operator` is a TUI (terminal user interface) application that uses [Tmux](https://github.com/tmux/tmux/wiki) to manages multiple Claude Code agents across multi-project workspaces of many codebases. It is designed to be ticket-first, starting claude code keyed off from markdown stories from a ticketing provider. It provides:
+`operator` is a TUI (terminal user interface) application that uses session wrappers ([tmux](https://operator.untra.io/getting-started/sessions/tmux/), [cmux](https://operator.untra.io/getting-started/sessions/cmux/), [Zellij](https://operator.untra.io/getting-started/sessions/zellij/), or [VS Code](https://operator.untra.io/getting-started/sessions/vscode/)) to manage multiple AI coding agents across multi-project workspaces of many codebases. It is designed to be ticket-first, starting claude code keyed off from markdown stories from a ticketing provider. It provides:
 
 - **Queue Management**: ticket queue with priority-based work assignment, launchable from a dashboard
 - **Agent Orchestration**: Launch, monitor, pause/resume Claude Desktop agents against kanban shaped work tickets, and track the ticket progress as it goes through your defined work implementation steps

@@ -216,6 +216,7 @@ suite('API Client Test Suite', () => {
       );
 
       const options: LaunchTicketRequest = {
+        delegator: null,
         provider: 'claude',
         model: 'sonnet',
         yolo_mode: true,
@@ -269,6 +270,7 @@ suite('API Client Test Suite', () => {
       );
 
       const options: LaunchTicketRequest = {
+        delegator: null,
         provider: null,
         model: null,
         yolo_mode: false,
@@ -297,6 +299,7 @@ suite('API Client Test Suite', () => {
       );
 
       const options: LaunchTicketRequest = {
+        delegator: null,
         provider: null,
         model: null,
         yolo_mode: false,
@@ -319,6 +322,7 @@ suite('API Client Test Suite', () => {
       );
 
       const options: LaunchTicketRequest = {
+        delegator: null,
         provider: null,
         model: null,
         yolo_mode: false,

@@ -7,6 +7,10 @@ use crate::config::LlmProvider;
 pub struct LaunchOptions {
     /// LLM provider to use (if None, use default)
     pub provider: Option<LlmProvider>,
+    /// Delegator name used for this launch (for state tracking and step-level switching)
+    pub delegator_name: Option<String>,
+    /// Additional CLI flags from delegator `launch_config`
+    pub extra_flags: Vec<String>,
     /// Run in docker container
     pub docker_mode: bool,
     /// Run in YOLO (auto-accept) mode

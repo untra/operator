@@ -2,7 +2,7 @@
   "name": "operator-terminals",
   "displayName": "Operator! Terminals for vscode",
   "description": "VS Code terminal integration for Operator! multi-agent orchestration",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "publisher": "untra",
   "author": {
     "name": "Samuel Volin",
@@ -182,7 +182,8 @@
       },
       {
         "command": "operator.selectWorkingDirectory",
-        "title": "Operator: Select Working Directory"
+        "title": "Operator: Select Working Directory",
+        "icon": "$(edit)"
       },
       {
         "command": "operator.checkKanbanConnection",
@@ -199,6 +200,26 @@
       {
         "command": "operator.startKanbanOnboarding",
         "title": "Operator: Configure Kanban Provider"
+      },
+      {
+        "command": "operator.startGitOnboarding",
+        "title": "Operator: Connect Git Provider"
+      },
+      {
+        "command": "operator.configureGitHub",
+        "title": "Operator: Connect GitHub"
+      },
+      {
+        "command": "operator.configureGitLab",
+        "title": "Operator: Connect GitLab"
+      },
+      {
+        "command": "operator.showCreateMenu",
+        "title": "Operator: Create New..."
+      },
+      {
+        "command": "operator.openCreateDelegator",
+        "title": "Operator: Create Delegator"
       },
       {
         "command": "operator.detectLlmTools",
@@ -261,6 +282,11 @@
         {
           "command": "operator.syncKanbanCollection",
           "when": "view == operator-status && viewItem == kanbanSyncConfig",
+          "group": "inline"
+        },
+        {
+          "command": "operator.selectWorkingDirectory",
+          "when": "view == operator-status && viewItem == workingDirConfigured",
           "group": "inline"
         }
       ],
@@ -347,41 +373,83 @@
         "description": "Atlassian (Jira) provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F105"
+          "fontCharacter": "\\F10D"
         }
       },
       "operator-linear": {
         "description": "Linear provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F101"
+          "fontCharacter": "\\F106"
         }
       },
       "operator-claude": {
         "description": "Claude LLM tool icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F104"
+          "fontCharacter": "\\F10C"
         }
       },
       "operator-codex": {
         "description": "Codex LLM tool icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F103"
+          "fontCharacter": "\\F10A"
         }
       },
       "operator-gemini": {
         "description": "Gemini LLM tool icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F102"
+          "fontCharacter": "\\F109"
+        }
+      },
+      "operator-github": {
+        "description": "GitHub provider icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F108"
+        }
+      },
+      "operator-gitlab": {
+        "description": "GitLab provider icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F107"
+        }
+      },
+      "operator-tmux": {
+        "description": "tmux session wrapper icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F104"
+        }
+      },
+      "operator-cmux": {
+        "description": "cmux session wrapper icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F10B"
+        }
+      },
+      "operator-zellij": {
+        "description": "Zellij session wrapper icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F101"
+        }
+      },
+      "operator-vscode": {
+        "description": "VS Code session wrapper icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F103"
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile && npm run compile:webview",
+    "vscode:prepublish": "npm run generate:icons && npm run compile && npm run compile:webview",
     "copy-types": "node scripts/copy-types.js",
     "compile": "npm run copy-types && tsc -p ./",
     "compile:webview": "webpack --config webpack.webview.config.js --mode production",
@@ -390,7 +458,7 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts && eslint webview-ui --ext ts,tsx",
     "test": "vscode-test",
-    "test:coverage": "npm run test",
+    "test:coverage": "c8 --reporter=lcov --reporter=text --report-dir=coverage vscode-test",
     "package": "vsce package",
     "publish": "vsce publish",
     "generate:icons": "fantasticon"

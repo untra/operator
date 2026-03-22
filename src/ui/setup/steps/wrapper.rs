@@ -578,7 +578,7 @@ impl SetupScreen {
         // Instructions
         let instructions = vec![
             Line::from(Span::styled(
-                "Zellij is a terminal workspace manager:",
+                "How Operator uses Zellij:",
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
@@ -586,15 +586,19 @@ impl SetupScreen {
             Line::from(""),
             Line::from(vec![
                 Span::styled("  - ", Style::default().fg(Color::Cyan)),
-                Span::raw("Agents run in Zellij panes"),
+                Span::raw("Agent launches open dedicated Zellij tabs"),
             ]),
             Line::from(vec![
                 Span::styled("  - ", Style::default().fg(Color::Cyan)),
-                Span::raw("Operator must be running inside Zellij"),
+                Span::raw("Press Enter on an agent to jump to its tab"),
             ]),
             Line::from(vec![
                 Span::styled("  - ", Style::default().fg(Color::Cyan)),
-                Span::raw("Each agent gets its own named pane"),
+                Span::raw("Press V to preview agent output without leaving the dashboard"),
+            ]),
+            Line::from(vec![
+                Span::styled("  - ", Style::default().fg(Color::Cyan)),
+                Span::raw("Tab names appear as op:<project>:<ticket> in your tab bar"),
             ]),
             Line::from(""),
             Line::from(Span::styled(

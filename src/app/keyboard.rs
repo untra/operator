@@ -331,8 +331,14 @@ impl App {
             KeyCode::Down | KeyCode::Char('j') => {
                 self.dashboard.select_next();
             }
-            KeyCode::Char('L' | 'l') => {
+            KeyCode::Char('L') => {
                 self.try_launch()?;
+            }
+            KeyCode::Char('h') | KeyCode::Left => {
+                self.dashboard.focus_prev();
+            }
+            KeyCode::Char('l') | KeyCode::Right => {
+                self.dashboard.focus_next();
             }
             KeyCode::Enter => {
                 // Enter key behavior depends on focused panel
@@ -439,6 +445,10 @@ impl App {
             KeyCode::Char('K') => {
                 // Open kanban providers view
                 self.show_kanban_view();
+            }
+            KeyCode::Char('F') => {
+                // Focus agent's cmux window (cmux power-user action)
+                self.focus_agent_window()?;
             }
             _ => {}
         }

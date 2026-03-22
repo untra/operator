@@ -2,7 +2,7 @@
 title: "GitLab"
 description: "Configure GitLab integration with Operator (Coming Soon)."
 layout: doc
-published: false
+published: true
 ---
 
 # GitLab

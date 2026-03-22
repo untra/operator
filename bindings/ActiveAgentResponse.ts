@@ -35,4 +35,20 @@ started_at: string,
 /**
  * Current workflow step
  */
-current_step: string | null, };
+current_step: string | null, 
+/**
+ * Which session wrapper is in use: "tmux", "vscode", "cmux", or "zellij"
+ */
+session_wrapper: string | null, 
+/**
+ * Session window reference ID (e.g. cmux window, tmux session)
+ */
+session_window_ref: string | null, 
+/**
+ * Session context reference (e.g. cmux workspace, zellij session)
+ */
+session_context_ref: string | null, 
+/**
+ * Session pane reference (e.g. cmux surface, zellij pane)
+ */
+session_pane_ref: string | null, };

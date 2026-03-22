@@ -256,12 +256,13 @@ impl App {
         }
 
         let kanban_sync_service = KanbanSyncService::new(&config);
+        let help_dialog = HelpDialog::new(config.sessions.wrapper);
 
         Ok(Self {
             config,
             dashboard,
             confirm_dialog: ConfirmDialog::new(),
-            help_dialog: HelpDialog::new(),
+            help_dialog,
             create_dialog,
             projects_dialog,
             setup_screen,
@@ -438,6 +439,9 @@ impl App {
                     self.update_notification_shown_at = None;
                 }
             }
+
+            // Auto-dismiss status messages after 5 seconds
+            self.dashboard.clear_expired_status();
         }
 
         // Terminal cleanup is handled by _terminal_guard drop

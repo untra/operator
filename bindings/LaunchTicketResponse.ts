@@ -37,6 +37,10 @@ session_wrapper: string | null,
  */
 session_window_ref: string | null, 
 /**
+ * Session context reference (e.g. cmux workspace, zellij session)
+ */
+session_context_ref: string | null, 
+/**
  * Session UUID for the LLM tool
  */
 session_id: string, 

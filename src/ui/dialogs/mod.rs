@@ -4,7 +4,9 @@ mod rejection;
 mod session_recovery;
 mod sync_confirm;
 
-pub use confirm::{ConfirmDialog, ConfirmDialogFocus, ConfirmSelection, SelectedOption};
+pub use confirm::{
+    ConfirmDialog, ConfirmDialogFocus, ConfirmSelection, SelectedOption, SessionPlacementPreview,
+};
 pub use help::HelpDialog;
 pub use rejection::{RejectionDialog, RejectionResult};
 pub use session_recovery::{SessionRecoveryDialog, SessionRecoverySelection};

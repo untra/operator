@@ -35,6 +35,9 @@ pub struct TemplateSchema {
     /// Prompt for generating this issue type's operator agent via `claude -p`
     #[serde(default)]
     pub agent_prompt: Option<String>,
+    /// Default delegator name for this issuetype (overridden by step.agent)
+    #[serde(default)]
+    pub agent: Option<String>,
 }
 
 fn default_true() -> bool {

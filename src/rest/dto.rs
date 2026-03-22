@@ -597,6 +597,18 @@ pub struct ActiveAgentResponse {
     /// Current workflow step
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_step: Option<String>,
+    /// Which session wrapper is in use: "tmux", "vscode", "cmux", or "zellij"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_wrapper: Option<String>,
+    /// Session window reference ID (e.g. cmux window, tmux session)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_window_ref: Option<String>,
+    /// Session context reference (e.g. cmux workspace, zellij session)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_context_ref: Option<String>,
+    /// Session pane reference (e.g. cmux surface, zellij pane)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_pane_ref: Option<String>,
 }
 
 /// Response for active agents list
@@ -617,10 +629,13 @@ pub struct ActiveAgentsResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct LaunchTicketRequest {
-    /// LLM provider to use (e.g., "claude")
+    /// Named delegator to use (takes precedence over provider/model)
+    #[serde(default)]
+    pub delegator: Option<String>,
+    /// LLM provider to use (e.g., "claude") — legacy fallback when no delegator
     #[serde(default)]
     pub provider: Option<String>,
-    /// Model to use (e.g., "sonnet", "opus")
+    /// Model to use (e.g., "sonnet", "opus") — legacy fallback when no delegator
     #[serde(default)]
     pub model: Option<String>,
     /// Run in YOLO mode (auto-accept all prompts)
@@ -659,6 +674,9 @@ pub struct LaunchTicketResponse {
     /// Session window reference ID (e.g. cmux window, tmux session)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_window_ref: Option<String>,
+    /// Session context reference (e.g. cmux workspace, zellij session)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_context_ref: Option<String>,
     /// Session UUID for the LLM tool
     pub session_id: String,
     /// Whether a worktree was created
@@ -1015,6 +1033,20 @@ pub struct DelegatorsResponse {
     pub total: usize,
 }
 
+// =============================================================================
+// LLM Tools DTOs
+// =============================================================================
+
+/// Response listing detected LLM tools
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct LlmToolsResponse {
+    /// Detected CLI tools with model aliases and capabilities
+    pub tools: Vec<crate::config::DetectedTool>,
+    /// Total count
+    pub total: usize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1153,6 +1185,7 @@ mod tests {
             tmux_session_name: "op-FEAT-001".to_string(),
             session_wrapper: Some("cmux".to_string()),
             session_window_ref: Some("win-1".to_string()),
+            session_context_ref: Some("ws-1".to_string()),
             session_id: "uuid-1".to_string(),
             worktree_created: false,
             branch: None,
@@ -1161,6 +1194,7 @@ mod tests {
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"session_wrapper\":\"cmux\""));
         assert!(json.contains("\"session_window_ref\":\"win-1\""));
+        assert!(json.contains("\"session_context_ref\":\"ws-1\""));
     }
 
     #[test]
@@ -1174,6 +1208,7 @@ mod tests {
             tmux_session_name: "op-FEAT-001".to_string(),
             session_wrapper: None,
             session_window_ref: None,
+            session_context_ref: None,
             session_id: "uuid-1".to_string(),
             worktree_created: false,
             branch: None,
@@ -1182,6 +1217,7 @@ mod tests {
         let json = serde_json::to_string(&resp).unwrap();
         assert!(!json.contains("session_wrapper"));
         assert!(!json.contains("session_window_ref"));
+        assert!(!json.contains("session_context_ref"));
     }
 
     #[test]

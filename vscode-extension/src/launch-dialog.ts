@@ -2,17 +2,96 @@
  * Launch dialogs for Operator VS Code extension
  *
  * QuickPick dialogs for selecting tickets and launch options.
+ * Prefers delegators fetched from the Operator API; falls back
+ * to hardcoded Claude models when the API is unavailable.
  */
 
 import * as vscode from 'vscode';
 import { LaunchOptions, TicketInfo, ModelOption } from './types';
+import type { DelegatorResponse } from './generated/DelegatorResponse';
+import type { DelegatorsResponse } from './generated/DelegatorsResponse';
+import { discoverApiUrl } from './api-client';
 
 interface TicketPickItem extends vscode.QuickPickItem {
   ticket: TicketInfo;
 }
 
-interface ModelPickItem extends vscode.QuickPickItem {
+interface DelegatorPickItem extends vscode.QuickPickItem {
+  delegatorName: string | undefined;
   model: ModelOption;
+}
+
+/**
+ * Fetch configured delegators from the Operator API.
+ * Returns an empty array if the API is unavailable.
+ */
+async function fetchDelegators(
+  ticketsDir: string | undefined
+): Promise<DelegatorResponse[]> {
+  try {
+    const apiUrl = await discoverApiUrl(ticketsDir);
+    const response = await fetch(`${apiUrl}/api/v1/delegators`);
+    if (response.ok) {
+      const data = (await response.json()) as DelegatorsResponse;
+      return data.delegators;
+    }
+  } catch {
+    // API not available
+  }
+  return [];
+}
+
+/**
+ * Build delegator QuickPick items from API response.
+ * Includes an "Auto" default and falls back to hardcoded models when empty.
+ */
+function buildDelegatorItems(
+  delegators: DelegatorResponse[]
+): DelegatorPickItem[] {
+  if (delegators.length === 0) {
+    // Fallback: hardcoded Claude models
+    return [
+      {
+        label: 'sonnet',
+        description: 'Claude Sonnet (recommended)',
+        delegatorName: undefined,
+        model: 'sonnet',
+      },
+      {
+        label: 'opus',
+        description: 'Claude Opus (most capable)',
+        delegatorName: undefined,
+        model: 'opus',
+      },
+      {
+        label: 'haiku',
+        description: 'Claude Haiku (fastest)',
+        delegatorName: undefined,
+        model: 'haiku',
+      },
+    ];
+  }
+
+  const items: DelegatorPickItem[] = [
+    {
+      label: '$(rocket) Auto',
+      description: 'Use default delegator',
+      delegatorName: undefined,
+      model: 'sonnet', // fallback model if backend resolution fails
+    },
+  ];
+
+  for (const d of delegators) {
+    const yoloFlag = d.launch_config?.yolo ? ' · yolo' : '';
+    items.push({
+      label: d.display_name || d.name,
+      description: `${d.llm_tool}:${d.model}${yoloFlag}`,
+      delegatorName: d.name,
+      model: d.model as ModelOption,
+    });
+  }
+
+  return items;
 }
 
 /**
@@ -20,33 +99,22 @@ interface ModelPickItem extends vscode.QuickPickItem {
  */
 export async function showLaunchOptionsDialog(
   ticket: TicketInfo,
-  hasExistingSession: boolean
+  hasExistingSession: boolean,
+  ticketsDir?: string
 ): Promise<LaunchOptions | undefined> {
-  // Model selection
-  const modelItems: ModelPickItem[] = [
-    {
-      label: 'sonnet',
-      description: 'Claude Sonnet (recommended)',
-      model: 'sonnet',
-    },
-    {
-      label: 'opus',
-      description: 'Claude Opus (most capable)',
-      model: 'opus',
-    },
-    {
-      label: 'haiku',
-      description: 'Claude Haiku (fastest)',
-      model: 'haiku',
-    },
-  ];
+  // Fetch delegators from API
+  const delegators = await fetchDelegators(ticketsDir);
+  const delegatorItems = buildDelegatorItems(delegators);
 
-  const modelChoice = await vscode.window.showQuickPick(modelItems, {
-    title: `Launch ${ticket.id}: Select Model`,
-    placeHolder: 'Choose the model to use',
+  const delegatorChoice = await vscode.window.showQuickPick(delegatorItems, {
+    title: `Launch ${ticket.id}: Select Delegator`,
+    placeHolder:
+      delegators.length > 0
+        ? 'Choose a delegator or use auto'
+        : 'Choose the model to use',
   });
 
-  if (!modelChoice) {
+  if (!delegatorChoice) {
     return undefined;
   }
 
@@ -80,7 +148,8 @@ export async function showLaunchOptionsDialog(
   const selectedLabels = optionChoices.map((c) => c.label);
 
   return {
-    model: modelChoice.model,
+    delegator: delegatorChoice.delegatorName ?? null,
+    model: delegatorChoice.model,
     yoloMode: selectedLabels.includes('YOLO Mode'),
     resumeSession: selectedLabels.includes('Resume Session'),
   };
@@ -115,31 +184,28 @@ export async function showTicketPicker(
 }
 
 /**
- * Show quick model picker (for fast launches)
+ * Show quick delegator picker (for fast launches)
  */
-export async function showQuickModelPicker(): Promise<ModelOption | undefined> {
-  const modelItems: ModelPickItem[] = [
-    {
-      label: '$(sparkle) Sonnet',
-      description: 'Recommended balance of speed and capability',
-      model: 'sonnet',
-    },
-    {
-      label: '$(star-full) Opus',
-      description: 'Most capable, slower',
-      model: 'opus',
-    },
-    {
-      label: '$(zap) Haiku',
-      description: 'Fastest, simpler tasks',
-      model: 'haiku',
-    },
-  ];
+export async function showQuickDelegatorPicker(
+  ticketsDir?: string
+): Promise<Pick<LaunchOptions, 'delegator' | 'model'> | undefined> {
+  const delegators = await fetchDelegators(ticketsDir);
+  const items = buildDelegatorItems(delegators);
 
-  const choice = await vscode.window.showQuickPick(modelItems, {
-    title: 'Select Model',
-    placeHolder: 'Choose model for launch',
+  const choice = await vscode.window.showQuickPick(items, {
+    title: 'Select Delegator',
+    placeHolder:
+      delegators.length > 0
+        ? 'Choose a delegator for launch'
+        : 'Choose model for launch',
   });
 
-  return choice?.model;
+  if (!choice) {
+    return undefined;
+  }
+
+  return {
+    delegator: choice.delegatorName ?? null,
+    model: choice.model,
+  };
 }

@@ -12,7 +12,7 @@ import { IssueTypeSummary } from './generated';
 /**
  * Default issue types used when API is unavailable
  */
-const DEFAULT_ISSUE_TYPES: IssueTypeSummary[] = [
+export const DEFAULT_ISSUE_TYPES: IssueTypeSummary[] = [
   {
     key: 'FEAT',
     name: 'Feature',
@@ -68,7 +68,7 @@ const DEFAULT_ISSUE_TYPES: IssueTypeSummary[] = [
 /**
  * Map glyph characters to VSCode ThemeIcon names
  */
-const GLYPH_TO_ICON: Record<string, string> = {
+export const GLYPH_TO_ICON: Record<string, string> = {
   '*': 'sparkle',
   '#': 'wrench',
   '>': 'tasklist',
@@ -87,7 +87,7 @@ const GLYPH_TO_ICON: Record<string, string> = {
 /**
  * Map color names to VSCode ThemeColor references
  */
-const COLOR_TO_THEME: Record<string, string> = {
+export const COLOR_TO_THEME: Record<string, string> = {
   cyan: 'terminal.ansiCyan',
   red: 'terminal.ansiRed',
   green: 'terminal.ansiGreen',

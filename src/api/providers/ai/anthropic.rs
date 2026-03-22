@@ -243,7 +243,7 @@ mod tests {
         let info = AnthropicProvider::parse_rate_limit_headers(&headers);
 
         assert_eq!(info.provider, "anthropic");
-        assert_eq!(info.tokens_limit, Some(100000));
+        assert_eq!(info.tokens_limit, Some(100_000));
         assert_eq!(info.tokens_remaining, Some(75000));
         assert_eq!(info.input_tokens_limit, Some(50000));
         assert_eq!(info.input_tokens_remaining, Some(40000));

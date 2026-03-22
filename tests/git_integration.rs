@@ -90,7 +90,7 @@ fn test_ticket_id() -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis();
-    format!("OPTEST-{}", timestamp % 100000)
+    format!("OPTEST-{}", timestamp % 100_000)
 }
 
 /// Get the path to the operator repository (current working directory)

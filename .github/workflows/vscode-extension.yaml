@@ -37,6 +37,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Copy generated types
+        run: npm run copy-types
+
+      - name: Generate icon font
+        run: npm run generate:icons
+
       - name: Lint
         run: npm run lint
 
@@ -175,6 +181,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Generate icon font
+        run: npm run generate:icons
 
       - name: Package platform-specific VSIX
         run: npx vsce package --target ${{ matrix.vscode_target }}

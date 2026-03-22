@@ -965,7 +965,7 @@ mod tests {
         std::fs::create_dir_all(&signal_dir).unwrap();
         let signal = HookSignal {
             event: "stop".to_string(),
-            timestamp: 1234567890,
+            timestamp: 1_234_567_890,
             session_id: agent_id.to_string(),
         };
         let signal_path = signal_dir.join(format!("{agent_id}.signal"));

@@ -292,6 +292,7 @@ mod tests {
     use crate::agents::tmux::MockTmuxClient;
     use crate::config::{Config, Delegator};
     use crate::templates::schema::{PermissionMode, ReviewType, StepSchema};
+    use std::collections::HashMap;
 
     fn make_step(agent: Option<&str>) -> StepSchema {
         StepSchema {
@@ -327,7 +328,7 @@ mod tests {
             llm_tool: tool.to_string(),
             model: model.to_string(),
             display_name: None,
-            model_properties: Default::default(),
+            model_properties: HashMap::default(),
             launch_config: None,
         }
     }

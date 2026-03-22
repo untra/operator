@@ -595,7 +595,7 @@ impl TicketSessionSync {
         };
 
         if !project_path.exists() {
-            anyhow::bail!("Project path does not exist: {project_path:?}");
+            anyhow::bail!("Project path does not exist: {}", project_path.display());
         }
 
         Ok(project_path)

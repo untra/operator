@@ -831,8 +831,9 @@ impl BackstageScaffold {
         let mut result = ScaffoldResult::new(self.output_dir.clone());
 
         // Create output directory
-        fs::create_dir_all(&self.output_dir)
-            .with_context(|| format!("Failed to create directory: {:?}", self.output_dir))?;
+        fs::create_dir_all(&self.output_dir).with_context(|| {
+            format!("Failed to create directory: {}", self.output_dir.display())
+        })?;
 
         for generator in self.generators() {
             // Check if this file should be created

@@ -157,7 +157,7 @@ fn generate_config_flags(
         .join("sessions")
         .join(&ticket.id);
     fs::create_dir_all(&session_dir)
-        .with_context(|| format!("Failed to create session dir: {session_dir:?}"))?;
+        .with_context(|| format!("Failed to create session dir: {}", session_dir.display()))?;
 
     // Generate config using translator
     let translator = TranslatorManager::new();
@@ -209,7 +209,10 @@ fn generate_config_flags(
                 let schema_str = serde_json::to_string_pretty(schema)
                     .context("Failed to serialize JSON schema")?;
                 fs::write(&schema_file_path, &schema_str).with_context(|| {
-                    format!("Failed to write JSON schema file: {schema_file_path:?}")
+                    format!(
+                        "Failed to write JSON schema file: {}",
+                        schema_file_path.display()
+                    )
                 })?;
                 cli_flags.push("--json-schema".to_string());
                 cli_flags.push(schema_file_path.to_string_lossy().to_string());
@@ -228,7 +231,7 @@ fn generate_config_flags(
                 };
                 // Verify schema file exists, then pass the path (not content)
                 if !schema_path.exists() {
-                    anyhow::bail!("JSON schema file not found: {schema_path:?}");
+                    anyhow::bail!("JSON schema file not found: {}", schema_path.display());
                 }
                 cli_flags.push("--json-schema".to_string());
                 cli_flags.push(schema_path.to_string_lossy().to_string());

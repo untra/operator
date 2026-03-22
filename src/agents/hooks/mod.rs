@@ -226,7 +226,7 @@ mod tests {
         let signal = signal.unwrap();
         assert_eq!(signal.event, "stop");
         assert_eq!(signal.session_id, "test-session");
-        assert_eq!(signal.timestamp, 1234567890);
+        assert_eq!(signal.timestamp, 1_234_567_890);
     }
 
     #[test]

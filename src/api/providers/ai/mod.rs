@@ -155,12 +155,12 @@ mod tests {
     #[test]
     fn test_rate_limit_info_summary() {
         let mut info = RateLimitInfo::new("anthropic");
-        info.input_tokens_limit = Some(100000);
+        info.input_tokens_limit = Some(100_000);
         info.input_tokens_remaining = Some(87000);
         assert_eq!(info.summary(), "87% input");
 
         let mut info = RateLimitInfo::new("openai");
-        info.tokens_limit = Some(100000);
+        info.tokens_limit = Some(100_000);
         info.tokens_remaining = Some(45000);
         assert_eq!(info.summary(), "45% tokens");
 
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_is_below_threshold() {
         let mut info = RateLimitInfo::new("anthropic");
-        info.input_tokens_limit = Some(100000);
+        info.input_tokens_limit = Some(100_000);
         info.input_tokens_remaining = Some(15000); // 15%
 
         assert!(info.is_below_threshold(0.2)); // Below 20%

@@ -122,8 +122,6 @@ similar_names = "allow"
 struct_field_names = "allow"
 # String building in TUI renderers
 format_push_string = "allow"
-# Debug formatting is intentional for error messages
-unnecessary_debug_formatting = "allow"
 # Many functions wrap for future error paths
 unnecessary_wraps = "allow"
 # Common in async code stubs
@@ -146,8 +144,6 @@ ref_option = "allow"
 fn_params_excessive_bools = "allow"
 # HashMap without explicit hasher is fine for non-perf-critical code
 implicit_hasher = "allow"
-# lazy_static migration tracked separately
-non_std_lazy_statics = "allow"
 # map_or readability is subjective
 map_unwrap_or = "allow"
 # for_each vs for loop is stylistic

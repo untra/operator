@@ -252,14 +252,14 @@ mod tests {
     #[test]
     fn test_rate_limit_info_summary() {
         let info = RateLimitInfo {
-            input_tokens_limit: Some(100000),
+            input_tokens_limit: Some(100_000),
             input_tokens_remaining: Some(87000),
             ..Default::default()
         };
         assert_eq!(info.summary(), "87% input");
 
         let info = RateLimitInfo {
-            tokens_limit: Some(100000),
+            tokens_limit: Some(100_000),
             tokens_remaining: Some(45000),
             ..Default::default()
         };
@@ -275,7 +275,7 @@ mod tests {
     #[test]
     fn test_is_below_threshold() {
         let info = RateLimitInfo {
-            input_tokens_limit: Some(100000),
+            input_tokens_limit: Some(100_000),
             input_tokens_remaining: Some(15000), // 15%
             ..Default::default()
         };
@@ -286,7 +286,7 @@ mod tests {
     #[test]
     fn test_tokens_remaining_pct() {
         let info = RateLimitInfo {
-            tokens_limit: Some(100000),
+            tokens_limit: Some(100_000),
             tokens_remaining: Some(50000),
             ..Default::default()
         };

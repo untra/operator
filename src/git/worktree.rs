@@ -15,10 +15,8 @@ use tokio::sync::Mutex;
 use tracing::{debug, info, instrument, warn};
 
 // Global locks for worktree creation (prevent race conditions)
-lazy_static::lazy_static! {
-    static ref WORKTREE_CREATION_LOCKS: Mutex<HashMap<PathBuf, Arc<Mutex<()>>>> =
-        Mutex::new(HashMap::new());
-}
+static WORKTREE_CREATION_LOCKS: std::sync::LazyLock<Mutex<HashMap<PathBuf, Arc<Mutex<()>>>>> =
+    std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Get or create a lock for a specific path
 async fn get_path_lock(path: &Path) -> Arc<Mutex<()>> {

@@ -356,14 +356,14 @@ mod tests {
         dialog.collections = vec![
             CollectionInfo {
                 name: "a".to_string(),
-                description: "".to_string(),
+                description: String::new(),
                 type_count: 1,
                 is_builtin: true,
                 sync_source: None,
             },
             CollectionInfo {
                 name: "b".to_string(),
-                description: "".to_string(),
+                description: String::new(),
                 type_count: 2,
                 is_builtin: false,
                 sync_source: None,
@@ -390,7 +390,7 @@ mod tests {
         let mut dialog = CollectionSwitchDialog::new();
         dialog.collections = vec![CollectionInfo {
             name: "test".to_string(),
-            description: "".to_string(),
+            description: String::new(),
             type_count: 1,
             is_builtin: false,
             sync_source: None,
@@ -412,7 +412,7 @@ mod tests {
         let mut dialog = CollectionSwitchDialog::new();
         dialog.collections = vec![CollectionInfo {
             name: "test".to_string(),
-            description: "".to_string(),
+            description: String::new(),
             type_count: 1,
             is_builtin: false,
             sync_source: None,

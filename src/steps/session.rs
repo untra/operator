@@ -304,14 +304,14 @@ mod tests {
         // Create a temp file for the ticket
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir.path().join("20241221-1430-FEAT-gamesvc-test.md");
-        let content = r#"---
+        let content = r"---
 id: FEAT-1234
 status: queued
 step: plan
 ---
 
 # Feature: Test feature
-"#;
+";
         std::fs::write(&ticket_path, content).unwrap();
 
         let mut ticket = crate::queue::Ticket::from_file(&ticket_path).unwrap();

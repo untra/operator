@@ -50,7 +50,7 @@ macro_rules! skip_if_not_configured {
     };
 }
 
-/// Create a LaunchTestContext with vscode config
+/// Create a `LaunchTestContext` with vscode config
 fn setup_vscode_test(test_name: &str) -> (LaunchTestContext, Config) {
     let ctx = LaunchTestContext::new_with_sessions_toml(
         test_name,
@@ -69,7 +69,7 @@ fn load_ticket_from_queue(ctx: &LaunchTestContext) -> Ticket {
     let queue_dir = ctx.tickets_path.join("queue");
     let ticket_file = std::fs::read_dir(&queue_dir)
         .unwrap()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .find(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
         .expect("Should have a ticket file");
     Ticket::from_file(&ticket_file.path()).expect("Should parse ticket")
@@ -96,7 +96,7 @@ async fn test_vscode_prepare_launch_returns_prepared_launch() {
 
     let (ctx, config) = setup_vscode_test("prepare_launch");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-V01
 priority: P2-medium
 status: queued
@@ -106,7 +106,7 @@ status: queued
 
 ## Context
 This is a test task to verify the prepare_launch path for VS Code.
-"#;
+";
     ctx.create_ticket("TASK", "TASK-V01", ticket_content);
 
     let launcher = Launcher::new(&config).expect("Failed to create launcher");
@@ -132,10 +132,7 @@ This is a test task to verify the prepare_launch path for VS Code.
     );
 
     // Verify command is not empty
-    assert!(
-        !prepared.command.is_empty(),
-        "Command should not be empty"
-    );
+    assert!(!prepared.command.is_empty(), "Command should not be empty");
 
     // Verify session ID is a valid UUID
     assert!(
@@ -151,10 +148,7 @@ This is a test task to verify the prepare_launch path for VS Code.
     );
 
     // Verify ticket ID matches
-    assert_eq!(
-        prepared.ticket_id, "TASK-V01",
-        "Ticket ID should match"
-    );
+    assert_eq!(prepared.ticket_id, "TASK-V01", "Ticket ID should match");
 
     // Verify working directory contains testproject
     assert!(
@@ -173,7 +167,7 @@ async fn test_vscode_prepare_launch_writes_prompt_file() {
 
     let (ctx, config) = setup_vscode_test("prompt_file");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-V02
 priority: P2-medium
 status: queued
@@ -183,7 +177,7 @@ status: queued
 
 ## Context
 VSCODE_PROMPT_MARKER_88888
-"#;
+";
     ctx.create_ticket("TASK", "TASK-V02", ticket_content);
 
     let launcher = Launcher::new(&config).expect("Failed to create launcher");
@@ -201,8 +195,7 @@ VSCODE_PROMPT_MARKER_88888
         .any(|p| p.contains("TASK-V02") || p.contains("task_v02"));
     assert!(
         has_reference,
-        "Prompt file should reference ticket. Prompts: {:?}",
-        prompts
+        "Prompt file should reference ticket. Prompts: {prompts:?}"
     );
 }
 
@@ -212,14 +205,14 @@ async fn test_vscode_prepare_launch_moves_ticket() {
 
     let (ctx, config) = setup_vscode_test("ticket_state");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-V03
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test VS Code ticket state transition
-"#;
+";
     ctx.create_ticket("TASK", "TASK-V03", ticket_content);
 
     let launcher = Launcher::new(&config).expect("Failed to create launcher");
@@ -241,14 +234,14 @@ async fn test_vscode_prepare_launch_command_contains_mock_llm() {
 
     let (ctx, config) = setup_vscode_test("command_content");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-V04
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test VS Code command content
-"#;
+";
     ctx.create_ticket("TASK", "TASK-V04", ticket_content);
 
     let launcher = Launcher::new(&config).expect("Failed to create launcher");

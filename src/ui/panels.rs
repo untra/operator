@@ -654,8 +654,7 @@ mod tests {
         // Should NOT have the duplicated type prefix
         assert!(
             !display_id.starts_with("FEAT-FEAT"),
-            "Display ID should not have duplicated prefix, got: {}",
-            display_id
+            "Display ID should not have duplicated prefix, got: {display_id}"
         );
         assert_eq!(display_id, "FEAT-7598");
     }
@@ -675,8 +674,7 @@ mod tests {
             let result = format_display_id(input);
             assert_eq!(
                 result, expected,
-                "format_display_id({}) should return {}, got {}",
-                input, expected, result
+                "format_display_id({input}) should return {expected}, got {result}"
             );
         }
     }

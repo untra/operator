@@ -190,7 +190,7 @@ mod tests {
         let template = "ID: {{ id }}\nContext: {{ context }}";
         let mut values = HashMap::new();
         values.insert("id".to_string(), "FIX-5678".to_string());
-        values.insert("context".to_string(), "".to_string());
+        values.insert("context".to_string(), String::new());
 
         let result = render_template(template, &values).unwrap();
 
@@ -268,17 +268,17 @@ mod tests {
     #[test]
     fn test_step_omitted_when_empty() {
         // Step should be omitted from frontmatter when empty/falsey
-        let template = r#"---
+        let template = r"---
 id: {{ id }}
 {{#if step }}step: {{ step }}
 {{/if}}status: {{ status }}
 ---
 
 # Feature: {{ summary }}
-"#;
+";
         let mut values = HashMap::new();
         values.insert("id".to_string(), "FEAT-1234".to_string());
-        values.insert("step".to_string(), "".to_string()); // Empty step
+        values.insert("step".to_string(), String::new()); // Empty step
         values.insert("status".to_string(), "queued".to_string());
         values.insert("summary".to_string(), "Test feature".to_string());
 
@@ -296,14 +296,14 @@ id: {{ id }}
     #[test]
     fn test_step_included_when_present() {
         // Step should be included when it has a value
-        let template = r#"---
+        let template = r"---
 id: {{ id }}
 {{#if step }}step: {{ step }}
 {{/if}}status: {{ status }}
 ---
 
 # Feature: {{ summary }}
-"#;
+";
         let mut values = HashMap::new();
         values.insert("id".to_string(), "FEAT-1234".to_string());
         values.insert("step".to_string(), "plan".to_string()); // Non-empty step
@@ -327,17 +327,17 @@ id: {{ id }}
         // and empty step values should be omitted
 
         // Using the fixed feature.md template pattern
-        let template = r#"---
+        let template = r"---
 id: {{ id }}
 {{#if step }}step: {{ step }}
 {{/if}}status: {{ status }}
 ---
 
 # Feature: {{ summary }}
-"#;
+";
         let mut values = HashMap::new();
         values.insert("id".to_string(), "FEAT-1234".to_string());
-        values.insert("step".to_string(), "".to_string()); // Empty step
+        values.insert("step".to_string(), String::new()); // Empty step
         values.insert("status".to_string(), "queued".to_string());
         values.insert("summary".to_string(), "Test feature".to_string());
 

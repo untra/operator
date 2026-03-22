@@ -311,8 +311,7 @@ mod tests {
 
         assert!(
             result.contains("claude --dangerously-skip-permissions --model"),
-            "YOLO flag should be inserted after tool name, got: {}",
-            result
+            "YOLO flag should be inserted after tool name, got: {result}"
         );
     }
 
@@ -330,8 +329,7 @@ mod tests {
 
         assert!(
             result.contains("--dangerously-skip-permissions --no-confirm"),
-            "Multiple YOLO flags should be joined with spaces, got: {}",
-            result
+            "Multiple YOLO flags should be joined with spaces, got: {result}"
         );
     }
 
@@ -407,8 +405,7 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("-v /home/user/project:/workspace:rw"),
-            "Should mount project path with :rw, got: {}",
-            cmd
+            "Should mount project path with :rw, got: {cmd}"
         );
     }
 
@@ -423,8 +420,7 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("-w /workspace"),
-            "Should set working dir to mount path, got: {}",
-            cmd
+            "Should set working dir to mount path, got: {cmd}"
         );
     }
 
@@ -441,13 +437,11 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("-e ANTHROPIC_API_KEY"),
-            "Should pass first env var, got: {}",
-            cmd
+            "Should pass first env var, got: {cmd}"
         );
         assert!(
             cmd.contains("-e HOME=/root"),
-            "Should pass second env var, got: {}",
-            cmd
+            "Should pass second env var, got: {cmd}"
         );
     }
 
@@ -476,8 +470,7 @@ mod tests {
         let err = result.unwrap_err().to_string();
         assert!(
             err.contains("no image is configured"),
-            "Error should mention missing image, got: {}",
-            err
+            "Error should mention missing image, got: {err}"
         );
     }
 
@@ -492,8 +485,7 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("sh -c claude --model sonnet"),
-            "Should wrap inner command with sh -c, got: {}",
-            cmd
+            "Should wrap inner command with sh -c, got: {cmd}"
         );
     }
 
@@ -572,8 +564,7 @@ mod tests {
         let err = result.unwrap_err().to_string();
         assert!(
             err.contains("not detected"),
-            "Error should mention tool not detected, got: {}",
-            err
+            "Error should mention tool not detected, got: {err}"
         );
     }
 
@@ -596,18 +587,15 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("--model opus"),
-            "Should interpolate model, got: {}",
-            cmd
+            "Should interpolate model, got: {cmd}"
         );
         assert!(
             cmd.contains("--session-id sess-abc"),
-            "Should interpolate session_id, got: {}",
-            cmd
+            "Should interpolate session_id, got: {cmd}"
         );
         assert!(
             cmd.contains("/tmp/prompt.md"),
-            "Should interpolate prompt_file, got: {}",
-            cmd
+            "Should interpolate prompt_file, got: {cmd}"
         );
     }
 
@@ -631,8 +619,7 @@ mod tests {
         // When no ticket, config_flags should be empty, so command starts with "claude --model"
         assert!(
             cmd.starts_with("claude --model"),
-            "Should have empty config_flags when no ticket, got: {}",
-            cmd
+            "Should have empty config_flags when no ticket, got: {cmd}"
         );
     }
 
@@ -656,8 +643,7 @@ mod tests {
         // Model flag should have trailing space per the code
         assert!(
             cmd.contains("--model haiku "),
-            "Model flag should have trailing space, got: {}",
-            cmd
+            "Model flag should have trailing space, got: {cmd}"
         );
     }
 
@@ -988,10 +974,10 @@ mod tests {
 
             assert!(path_str.contains("schema.json"));
             assert!(path_str.contains("sessions"));
-            assert!(!path_str.contains("{")); // No JSON content
+            assert!(!path_str.contains('{')); // No JSON content
         }
 
-        /// Test that json_schema_file path existence check works
+        /// Test that `json_schema_file` path existence check works
         #[test]
         #[ignore = "JSON schema flag temporarily disabled - see JSON_SCHEMA_ENABLED"]
         fn test_schema_file_path_exists_check() {
@@ -1038,8 +1024,8 @@ mod tests {
             // Verify the path is simple and safe for shell
             let path_str = schema_path.to_string_lossy().to_string();
             assert!(!path_str.contains('\n'));
-            assert!(!path_str.contains("\""));
-            assert!(!path_str.contains("'"));
+            assert!(!path_str.contains('"'));
+            assert!(!path_str.contains('\''));
 
             // Verify content is preserved
             let content = std::fs::read_to_string(&schema_path).unwrap();

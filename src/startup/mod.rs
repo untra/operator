@@ -160,7 +160,7 @@ mod tests {
     fn test_step_names_are_unique() {
         let names: Vec<&str> = SETUP_STEPS.iter().map(|s| s.name).collect();
         let mut unique_names = names.clone();
-        unique_names.sort();
+        unique_names.sort_unstable();
         unique_names.dedup();
         assert_eq!(
             names.len(),

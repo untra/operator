@@ -781,12 +781,12 @@ mod tests {
     #[test]
     fn test_extract_summary_from_feature_header() {
         // Summary should be extracted from "# Feature: X" format
-        let content = r#"
+        let content = r"
 # Feature: Add user authentication
 
 ## Context
 This is the context.
-"#;
+";
         let summary = extract_summary(content);
         assert_eq!(summary, "Add user authentication");
     }
@@ -794,48 +794,48 @@ This is the context.
     #[test]
     fn test_extract_summary_from_fix_header() {
         // Summary should be extracted from "# Fix: X" format
-        let content = r#"
+        let content = r"
 # Fix: Resolve login timeout issue
 
 ## Context
 Users are experiencing timeouts.
-"#;
+";
         let summary = extract_summary(content);
         assert_eq!(summary, "Resolve login timeout issue");
     }
 
     #[test]
     fn test_extract_summary_from_spike_header() {
-        let content = r#"
+        let content = r"
 # Spike: Investigate caching strategies
 
 ## Context
 Need to explore caching options.
-"#;
+";
         let summary = extract_summary(content);
         assert_eq!(summary, "Investigate caching strategies");
     }
 
     #[test]
     fn test_extract_summary_from_investigation_header() {
-        let content = r#"
+        let content = r"
 # Investigation: Database connection failures
 
 ## Observed Behavior
 Connections are dropping.
-"#;
+";
         let summary = extract_summary(content);
         assert_eq!(summary, "Database connection failures");
     }
 
     #[test]
     fn test_extract_summary_from_task_header() {
-        let content = r#"
+        let content = r"
 # Task: Update dependencies
 
 ## Context
 Routine maintenance.
-"#;
+";
         let summary = extract_summary(content);
         assert_eq!(summary, "Update dependencies");
     }
@@ -843,13 +843,13 @@ Routine maintenance.
     #[test]
     fn test_extract_summary_from_summary_section() {
         // Legacy format with ## Summary section should still work
-        let content = r#"
+        let content = r"
 ## Summary
 This is the summary text.
 
 ## Details
 More details here.
-"#;
+";
         let summary = extract_summary(content);
         assert_eq!(summary, "This is the summary text.");
     }
@@ -857,9 +857,9 @@ More details here.
     #[test]
     fn test_extract_summary_fallback_to_first_line() {
         // When no recognized format, should fall back to first non-header line
-        let content = r#"
+        let content = r"
 This is just some text without headers.
-"#;
+";
         let summary = extract_summary(content);
         assert_eq!(summary, "This is just some text without headers.");
     }
@@ -874,33 +874,32 @@ This is just some text without headers.
     #[test]
     fn test_extract_frontmatter_with_empty_step() {
         // Frontmatter with empty step should return empty string
-        let content = r#"---
+        let content = r"---
 id: FEAT-1234
 step:
 status: queued
 ---
 
 # Feature: Test feature
-"#;
+";
         let (frontmatter, _sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
         let step = frontmatter.get("step").cloned().unwrap_or_default();
         assert!(
             step.is_empty(),
-            "Empty step should be empty string, got: '{}'",
-            step
+            "Empty step should be empty string, got: '{step}'"
         );
     }
 
     #[test]
     fn test_extract_frontmatter_without_step() {
         // Frontmatter without step field should be handled gracefully
-        let content = r#"---
+        let content = r"---
 id: FEAT-1234
 status: queued
 ---
 
 # Feature: Test feature
-"#;
+";
         let (frontmatter, _sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
         let step = frontmatter.get("step").cloned().unwrap_or_default();
         assert!(
@@ -913,14 +912,14 @@ status: queued
     fn test_ticket_id_does_not_duplicate_type() {
         // The ticket.id field should be the full ID like "FEAT-1234"
         // and should NOT be duplicated when displayed
-        let content = r#"---
+        let content = r"---
 id: FEAT-7598
 status: queued
 project: operator
 ---
 
 # Feature: Test summary
-"#;
+";
 
         // Create temp file for testing
         let temp_dir = tempfile::tempdir().unwrap();
@@ -947,7 +946,7 @@ project: operator
     #[test]
     fn test_sessions_frontmatter_parsing() {
         // Frontmatter with sessions should parse correctly
-        let content = r#"---
+        let content = r"---
 id: FEAT-1234
 status: running
 step: implement
@@ -957,7 +956,7 @@ sessions:
 ---
 
 # Feature: Test feature
-"#;
+";
         let (frontmatter, sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
         assert_eq!(frontmatter.get("id").unwrap(), "FEAT-1234");
         assert_eq!(sessions.len(), 2);
@@ -973,20 +972,20 @@ sessions:
 
     #[test]
     fn test_sessions_empty_when_not_present() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-1234
 status: queued
 ---
 
 # Feature: Test feature
-"#;
+";
         let (_frontmatter, sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
         assert!(sessions.is_empty());
     }
 
     #[test]
     fn test_ticket_from_file_with_sessions() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-5678
 status: running
 step: implement
@@ -996,7 +995,7 @@ sessions:
 ---
 
 # Feature: Test with sessions
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
         std::fs::write(&ticket_path, content).unwrap();
@@ -1016,14 +1015,14 @@ sessions:
 
     #[test]
     fn test_set_session_id() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-9999
 status: queued
 step: plan
 ---
 
 # Feature: Test set session
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
         std::fs::write(&ticket_path, content).unwrap();
@@ -1044,14 +1043,14 @@ step: plan
 
     #[test]
     fn test_set_multiple_session_ids() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-8888
 status: queued
 step: plan
 ---
 
 # Feature: Test multiple sessions
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
         std::fs::write(&ticket_path, content).unwrap();
@@ -1083,7 +1082,7 @@ step: plan
     #[test]
     fn test_llm_task_frontmatter_parsing() {
         // Frontmatter with llm_task should parse correctly
-        let content = r#"---
+        let content = r"---
 id: FEAT-1234
 status: running
 step: implement
@@ -1096,7 +1095,7 @@ llm_task:
 ---
 
 # Feature: Test feature
-"#;
+";
         let (_frontmatter, _sessions, llm_task, _body) = extract_frontmatter(content).unwrap();
         assert_eq!(
             llm_task.id,
@@ -1110,20 +1109,20 @@ llm_task:
 
     #[test]
     fn test_llm_task_empty_when_not_present() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-1234
 status: queued
 ---
 
 # Feature: Test feature
-"#;
+";
         let (_frontmatter, _sessions, llm_task, _body) = extract_frontmatter(content).unwrap();
         assert_eq!(llm_task, LlmTask::default());
     }
 
     #[test]
     fn test_ticket_from_file_with_llm_task() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-5678
 status: running
 step: implement
@@ -1133,7 +1132,7 @@ llm_task:
 ---
 
 # Feature: Test with LLM task
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
         std::fs::write(&ticket_path, content).unwrap();
@@ -1147,14 +1146,14 @@ llm_task:
 
     #[test]
     fn test_set_llm_task_id() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-9999
 status: queued
 step: plan
 ---
 
 # Feature: Test set LLM task
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
         std::fs::write(&ticket_path, content).unwrap();
@@ -1175,14 +1174,14 @@ step: plan
 
     #[test]
     fn test_set_llm_task_status() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-7777
 status: queued
 step: plan
 ---
 
 # Feature: Test set LLM task status
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
         std::fs::write(&ticket_path, content).unwrap();
@@ -1202,14 +1201,14 @@ step: plan
 
     #[test]
     fn test_set_llm_task_blocked_by() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-6666
 status: queued
 step: plan
 ---
 
 # Feature: Test set LLM task blocked_by
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir.path().join("20241221-1430-FEAT-operator-test.md");
         std::fs::write(&ticket_path, content).unwrap();
@@ -1231,14 +1230,14 @@ step: plan
     #[test]
     fn test_advance_step_returns_switch_agent() {
         // FEAT "build" step has next_step "code", and "code" has agent: "claude-opus"
-        let content = r#"---
+        let content = r"---
 id: FEAT-2001
 status: running
 step: build
 ---
 
 # Feature: Test advance with agent switch
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir
             .path()
@@ -1261,14 +1260,14 @@ step: build
     #[test]
     fn test_advance_step_no_switch_agent() {
         // FEAT "plan" step has next_step "build", and "build" has no agent override
-        let content = r#"---
+        let content = r"---
 id: FEAT-2002
 status: running
 step: plan
 ---
 
 # Feature: Test advance without agent switch
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir
             .path()
@@ -1291,14 +1290,14 @@ step: plan
     #[test]
     fn test_advance_step_final() {
         // FEAT "deploy" is the last step (no next_step)
-        let content = r#"---
+        let content = r"---
 id: FEAT-2003
 status: running
 step: deploy
 ---
 
 # Feature: Test advance from final step
-"#;
+";
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir
             .path()

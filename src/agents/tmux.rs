@@ -1938,7 +1938,7 @@ mod tests {
         // Create a 3.5KB command - exceeds both send-keys limit (~2KB) and typical CLI arg limits
         // This verifies that the buffer method can handle content that would fail with CLI args
         let long_content = "a".repeat(3500);
-        let long_cmd = format!("echo '{}'", long_content);
+        let long_cmd = format!("echo '{long_content}'");
         assert!(long_cmd.len() > 3500, "Command should be >3.5KB");
 
         client

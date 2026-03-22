@@ -441,9 +441,7 @@ mod tests {
             assert_eq!(
                 event.event_type(),
                 expected_type,
-                "Event {:?} should have type '{}'",
-                event,
-                expected_type
+                "Event {event:?} should have type '{expected_type}'"
             );
         }
     }

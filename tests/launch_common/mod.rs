@@ -124,15 +124,14 @@ impl LaunchTestContext {
         // Generate wrapper-specific sessions config
         let sessions_config = match mode {
             WrapperTestMode::Tmux => String::new(), // default is tmux, no [sessions] needed
-            WrapperTestMode::Zellij => format!(
-                r#"
+            WrapperTestMode::Zellij => r#"
 [sessions]
 wrapper = "zellij"
 
 [sessions.zellij]
 require_in_zellij = false
 "#
-            ),
+            .to_string(),
             WrapperTestMode::Cmux => format!(
                 r#"
 [sessions]
@@ -316,16 +315,13 @@ config_generated = false
         let timestamp = chrono::Local::now().format("%Y%m%d-%H%M").to_string();
         // Use "testproject" (no hyphen) to match the project directory
         let description = ticket_id.to_lowercase().replace('-', "_");
-        let filename = format!(
-            "{}-{}-testproject-{}.md",
-            timestamp, ticket_type, description
-        );
+        let filename = format!("{timestamp}-{ticket_type}-testproject-{description}.md");
         let path = self.tickets_path.join("queue").join(&filename);
         fs::write(&path, content).unwrap();
         path
     }
 
-    /// Create a DEFINITION_OF_DONE.md template file
+    /// Create a `DEFINITION_OF_DONE.md` template file
     pub fn create_definition_of_done(&self, content: &str) {
         let path = self
             .tickets_path
@@ -333,7 +329,7 @@ config_generated = false
         fs::write(path, content).unwrap();
     }
 
-    /// Create ACCEPTANCE_CRITERIA.md template file
+    /// Create `ACCEPTANCE_CRITERIA.md` template file
     pub fn create_acceptance_criteria(&self, content: &str) {
         let path = self
             .tickets_path

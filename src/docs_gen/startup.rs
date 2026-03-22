@@ -145,9 +145,8 @@ mod tests {
         // Check that numbered headings exist
         for i in 1..=SETUP_STEPS.len() {
             assert!(
-                result.contains(&format!("### {}.", i)),
-                "Step {} should be numbered",
-                i
+                result.contains(&format!("### {i}.")),
+                "Step {i} should be numbered"
             );
         }
     }

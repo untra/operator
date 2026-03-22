@@ -1152,7 +1152,7 @@ mod tests {
         for i in 0..101 {
             let id = state
                 .add_agent(
-                    format!("FEAT-{:03}", i),
+                    format!("FEAT-{i:03}"),
                     "FEAT".to_string(),
                     "test".to_string(),
                     false,
@@ -1160,7 +1160,7 @@ mod tests {
                 .unwrap();
 
             state
-                .complete_agent(&id, format!("Summary {}", i), None, vec![])
+                .complete_agent(&id, format!("Summary {i}"), None, vec![])
                 .unwrap();
         }
 

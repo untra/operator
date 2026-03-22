@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn test_extract_description() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-123
 status: queued
 ---
@@ -414,7 +414,7 @@ It can span multiple lines.
 ## Context
 
 Some context here.
-"#;
+";
         let desc = extract_description(content);
         assert!(desc.contains("This is the main description"));
         assert!(!desc.contains("Context"));

@@ -455,7 +455,7 @@ mod tests {
 
     #[test]
     fn test_extract_external_id() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-123
 status: queued
 external_id: PROJ-456
@@ -463,19 +463,19 @@ external_url: https://example.com
 ---
 
 # Content here
-"#;
+";
         assert_eq!(extract_external_id(content), Some("PROJ-456".to_string()));
     }
 
     #[test]
     fn test_extract_external_id_missing() {
-        let content = r#"---
+        let content = r"---
 id: FEAT-123
 status: queued
 ---
 
 # No external_id
-"#;
+";
         assert_eq!(extract_external_id(content), None);
     }
 

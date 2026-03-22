@@ -849,7 +849,7 @@ mod tests {
     #[test]
     fn test_bun_version_display() {
         let v = BunVersion::parse("1.2.3").unwrap();
-        assert_eq!(format!("{}", v), "1.2.3");
+        assert_eq!(format!("{v}"), "1.2.3");
     }
 
     // ==================== ServerStatus Tests ====================

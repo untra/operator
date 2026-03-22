@@ -387,7 +387,7 @@ mod tests {
     #[test]
     fn test_invalid_glyph_empty() {
         let mut issue_type = create_valid_issuetype();
-        issue_type.glyph = "".to_string();
+        issue_type.glyph = String::new();
         let result = issue_type.validate();
         assert!(result.is_err());
         let errors = result.unwrap_err();

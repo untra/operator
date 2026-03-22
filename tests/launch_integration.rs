@@ -61,7 +61,7 @@ macro_rules! skip_if_not_configured {
     };
 }
 
-/// Tmux test wrapper providing session management on top of LaunchTestContext
+/// Tmux test wrapper providing session management on top of `LaunchTestContext`
 struct TmuxTestContext {
     ctx: LaunchTestContext,
 }
@@ -92,7 +92,7 @@ impl TmuxTestContext {
             Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
                 .lines()
                 .filter(|s| s.starts_with("op-"))
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect(),
             _ => Vec::new(),
         }
@@ -141,7 +141,7 @@ fn test_launch_creates_tmux_session() {
     let tctx = TmuxTestContext::new("creates_session");
 
     // Create a TASK ticket (uses simple fallback prompt)
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-001
 priority: P2-medium
 status: queued
@@ -151,7 +151,7 @@ status: queued
 
 ## Context
 This is a test task to verify tmux session creation.
-"#;
+";
     tctx.ctx.create_ticket("TASK", "TASK-001", ticket_content);
 
     // Run launch
@@ -160,8 +160,8 @@ This is a test task to verify tmux session creation.
     // Check output
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    eprintln!("stdout: {}", stdout);
-    eprintln!("stderr: {}", stderr);
+    eprintln!("stdout: {stdout}");
+    eprintln!("stderr: {stderr}");
 
     // Wait for session to be created
     std::thread::sleep(Duration::from_secs(2));
@@ -170,8 +170,7 @@ This is a test task to verify tmux session creation.
     let sessions = tctx.list_test_sessions();
     assert!(
         sessions.iter().any(|s| s.contains("TASK-001")),
-        "Tmux session should be created. Sessions: {:?}",
-        sessions
+        "Tmux session should be created. Sessions: {sessions:?}"
     );
 
     // Verify ticket was moved to in-progress
@@ -188,7 +187,7 @@ fn test_prompt_file_contains_ticket_content() {
     let tctx = TmuxTestContext::new("prompt_content");
 
     // Create a TASK ticket
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-002
 priority: P2-medium
 status: queued
@@ -198,7 +197,7 @@ status: queued
 
 ## Context
 This content should appear in the prompt file: UNIQUE_MARKER_12345
-"#;
+";
     tctx.ctx.create_ticket("TASK", "TASK-002", ticket_content);
 
     // Run launch
@@ -231,14 +230,14 @@ fn test_llm_command_has_session_id_and_model() {
 
     let tctx = TmuxTestContext::new("command_structure");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-003
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test command structure
-"#;
+";
     tctx.ctx.create_ticket("TASK", "TASK-003", ticket_content);
 
     tctx.ctx.run_launch(&[]);
@@ -285,7 +284,7 @@ fn test_prompt_file_is_written_to_disk() {
 
     let tctx = TmuxTestContext::new("prompt_file");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-004
 priority: P2-medium
 status: queued
@@ -295,7 +294,7 @@ status: queued
 
 ## Context
 PROMPT_FILE_MARKER_67890
-"#;
+";
     tctx.ctx.create_ticket("TASK", "TASK-004", ticket_content);
 
     tctx.ctx.run_launch(&[]);
@@ -312,8 +311,7 @@ PROMPT_FILE_MARKER_67890
         .any(|p| p.contains("TASK-004") || p.contains("task_004"));
     assert!(
         has_reference,
-        "Prompt file should reference ticket. Prompts: {:?}",
-        prompts
+        "Prompt file should reference ticket. Prompts: {prompts:?}"
     );
 }
 
@@ -335,14 +333,14 @@ fn test_session_already_exists_error() {
         "Pre-created session should exist"
     );
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-005
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test session conflict
-"#;
+";
     tctx.ctx.create_ticket("TASK", "TASK-005", ticket_content);
 
     let output = tctx.ctx.run_launch(&[]);
@@ -350,7 +348,7 @@ status: queued
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // Should either fail or output an error about existing session
-    let combined = format!("{}{}", stdout, stderr);
+    let combined = format!("{stdout}{stderr}");
     assert!(
         !output.status.success() || combined.contains("already exists"),
         "Should error when session already exists. Status: {}, Output: {}",
@@ -369,7 +367,7 @@ fn test_ticket_with_empty_step_uses_default() {
     let tctx = TmuxTestContext::new("empty_step");
 
     // Ticket without explicit step
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: FEAT-001
 priority: P2-medium
 status: queued
@@ -379,14 +377,14 @@ status: queued
 
 ## Context
 When step is not specified, should use first step from template.
-"#;
+";
     tctx.ctx.create_ticket("FEAT", "FEAT-001", ticket_content);
 
     let output = tctx.ctx.run_launch(&[]);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    eprintln!("stdout: {}", stdout);
-    eprintln!("stderr: {}", stderr);
+    eprintln!("stdout: {stdout}");
+    eprintln!("stderr: {stderr}");
 
     std::thread::sleep(Duration::from_secs(2));
 
@@ -394,8 +392,7 @@ When step is not specified, should use first step from template.
     let sessions = tctx.list_test_sessions();
     assert!(
         sessions.iter().any(|s| s.contains("FEAT-001")),
-        "Should create session for FEAT ticket. Sessions: {:?}",
-        sessions
+        "Should create session for FEAT ticket. Sessions: {sessions:?}"
     );
 }
 
@@ -407,14 +404,14 @@ fn test_definition_of_done_included_in_prompt() {
 
     // Create definition of done
     tctx.ctx.create_definition_of_done(
-        r#"- All tests pass
+        r"- All tests pass
 - Code reviewed and approved
 - Documentation updated
-- DOD_MARKER_UNIQUE_11111"#,
+- DOD_MARKER_UNIQUE_11111",
     );
 
     // Create FEAT ticket (which should use template.prompt with {{ definition_of_done }})
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: FEAT-002
 priority: P2-medium
 status: queued
@@ -425,7 +422,7 @@ step: plan
 
 ## Context
 This feature should have definition of done in its prompt.
-"#;
+";
     tctx.ctx.create_ticket("FEAT", "FEAT-002", ticket_content);
 
     tctx.ctx.run_launch(&[]);
@@ -461,14 +458,14 @@ mod session_lifecycle {
 
         let tctx = TmuxTestContext::new("kill_session");
 
-        let ticket_content = r#"---
+        let ticket_content = r"---
 id: TASK-006
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test session kill
-"#;
+";
         tctx.ctx.create_ticket("TASK", "TASK-006", ticket_content);
 
         tctx.ctx.run_launch(&[]);
@@ -499,7 +496,7 @@ fn test_command_file_is_created_during_launch() {
 
     let tctx = TmuxTestContext::new("command_file");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-008
 priority: P2-medium
 status: queued
@@ -509,7 +506,7 @@ status: queued
 
 ## Context
 This test verifies that a command shell script is created during launch.
-"#;
+";
     tctx.ctx.create_ticket("TASK", "TASK-008", ticket_content);
 
     tctx.ctx.run_launch(&[]);
@@ -524,8 +521,8 @@ This test verifies that a command shell script is created during launch.
 
     // Verify command file structure
     let (path, content) = &command_files[0];
-    eprintln!("Command file path: {:?}", path);
-    eprintln!("Command file content:\n{}", content);
+    eprintln!("Command file path: {path:?}");
+    eprintln!("Command file content:\n{content}");
 
     // Should have shebang
     assert!(
@@ -537,15 +534,13 @@ This test verifies that a command shell script is created during launch.
     // Should have cd command
     assert!(
         content.contains("cd "),
-        "Command file should contain cd command. Got: {}",
-        content
+        "Command file should contain cd command. Got: {content}"
     );
 
     // Should have exec command with LLM tool
     assert!(
         content.contains("exec "),
-        "Command file should contain exec command. Got: {}",
-        content
+        "Command file should contain exec command. Got: {content}"
     );
 
     // Should be executable on Unix
@@ -557,8 +552,7 @@ This test verifies that a command shell script is created during launch.
         let mode = permissions.mode();
         assert!(
             mode & 0o111 != 0,
-            "Command file should be executable. Mode: {:o}",
-            mode
+            "Command file should be executable. Mode: {mode:o}"
         );
     }
 }
@@ -573,14 +567,14 @@ mod error_handling {
         let tctx = TmuxTestContext::new("bad_project");
 
         // Create ticket with non-existent project
-        let ticket_content = r#"---
+        let ticket_content = r"---
 id: TASK-007
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test bad project
-"#;
+";
         // Manually create with bad project name
         let filename = format!(
             "{}-TASK-nonexistent-project-task_007.md",
@@ -594,8 +588,8 @@ status: queued
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         // Should fail with project not found error
-        let combined = format!("{}{}", stdout, stderr);
-        eprintln!("Output: {}", combined);
+        let combined = format!("{stdout}{stderr}");
+        eprintln!("Output: {combined}");
 
         // Either no session created or error message
         std::thread::sleep(Duration::from_secs(1));

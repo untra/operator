@@ -598,8 +598,8 @@ mod tests {
 
     fn make_test_ticket(project: &str) -> Ticket {
         Ticket {
-            filename: format!("20241225-1200-TASK-{}-test.md", project),
-            filepath: format!("/tmp/tickets/queue/20241225-1200-TASK-{}-test.md", project),
+            filename: format!("20241225-1200-TASK-{project}-test.md"),
+            filepath: format!("/tmp/tickets/queue/20241225-1200-TASK-{project}-test.md"),
             timestamp: "20241225-1200".to_string(),
             ticket_type: "TASK".to_string(),
             project: project.to_string(),
@@ -679,7 +679,7 @@ mod tests {
         ];
         let projects = vec!["project-a".to_string(), "project-b".to_string()];
 
-        dialog.configure(providers.clone(), projects.clone(), true, false);
+        dialog.configure(providers, projects, true, false);
 
         assert_eq!(dialog.provider_options.len(), 2);
         assert_eq!(dialog.project_options.len(), 2);

@@ -335,8 +335,7 @@ mod tests {
             let numeric_part: &str = part.split('-').next().unwrap_or(part);
             assert!(
                 numeric_part.parse::<u32>().is_ok(),
-                "Version component '{}' should be numeric",
-                part
+                "Version component '{part}' should be numeric"
             );
         }
     }

@@ -75,7 +75,9 @@ macro_rules! skip_if_not_configured {
             return;
         }
         if !in_zellij() {
-            eprintln!("Skipping test: not running inside a zellij session (ZELLIJ env var not set)");
+            eprintln!(
+                "Skipping test: not running inside a zellij session (ZELLIJ env var not set)"
+            );
             return;
         }
     };
@@ -91,7 +93,7 @@ fn list_operator_tabs() -> Vec<String> {
         Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
             .lines()
             .filter(|s| s.starts_with("op-"))
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect(),
         _ => Vec::new(),
     }
@@ -115,7 +117,7 @@ fn cleanup_operator_tabs() {
     }
 }
 
-/// Zellij test wrapper providing tab management on top of LaunchTestContext
+/// Zellij test wrapper providing tab management on top of `LaunchTestContext`
 struct ZellijTestContext {
     ctx: LaunchTestContext,
 }
@@ -142,7 +144,7 @@ fn test_launch_creates_zellij_tab() {
 
     let zctx = ZellijTestContext::new("creates_tab");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-Z01
 priority: P2-medium
 status: queued
@@ -152,7 +154,7 @@ status: queued
 
 ## Context
 This is a test task to verify zellij tab creation.
-"#;
+";
     zctx.ctx.create_ticket("TASK", "TASK-Z01", ticket_content);
 
     // Run launch
@@ -160,8 +162,8 @@ This is a test task to verify zellij tab creation.
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    eprintln!("stdout: {}", stdout);
-    eprintln!("stderr: {}", stderr);
+    eprintln!("stdout: {stdout}");
+    eprintln!("stderr: {stderr}");
 
     // Wait for tab to be created
     std::thread::sleep(Duration::from_secs(2));
@@ -170,8 +172,7 @@ This is a test task to verify zellij tab creation.
     let tabs = list_operator_tabs();
     assert!(
         tabs.iter().any(|t| t.contains("TASK-Z01")),
-        "Zellij tab should be created. Tabs: {:?}",
-        tabs
+        "Zellij tab should be created. Tabs: {tabs:?}"
     );
 
     // Verify ticket was moved to in-progress
@@ -187,7 +188,7 @@ fn test_zellij_prompt_file_contains_ticket_content() {
 
     let zctx = ZellijTestContext::new("prompt_content");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-Z02
 priority: P2-medium
 status: queued
@@ -197,7 +198,7 @@ status: queued
 
 ## Context
 This content should appear in the prompt file: ZELLIJ_MARKER_99999
-"#;
+";
     zctx.ctx.create_ticket("TASK", "TASK-Z02", ticket_content);
 
     zctx.ctx.run_launch(&[]);
@@ -224,14 +225,14 @@ fn test_zellij_llm_command_has_session_id_and_model() {
 
     let zctx = ZellijTestContext::new("command_structure");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-Z03
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test command structure in zellij
-"#;
+";
     zctx.ctx.create_ticket("TASK", "TASK-Z03", ticket_content);
 
     zctx.ctx.run_launch(&[]);
@@ -278,14 +279,14 @@ fn test_zellij_command_file_is_created() {
 
     let zctx = ZellijTestContext::new("command_file");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-Z04
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test command file creation in zellij
-"#;
+";
     zctx.ctx.create_ticket("TASK", "TASK-Z04", ticket_content);
 
     zctx.ctx.run_launch(&[]);
@@ -325,7 +326,7 @@ fn test_zellij_prompt_file_is_written_to_disk() {
 
     let zctx = ZellijTestContext::new("prompt_file");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-Z05
 priority: P2-medium
 status: queued
@@ -335,7 +336,7 @@ status: queued
 
 ## Context
 ZELLIJ_PROMPT_MARKER_54321
-"#;
+";
     zctx.ctx.create_ticket("TASK", "TASK-Z05", ticket_content);
 
     zctx.ctx.run_launch(&[]);
@@ -349,8 +350,7 @@ ZELLIJ_PROMPT_MARKER_54321
         .any(|p| p.contains("TASK-Z05") || p.contains("task_z05"));
     assert!(
         has_reference,
-        "Prompt file should reference ticket. Prompts: {:?}",
-        prompts
+        "Prompt file should reference ticket. Prompts: {prompts:?}"
     );
 }
 
@@ -360,14 +360,14 @@ fn test_zellij_ticket_moved_to_in_progress() {
 
     let zctx = ZellijTestContext::new("in_progress");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-Z06
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test ticket state transition in zellij
-"#;
+";
     zctx.ctx.create_ticket("TASK", "TASK-Z06", ticket_content);
 
     zctx.ctx.run_launch(&[]);

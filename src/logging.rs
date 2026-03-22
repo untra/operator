@@ -119,7 +119,7 @@ mod tests {
         std::fs::create_dir_all(&logs_dir).unwrap();
 
         let timestamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
-        let log_filename = format!("operator-{}.log", timestamp);
+        let log_filename = format!("operator-{timestamp}.log");
         let log_file_path = logs_dir.join(&log_filename);
 
         assert!(log_file_path.to_string_lossy().contains("operator-"));

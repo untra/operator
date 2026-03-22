@@ -164,8 +164,7 @@ mod tests {
             let collections: Vec<_> = registry.all_collections().map(|c| c.name.clone()).collect();
             assert!(
                 collections.contains(&"simple".to_string()),
-                "Expected 'simple' collection, found: {:?}",
-                collections
+                "Expected 'simple' collection, found: {collections:?}"
             );
         }
 

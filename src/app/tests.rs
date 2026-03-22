@@ -172,8 +172,11 @@ mod state_transitions {
     fn test_ctrl_c_timeout_clears_confirmation() {
         let mut exit_confirmation_mode = true;
         // Set a time in the past (simulating timeout)
-        let mut exit_confirmation_time =
-            Some(std::time::Instant::now() - std::time::Duration::from_secs(2));
+        let mut exit_confirmation_time = Some(
+            std::time::Instant::now()
+                .checked_sub(std::time::Duration::from_secs(2))
+                .unwrap(),
+        );
 
         // Simulate the timeout check logic from run()
         if exit_confirmation_mode {
@@ -348,13 +351,13 @@ mod launch_validation {
         let config = make_test_config(&temp_dir);
 
         // Create a ticket file in the queue
-        let ticket_content = r#"---
+        let ticket_content = r"---
 priority: P2-medium
 ---
 # Test ticket
 
 Test content
-"#;
+";
         let ticket_filename = "20241225-1200-TASK-test-project-test.md";
         let ticket_path = config.tickets_path().join("queue").join(ticket_filename);
         std::fs::write(&ticket_path, ticket_content).unwrap();
@@ -465,7 +468,7 @@ mod review_signals {
         // Test the condition check without full App
         let review_state: Option<&str> = Some("pending_plan");
 
-        let can_approve = matches!(review_state, Some("pending_plan") | Some("pending_visual"));
+        let can_approve = matches!(review_state, Some("pending_plan" | "pending_visual"));
 
         assert!(can_approve);
     }
@@ -475,7 +478,7 @@ mod review_signals {
         // Symmetric test for the pending_visual match arm
         let review_state: Option<&str> = Some("pending_visual");
 
-        let can_approve = matches!(review_state, Some("pending_plan") | Some("pending_visual"));
+        let can_approve = matches!(review_state, Some("pending_plan" | "pending_visual"));
 
         assert!(can_approve, "pending_visual should also be approvable");
     }
@@ -484,7 +487,7 @@ mod review_signals {
     fn test_review_approval_blocked_for_other_states() {
         let review_state: Option<&str> = Some("running");
 
-        let can_approve = matches!(review_state, Some("pending_plan") | Some("pending_visual"));
+        let can_approve = matches!(review_state, Some("pending_plan" | "pending_visual"));
 
         assert!(!can_approve);
     }
@@ -494,7 +497,7 @@ mod review_signals {
         // Mirrors approval tests but for rejection path — same guard logic applies
         let review_state: Option<&str> = Some("running");
 
-        let can_reject = matches!(review_state, Some("pending_plan") | Some("pending_visual"));
+        let can_reject = matches!(review_state, Some("pending_plan" | "pending_visual"));
 
         assert!(
             !can_reject,
@@ -503,7 +506,7 @@ mod review_signals {
 
         // Also verify None is blocked
         let review_state: Option<&str> = None;
-        let can_reject = matches!(review_state, Some("pending_plan") | Some("pending_visual"));
+        let can_reject = matches!(review_state, Some("pending_plan" | "pending_visual"));
         assert!(
             !can_reject,
             "Rejection should be blocked when no review state"
@@ -511,11 +514,11 @@ mod review_signals {
 
         // And verify pending states ARE rejectable
         let review_state: Option<&str> = Some("pending_plan");
-        let can_reject = matches!(review_state, Some("pending_plan") | Some("pending_visual"));
+        let can_reject = matches!(review_state, Some("pending_plan" | "pending_visual"));
         assert!(can_reject, "pending_plan should be rejectable");
 
         let review_state: Option<&str> = Some("pending_visual");
-        let can_reject = matches!(review_state, Some("pending_plan") | Some("pending_visual"));
+        let can_reject = matches!(review_state, Some("pending_plan" | "pending_visual"));
         assert!(can_reject, "pending_visual should be rejectable");
     }
 
@@ -523,7 +526,7 @@ mod review_signals {
     fn test_review_approval_blocked_for_none() {
         let review_state: Option<&str> = None;
 
-        let can_approve = matches!(review_state, Some("pending_plan") | Some("pending_visual"));
+        let can_approve = matches!(review_state, Some("pending_plan" | "pending_visual"));
 
         assert!(!can_approve);
     }
@@ -531,7 +534,7 @@ mod review_signals {
     #[test]
     fn test_review_signal_file_path() {
         let session_name = "op-TASK-123";
-        let signal_file = format!("/tmp/operator-detach-{}.signal", session_name);
+        let signal_file = format!("/tmp/operator-detach-{session_name}.signal");
 
         assert_eq!(signal_file, "/tmp/operator-detach-op-TASK-123.signal");
     }
@@ -585,14 +588,14 @@ mod return_to_queue {
         let config = make_test_config(&temp_dir);
 
         // Create a ticket in in-progress
-        let ticket_content = r#"---
+        let ticket_content = r"---
 priority: P2-medium
 status: in-progress
 ---
 # Test ticket
 
 Test content
-"#;
+";
         let ticket_filename = "20241225-1200-TASK-test-project-test.md";
         let in_progress_path = config
             .tickets_path()

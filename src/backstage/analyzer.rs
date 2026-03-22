@@ -652,7 +652,7 @@ mod tests {
                 evidence: vec![Evidence {
                     evidence_type: EvidenceType::Dependency,
                     file_path: Some("Cargo.toml".to_string()),
-                    pattern: Some(r#"axum = "#.to_string()),
+                    pattern: Some(r"axum = ".to_string()),
                     matched_content: Some(r#"axum = "0.7""#.to_string()),
                     line_number: Some(15),
                 }],

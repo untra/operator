@@ -307,7 +307,7 @@ mod tests {
             permissions: None,
             cli_args: None,
             permission_mode: PermissionMode::Default,
-            agent: agent.map(|s| s.to_string()),
+            agent: agent.map(std::string::ToString::to_string),
             json_schema: None,
             json_schema_file: None,
             artifact_patterns: vec![],
@@ -431,8 +431,7 @@ mod tests {
         let keys = mock.get_session_keys_sent("op-test").unwrap();
         assert!(
             keys[0].contains("/exit"),
-            "Should send /exit for claude, got: {:?}",
-            keys
+            "Should send /exit for claude, got: {keys:?}"
         );
     }
 
@@ -448,8 +447,7 @@ mod tests {
         let keys = mock.get_session_keys_sent("op-test").unwrap();
         assert!(
             keys[0].contains("/quit"),
-            "Should send /quit for gemini, got: {:?}",
-            keys
+            "Should send /quit for gemini, got: {keys:?}"
         );
     }
 
@@ -466,8 +464,7 @@ mod tests {
         // Codex exit is Ctrl+C (0x03), sent without Enter
         assert!(
             keys[0].contains('\x03'),
-            "Should send Ctrl+C for codex, got: {:?}",
-            keys
+            "Should send Ctrl+C for codex, got: {keys:?}"
         );
     }
 }

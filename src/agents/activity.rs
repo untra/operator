@@ -537,8 +537,7 @@ mod tests {
             .unwrap();
         client.set_screen_content(&ws_id, "Done with task\n> ");
 
-        let detector =
-            CmuxActivityDetector::new(client.clone(), create_idle_detector_with_patterns());
+        let detector = CmuxActivityDetector::new(client, create_idle_detector_with_patterns());
         detector.register_workspace("session-1", &ws_id);
 
         assert!(detector.is_idle("session-1").unwrap());
@@ -552,8 +551,7 @@ mod tests {
             .unwrap();
         client.set_screen_content(&ws_id, "⠋ Thinking about your request...\n");
 
-        let detector =
-            CmuxActivityDetector::new(client.clone(), create_idle_detector_with_patterns());
+        let detector = CmuxActivityDetector::new(client, create_idle_detector_with_patterns());
         detector.register_workspace("session-1", &ws_id);
 
         assert!(!detector.is_idle("session-1").unwrap());
@@ -592,8 +590,7 @@ mod tests {
             .unwrap();
         client.set_screen_content(&ws_id, "content\n> ");
 
-        let detector =
-            CmuxActivityDetector::new(client.clone(), create_idle_detector_with_patterns());
+        let detector = CmuxActivityDetector::new(client, create_idle_detector_with_patterns());
         detector.register_workspace("session-1", &ws_id);
 
         // Prime the hash
@@ -616,8 +613,7 @@ mod tests {
         client.create_tab("agent-tab", "/tmp").unwrap();
         client.set_screen_content("agent-tab", "Done with task\n> ");
 
-        let detector =
-            ZellijActivityDetector::new(client.clone(), create_idle_detector_with_patterns());
+        let detector = ZellijActivityDetector::new(client, create_idle_detector_with_patterns());
         detector.register_tab("session-1", "agent-tab");
 
         assert!(detector.is_idle("session-1").unwrap());
@@ -629,8 +625,7 @@ mod tests {
         client.create_tab("agent-tab", "/tmp").unwrap();
         client.set_screen_content("agent-tab", "⠋ Thinking about your request...\n");
 
-        let detector =
-            ZellijActivityDetector::new(client.clone(), create_idle_detector_with_patterns());
+        let detector = ZellijActivityDetector::new(client, create_idle_detector_with_patterns());
         detector.register_tab("session-1", "agent-tab");
 
         assert!(!detector.is_idle("session-1").unwrap());
@@ -665,8 +660,7 @@ mod tests {
         client.create_tab("agent-tab", "/tmp").unwrap();
         client.set_screen_content("agent-tab", "content\n> ");
 
-        let detector =
-            ZellijActivityDetector::new(client.clone(), create_idle_detector_with_patterns());
+        let detector = ZellijActivityDetector::new(client, create_idle_detector_with_patterns());
         detector.register_tab("session-1", "agent-tab");
 
         // Prime the hash

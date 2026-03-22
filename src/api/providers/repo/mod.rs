@@ -184,7 +184,7 @@ mod tests {
         assert!(!draft_pr.is_ready_to_merge());
 
         // Changes requested not ready
-        let mut changes_pr = pr.clone();
+        let mut changes_pr = pr;
         changes_pr.review_status = "changes_requested".to_string();
         assert!(!changes_pr.is_ready_to_merge());
     }
@@ -196,11 +196,11 @@ mod tests {
             number: 123,
             state: "open".to_string(),
             title: "Test".to_string(),
-            html_url: "".to_string(),
+            html_url: String::new(),
             draft: false,
             merged: false,
             mergeable: None,
-            head_sha: "".to_string(),
+            head_sha: String::new(),
             review_status: "pending".to_string(),
             checks_passed: None,
         };

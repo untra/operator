@@ -525,7 +525,7 @@ mod tests {
             "Story".to_string(),
             "A user story".to_string(),
             "custom".to_string(),
-            "".to_string(),
+            String::new(),
             None,
         );
 

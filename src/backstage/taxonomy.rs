@@ -346,8 +346,7 @@ mod tests {
             let kinds = t.kinds_by_tier(*tier_enum);
             assert!(
                 !kinds.is_empty(),
-                "{} tier should have at least one kind",
-                tier_enum
+                "{tier_enum} tier should have at least one kind"
             );
         }
     }
@@ -437,7 +436,7 @@ mod tests {
         // Verify each tier returns kinds and they all reference the correct tier
         for tier_enum in KindTier::all() {
             let kinds = t.kinds_by_tier(*tier_enum);
-            assert!(!kinds.is_empty(), "{} tier should have kinds", tier_enum);
+            assert!(!kinds.is_empty(), "{tier_enum} tier should have kinds");
             for kind in &kinds {
                 assert_eq!(
                     kind.tier,
@@ -547,8 +546,7 @@ mod tests {
             for i in 1..kinds.len() {
                 assert!(
                     kinds[i - 1].display_order() <= kinds[i].display_order(),
-                    "Kinds in {} should be sorted by display_order",
-                    tier_enum
+                    "Kinds in {tier_enum} should be sorted by display_order"
                 );
             }
         }

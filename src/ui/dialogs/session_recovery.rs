@@ -150,7 +150,7 @@ impl SessionRecoveryDialog {
         }
     }
 
-    /// Make the available_options method accessible for testing
+    /// Make the `available_options` method accessible for testing
     #[cfg(test)]
     pub fn available_options_for_test(&self) -> Vec<SessionRecoverySelection> {
         self.available_options()

@@ -297,10 +297,9 @@ mod tests {
         ticket_type: &str,
         project: &str,
     ) {
-        let filename = format!("{}-{}-{}-summary.md", timestamp, ticket_type, project);
+        let filename = format!("{timestamp}-{ticket_type}-{project}-summary.md");
         let content = format!(
-            "---\npriority: P2-medium\n---\n# {}: Test Summary\n\nDescription here.",
-            ticket_type
+            "---\npriority: P2-medium\n---\n# {ticket_type}: Test Summary\n\nDescription here."
         );
         fs::write(dir.join(&filename), content).unwrap();
     }

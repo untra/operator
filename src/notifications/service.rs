@@ -262,7 +262,7 @@ mod tests {
         config.notifications.webhooks = vec![WebhookConfig {
             name: Some("no-url".into()),
             enabled: true,
-            url: "".into(), // Empty URL
+            url: String::new(), // Empty URL
             auth_type: None,
             token_env: None,
             username: None,

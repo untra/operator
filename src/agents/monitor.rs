@@ -957,7 +957,7 @@ mod tests {
         assert_eq!(orphans[0].session_name, "op-ORPHAN-777");
     }
 
-    /// Helper: write a hook signal file to trigger idle detection in check_health
+    /// Helper: write a hook signal file to trigger idle detection in `check_health`
     fn write_hook_signal(agent_id: &str) -> PathBuf {
         use crate::agents::hooks::HookSignal;
 
@@ -968,7 +968,7 @@ mod tests {
             timestamp: 1234567890,
             session_id: agent_id.to_string(),
         };
-        let signal_path = signal_dir.join(format!("{}.signal", agent_id));
+        let signal_path = signal_dir.join(format!("{agent_id}.signal"));
         std::fs::write(&signal_path, serde_json::to_string(&signal).unwrap()).unwrap();
         signal_path
     }

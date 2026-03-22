@@ -379,7 +379,7 @@ mod tests {
         let ticket_path = temp_dir.path().join("20241229-1430-FEAT-operator-test.md");
         std::fs::write(
             &ticket_path,
-            r#"---
+            r"---
 id: FEAT-1234
 status: queued
 priority: P2-medium
@@ -387,7 +387,7 @@ step: plan
 ---
 
 # Feature: Test ticket for kanban
-"#,
+",
         )
         .unwrap();
 

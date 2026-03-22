@@ -222,7 +222,7 @@ fn test_kill_session() {
 
     mock.add_session("op-TASK-123", "/tmp");
 
-    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let launcher = Launcher::with_tmux_client(&config, mock).unwrap();
 
     assert!(launcher.session_alive("op-TASK-123"));
     launcher.kill_session("op-TASK-123").unwrap();
@@ -304,8 +304,8 @@ fn test_generate_session_uuid_is_unique() {
 
 fn make_test_ticket(project: &str) -> Ticket {
     Ticket {
-        filename: format!("20241225-1200-TASK-{}-test.md", project),
-        filepath: format!("/tmp/tickets/queue/20241225-1200-TASK-{}-test.md", project),
+        filename: format!("20241225-1200-TASK-{project}-test.md"),
+        filepath: format!("/tmp/tickets/queue/20241225-1200-TASK-{project}-test.md"),
         timestamp: "20241225-1200".to_string(),
         ticket_type: "TASK".to_string(),
         project: project.to_string(),
@@ -455,9 +455,8 @@ async fn test_launch_command_includes_cd_to_project() {
         .to_string_lossy()
         .to_string();
     assert!(
-        script_content.contains(&format!("cd '{}'", expected_path)),
-        "Command file should include cd to project path, got: {}",
-        script_content
+        script_content.contains(&format!("cd '{expected_path}'")),
+        "Command file should include cd to project path, got: {script_content}"
     );
 }
 
@@ -520,7 +519,7 @@ fn test_launch_in_tmux_session_uses_prefix() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = mock;
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -543,8 +542,7 @@ fn test_launch_in_tmux_session_uses_prefix() {
     let session_name = result.unwrap();
     assert!(
         session_name.starts_with("op-"),
-        "Session should use op- prefix, got: {}",
-        session_name
+        "Session should use op- prefix, got: {session_name}"
     );
 }
 
@@ -580,8 +578,7 @@ fn test_launch_in_tmux_existing_session_returns_error() {
     let err = result.unwrap_err().to_string();
     assert!(
         err.contains("already exists"),
-        "Error should mention session exists, got: {}",
-        err
+        "Error should mention session exists, got: {err}"
     );
 }
 
@@ -618,8 +615,7 @@ fn test_launch_in_tmux_sends_cd_command() {
     // Command should be a bash script execution
     assert!(
         sent_cmd.starts_with("bash "),
-        "Command should be a bash script execution, got: {}",
-        sent_cmd
+        "Command should be a bash script execution, got: {sent_cmd}"
     );
 
     // Read the script content and verify it contains cd
@@ -627,8 +623,7 @@ fn test_launch_in_tmux_sends_cd_command() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         script_content.contains("cd "),
-        "Command file should contain cd, got: {}",
-        script_content
+        "Command file should contain cd, got: {script_content}"
     );
 }
 
@@ -666,13 +661,11 @@ fn test_launch_in_tmux_sends_llm_command() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         script_content.contains("claude"),
-        "Command file should contain claude, got: {}",
-        script_content
+        "Command file should contain claude, got: {script_content}"
     );
     assert!(
         script_content.contains("--session-id"),
-        "Command file should contain --session-id, got: {}",
-        script_content
+        "Command file should contain --session-id, got: {script_content}"
     );
 }
 
@@ -713,8 +706,7 @@ fn test_launch_in_tmux_yolo_mode_applies_flags() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         script_content.contains("--dangerously-skip-permissions"),
-        "Command file should contain YOLO flag, got: {}",
-        script_content
+        "Command file should contain YOLO flag, got: {script_content}"
     );
 }
 
@@ -755,8 +747,7 @@ fn test_launch_in_tmux_yolo_mode_disabled_no_flags() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         !script_content.contains("--dangerously-skip-permissions"),
-        "Command file should NOT contain YOLO flag when disabled, got: {}",
-        script_content
+        "Command file should NOT contain YOLO flag when disabled, got: {script_content}"
     );
 }
 
@@ -797,8 +788,7 @@ fn test_launch_in_tmux_docker_mode_wraps() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         script_content.contains("docker run"),
-        "Command file should contain docker run, got: {}",
-        script_content
+        "Command file should contain docker run, got: {script_content}"
     );
 }
 
@@ -840,13 +830,11 @@ fn test_launch_in_tmux_both_modes() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         script_content.contains("docker run"),
-        "Command file should contain docker run, got: {}",
-        script_content
+        "Command file should contain docker run, got: {script_content}"
     );
     assert!(
         script_content.contains("--dangerously-skip-permissions"),
-        "Command file should contain YOLO flag, got: {}",
-        script_content
+        "Command file should contain YOLO flag, got: {script_content}"
     );
 }
 
@@ -905,13 +893,11 @@ fn test_launch_in_tmux_uses_provider_from_options() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         script_content.contains("gemini"),
-        "Command file should use gemini tool, got: {}",
-        script_content
+        "Command file should use gemini tool, got: {script_content}"
     );
     assert!(
         script_content.contains("--model pro"),
-        "Command file should use pro model, got: {}",
-        script_content
+        "Command file should use pro model, got: {script_content}"
     );
 }
 
@@ -920,7 +906,7 @@ fn test_launch_in_tmux_writes_prompt_file() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = mock;
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -949,7 +935,7 @@ fn test_launch_in_tmux_writes_prompt_file() {
         .join("prompts");
     let prompt_files: Vec<_> = std::fs::read_dir(&prompts_dir)
         .unwrap()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .collect();
     assert!(
         !prompt_files.is_empty(),
@@ -962,7 +948,7 @@ fn test_launch_in_tmux_tmux_not_installed() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::not_installed());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = mock;
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -985,8 +971,7 @@ fn test_launch_in_tmux_tmux_not_installed() {
     let err = result.unwrap_err().to_string();
     assert!(
         err.contains("tmux is not installed"),
-        "Error should mention tmux not installed, got: {}",
-        err
+        "Error should mention tmux not installed, got: {err}"
     );
 }
 
@@ -999,7 +984,7 @@ fn test_relaunch_fresh_start_new_uuid() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = mock;
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1067,8 +1052,7 @@ fn test_relaunch_inherits_yolo_mode() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         script_content.contains("--dangerously-skip-permissions"),
-        "Relaunch command file should apply YOLO flags, got: {}",
-        script_content
+        "Relaunch command file should apply YOLO flags, got: {script_content}"
     );
 }
 
@@ -1113,8 +1097,7 @@ fn test_relaunch_inherits_docker_mode() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         script_content.contains("docker run"),
-        "Relaunch command file should apply Docker wrapping, got: {}",
-        script_content
+        "Relaunch command file should apply Docker wrapping, got: {script_content}"
     );
 }
 
@@ -1151,8 +1134,7 @@ fn test_relaunch_existing_session_errors() {
     let err = result.unwrap_err().to_string();
     assert!(
         err.contains("already exists"),
-        "Relaunch should fail if session exists, got: {}",
-        err
+        "Relaunch should fail if session exists, got: {err}"
     );
 }
 
@@ -1179,7 +1161,7 @@ fn test_relaunch_with_resume_adds_flag() {
         .join("prompts");
     std::fs::create_dir_all(&prompts_dir).unwrap();
     std::fs::write(
-        prompts_dir.join(format!("{}.txt", resume_uuid)),
+        prompts_dir.join(format!("{resume_uuid}.txt")),
         "Previous prompt",
     )
     .unwrap();
@@ -1209,13 +1191,11 @@ fn test_relaunch_with_resume_adds_flag() {
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
         script_content.contains("--resume"),
-        "Resume mode command file should add --resume flag, got: {}",
-        script_content
+        "Resume mode command file should add --resume flag, got: {script_content}"
     );
     assert!(
         script_content.contains(resume_uuid),
-        "Resume should use the provided session ID, got: {}",
-        script_content
+        "Resume should use the provided session ID, got: {script_content}"
     );
 }
 
@@ -1261,7 +1241,6 @@ fn test_relaunch_missing_prompt_fresh_start() {
     // Should NOT have resume flag since prompt file doesn't exist
     assert!(
         !script_content.contains("--resume"),
-        "Should fall back to fresh start when prompt file missing, got: {}",
-        script_content
+        "Should fall back to fresh start when prompt file missing, got: {script_content}"
     );
 }

@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn test_tool_markers_has_correct_filenames() {
-        let markers: std::collections::HashMap<&str, &str> = TOOL_MARKERS.iter().cloned().collect();
+        let markers: std::collections::HashMap<&str, &str> = TOOL_MARKERS.iter().copied().collect();
         assert_eq!(markers.get("claude"), Some(&"CLAUDE.md"));
         assert_eq!(markers.get("gemini"), Some(&"GEMINI.md"));
         assert_eq!(markers.get("codex"), Some(&"CODEX.md"));

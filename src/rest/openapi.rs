@@ -147,9 +147,8 @@ mod tests {
         let spec = ApiDoc::json().expect("Failed to generate OpenAPI spec");
         let cargo_version = env!("CARGO_PKG_VERSION");
         assert!(
-            spec.contains(&format!("\"version\": \"{}\"", cargo_version)),
-            "OpenAPI version should match Cargo.toml version ({}), but spec contains different version",
-            cargo_version
+            spec.contains(&format!("\"version\": \"{cargo_version}\"")),
+            "OpenAPI version should match Cargo.toml version ({cargo_version}), but spec contains different version"
         );
     }
 }

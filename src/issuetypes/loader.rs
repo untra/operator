@@ -636,9 +636,9 @@ types = ["FEAT", "FIX"]
             IssueType::new_imported(
                 "FEAT".to_string(),
                 "Feature".to_string(),
-                "".to_string(),
+                String::new(),
                 "builtin".to_string(),
-                "".to_string(),
+                String::new(),
                 None,
             ),
         );
@@ -647,9 +647,9 @@ types = ["FEAT", "FIX"]
             IssueType::new_imported(
                 "FIX".to_string(),
                 "Fix".to_string(),
-                "".to_string(),
+                String::new(),
                 "builtin".to_string(),
-                "".to_string(),
+                String::new(),
                 None,
             ),
         );

@@ -9,7 +9,7 @@
 //! - Launcher wiring with `Launcher::with_cmux_client()`
 //! - Prompt file generation
 //! - Command file creation
-//! - MockCmuxClient workspace creation
+//! - `MockCmuxClient` workspace creation
 //! - Ticket state transitions
 //!
 //! ## Environment Variables
@@ -51,7 +51,7 @@ macro_rules! skip_if_not_configured {
     };
 }
 
-/// Create a LaunchTestContext with cmux config and load the Config from it
+/// Create a `LaunchTestContext` with cmux config and load the Config from it
 fn setup_cmux_test(test_name: &str) -> (LaunchTestContext, Config) {
     let ctx = LaunchTestContext::new(test_name, WrapperTestMode::Cmux);
     let config =
@@ -85,7 +85,7 @@ fn test_cmux_launcher_with_mock_client() {
     let (_ctx, config) = setup_cmux_test("launcher_mock");
 
     let mock = Arc::new(MockCmuxClient::new());
-    let launcher = Launcher::with_cmux_client(&config, mock.clone());
+    let launcher = Launcher::with_cmux_client(&config, mock);
 
     assert!(
         launcher.is_ok(),
@@ -99,7 +99,7 @@ async fn test_cmux_launch_creates_workspace() {
 
     let (ctx, config) = setup_cmux_test("creates_workspace");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-C01
 priority: P2-medium
 status: queued
@@ -109,7 +109,7 @@ status: queued
 
 ## Context
 This is a test task to verify cmux workspace creation via mock client.
-"#;
+";
     ctx.create_ticket("TASK", "TASK-C01", ticket_content);
 
     let mock = Arc::new(MockCmuxClient::new());
@@ -120,7 +120,7 @@ This is a test task to verify cmux workspace creation via mock client.
     let queue_dir = ctx.tickets_path.join("queue");
     let ticket_file = std::fs::read_dir(&queue_dir)
         .unwrap()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .find(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
         .expect("Should have a ticket file");
 
@@ -139,10 +139,7 @@ This is a test task to verify cmux workspace creation via mock client.
 
     // launch_with_options returns the agent_id (a UUID), not the session name
     let agent_id = result.unwrap();
-    assert!(
-        !agent_id.is_empty(),
-        "Should return a non-empty agent ID"
-    );
+    assert!(!agent_id.is_empty(), "Should return a non-empty agent ID");
 
     // Verify ticket was moved to in-progress
     assert!(
@@ -157,7 +154,7 @@ async fn test_cmux_prompt_file_written() {
 
     let (ctx, config) = setup_cmux_test("prompt_file");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-C02
 priority: P2-medium
 status: queued
@@ -167,7 +164,7 @@ status: queued
 
 ## Context
 CMUX_PROMPT_MARKER_77777
-"#;
+";
     ctx.create_ticket("TASK", "TASK-C02", ticket_content);
 
     let mock = Arc::new(MockCmuxClient::new());
@@ -177,7 +174,7 @@ CMUX_PROMPT_MARKER_77777
     let queue_dir = ctx.tickets_path.join("queue");
     let ticket_file = std::fs::read_dir(&queue_dir)
         .unwrap()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .find(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
         .expect("Should have a ticket file");
     let ticket = Ticket::from_file(&ticket_file.path()).expect("Should parse ticket");
@@ -195,8 +192,7 @@ CMUX_PROMPT_MARKER_77777
         .any(|p| p.contains("TASK-C02") || p.contains("task_c02"));
     assert!(
         has_reference,
-        "Prompt file should reference ticket. Prompts: {:?}",
-        prompts
+        "Prompt file should reference ticket. Prompts: {prompts:?}"
     );
 }
 
@@ -206,14 +202,14 @@ async fn test_cmux_command_file_created() {
 
     let (ctx, config) = setup_cmux_test("command_file");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-C03
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test cmux command file creation
-"#;
+";
     ctx.create_ticket("TASK", "TASK-C03", ticket_content);
 
     let mock = Arc::new(MockCmuxClient::new());
@@ -223,7 +219,7 @@ status: queued
     let queue_dir = ctx.tickets_path.join("queue");
     let ticket_file = std::fs::read_dir(&queue_dir)
         .unwrap()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .find(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
         .expect("Should have a ticket file");
     let ticket = Ticket::from_file(&ticket_file.path()).expect("Should parse ticket");
@@ -260,14 +256,14 @@ async fn test_cmux_mock_receives_send_text() {
 
     let (ctx, config) = setup_cmux_test("send_text");
 
-    let ticket_content = r#"---
+    let ticket_content = r"---
 id: TASK-C04
 priority: P2-medium
 status: queued
 ---
 
 # Task: Test cmux send_text via mock
-"#;
+";
     ctx.create_ticket("TASK", "TASK-C04", ticket_content);
 
     let mock = Arc::new(MockCmuxClient::new());
@@ -277,7 +273,7 @@ status: queued
     let queue_dir = ctx.tickets_path.join("queue");
     let ticket_file = std::fs::read_dir(&queue_dir)
         .unwrap()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .find(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
         .expect("Should have a ticket file");
     let ticket = Ticket::from_file(&ticket_file.path()).expect("Should parse ticket");
@@ -299,7 +295,6 @@ status: queued
     let has_command = sent.iter().any(|(_ws, text)| text.contains("bash "));
     assert!(
         has_command,
-        "Sent text should contain bash command. Got: {:?}",
-        sent
+        "Sent text should contain bash command. Got: {sent:?}"
     );
 }

@@ -124,6 +124,17 @@ struct ZellijTestContext {
 
 impl ZellijTestContext {
     fn new(test_name: &str) -> Self {
+        // Clean shared mock output dir between tests. Zellij tabs inherit
+        // MOCK_LLM_OUTPUT_DIR from the zellij server process, not from the
+        // operator subprocess, so all tests share the same output path.
+        // Tests run sequentially (--test-threads=1) so this is safe.
+        if let Ok(dir) = env::var("MOCK_LLM_OUTPUT_DIR") {
+            let path = std::path::Path::new(&dir);
+            if path.exists() {
+                let _ = std::fs::remove_dir_all(path);
+            }
+            let _ = std::fs::create_dir_all(path);
+        }
         Self {
             ctx: LaunchTestContext::new(test_name, WrapperTestMode::Zellij),
         }

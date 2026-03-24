@@ -15,6 +15,7 @@ export class ConnectionsSection implements StatusSection {
   private apiStatus: ApiStatus = { connected: false };
   private operatorVersion: string | undefined;
   private mcpRegistered: boolean = false;
+  private wrapperType: string = 'vscode';
 
   get isApiConnected(): boolean {
     return this.apiStatus.connected;
@@ -29,6 +30,7 @@ export class ConnectionsSection implements StatusSection {
       this.checkWebhookStatus(ctx),
       this.checkApiStatus(ctx),
       this.checkOperatorVersion(ctx),
+      this.checkWrapperType(ctx),
     ]);
     this.mcpRegistered = isMcpServerRegistered();
   }
@@ -101,6 +103,20 @@ export class ConnectionsSection implements StatusSection {
     }
   }
 
+  private async checkWrapperType(ctx: SectionContext): Promise<void> {
+    try {
+      const config = await ctx.readConfigToml();
+      const sessions = config.sessions as Record<string, unknown> | undefined;
+      if (sessions?.wrapper && typeof sessions.wrapper === 'string') {
+        this.wrapperType = sessions.wrapper;
+      } else {
+        this.wrapperType = 'vscode';
+      }
+    } catch {
+      this.wrapperType = 'vscode';
+    }
+  }
+
   private async tryHealthCheck(apiUrl: string, sessionVersion?: string): Promise<boolean> {
     try {
       const response = await fetch(`${apiUrl}/api/v1/health`);
@@ -141,11 +157,14 @@ export class ConnectionsSection implements StatusSection {
     const configuredBoth = ctx.configReady;
 
     // 1. Session Wrapper
+    const isVscodeWrapper = this.wrapperType === 'vscode';
     const wrapperItem = new StatusItem({
       label: 'Session Wrapper',
-      description: 'VS Code Terminal',
-      icon: 'operator-vscode',
-      tooltip: 'Sessions route through the VS Code webhook to managed terminals',
+      description: isVscodeWrapper ? 'VS Code Terminal' : this.wrapperType,
+      icon: isVscodeWrapper ? 'pass' : 'warning',
+      tooltip: isVscodeWrapper
+        ? 'Sessions route through the VS Code webhook to managed terminals'
+        : `Sessions use ${this.wrapperType} — VS Code terminal integration unavailable`,
       sectionId: this.sectionId,
     });
 
@@ -209,14 +228,14 @@ export class ConnectionsSection implements StatusSection {
       ? new StatusItem({
           label: 'Webhook',
           description: `Running${this.webhookStatus.port ? ` :${this.webhookStatus.port}` : ''}`,
-          icon: 'operator-webhook',
+          icon: 'pass',
           tooltip: `Webhook bridge: Operator API \u2192 VS Code terminals (port ${this.webhookStatus.port})`,
           sectionId: this.sectionId,
         })
       : new StatusItem({
           label: 'Webhook',
           description: configuredBoth ? `Stopped` : 'Not Ready',
-          icon: 'operator-webhook',
+          icon: 'circle-slash',
           tooltip: configuredBoth
             ? 'Click to start webhook server'
             : 'Complete configuration first',

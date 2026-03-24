@@ -370,16 +370,17 @@ config_generated = false
     pub fn get_invocations(&self) -> Vec<MockInvocation> {
         let mut invocations = Vec::new();
 
-        if let Ok(entries) = fs::read_dir(self.output_dir.path()) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().map(|e| e == "json").unwrap_or(false) {
-                    if let Ok(content) = fs::read_to_string(&path) {
-                        if let Ok(inv) = serde_json::from_str(&content) {
-                            invocations.push(inv);
-                        }
-                    }
-                }
+        // Primary: per-test output dir (works for tmux where child processes
+        // inherit the calling process's environment)
+        collect_json_invocations(self.output_dir.path(), &mut invocations);
+
+        // Fallback: shared output dir from MOCK_LLM_OUTPUT_DIR env var.
+        // Needed for zellij where new tabs inherit env vars from the zellij
+        // server process, not from the operator subprocess.
+        if let Ok(shared_dir) = env::var("MOCK_LLM_OUTPUT_DIR") {
+            let shared_path = PathBuf::from(&shared_dir);
+            if shared_path.exists() && shared_path != self.output_dir.path() {
+                collect_json_invocations(&shared_path, &mut invocations);
             }
         }
 
@@ -438,5 +439,21 @@ config_generated = false
             .read_dir()
             .map(|mut d| d.next().is_some())
             .unwrap_or(false)
+    }
+}
+
+/// Collect mock LLM invocation JSON files from a directory
+fn collect_json_invocations(dir: &std::path::Path, invocations: &mut Vec<MockInvocation>) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().map(|e| e == "json").unwrap_or(false) {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if let Ok(inv) = serde_json::from_str(&content) {
+                        invocations.push(inv);
+                    }
+                }
+            }
+        }
     }
 }

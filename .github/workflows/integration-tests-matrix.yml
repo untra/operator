@@ -281,6 +281,7 @@ jobs:
         run: |
           zellij delete-all-sessions --yes --force 2>/dev/null || true
           pkill -f zellij 2>/dev/null || true
+          rm -rf /tmp/operator-zellij-mock-output
 
   # ============================================================================
   # CMUX INTEGRATION TESTS (mock-based, macOS)

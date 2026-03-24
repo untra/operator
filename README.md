@@ -3,7 +3,7 @@
 # Operator!
 [![GitHub Tag](https://img.shields.io/github/v/tag/untra/operator)](https://github.com/untra/operator/releases) [![codecov](https://codecov.io/gh/untra/operator/branch/main/graph/badge.svg)](https://codecov.io/gh/untra/operator) [![VS Code Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/untra.operator-terminals?label=VS%20Code%20Installs)](https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals)
 
-**Session** [![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=white)](https://operator.untra.io/getting-started/sessions/tmux/) [![cmux](https://img.shields.io/badge/cmux-333333)](https://operator.untra.io/getting-started/sessions/cmux/) [![Zellij](https://img.shields.io/badge/Zellij-E8590C)](https://operator.untra.io/getting-started/sessions/zellij/) [![VS Code](https://img.shields.io/badge/VS_Code-007ACC?logo=visualstudiocode&logoColor=white)](https://operator.untra.io/getting-started/sessions/vscode/) **|** **LLM Tool** [![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/agents/claude/) [![Codex](https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/agents/codex/) [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](https://operator.untra.io/getting-started/agents/gemini-cli/) **|** **Kanban Provider** [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) **|** **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/) [![GitLab](https://img.shields.io/badge/GitLab-FC6D26?logo=gitlab&logoColor=white)](https://operator.untra.io/getting-started/git/gitlab/)
+**Session** [![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=white)](https://operator.untra.io/getting-started/sessions/tmux/) [![cmux](https://img.shields.io/badge/cmux-333333)](https://operator.untra.io/getting-started/sessions/cmux/) [![Zellij](https://img.shields.io/badge/Zellij-E8590C)](https://operator.untra.io/getting-started/sessions/zellij/) **|** **LLM Tool** [![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/agents/claude/) [![Codex](https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/agents/codex/) [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](https://operator.untra.io/getting-started/agents/gemini-cli/) **|** **Kanban Provider** [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) **|** **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/)
 
 An orchestration tool for [**AI-assisted**](https://operator.untra.io/getting-started/agents/) [_kanban-shaped_](https://operator.untra.io/getting-started/kanban/) [git-versioned](https://operator.untra.io/getting-started/git/) software development.
 
@@ -21,16 +21,16 @@ and you are ready to start seriously automating your work.
 
 ## Overview
 
-`operator` is a TUI (terminal user interface) application that uses session wrappers ([tmux](https://operator.untra.io/getting-started/sessions/tmux/), [cmux](https://operator.untra.io/getting-started/sessions/cmux/), [Zellij](https://operator.untra.io/getting-started/sessions/zellij/), or [VS Code](https://operator.untra.io/getting-started/sessions/vscode/)) to manage multiple AI coding agents across multi-project workspaces of many codebases. It is designed to be ticket-first, starting claude code keyed off from markdown stories from a ticketing provider. It provides:
+`operator` is a TUI (terminal user interface) application that uses session wrappers ([tmux](https://operator.untra.io/getting-started/sessions/tmux/), [cmux](https://operator.untra.io/getting-started/sessions/cmux/), or [Zellij](https://operator.untra.io/getting-started/sessions/zellij/)) to manage multiple AI coding agents across multi-project workspaces of many codebases. It is designed to be ticket-first, launching LLM coding agents keyed off from markdown stories from a ticketing provider. It provides:
 
 - **Queue Management**: ticket queue with priority-based work assignment, launchable from a dashboard
-- **Agent Orchestration**: Launch, monitor, pause/resume Claude Desktop agents against kanban shaped work tickets, and track the ticket progress as it goes through your defined work implementation steps
+- **Agent Orchestration**: Launch, monitor, pause/resume LLM coding agents against kanban shaped work tickets, and track the ticket progress as it goes through your defined work implementation steps
 - **Notifications**: macOS and linux notifications for agent events, keeping you the human in the loop. 
 - **Dashboard**: Real-time view of queue, active agents, completed work, and waiting instances seeking feedback or human review
 
 Operator is designed to facilitate work from markdown tickets, tackling tasks across multiple code repositories by semi-autonomous agents. Operator should be started from the root of your collective work projects repository (eg, `~/Documents`), so that it may start feature or fix work in the right part of the codebase.
 
-When started for the first time, Operator will setup configuration to consume and process work tickets, and identify local projects with `claude.md files` to setup.
+When started for the first time, Operator will setup configuration to consume and process work tickets, and identify local projects by scanning for LLM tool marker files (`CLAUDE.md`, `CODEX.md`, `GEMINI.md`) and git repositories.
 
 Operator comes with a separate web component, unneeded to do work but purpose built to give you a developer portal to expand their workflows and administrate Operator with ease.
 
@@ -49,26 +49,11 @@ operator create             # Create a new work ticket
 operator agents             # List active agents
 operator pause              # Pause queue processing
 operator resume             # Resume queue processing
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      operator TUI                           │
-├─────────────────────────────────────────────────────────────┤
-│  Queue Manager    │  Agent Manager   │  Notification Svc   │
-│  - Watch .tickets │  - Launch agents │  - macOS notifs     │
-│  - Priority sort  │  - Track status  │  - Configurable     │
-│  - Work assign    │  - Pause/resume  │  - Event hooks      │
-├─────────────────────────────────────────────────────────────┤
-│                    State Store (.operator/)                 │
-│  - Agent sessions │  - Queue state   │  - Config           │
-└─────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-   Claude Desktop       .tickets/            Third-party
-      Windows            queue/              integrations
+operator stalled            # Show stalled agents awaiting input
+operator alert              # Create investigation from external alert
+operator docs               # Generate documentation from source-of-truth files
+operator api                # Start the REST API server
+operator setup              # Initialize operator workspace
 ```
 
 ## Installation
@@ -103,28 +88,44 @@ sudo cp target/release/operator /usr/local/bin/
 
 ## Configuration
 
-Configuration lives in `~/.config/operator/config.toml` or `./config/default.toml`:
+Workspace configuration lives in `.tickets/operator/config.toml` (created by `operator setup`). An optional global override can be placed at `~/.config/operator/config.toml`.
 
 ```toml
 [agents]
 max_parallel = 5          # Maximum concurrent agents
-cores_reserved = 1        # Cores to keep free (max = cores - reserved)
+cores_reserved = 1        # Cores to keep free (actual max = cores - reserved)
+health_check_interval = 30
 
 [notifications]
 enabled = true
-on_agent_start = true
-on_agent_complete = true
-on_agent_needs_input = true
-on_pr_created = true
+
+[notifications.os]
+enabled = true
 sound = false
+events = []               # Empty = all events
 
 [queue]
 auto_assign = true        # Automatically assign work when agents free
 priority_order = ["INV", "FIX", "FEAT", "SPIKE"]
+poll_interval_ms = 1000
 
 [paths]
-tickets = "../.tickets"
-projects = ".."
+tickets = ".tickets"      # Relative to cwd
+projects = "."            # cwd is projects root
+state = ".tickets/operator"
+
+[ui]
+refresh_rate_ms = 250
+completed_history_hours = 24
+summary_max_length = 40
+
+[launch]
+confirm_autonomous = true
+confirm_paired = true
+launch_delay_ms = 2000
+
+[sessions]
+wrapper = "tmux"          # "tmux", "cmux", or "zellij"
 ```
 
 ## Ticket Priority
@@ -177,27 +178,13 @@ Within each priority level, tickets are processed FIFO by timestamp.
 
 ## Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
-| `q` | Quit |
-| `Q` | Focus queue panel |
-| `L` | Launch next ticket (with confirmation) |
-| `l` | Launch specific ticket |
-| `P` | Pause all processing |
-| `R` | Resume processing |
-| `A` | Focus agents panel |
-| `a` | View agent details |
-| `N` | Toggle notifications |
-| `?` | Help |
-| `↑/↓` | Navigate lists |
-| `Enter` | Select/expand |
-| `Esc` | Back/cancel |
+See [Keyboard Shortcuts Reference](https://operator.untra.io/shortcuts/) for the full list, auto-generated from [`src/ui/keybindings.rs`](src/ui/keybindings.rs). Press `?` in the TUI to view shortcuts in-app.
 
 ## Integration Points
 
-### Claude Desktop
+### LLM Agent Launch
 
-Agents are launched by opening Claude Desktop with the appropriate project folder and an initial prompt pointing to the ticket.
+Agents are launched in terminal sessions with the appropriate project folder and an initial prompt derived from the ticket.
 
 ### Third-Party Integrations
 
@@ -211,56 +198,41 @@ Investigations can be triggered externally:
 operator alert --source pagerduty --message "500 errors in backend" --severity S1
 ```
 
-## LLM CLI Tool Requirements
+## LLM CLI Tool Integration
 
-Operator launches LLM agents via CLI tools in tmux sessions. To be compatible with Operator, an LLM CLI tool must support the following capabilities:
+Operator launches LLM agents via CLI tools in terminal sessions. Each tool is configured via a JSON definition in `src/llm/tools/`.
 
-### Required CLI Flags
+### Supported Tools
 
-| Flag | Purpose | Example |
-|------|---------|---------|
-| `-p` or `--prompt` | Accept an initial prompt/instruction | `-p "implement feature X"` |
-| `--model` | Specify which model to use | `--model opus` |
-| `--session-id` | UUID for session continuity/resumption | `--session-id 550e8400-...` |
+| Tool | Detection | Models | Session Flag |
+|------|-----------|--------|--------------|
+| `claude` | `claude --version` | opus, sonnet, haiku | `--session-id` |
+| `codex` | `codex --version` | gpt-4o, o1, o3 | `--resume` |
+| `gemini` | `gemini --version` | pro, flash, ultra | `--resume` |
 
 ### How Operator Calls LLM Tools
 
-Operator constructs commands in this format:
+Each tool has a JSON config in `src/llm/tools/` that defines argument mappings and a command template. Operator constructs the launch command from this config:
 
-```bash
-<tool> --model <model> -p "$(cat <prompt_file>)" --session-id <uuid>
-```
-
-**Details:**
 - **Prompt file**: Prompts are written to `.tickets/operator/prompts/<uuid>.txt` to avoid shell escaping issues with multiline prompts
 - **Session ID**: A UUID v4 is generated per launch, enabling session resumption
 - **Model aliases**: Operator uses short aliases (e.g., "opus", "sonnet") that resolve to latest model versions
 
-### Currently Supported Tools
-
-| Tool | Detection | Models |
-|------|-----------|--------|
-| `claude` | `which claude` + `claude --version` | opus, sonnet, haiku |
-
 ### Adding Support for New LLM Tools
 
-To add support for a new LLM CLI tool (e.g., OpenAI Codex, Google Gemini):
+Create a new JSON tool config following the schema in `src/llm/tools/tool_config.schema.json`. The config defines:
 
-1. Create a detector in `src/llm/<tool>.rs` that:
-   - Checks if the binary exists (`which <tool>`)
-   - Gets version (`<tool> --version`)
-   - Returns available model aliases
-
-2. Register the detector in `src/llm/detection.rs`
-
-3. Update the launcher in `src/agents/launcher.rs` to handle the tool's specific CLI syntax
+- Tool binary name and version detection command
+- Model aliases and argument mappings
+- Command template with placeholder variables
+- Capability flags (sessions, headless, permission modes)
 
 **Requirements for the LLM tool:**
 - Must be installable as a CLI binary
 - Must accept prompt via flag (not just stdin)
 - Must support model selection
 - Should support session/conversation ID for continuity
-- Should run interactively in a terminal (for tmux integration)
+- Should run interactively in a terminal (for session wrapper integration)
 
 ## Development
 
@@ -281,15 +253,21 @@ Reference documentation is auto-generated from source-of-truth files to minimize
 
 ### Available References
 
-| Reference | Location | Source |
-|-----------|----------|--------|
-| CLI Commands | `docs/cli/` | clap definitions in `src/main.rs` |
-| Configuration | `docs/configuration/` | `src/config.rs` via schemars |
-| Keyboard Shortcuts | `docs/shortcuts/` | `src/ui/keybindings.rs` |
-| REST API (OpenAPI) | `docs/schemas/openapi.json` | utoipa annotations in `src/rest/` |
-| Issue Type Schema | `docs/schemas/issuetype.md` | `src/schemas/issuetype_schema.json` |
-| Ticket Metadata Schema | `docs/schemas/metadata.md` | `src/schemas/ticket_metadata.schema.json` |
-| Project Taxonomy | `docs/backstage/taxonomy.md` | `src/backstage/taxonomy.toml` |
+| Generator | Source | Output |
+|-----------|--------|--------|
+| taxonomy | `src/backstage/taxonomy.toml` | `docs/backstage/taxonomy.md` |
+| issuetype-schema | `src/schemas/issuetype_schema.json` | `docs/schemas/issuetype.md` |
+| metadata-schema | `src/schemas/ticket_metadata.schema.json` | `docs/schemas/metadata.md` |
+| shortcuts | `src/ui/keybindings.rs` | `docs/shortcuts/index.md` |
+| cli | `src/main.rs`, `src/env_vars.rs` | `docs/cli/index.md` |
+| config | `src/config.rs` | `docs/configuration/index.md` |
+| OpenAPI | `src/rest/` (utoipa annotations) | `docs/schemas/openapi.json` |
+| llm-tools | `src/llm/tools/tool_config.schema.json` | `docs/llm-tools/index.md` |
+| startup | `src/startup/mod.rs` | `docs/startup/index.md` |
+| config-schema | `docs/schemas/config.json` | `docs/schemas/config.md` |
+| state-schema | `docs/schemas/state.json` | `docs/schemas/state.md` |
+| schema-index | `docs/schemas/` | `docs/schemas/index.md` |
+| jira-api | `docs/schemas/jira-api.json` | `docs/getting-started/kanban/jira-api.md` |
 
 ### Viewing Documentation
 
@@ -311,11 +289,8 @@ cargo run -- docs
 # Regenerate specific docs
 cargo run -- docs --only openapi
 cargo run -- docs --only config
+
+# Available generators: taxonomy, issuetype-schema, metadata-schema, shortcuts,
+# cli, config, OpenAPI, llm-tools, startup, config-schema, state-schema,
+# schema-index, jira-api
 ```
-
-## TODO
-
-* [ ] `--setup jira` option for jira sync for workspace setup
-* [ ] `--setup linear` option for linear kanban provider
-* [ ] `--setup gitlab` option for gitlab repository provider
-* [ ] `--sync https://foobar.atlassian.net --project ABC` option for jira ticket sync

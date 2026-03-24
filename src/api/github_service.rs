@@ -1,6 +1,6 @@
 //! GitHub service with retry logic for PR operations.
 //!
-//! Wraps GhCli with exponential backoff retry for transient failures.
+//! Wraps `GhCli` with exponential backoff retry for transient failures.
 //! Follows vibe-kanban patterns for robust GitHub integration.
 
 use anyhow::{Context, Result};
@@ -240,8 +240,7 @@ impl GitHubService {
 
             if start.elapsed() > timeout {
                 return Err(anyhow::anyhow!(
-                    "Timeout waiting for PR #{} condition",
-                    pr_number
+                    "Timeout waiting for PR #{pr_number} condition"
                 ));
             }
 

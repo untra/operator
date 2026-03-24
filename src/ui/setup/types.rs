@@ -90,7 +90,7 @@ pub enum SetupResult {
 /// Startup ticket options for project initialization
 #[derive(Debug, Clone)]
 pub struct StartupTicketOption {
-    /// Key identifier for the ticket type (e.g., "assess", "agent_setup")
+    /// Key identifier for the ticket type (e.g., "assess", "`agent_setup`")
     pub key: &'static str,
     pub name: &'static str,
     pub description: &'static str,
@@ -166,17 +166,26 @@ impl Default for VSCodeDetectionStatus {
 pub enum SessionWrapperOption {
     Tmux,
     VSCode,
+    Cmux,
+    Zellij,
 }
 
 impl SessionWrapperOption {
     pub fn all() -> &'static [SessionWrapperOption] {
-        &[SessionWrapperOption::Tmux, SessionWrapperOption::VSCode]
+        &[
+            SessionWrapperOption::Tmux,
+            SessionWrapperOption::VSCode,
+            SessionWrapperOption::Cmux,
+            SessionWrapperOption::Zellij,
+        ]
     }
 
     pub fn label(&self) -> &'static str {
         match self {
             SessionWrapperOption::Tmux => "Tmux (default)",
             SessionWrapperOption::VSCode => "VS Code Integrated Terminal",
+            SessionWrapperOption::Cmux => "cmux (macOS terminal multiplexer)",
+            SessionWrapperOption::Zellij => "Zellij (terminal workspace manager)",
         }
     }
 
@@ -186,6 +195,12 @@ impl SessionWrapperOption {
             SessionWrapperOption::VSCode => {
                 "Run agents in VS Code terminal panels (requires extension)"
             }
+            SessionWrapperOption::Cmux => {
+                "Run agents in cmux workspaces (requires running inside cmux, macOS only)"
+            }
+            SessionWrapperOption::Zellij => {
+                "Run agents in Zellij panes (requires running inside Zellij)"
+            }
         }
     }
 
@@ -193,6 +208,8 @@ impl SessionWrapperOption {
         match self {
             SessionWrapperOption::Tmux => SessionWrapperType::Tmux,
             SessionWrapperOption::VSCode => SessionWrapperType::Vscode,
+            SessionWrapperOption::Cmux => SessionWrapperType::Cmux,
+            SessionWrapperOption::Zellij => SessionWrapperType::Zellij,
         }
     }
 }
@@ -267,9 +284,13 @@ pub enum SetupStep {
     TmuxOnboarding,
     /// VS Code extension setup (only shown if vscode selected)
     VSCodeSetup,
+    /// cmux setup (only shown if cmux selected)
+    CmuxSetup,
+    /// Zellij setup (only shown if zellij selected)
+    ZellijSetup,
     /// Kanban integration info and provider detection
     KanbanInfo,
-    /// Per-provider setup with project selection (index into valid_providers)
+    /// Per-provider setup with project selection (index into `valid_providers`)
     KanbanProviderSetup { provider_index: usize },
     /// Review and configure acceptance criteria
     AcceptanceCriteria,

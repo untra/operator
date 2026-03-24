@@ -92,14 +92,14 @@ pub fn scaffold_collection(templates_path: &Path, collection: &EmbeddedCollectio
 #[allow(dead_code)]
 pub fn scaffold_collection_by_name(templates_path: &Path, name: &str) -> Result<()> {
     let embedded = get_embedded_collection(name)
-        .ok_or_else(|| anyhow::anyhow!("Unknown embedded collection: {}", name))?;
+        .ok_or_else(|| anyhow::anyhow!("Unknown embedded collection: {name}"))?;
     scaffold_collection(templates_path, embedded)
 }
 
 /// Scaffold all embedded collections
 #[allow(dead_code)]
 pub fn scaffold_all_collections(templates_path: &Path) -> Result<()> {
-    for collection in EMBEDDED_COLLECTIONS.iter() {
+    for collection in EMBEDDED_COLLECTIONS {
         scaffold_collection(templates_path, collection)?;
     }
     Ok(())

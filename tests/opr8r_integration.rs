@@ -65,7 +65,7 @@ fn test_opr8r_version() {
     skip_if_not_configured!();
 
     let opr8r_path = get_opr8r_path();
-    eprintln!("Testing opr8r at: {:?}", opr8r_path);
+    eprintln!("Testing opr8r at: {opr8r_path:?}");
 
     let output = Command::new(&opr8r_path)
         .arg("--version")

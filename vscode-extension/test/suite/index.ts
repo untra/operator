@@ -4,9 +4,25 @@ import * as os from 'os';
 import Mocha from 'mocha';
 import { glob } from 'glob';
 
+/**
+ * Minimal type for the NYC coverage tool.
+ * NYC does not ship its own types, so we define the subset we use.
+ */
+interface NycInstance {
+  reset(): Promise<void>;
+  wrap(): Promise<void>;
+  exclude: { shouldInstrument(file: string): boolean };
+  writeCoverageFile(): Promise<void>;
+  report(): Promise<void>;
+}
+
+interface NycConstructor {
+  new (options: Record<string, unknown>): NycInstance;
+}
+
 // NYC for coverage instrumentation inside VS Code process
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const NYC = require('nyc');
+// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+const NYC: NycConstructor = require('nyc') as NycConstructor;
 
 export async function run(): Promise<void> {
   const testsRoot = path.resolve(__dirname, '.');
@@ -30,7 +46,7 @@ export async function run(): Promise<void> {
   }
 
   // Setup NYC for coverage inside VS Code process
-  const nyc = new NYC({
+  const nyc: NycInstance = new NYC({
     cwd: workspaceRoot,
     reporter: ['text', 'lcov', 'html'],
     all: true,
@@ -68,28 +84,30 @@ export async function run(): Promise<void> {
 
   // Run the mocha test
   return new Promise((resolve, reject) => {
-    mocha.run(async (failures) => {
-      // Write coverage data
-      await nyc.writeCoverageFile();
+    mocha.run((failures) => {
+      // Write coverage data and report asynchronously, then resolve/reject
+      void (async () => {
+        await nyc.writeCoverageFile();
 
-      // Generate and display coverage report
-      console.log('\n--- Coverage Report ---');
-      await captureStdout(nyc.report.bind(nyc));
+        // Generate and display coverage report
+        console.log('\n--- Coverage Report ---');
+        await captureStdout(() => nyc.report());
 
-      // Clean up test config if we created it
-      if (createdConfig) {
-        try {
-          fs.unlinkSync(configPath);
-        } catch {
-          // Ignore cleanup errors
+        // Clean up test config if we created it
+        if (createdConfig) {
+          try {
+            fs.unlinkSync(configPath);
+          } catch {
+            // Ignore cleanup errors
+          }
         }
-      }
 
-      if (failures > 0) {
-        reject(new Error(`${failures} tests failed.`));
-      } else {
-        resolve();
-      }
+        if (failures > 0) {
+          reject(new Error(`${failures} tests failed.`));
+        } else {
+          resolve();
+        }
+      })();
     });
   });
 }

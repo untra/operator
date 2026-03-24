@@ -255,7 +255,7 @@ impl BunClient for SystemBunClient {
 
         let version_str = String::from_utf8_lossy(&output.stdout);
         BunVersion::parse(version_str.trim()).ok_or_else(|| {
-            BackstageError::CommandFailed(format!("Could not parse version: {}", version_str))
+            BackstageError::CommandFailed(format!("Could not parse version: {version_str}"))
         })
     }
 
@@ -272,8 +272,7 @@ impl BunClient for SystemBunClient {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(BackstageError::CommandFailed(format!(
-                "bun install failed: {}",
-                stderr
+                "bun install failed: {stderr}"
             )));
         }
 
@@ -850,7 +849,7 @@ mod tests {
     #[test]
     fn test_bun_version_display() {
         let v = BunVersion::parse("1.2.3").unwrap();
-        assert_eq!(format!("{}", v), "1.2.3");
+        assert_eq!(format!("{v}"), "1.2.3");
     }
 
     // ==================== ServerStatus Tests ====================

@@ -35,6 +35,26 @@ const fixturesDir = path.join(
   'api'
 );
 
+/** Shape of the fetch init argument captured from sinon stubs */
+interface FetchInit {
+  method: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
+/** Shape of the request body sent in launchTicket calls */
+interface LaunchRequestBody {
+  provider: string | null;
+  model: string | null;
+  yolo_mode: boolean;
+  wrapper: string | null;
+}
+
+/** Shape of the request body sent in rejectReview calls */
+interface RejectRequestBody {
+  reason: string;
+}
+
 suite('API Client Test Suite', () => {
   let fetchStub: sinon.SinonStub;
 
@@ -116,7 +136,7 @@ suite('API Client Test Suite', () => {
         })
       );
 
-      client.health();
+      void client.health();
 
       assert.ok(
         fetchStub.calledWith('http://custom:9000/api/v1/health'),
@@ -133,7 +153,7 @@ suite('API Client Test Suite', () => {
         })
       );
 
-      client.health();
+      void client.health();
 
       // Default is http://localhost:7008 from vscode config
       assert.ok(
@@ -147,9 +167,9 @@ suite('API Client Test Suite', () => {
     test('returns health response on success', async () => {
       const client = new OperatorApiClient('http://localhost:7008');
 
-      const healthResponse: HealthResponse = await fs
-        .readFile(path.join(fixturesDir, 'health-response.json'), 'utf-8')
-        .then(JSON.parse);
+      const healthResponse: HealthResponse = JSON.parse(
+        await fs.readFile(path.join(fixturesDir, 'health-response.json'), 'utf-8')
+      ) as HealthResponse;
 
       fetchStub.resolves(
         new Response(JSON.stringify(healthResponse), { status: 200 })
@@ -187,15 +207,16 @@ suite('API Client Test Suite', () => {
     test('sends POST request with correct body', async () => {
       const client = new OperatorApiClient('http://localhost:7008');
 
-      const launchResponse: LaunchTicketResponse = await fs
-        .readFile(path.join(fixturesDir, 'launch-response.json'), 'utf-8')
-        .then(JSON.parse);
+      const launchResponse: LaunchTicketResponse = JSON.parse(
+        await fs.readFile(path.join(fixturesDir, 'launch-response.json'), 'utf-8')
+      ) as LaunchTicketResponse;
 
       fetchStub.resolves(
         new Response(JSON.stringify(launchResponse), { status: 200 })
       );
 
       const options: LaunchTicketRequest = {
+        delegator: null,
         provider: 'claude',
         model: 'sonnet',
         yolo_mode: true,
@@ -208,7 +229,7 @@ suite('API Client Test Suite', () => {
 
       // Verify the fetch call
       assert.ok(fetchStub.calledOnce);
-      const [url, init] = fetchStub.firstCall.args;
+      const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
       assert.strictEqual(
         url,
         'http://localhost:7008/api/v1/tickets/FEAT-123/launch'
@@ -216,7 +237,7 @@ suite('API Client Test Suite', () => {
       assert.strictEqual(init.method, 'POST');
       assert.strictEqual(init.headers['Content-Type'], 'application/json');
 
-      const body = JSON.parse(init.body);
+      const body = JSON.parse(init.body) as LaunchRequestBody;
       assert.strictEqual(body.provider, 'claude');
       assert.strictEqual(body.model, 'sonnet');
       assert.strictEqual(body.yolo_mode, true);
@@ -249,6 +270,7 @@ suite('API Client Test Suite', () => {
       );
 
       const options: LaunchTicketRequest = {
+        delegator: null,
         provider: null,
         model: null,
         yolo_mode: false,
@@ -259,7 +281,7 @@ suite('API Client Test Suite', () => {
 
       await client.launchTicket('FEAT-123/sub', options);
 
-      const [url] = fetchStub.firstCall.args;
+      const [url] = fetchStub.firstCall.args as [string];
       assert.ok(url.includes('FEAT-123%2Fsub'), 'Should URL-encode slash');
     });
 
@@ -277,6 +299,7 @@ suite('API Client Test Suite', () => {
       );
 
       const options: LaunchTicketRequest = {
+        delegator: null,
         provider: null,
         model: null,
         yolo_mode: false,
@@ -299,6 +322,7 @@ suite('API Client Test Suite', () => {
       );
 
       const options: LaunchTicketRequest = {
+        delegator: null,
         provider: null,
         model: null,
         yolo_mode: false,
@@ -342,7 +366,8 @@ suite('API Client Test Suite', () => {
 
       await client.launchTicket('FEAT-123', options as LaunchTicketRequest);
 
-      const body = JSON.parse(fetchStub.firstCall.args[1].body);
+      const [, init] = fetchStub.firstCall.args as [string, FetchInit];
+      const body = JSON.parse(init.body) as LaunchRequestBody;
       assert.strictEqual(body.yolo_mode, false);
     });
   });
@@ -351,9 +376,9 @@ suite('API Client Test Suite', () => {
     test('sends POST request and returns response', async () => {
       const client = new OperatorApiClient('http://localhost:7008');
 
-      const pauseResponse: QueueControlResponse = await fs
-        .readFile(path.join(fixturesDir, 'queue-paused-response.json'), 'utf-8')
-        .then(JSON.parse);
+      const pauseResponse: QueueControlResponse = JSON.parse(
+        await fs.readFile(path.join(fixturesDir, 'queue-paused-response.json'), 'utf-8')
+      ) as QueueControlResponse;
 
       fetchStub.resolves(
         new Response(JSON.stringify(pauseResponse), { status: 200 })
@@ -362,7 +387,7 @@ suite('API Client Test Suite', () => {
       const result = await client.pauseQueue();
 
       assert.ok(fetchStub.calledOnce);
-      const [url, init] = fetchStub.firstCall.args;
+      const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
       assert.strictEqual(url, 'http://localhost:7008/api/v1/queue/pause');
       assert.strictEqual(init.method, 'POST');
 
@@ -391,12 +416,12 @@ suite('API Client Test Suite', () => {
     test('sends POST request and returns response', async () => {
       const client = new OperatorApiClient('http://localhost:7008');
 
-      const resumeResponse: QueueControlResponse = await fs
-        .readFile(
+      const resumeResponse: QueueControlResponse = JSON.parse(
+        await fs.readFile(
           path.join(fixturesDir, 'queue-resumed-response.json'),
           'utf-8'
         )
-        .then(JSON.parse);
+      ) as QueueControlResponse;
 
       fetchStub.resolves(
         new Response(JSON.stringify(resumeResponse), { status: 200 })
@@ -405,7 +430,7 @@ suite('API Client Test Suite', () => {
       const result = await client.resumeQueue();
 
       assert.ok(fetchStub.calledOnce);
-      const [url, init] = fetchStub.firstCall.args;
+      const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
       assert.strictEqual(url, 'http://localhost:7008/api/v1/queue/resume');
       assert.strictEqual(init.method, 'POST');
 
@@ -434,9 +459,9 @@ suite('API Client Test Suite', () => {
     test('sends POST request and returns sync response', async () => {
       const client = new OperatorApiClient('http://localhost:7008');
 
-      const syncResponse: KanbanSyncResponse = await fs
-        .readFile(path.join(fixturesDir, 'sync-response.json'), 'utf-8')
-        .then(JSON.parse);
+      const syncResponse: KanbanSyncResponse = JSON.parse(
+        await fs.readFile(path.join(fixturesDir, 'sync-response.json'), 'utf-8')
+      ) as KanbanSyncResponse;
 
       fetchStub.resolves(
         new Response(JSON.stringify(syncResponse), { status: 200 })
@@ -445,7 +470,7 @@ suite('API Client Test Suite', () => {
       const result = await client.syncKanban();
 
       assert.ok(fetchStub.calledOnce);
-      const [url, init] = fetchStub.firstCall.args;
+      const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
       assert.strictEqual(url, 'http://localhost:7008/api/v1/queue/sync');
       assert.strictEqual(init.method, 'POST');
 
@@ -479,12 +504,12 @@ suite('API Client Test Suite', () => {
     test('sends POST request with agent ID', async () => {
       const client = new OperatorApiClient('http://localhost:7008');
 
-      const approveResponse: ReviewResponse = await fs
-        .readFile(
+      const approveResponse: ReviewResponse = JSON.parse(
+        await fs.readFile(
           path.join(fixturesDir, 'review-approved-response.json'),
           'utf-8'
         )
-        .then(JSON.parse);
+      ) as ReviewResponse;
 
       fetchStub.resolves(
         new Response(JSON.stringify(approveResponse), { status: 200 })
@@ -493,7 +518,7 @@ suite('API Client Test Suite', () => {
       const result = await client.approveReview('agent-abc123');
 
       assert.ok(fetchStub.calledOnce);
-      const [url, init] = fetchStub.firstCall.args;
+      const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
       assert.strictEqual(
         url,
         'http://localhost:7008/api/v1/agents/agent-abc123/approve'
@@ -520,7 +545,7 @@ suite('API Client Test Suite', () => {
 
       await client.approveReview('agent/special');
 
-      const [url] = fetchStub.firstCall.args;
+      const [url] = fetchStub.firstCall.args as [string];
       assert.ok(url.includes('agent%2Fspecial'), 'Should URL-encode slash');
     });
 
@@ -548,12 +573,12 @@ suite('API Client Test Suite', () => {
     test('sends POST request with agent ID and reason', async () => {
       const client = new OperatorApiClient('http://localhost:7008');
 
-      const rejectResponse: ReviewResponse = await fs
-        .readFile(
+      const rejectResponse: ReviewResponse = JSON.parse(
+        await fs.readFile(
           path.join(fixturesDir, 'review-rejected-response.json'),
           'utf-8'
         )
-        .then(JSON.parse);
+      ) as ReviewResponse;
 
       fetchStub.resolves(
         new Response(JSON.stringify(rejectResponse), { status: 200 })
@@ -565,7 +590,7 @@ suite('API Client Test Suite', () => {
       );
 
       assert.ok(fetchStub.calledOnce);
-      const [url, init] = fetchStub.firstCall.args;
+      const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
       assert.strictEqual(
         url,
         'http://localhost:7008/api/v1/agents/agent-abc123/reject'
@@ -573,7 +598,7 @@ suite('API Client Test Suite', () => {
       assert.strictEqual(init.method, 'POST');
       assert.strictEqual(init.headers['Content-Type'], 'application/json');
 
-      const body = JSON.parse(init.body);
+      const body = JSON.parse(init.body) as RejectRequestBody;
       assert.strictEqual(body.reason, 'Tests are failing');
 
       assert.strictEqual(result.agent_id, 'agent-abc123');
@@ -596,7 +621,8 @@ suite('API Client Test Suite', () => {
 
       await client.rejectReview('agent-abc123', '');
 
-      const body = JSON.parse(fetchStub.firstCall.args[1].body);
+      const [, init] = fetchStub.firstCall.args as [string, FetchInit];
+      const body = JSON.parse(init.body) as RejectRequestBody;
       assert.strictEqual(body.reason, '');
     });
 

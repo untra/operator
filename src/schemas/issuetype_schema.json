@@ -73,6 +73,10 @@
     "agent_creation_prompt": {
       "type": "string",
       "description": "Optional prompt for generating an operator agent for this issuetype via 'claude -p' for this prompt. Should instruct Claude to output ONLY the agent system prompt. If omitted, no operator agent will be generated for this issuetype."
+    },
+    "agent": {
+      "type": "string",
+      "description": "Default delegator name for this issuetype (overridden by step-level agent)"
     }
   },
   "definitions": {
@@ -271,6 +275,15 @@
         "jsonSchemaFile": {
           "type": "string",
           "description": "Path to a local JSON schema file for structured output, relative to the project root. Claude-specific: sets --json-schema flag."
+        },
+        "artifact_patterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "File glob patterns in the worktree that signal this step is complete (e.g., '.tickets/plans/*.md')"
+        },
+        "agent": {
+          "type": "string",
+          "description": "Delegator name override for this step"
         }
       }
     },

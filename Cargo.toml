@@ -78,15 +78,80 @@ async-trait = "0.1"
 
 # REST API
 axum = { version = "0.7", features = ["macros", "tokio", "tracing"] }
+tokio-stream = "0.1"
+futures-util = "0.3"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 http-body-util = "0.1"
 
 # OpenAPI documentation
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
 [dev-dependencies]
 tempfile = "3"
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+# Nursery lints for cohesion
+cognitive_complexity = "warn"
+redundant_clone = "warn"
+
+# Allow noisy pedantic lints that don't add value here
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+return_self_not_must_use = "allow"
+struct_excessive_bools = "allow"
+too_many_lines = "allow"
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+cast_precision_loss = "allow"
+cast_lossless = "allow"
+wildcard_imports = "allow"
+# TUI/builder patterns make these too noisy
+unused_self = "allow"
+trivially_copy_pass_by_ref = "allow"
+needless_pass_by_value = "allow"
+similar_names = "allow"
+struct_field_names = "allow"
+# String building in TUI renderers
+format_push_string = "allow"
+# Many functions wrap for future error paths
+unnecessary_wraps = "allow"
+# Common in async code stubs
+unused_async = "allow"
+# Doc links with quotes are fine
+doc_link_with_quotes = "allow"
+# Allow cast_possible_wrap for u64→i64 in timestamps
+cast_possible_wrap = "allow"
+# Match arms kept separate for readability in TUI event handlers
+match_same_arms = "allow"
+# clone_from is less readable than reassignment
+assigning_clones = "allow"
+# let-else not always clearer
+manual_let_else = "allow"
+# Items after statements common in this codebase
+items_after_statements = "allow"
+# &Option<T> is idiomatic in this codebase for optional refs
+ref_option = "allow"
+# Excessive bools in setup functions are intentional
+fn_params_excessive_bools = "allow"
+# HashMap without explicit hasher is fine for non-perf-critical code
+implicit_hasher = "allow"
+# map_or readability is subjective
+map_unwrap_or = "allow"
+# for_each vs for loop is stylistic
+needless_for_each = "allow"
+# Explicit continue aids readability in complex loops
+needless_continue = "allow"
+# Wildcard matches are intentional for future-proofing
+match_wildcard_for_single_variants = "allow"
 
 # Platform-specific notifications
 [target.'cfg(target_os = "macos")'.dependencies]

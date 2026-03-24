@@ -62,7 +62,7 @@ impl QueueWatcher {
         }
     }
 
-    /// Classify a filesystem event into a QueueEvent.
+    /// Classify a filesystem event into a `QueueEvent`.
     /// Made pub(crate) for testing.
     pub(crate) fn classify_event(&self, event: Event) -> Option<QueueEvent> {
         use notify::EventKind;
@@ -86,7 +86,9 @@ impl QueueWatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use notify::event::{AccessKind, CreateKind, DataChange, ModifyKind, RemoveKind};
+    use notify::event::{
+        AccessKind, CreateKind, DataChange, EventAttributes, ModifyKind, RemoveKind,
+    };
     use notify::EventKind;
     use std::path::PathBuf;
     use tempfile::TempDir;
@@ -108,7 +110,7 @@ mod tests {
         Event {
             kind,
             paths: vec![path],
-            attrs: Default::default(),
+            attrs: EventAttributes::default(),
         }
     }
 
@@ -187,7 +189,7 @@ mod tests {
         let event = Event {
             kind: EventKind::Create(CreateKind::File),
             paths: vec![],
-            attrs: Default::default(),
+            attrs: EventAttributes::default(),
         };
 
         let result = watcher.classify_event(event);

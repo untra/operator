@@ -3,12 +3,13 @@
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": 2022,
-    "sourceType": "module"
+    "sourceType": "module",
+    "project": "./tsconfig.json"
   },
-  "plugins": ["@typescript-eslint"],
+  "plugins": ["@typescript-eslint", "@stylistic/ts"],
   "extends": [
     "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-type-checked",
     "../.eslintrc.base.json"
   ],
   "env": {
@@ -23,7 +24,7 @@
         "format": ["camelCase", "PascalCase"]
       }
     ],
-    "@typescript-eslint/semi": "warn",
+    "@stylistic/ts/semi": "warn",
     "semi": "off"
   },
   "ignorePatterns": ["out", "dist", "**/*.d.ts"]

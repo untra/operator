@@ -161,10 +161,7 @@ impl CreateDialog {
 
     /// Get the project list with optional "none" entry for SPIKE/INV
     fn project_list(&self) -> Vec<String> {
-        let allows_none = self
-            .selected_template
-            .map(|t| t.project_optional())
-            .unwrap_or(false);
+        let allows_none = self.selected_template.is_some_and(|t| t.project_optional());
 
         let mut list = Vec::new();
         if allows_none {
@@ -221,10 +218,7 @@ impl CreateDialog {
 
     fn handle_project_key(&mut self, key: KeyCode) -> Option<CreateDialogResult> {
         let list = self.project_list();
-        let requires_project = !self
-            .selected_template
-            .map(|t| t.project_optional())
-            .unwrap_or(true);
+        let requires_project = !self.selected_template.is_none_or(|t| t.project_optional());
 
         match key {
             KeyCode::Up | KeyCode::Char('k') => {
@@ -416,7 +410,7 @@ impl CreateDialog {
         self.schema = Some(schema);
     }
 
-    /// Generate auto values (id, created, created_date, created_datetime, status, branch)
+    /// Generate auto values (id, created, `created_date`, `created_datetime`, status, branch)
     fn generate_auto_values(&self, template_type: TemplateType) -> HashMap<String, String> {
         use chrono::Utc;
 
@@ -428,7 +422,7 @@ impl CreateDialog {
         let branch_prefix = type_str.to_lowercase();
 
         let mut values = HashMap::new();
-        values.insert("id".to_string(), format!("{}-{}", type_str, id));
+        values.insert("id".to_string(), format!("{type_str}-{id}"));
         values.insert("created".to_string(), date.clone());
         values.insert("created_date".to_string(), date);
         values.insert("created_datetime".to_string(), datetime);
@@ -442,7 +436,7 @@ impl CreateDialog {
 
         values.insert(
             "branch".to_string(),
-            format!("{}/{}-{}-short-description", branch_prefix, type_str, id),
+            format!("{branch_prefix}/{type_str}-{id}-short-description"),
         );
 
         values
@@ -619,17 +613,13 @@ impl CreateDialog {
             .split(inner);
 
         // Instructions
-        let optional_note = if self
-            .selected_template
-            .map(|t| t.project_optional())
-            .unwrap_or(false)
-        {
+        let optional_note = if self.selected_template.is_some_and(|t| t.project_optional()) {
             " (optional)"
         } else {
             ""
         };
         let instructions = Paragraph::new(Line::from(vec![Span::styled(
-            format!("Select project{}:", optional_note),
+            format!("Select project{optional_note}:"),
             Style::default().fg(Color::Gray),
         )]));
         frame.render_widget(instructions, chunks[0]);
@@ -648,10 +638,7 @@ impl CreateDialog {
             })
             .collect();
 
-        let requires_project = !self
-            .selected_template
-            .map(|t| t.project_optional())
-            .unwrap_or(true);
+        let requires_project = !self.selected_template.is_none_or(|t| t.project_optional());
 
         let items_empty = items.is_empty();
 

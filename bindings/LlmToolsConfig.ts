@@ -21,6 +21,6 @@ providers: Array<LlmProvider>,
  */
 detection_complete: boolean, 
 /**
- * Per-tool overrides for skill directories (keyed by tool_name)
+ * Per-tool overrides for skill directories (keyed by `tool_name`)
  */
 skill_directory_overrides: { [key in string]?: SkillDirectoriesOverride }, };

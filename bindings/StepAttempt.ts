@@ -66,9 +66,13 @@ status: AttemptStatus,
  */
 paired: boolean, 
 /**
- * Tmux session name (for Operator's terminal-based execution)
+ * Terminal session name (for Operator's terminal-based execution)
  */
-tmux_session: string | null, 
+terminal_session: string | null, 
+/**
+ * Which session wrapper manages this attempt: "tmux", "vscode", or "cmux"
+ */
+session_wrapper: string | null, 
 /**
  * Hash of last captured terminal content (for change detection)
  */
@@ -86,7 +90,7 @@ pr_number: bigint | null,
  */
 github_repo: string | null, 
 /**
- * Current PR status ("open", "approved", "changes_requested", "merged", "closed")
+ * Current PR status ("open", "approved", "`changes_requested`", "merged", "closed")
  */
 pr_status: string | null, 
 /**

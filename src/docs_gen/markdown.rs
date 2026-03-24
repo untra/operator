@@ -39,25 +39,25 @@ pub fn table(headers: &[&str], rows: &[Vec<String>]) -> String {
 /// Format a heading with the specified level
 pub fn heading(level: u8, text: &str) -> String {
     let hashes = "#".repeat(level as usize);
-    format!("{} {}\n\n", hashes, text)
+    format!("{hashes} {text}\n\n")
 }
 
 /// Format a code block with optional language
 pub fn code_block(code: &str, language: Option<&str>) -> String {
     let lang = language.unwrap_or("");
-    format!("```{}\n{}\n```\n\n", lang, code)
+    format!("```{lang}\n{code}\n```\n\n")
 }
 
 /// Format an inline code span
 pub fn inline_code(text: &str) -> String {
-    format!("`{}`", text)
+    format!("`{text}`")
 }
 
 /// Format a bullet list
 pub fn bullet_list(items: &[String]) -> String {
     use std::fmt::Write;
     let mut result = items.iter().fold(String::new(), |mut acc, item| {
-        let _ = writeln!(acc, "- {}", item);
+        let _ = writeln!(acc, "- {item}");
         acc
     });
     result.push('\n');
@@ -82,7 +82,7 @@ pub fn numbered_list(items: &[String]) -> String {
 pub fn blockquote(text: &str) -> String {
     use std::fmt::Write;
     let mut result = text.lines().fold(String::new(), |mut acc, line| {
-        let _ = writeln!(acc, "> {}", line);
+        let _ = writeln!(acc, "> {line}");
         acc
     });
     result.push('\n');
@@ -91,12 +91,12 @@ pub fn blockquote(text: &str) -> String {
 
 /// Format bold text
 pub fn bold(text: &str) -> String {
-    format!("**{}**", text)
+    format!("**{text}**")
 }
 
 /// Format italic text
 pub fn italic(text: &str) -> String {
-    format!("*{}*", text)
+    format!("*{text}*")
 }
 
 /// Escape special markdown characters

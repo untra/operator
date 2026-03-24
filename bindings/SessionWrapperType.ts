@@ -3,4 +3,4 @@
 /**
  * Session wrapper type for terminal session management
  */
-export type SessionWrapperType = "tmux" | "vscode";
+export type SessionWrapperType = "tmux" | "vscode" | "cmux" | "zellij";

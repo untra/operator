@@ -26,13 +26,15 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `L/l` | Launch selected ticket | Dashboard |
 | `P/p` | Pause queue processing | Dashboard |
 | `R/r` | Resume queue processing | Dashboard |
-| `S` | Manual sync (rate limits + sessions) | Dashboard |
+| `S` | Sync kanban collections | Dashboard |
 | `Y/y` | Approve review (agents panel) | Dashboard |
 | `X/x` | Reject review (agents panel) | Dashboard |
 | `W/w` | Toggle Backstage server | Dashboard |
 | `V/v` | Show session preview | Dashboard |
 | `C` | Create new ticket | Dashboard |
 | `J` | Open Projects menu | Dashboard |
+| `T/t` | Switch issue type collection | Dashboard |
+| `K` | Open Kanban providers view | Dashboard |
 | `g` | Scroll to top | Session Preview |
 | `G` | Scroll to bottom | Session Preview |
 | `PgUp` | Page up | Session Preview |
@@ -76,7 +78,7 @@ These shortcuts are available in the main dashboard view.
 | `L/l` | Launch selected ticket |
 | `P/p` | Pause queue processing |
 | `R/r` | Resume queue processing |
-| `S` | Manual sync (rate limits + sessions) |
+| `S` | Sync kanban collections |
 | `Y/y` | Approve review (agents panel) |
 | `X/x` | Reject review (agents panel) |
 | `W/w` | Toggle Backstage server |
@@ -88,6 +90,8 @@ These shortcuts are available in the main dashboard view.
 | --- | --- |
 | `C` | Create new ticket |
 | `J` | Open Projects menu |
+| `T/t` | Switch issue type collection |
+| `K` | Open Kanban providers view |
 
 ## Session Preview
 

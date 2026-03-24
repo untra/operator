@@ -5,11 +5,15 @@
  */
 export type LaunchTicketRequest = { 
 /**
- * LLM provider to use (e.g., "claude")
+ * Named delegator to use (takes precedence over provider/model)
+ */
+delegator: string | null, 
+/**
+ * LLM provider to use (e.g., "claude") — legacy fallback when no delegator
  */
 provider: string | null, 
 /**
- * Model to use (e.g., "sonnet", "opus")
+ * Model to use (e.g., "sonnet", "opus") — legacy fallback when no delegator
  */
 model: string | null, 
 /**
@@ -17,7 +21,7 @@ model: string | null,
  */
 yolo_mode: boolean, 
 /**
- * Session wrapper type: "vscode", "tmux", "terminal"
+ * Session wrapper type: "vscode", "tmux", "cmux", "terminal"
  */
 wrapper: string | null, 
 /**

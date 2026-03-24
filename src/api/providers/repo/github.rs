@@ -84,7 +84,7 @@ impl GitHubProvider {
         })
     }
 
-    /// Create provider from OPERATOR_GITHUB_TOKEN environment variable
+    /// Create provider from `OPERATOR_GITHUB_TOKEN` environment variable
     pub fn from_env() -> Result<Option<Self>, ApiError> {
         match env::var("OPERATOR_GITHUB_TOKEN") {
             Ok(token) if !token.is_empty() => Ok(Some(Self::new(token)?)),
@@ -177,7 +177,7 @@ impl GitHubProvider {
             return Ok(None); // No checks configured
         }
 
-        let all_pass = checks.iter().all(|c| c.is_passed());
+        let all_pass = checks.iter().all(super::CheckStatus::is_passed);
         Ok(Some(all_pass))
     }
 

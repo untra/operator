@@ -95,7 +95,7 @@ const TOOL_META: Record<string, { versionCmd: string; minVersion: string }> = {
 export function compareVersions(version: string, minVersion: string): boolean {
   const parse = (v: string): number[] => {
     const match = v.match(/(\d+(?:\.\d+)*)/);
-    if (!match) { return [0]; }
+    if (!match?.[1]) { return [0]; }
     return match[1].split('.').map(Number);
   };
   const a = parse(version);
@@ -118,7 +118,7 @@ async function detectSingleTool(tool: string): Promise<DetectedToolResult | null
   let toolPath: string;
   try {
     const { stdout } = await execAsync(`${whichCmd} ${tool}`);
-    toolPath = stdout.trim().split('\n')[0];
+    toolPath = stdout.trim().split('\n')[0] ?? '';
   } catch {
     return null;
   }
@@ -237,7 +237,7 @@ export async function getKanbanWorkspaces(): Promise<KanbanWorkspace[]> {
       const orgInfo = await fetchLinearWorkspace(apiKey);
       if (orgInfo) {
         workspaces[linearIdx] = {
-          ...workspaces[linearIdx],
+          ...workspaces[linearIdx]!,
           name: orgInfo.name,
           url: orgInfo.url,
         };
@@ -298,6 +298,13 @@ export async function initializeTicketsDirectory(
     if (operatorPath) {
       try {
         await execAsync(`"${operatorPath}" setup --working-dir "${workingDir}"`);
+        // Ensure config.toml exists even if CLI didn't create it
+        const configPath = path.join(ticketsDir, 'operator', 'config.toml');
+        try {
+          await fs.access(configPath);
+        } catch {
+          await fs.writeFile(configPath, '', 'utf-8');
+        }
         return true;
       } catch {
         // Fall through to manual creation
@@ -315,6 +322,14 @@ export async function initializeTicketsDirectory(
 
     for (const dir of dirs) {
       await fs.mkdir(dir, { recursive: true });
+    }
+
+    // Create empty config.toml if it doesn't exist
+    const configPath = path.join(ticketsDir, 'operator', 'config.toml');
+    try {
+      await fs.access(configPath);
+    } catch {
+      await fs.writeFile(configPath, '', 'utf-8');
     }
 
     return true;
@@ -392,19 +407,19 @@ export async function selectWorkingDirectory(
     return;
   }
 
-  const selectedPath = folders[0].fsPath;
+  const selectedPath = folders[0]!.fsPath;
 
   // Validate directory
   const isValid = await validateWorkingDirectory(selectedPath);
   if (!isValid) {
-    vscode.window.showErrorMessage('Selected path is not a valid directory');
+    void vscode.window.showErrorMessage('Selected path is not a valid directory');
     return;
   }
 
   // Initialize .tickets structure
   const initialized = await initializeTicketsDirectory(selectedPath, operatorPath);
   if (!initialized) {
-    vscode.window.showErrorMessage('Failed to initialize tickets directory structure');
+    void vscode.window.showErrorMessage('Failed to initialize tickets directory structure');
     return;
   }
 
@@ -419,7 +434,7 @@ export async function selectWorkingDirectory(
   // Update context
   await updateWalkthroughContext(context);
 
-  vscode.window.showInformationMessage(
+  void vscode.window.showInformationMessage(
     `Working directory set to: ${selectedPath}`
   );
 }
@@ -445,13 +460,13 @@ export async function checkKanbanConnection(
       await vscode.commands.executeCommand('operator.configureLinear');
     }
   } else if (workspaces.length === 1) {
-    const ws = workspaces[0];
-    vscode.window.showInformationMessage(
+    const ws = workspaces[0]!;
+    void vscode.window.showInformationMessage(
       `Connected to ${ws.provider}: ${ws.name} (${ws.url})`
     );
   } else {
     const details = workspaces.map((ws) => `${ws.provider}: ${ws.name}`).join(', ');
-    vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       `Connected to ${workspaces.length} workspaces: ${details}`
     );
   }
@@ -483,11 +498,11 @@ export async function detectLlmTools(
     );
 
     if (choice === 'Install Claude Code') {
-      vscode.env.openExternal(vscode.Uri.parse('https://docs.anthropic.com/en/docs/claude-code'));
+      void vscode.env.openExternal(vscode.Uri.parse('https://docs.anthropic.com/en/docs/claude-code'));
     } else if (choice === 'Install Codex') {
-      vscode.env.openExternal(vscode.Uri.parse('https://github.com/openai/codex'));
+      void vscode.env.openExternal(vscode.Uri.parse('https://github.com/openai/codex'));
     } else if (choice === 'Install Gemini CLI') {
-      vscode.env.openExternal(vscode.Uri.parse('https://github.com/google/generative-ai-docs'));
+      void vscode.env.openExternal(vscode.Uri.parse('https://github.com/google/generative-ai-docs'));
     }
   } else {
     // Build per-tool configure buttons
@@ -523,7 +538,7 @@ async function configureLlmTool(
     : undefined;
 
   if (!operatorPath) {
-    vscode.window.showWarningMessage(
+    void vscode.window.showWarningMessage(
       `Operator binary not found. Download it first to configure ${tool}.`
     );
     return;
@@ -533,9 +548,25 @@ async function configureLlmTool(
     || context.globalState.get<string>('operator.workingDirectory');
 
   if (!workingDir) {
-    vscode.window.showWarningMessage(
+    void vscode.window.showWarningMessage(
       'Working directory not set. Select a working directory first.'
     );
+    return;
+  }
+
+  // Check if operator config exists before trying to configure LLM tool
+  const configPath = path.join(workingDir, '.tickets', 'operator', 'config.toml');
+  try {
+    await fs.access(configPath);
+  } catch {
+    const choice = await vscode.window.showWarningMessage(
+      `Operator not yet configured in ${path.basename(workingDir)}. Run setup first?`,
+      'Run Setup',
+      'Cancel'
+    );
+    if (choice === 'Run Setup') {
+      await vscode.commands.executeCommand('operator.runSetup');
+    }
     return;
   }
 
@@ -543,10 +574,10 @@ async function configureLlmTool(
     await execAsync(
       `"${operatorPath}" setup --llm-tool "${tool}" --working-dir "${workingDir}" --skip-llm-detection`
     );
-    vscode.window.showInformationMessage(`Configured ${tool} successfully.`);
+    void vscode.window.showInformationMessage(`Configured ${tool} successfully.`);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
-    vscode.window.showErrorMessage(`Failed to configure ${tool}: ${msg}`);
+    void vscode.window.showErrorMessage(`Failed to configure ${tool}: ${msg}`);
   }
 }
 

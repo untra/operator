@@ -1,4 +1,11 @@
 import type { Config } from '../../src/generated/Config';
+import type { IssueTypeSummary } from '../../src/generated/IssueTypeSummary';
+import type { IssueTypeResponse } from '../../src/generated/IssueTypeResponse';
+import type { CollectionResponse } from '../../src/generated/CollectionResponse';
+import type { ExternalIssueTypeSummary } from '../../src/generated/ExternalIssueTypeSummary';
+
+// Re-export generated types for consumers
+export type { IssueTypeSummary, IssueTypeResponse, CollectionResponse, ExternalIssueTypeSummary };
 
 /** Wrapper that pairs the generated Config with extension metadata */
 export interface WebviewConfig {
@@ -43,7 +50,15 @@ export type WebviewToExtensionMessage =
   | { type: 'checkApiHealth' }
   | { type: 'getProjects' }
   | { type: 'assessProject'; projectName: string }
-  | { type: 'openProjectFolder'; projectPath: string };
+  | { type: 'openProjectFolder'; projectPath: string }
+  | { type: 'getIssueTypes' }
+  | { type: 'getIssueType'; key: string }
+  | { type: 'getCollections' }
+  | { type: 'activateCollection'; name: string }
+  | { type: 'getExternalIssueTypes'; provider: string; domain: string; projectKey: string }
+  | { type: 'createIssueType'; request: import('../../src/generated/CreateIssueTypeRequest').CreateIssueTypeRequest }
+  | { type: 'updateIssueType'; key: string; request: import('../../src/generated/UpdateIssueTypeRequest').UpdateIssueTypeRequest }
+  | { type: 'deleteIssueType'; key: string };
 
 /** Messages from the extension host to the webview */
 export type ExtensionToWebviewMessage =
@@ -58,7 +73,18 @@ export type ExtensionToWebviewMessage =
   | { type: 'projectsLoaded'; projects: ProjectSummary[] }
   | { type: 'projectsError'; error: string }
   | { type: 'assessTicketCreated'; ticketId: string; projectName: string }
-  | { type: 'assessTicketError'; error: string; projectName: string };
+  | { type: 'assessTicketError'; error: string; projectName: string }
+  | { type: 'issueTypesLoaded'; issueTypes: IssueTypeSummary[] }
+  | { type: 'issueTypeLoaded'; issueType: IssueTypeResponse }
+  | { type: 'issueTypeError'; error: string }
+  | { type: 'collectionsLoaded'; collections: CollectionResponse[] }
+  | { type: 'collectionActivated'; name: string }
+  | { type: 'collectionsError'; error: string }
+  | { type: 'externalIssueTypesLoaded'; provider: string; projectKey: string; types: ExternalIssueTypeSummary[] }
+  | { type: 'externalIssueTypesError'; provider: string; projectKey: string; error: string }
+  | { type: 'issueTypeCreated'; issueType: IssueTypeResponse }
+  | { type: 'issueTypeUpdated'; issueType: IssueTypeResponse }
+  | { type: 'issueTypeDeleted'; key: string };
 
 export interface JiraValidationInfo {
   valid: boolean;

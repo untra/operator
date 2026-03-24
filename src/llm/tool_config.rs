@@ -33,7 +33,7 @@ pub struct ArgMapping {
 /// Hook configuration for tools that support hooks (Claude, Gemini)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookConfig {
-    /// Hook event name (e.g., "Stop" for Claude, "AfterAgent" for Gemini)
+    /// Hook event name (e.g., "Stop" for Claude, "`AfterAgent`" for Gemini)
     pub event_name: String,
     /// Path to hook script (e.g., "~/.claude/hooks/operator-stop.sh")
     pub script_path: String,
@@ -86,7 +86,7 @@ pub struct ToolConfig {
     /// Mapping of argument names to CLI flags
     pub arg_mapping: ArgMapping,
     /// Template for building the CLI command
-    /// Variables: {{model}}, {{model_flag}}, {{session_id}}, {{prompt_file}}
+    /// Variables: {{model}}, {{`model_flag`}}, {{`session_id`}}, {{`prompt_file`}}
     pub command_template: String,
     /// CLI flags for YOLO (auto-accept) mode
     #[serde(default)]
@@ -100,7 +100,7 @@ pub struct ToolConfig {
 }
 
 impl ToolConfig {
-    /// Get the display name, falling back to tool_name
+    /// Get the display name, falling back to `tool_name`
     pub fn display_name(&self) -> &str {
         self.display_name.as_deref().unwrap_or(&self.tool_name)
     }

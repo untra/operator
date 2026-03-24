@@ -109,16 +109,16 @@ impl AgentTicketCreator {
 
         // Unique ticket ID includes project and key
         // Format: TASK-{project}-{KEY}-{timestamp}
-        let id = format!("TASK-{}-{}-{}", project_name, key, timestamp);
+        let id = format!("TASK-{project_name}-{key}-{timestamp}");
 
         // Filename: YYYYMMDD-HHMM-TASK-project-KEY-agent.md
-        let filename = format!("{}-TASK-{}-{}-agent.md", timestamp, project_name, key);
+        let filename = format!("{timestamp}-TASK-{project_name}-{key}-agent.md");
 
         let key_lower = key.to_lowercase();
 
         // Build ticket content in standard markdown format
         let content = format!(
-            r#"# {id}: Create {project_name} {name} operator agent
+            r"# {id}: Create {project_name} {name} operator agent
 
 **ID**: {id}
 **Project**: {project_name}
@@ -139,17 +139,11 @@ Create the {key_lower}-operator agent for {project_name} project.
 - [ ] Agent file created at `.claude/agents/{key_lower}-operator.md`
 - [ ] Agent has proper frontmatter (name, description, tools)
 - [ ] Agent prompt follows project patterns from CLAUDE.md
-"#,
-            id = id,
-            project_name = project_name,
-            name = name,
-            date = date,
-            key_lower = key_lower,
-            agent_prompt = agent_prompt,
+",
         );
 
         let ticket_path = queue_dir.join(&filename);
-        fs::write(&ticket_path, content).context(format!("Failed to write ticket {}", filename))?;
+        fs::write(&ticket_path, content).context(format!("Failed to write ticket {filename}"))?;
 
         Ok(id)
     }
@@ -183,10 +177,10 @@ impl AssessTicketCreator {
         let datetime = now.format("%Y-%m-%d %H:%M").to_string();
 
         // Unique ticket ID
-        let id = format!("ASSESS-{}-{}", project_name, timestamp);
+        let id = format!("ASSESS-{project_name}-{timestamp}");
 
         // Filename: YYYYMMDD-HHMM-ASSESS-project.md
-        let filename = format!("{}-ASSESS-{}.md", timestamp, project_name);
+        let filename = format!("{timestamp}-ASSESS-{project_name}.md");
 
         // Check if catalog-info.yaml already exists
         let catalog_exists = project_path.join("catalog-info.yaml").exists();
@@ -194,27 +188,23 @@ impl AssessTicketCreator {
 
         // Build ticket content using the ASSESS template format
         let content = format!(
-            r#"---
+            r"---
 id: {id}
 step: analyze
-project: {project}
+project: {project_name}
 status: queued
 created: {datetime}
 ---
 
-# Assessment: {action} catalog-info.yaml for {project}
+# Assessment: {action} catalog-info.yaml for {project_name}
 
 ## Project
-{project}
-"#,
-            id = id,
-            project = project_name,
-            datetime = datetime,
-            action = action,
+{project_name}
+",
         );
 
         let ticket_path = queue_dir.join(&filename);
-        fs::write(&ticket_path, content).context(format!("Failed to write ticket {}", filename))?;
+        fs::write(&ticket_path, content).context(format!("Failed to write ticket {filename}"))?;
 
         Ok(AssessTicketResult {
             ticket_id: id,

@@ -6,7 +6,11 @@ import type { VsCodeModelOption } from "./VsCodeModelOption";
  */
 export type VsCodeLaunchOptions = { 
 /**
- * Model to use (sonnet, opus, haiku)
+ * Named delegator to use (takes precedence over model)
+ */
+delegator: string | null, 
+/**
+ * Model to use (sonnet, opus, haiku) — fallback when no delegator
  */
 model: VsCodeModelOption, 
 /**
@@ -14,6 +18,6 @@ model: VsCodeModelOption,
  */
 yoloMode: boolean, 
 /**
- * Resume from existing session (uses session_id from ticket)
+ * Resume from existing session (uses `session_id` from ticket)
  */
 resumeSession: boolean, };

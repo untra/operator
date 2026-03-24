@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-//! TMux session management abstraction layer.
+//! `TMux` session management abstraction layer.
 //!
 //! Provides a trait-based abstraction over tmux operations to enable:
 //! - Unit testing without real tmux
@@ -169,8 +169,8 @@ pub trait TmuxClient: Send + Sync {
     /// Uses: set-buffer -> paste-buffer -> send Enter -> delete-buffer
     fn send_command_via_buffer(&self, session: &str, command: &str) -> Result<(), TmuxError>;
 
-    /// Safe version of send_keys that automatically uses buffer for long commands
-    /// Commands over SEND_KEYS_THRESHOLD bytes use the buffer method to avoid tmux limits
+    /// Safe version of `send_keys` that automatically uses buffer for long commands
+    /// Commands over `SEND_KEYS_THRESHOLD` bytes use the buffer method to avoid tmux limits
     fn send_keys_safe(&self, session: &str, keys: &str, press_enter: bool)
         -> Result<(), TmuxError>;
 }
@@ -187,7 +187,7 @@ pub struct SystemTmuxClient {
 /// Default socket name for operator-managed tmux sessions
 pub const OPERATOR_SOCKET: &str = "operator";
 
-/// Threshold in bytes for switching from send_keys to buffer method
+/// Threshold in bytes for switching from `send_keys` to buffer method
 /// tmux 1.8 has ~2KB limit, tmux 1.9+ has ~16KB limit. Use conservative value.
 const SEND_KEYS_THRESHOLD: usize = 2000;
 
@@ -248,13 +248,13 @@ impl TmuxClient for SystemTmuxClient {
 
         let version_str = String::from_utf8_lossy(&output.stdout);
         TmuxVersion::parse(version_str.trim()).ok_or_else(|| {
-            TmuxError::CommandFailed(format!("Could not parse version: {}", version_str))
+            TmuxError::CommandFailed(format!("Could not parse version: {version_str}"))
         })
     }
 
     fn session_exists(&self, name: &str) -> Result<bool, TmuxError> {
         // Use exact match with -t=
-        let output = self.run_tmux(&["has-session", "-t", &format!("={}", name)]);
+        let output = self.run_tmux(&["has-session", "-t", &format!("={name}")]);
 
         match output {
             Ok(out) => Ok(out.status.success()),
@@ -340,8 +340,8 @@ impl TmuxClient for SystemTmuxClient {
 
                         Some(TmuxSession {
                             name,
-                            created: parts.get(1).map(|s| s.to_string()),
-                            attached: parts.get(2).map(|s| *s == "1").unwrap_or(false),
+                            created: parts.get(1).map(|s| (*s).to_string()),
+                            attached: parts.get(2).is_some_and(|s| *s == "1"),
                             width: parts.get(3).and_then(|s| s.parse().ok()),
                             height: parts.get(4).and_then(|s| s.parse().ok()),
                         })
@@ -372,7 +372,7 @@ impl TmuxClient for SystemTmuxClient {
     }
 
     fn set_window_size(&self, session: &str, width: u32, height: u32) -> Result<(), TmuxError> {
-        let size_arg = format!("{}x{}", width, height);
+        let size_arg = format!("{width}x{height}");
         let output = self.run_tmux(&[
             "resize-window",
             "-t",
@@ -386,8 +386,7 @@ impl TmuxClient for SystemTmuxClient {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(TmuxError::CommandFailed(format!(
-                "Failed to resize window to {}: {}",
-                size_arg, stderr
+                "Failed to resize window to {size_arg}: {stderr}"
             )));
         }
 
@@ -413,8 +412,7 @@ impl TmuxClient for SystemTmuxClient {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(TmuxError::CommandFailed(format!(
-                "Failed to set monitor-silence on {}: {}",
-                session, stderr
+                "Failed to set monitor-silence on {session}: {stderr}"
             )));
         }
 
@@ -500,7 +498,7 @@ impl TmuxClient for SystemTmuxClient {
 
     fn set_client_detached_hook(&self, session: &str, command: &str) -> Result<(), TmuxError> {
         // set-hook -t {session} client-detached 'run-shell "{command}"'
-        let hook_cmd = format!("run-shell \"{}\"", command);
+        let hook_cmd = format!("run-shell \"{command}\"");
         let output = self.run_tmux(&["set-hook", "-t", session, "client-detached", &hook_cmd])?;
 
         if !output.status.success() {
@@ -526,10 +524,10 @@ impl TmuxClient for SystemTmuxClient {
 
     fn attach_session_with_detach_signal(&self, session: &str) -> Result<String, TmuxError> {
         // Create signal file path
-        let signal_file = format!("/tmp/operator-detach-{}.signal", session);
+        let signal_file = format!("/tmp/operator-detach-{session}.signal");
 
         // Set hook to create signal file on detach
-        let hook_cmd = format!("touch {}", signal_file);
+        let hook_cmd = format!("touch {signal_file}");
         self.set_client_detached_hook(session, &hook_cmd)?;
 
         // Attach to the session
@@ -626,7 +624,7 @@ impl TmuxClient for SystemTmuxClient {
 
     fn send_command_via_buffer(&self, session: &str, command: &str) -> Result<(), TmuxError> {
         // Use unique buffer name to avoid conflicts with concurrent launches
-        let buffer_name = format!("op-cmd-{}", session);
+        let buffer_name = format!("op-cmd-{session}");
 
         // Set buffer with the command
         self.set_buffer(&buffer_name, command)?;
@@ -661,7 +659,7 @@ impl TmuxClient for SystemTmuxClient {
                 self.send_command_via_buffer(session, keys)
             } else {
                 // For non-enter case with long content, still use buffer but don't press enter
-                let buffer_name = format!("op-cmd-{}", session);
+                let buffer_name = format!("op-cmd-{session}");
                 self.set_buffer(&buffer_name, keys)?;
 
                 if let Err(e) = self.paste_buffer(&buffer_name, session) {
@@ -682,9 +680,9 @@ impl TmuxClient for SystemTmuxClient {
 /// Mock implementation for testing
 #[derive(Default)]
 pub struct MockTmuxClient {
-    /// Simulated sessions: name -> (working_dir, content, attached)
+    /// Simulated sessions: name -> (`working_dir`, content, attached)
     sessions: Arc<Mutex<HashMap<String, MockSession>>>,
-    /// Simulated buffers: buffer_name -> content
+    /// Simulated buffers: `buffer_name` -> content
     buffers: Arc<Mutex<HashMap<String, String>>>,
     /// Whether tmux is "installed"
     pub installed: Arc<Mutex<bool>>,
@@ -810,7 +808,7 @@ impl MockTmuxClient {
     fn log_command(&self, operation: &str, args: &[&str]) {
         self.command_log.lock().unwrap().push(MockCommand {
             operation: operation.to_string(),
-            args: args.iter().map(|s| s.to_string()).collect(),
+            args: args.iter().map(|s| (*s).to_string()).collect(),
         });
     }
 }
@@ -1072,11 +1070,11 @@ impl TmuxClient for MockTmuxClient {
             return Err(TmuxError::NotInstalled);
         }
 
-        let signal_file = format!("/tmp/operator-detach-{}.signal", session);
+        let signal_file = format!("/tmp/operator-detach-{session}.signal");
 
         let mut sessions = self.sessions.lock().unwrap();
         if let Some(s) = sessions.get_mut(session) {
-            s.client_detached_hook = Some(format!("touch {}", signal_file));
+            s.client_detached_hook = Some(format!("touch {signal_file}"));
             s.attached = true;
             Ok(signal_file)
         } else {
@@ -1122,7 +1120,7 @@ impl TmuxClient for MockTmuxClient {
         if let Some(s) = sessions.get_mut(session) {
             // In mock, pasting buffer is like sending keys without Enter
             s.keys_sent
-                .push(format!("[buffer:{}] {}", buffer_name, content));
+                .push(format!("[buffer:{buffer_name}] {content}"));
             Ok(())
         } else {
             Err(TmuxError::SessionNotFound(session.to_string()))
@@ -1147,7 +1145,7 @@ impl TmuxClient for MockTmuxClient {
             return Err(TmuxError::NotInstalled);
         }
 
-        let buffer_name = format!("op-cmd-{}", session);
+        let buffer_name = format!("op-cmd-{session}");
 
         // Set buffer
         self.set_buffer(&buffer_name, command)?;
@@ -1190,7 +1188,7 @@ impl TmuxClient for MockTmuxClient {
             if press_enter {
                 self.send_command_via_buffer(session, keys)
             } else {
-                let buffer_name = format!("op-cmd-{}", session);
+                let buffer_name = format!("op-cmd-{session}");
                 self.set_buffer(&buffer_name, keys)?;
 
                 if let Err(e) = self.paste_buffer(&buffer_name, session) {
@@ -1228,16 +1226,16 @@ pub fn sanitize_session_name(name: &str) -> String {
 use crate::agents::terminal_wrapper::{SessionError, SessionInfo, SessionWrapper, WrapperType};
 use async_trait::async_trait;
 
-/// Wrapper around TmuxClient that implements SessionWrapper trait
+/// Wrapper around `TmuxClient` that implements `SessionWrapper` trait
 ///
-/// This provides the SessionWrapper interface for tmux-based session management.
-/// It wraps any TmuxClient implementation (System or Mock).
+/// This provides the `SessionWrapper` interface for tmux-based session management.
+/// It wraps any `TmuxClient` implementation (System or Mock).
 pub struct TmuxWrapper {
     client: Arc<dyn TmuxClient>,
 }
 
 impl TmuxWrapper {
-    /// Create a new TmuxWrapper from a TmuxClient
+    /// Create a new `TmuxWrapper` from a `TmuxClient`
     pub fn new(client: Arc<dyn TmuxClient>) -> Self {
         Self { client }
     }
@@ -1252,7 +1250,7 @@ impl TmuxWrapper {
         Self::new(Arc::new(SystemTmuxClient::with_config(config_path)))
     }
 
-    /// Get the underlying TmuxClient
+    /// Get the underlying `TmuxClient`
     pub fn client(&self) -> &dyn TmuxClient {
         self.client.as_ref()
     }
@@ -1940,7 +1938,7 @@ mod tests {
         // Create a 3.5KB command - exceeds both send-keys limit (~2KB) and typical CLI arg limits
         // This verifies that the buffer method can handle content that would fail with CLI args
         let long_content = "a".repeat(3500);
-        let long_cmd = format!("echo '{}'", long_content);
+        let long_cmd = format!("echo '{long_content}'");
         assert!(long_cmd.len() > 3500, "Command should be >3.5KB");
 
         client

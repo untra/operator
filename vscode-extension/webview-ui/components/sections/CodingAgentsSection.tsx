@@ -10,6 +10,8 @@ import { SectionHeader } from '../SectionHeader';
 import type { AgentsConfig } from '../../../src/generated/AgentsConfig';
 import type { LlmToolsConfig } from '../../../src/generated/LlmToolsConfig';
 
+const LLM_ICON_NAMES = ['claude', 'codex', 'gemini'];
+
 interface CodingAgentsSectionProps {
   agents: AgentsConfig;
   llm_tools: LlmToolsConfig;
@@ -46,6 +48,11 @@ export function CodingAgentsSection({
               detected.map((tool) => (
                 <Chip
                   key={tool.name}
+                  icon={
+                    LLM_ICON_NAMES.includes(tool.name)
+                      ? <i className={`opi-${tool.name}`} style={{ fontSize: '1rem', lineHeight: 1 }} />
+                      : undefined
+                  }
                   label={`${tool.name} ${tool.version}`}
                   size="small"
                   color={tool.version_ok ? 'default' : 'warning'}

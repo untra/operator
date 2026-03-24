@@ -55,7 +55,7 @@ impl Session {
     }
 
     pub fn load(sessions_dir: &Path, id: &str) -> Result<Option<Self>> {
-        let path = sessions_dir.join(format!("{}.json", id));
+        let path = sessions_dir.join(format!("{id}.json"));
 
         if !path.exists() {
             return Ok(None);

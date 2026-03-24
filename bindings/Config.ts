@@ -24,7 +24,7 @@ export type Config = {
  */
 projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfig, queue: QueueConfig, paths: PathsConfig, ui: UiConfig, launch: LaunchConfig, templates: TemplatesConfig, api: ApiConfig, logging: LoggingConfig, tmux: TmuxConfig, 
 /**
- * Session wrapper configuration (tmux or vscode)
+ * Session wrapper configuration (tmux, vscode, or cmux)
  */
 sessions: SessionsConfig, llm_tools: LlmToolsConfig, backstage: BackstageConfig, rest_api: RestApiConfig, git: GitConfig, 
 /**

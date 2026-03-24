@@ -6,7 +6,7 @@ use crate::config::VersionCheckConfig;
 
 /// Checks for updates by fetching the latest version from the configured URL.
 ///
-/// Returns Some(version_string) if a newer version is available, None otherwise.
+/// Returns `Some(version_string)` if a newer version is available, None otherwise.
 /// Fails gracefully on network errors, timeouts, or validation failures.
 pub async fn check_for_updates(config: &VersionCheckConfig) -> Option<String> {
     // If URL is not configured, skip check
@@ -80,8 +80,7 @@ fn validate_version_response(status: StatusCode, body: &str) -> Result<String> {
     // Validate semver format (allow optional 'v' prefix)
     if !is_semver_format(version) {
         return Err(anyhow!(
-            "Response does not resemble semver format: {}",
-            version
+            "Response does not resemble semver format: {version}"
         ));
     }
 

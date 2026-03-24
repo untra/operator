@@ -40,7 +40,7 @@ pub struct PullRequestStatus {
     pub mergeable: Option<bool>,
     /// Head commit SHA
     pub head_sha: String,
-    /// Review decision from GraphQL (optional, requires separate call)
+    /// Review decision from `GraphQL` (optional, requires separate call)
     #[serde(skip)]
     pub review_decision: Option<String>,
     /// Whether all required checks have passed
@@ -68,16 +68,16 @@ pub struct IssueStatus {
 pub struct CheckRunStatus {
     /// Check name
     pub name: String,
-    /// Status: "queued", "in_progress", "completed"
+    /// Status: "queued", "`in_progress`", "completed"
     pub status: String,
-    /// Conclusion: "success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"
+    /// Conclusion: "success", "failure", "neutral", "cancelled", "skipped", "`timed_out`", "`action_required`"
     pub conclusion: Option<String>,
 }
 
 /// Review status from PR reviews endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewStatus {
-    /// Review state: "APPROVED", "CHANGES_REQUESTED", "COMMENTED", "PENDING"
+    /// Review state: "APPROVED", "`CHANGES_REQUESTED`", "COMMENTED", "PENDING"
     pub state: String,
     /// Reviewer login
     pub user_login: String,
@@ -145,7 +145,7 @@ struct UserResponse {
 }
 
 impl GitHubClient {
-    /// Create a new GitHub client from the OPERATOR_GITHUB_TOKEN environment variable
+    /// Create a new GitHub client from the `OPERATOR_GITHUB_TOKEN` environment variable
     pub fn from_env() -> Result<Option<Self>> {
         match env::var("OPERATOR_GITHUB_TOKEN") {
             Ok(token) if !token.is_empty() => {
@@ -173,10 +173,7 @@ impl GitHubClient {
         repo: &str,
         pr_number: u64,
     ) -> Result<PullRequestStatus> {
-        let url = format!(
-            "{}/repos/{}/{}/pulls/{}",
-            GITHUB_API_BASE, owner, repo, pr_number
-        );
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}");
 
         let response: PrResponse = self
             .client
@@ -214,10 +211,7 @@ impl GitHubClient {
         repo: &str,
         issue_number: u64,
     ) -> Result<IssueStatus> {
-        let url = format!(
-            "{}/repos/{}/{}/issues/{}",
-            GITHUB_API_BASE, owner, repo, issue_number
-        );
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}");
 
         let response: IssueResponse = self
             .client
@@ -250,10 +244,7 @@ impl GitHubClient {
         repo: &str,
         ref_sha: &str,
     ) -> Result<Vec<CheckRunStatus>> {
-        let url = format!(
-            "{}/repos/{}/{}/commits/{}/check-runs",
-            GITHUB_API_BASE, owner, repo, ref_sha
-        );
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/commits/{ref_sha}/check-runs");
 
         let response: CheckRunsResponse = self
             .client
@@ -288,10 +279,7 @@ impl GitHubClient {
         repo: &str,
         pr_number: u64,
     ) -> Result<Vec<ReviewStatus>> {
-        let url = format!(
-            "{}/repos/{}/{}/pulls/{}/reviews",
-            GITHUB_API_BASE, owner, repo, pr_number
-        );
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}/reviews");
 
         let response: Vec<ReviewResponse> = self
             .client
@@ -352,8 +340,7 @@ impl GitHubClient {
             c.status == "completed"
                 && c.conclusion
                     .as_ref()
-                    .map(|con| con == "success" || con == "skipped" || con == "neutral")
-                    .unwrap_or(false)
+                    .is_some_and(|con| con == "success" || con == "skipped" || con == "neutral")
         });
 
         // If there are checks, they must all pass
@@ -365,7 +352,7 @@ impl GitHubClient {
     }
 
     /// Get a summary status for a PR
-    /// Returns: "approved", "changes_requested", "pending", "draft", "merged", "closed"
+    /// Returns: "approved", "`changes_requested`", "pending", "draft", "merged", "closed"
     pub async fn get_pr_summary_status(
         &self,
         owner: &str,
@@ -413,7 +400,7 @@ impl GitHubClient {
 
     /// Test connectivity by fetching rate limit info
     pub async fn test_connection(&self) -> Result<bool> {
-        let url = format!("{}/rate_limit", GITHUB_API_BASE);
+        let url = format!("{GITHUB_API_BASE}/rate_limit");
 
         let response = self
             .client

@@ -82,7 +82,7 @@ impl CollectionSwitchDialog {
     ) {
         self.visible = true;
         self.active_collection = current_active.to_string();
-        self.project_context = project_context.map(|s| s.to_string());
+        self.project_context = project_context.map(std::string::ToString::to_string);
 
         // Build collection info list
         self.collections = registry
@@ -236,7 +236,7 @@ impl CollectionSwitchDialog {
                 let sync_badge = c
                     .sync_source
                     .as_ref()
-                    .map(|s| format!(" [{}]", s))
+                    .map(|s| format!(" [{s}]"))
                     .unwrap_or_default();
 
                 let builtin_badge = if c.is_builtin { "" } else { " (custom)" };
@@ -356,14 +356,14 @@ mod tests {
         dialog.collections = vec![
             CollectionInfo {
                 name: "a".to_string(),
-                description: "".to_string(),
+                description: String::new(),
                 type_count: 1,
                 is_builtin: true,
                 sync_source: None,
             },
             CollectionInfo {
                 name: "b".to_string(),
-                description: "".to_string(),
+                description: String::new(),
                 type_count: 2,
                 is_builtin: false,
                 sync_source: None,
@@ -390,7 +390,7 @@ mod tests {
         let mut dialog = CollectionSwitchDialog::new();
         dialog.collections = vec![CollectionInfo {
             name: "test".to_string(),
-            description: "".to_string(),
+            description: String::new(),
             type_count: 1,
             is_builtin: false,
             sync_source: None,
@@ -412,7 +412,7 @@ mod tests {
         let mut dialog = CollectionSwitchDialog::new();
         dialog.collections = vec![CollectionInfo {
             name: "test".to_string(),
-            description: "".to_string(),
+            description: String::new(),
             type_count: 1,
             is_builtin: false,
             sync_source: None,

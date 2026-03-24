@@ -76,7 +76,7 @@ impl SetupScreen {
         let items: Vec<ListItem> = TASK_OPTIONAL_FIELDS
             .iter()
             .map(|(name, description)| {
-                let is_selected = self.task_optional_fields.contains(&name.to_string());
+                let is_selected = self.task_optional_fields.contains(&(*name).to_string());
                 let checkbox = if is_selected { "[x]" } else { "[ ]" };
                 ListItem::new(vec![
                     Line::from(vec![

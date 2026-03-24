@@ -25,7 +25,7 @@ has_catalog_info: boolean,
  */
 has_project_context: boolean, 
 /**
- * Primary Kind from kind_assessment (e.g., "microservice")
+ * Primary Kind from `kind_assessment` (e.g., "microservice")
  */
 kind: string | null, 
 /**

@@ -15,6 +15,11 @@ sync_user_id: string,
  */
 sync_statuses: Array<string>, 
 /**
- * IssueTypeCollection name this project maps to
+ * `IssueTypeCollection` name this project maps to
  */
-collection_name: string, };
+collection_name: string, 
+/**
+ * Optional explicit mapping overrides: external issue type name → operator issue type key
+ * When empty, convention-based auto-matching is used (Bug→FIX, Story→FEAT, etc.)
+ */
+type_mappings: { [key in string]?: string }, };

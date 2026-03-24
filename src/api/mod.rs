@@ -83,8 +83,8 @@ impl Capabilities {
     /// Build capabilities from environment variables
     ///
     /// Checks for:
-    /// - OPERATOR_ANTHROPIC_API_KEY -> Anthropic AI provider
-    /// - OPERATOR_GITHUB_TOKEN -> GitHub repo provider
+    /// - `OPERATOR_ANTHROPIC_API_KEY` -> Anthropic AI provider
+    /// - `OPERATOR_GITHUB_TOKEN` -> GitHub repo provider
     pub fn from_env() -> Self {
         let mut caps = Self::new();
 
@@ -147,8 +147,7 @@ impl Capabilities {
     pub fn needs_refresh(&self, provider: &str) -> bool {
         self.auth_failures
             .get(provider)
-            .map(|count| *count >= self.auth_failure_threshold)
-            .unwrap_or(false)
+            .is_some_and(|count| *count >= self.auth_failure_threshold)
     }
 
     /// Get the current auth failure count for a provider
@@ -289,8 +288,7 @@ impl Capabilities {
     /// Check if rate limits are stale (older than given seconds)
     pub fn rate_limits_stale(&self, max_age_secs: u64) -> bool {
         self.rate_limit_age_secs()
-            .map(|age| age > max_age_secs)
-            .unwrap_or(true)
+            .is_none_or(|age| age > max_age_secs)
     }
 }
 

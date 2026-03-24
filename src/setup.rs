@@ -25,7 +25,7 @@ pub struct SetupOptions {
     /// Overwrite existing files
     pub force: bool,
     /// Optional fields to include (propagated to all types)
-    /// Only common fields (priority, points, user_story) are filtered
+    /// Only common fields (priority, points, `user_story`) are filtered
     pub task_fields: Vec<String>,
     /// Working directory (parent of .tickets/)
     pub working_dir: Option<PathBuf>,
@@ -53,8 +53,7 @@ pub fn parse_collection_preset(s: &str) -> Result<CollectionPreset> {
         "dev-kanban" | "devkanban" | "dev_kanban" => Ok(CollectionPreset::DevKanban),
         "devops-kanban" | "devopskanban" | "devops_kanban" => Ok(CollectionPreset::DevopsKanban),
         other => bail!(
-            "Unknown collection preset: '{}'. Valid options: simple, dev-kanban, devops-kanban",
-            other
+            "Unknown collection preset: '{other}'. Valid options: simple, dev-kanban, devops-kanban"
         ),
     }
 }

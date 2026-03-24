@@ -105,22 +105,19 @@ impl StepManager {
     /// Check if current step is a PR step
     pub fn is_pr_step(&self, ticket: &Ticket) -> bool {
         self.current_step(ticket)
-            .map(|s| s.outputs.contains(&StepOutput::Pr))
-            .unwrap_or(false)
+            .is_some_and(|s| s.outputs.contains(&StepOutput::Pr))
     }
 
     /// Check if current step requires human review
     pub fn requires_review(&self, ticket: &Ticket) -> bool {
         self.current_step(ticket)
-            .map(|s| s.requires_review())
-            .unwrap_or(false)
+            .is_some_and(|s| s.requires_review())
     }
 
     /// Check if current step is the final step
     pub fn is_final_step(&self, ticket: &Ticket) -> bool {
         self.current_step(ticket)
-            .map(|s| s.next_step.is_none())
-            .unwrap_or(true)
+            .is_none_or(|s| s.next_step.is_none())
     }
 
     /// Get the status category for the current step based on step properties
@@ -144,10 +141,7 @@ impl StepManager {
             None => return StepStatus::Todo,
         };
 
-        let is_first = template
-            .first_step()
-            .map(|s| s.name == step_name)
-            .unwrap_or(false);
+        let is_first = template.first_step().is_some_and(|s| s.name == step_name);
         let is_last = step.next_step.is_none();
 
         step.derived_status(is_first, is_last)
@@ -206,7 +200,7 @@ impl StepManager {
     /// Get allowed tools for current step
     pub fn get_allowed_tools(&self, ticket: &Ticket) -> Vec<String> {
         self.current_step(ticket)
-            .map(|s| s.allowed_tools.clone())
+            .map(|s| s.allowed_tools)
             .unwrap_or_default()
     }
 
@@ -237,11 +231,10 @@ impl StepManager {
     /// Check if current step outputs a plan or review (requires rejection feedback)
     pub fn requires_rejection_feedback(&self, ticket: &Ticket) -> bool {
         self.current_step(ticket)
-            .map(|s| s.outputs_plan() || s.outputs_review())
-            .unwrap_or(false)
+            .is_some_and(|s| s.outputs_plan() || s.outputs_review())
     }
 
-    /// Get step progress as (current_index, total_steps, step_names)
+    /// Get step progress as (`current_index`, `total_steps`, `step_names`)
     pub fn get_progress(&self, ticket: &Ticket) -> (usize, usize, Vec<String>) {
         let steps = self.all_steps(ticket);
         let total = steps.len();
@@ -269,7 +262,7 @@ impl StepManager {
             .enumerate()
             .map(|(i, name)| {
                 if i == current_idx {
-                    format!("[{}]", name)
+                    format!("[{name}]")
                 } else {
                     name.clone()
                 }

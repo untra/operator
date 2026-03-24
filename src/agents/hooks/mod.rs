@@ -47,14 +47,14 @@ impl Default for HookManager {
 }
 
 impl HookManager {
-    /// Create a new HookManager with default signal directory
+    /// Create a new `HookManager` with default signal directory
     pub fn new() -> Self {
         Self {
             signal_dir: PathBuf::from("/tmp/operator-signals"),
         }
     }
 
-    /// Create a new HookManager with a custom signal directory
+    /// Create a new `HookManager` with a custom signal directory
     pub fn with_signal_dir(signal_dir: PathBuf) -> Self {
         Self { signal_dir }
     }
@@ -69,7 +69,7 @@ impl HookManager {
 
     /// Check if a hook signal exists for the given session
     pub fn check_hook_signal(&self, session_id: &str) -> Option<HookSignal> {
-        let signal_path = self.signal_dir.join(format!("{}.signal", session_id));
+        let signal_path = self.signal_dir.join(format!("{session_id}.signal"));
         if signal_path.exists() {
             let content = fs::read_to_string(&signal_path).ok()?;
             serde_json::from_str(&content).ok()
@@ -80,7 +80,7 @@ impl HookManager {
 
     /// Clear the hook signal for a session (used when resuming)
     pub fn clear_signal(&self, session_id: &str) -> Result<(), HookError> {
-        let signal_path = self.signal_dir.join(format!("{}.signal", session_id));
+        let signal_path = self.signal_dir.join(format!("{session_id}.signal"));
         if signal_path.exists() {
             fs::remove_file(&signal_path)?;
         }
@@ -89,7 +89,7 @@ impl HookManager {
 
     /// Get the path to a signal file for a session
     pub fn signal_path(&self, session_id: &str) -> PathBuf {
-        self.signal_dir.join(format!("{}.signal", session_id))
+        self.signal_dir.join(format!("{session_id}.signal"))
     }
 
     /// Generate the hook script content for Claude's Stop hook
@@ -107,12 +107,11 @@ TIMESTAMP=$(date +%s)
 mkdir -p "{signal_dir}"
 echo "{{"\"event\":\"stop\",\"timestamp\":$TIMESTAMP,\"session_id\":\"$SESSION_ID\"}}" \
   > "{signal_dir}/$SESSION_ID.signal"
-"#,
-            signal_dir = signal_dir
+"#
         )
     }
 
-    /// Generate the hook script content for Gemini's AfterAgent hook
+    /// Generate the hook script content for Gemini's `AfterAgent` hook
     pub fn generate_gemini_hook_script(&self) -> String {
         let signal_dir = self.signal_dir.display();
         format!(
@@ -127,8 +126,7 @@ TIMESTAMP=$(date +%s)
 mkdir -p "{signal_dir}"
 echo "{{"\"event\":\"stop\",\"timestamp\":$TIMESTAMP,\"session_id\":\"$SESSION_ID\"}}" \
   > "{signal_dir}/$SESSION_ID.signal"
-"#,
-            signal_dir = signal_dir
+"#
         )
     }
 
@@ -228,7 +226,7 @@ mod tests {
         let signal = signal.unwrap();
         assert_eq!(signal.event, "stop");
         assert_eq!(signal.session_id, "test-session");
-        assert_eq!(signal.timestamp, 1234567890);
+        assert_eq!(signal.timestamp, 1_234_567_890);
     }
 
     #[test]

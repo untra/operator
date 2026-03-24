@@ -21,6 +21,7 @@ pub struct NotificationService {
 
 impl NotificationService {
     /// Create a new notification service from config.
+    #[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
     pub fn from_config(config: &Config) -> Result<Self> {
         let mut integrations: Vec<Arc<dyn NotificationIntegration>> = Vec::new();
 
@@ -87,6 +88,7 @@ impl NotificationService {
     ///
     /// This is fire-and-forget - each integration is spawned as a separate task
     /// and errors are logged but not propagated.
+    #[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
     pub async fn notify(&self, event: NotificationEvent) {
         if !self.enabled {
             return;
@@ -116,6 +118,7 @@ impl NotificationService {
     ///
     /// This is useful for contexts where async is not available.
     /// Only dispatches to OS integration (webhooks require async).
+    #[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
     pub fn notify_sync(&self, event: NotificationEvent) {
         if !self.enabled {
             return;
@@ -259,7 +262,7 @@ mod tests {
         config.notifications.webhooks = vec![WebhookConfig {
             name: Some("no-url".into()),
             enabled: true,
-            url: "".into(), // Empty URL
+            url: String::new(), // Empty URL
             auth_type: None,
             token_env: None,
             username: None,

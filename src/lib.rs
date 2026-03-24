@@ -1,11 +1,9 @@
 //! Operator - Multi-agent orchestration for AI coding assistants
 //!
-//! This library module exports types for the generate_types binary
+//! This library module exports types for the `generate_types` binary
 //! and potential future library consumers.
 
-// Allow dead code in the library - some internal modules are only used by main.rs
-#![allow(dead_code)]
-#![allow(unused_imports)]
+// Per-item #[allow(dead_code)] is used where needed; no blanket suppression
 
 // Public modules for type generation
 pub mod agents;
@@ -30,6 +28,9 @@ mod services;
 mod startup;
 mod templates;
 pub mod version;
+
+// MCP server bridge
+pub mod mcp;
 
 // Re-export env_vars for potential external use
 pub mod env_vars;

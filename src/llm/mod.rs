@@ -7,6 +7,9 @@
 //! at compile time. Detection checks if binaries exist on the system PATH.
 
 mod detection;
+pub mod skill_deployer;
 pub mod tool_config;
 
+#[allow(unused_imports)] // Used by main.rs binary
 pub use detection::detect_all_tools;
+pub use skill_deployer::deploy_skills;

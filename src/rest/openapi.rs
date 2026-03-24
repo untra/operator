@@ -2,6 +2,7 @@
 
 use utoipa::OpenApi;
 
+use crate::mcp::descriptor::McpDescriptorResponse;
 use crate::rest::dto::{
     CollectionResponse, CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest,
     CreateStepRequest, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
@@ -52,6 +53,8 @@ use crate::rest::error::ErrorResponse;
         crate::rest::routes::delegators::get_one,
         crate::rest::routes::delegators::create,
         crate::rest::routes::delegators::delete,
+        // MCP endpoints
+        crate::mcp::descriptor::descriptor,
     ),
     components(
         schemas(
@@ -80,6 +83,8 @@ use crate::rest::error::ErrorResponse;
             DelegatorsResponse,
             CreateDelegatorRequest,
             DelegatorLaunchConfigDto,
+            // MCP types
+            McpDescriptorResponse,
         )
     ),
     tags(
@@ -90,6 +95,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Launch", description = "Ticket launch operations"),
         (name = "Skills", description = "Skill discovery across LLM tools"),
         (name = "Delegators", description = "Agent delegator CRUD operations"),
+        (name = "MCP", description = "Model Context Protocol integration"),
     )
 )]
 pub struct ApiDoc;
@@ -141,9 +147,8 @@ mod tests {
         let spec = ApiDoc::json().expect("Failed to generate OpenAPI spec");
         let cargo_version = env!("CARGO_PKG_VERSION");
         assert!(
-            spec.contains(&format!("\"version\": \"{}\"", cargo_version)),
-            "OpenAPI version should match Cargo.toml version ({}), but spec contains different version",
-            cargo_version
+            spec.contains(&format!("\"version\": \"{cargo_version}\"")),
+            "OpenAPI version should match Cargo.toml version ({cargo_version}), but spec contains different version"
         );
     }
 }

@@ -87,6 +87,17 @@ export class ConfigPanel {
     ConfigPanel.currentPanel = new ConfigPanel(panel, extensionUri);
   }
 
+  /** Send a navigation message to the webview to scroll to a section */
+  public static navigateTo(section: string, prefill?: Record<string, unknown>): void {
+    if (ConfigPanel.currentPanel) {
+      void ConfigPanel.currentPanel._panel.webview.postMessage({
+        type: 'navigateTo',
+        section,
+        prefill,
+      });
+    }
+  }
+
   private _getHtmlContent(): string {
     const webview = this._panel.webview;
 
@@ -106,7 +117,7 @@ export class ConfigPanel {
 </head>
 <body>
   <div id="root"></div>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
+  <script nonce="${nonce}" src="${scriptUri.toString()}"></script>
 </body>
 </html>`;
   }
@@ -138,10 +149,10 @@ export class ConfigPanel {
           openLabel: 'Select File',
         });
         if (fileUri && fileUri.length > 0) {
-          this._panel.webview.postMessage({
+          void this._panel.webview.postMessage({
             type: 'browseResult',
             field: message.field,
-            path: fileUri[0].fsPath,
+            path: fileUri[0]!.fsPath,
           });
         }
         break;
@@ -155,15 +166,15 @@ export class ConfigPanel {
           openLabel: 'Select Folder',
         });
         if (folderUri && folderUri.length > 0) {
-          this._panel.webview.postMessage({
+          void this._panel.webview.postMessage({
             type: 'browseResult',
             field: message.field,
-            path: folderUri[0].fsPath,
+            path: folderUri[0]!.fsPath,
           });
           // Also persist to VS Code settings
           await vscode.workspace
             .getConfiguration('operator')
-            .update('workingDirectory', folderUri[0].fsPath, vscode.ConfigurationTarget.Global);
+            .update('workingDirectory', folderUri[0]!.fsPath, vscode.ConfigurationTarget.Global);
         }
         break;
       }
@@ -184,7 +195,7 @@ export class ConfigPanel {
           );
         }
 
-        this._panel.webview.postMessage({
+        void this._panel.webview.postMessage({
           type: 'jiraValidationResult',
           result: {
             valid: result.valid,
@@ -202,7 +213,7 @@ export class ConfigPanel {
           message.apiKey as string
         );
 
-        this._panel.webview.postMessage({
+        void this._panel.webview.postMessage({
           type: 'linearValidationResult',
           result: {
             valid: result.valid,
@@ -229,13 +240,13 @@ export class ConfigPanel {
         }
         try {
           const config = await readConfig();
-          this._panel.webview.postMessage({
+          void this._panel.webview.postMessage({
             type: 'llmToolsDetected',
             config,
           });
         } catch {
           // If we can't read config, just send tool names for compatibility
-          this._panel.webview.postMessage({
+          void this._panel.webview.postMessage({
             type: 'llmToolsDetected',
             config: {
               config_path: configPath || '',
@@ -254,9 +265,9 @@ export class ConfigPanel {
           const apiUrl = await discoverApiUrl(ticketsDir);
           const client = new OperatorApiClient(apiUrl);
           await client.health();
-          this._panel.webview.postMessage({ type: 'apiHealthResult', reachable: true });
+          void this._panel.webview.postMessage({ type: 'apiHealthResult', reachable: true });
         } catch {
-          this._panel.webview.postMessage({ type: 'apiHealthResult', reachable: false });
+          void this._panel.webview.postMessage({ type: 'apiHealthResult', reachable: false });
         }
         break;
       }
@@ -268,9 +279,9 @@ export class ConfigPanel {
           const apiUrl = await discoverApiUrl(ticketsDir);
           const client = new OperatorApiClient(apiUrl);
           const projects = await client.getProjects();
-          this._panel.webview.postMessage({ type: 'projectsLoaded', projects });
+          void this._panel.webview.postMessage({ type: 'projectsLoaded', projects });
         } catch (err) {
-          this._panel.webview.postMessage({
+          void this._panel.webview.postMessage({
             type: 'projectsError',
             error: err instanceof Error ? err.message : 'Failed to load projects',
           });
@@ -286,13 +297,13 @@ export class ConfigPanel {
           const apiUrl = await discoverApiUrl(ticketsDir);
           const client = new OperatorApiClient(apiUrl);
           const result = await client.assessProject(projectName);
-          this._panel.webview.postMessage({
+          void this._panel.webview.postMessage({
             type: 'assessTicketCreated',
             ticketId: result.ticket_id,
             projectName: result.project_name,
           });
         } catch (err) {
-          this._panel.webview.postMessage({
+          void this._panel.webview.postMessage({
             type: 'assessTicketError',
             error: err instanceof Error ? err.message : 'Failed to create ASSESS ticket',
             projectName,
@@ -311,7 +322,7 @@ export class ConfigPanel {
       }
 
       case 'openExternal':
-        vscode.env.openExternal(vscode.Uri.parse(message.url as string));
+        void vscode.env.openExternal(vscode.Uri.parse(message.url as string));
         break;
 
       case 'openFile': {
@@ -322,6 +333,157 @@ export class ConfigPanel {
         }
         break;
       }
+
+      case 'getIssueTypes': {
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          const issueTypes = await client.listIssueTypes();
+          void this._panel.webview.postMessage({ type: 'issueTypesLoaded', issueTypes });
+        } catch (err) {
+          void this._panel.webview.postMessage({
+            type: 'issueTypeError',
+            error: err instanceof Error ? err.message : 'Failed to load issue types',
+          });
+        }
+        break;
+      }
+
+      case 'getIssueType': {
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          const issueType = await client.getIssueType(message.key as string);
+          void this._panel.webview.postMessage({ type: 'issueTypeLoaded', issueType });
+        } catch (err) {
+          void this._panel.webview.postMessage({
+            type: 'issueTypeError',
+            error: err instanceof Error ? err.message : 'Failed to load issue type',
+          });
+        }
+        break;
+      }
+
+      case 'getCollections': {
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          const collections = await client.listCollections();
+          void this._panel.webview.postMessage({ type: 'collectionsLoaded', collections });
+        } catch (err) {
+          void this._panel.webview.postMessage({
+            type: 'collectionsError',
+            error: err instanceof Error ? err.message : 'Failed to load collections',
+          });
+        }
+        break;
+      }
+
+      case 'activateCollection': {
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          await client.activateCollection(message.name as string);
+          void this._panel.webview.postMessage({ type: 'collectionActivated', name: message.name as string });
+          // Refresh collections after activation
+          const collections = await client.listCollections();
+          void this._panel.webview.postMessage({ type: 'collectionsLoaded', collections });
+        } catch (err) {
+          void this._panel.webview.postMessage({
+            type: 'collectionsError',
+            error: err instanceof Error ? err.message : 'Failed to activate collection',
+          });
+        }
+        break;
+      }
+
+      case 'getExternalIssueTypes': {
+        const provider = message.provider as string;
+        const projectKey = message.projectKey as string;
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          const types = await client.getExternalIssueTypes(provider, projectKey);
+          void this._panel.webview.postMessage({
+            type: 'externalIssueTypesLoaded',
+            provider,
+            projectKey,
+            types,
+          });
+        } catch (err) {
+          void this._panel.webview.postMessage({
+            type: 'externalIssueTypesError',
+            provider,
+            projectKey,
+            error: err instanceof Error ? err.message : 'Failed to load external issue types',
+          });
+        }
+        break;
+      }
+
+      case 'createIssueType': {
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          const issueType = await client.createIssueType(message.request as Parameters<typeof client.createIssueType>[0]);
+          void this._panel.webview.postMessage({ type: 'issueTypeCreated', issueType });
+        } catch (err) {
+          void this._panel.webview.postMessage({
+            type: 'issueTypeError',
+            error: err instanceof Error ? err.message : 'Failed to create issue type',
+          });
+        }
+        break;
+      }
+
+      case 'updateIssueType': {
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          const issueType = await client.updateIssueType(
+            message.key as string,
+            message.request as Parameters<typeof client.updateIssueType>[1]
+          );
+          void this._panel.webview.postMessage({ type: 'issueTypeUpdated', issueType });
+        } catch (err) {
+          void this._panel.webview.postMessage({
+            type: 'issueTypeError',
+            error: err instanceof Error ? err.message : 'Failed to update issue type',
+          });
+        }
+        break;
+      }
+
+      case 'deleteIssueType': {
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          await client.deleteIssueType(message.key as string);
+          void this._panel.webview.postMessage({ type: 'issueTypeDeleted', key: message.key as string });
+        } catch (err) {
+          void this._panel.webview.postMessage({
+            type: 'issueTypeError',
+            error: err instanceof Error ? err.message : 'Failed to delete issue type',
+          });
+        }
+        break;
+      }
     }
   }
 
@@ -329,12 +491,12 @@ export class ConfigPanel {
   private async _sendConfig(): Promise<void> {
     try {
       const config = await readConfig();
-      this._panel.webview.postMessage({
+      void this._panel.webview.postMessage({
         type: 'configLoaded',
         config,
       });
     } catch (err) {
-      this._panel.webview.postMessage({
+      void this._panel.webview.postMessage({
         type: 'configError',
         error: err instanceof Error ? err.message : 'Failed to load config',
       });
@@ -351,12 +513,12 @@ export class ConfigPanel {
       await writeConfigField(section, key, value);
 
       const config = await readConfig();
-      this._panel.webview.postMessage({
+      void this._panel.webview.postMessage({
         type: 'configUpdated',
         config,
       });
     } catch (err) {
-      this._panel.webview.postMessage({
+      void this._panel.webview.postMessage({
         type: 'configError',
         error: err instanceof Error ? err.message : 'Failed to update config',
       });
@@ -485,14 +647,14 @@ async function writeConfigField(
         if (!ws.projects) { ws.projects = {}; }
         const projects = ws.projects as TomlConfig;
         const oldKeys = Object.keys(projects);
-        if (oldKeys.length > 0) {
+        if (oldKeys.length > 0 && oldKeys[0]) {
           const oldProject = projects[oldKeys[0]];
           delete projects[oldKeys[0]];
           projects[value as string] = oldProject;
         } else {
           projects[value as string] = { sync_user_id: '', collection_name: 'dev_kanban' };
         }
-      } else if (key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id') {
+      } else if (key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id' || key === 'type_mappings') {
         // Write to the first project sub-table
         if (!ws.projects) { ws.projects = {}; }
         const projects = ws.projects as TomlConfig;
@@ -500,6 +662,17 @@ async function writeConfigField(
         const projectKey = projectKeys[0] ?? 'default';
         if (!projects[projectKey]) { projects[projectKey] = {}; }
         (projects[projectKey] as TomlConfig)[key] = value;
+      } else if (key.startsWith('projects.')) {
+        // Multi-project writes: kanban.jira + projects.{projectKey}.{field}
+        const parts = key.split('.');
+        if (parts.length >= 3 && parts[1]) {
+          const pKey = parts[1];
+          const field = parts.slice(2).join('.');
+          if (!ws.projects) { ws.projects = {}; }
+          const projects = ws.projects as TomlConfig;
+          if (!projects[pKey]) { projects[pKey] = { sync_user_id: '', collection_name: 'dev_kanban' }; }
+          (projects[pKey] as TomlConfig)[field] = value;
+        }
       } else {
         ws[key] = value;
       }
@@ -522,7 +695,7 @@ async function writeConfigField(
         const existing = linear[teamId];
         delete linear[teamId];
         linear[value] = existing;
-      } else if (key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id') {
+      } else if (key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id' || key === 'type_mappings') {
         // Write to the first project sub-table
         if (!ws.projects) { ws.projects = {}; }
         const projects = ws.projects as TomlConfig;
@@ -530,6 +703,17 @@ async function writeConfigField(
         const projectKey = projectKeys[0] ?? 'default';
         if (!projects[projectKey]) { projects[projectKey] = {}; }
         (projects[projectKey] as TomlConfig)[key] = value;
+      } else if (key.startsWith('projects.')) {
+        // Multi-project writes: kanban.linear + projects.{projectKey}.{field}
+        const parts = key.split('.');
+        if (parts.length >= 3 && parts[1]) {
+          const pKey = parts[1];
+          const field = parts.slice(2).join('.');
+          if (!ws.projects) { ws.projects = {}; }
+          const projects = ws.projects as TomlConfig;
+          if (!projects[pKey]) { projects[pKey] = { sync_user_id: '', collection_name: '' }; }
+          (projects[pKey] as TomlConfig)[field] = value;
+        }
       } else {
         ws[key] = value;
       }

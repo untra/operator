@@ -81,7 +81,7 @@ impl SetupScreen {
                 Line::from(vec![
                     Span::styled("  + ", Style::default().fg(Color::Green)),
                     Span::styled(
-                        tool_name.to_string(),
+                        (*tool_name).to_string(),
                         Style::default()
                             .fg(Color::Green)
                             .add_modifier(Modifier::BOLD),
@@ -94,7 +94,10 @@ impl SetupScreen {
             } else {
                 Line::from(vec![
                     Span::styled("  - ", Style::default().fg(Color::DarkGray)),
-                    Span::styled(tool_name.to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        (*tool_name).to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    ),
                     Span::styled(" - not installed", Style::default().fg(Color::DarkGray)),
                 ])
             };
@@ -117,10 +120,7 @@ impl SetupScreen {
                     has_any_projects = true;
                     let project_list = projects.join(", ");
                     projects_text.push(Line::from(vec![
-                        Span::styled(
-                            format!("  {}: ", tool_name),
-                            Style::default().fg(Color::Cyan),
-                        ),
+                        Span::styled(format!("  {tool_name}: "), Style::default().fg(Color::Cyan)),
                         Span::styled(project_list, Style::default().fg(Color::Green)),
                     ]));
                 }

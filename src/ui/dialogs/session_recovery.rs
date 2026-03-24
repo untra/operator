@@ -18,7 +18,7 @@ pub enum SessionRecoverySelection {
 }
 
 impl SessionRecoverySelection {
-    /// Get the next selection (skipping ResumeSession if no session ID)
+    /// Get the next selection (skipping `ResumeSession` if no session ID)
     fn next(self, has_session_id: bool) -> Self {
         match self {
             Self::ResumeSession => Self::StartFresh,
@@ -34,7 +34,7 @@ impl SessionRecoverySelection {
         }
     }
 
-    /// Get the previous selection (skipping ResumeSession if no session ID)
+    /// Get the previous selection (skipping `ResumeSession` if no session ID)
     fn prev(self, has_session_id: bool) -> Self {
         match self {
             Self::ResumeSession => Self::Cancel,
@@ -150,7 +150,7 @@ impl SessionRecoveryDialog {
         }
     }
 
-    /// Make the available_options method accessible for testing
+    /// Make the `available_options` method accessible for testing
     #[cfg(test)]
     pub fn available_options_for_test(&self) -> Vec<SessionRecoverySelection> {
         self.available_options()

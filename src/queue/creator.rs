@@ -46,7 +46,7 @@ impl TicketCreator {
             .cloned()
             .unwrap_or_else(|| "global".to_string());
 
-        let filename = format!("{}-{}-{}-new-ticket.md", timestamp, type_str, project);
+        let filename = format!("{timestamp}-{type_str}-{project}-new-ticket.md");
         let filepath = self.queue_path.join(&filename);
 
         // Render template with handlebar values
@@ -88,7 +88,7 @@ impl TicketCreator {
         let branch_prefix = type_str.to_lowercase();
 
         let mut values = HashMap::new();
-        values.insert("id".to_string(), format!("{}-{}", type_str, id));
+        values.insert("id".to_string(), format!("{type_str}-{id}"));
         values.insert("created".to_string(), date.clone());
         values.insert("created_date".to_string(), date);
         values.insert("created_datetime".to_string(), datetime);
@@ -96,7 +96,7 @@ impl TicketCreator {
         values.insert("project".to_string(), project.to_string());
         values.insert(
             "branch".to_string(),
-            format!("{}/{}-{}-short-description", branch_prefix, type_str, id),
+            format!("{branch_prefix}/{type_str}-{id}-short-description"),
         );
         values.insert("step".to_string(), template_type.first_step().to_string());
 
@@ -110,7 +110,7 @@ impl TicketCreator {
         let status = Command::new(&editor)
             .arg(filepath)
             .status()
-            .context(format!("Failed to open editor: {}", editor))?;
+            .context(format!("Failed to open editor: {editor}"))?;
 
         if !status.success() {
             anyhow::bail!("Editor exited with non-zero status");
@@ -134,7 +134,7 @@ pub fn render_template(template: &str, values: &HashMap<String, String>) -> Resu
         .context("Failed to render template")
 }
 
-/// Parse a template schema from JSON and sort fields by display_order
+/// Parse a template schema from JSON and sort fields by `display_order`
 pub fn parse_and_sort_schema(json: &str) -> Result<TemplateSchema> {
     let mut schema = TemplateSchema::from_json(json).context("Failed to parse template schema")?;
 
@@ -149,7 +149,7 @@ pub fn parse_and_sort_schema(json: &str) -> Result<TemplateSchema> {
 }
 
 /// Get user-editable fields from a schema (fields the user should fill in the form)
-/// Excludes auto-generated fields (user_editable = false)
+/// Excludes auto-generated fields (`user_editable` = false)
 pub fn get_user_fields(schema: &TemplateSchema) -> Vec<&crate::templates::schema::FieldSchema> {
     schema.fields.iter().filter(|f| f.user_editable).collect()
 }
@@ -190,7 +190,7 @@ mod tests {
         let template = "ID: {{ id }}\nContext: {{ context }}";
         let mut values = HashMap::new();
         values.insert("id".to_string(), "FIX-5678".to_string());
-        values.insert("context".to_string(), "".to_string());
+        values.insert("context".to_string(), String::new());
 
         let result = render_template(template, &values).unwrap();
 
@@ -268,17 +268,17 @@ mod tests {
     #[test]
     fn test_step_omitted_when_empty() {
         // Step should be omitted from frontmatter when empty/falsey
-        let template = r#"---
+        let template = r"---
 id: {{ id }}
 {{#if step }}step: {{ step }}
 {{/if}}status: {{ status }}
 ---
 
 # Feature: {{ summary }}
-"#;
+";
         let mut values = HashMap::new();
         values.insert("id".to_string(), "FEAT-1234".to_string());
-        values.insert("step".to_string(), "".to_string()); // Empty step
+        values.insert("step".to_string(), String::new()); // Empty step
         values.insert("status".to_string(), "queued".to_string());
         values.insert("summary".to_string(), "Test feature".to_string());
 
@@ -296,14 +296,14 @@ id: {{ id }}
     #[test]
     fn test_step_included_when_present() {
         // Step should be included when it has a value
-        let template = r#"---
+        let template = r"---
 id: {{ id }}
 {{#if step }}step: {{ step }}
 {{/if}}status: {{ status }}
 ---
 
 # Feature: {{ summary }}
-"#;
+";
         let mut values = HashMap::new();
         values.insert("id".to_string(), "FEAT-1234".to_string());
         values.insert("step".to_string(), "plan".to_string()); // Non-empty step
@@ -327,17 +327,17 @@ id: {{ id }}
         // and empty step values should be omitted
 
         // Using the fixed feature.md template pattern
-        let template = r#"---
+        let template = r"---
 id: {{ id }}
 {{#if step }}step: {{ step }}
 {{/if}}status: {{ status }}
 ---
 
 # Feature: {{ summary }}
-"#;
+";
         let mut values = HashMap::new();
         values.insert("id".to_string(), "FEAT-1234".to_string());
-        values.insert("step".to_string(), "".to_string()); // Empty step
+        values.insert("step".to_string(), String::new()); // Empty step
         values.insert("status".to_string(), "queued".to_string());
         values.insert("summary".to_string(), "Test feature".to_string());
 

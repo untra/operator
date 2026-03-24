@@ -1,7 +1,7 @@
 //! Terminal session wrapper abstraction layer.
 //!
 //! Provides a trait-based abstraction over terminal session operations to enable:
-//! - Multiple backend implementations (tmux, VS Code terminals)
+//! - Multiple backend implementations (tmux, VS Code terminals, cmux)
 //! - Composition with activity detectors (hooks, shell execution events)
 //! - Testability via mock implementations
 
@@ -44,6 +44,10 @@ pub enum WrapperType {
     Tmux,
     /// VS Code integrated terminal (via extension webhook)
     VSCode,
+    /// cmux macOS terminal multiplexer
+    Cmux,
+    /// Zellij terminal workspace manager
+    Zellij,
 }
 
 impl std::fmt::Display for WrapperType {
@@ -51,6 +55,8 @@ impl std::fmt::Display for WrapperType {
         match self {
             WrapperType::Tmux => write!(f, "tmux"),
             WrapperType::VSCode => write!(f, "vscode"),
+            WrapperType::Cmux => write!(f, "cmux"),
+            WrapperType::Zellij => write!(f, "zellij"),
         }
     }
 }
@@ -62,6 +68,17 @@ pub struct SessionInfo {
     pub created: Option<String>,
     pub attached: bool,
     pub wrapper_type: WrapperType,
+}
+
+/// Topology information about a session's placement in its wrapper hierarchy
+#[derive(Debug, Clone)]
+pub struct SessionTopology {
+    /// Type of wrapper hosting this session
+    pub wrapper_type: WrapperType,
+    /// Hierarchical refs as label-value pairs (e.g. [("window", "abc123"), ("workspace", "def456")])
+    pub refs: Vec<(String, String)>,
+    /// Human-readable placement hint (e.g. "auto (same window)" or "new window")
+    pub placement_hint: Option<String>,
 }
 
 /// Core terminal session operations
@@ -98,7 +115,7 @@ pub trait SessionWrapper: Send + Sync {
     async fn focus_session(&self, session: &str) -> Result<(), SessionError>;
 
     /// Optional: capture terminal content
-    /// Default implementation returns NotSupported - only tmux provides this.
+    /// Default implementation returns `NotSupported` - only tmux provides this.
     /// VS Code terminals don't need content capture (user sees terminal directly).
     fn capture_content(&self, _session: &str) -> Result<String, SessionError> {
         Err(SessionError::NotSupported(
@@ -109,6 +126,14 @@ pub trait SessionWrapper: Send + Sync {
     /// Check if this wrapper supports content capture
     fn supports_content_capture(&self) -> bool {
         false
+    }
+
+    /// Get topology info for a session (hierarchy refs, placement info)
+    /// Default returns `NotSupported` — only wrappers with rich hierarchy implement this.
+    fn session_topology(&self, _session: &str) -> Result<SessionTopology, SessionError> {
+        Err(SessionError::NotSupported(
+            "topology not available for this wrapper".into(),
+        ))
     }
 }
 
@@ -133,14 +158,14 @@ impl Default for ActivityConfig {
 /// Activity detection - knows when a session is idle vs working
 ///
 /// Multiple implementations exist:
-/// - LlmHookDetector: Uses Claude/Gemini hooks (fastest, most reliable)
-/// - VSCodeActivityDetector: Uses shell execution events via extension
-/// - TmuxActivityDetector: Uses silence flags + content patterns (fallback)
+/// - `LlmHookDetector`: Uses Claude/Gemini hooks (fastest, most reliable)
+/// - `VSCodeActivityDetector`: Uses shell execution events via extension
+/// - `TmuxActivityDetector`: Uses silence flags + content patterns (fallback)
 pub trait ActivityDetector: Send + Sync {
     /// Check if session is idle (waiting for input)
     fn is_idle(&self, session_id: &str) -> Result<bool, SessionError>;
 
-    /// Check if session has resumed activity (for awaiting_input -> running transition)
+    /// Check if session has resumed activity (for `awaiting_input` -> running transition)
     fn has_resumed(&self, session_id: &str) -> Result<bool, SessionError>;
 
     /// Configure activity detection for a session
@@ -199,6 +224,13 @@ mod tests {
     fn test_wrapper_type_display() {
         assert_eq!(WrapperType::Tmux.to_string(), "tmux");
         assert_eq!(WrapperType::VSCode.to_string(), "vscode");
+        assert_eq!(WrapperType::Cmux.to_string(), "cmux");
+        assert_eq!(WrapperType::Zellij.to_string(), "zellij");
+    }
+
+    #[test]
+    fn test_wrapper_type_display_cmux() {
+        assert_eq!(WrapperType::Cmux.to_string(), "cmux");
     }
 
     #[test]

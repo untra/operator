@@ -34,13 +34,12 @@ pub fn build_llm_command_with_permissions_for_tool(
     // Find the specified tool
     let tool = get_detected_tool(config, tool_name).ok_or_else(|| {
         anyhow::anyhow!(
-            "LLM tool '{}' not detected. Install it or choose a different provider.",
-            tool_name
+            "LLM tool '{tool_name}' not detected. Install it or choose a different provider."
         )
     })?;
 
     // Build model flag based on tool's arg_mapping
-    let model_flag = format!("--model {} ", model);
+    let model_flag = format!("--model {model} ");
 
     // Generate config flags from permissions
     let config_flags = if let (Some(ticket), Some(project_path)) = (ticket, project_path) {
@@ -71,7 +70,7 @@ pub fn apply_yolo_flags(config: &Config, cmd: &str, tool_name: &str) -> String {
             if let Some(pos) = cmd.find(tool_name) {
                 let insert_pos = pos + tool_name.len();
                 let mut result = cmd.to_string();
-                result.insert_str(insert_pos, &format!(" {}", yolo_flags_str));
+                result.insert_str(insert_pos, &format!(" {yolo_flags_str}"));
                 return result;
             }
         }
@@ -158,7 +157,7 @@ fn generate_config_flags(
         .join("sessions")
         .join(&ticket.id);
     fs::create_dir_all(&session_dir)
-        .with_context(|| format!("Failed to create session dir: {:?}", session_dir))?;
+        .with_context(|| format!("Failed to create session dir: {}", session_dir.display()))?;
 
     // Generate config using translator
     let translator = TranslatorManager::new();
@@ -210,7 +209,10 @@ fn generate_config_flags(
                 let schema_str = serde_json::to_string_pretty(schema)
                     .context("Failed to serialize JSON schema")?;
                 fs::write(&schema_file_path, &schema_str).with_context(|| {
-                    format!("Failed to write JSON schema file: {:?}", schema_file_path)
+                    format!(
+                        "Failed to write JSON schema file: {}",
+                        schema_file_path.display()
+                    )
                 })?;
                 cli_flags.push("--json-schema".to_string());
                 cli_flags.push(schema_file_path.to_string_lossy().to_string());
@@ -229,7 +231,7 @@ fn generate_config_flags(
                 };
                 // Verify schema file exists, then pass the path (not content)
                 if !schema_path.exists() {
-                    anyhow::bail!("JSON schema file not found: {:?}", schema_path);
+                    anyhow::bail!("JSON schema file not found: {}", schema_path.display());
                 }
                 cli_flags.push("--json-schema".to_string());
                 cli_flags.push(schema_path.to_string_lossy().to_string());
@@ -312,8 +314,7 @@ mod tests {
 
         assert!(
             result.contains("claude --dangerously-skip-permissions --model"),
-            "YOLO flag should be inserted after tool name, got: {}",
-            result
+            "YOLO flag should be inserted after tool name, got: {result}"
         );
     }
 
@@ -331,8 +332,7 @@ mod tests {
 
         assert!(
             result.contains("--dangerously-skip-permissions --no-confirm"),
-            "Multiple YOLO flags should be joined with spaces, got: {}",
-            result
+            "Multiple YOLO flags should be joined with spaces, got: {result}"
         );
     }
 
@@ -408,8 +408,7 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("-v /home/user/project:/workspace:rw"),
-            "Should mount project path with :rw, got: {}",
-            cmd
+            "Should mount project path with :rw, got: {cmd}"
         );
     }
 
@@ -424,8 +423,7 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("-w /workspace"),
-            "Should set working dir to mount path, got: {}",
-            cmd
+            "Should set working dir to mount path, got: {cmd}"
         );
     }
 
@@ -442,13 +440,11 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("-e ANTHROPIC_API_KEY"),
-            "Should pass first env var, got: {}",
-            cmd
+            "Should pass first env var, got: {cmd}"
         );
         assert!(
             cmd.contains("-e HOME=/root"),
-            "Should pass second env var, got: {}",
-            cmd
+            "Should pass second env var, got: {cmd}"
         );
     }
 
@@ -477,8 +473,7 @@ mod tests {
         let err = result.unwrap_err().to_string();
         assert!(
             err.contains("no image is configured"),
-            "Error should mention missing image, got: {}",
-            err
+            "Error should mention missing image, got: {err}"
         );
     }
 
@@ -493,8 +488,7 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("sh -c claude --model sonnet"),
-            "Should wrap inner command with sh -c, got: {}",
-            cmd
+            "Should wrap inner command with sh -c, got: {cmd}"
         );
     }
 
@@ -573,8 +567,7 @@ mod tests {
         let err = result.unwrap_err().to_string();
         assert!(
             err.contains("not detected"),
-            "Error should mention tool not detected, got: {}",
-            err
+            "Error should mention tool not detected, got: {err}"
         );
     }
 
@@ -597,18 +590,15 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("--model opus"),
-            "Should interpolate model, got: {}",
-            cmd
+            "Should interpolate model, got: {cmd}"
         );
         assert!(
             cmd.contains("--session-id sess-abc"),
-            "Should interpolate session_id, got: {}",
-            cmd
+            "Should interpolate session_id, got: {cmd}"
         );
         assert!(
             cmd.contains("/tmp/prompt.md"),
-            "Should interpolate prompt_file, got: {}",
-            cmd
+            "Should interpolate prompt_file, got: {cmd}"
         );
     }
 
@@ -632,8 +622,7 @@ mod tests {
         // When no ticket, config_flags should be empty, so command starts with "claude --model"
         assert!(
             cmd.starts_with("claude --model"),
-            "Should have empty config_flags when no ticket, got: {}",
-            cmd
+            "Should have empty config_flags when no ticket, got: {cmd}"
         );
     }
 
@@ -657,8 +646,7 @@ mod tests {
         // Model flag should have trailing space per the code
         assert!(
             cmd.contains("--model haiku "),
-            "Model flag should have trailing space, got: {}",
-            cmd
+            "Model flag should have trailing space, got: {cmd}"
         );
     }
 
@@ -989,10 +977,10 @@ mod tests {
 
             assert!(path_str.contains("schema.json"));
             assert!(path_str.contains("sessions"));
-            assert!(!path_str.contains("{")); // No JSON content
+            assert!(!path_str.contains('{')); // No JSON content
         }
 
-        /// Test that json_schema_file path existence check works
+        /// Test that `json_schema_file` path existence check works
         #[test]
         #[ignore = "JSON schema flag temporarily disabled - see JSON_SCHEMA_ENABLED"]
         fn test_schema_file_path_exists_check() {
@@ -1039,8 +1027,8 @@ mod tests {
             // Verify the path is simple and safe for shell
             let path_str = schema_path.to_string_lossy().to_string();
             assert!(!path_str.contains('\n'));
-            assert!(!path_str.contains("\""));
-            assert!(!path_str.contains("'"));
+            assert!(!path_str.contains('"'));
+            assert!(!path_str.contains('\''));
 
             // Verify content is preserved
             let content = std::fs::read_to_string(&schema_path).unwrap();

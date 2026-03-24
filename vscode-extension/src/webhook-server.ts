@@ -71,9 +71,9 @@ export class WebhookServer {
    */
   private tryListen(port: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.server = http.createServer((req, res) =>
-        this.handleRequest(req, res)
-      );
+      this.server = http.createServer((req, res) => {
+        void this.handleRequest(req, res);
+      });
 
       this.server.on('error', reject);
 
@@ -158,6 +158,14 @@ export class WebhookServer {
   }
 
   /**
+   * Re-write the session file if the server is running but the file was lost
+   */
+  async ensureSessionFile(ticketsDir: string): Promise<void> {
+    if (!this.server) { return; }
+    await this.writeSessionFile(ticketsDir);
+  }
+
+  /**
    * Get the configured port preference
    */
   getConfiguredPort(): number {
@@ -199,7 +207,7 @@ export class WebhookServer {
       // Create terminal
       if (urlPath === '/terminal/create' && req.method === 'POST') {
         const body = await this.parseBody<TerminalCreateOptions>(req);
-        await this.terminalManager.create(body);
+        this.terminalManager.create(body);
         const response: SuccessResponse = { success: true, name: body.name };
         return this.sendJson(res, response);
       }
@@ -212,7 +220,7 @@ export class WebhookServer {
       ) {
         const name = this.extractName(urlPath, '/terminal/', '/send');
         const body = await this.parseBody<SendCommandRequest>(req);
-        await this.terminalManager.send(name, body.command);
+        this.terminalManager.send(name, body.command);
         const response: SuccessResponse = { success: true };
         return this.sendJson(res, response);
       }
@@ -224,7 +232,7 @@ export class WebhookServer {
         req.method === 'POST'
       ) {
         const name = this.extractName(urlPath, '/terminal/', '/show');
-        await this.terminalManager.show(name);
+        this.terminalManager.show(name);
         const response: SuccessResponse = { success: true };
         return this.sendJson(res, response);
       }
@@ -236,7 +244,7 @@ export class WebhookServer {
         req.method === 'POST'
       ) {
         const name = this.extractName(urlPath, '/terminal/', '/focus');
-        await this.terminalManager.focus(name);
+        this.terminalManager.focus(name);
         const response: SuccessResponse = { success: true };
         return this.sendJson(res, response);
       }
@@ -248,7 +256,7 @@ export class WebhookServer {
         req.method === 'DELETE'
       ) {
         const name = this.extractName(urlPath, '/terminal/', '/kill');
-        await this.terminalManager.kill(name);
+        this.terminalManager.kill(name);
         const response: SuccessResponse = { success: true };
         return this.sendJson(res, response);
       }
@@ -313,7 +321,7 @@ export class WebhookServer {
       req.on('data', (chunk) => (body += chunk));
       req.on('end', () => {
         try {
-          resolve(JSON.parse(body || '{}'));
+          resolve(JSON.parse(body || '{}') as T);
         } catch {
           reject(new Error('Invalid JSON'));
         }

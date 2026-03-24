@@ -6,7 +6,7 @@ pub fn send_notification(title: &str, subtitle: &str, message: &str, _sound: boo
     let body = if subtitle.is_empty() {
         message.to_string()
     } else {
-        format!("{}\n{}", subtitle, message)
+        format!("{subtitle}\n{message}")
     };
 
     // Handle D-Bus errors gracefully - notification daemon may not be available

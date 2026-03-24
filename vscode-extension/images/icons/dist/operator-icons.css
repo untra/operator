@@ -1,0 +1,55 @@
+@font-face {
+    font-family: "operator-icons";
+    src: url("./operator-icons.woff?17728809643116deb872390fbf63aeea") format("woff");
+}
+
+i[class^="opi-"]:before, i[class*=" opi-"]:before {
+    font-family: operator-icons !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.opi-zellij:before {
+    content: "\f101";
+}
+.opi-webhook:before {
+    content: "\f102";
+}
+.opi-vscode:before {
+    content: "\f103";
+}
+.opi-tmux:before {
+    content: "\f104";
+}
+.opi-notification:before {
+    content: "\f105";
+}
+.opi-linear:before {
+    content: "\f106";
+}
+.opi-gitlab:before {
+    content: "\f107";
+}
+.opi-github:before {
+    content: "\f108";
+}
+.opi-gemini:before {
+    content: "\f109";
+}
+.opi-codex:before {
+    content: "\f10a";
+}
+.opi-cmux:before {
+    content: "\f10b";
+}
+.opi-claude:before {
+    content: "\f10c";
+}
+.opi-atlassian:before {
+    content: "\f10d";
+}

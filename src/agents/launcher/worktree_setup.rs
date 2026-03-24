@@ -29,7 +29,7 @@ fn sanitize_branch_name(s: &str) -> String {
 
 /// Generate a branch name for a ticket
 ///
-/// Pattern: {ticket_type}/{ticket_id}
+/// Pattern: {`ticket_type}/{ticket_id`}
 /// Example: feat/feat-1234
 pub fn branch_name_for_ticket(ticket: &Ticket) -> String {
     format!(
@@ -45,7 +45,7 @@ pub fn branch_name_for_ticket(ticket: &Ticket) -> String {
 ///
 /// # Arguments
 /// * `config` - Operator configuration
-/// * `ticket` - The ticket to create a worktree for (will be mutated to set worktree_path and branch)
+/// * `ticket` - The ticket to create a worktree for (will be mutated to set `worktree_path` and branch)
 /// * `project_path` - Path to the project directory
 ///
 /// # Returns
@@ -225,7 +225,7 @@ async fn detect_default_branch(repo_path: &Path) -> Option<String> {
             let branch = head_ref
                 .trim()
                 .strip_prefix("refs/remotes/origin/")
-                .map(|s| s.to_string());
+                .map(std::string::ToString::to_string);
             if branch.is_some() {
                 return branch;
             }
@@ -242,7 +242,7 @@ async fn detect_default_branch(repo_path: &Path) -> Option<String> {
     for branch in &["main", "master"] {
         let ref_path = repo_path.join(".git/refs/heads").join(branch);
         if ref_path.exists() {
-            return Some(branch.to_string());
+            return Some((*branch).to_string());
         }
     }
 
@@ -251,8 +251,8 @@ async fn detect_default_branch(repo_path: &Path) -> Option<String> {
     if packed_refs.exists() {
         if let Ok(contents) = std::fs::read_to_string(&packed_refs) {
             for branch in &["main", "master"] {
-                if contents.contains(&format!("refs/heads/{}", branch)) {
-                    return Some(branch.to_string());
+                if contents.contains(&format!("refs/heads/{branch}")) {
+                    return Some((*branch).to_string());
                 }
             }
         }

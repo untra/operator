@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use super::translator::PermissionTranslator;
 use super::PermissionSet;
 
-/// Translator for OpenAI Codex CLI
+/// Translator for `OpenAI` Codex CLI
 pub struct CodexTranslator;
 
 impl CodexTranslator {
@@ -44,7 +44,7 @@ impl CodexTranslator {
 }
 
 impl PermissionTranslator for CodexTranslator {
-    fn provider_name(&self) -> &str {
+    fn provider_name(&self) -> &'static str {
         "codex"
     }
 
@@ -114,7 +114,7 @@ impl PermissionTranslator for CodexTranslator {
                 continue;
             }
 
-            toml_content.push_str(&format!("[tools.\"{}\"]\n", tool_name));
+            toml_content.push_str(&format!("[tools.\"{tool_name}\"]\n"));
 
             if !allow.is_empty() {
                 toml_content.push_str(&format!(
@@ -153,7 +153,7 @@ impl PermissionTranslator for CodexTranslator {
                 }
                 _ => continue, // Skip complex values
             };
-            toml_content.push_str(&format!("{} = {}\n", k, value_str));
+            toml_content.push_str(&format!("{k} = {value_str}\n"));
         }
 
         if toml_content.is_empty() {

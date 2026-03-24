@@ -323,22 +323,9 @@ summary.nav-item-row::-webkit-details-marker {
   object-fit: contain;
 }
 
-/* Light/dark icon swapping - show light by default */
-.nav-icon .icon-dark {
-  display: none;
-}
-
-.nav-icon .icon-light {
-  display: inline-block;
-}
-
-/* In dark mode, show dark icons and hide light icons */
-[data-theme="dark"] .nav-icon .icon-dark {
-  display: inline-block;
-}
-
-[data-theme="dark"] .nav-icon .icon-light {
-  display: none;
+/* Dark mode: invert icon colors */
+[data-theme="dark"] .nav-icon img {
+  filter: invert(1) brightness(1.1) sepia(0.3);
 }
 
 /* Downloads nav link - highlighted */

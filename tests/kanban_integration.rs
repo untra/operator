@@ -82,7 +82,7 @@ fn test_issue_title(suffix: &str) -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis();
-    format!("[OPTEST] {} - {}", suffix, uuid)
+    format!("[OPTEST] {suffix} - {uuid}")
 }
 
 /// Find a terminal status (Done, Complete, Completed, Closed, Resolved) from available statuses.
@@ -117,12 +117,12 @@ async fn jira_credentials_valid() -> bool {
                         valid
                     }
                     Err(e) => {
-                        eprintln!("Jira credentials validation failed: {}", e);
+                        eprintln!("Jira credentials validation failed: {e}");
                         false
                     }
                 },
                 Err(e) => {
-                    eprintln!("Jira provider initialization failed: {}", e);
+                    eprintln!("Jira provider initialization failed: {e}");
                     false
                 }
             }
@@ -150,12 +150,12 @@ async fn linear_credentials_valid() -> bool {
                         valid
                     }
                     Err(e) => {
-                        eprintln!("Linear credentials validation failed: {}", e);
+                        eprintln!("Linear credentials validation failed: {e}");
                         false
                     }
                 },
                 Err(e) => {
-                    eprintln!("Linear provider initialization failed: {}", e);
+                    eprintln!("Linear provider initialization failed: {e}");
                     false
                 }
             }
@@ -195,7 +195,7 @@ mod jira_tests {
         let provider = get_provider();
 
         let result = provider.test_connection().await;
-        assert!(result.is_ok(), "Connection test failed: {:?}", result);
+        assert!(result.is_ok(), "Connection test failed: {result:?}");
         assert!(result.unwrap(), "Connection should be valid");
     }
 
@@ -251,7 +251,7 @@ mod jira_tests {
             .expect("Should list statuses");
         assert!(!statuses.is_empty(), "Should have workflow statuses");
 
-        eprintln!("Available Jira statuses: {:?}", statuses);
+        eprintln!("Available Jira statuses: {statuses:?}");
     }
 
     #[tokio::test]
@@ -375,7 +375,7 @@ mod jira_tests {
             .cloned();
 
         if let Some(target) = target_status {
-            eprintln!("Transitioning to: {}", target);
+            eprintln!("Transitioning to: {target}");
 
             let update_request = UpdateStatusRequest {
                 status: target.clone(),
@@ -391,7 +391,7 @@ mod jira_tests {
                     // Status may not match exactly due to workflow rules
                 }
                 Err(e) => {
-                    eprintln!("Transition failed (may be expected): {}", e);
+                    eprintln!("Transition failed (may be expected): {e}");
                 }
             }
         } else {
@@ -415,7 +415,7 @@ mod linear_tests {
         let provider = get_provider();
 
         let result = provider.test_connection().await;
-        assert!(result.is_ok(), "Connection test failed: {:?}", result);
+        assert!(result.is_ok(), "Connection test failed: {result:?}");
         assert!(result.unwrap(), "Connection should be valid");
     }
 
@@ -469,7 +469,7 @@ mod linear_tests {
             .expect("Should list statuses");
         assert!(!statuses.is_empty(), "Should have workflow states");
 
-        eprintln!("Available Linear statuses: {:?}", statuses);
+        eprintln!("Available Linear statuses: {statuses:?}");
     }
 
     #[tokio::test]
@@ -614,7 +614,7 @@ mod linear_tests {
         let mut current_status = created.issue.status.clone();
 
         if let Some(target) = target_status {
-            eprintln!("Transitioning to: {}", target);
+            eprintln!("Transitioning to: {target}");
 
             let update_request = UpdateStatusRequest {
                 status: target.clone(),
@@ -639,11 +639,10 @@ mod linear_tests {
         // ─── Cleanup: Move issue to terminal status (Done) ─────────────────────────
         if let Some(done_status) = terminal_status {
             // Only transition if not already in terminal status
-            if !current_status.eq_ignore_ascii_case(&done_status) {
-                eprintln!(
-                    "Cleanup: Transitioning issue to terminal status: {}",
-                    done_status
-                );
+            if current_status.eq_ignore_ascii_case(&done_status) {
+                eprintln!("Issue already in terminal status: {current_status}");
+            } else {
+                eprintln!("Cleanup: Transitioning issue to terminal status: {done_status}");
 
                 let done_request = UpdateStatusRequest {
                     status: done_status.clone(),
@@ -666,20 +665,14 @@ mod linear_tests {
                     }
                     Err(e) => {
                         eprintln!(
-                            "Warning: Could not move issue to terminal status '{}': {}",
-                            done_status, e
+                            "Warning: Could not move issue to terminal status '{done_status}': {e}"
                         );
                         // Don't fail the test - cleanup is best-effort
                     }
                 }
-            } else {
-                eprintln!("Issue already in terminal status: {}", current_status);
             }
         } else {
-            eprintln!(
-                "Warning: No terminal status found in available statuses: {:?}",
-                statuses
-            );
+            eprintln!("Warning: No terminal status found in available statuses: {statuses:?}");
         }
     }
 }

@@ -1,8 +1,8 @@
 # Select Working Directory
 
-Choose a **parent directory** that contains (or will contain) your project repositories. This is where the Operator server runs from.
+Choose a **parent directory** that contains (or will contain) your project code repositories. This is where the Operator server runs from.
 
-Selecting a directory runs `operator setup`, which writes a `config.toml` with server settings and creates the `.tickets/` structure for managing work items.
+Selecting a directory runs `operator setup`, which writes a `config.toml` with server settings and creates the `.tickets/` structure for managing markdown shaped work items.
 
 The extension persists this path in your VS Code user settings so it works across all workspaces.
 
@@ -15,7 +15,7 @@ The extension persists this path in your VS Code user settings so it works acros
     in-progress/
     completed/
   config.toml             <- Server configuration
-  project-a/              <- Your repos
+  project-a/              <- Your other code repos
   project-b/
   project-c/
 ```

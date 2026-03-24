@@ -50,7 +50,7 @@ impl Default for TranslatorManager {
 }
 
 impl TranslatorManager {
-    /// Create a new TranslatorManager with all supported translators
+    /// Create a new `TranslatorManager` with all supported translators
     pub fn new() -> Self {
         Self {
             translators: vec![
@@ -66,7 +66,7 @@ impl TranslatorManager {
         self.translators
             .iter()
             .find(|t| t.provider_name() == provider)
-            .map(|t| t.as_ref())
+            .map(std::convert::AsRef::as_ref)
     }
 
     /// Generate config and CLI flags for a provider
@@ -77,7 +77,7 @@ impl TranslatorManager {
     /// * `session_dir` - Directory to store session configs for auditing
     ///
     /// # Returns
-    /// GeneratedConfig containing:
+    /// `GeneratedConfig` containing:
     /// - Optional config file path (for providers that use config files)
     /// - CLI flags to add to the command
     /// - Audit info string
@@ -89,7 +89,7 @@ impl TranslatorManager {
     ) -> Result<GeneratedConfig> {
         let translator = self
             .get(provider)
-            .ok_or_else(|| anyhow::anyhow!("Unknown provider: {}", provider))?;
+            .ok_or_else(|| anyhow::anyhow!("Unknown provider: {provider}"))?;
 
         // Generate CLI flags
         let mut cli_flags = translator.generate_cli_flags(permissions);
@@ -110,12 +110,14 @@ impl TranslatorManager {
 
                 // Ensure parent directories exist
                 if let Some(parent) = full_path.parent() {
-                    fs::create_dir_all(parent)
-                        .with_context(|| format!("Failed to create config dir: {:?}", parent))?;
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!("Failed to create config dir: {}", parent.display())
+                    })?;
                 }
 
-                fs::write(&full_path, &content)
-                    .with_context(|| format!("Failed to write config file: {:?}", full_path))?;
+                fs::write(&full_path, &content).with_context(|| {
+                    format!("Failed to write config file: {}", full_path.display())
+                })?;
 
                 // Add CLI flag to point to config directory
                 match provider {
@@ -140,8 +142,7 @@ impl TranslatorManager {
 
         // Create audit info
         let audit_info = format!(
-            "Provider: {}\nCLI Flags: {:?}\nConfig Path: {:?}\n",
-            provider, cli_flags, config_path
+            "Provider: {provider}\nCLI Flags: {cli_flags:?}\nConfig Path: {config_path:?}\n"
         );
 
         Ok(GeneratedConfig {
@@ -159,17 +160,18 @@ impl TranslatorManager {
         full_command: &str,
     ) -> Result<()> {
         fs::create_dir_all(session_dir)
-            .with_context(|| format!("Failed to create session dir: {:?}", session_dir))?;
+            .with_context(|| format!("Failed to create session dir: {}", session_dir.display()))?;
 
         // Save launch command
         let command_path = session_dir.join("launch-command.txt");
-        fs::write(&command_path, full_command)
-            .with_context(|| format!("Failed to write launch command: {:?}", command_path))?;
+        fs::write(&command_path, full_command).with_context(|| {
+            format!("Failed to write launch command: {}", command_path.display())
+        })?;
 
         // Save audit info
-        let audit_path = session_dir.join(format!("{}-audit.txt", provider));
+        let audit_path = session_dir.join(format!("{provider}-audit.txt"));
         fs::write(&audit_path, &config.audit_info)
-            .with_context(|| format!("Failed to write audit info: {:?}", audit_path))?;
+            .with_context(|| format!("Failed to write audit info: {}", audit_path.display()))?;
 
         Ok(())
     }

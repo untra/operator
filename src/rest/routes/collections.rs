@@ -74,7 +74,7 @@ pub async fn get_one(
 
     let collection = registry
         .get_collection(&name)
-        .ok_or_else(|| ApiError::NotFound(format!("Collection '{}' not found", name)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Collection '{name}' not found")))?;
 
     Ok(Json(CollectionResponse::from_collection(
         collection,
@@ -104,7 +104,7 @@ pub async fn activate(
     // Activate the collection
     registry
         .activate_collection(&name)
-        .map_err(|e| ApiError::NotFound(format!("Failed to activate collection: {}", e)))?;
+        .map_err(|e| ApiError::NotFound(format!("Failed to activate collection: {e}")))?;
 
     // Get the now-active collection
     let collection = registry.active_collection().ok_or_else(|| {
@@ -164,8 +164,7 @@ mod tests {
             let collections: Vec<_> = registry.all_collections().map(|c| c.name.clone()).collect();
             assert!(
                 collections.contains(&"simple".to_string()),
-                "Expected 'simple' collection, found: {:?}",
-                collections
+                "Expected 'simple' collection, found: {collections:?}"
             );
         }
 

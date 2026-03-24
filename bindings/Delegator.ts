@@ -25,7 +25,7 @@ model: string,
  */
 display_name: string | null, 
 /**
- * Arbitrary model properties (e.g., reasoning_effort, sandbox)
+ * Arbitrary model properties (e.g., `reasoning_effort`, sandbox)
  */
 model_properties: { [key in string]?: string }, 
 /**

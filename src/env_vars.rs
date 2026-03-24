@@ -11,7 +11,7 @@
 /// An environment variable definition
 #[derive(Debug, Clone)]
 pub struct EnvVar {
-    /// Environment variable name (e.g., "OPERATOR_AGENTS__MAX_PARALLEL")
+    /// Environment variable name (e.g., "`OPERATOR_AGENTS__MAX_PARALLEL`")
     pub name: &'static str,
     /// Human-readable description
     pub description: &'static str,

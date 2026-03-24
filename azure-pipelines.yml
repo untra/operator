@@ -16,6 +16,7 @@ pool:
   vmImage: windows-latest
 
 steps:
+  - checkout: none # This disables the automatic source code checkout
   - task: PowerShell@2
     displayName: Download unsigned binary from blob
     inputs:

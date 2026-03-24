@@ -81,12 +81,12 @@ pub trait PrService: Send + Sync {
     ) -> Result<Option<PullRequestInfo>>;
 }
 
-/// Implement PrService for GitHubService
+/// Implement `PrService` for `GitHubService`
 use crate::api::GitHubService;
 
 #[async_trait]
 impl PrService for GitHubService {
-    fn provider_name(&self) -> &str {
+    fn provider_name(&self) -> &'static str {
         "github"
     }
 

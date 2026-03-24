@@ -85,6 +85,7 @@
       "outputs": ["code"],
       "prompt": "Implement the feature logic based on the plan and structure.\n\nGuidelines:\n- Follow existing code patterns and conventions\n- Add appropriate comments for complex logic\n- Keep changes minimal and focused\n- Run formatters after making changes",
       "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "agent": "claude-opus",
       "next_step": "test"
     },
     {

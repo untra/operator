@@ -1,9 +1,10 @@
 //! API state management for the REST server.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
@@ -19,6 +20,8 @@ pub struct ApiState {
     pub config: Arc<Config>,
     /// Path to tickets directory for persistence
     pub tickets_path: PathBuf,
+    /// Active MCP SSE sessions (`session_id` -> message sender)
+    pub mcp_sessions: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<String>>>>,
 }
 
 impl ApiState {
@@ -78,6 +81,7 @@ impl ApiState {
             registry: Arc::new(RwLock::new(registry)),
             config: Arc::new(config),
             tickets_path,
+            mcp_sessions: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 

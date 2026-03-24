@@ -121,7 +121,7 @@ impl SetupScreen {
             .count();
         let footer = Paragraph::new(Line::from(vec![
             Span::styled(
-                format!("{} ticket types selected", selected_count),
+                format!("{selected_count} ticket types selected"),
                 Style::default().fg(if selected_count > 0 {
                     Color::Green
                 } else {

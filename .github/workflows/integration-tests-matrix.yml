@@ -8,6 +8,7 @@ on:
       - 'opr8r/**'
       - 'vscode-extension/**'
       - 'tests/**'
+      - 'scripts/ci/**'
       - '.github/workflows/integration-tests-matrix.yml'
   pull_request:
     branches: [main]
@@ -16,6 +17,7 @@ on:
       - 'opr8r/**'
       - 'vscode-extension/**'
       - 'tests/**'
+      - 'scripts/ci/**'
   workflow_dispatch:
     inputs:
       run_vscode_tests:
@@ -24,6 +26,18 @@ on:
         default: true
       run_tmux_tests:
         description: 'Run tmux-based launch tests'
+        type: boolean
+        default: true
+      run_zellij_tests:
+        description: 'Run zellij-based launch tests'
+        type: boolean
+        default: true
+      run_cmux_tests:
+        description: 'Run cmux-based launch tests (mock, macOS)'
+        type: boolean
+        default: true
+      run_vscode_wrapper_tests:
+        description: 'Run VS Code wrapper launch tests (Rust)'
         type: boolean
         default: true
       run_api_tests:
@@ -196,6 +210,177 @@ jobs:
       - name: Cleanup tmux sessions
         if: always()
         run: tmux kill-server 2>/dev/null || true
+
+  # ============================================================================
+  # ZELLIJ INTEGRATION TESTS (Linux only)
+  # ============================================================================
+
+  test-zellij-launch:
+    name: Zellij Launch (${{ matrix.os }})
+    needs: [build-operator, build-opr8r]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_zellij_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            operator_artifact: operator-linux-x64
+            opr8r_artifact: opr8r-linux-x64
+          - os: ubuntu-24.04-arm
+            operator_artifact: operator-linux-arm64
+            opr8r_artifact: opr8r-linux-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-test-
+
+      - name: Download operator binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.operator_artifact }}
+          path: target/release
+
+      - name: Download opr8r binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.opr8r_artifact }}
+          path: target/release
+
+      - name: Make binaries executable
+        run: chmod +x target/release/operator target/release/opr8r
+
+      - name: Install zellij
+        run: |
+          ZELLIJ_VERSION="0.41.2"
+          if [ "$(uname -m)" = "aarch64" ]; then
+            ARCH="aarch64"
+          else
+            ARCH="x86_64"
+          fi
+          curl -L "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VERSION}/zellij-${ARCH}-unknown-linux-musl.tar.gz" | tar xz
+          sudo mv zellij /usr/local/bin/
+          zellij --version
+
+      - name: Run zellij launch integration tests
+        run: scripts/ci/run-zellij-integration.sh
+
+      - name: Cleanup zellij
+        if: always()
+        run: |
+          zellij delete-all-sessions --yes --force 2>/dev/null || true
+          pkill -f zellij 2>/dev/null || true
+          rm -rf /tmp/operator-zellij-mock-output
+
+  # ============================================================================
+  # CMUX INTEGRATION TESTS (mock-based, macOS)
+  # ============================================================================
+
+  test-cmux-launch:
+    name: cmux Launch (mock, ${{ matrix.os }})
+    needs: [build-operator, build-opr8r]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_cmux_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            operator_artifact: operator-macos-arm64
+            opr8r_artifact: opr8r-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-test-
+
+      - name: Download operator binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.operator_artifact }}
+          path: target/release
+
+      - name: Download opr8r binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.opr8r_artifact }}
+          path: target/release
+
+      - name: Make binaries executable
+        run: chmod +x target/release/operator target/release/opr8r
+
+      - name: Run cmux integration tests (mock-based)
+        env:
+          OPERATOR_CMUX_TEST_ENABLED: 'true'
+        run: cargo test --test launch_integration_cmux -- --nocapture --test-threads=1
+
+  # ============================================================================
+  # VSCODE WRAPPER LAUNCH TESTS (Rust library-level, all platforms)
+  # ============================================================================
+
+  test-vscode-wrapper:
+    name: VSCode Wrapper (${{ matrix.os }})
+    needs: build-operator
+    if: github.event_name != 'workflow_dispatch' || inputs.run_vscode_wrapper_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: operator-linux-x64
+          - os: macos-14
+            artifact: operator-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-test-
+
+      - name: Download operator binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/release
+
+      - name: Make binary executable
+        run: chmod +x target/release/operator
+
+      - name: Run VS Code wrapper launch tests
+        env:
+          OPERATOR_VSCODE_TEST_ENABLED: 'true'
+        run: cargo test --test launch_integration_vscode -- --nocapture --test-threads=1
 
   # ============================================================================
   # REST API INTEGRATION TESTS (All platforms)

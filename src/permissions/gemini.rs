@@ -26,18 +26,18 @@ impl GeminiTranslator {
         }
     }
 
-    /// Format a ToolPattern into Gemini's permission syntax
+    /// Format a `ToolPattern` into Gemini's permission syntax
     fn format_tool_pattern(pattern: &ToolPattern) -> String {
         let tool_name = Self::map_tool_name(&pattern.tool);
         match &pattern.pattern {
-            Some(p) => format!("{}({})", tool_name, p),
+            Some(p) => format!("{tool_name}({p})"),
             None => tool_name.to_string(),
         }
     }
 }
 
 impl PermissionTranslator for GeminiTranslator {
-    fn provider_name(&self) -> &str {
+    fn provider_name(&self) -> &'static str {
         "gemini"
     }
 
@@ -69,9 +69,9 @@ impl PermissionTranslator for GeminiTranslator {
 
         // Add directory denies as tool exclusions
         for dir in &permissions.directories_deny {
-            exclude_tools.push(format!("ReadFileTool({})", dir));
-            exclude_tools.push(format!("WriteFileTool({})", dir));
-            exclude_tools.push(format!("EditFileTool({})", dir));
+            exclude_tools.push(format!("ReadFileTool({dir})"));
+            exclude_tools.push(format!("WriteFileTool({dir})"));
+            exclude_tools.push(format!("EditFileTool({dir})"));
         }
 
         if !exclude_tools.is_empty() {

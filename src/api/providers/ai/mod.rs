@@ -2,7 +2,7 @@
 
 //! AI Provider trait and implementations
 //!
-//! Supports Anthropic, OpenAI, and Gemini providers for rate limit monitoring.
+//! Supports Anthropic, `OpenAI`, and Gemini providers for rate limit monitoring.
 
 mod anthropic;
 
@@ -57,7 +57,7 @@ pub struct RateLimitInfo {
 }
 
 impl RateLimitInfo {
-    /// Create a new RateLimitInfo for a provider
+    /// Create a new `RateLimitInfo` for a provider
     pub fn new(provider: impl Into<String>) -> Self {
         Self {
             provider: provider.into(),
@@ -100,7 +100,7 @@ impl RateLimitInfo {
     pub fn summary(&self) -> String {
         if self.is_rate_limited {
             if let Some(retry) = self.retry_after_secs {
-                return format!("Rate limited ({}s)", retry);
+                return format!("Rate limited ({retry}s)");
             }
             return "Rate limited".to_string();
         }
@@ -119,9 +119,7 @@ impl RateLimitInfo {
 
     /// Check if rate limit is below a warning threshold (e.g., 0.2 for 20%)
     pub fn is_below_threshold(&self, threshold: f32) -> bool {
-        self.best_remaining_pct()
-            .map(|pct| pct < threshold)
-            .unwrap_or(false)
+        self.best_remaining_pct().is_some_and(|pct| pct < threshold)
     }
 
     /// Format as a progress bar string (e.g., "████████░░")
@@ -134,7 +132,7 @@ impl RateLimitInfo {
     }
 }
 
-/// Trait for AI service providers (Anthropic, OpenAI, Gemini, etc.)
+/// Trait for AI service providers (Anthropic, `OpenAI`, Gemini, etc.)
 #[async_trait]
 pub trait AiProvider: Send + Sync {
     /// Get the provider name (e.g., "anthropic", "openai")
@@ -157,12 +155,12 @@ mod tests {
     #[test]
     fn test_rate_limit_info_summary() {
         let mut info = RateLimitInfo::new("anthropic");
-        info.input_tokens_limit = Some(100000);
+        info.input_tokens_limit = Some(100_000);
         info.input_tokens_remaining = Some(87000);
         assert_eq!(info.summary(), "87% input");
 
         let mut info = RateLimitInfo::new("openai");
-        info.tokens_limit = Some(100000);
+        info.tokens_limit = Some(100_000);
         info.tokens_remaining = Some(45000);
         assert_eq!(info.summary(), "45% tokens");
 
@@ -175,7 +173,7 @@ mod tests {
     #[test]
     fn test_is_below_threshold() {
         let mut info = RateLimitInfo::new("anthropic");
-        info.input_tokens_limit = Some(100000);
+        info.input_tokens_limit = Some(100_000);
         info.input_tokens_remaining = Some(15000); // 15%
 
         assert!(info.is_below_threshold(0.2)); // Below 20%

@@ -147,39 +147,34 @@ impl fmt::Display for ApiError {
             } => {
                 write!(
                     f,
-                    "{}: Unauthorized (401) - {} consecutive failures",
-                    provider, consecutive_count
+                    "{provider}: Unauthorized (401) - {consecutive_count} consecutive failures"
                 )
             }
             ApiError::Forbidden { provider } => {
-                write!(
-                    f,
-                    "{}: Forbidden (403) - insufficient permissions",
-                    provider
-                )
+                write!(f, "{provider}: Forbidden (403) - insufficient permissions")
             }
             ApiError::RateLimited {
                 provider,
                 retry_after_secs,
             } => {
                 if let Some(secs) = retry_after_secs {
-                    write!(f, "{}: Rate limited - retry after {}s", provider, secs)
+                    write!(f, "{provider}: Rate limited - retry after {secs}s")
                 } else {
-                    write!(f, "{}: Rate limited", provider)
+                    write!(f, "{provider}: Rate limited")
                 }
             }
             ApiError::NetworkError { provider, message } => {
-                write!(f, "{}: Network error - {}", provider, message)
+                write!(f, "{provider}: Network error - {message}")
             }
             ApiError::HttpError {
                 provider,
                 status,
                 message,
             } => {
-                write!(f, "{}: HTTP {} - {}", provider, status, message)
+                write!(f, "{provider}: HTTP {status} - {message}")
             }
             ApiError::NotConfigured { provider } => {
-                write!(f, "{}: Not configured (no API token)", provider)
+                write!(f, "{provider}: Not configured (no API token)")
             }
         }
     }

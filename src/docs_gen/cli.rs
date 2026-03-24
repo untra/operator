@@ -68,27 +68,21 @@ impl CliDocGenerator {
                 continue;
             }
 
-            let short = arg
-                .get_short()
-                .map(|s| format!("-{}", s))
-                .unwrap_or_default();
-            let long = arg
-                .get_long()
-                .map(|l| format!("--{}", l))
-                .unwrap_or_default();
+            let short = arg.get_short().map(|s| format!("-{s}")).unwrap_or_default();
+            let long = arg.get_long().map(|l| format!("--{l}")).unwrap_or_default();
 
             let flag = if short.is_empty() {
                 long
             } else if long.is_empty() {
                 short
             } else {
-                format!("{}, {}", short, long)
+                format!("{short}, {long}")
             };
 
-            let description = arg
-                .get_help()
-                .map(|h| h.to_string())
-                .unwrap_or_else(|| String::from("No description"));
+            let description = arg.get_help().map_or_else(
+                || String::from("No description"),
+                std::string::ToString::to_string,
+            );
 
             rows.push(vec![format!("`{}`", flag), description]);
         }
@@ -109,7 +103,7 @@ impl CliDocGenerator {
 
         // Description
         if let Some(about) = cmd.get_about() {
-            output.push_str(&format!("{}\n\n", about));
+            output.push_str(&format!("{about}\n\n"));
         }
 
         // Arguments and options
@@ -122,10 +116,10 @@ impl CliDocGenerator {
             }
 
             let name = format!("`<{}>`", arg.get_id().as_str().to_uppercase());
-            let description = arg
-                .get_help()
-                .map(|h| h.to_string())
-                .unwrap_or_else(|| String::from("No description"));
+            let description = arg.get_help().map_or_else(
+                || String::from("No description"),
+                std::string::ToString::to_string,
+            );
 
             rows.push(vec![name, description]);
         }
@@ -136,27 +130,21 @@ impl CliDocGenerator {
                 continue;
             }
 
-            let short = arg
-                .get_short()
-                .map(|s| format!("-{}", s))
-                .unwrap_or_default();
-            let long = arg
-                .get_long()
-                .map(|l| format!("--{}", l))
-                .unwrap_or_default();
+            let short = arg.get_short().map(|s| format!("-{s}")).unwrap_or_default();
+            let long = arg.get_long().map(|l| format!("--{l}")).unwrap_or_default();
 
             let flag = if short.is_empty() {
                 long
             } else if long.is_empty() {
                 short
             } else {
-                format!("{}, {}", short, long)
+                format!("{short}, {long}")
             };
 
-            let mut description = arg
-                .get_help()
-                .map(|h| h.to_string())
-                .unwrap_or_else(|| String::from("No description"));
+            let mut description = arg.get_help().map_or_else(
+                || String::from("No description"),
+                std::string::ToString::to_string,
+            );
 
             // Add default value if present
             if let Some(default) = arg.get_default_values().first() {
@@ -166,11 +154,11 @@ impl CliDocGenerator {
             rows.push(vec![format!("`{}`", flag), description]);
         }
 
-        if !rows.is_empty() {
+        if rows.is_empty() {
+            output.push_str("No additional arguments.\n\n");
+        } else {
             let headers = &["Argument/Option", "Description"];
             output.push_str(&table(headers, &rows));
-        } else {
-            output.push_str("No additional arguments.\n\n");
         }
 
         output

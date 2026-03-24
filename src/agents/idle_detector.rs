@@ -31,14 +31,14 @@ impl Default for IdleDetector {
 }
 
 impl IdleDetector {
-    /// Create a new empty IdleDetector
+    /// Create a new empty `IdleDetector`
     pub fn new() -> Self {
         Self {
             tool_patterns: HashMap::new(),
         }
     }
 
-    /// Create an IdleDetector from tool configurations
+    /// Create an `IdleDetector` from tool configurations
     pub fn from_tool_configs(configs: &[ToolConfig]) -> Self {
         let mut detector = Self::new();
 

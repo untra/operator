@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::time::Instant;
+
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     Frame,
@@ -32,10 +34,16 @@ pub struct Dashboard {
     pub backstage_status: ServerStatus,
     /// REST API server status
     pub rest_api_status: RestApiStatus,
+    /// Wrapper display name for header bar
+    pub wrapper_name: &'static str,
     /// Exit confirmation mode (first Ctrl+C pressed)
     pub exit_confirmation_mode: bool,
     /// Version update available (if notification should be shown)
     pub update_available_version: Option<String>,
+    /// Transient status message (auto-dismissed after 5s)
+    pub status_message: Option<String>,
+    /// When the status message was set
+    pub status_message_at: Option<Instant>,
 }
 
 impl Dashboard {
@@ -48,10 +56,13 @@ impl Dashboard {
             focused: FocusedPanel::Queue,
             paused: false,
             max_agents: config.effective_max_agents(),
+            wrapper_name: config.sessions.wrapper.display_name(),
             backstage_status: ServerStatus::Stopped,
             rest_api_status: RestApiStatus::Stopped,
             exit_confirmation_mode: false,
             update_available_version: None,
+            status_message: None,
+            status_message_at: None,
         }
     }
 
@@ -69,6 +80,22 @@ impl Dashboard {
 
     pub fn update_available_version(&mut self, version: Option<String>) {
         self.update_available_version = version;
+    }
+
+    /// Set a transient status message (auto-dismissed after 5 seconds)
+    pub fn set_status(&mut self, msg: &str) {
+        self.status_message = Some(msg.to_string());
+        self.status_message_at = Some(Instant::now());
+    }
+
+    /// Clear status message if it has expired (5 second TTL)
+    pub fn clear_expired_status(&mut self) {
+        if let Some(at) = self.status_message_at {
+            if at.elapsed() > std::time::Duration::from_secs(5) {
+                self.status_message = None;
+                self.status_message_at = None;
+            }
+        }
     }
 
     pub fn update_queue(&mut self, tickets: Vec<Ticket>) {
@@ -106,6 +133,7 @@ impl Dashboard {
         // Header
         let header = HeaderBar {
             version: env!("CARGO_PKG_VERSION"),
+            wrapper_name: self.wrapper_name,
         };
         header.render(frame, chunks[0]);
 
@@ -152,6 +180,7 @@ impl Dashboard {
             rest_api_status: self.rest_api_status.clone(),
             exit_confirmation_mode: self.exit_confirmation_mode,
             update_available_version: self.update_available_version.clone(),
+            status_message: self.status_message.clone(),
         };
         status.render(frame, chunks[2]);
     }
@@ -317,6 +346,54 @@ impl Dashboard {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    fn make_test_dashboard() -> Dashboard {
+        // Minimal config for testing
+        let config = Config::default();
+        Dashboard::new(&config)
+    }
+
+    #[test]
+    fn test_set_status_stores_message() {
+        let mut dashboard = make_test_dashboard();
+        assert!(dashboard.status_message.is_none());
+
+        dashboard.set_status("Test message");
+        assert_eq!(dashboard.status_message.as_deref(), Some("Test message"));
+        assert!(dashboard.status_message_at.is_some());
+    }
+
+    #[test]
+    fn test_clear_expired_status_keeps_fresh_message() {
+        let mut dashboard = make_test_dashboard();
+        dashboard.set_status("Fresh message");
+
+        dashboard.clear_expired_status();
+        assert!(dashboard.status_message.is_some());
+    }
+
+    #[test]
+    fn test_clear_expired_status_clears_old_message() {
+        let mut dashboard = make_test_dashboard();
+        dashboard.status_message = Some("Old message".to_string());
+        // Set timestamp to 6 seconds ago
+        dashboard.status_message_at =
+            Some(Instant::now().checked_sub(Duration::from_secs(6)).unwrap());
+
+        dashboard.clear_expired_status();
+        assert!(dashboard.status_message.is_none());
+        assert!(dashboard.status_message_at.is_none());
+    }
+
+    #[test]
+    fn test_clear_expired_status_noop_when_no_message() {
+        let mut dashboard = make_test_dashboard();
+        dashboard.clear_expired_status();
+        assert!(dashboard.status_message.is_none());
+    }
+
     #[test]
     fn test_version_matches_cargo_toml() {
         // env! is evaluated at compile time from Cargo.toml
@@ -335,8 +412,7 @@ mod tests {
             let numeric_part: &str = part.split('-').next().unwrap_or(part);
             assert!(
                 numeric_part.parse::<u32>().is_ok(),
-                "Version component '{}' should be numeric",
-                part
+                "Version component '{part}' should be numeric"
             );
         }
     }

@@ -7,15 +7,20 @@ use ratatui::{
 };
 
 use super::centered_rect;
+use crate::config::SessionWrapperType;
 use crate::ui::keybindings::{shortcuts_by_category_for_context, ShortcutContext};
 
 pub struct HelpDialog {
     pub visible: bool,
+    pub wrapper_type: SessionWrapperType,
 }
 
 impl HelpDialog {
-    pub fn new() -> Self {
-        Self { visible: false }
+    pub fn new(wrapper_type: SessionWrapperType) -> Self {
+        Self {
+            visible: false,
+            wrapper_type,
+        }
     }
 
     pub fn toggle(&mut self) {
@@ -100,6 +105,31 @@ impl HelpDialog {
             }
         }
 
+        // Zellij-specific reference keys
+        if self.wrapper_type == SessionWrapperType::Zellij {
+            help_text.push(Line::from(""));
+            help_text.push(Line::from(Span::styled(
+                "Zellij Keys (handled by Zellij, not Operator)",
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(Color::Cyan),
+            )));
+            let zellij_keys: &[(&str, &str)] = &[
+                ("Ctrl+t ", "Tab mode (switch/create/close tabs)"),
+                ("Ctrl+p ", "Pane mode (split/move/resize panes)"),
+                ("Ctrl+o w", "Session manager"),
+                ("Ctrl+o f", "Toggle floating pane"),
+                ("Alt+n  ", "New pane"),
+                ("Alt+←/→", "Switch tabs"),
+            ];
+            for (key, desc) in zellij_keys {
+                help_text.push(Line::from(vec![
+                    Span::styled(format!("{key:<7}"), Style::default().fg(Color::Yellow)),
+                    Span::raw(*desc),
+                ]));
+            }
+        }
+
         // Footer
         help_text.push(Line::from(""));
         help_text.push(Line::from(Span::styled(
@@ -126,13 +156,19 @@ mod tests {
 
     #[test]
     fn test_help_dialog_toggle() {
-        let mut dialog = HelpDialog::new();
+        let mut dialog = HelpDialog::new(SessionWrapperType::default());
         assert!(!dialog.visible);
 
         dialog.toggle();
         assert!(dialog.visible);
 
         dialog.toggle();
+        assert!(!dialog.visible);
+    }
+
+    #[test]
+    fn test_help_dialog_new_starts_hidden() {
+        let dialog = HelpDialog::new(SessionWrapperType::default());
         assert!(!dialog.visible);
     }
 }

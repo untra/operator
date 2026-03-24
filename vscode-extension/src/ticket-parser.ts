@@ -35,7 +35,7 @@ export function parseTicketContent(content: string): TicketMetadata | null {
     return null;
   }
 
-  const yaml = match[1];
+  const yaml = match[1]!;
   const metadata: TicketMetadata = {
     id: '',
     status: '',
@@ -86,11 +86,11 @@ export function parseTicketContent(content: string): TicketMetadata | null {
 
   // Parse sessions block (indented key-value pairs under 'sessions:')
   const sessionsMatch = yaml.match(/sessions:\s*\n((?:\s{2}\S+:.*\n?)+)/);
-  if (sessionsMatch) {
+  if (sessionsMatch?.[1]) {
     metadata.sessions = {};
     for (const line of sessionsMatch[1].split('\n')) {
       const sessionMatch = line.match(/^\s+(\S+):\s*(.+)$/);
-      if (sessionMatch) {
+      if (sessionMatch?.[1] && sessionMatch[2]) {
         metadata.sessions[sessionMatch[1]] = sessionMatch[2].trim();
       }
     }

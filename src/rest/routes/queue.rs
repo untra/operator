@@ -19,7 +19,7 @@ use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 use crate::state::State as OperatorState;
 
-/// Convert a Ticket to a KanbanTicketCard
+/// Convert a Ticket to a `KanbanTicketCard`
 fn ticket_to_card(ticket: &Ticket) -> KanbanTicketCard {
     KanbanTicketCard {
         id: ticket.id.clone(),
@@ -246,11 +246,11 @@ pub async fn status(State(state): State<ApiState>) -> Result<Json<QueueStatusRes
 )]
 pub async fn pause(State(state): State<ApiState>) -> Result<Json<QueueControlResponse>, ApiError> {
     let mut operator_state = OperatorState::load(&state.config)
-        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     operator_state
         .set_paused(true)
-        .map_err(|e| ApiError::InternalError(format!("Failed to pause queue: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to pause queue: {e}")))?;
 
     Ok(Json(QueueControlResponse {
         paused: true,
@@ -271,11 +271,11 @@ pub async fn pause(State(state): State<ApiState>) -> Result<Json<QueueControlRes
 )]
 pub async fn resume(State(state): State<ApiState>) -> Result<Json<QueueControlResponse>, ApiError> {
     let mut operator_state = OperatorState::load(&state.config)
-        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     operator_state
         .set_paused(false)
-        .map_err(|e| ApiError::InternalError(format!("Failed to resume queue: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to resume queue: {e}")))?;
 
     Ok(Json(QueueControlResponse {
         paused: false,
@@ -303,7 +303,7 @@ pub async fn sync(State(state): State<ApiState>) -> Result<Json<KanbanSyncRespon
     let result = sync_service
         .sync_all()
         .await
-        .map_err(|e| ApiError::InternalError(format!("Kanban sync failed: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Kanban sync failed: {e}")))?;
 
     Ok(Json(KanbanSyncResponse {
         created: result.created,
@@ -340,7 +340,7 @@ pub async fn sync_collection(
     let result = sync_service
         .sync_collection(&provider, &project_key)
         .await
-        .map_err(|e| ApiError::InternalError(format!("Kanban sync failed: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Kanban sync failed: {e}")))?;
 
     Ok(Json(KanbanSyncResponse {
         created: result.created,
@@ -379,7 +379,7 @@ mod tests {
         let ticket_path = temp_dir.path().join("20241229-1430-FEAT-operator-test.md");
         std::fs::write(
             &ticket_path,
-            r#"---
+            r"---
 id: FEAT-1234
 status: queued
 priority: P2-medium
@@ -387,7 +387,7 @@ step: plan
 ---
 
 # Feature: Test ticket for kanban
-"#,
+",
         )
         .unwrap();
 

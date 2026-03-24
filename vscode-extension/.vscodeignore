@@ -31,5 +31,9 @@ webview-ui/**
 tsconfig.webview.json
 webpack.webview.config.js
 
+# Icon font build config (dev-only)
+.fantasticonrc.js
+images/icons/*.svg
+
 # Git placeholders
 bin/.gitkeep

@@ -102,6 +102,20 @@ pub struct ConfirmDialog {
     pub selected_project: usize,
     /// The original project from the ticket (for display reference)
     pub original_project: String,
+
+    /// Session placement preview (populated before showing dialog)
+    pub session_preview: Option<SessionPlacementPreview>,
+}
+
+/// Preview of where the agent session will land
+#[derive(Debug, Clone)]
+pub struct SessionPlacementPreview {
+    /// Wrapper type name (e.g., "cmux", "tmux")
+    pub wrapper_type: String,
+    /// Human-readable placement description (e.g., "auto -> same window")
+    pub placement_description: String,
+    /// Key-value pairs with target details
+    pub target_info: Vec<(String, String)>,
 }
 
 impl ConfirmDialog {
@@ -121,6 +135,7 @@ impl ConfirmDialog {
             project_options: Vec::new(),
             selected_project: 0,
             original_project: String::new(),
+            session_preview: None,
         }
     }
 
@@ -304,16 +319,17 @@ impl ConfirmDialog {
         // Check if priority should be shown (only if the schema has a priority field)
         let show_priority = ticket
             .template_schema()
-            .map(|schema| schema.fields.iter().any(|f| f.name == "priority"))
-            .unwrap_or(false);
+            .is_some_and(|schema| schema.fields.iter().any(|f| f.name == "priority"));
 
         // Calculate dialog height based on options
         let has_options = self.has_options();
+        let has_session_preview = self.session_preview.is_some();
+        let session_preview_height: u16 = if has_session_preview { 3 } else { 0 };
         let base_height = if has_options { 60 } else { 45 };
         let dialog_height = if show_priority {
-            base_height
+            base_height + session_preview_height
         } else {
-            base_height - 2
+            base_height - 2 + session_preview_height
         };
 
         // Center the dialog
@@ -338,12 +354,13 @@ impl ConfirmDialog {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(2),               // Type/ID
-                Constraint::Min(3),                  // Summary
-                Constraint::Length(2),               // Project
-                Constraint::Length(priority_height), // Priority (conditional)
-                Constraint::Length(options_height),  // Options (if any)
-                Constraint::Length(3),               // Buttons
+                Constraint::Length(2),                      // Type/ID
+                Constraint::Min(3),                         // Summary
+                Constraint::Length(2),                      // Project
+                Constraint::Length(priority_height),        // Priority (conditional)
+                Constraint::Length(session_preview_height), // Session target (conditional)
+                Constraint::Length(options_height),         // Options (if any)
+                Constraint::Length(3),                      // Buttons
             ])
             .margin(1)
             .split(inner);
@@ -394,9 +411,29 @@ impl ConfirmDialog {
             frame.render_widget(Paragraph::new(priority_line), chunks[3]);
         }
 
+        // Render session placement preview if available
+        if let Some(ref preview) = self.session_preview {
+            let mut preview_spans = vec![
+                Span::styled("Target: ", Style::default().fg(Color::Gray)),
+                Span::styled(&preview.wrapper_type, Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    format!(" ({})", preview.placement_description),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ];
+            for (key, value) in &preview.target_info {
+                preview_spans.push(Span::styled(
+                    format!("  {key}: "),
+                    Style::default().fg(Color::Gray),
+                ));
+                preview_spans.push(Span::styled(value, Style::default().fg(Color::White)));
+            }
+            frame.render_widget(Paragraph::new(Line::from(preview_spans)), chunks[4]);
+        }
+
         // Render options section if any are available
         if has_options {
-            self.render_options(frame, chunks[4]);
+            self.render_options(frame, chunks[5]);
         }
 
         // Dim buttons when options are focused
@@ -461,7 +498,7 @@ impl ConfirmDialog {
         };
 
         let buttons_para = Paragraph::new(vec![buttons, hint]).alignment(Alignment::Center);
-        frame.render_widget(buttons_para, chunks[5]);
+        frame.render_widget(buttons_para, chunks[6]);
     }
 
     /// Render the options section (provider, project, docker, yolo toggles)
@@ -599,8 +636,8 @@ mod tests {
 
     fn make_test_ticket(project: &str) -> Ticket {
         Ticket {
-            filename: format!("20241225-1200-TASK-{}-test.md", project),
-            filepath: format!("/tmp/tickets/queue/20241225-1200-TASK-{}-test.md", project),
+            filename: format!("20241225-1200-TASK-{project}-test.md"),
+            filepath: format!("/tmp/tickets/queue/20241225-1200-TASK-{project}-test.md"),
             timestamp: "20241225-1200".to_string(),
             ticket_type: "TASK".to_string(),
             project: project.to_string(),
@@ -680,7 +717,7 @@ mod tests {
         ];
         let projects = vec!["project-a".to_string(), "project-b".to_string()];
 
-        dialog.configure(providers.clone(), projects.clone(), true, false);
+        dialog.configure(providers, projects, true, false);
 
         assert_eq!(dialog.provider_options.len(), 2);
         assert_eq!(dialog.project_options.len(), 2);
@@ -884,5 +921,39 @@ mod tests {
 
         assert!(!dialog.visible);
         assert!(dialog.ticket.is_none());
+    }
+
+    #[test]
+    fn test_is_project_overridden_after_cycling() {
+        let mut dialog = ConfirmDialog::new();
+        dialog.project_options = vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()];
+        dialog.original_project = "alpha".to_string();
+        dialog.selected_project = 0;
+
+        assert!(!dialog.is_project_overridden());
+
+        dialog.cycle_project(); // now "beta"
+        assert!(dialog.is_project_overridden());
+
+        dialog.cycle_project(); // now "gamma"
+        assert!(dialog.is_project_overridden());
+
+        dialog.cycle_project(); // wraps to "alpha"
+        assert!(!dialog.is_project_overridden());
+    }
+
+    #[test]
+    fn test_focus_options_noop_when_no_options() {
+        let mut dialog = ConfirmDialog::new();
+        // No options configured — has_options() is false
+        dialog.focus_options();
+        assert!(matches!(dialog.focus, ConfirmDialogFocus::Buttons));
+    }
+
+    #[test]
+    fn test_confirm_dialog_starts_with_no_ticket() {
+        let dialog = ConfirmDialog::new();
+        assert!(dialog.ticket.is_none());
+        assert!(!dialog.visible);
     }
 }

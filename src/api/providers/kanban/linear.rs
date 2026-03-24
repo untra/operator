@@ -31,7 +31,7 @@ impl LinearProvider {
     /// Create from environment variables
     ///
     /// Required environment variables:
-    /// - OPERATOR_LINEAR_API_KEY: Your Linear API key (lin_api_...)
+    /// - `OPERATOR_LINEAR_API_KEY`: Your Linear API key (`lin_api`_...)
     pub fn from_env() -> Result<Self, ApiError> {
         match env::var("OPERATOR_LINEAR_API_KEY") {
             Ok(key) if !key.is_empty() => Ok(Self::new(key)),
@@ -41,8 +41,8 @@ impl LinearProvider {
 
     /// Create from config with workspace as key
     ///
-    /// The workspace slug is passed for identification (it's the HashMap key in KanbanConfig).
-    /// The api_key is read from the environment variable specified in config.api_key_env.
+    /// The workspace slug is passed for identification (it's the `HashMap` key in `KanbanConfig`).
+    /// The `api_key` is read from the environment variable specified in `config.api_key_env`.
     pub fn from_config(
         _workspace: &str,
         config: &crate::config::LinearConfig,
@@ -55,7 +55,7 @@ impl LinearProvider {
         }
     }
 
-    /// Execute a GraphQL query
+    /// Execute a `GraphQL` query
     async fn graphql<T: for<'de> Deserialize<'de>>(
         &self,
         query: &str,
@@ -107,7 +107,7 @@ impl LinearProvider {
         let gql_response: GraphQLResponse<T> = response
             .json()
             .await
-            .map_err(|e| ApiError::http(PROVIDER_NAME, 0, format!("Parse error: {}", e)))?;
+            .map_err(|e| ApiError::http(PROVIDER_NAME, 0, format!("Parse error: {e}")))?;
 
         if let Some(errors) = gql_response.errors {
             let messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
@@ -121,7 +121,7 @@ impl LinearProvider {
 
     /// Get the internal UUID for an issue from its identifier (e.g., "ENG-123")
     async fn get_issue_info(&self, identifier: &str) -> Result<(String, String), ApiError> {
-        let query = r#"
+        let query = r"
             query($identifier: String!) {
                 issue(id: $identifier) {
                     id
@@ -130,7 +130,7 @@ impl LinearProvider {
                     }
                 }
             }
-        "#;
+        ";
 
         let variables = serde_json::json!({
             "identifier": identifier
@@ -142,7 +142,7 @@ impl LinearProvider {
 
     /// Find the state ID for a given status name in a team
     async fn find_state_id(&self, team_id: &str, status_name: &str) -> Result<String, ApiError> {
-        let query = r#"
+        let query = r"
             query($teamId: String!) {
                 team(id: $teamId) {
                     states {
@@ -153,7 +153,7 @@ impl LinearProvider {
                     }
                 }
             }
-        "#;
+        ";
 
         let variables = serde_json::json!({
             "teamId": team_id
@@ -399,7 +399,7 @@ impl KanbanProvider for LinearProvider {
     }
 
     async fn list_projects(&self) -> Result<Vec<ProjectInfo>, ApiError> {
-        let query = r#"
+        let query = r"
             query {
                 teams {
                     nodes {
@@ -409,7 +409,7 @@ impl KanbanProvider for LinearProvider {
                     }
                 }
             }
-        "#;
+        ";
 
         let response: TeamsResponse = self.graphql(query, None).await?;
 
@@ -428,7 +428,7 @@ impl KanbanProvider for LinearProvider {
     async fn get_issue_types(&self, project_key: &str) -> Result<Vec<ExternalIssueType>, ApiError> {
         // Linear doesn't have traditional issue types like Jira.
         // We use labels as a proxy for issue types.
-        let query = r#"
+        let query = r"
             query($teamKey: String!) {
                 team(id: $teamKey) {
                     labels {
@@ -441,7 +441,7 @@ impl KanbanProvider for LinearProvider {
                     }
                 }
             }
-        "#;
+        ";
 
         let variables = serde_json::json!({
             "teamKey": project_key
@@ -469,14 +469,14 @@ impl KanbanProvider for LinearProvider {
         let key: String = external
             .name
             .chars()
-            .filter(|c| c.is_ascii_alphabetic())
+            .filter(char::is_ascii_alphabetic)
             .take(10)
             .collect::<String>()
             .to_uppercase();
 
         // Ensure minimum key length
         let key = if key.len() < 2 {
-            format!("{}X", key)
+            format!("{key}X")
         } else {
             key
         };
@@ -495,13 +495,13 @@ impl KanbanProvider for LinearProvider {
     }
 
     async fn test_connection(&self) -> Result<bool, ApiError> {
-        let query = r#"
+        let query = r"
             query {
                 viewer {
                     id
                 }
             }
-        "#;
+        ";
 
         #[derive(Deserialize)]
         struct ViewerResponse {
@@ -525,7 +525,7 @@ impl KanbanProvider for LinearProvider {
     }
 
     async fn list_users(&self, project_key: &str) -> Result<Vec<ExternalUser>, ApiError> {
-        let query = r#"
+        let query = r"
             query($teamId: String!) {
                 team(id: $teamId) {
                     members {
@@ -538,7 +538,7 @@ impl KanbanProvider for LinearProvider {
                     }
                 }
             }
-        "#;
+        ";
 
         let variables = serde_json::json!({
             "teamId": project_key
@@ -561,7 +561,7 @@ impl KanbanProvider for LinearProvider {
     }
 
     async fn list_statuses(&self, project_key: &str) -> Result<Vec<String>, ApiError> {
-        let query = r#"
+        let query = r"
             query($teamId: String!) {
                 team(id: $teamId) {
                     states {
@@ -572,7 +572,7 @@ impl KanbanProvider for LinearProvider {
                     }
                 }
             }
-        "#;
+        ";
 
         let variables = serde_json::json!({
             "teamId": project_key
@@ -601,7 +601,7 @@ impl KanbanProvider for LinearProvider {
         // Linear's GraphQL requires the filter to be inline, so we use a different query
         // depending on whether we have status filters
         let query = if statuses.is_empty() {
-            r#"
+            r"
                 query($teamId: ID!, $userId: ID!) {
                     issues(
                         filter: {
@@ -629,9 +629,9 @@ impl KanbanProvider for LinearProvider {
                         }
                     }
                 }
-            "#
+            "
         } else {
-            r#"
+            r"
                 query($teamId: ID!, $userId: ID!, $stateNames: [String!]!) {
                     issues(
                         filter: {
@@ -660,7 +660,7 @@ impl KanbanProvider for LinearProvider {
                         }
                     }
                 }
-            "#
+            "
         };
 
         let variables = if statuses.is_empty() {
@@ -706,7 +706,7 @@ impl KanbanProvider for LinearProvider {
         project_key: &str,
         request: super::CreateIssueRequest,
     ) -> Result<super::CreateIssueResponse, ApiError> {
-        let mutation = r#"
+        let mutation = r"
             mutation CreateIssue($input: IssueCreateInput!) {
                 issueCreate(input: $input) {
                     success
@@ -729,7 +729,7 @@ impl KanbanProvider for LinearProvider {
                     }
                 }
             }
-        "#;
+        ";
 
         let mut input = serde_json::json!({
             "teamId": project_key,
@@ -794,7 +794,7 @@ impl KanbanProvider for LinearProvider {
         // Find the state ID for the target status
         let state_id = self.find_state_id(&team_id, &request.status).await?;
 
-        let mutation = r#"
+        let mutation = r"
             mutation UpdateIssueState($issueId: String!, $stateId: String!) {
                 issueUpdate(id: $issueId, input: { stateId: $stateId }) {
                     success
@@ -817,7 +817,7 @@ impl KanbanProvider for LinearProvider {
                     }
                 }
             }
-        "#;
+        ";
 
         let variables = serde_json::json!({
             "issueId": issue_id,

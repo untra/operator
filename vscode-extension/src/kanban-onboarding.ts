@@ -88,7 +88,7 @@ export async function writeKanbanConfig(section: string): Promise<boolean> {
   }
 
   // Extract the section header (first line) to check for duplicates
-  const headerLine = section.split('\n')[0];
+  const headerLine = section.split('\n')[0]!;
   if (existing.includes(headerLine)) {
     const replace = await vscode.window.showWarningMessage(
       `Config already contains ${headerLine}. Replace it?`,
@@ -310,7 +310,7 @@ export function showInputBoxWithBack(options: {
   password?: boolean;
   validate?: (value: string) => string | undefined;
   buttons?: vscode.QuickInputButton[];
-}): Promise<string | 'back' | undefined> {
+}): Promise<string | undefined> {
   return new Promise((resolve) => {
     const input = vscode.window.createInputBox();
     input.title = options.title;
@@ -386,7 +386,7 @@ export async function showEnvVarInstructions(envLines: string[]): Promise<void> 
 
   if (action === 'Copy to Clipboard') {
     await vscode.env.clipboard.writeText(exportBlock);
-    vscode.window.showInformationMessage('Environment variable exports copied to clipboard.');
+    void vscode.window.showInformationMessage('Environment variable exports copied to clipboard.');
   }
 }
 
@@ -469,7 +469,7 @@ export async function onboardJira(
       input.ignoreFocusOut = true;
       input.buttons = [vscode.QuickInputButtons.Back, openTokenPage];
 
-      const result = await new Promise<string | 'back' | undefined>((resolve) => {
+      const result = await new Promise<string | undefined>((resolve) => {
         let resolved = false;
 
         input.onDidAccept(() => {
@@ -489,7 +489,7 @@ export async function onboardJira(
             input.dispose();
             resolve('back');
           } else if (button === openTokenPage) {
-            vscode.env.openExternal(
+            void vscode.env.openExternal(
               vscode.Uri.parse('https://id.atlassian.com/manage-profile/security/api-tokens')
             );
           }
@@ -534,7 +534,7 @@ export async function onboardJira(
     return;
   }
 
-  vscode.window.showInformationMessage(
+  void vscode.window.showInformationMessage(
     `Authenticated as ${validation.displayName} (${validation.accountId})`
   );
 
@@ -549,7 +549,7 @@ export async function onboardJira(
   );
 
   if (projects.length === 0) {
-    vscode.window.showWarningMessage(
+    void vscode.window.showWarningMessage(
       'No projects found. Check your permissions. Config was not written.'
     );
     return;
@@ -591,7 +591,7 @@ export async function onboardJira(
   process.env['OPERATOR_JIRA_EMAIL'] = email;
 
   // Show success + env var instructions
-  vscode.window.showInformationMessage(
+  void vscode.window.showInformationMessage(
     `Jira configured! Config written to ${getResolvedConfigPath()}`
   );
 
@@ -655,7 +655,7 @@ export async function onboardLinear(
 
     input.onDidTriggerButton((button) => {
       if (button === openLinearSettings) {
-        vscode.env.openExternal(
+        void vscode.env.openExternal(
           vscode.Uri.parse('https://linear.app/settings/api')
         );
       }
@@ -697,13 +697,13 @@ export async function onboardLinear(
     return;
   }
 
-  vscode.window.showInformationMessage(
+  void vscode.window.showInformationMessage(
     `Authenticated as ${validation.userName} in ${validation.orgName}`
   );
 
   // Step 2: Select team
   if (validation.teams.length === 0) {
-    vscode.window.showWarningMessage(
+    void vscode.window.showWarningMessage(
       'No teams found. Check your permissions. Config was not written.'
     );
     return;
@@ -730,7 +730,7 @@ export async function onboardLinear(
   // Write config
   const envVarName = 'OPERATOR_LINEAR_API_KEY';
   const toml = generateLinearToml(
-    selectedTeam.detail!,
+    selectedTeam.detail ?? '',
     envVarName,
     validation.userId
   );
@@ -744,7 +744,7 @@ export async function onboardLinear(
   process.env['OPERATOR_LINEAR_API_KEY'] = apiKey;
 
   // Show success + env var instructions
-  vscode.window.showInformationMessage(
+  void vscode.window.showInformationMessage(
     `Linear configured! Config written to ${getResolvedConfigPath()}`
   );
 
@@ -765,12 +765,12 @@ export async function startKanbanOnboarding(
   const choice = await vscode.window.showQuickPick(
     [
       {
-        label: '$(cloud) Jira Cloud',
+        label: '$(operator-atlassian) Jira Cloud',
         description: 'Connect to Jira Cloud with API token',
         provider: 'jira' as const,
       },
       {
-        label: '$(cloud) Linear',
+        label: '$(operator-linear) Linear',
         description: 'Connect to Linear with API key',
         provider: 'linear' as const,
       },
@@ -861,7 +861,7 @@ export async function addJiraProject(
   domain?: string
 ): Promise<void> {
   if (!domain) {
-    vscode.window.showErrorMessage('No Jira domain specified.');
+    void vscode.window.showErrorMessage('No Jira domain specified.');
     return;
   }
 
@@ -871,17 +871,30 @@ export async function addJiraProject(
   const jiraSection = kanban?.jira as Record<string, unknown> | undefined;
   const wsConfig = jiraSection?.[domain] as Record<string, unknown> | undefined;
 
-  if (!wsConfig) {
-    vscode.window.showErrorMessage(`No Jira workspace configured for ${domain}.`);
-    return;
+  let email: string | undefined;
+  let apiKeyEnv: string;
+  let apiToken: string | undefined;
+  const fromEnvVars = !wsConfig;
+
+  if (wsConfig) {
+    email = wsConfig.email as string | undefined;
+    apiKeyEnv = (wsConfig.api_key_env as string) || 'OPERATOR_JIRA_API_KEY';
+    apiToken = process.env[apiKeyEnv];
+  } else {
+    // Fall back to env-var detection
+    const envEmail = process.env['OPERATOR_JIRA_EMAIL'];
+    const envApiKey = process.env['OPERATOR_JIRA_API_KEY'];
+    if (!envEmail || !envApiKey) {
+      void vscode.window.showErrorMessage(`No Jira workspace configured for ${domain}.`);
+      return;
+    }
+    email = envEmail;
+    apiToken = envApiKey;
+    apiKeyEnv = 'OPERATOR_JIRA_API_KEY';
   }
 
-  const email = wsConfig.email as string | undefined;
-  const apiKeyEnv = (wsConfig.api_key_env as string) || 'OPERATOR_JIRA_API_KEY';
-  let apiToken = process.env[apiKeyEnv];
-
   if (!email) {
-    vscode.window.showErrorMessage(`No email configured for Jira workspace ${domain}.`);
+    void vscode.window.showErrorMessage(`No email configured for Jira workspace ${domain}.`);
     return;
   }
 
@@ -900,7 +913,7 @@ export async function addJiraProject(
 
   // Find already-configured project keys
   const existingProjects = new Set<string>();
-  const projectsSection = wsConfig.projects as Record<string, unknown> | undefined;
+  const projectsSection = wsConfig?.projects as Record<string, unknown> | undefined;
   if (projectsSection) {
     for (const key of Object.keys(projectsSection)) {
       existingProjects.add(key);
@@ -914,18 +927,24 @@ export async function addJiraProject(
       title: 'Fetching Jira projects...',
       cancellable: false,
     },
-    () => fetchJiraProjects(domain, email, apiToken!)
+    () => fetchJiraProjects(domain, email, apiToken)
   );
 
   if (projects.length === 0) {
-    vscode.window.showWarningMessage('No projects found. Check your permissions.');
+    void vscode.window.showWarningMessage('No projects found. Check your permissions.');
     return;
   }
 
   // Filter out already-configured projects
   const available = projects.filter((p) => !existingProjects.has(p.key));
   if (available.length === 0) {
-    vscode.window.showInformationMessage('All available projects are already configured.');
+    const action = await vscode.window.showInformationMessage(
+      `All projects on ${domain} are already configured.`,
+      'Connect Another Workspace'
+    );
+    if (action === 'Connect Another Workspace') {
+      await vscode.commands.executeCommand('operator.startKanbanOnboarding');
+    }
     return;
   }
 
@@ -943,16 +962,19 @@ export async function addJiraProject(
   // Get the user's account ID from validation
   const validation = await validateJiraCredentials(domain, email, apiToken);
   if (!validation.valid) {
-    vscode.window.showErrorMessage(`Jira validation failed: ${validation.error}`);
+    void vscode.window.showErrorMessage(`Jira validation failed: ${validation.error}`);
     return;
   }
 
   // Write project section to config.toml
-  const toml = generateJiraProjectToml(domain, selected.label, validation.accountId, 'dev_kanban');
+  // When from env vars, write the full workspace section to promote into TOML
+  const toml = fromEnvVars
+    ? generateJiraToml(domain, email, apiKeyEnv, selected.label, validation.accountId)
+    : generateJiraProjectToml(domain, selected.label, validation.accountId, 'dev_kanban');
   const written = await writeKanbanConfig(toml);
   if (!written) { return; }
 
-  vscode.window.showInformationMessage(
+  void vscode.window.showInformationMessage(
     `Added Jira project ${selected.label} to ${domain}`
   );
 
@@ -970,7 +992,7 @@ export async function addLinearTeam(
   workspaceKey?: string
 ): Promise<void> {
   if (!workspaceKey) {
-    vscode.window.showErrorMessage('No Linear workspace specified.');
+    void vscode.window.showErrorMessage('No Linear workspace specified.');
     return;
   }
 
@@ -980,13 +1002,23 @@ export async function addLinearTeam(
   const linearSection = kanban?.linear as Record<string, unknown> | undefined;
   const wsConfig = linearSection?.[workspaceKey] as Record<string, unknown> | undefined;
 
-  if (!wsConfig) {
-    vscode.window.showErrorMessage(`No Linear workspace configured for ${workspaceKey}.`);
-    return;
-  }
+  let apiKeyEnv: string;
+  let apiKey: string | undefined;
+  const fromEnvVars = !wsConfig;
 
-  const apiKeyEnv = (wsConfig.api_key_env as string) || 'OPERATOR_LINEAR_API_KEY';
-  let apiKey = process.env[apiKeyEnv];
+  if (wsConfig) {
+    apiKeyEnv = (wsConfig.api_key_env as string) || 'OPERATOR_LINEAR_API_KEY';
+    apiKey = process.env[apiKeyEnv];
+  } else {
+    // Fall back to env-var detection
+    const envApiKey = process.env['OPERATOR_LINEAR_API_KEY'];
+    if (!envApiKey) {
+      void vscode.window.showErrorMessage(`No Linear workspace configured for ${workspaceKey}.`);
+      return;
+    }
+    apiKey = envApiKey;
+    apiKeyEnv = 'OPERATOR_LINEAR_API_KEY';
+  }
 
   // Prompt for API key if not in env
   if (!apiKey) {
@@ -1003,7 +1035,7 @@ export async function addLinearTeam(
 
   // Find already-configured team keys
   const existingTeams = new Set<string>();
-  const projectsSection = wsConfig.projects as Record<string, unknown> | undefined;
+  const projectsSection = wsConfig?.projects as Record<string, unknown> | undefined;
   if (projectsSection) {
     for (const key of Object.keys(projectsSection)) {
       existingTeams.add(key);
@@ -1017,30 +1049,30 @@ export async function addLinearTeam(
       title: 'Fetching Linear teams...',
       cancellable: false,
     },
-    () => validateLinearCredentials(apiKey!)
+    () => validateLinearCredentials(apiKey)
   );
 
   if (!validation.valid) {
-    vscode.window.showErrorMessage(`Linear validation failed: ${validation.error}`);
+    void vscode.window.showErrorMessage(`Linear validation failed: ${validation.error}`);
     return;
   }
 
   if (validation.teams.length === 0) {
-    vscode.window.showWarningMessage('No teams found. Check your permissions.');
+    void vscode.window.showWarningMessage('No teams found. Check your permissions.');
     return;
   }
 
   // Filter out already-configured teams
   const available = validation.teams.filter((t) => !existingTeams.has(t.key));
   if (available.length === 0) {
-    vscode.window.showInformationMessage('All available teams are already configured.');
+    void vscode.window.showInformationMessage('All available teams are already configured.');
     return;
   }
 
   const selected = await vscode.window.showQuickPick(
     available.map((t) => ({ label: t.key, description: t.name, detail: t.id })),
     {
-      title: 'Add Linear Team',
+      title: 'Add Linear Workspace',
       placeHolder: 'Select a team to sync',
       ignoreFocusOut: true,
     }
@@ -1049,11 +1081,14 @@ export async function addLinearTeam(
   if (!selected) { return; }
 
   // Write team section to config.toml
-  const toml = generateLinearTeamToml(workspaceKey, selected.label, validation.userId, 'dev_kanban');
+  // When from env vars, write the full workspace section to promote into TOML
+  const toml = fromEnvVars
+    ? generateLinearToml(workspaceKey, apiKeyEnv, validation.userId)
+    : generateLinearTeamToml(workspaceKey, selected.label, validation.userId, 'dev_kanban');
   const written = await writeKanbanConfig(toml);
   if (!written) { return; }
 
-  vscode.window.showInformationMessage(
+  void vscode.window.showInformationMessage(
     `Added Linear team ${selected.label} (${selected.description})`
   );
 

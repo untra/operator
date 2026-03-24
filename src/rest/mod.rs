@@ -13,6 +13,8 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 pub mod dto;
 pub mod error;
@@ -109,8 +111,15 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/tickets/:id/steps/:step/complete",
             post(routes::launch::complete_step),
         )
+        // Kanban provider endpoints
+        .route(
+            "/api/v1/kanban/:provider/:project_key/issuetypes",
+            get(routes::kanban::external_issue_types),
+        )
         // Skills endpoint
         .route("/api/v1/skills", get(routes::skills::list))
+        // LLM tools endpoint
+        .route("/api/v1/llm-tools", get(routes::llm_tools::list))
         // Delegator endpoints
         .route("/api/v1/delegators", get(routes::delegators::list))
         .route("/api/v1/delegators", post(routes::delegators::create))
@@ -119,6 +128,16 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/delegators/:name",
             delete(routes::delegators::delete),
         )
+        // MCP endpoints
+        .route(
+            "/api/v1/mcp/descriptor",
+            get(crate::mcp::descriptor::descriptor),
+        )
+        .route("/api/v1/mcp/sse", get(crate::mcp::transport::sse_handler))
+        .route(
+            "/api/v1/mcp/message",
+            post(crate::mcp::transport::message_handler),
+        )
         .layer(
             TraceLayer::new_for_http()
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
@@ -126,6 +145,7 @@ pub fn build_router(state: ApiState) -> Router {
         )
         .layer(cors)
         .with_state(state)
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
 }
 
 /// Start the REST API server (standalone mode with session file and logging)
@@ -135,6 +155,7 @@ pub async fn serve(state: ApiState, port: u16) -> Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
     tracing::info!("REST API listening on http://{}", addr);
+    tracing::info!("Swagger UI available at http://{}/swagger-ui", addr);
 
     // Write session file for client discovery
     write_session_file(&tickets_path, port)?;
@@ -204,10 +225,10 @@ async fn shutdown_signal() {
     let terminate = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => {
+        () = ctrl_c => {
             println!("\nReceived Ctrl+C, shutting down...");
         },
-        _ = terminate => {
+        () = terminate => {
             println!("\nReceived terminate signal, shutting down...");
         },
     }

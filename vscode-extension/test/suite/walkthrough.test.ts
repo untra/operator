@@ -119,10 +119,10 @@ suite('Walkthrough Test Suite', () => {
 
       assert.strictEqual(result.workspaces.length, 1);
       assert.strictEqual(result.anyConfigured, true);
-      assert.strictEqual(result.workspaces[0].provider, 'jira');
-      assert.strictEqual(result.workspaces[0].name, 'mycompany.atlassian.net');
-      assert.strictEqual(result.workspaces[0].url, 'https://mycompany.atlassian.net');
-      assert.strictEqual(result.workspaces[0].configured, true);
+      assert.strictEqual(result.workspaces[0]!.provider, 'jira');
+      assert.strictEqual(result.workspaces[0]!.name, 'mycompany.atlassian.net');
+      assert.strictEqual(result.workspaces[0]!.url, 'https://mycompany.atlassian.net');
+      assert.strictEqual(result.workspaces[0]!.configured, true);
     });
 
     test('does not return jira workspace when only API key set (no domain)', () => {
@@ -149,10 +149,10 @@ suite('Walkthrough Test Suite', () => {
 
       assert.strictEqual(result.workspaces.length, 1);
       assert.strictEqual(result.anyConfigured, true);
-      assert.strictEqual(result.workspaces[0].provider, 'linear');
-      assert.strictEqual(result.workspaces[0].name, 'Linear');
-      assert.strictEqual(result.workspaces[0].url, 'https://linear.app');
-      assert.strictEqual(result.workspaces[0].configured, true);
+      assert.strictEqual(result.workspaces[0]!.provider, 'linear');
+      assert.strictEqual(result.workspaces[0]!.name, 'Linear');
+      assert.strictEqual(result.workspaces[0]!.url, 'https://linear.app');
+      assert.strictEqual(result.workspaces[0]!.configured, true);
     });
 
     test('returns linear workspace placeholder when LINEAR_API_KEY is set', () => {
@@ -166,7 +166,7 @@ suite('Walkthrough Test Suite', () => {
 
       assert.strictEqual(result.workspaces.length, 1);
       assert.strictEqual(result.anyConfigured, true);
-      assert.strictEqual(result.workspaces[0].provider, 'linear');
+      assert.strictEqual(result.workspaces[0]!.provider, 'linear');
     });
 
     test('returns both workspaces when both providers configured', () => {
@@ -234,8 +234,8 @@ suite('Walkthrough Test Suite', () => {
       const result = await getKanbanWorkspaces();
 
       assert.strictEqual(result.length, 1);
-      assert.strictEqual(result[0].provider, 'jira');
-      assert.strictEqual(result[0].url, 'https://example.atlassian.net');
+      assert.strictEqual(result[0]!.provider, 'jira');
+      assert.strictEqual(result[0]!.url, 'https://example.atlassian.net');
     });
   });
 

@@ -11,7 +11,7 @@ use serde_json::Value;
 struct ConfigSection {
     /// TOML section name (e.g., "agents")
     name: &'static str,
-    /// Schema definition name (e.g., "AgentsConfig")
+    /// Schema definition name (e.g., "`AgentsConfig`")
     schema_name: &'static str,
     /// Human-readable description
     description: &'static str,
@@ -268,7 +268,7 @@ impl ConfigDocGenerator {
         }
     }
 
-    /// Get default value for a field from Config::default()
+    /// Get default value for a field from `Config::default()`
     fn get_default_value(&self, field: &str, section: &str) -> String {
         let config = Config::default();
 
@@ -306,9 +306,9 @@ impl ConfigDocGenerator {
                 _ => None,
             },
             "paths" => match field {
-                "tickets" => Some(config.paths.tickets.clone()),
-                "projects" => Some(config.paths.projects.clone()),
-                "state" => Some(config.paths.state.clone()),
+                "tickets" => Some(config.paths.tickets),
+                "projects" => Some(config.paths.projects),
+                "state" => Some(config.paths.state),
                 _ => None,
             },
             "ui" => match field {
@@ -334,7 +334,7 @@ impl ConfigDocGenerator {
                 _ => None,
             },
             "logging" => match field {
-                "level" => Some(config.logging.level.clone()),
+                "level" => Some(config.logging.level),
                 "to_file" => Some(config.logging.to_file.to_string()),
                 _ => None,
             },
@@ -342,8 +342,8 @@ impl ConfigDocGenerator {
                 "enabled" => Some(config.backstage.enabled.to_string()),
                 "port" => Some(config.backstage.port.to_string()),
                 "auto_start" => Some(config.backstage.auto_start.to_string()),
-                "subpath" => Some(config.backstage.subpath.clone()),
-                "branding_subpath" => Some(config.backstage.branding_subpath.clone()),
+                "subpath" => Some(config.backstage.subpath),
+                "branding_subpath" => Some(config.backstage.branding_subpath),
                 _ => None,
             },
             _ => None,

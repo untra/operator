@@ -1,6 +1,6 @@
-//! Types for VSCode extension webhook server API.
+//! Types for `VSCode` extension webhook server API.
 //!
-//! These types define the HTTP API contract between Operator and the VSCode extension
+//! These types define the HTTP API contract between Operator and the `VSCode` extension
 //! webhook server. They are exported to TypeScript via ts-rs to ensure type safety
 //! on both sides.
 
@@ -193,11 +193,14 @@ pub enum VsCodeModelOption {
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct VsCodeLaunchOptions {
-    /// Model to use (sonnet, opus, haiku)
+    /// Named delegator to use (takes precedence over model)
+    #[serde(default)]
+    pub delegator: Option<String>,
+    /// Model to use (sonnet, opus, haiku) — fallback when no delegator
     pub model: VsCodeModelOption,
     /// YOLO mode - auto-accept all prompts
     pub yolo_mode: bool,
-    /// Resume from existing session (uses session_id from ticket)
+    /// Resume from existing session (uses `session_id` from ticket)
     pub resume_session: bool,
 }
 

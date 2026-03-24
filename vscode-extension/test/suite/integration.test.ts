@@ -13,7 +13,7 @@ suite('Integration Test Suite', () => {
         }
     });
 
-    test('opr8r binary is bundled in extension', async () => {
+    test('opr8r binary is bundled in extension', () => {
         assert.ok(extension, 'Extension should be present');
 
         const extensionPath = extension.extensionPath;
@@ -27,7 +27,7 @@ suite('Integration Test Suite', () => {
             const files = fs.readdirSync(binDir);
             assert.ok(
                 files.length > 0,
-                'bin directory should contain files when present'
+                `bin directory should contain files when present (expected ${bundledPath})`
             );
         } else {
             // Skip if no bin directory (development mode)
@@ -91,18 +91,24 @@ suite('Integration Test Suite', () => {
         );
     });
 
-    test('Views are registered in sidebar', async () => {
+    test('Views are registered in sidebar', () => {
         assert.ok(extension, 'Extension should be present');
 
         // Get the package.json contributes
-        const packageJson = extension.packageJSON;
+        const packageJson = extension.packageJSON as {
+            contributes?: {
+                views?: {
+                    'operator-sidebar'?: Array<{ id: string }>;
+                };
+            };
+        };
         const views = packageJson.contributes?.views?.['operator-sidebar'];
 
         assert.ok(views, 'Sidebar views should be defined');
         assert.ok(Array.isArray(views), 'Views should be an array');
 
         // Verify expected views
-        const viewIds = views.map((v: { id: string }) => v.id);
+        const viewIds = views.map((v) => v.id);
         assert.ok(viewIds.includes('operator-status'), 'Status view should exist');
         assert.ok(viewIds.includes('operator-in-progress'), 'In Progress view should exist');
         assert.ok(viewIds.includes('operator-queue'), 'Queue view should exist');

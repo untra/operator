@@ -30,7 +30,7 @@ version_ok: boolean,
  */
 model_aliases: Array<string>, 
 /**
- * Command template with {{model}}, {{session_id}}, {{prompt_file}} placeholders
+ * Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders
  */
 command_template: string, 
 /**

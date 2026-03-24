@@ -6,16 +6,15 @@
 //! - Compile-time validation of taxonomy structure
 //! - Zero runtime I/O for taxonomy access
 //!
-//! Note: Types are marked #[allow(dead_code)] during Milestone 1 as they will
+//! Note: Types are marked #[`allow(dead_code)`] during Milestone 1 as they will
 //! be used in subsequent milestones (ASSESS issue type, project analysis, etc.)
 
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// The complete project taxonomy, loaded from taxonomy.toml
 #[allow(dead_code)]
-static TAXONOMY: Lazy<Taxonomy> = Lazy::new(|| {
+static TAXONOMY: std::sync::LazyLock<Taxonomy> = std::sync::LazyLock::new(|| {
     toml::from_str(include_str!("taxonomy.toml")).expect("taxonomy.toml must be valid TOML")
 });
 
@@ -77,7 +76,7 @@ impl std::fmt::Display for KindTier {
             KindTier::Ecosystem => "Ecosystem",
             KindTier::Noncurrent => "Noncurrent",
         };
-        write!(f, "{}", name)
+        write!(f, "{name}")
     }
 }
 
@@ -132,8 +131,7 @@ impl Tier {
     #[deprecated(note = "Use Kind.tier field instead - range is only a documentation hint")]
     pub fn contains_id(&self, id: u8) -> bool {
         self.range
-            .map(|(start, end)| id >= start && id <= end)
-            .unwrap_or(false)
+            .is_some_and(|(start, end)| id >= start && id <= end)
     }
 
     /// Get sidebar label (falls back to name)
@@ -348,8 +346,7 @@ mod tests {
             let kinds = t.kinds_by_tier(*tier_enum);
             assert!(
                 !kinds.is_empty(),
-                "{} tier should have at least one kind",
-                tier_enum
+                "{tier_enum} tier should have at least one kind"
             );
         }
     }
@@ -439,7 +436,7 @@ mod tests {
         // Verify each tier returns kinds and they all reference the correct tier
         for tier_enum in KindTier::all() {
             let kinds = t.kinds_by_tier(*tier_enum);
-            assert!(!kinds.is_empty(), "{} tier should have kinds", tier_enum);
+            assert!(!kinds.is_empty(), "{tier_enum} tier should have kinds");
             for kind in &kinds {
                 assert_eq!(
                     kind.tier,
@@ -549,8 +546,7 @@ mod tests {
             for i in 1..kinds.len() {
                 assert!(
                     kinds[i - 1].display_order() <= kinds[i].display_order(),
-                    "Kinds in {} should be sorted by display_order",
-                    tier_enum
+                    "Kinds in {tier_enum} should be sorted by display_order"
                 );
             }
         }

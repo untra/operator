@@ -192,7 +192,7 @@ pub struct FrameworkDetection {
 pub enum FrameworkCategory {
     /// Web frameworks (Axum, Express, Django, etc.)
     Web,
-    /// Object-Relational Mappers (Diesel, SQLAlchemy, Prisma)
+    /// Object-Relational Mappers (Diesel, `SQLAlchemy`, Prisma)
     Orm,
     /// Testing frameworks (Jest, Pytest)
     Testing,
@@ -206,7 +206,7 @@ pub enum FrameworkCategory {
     Cli,
     /// Async runtimes (Tokio, asyncio)
     Async,
-    /// API frameworks (tonic, GraphQL)
+    /// API frameworks (tonic, `GraphQL`)
     Api,
     /// UI frameworks (React, Vue, Yew)
     Ui,
@@ -222,7 +222,7 @@ pub struct DatabaseDetection {
     /// Database identifier (e.g., "postgres", "mongodb", "redis")
     pub database: String,
 
-    /// Human-readable name (e.g., "PostgreSQL", "MongoDB", "Redis")
+    /// Human-readable name (e.g., "`PostgreSQL`", "`MongoDB`", "Redis")
     pub display_name: String,
 
     /// Database category
@@ -243,17 +243,17 @@ pub struct DatabaseDetection {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum DatabaseCategory {
-    /// SQL databases (PostgreSQL, MySQL, SQLite)
+    /// SQL databases (`PostgreSQL`, `MySQL`, `SQLite`)
     Relational,
-    /// Document stores (MongoDB, CouchDB)
+    /// Document stores (`MongoDB`, `CouchDB`)
     Document,
     /// Key-value stores (Redis as KV, etcd)
     KeyValue,
     /// Graph databases (Neo4j, Neptune)
     Graph,
-    /// Time-series databases (InfluxDB, TimescaleDB)
+    /// Time-series databases (`InfluxDB`, `TimescaleDB`)
     TimeSeries,
-    /// Message queues (RabbitMQ, Kafka)
+    /// Message queues (`RabbitMQ`, Kafka)
     MessageQueue,
     /// Search engines (Elasticsearch, Meilisearch)
     Search,
@@ -330,7 +330,7 @@ pub enum PortType {
     Database,
     /// Redis port (typically 6379)
     Redis,
-    /// RabbitMQ port (typically 5672)
+    /// `RabbitMQ` port (typically 5672)
     Rabbitmq,
     /// WebSocket port
     Websocket,
@@ -345,7 +345,7 @@ pub enum PortType {
 /// Test framework detection result.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TestFrameworkDetection {
-    /// Framework identifier (e.g., "cargo_test", "jest", "pytest")
+    /// Framework identifier (e.g., "`cargo_test`", "jest", "pytest")
     pub framework: String,
 
     /// Human-readable name (e.g., "Cargo Test", "Jest", "Pytest")
@@ -436,7 +436,7 @@ pub struct FileStats {
     /// Number of directories traversed
     pub directories: usize,
 
-    /// Number of files excluded (node_modules, target, etc.)
+    /// Number of files excluded (`node_modules`, target, etc.)
     pub excluded_files: usize,
 }
 
@@ -511,7 +511,7 @@ pub struct EntryPoint {
 /// Detected from .env.example, docker-compose.yml, config files, or code.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EnvVar {
-    /// Environment variable name (e.g., "DATABASE_URL")
+    /// Environment variable name (e.g., "`DATABASE_URL`")
     pub name: String,
 
     /// Whether this variable is required for the app to run
@@ -652,7 +652,7 @@ mod tests {
                 evidence: vec![Evidence {
                     evidence_type: EvidenceType::Dependency,
                     file_path: Some("Cargo.toml".to_string()),
-                    pattern: Some(r#"axum = "#.to_string()),
+                    pattern: Some(r"axum = ".to_string()),
                     matched_content: Some(r#"axum = "0.7""#.to_string()),
                     line_number: Some(15),
                 }],

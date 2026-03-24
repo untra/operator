@@ -100,7 +100,7 @@ impl Shortcut {
     }
 }
 
-/// Format a KeyCode for display
+/// Format a `KeyCode` for display
 fn format_keycode(key: &KeyCode) -> String {
     match key {
         KeyCode::Char(c) => c.to_string(),
@@ -118,8 +118,8 @@ fn format_keycode(key: &KeyCode) -> String {
         KeyCode::End => "End".to_string(),
         KeyCode::Delete => "Del".to_string(),
         KeyCode::Backspace => "Backspace".to_string(),
-        KeyCode::F(n) => format!("F{}", n),
-        _ => format!("{:?}", key),
+        KeyCode::F(n) => format!("F{n}"),
+        _ => format!("{key:?}"),
     }
 }
 
@@ -177,6 +177,20 @@ pub static SHORTCUTS: &[Shortcut] = &[
         category: ShortcutCategory::Navigation,
         context: ShortcutContext::Global,
     },
+    Shortcut {
+        key: KeyCode::Char('h'),
+        alt_key: Some(KeyCode::Left),
+        description: "Previous panel",
+        category: ShortcutCategory::Navigation,
+        context: ShortcutContext::Global,
+    },
+    Shortcut {
+        key: KeyCode::Char('l'),
+        alt_key: Some(KeyCode::Right),
+        description: "Next panel",
+        category: ShortcutCategory::Navigation,
+        context: ShortcutContext::Global,
+    },
     // Actions
     Shortcut {
         key: KeyCode::Enter,
@@ -194,7 +208,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('L'),
-        alt_key: Some(KeyCode::Char('l')),
+        alt_key: None,
         description: "Launch selected ticket",
         category: ShortcutCategory::Actions,
         context: ShortcutContext::Global,
@@ -245,6 +259,13 @@ pub static SHORTCUTS: &[Shortcut] = &[
         key: KeyCode::Char('V'),
         alt_key: Some(KeyCode::Char('v')),
         description: "Show session preview",
+        category: ShortcutCategory::Actions,
+        context: ShortcutContext::Global,
+    },
+    Shortcut {
+        key: KeyCode::Char('F'),
+        alt_key: None,
+        description: "Focus cmux window",
         category: ShortcutCategory::Actions,
         context: ShortcutContext::Global,
     },

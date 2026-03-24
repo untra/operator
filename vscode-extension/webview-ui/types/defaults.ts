@@ -81,6 +81,14 @@ const DEFAULT_CONFIG: Config = {
       webhook_port: 7007,
       connect_timeout_ms: BigInt(5000),
     },
+    cmux: {
+      binary_path: '/Applications/cmux.app/Contents/Resources/bin/cmux',
+      require_in_cmux: false,
+      placement: 'auto'
+    },
+    zellij: {
+      require_in_zellij: false
+    }
   },
   llm_tools: {
     detected: [],

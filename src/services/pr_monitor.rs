@@ -1,6 +1,6 @@
 //! PR Monitor Service - Background polling for PR status changes.
 //!
-//! Supports multiple Git providers through the PrService trait:
+//! Supports multiple Git providers through the `PrService` trait:
 //! - Polls every 60 seconds for active PRs
 //! - Detects state changes (merged, changes requested, approved)
 //! - Triggers callbacks on status changes

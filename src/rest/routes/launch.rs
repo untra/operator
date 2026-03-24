@@ -9,7 +9,7 @@ use axum::{
 };
 
 use crate::agents::{LaunchOptions, Launcher, PreparedLaunch, RelaunchOptions};
-use crate::config::LlmProvider;
+use crate::config::{Config, Delegator, LlmProvider};
 use crate::queue::Queue;
 use crate::rest::dto::{
     LaunchTicketRequest, LaunchTicketResponse, NextStepInfo, StepCompleteRequest,
@@ -18,7 +18,7 @@ use crate::rest::dto::{
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 
-/// Convert PreparedLaunch to LaunchTicketResponse
+/// Convert `PreparedLaunch` to `LaunchTicketResponse`
 fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse {
     LaunchTicketResponse {
         agent_id: prepared.agent_id,
@@ -27,6 +27,9 @@ fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse
         command: prepared.command,
         terminal_name: prepared.terminal_name.clone(),
         tmux_session_name: prepared.terminal_name,
+        session_wrapper: prepared.session_wrapper,
+        session_window_ref: prepared.session_window_ref,
+        session_context_ref: prepared.session_context_ref,
         session_id: prepared.session_id,
         worktree_created: prepared.worktree_created,
         branch: prepared.branch,
@@ -64,7 +67,7 @@ pub async fn launch_ticket(
     let ticket = queue
         .find_ticket(&ticket_id)
         .map_err(|e| ApiError::InternalError(e.to_string()))?
-        .ok_or_else(|| ApiError::NotFound(format!("Ticket '{}' not found", ticket_id)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Ticket '{ticket_id}' not found")))?;
 
     // Check if ticket is in-progress directory
     let in_progress_path = state
@@ -96,7 +99,40 @@ pub async fn launch_ticket(
     Ok(Json(prepared_launch_to_response(prepared)))
 }
 
-/// Build LaunchOptions from the request
+/// Convert a `Delegator` into an `LlmProvider`
+fn delegator_to_provider(d: &Delegator) -> LlmProvider {
+    LlmProvider {
+        tool: d.llm_tool.clone(),
+        model: d.model.clone(),
+        ..Default::default()
+    }
+}
+
+/// Resolve a default delegator when none is explicitly specified.
+///
+/// Resolution chain:
+/// 1. Single configured delegator → use it
+/// 2. Delegator matching the user's preferred LLM tool → use it
+/// 3. None → caller falls back to first detected tool + first model alias
+fn resolve_default_delegator(config: &Config) -> Option<&Delegator> {
+    match config.delegators.len() {
+        0 => None,
+        1 => Some(&config.delegators[0]),
+        _ => {
+            // Prefer delegator matching the user's preferred LLM tool
+            let preferred_tool = config.llm_tools.detected.first().map(|t| &t.name);
+            if let Some(tool_name) = preferred_tool {
+                config.delegators.iter().find(|d| &d.llm_tool == tool_name)
+            } else {
+                Some(&config.delegators[0])
+            }
+        }
+    }
+}
+
+/// Build `LaunchOptions` from the request
+///
+/// Resolution chain: delegator name > provider/model > default delegator > detected tool defaults
 fn build_launch_options(
     state: &ApiState,
     request: &LaunchTicketRequest,
@@ -106,9 +142,29 @@ fn build_launch_options(
         ..Default::default()
     };
 
-    // Set provider/model if specified
+    // 1. Explicit delegator name takes precedence
+    if let Some(ref delegator_name) = request.delegator {
+        let delegator = state
+            .config
+            .delegators
+            .iter()
+            .find(|d| d.name == *delegator_name)
+            .ok_or_else(|| ApiError::BadRequest(format!("Unknown delegator '{delegator_name}'")))?;
+
+        options.provider = Some(delegator_to_provider(delegator));
+        options.delegator_name = Some(delegator.name.clone());
+
+        // Apply delegator launch_config
+        if let Some(ref lc) = delegator.launch_config {
+            options.yolo_mode = options.yolo_mode || lc.yolo;
+            options.extra_flags.clone_from(&lc.flags);
+        }
+
+        return Ok(options);
+    }
+
+    // 2. Legacy: explicit provider/model
     if let Some(ref provider_name) = request.provider {
-        // Find the provider in config by tool name
         let provider = state
             .config
             .llm_tools
@@ -118,7 +174,6 @@ fn build_launch_options(
             .cloned();
 
         if let Some(p) = provider {
-            // Use specified model or default to provider's model
             let model = request.model.clone().unwrap_or(p.model.clone());
             options.provider = Some(LlmProvider {
                 tool: p.tool,
@@ -127,12 +182,14 @@ fn build_launch_options(
             });
         } else {
             return Err(ApiError::BadRequest(format!(
-                "Unknown provider '{}'",
-                provider_name
+                "Unknown provider '{provider_name}'"
             )));
         }
-    } else if let Some(ref model) = request.model {
-        // Model specified without provider - use default provider with custom model
+
+        return Ok(options);
+    }
+
+    if let Some(ref model) = request.model {
         if let Some(p) = state.config.llm_tools.providers.first().cloned() {
             options.provider = Some(LlmProvider {
                 tool: p.tool,
@@ -140,12 +197,41 @@ fn build_launch_options(
                 ..Default::default()
             });
         }
+
+        return Ok(options);
+    }
+
+    // 3. No explicit selection — resolve default delegator
+    if let Some(delegator) = resolve_default_delegator(&state.config) {
+        options.provider = Some(delegator_to_provider(delegator));
+        options.delegator_name = Some(delegator.name.clone());
+
+        if let Some(ref lc) = delegator.launch_config {
+            options.yolo_mode = options.yolo_mode || lc.yolo;
+            options.extra_flags.clone_from(&lc.flags);
+        }
+
+        return Ok(options);
+    }
+
+    // 4. No delegators at all — fall back to first detected tool + first model alias
+    if let Some(tool) = state.config.llm_tools.detected.first() {
+        let model = tool
+            .model_aliases
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "default".to_string());
+        options.provider = Some(LlmProvider {
+            tool: tool.name.clone(),
+            model,
+            ..Default::default()
+        });
     }
 
     Ok(options)
 }
 
-/// Build RelaunchOptions from the request
+/// Build `RelaunchOptions` from the request
 fn build_relaunch_options(
     state: &ApiState,
     request: &LaunchTicketRequest,
@@ -190,7 +276,7 @@ pub async fn complete_step(
     let ticket = queue
         .find_ticket(&ticket_id)
         .map_err(|e| ApiError::InternalError(e.to_string()))?
-        .ok_or_else(|| ApiError::NotFound(format!("Ticket '{}' not found", ticket_id)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Ticket '{ticket_id}' not found")))?;
 
     // Get the issue type to find step info
     let registry = state.registry.read().await;
@@ -301,6 +387,7 @@ mod tests {
     fn test_build_launch_options_default() {
         let state = make_state();
         let request = LaunchTicketRequest {
+            delegator: None,
             provider: None,
             model: None,
             yolo_mode: false,
@@ -321,6 +408,7 @@ mod tests {
     fn test_build_launch_options_yolo() {
         let state = make_state();
         let request = LaunchTicketRequest {
+            delegator: None,
             provider: None,
             model: None,
             yolo_mode: true,
@@ -340,6 +428,7 @@ mod tests {
     fn test_build_launch_options_unknown_provider() {
         let state = make_state();
         let request = LaunchTicketRequest {
+            delegator: None,
             provider: Some("unknown-provider".to_string()),
             model: None,
             yolo_mode: false,
@@ -356,6 +445,7 @@ mod tests {
     fn test_build_relaunch_options() {
         let state = make_state();
         let request = LaunchTicketRequest {
+            delegator: None,
             provider: None,
             model: None,
             yolo_mode: false,

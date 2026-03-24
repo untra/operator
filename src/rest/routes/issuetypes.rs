@@ -47,7 +47,7 @@ pub async fn get_one(
     let registry = state.registry.read().await;
     let issue_type = registry
         .get(&key.to_uppercase())
-        .ok_or_else(|| ApiError::NotFound(format!("Issue type '{}' not found", key)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?;
 
     Ok(Json(IssueTypeResponse::from(issue_type)))
 }
@@ -72,7 +72,10 @@ pub async fn create(
 
     // Validate the issue type
     issue_type.validate().map_err(|errors| {
-        let msgs: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
+        let msgs: Vec<String> = errors
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         ApiError::ValidationError(msgs.join("; "))
     })?;
 
@@ -99,7 +102,7 @@ pub async fn create(
     let mut registry = state.registry.write().await;
     registry
         .register(issue_type.clone())
-        .map_err(|e| ApiError::InternalError(format!("Failed to register issue type: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to register issue type: {e}")))?;
 
     Ok(Json(IssueTypeResponse::from(&issue_type)))
 }
@@ -132,15 +135,14 @@ pub async fn update(
         let registry = state.registry.read().await;
         registry
             .get(&key)
-            .ok_or_else(|| ApiError::NotFound(format!("Issue type '{}' not found", key)))?
+            .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?
             .clone()
     };
 
     // Check if it's a builtin
     if matches!(issue_type.source, IssueTypeSource::Builtin) {
         return Err(ApiError::BuiltinReadOnly(format!(
-            "Cannot modify builtin issue type '{}'",
-            key
+            "Cannot modify builtin issue type '{key}'"
         )));
     }
 
@@ -168,20 +170,23 @@ pub async fn update(
         issue_type.project_required = project_required;
     }
     if let Some(fields) = request.fields {
-        issue_type.fields = fields.into_iter().map(|f| f.into()).collect();
+        issue_type.fields = fields.into_iter().map(std::convert::Into::into).collect();
     }
     if let Some(steps) = request.steps {
-        issue_type.steps = steps.into_iter().map(|s| s.into()).collect();
+        issue_type.steps = steps.into_iter().map(std::convert::Into::into).collect();
     }
 
     // Validate updated issue type
     issue_type.validate().map_err(|errors| {
-        let msgs: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
+        let msgs: Vec<String> = errors
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         ApiError::ValidationError(msgs.join("; "))
     })?;
 
     // Persist to filesystem
-    let filepath = state.issuetypes_path().join(format!("{}.json", key));
+    let filepath = state.issuetypes_path().join(format!("{key}.json"));
     let json = issue_type.to_json()?;
     tokio::fs::write(&filepath, json).await?;
 
@@ -189,7 +194,7 @@ pub async fn update(
     let mut registry = state.registry.write().await;
     registry
         .register(issue_type.clone())
-        .map_err(|e| ApiError::InternalError(format!("Failed to update issue type: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to update issue type: {e}")))?;
 
     Ok(Json(IssueTypeResponse::from(&issue_type)))
 }
@@ -219,18 +224,17 @@ pub async fn delete(
         let registry = state.registry.read().await;
         let issue_type = registry
             .get(&key)
-            .ok_or_else(|| ApiError::NotFound(format!("Issue type '{}' not found", key)))?;
+            .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?;
 
         if matches!(issue_type.source, IssueTypeSource::Builtin) {
             return Err(ApiError::BuiltinReadOnly(format!(
-                "Cannot delete builtin issue type '{}'",
-                key
+                "Cannot delete builtin issue type '{key}'"
             )));
         }
     }
 
     // Delete from filesystem
-    let filepath = state.issuetypes_path().join(format!("{}.json", key));
+    let filepath = state.issuetypes_path().join(format!("{key}.json"));
     if filepath.exists() {
         tokio::fs::remove_file(&filepath).await?;
     }

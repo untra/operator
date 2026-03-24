@@ -149,46 +149,94 @@ impl SessionPreview {
         let inner_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1), // Status line
+                Constraint::Length(2), // Status lines (2 rows)
                 Constraint::Min(5),    // Content
                 Constraint::Length(1), // Help line
             ])
             .split(inner_area);
 
-        // Status line
-        let status_text = if let Some(a) = &self.agent {
-            if let Some(session) = &a.session_name {
-                format!(
-                    "Session: {} | Status: {} | Scroll: {}/{}",
-                    session,
-                    a.status,
-                    self.scroll + 1,
-                    self.total_lines.max(1)
-                )
+        // Status lines (2 rows)
+        let (status_line1, status_line2) = if let Some(a) = &self.agent {
+            // Line 1: wrapper tag, session name, cmux refs
+            let wrapper_tag = match a.session_wrapper.as_deref() {
+                Some("cmux") => "[cmux]",
+                Some("tmux") => "[tmux]",
+                Some("zellij") => "[zellij]",
+                Some("vscode") => "[vscode]",
+                _ => "[--]",
+            };
+
+            let mut line1 = if let Some(session) = &a.session_name {
+                format!("{wrapper_tag} Session: {session}")
             } else {
-                format!("Status: {} | No session attached", a.status)
+                format!("{wrapper_tag} No session attached")
+            };
+
+            // Append cmux refs
+            if a.session_wrapper.as_deref() == Some("cmux") {
+                if let Some(ref ws) = a.session_context_ref {
+                    line1.push_str(&format!(" | WS: {ws}"));
+                }
+                if let Some(ref win) = a.session_window_ref {
+                    line1.push_str(&format!(" | Win: {win}"));
+                }
             }
+
+            // Line 2: step, review state, status, scroll
+            let mut line2_parts = Vec::new();
+            if let Some(ref step) = a.current_step {
+                line2_parts.push(format!("Step: {step}"));
+            }
+            if let Some(ref review) = a.review_state {
+                line2_parts.push(format!("Review: {review}"));
+            }
+            line2_parts.push(format!("Status: {}", a.status));
+            line2_parts.push(format!(
+                "Scroll: {}/{}",
+                self.scroll + 1,
+                self.total_lines.max(1)
+            ));
+
+            (line1, line2_parts.join(" | "))
         } else {
-            "No agent selected".to_string()
+            ("No agent selected".to_string(), String::new())
         };
 
-        let status = Paragraph::new(status_text)
-            .style(Style::default().fg(Color::Gray))
-            .alignment(Alignment::Left);
+        let status = Paragraph::new(vec![
+            Line::from(Span::styled(status_line1, Style::default().fg(Color::Gray))),
+            Line::from(Span::styled(
+                status_line2,
+                Style::default().fg(Color::DarkGray),
+            )),
+        ])
+        .alignment(Alignment::Left);
         frame.render_widget(status, inner_chunks[0]);
 
         // Content area
         if let Some(ref err) = self.error {
-            let error_text = Paragraph::new(vec![
+            let mut error_lines = vec![
                 Line::from(Span::styled(
                     "Failed to capture session content:",
                     Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 )),
                 Line::from(""),
                 Line::from(Span::styled(err.as_str(), Style::default().fg(Color::Red))),
-            ])
-            .block(Block::default().borders(Borders::TOP))
-            .alignment(Alignment::Center);
+            ];
+
+            // Add actionable hints for cmux errors
+            if let Some(ref a) = self.agent {
+                if a.session_wrapper.as_deref() == Some("cmux") {
+                    error_lines.push(Line::from(""));
+                    error_lines.push(Line::from(Span::styled(
+                        "Hint: Workspace may have been closed externally. Try relaunching.",
+                        Style::default().fg(Color::Yellow),
+                    )));
+                }
+            }
+
+            let error_text = Paragraph::new(error_lines)
+                .block(Block::default().borders(Borders::TOP))
+                .alignment(Alignment::Center);
             frame.render_widget(error_text, inner_chunks[1]);
         } else if self.content.is_empty() {
             let empty_text = Paragraph::new("(Session content is empty)")
@@ -291,10 +339,15 @@ mod tests {
             pr_status: None,
             completed_steps: vec![],
             llm_tool: None,
+            llm_model: None,
             launch_mode: None,
             review_state: None,
             dev_server_pid: None,
             worktree_path: None,
+            session_wrapper: None,
+            session_window_ref: None,
+            session_context_ref: None,
+            session_pane_ref: None,
         }
     }
 

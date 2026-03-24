@@ -116,10 +116,8 @@ impl SyncConfirmDialog {
         }
 
         match key {
-            KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
-                Some(SyncConfirmResult::Confirmed)
-            }
-            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+            KeyCode::Char('y' | 'Y') | KeyCode::Enter => Some(SyncConfirmResult::Confirmed),
+            KeyCode::Char('n' | 'N') | KeyCode::Esc => {
                 self.hide();
                 Some(SyncConfirmResult::Cancelled)
             }

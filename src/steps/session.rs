@@ -45,7 +45,7 @@ impl StepSession {
         let initial_message = self.generate_initial_message(ticket, step);
 
         // Combine prompt and message with separator
-        let full_prompt = format!("{}\n---\n{}", base_prompt, initial_message);
+        let full_prompt = format!("{base_prompt}\n---\n{initial_message}");
 
         Ok((full_prompt, session_uuid))
     }
@@ -160,11 +160,10 @@ When you have completed this step, clearly indicate "STEP COMPLETE" in your fina
             .llm_tools
             .providers
             .first()
-            .map(|p| p.model.as_str())
-            .unwrap_or("sonnet");
+            .map_or("sonnet", |p| p.model.as_str());
 
         // Build model flag
-        let model_flag = format!("--model {} ", model);
+        let model_flag = format!("--model {model} ");
 
         // Build command from template
         let llm_cmd = tool
@@ -174,18 +173,18 @@ When you have completed this step, clearly indicate "STEP COMPLETE" in your fina
             .replace("{{session_id}}", &session_uuid)
             .replace("{{prompt_file}}", &prompt_file.display().to_string());
 
-        let command = format!("cd '{}' && {}", project_path, llm_cmd);
+        let command = format!("cd '{project_path}' && {llm_cmd}");
 
         Ok(command)
     }
 
     /// Write a prompt to a file and return the path
-    /// Prompts are stored in .tickets/operator/prompts/{session_uuid}.txt
+    /// Prompts are stored in .`tickets/operator/prompts/{session_uuid}.txt`
     fn write_prompt_file(&self, session_uuid: &str, prompt: &str) -> Result<PathBuf> {
         let prompts_dir = self.config.tickets_path().join("operator/prompts");
         fs::create_dir_all(&prompts_dir).context("Failed to create prompts directory")?;
 
-        let prompt_file = prompts_dir.join(format!("{}.txt", session_uuid));
+        let prompt_file = prompts_dir.join(format!("{session_uuid}.txt"));
         fs::write(&prompt_file, prompt).context("Failed to write prompt file")?;
 
         Ok(prompt_file)
@@ -204,12 +203,8 @@ When you have completed this step, clearly indicate "STEP COMPLETE" in your fina
             current_step_display: current_step.as_ref().map(|s| s.display_name().to_string()),
             requires_review: current_step
                 .as_ref()
-                .map(|s| s.requires_review())
-                .unwrap_or(false),
-            is_final: current_step
-                .as_ref()
-                .map(|s| s.next_step.is_none())
-                .unwrap_or(true),
+                .is_some_and(super::super::templates::schema::StepSchema::requires_review),
+            is_final: current_step.as_ref().is_none_or(|s| s.next_step.is_none()),
         }
     }
 }
@@ -234,7 +229,7 @@ impl StepProgressInfo {
             .enumerate()
             .map(|(i, name)| {
                 if i == self.current_index {
-                    format!("[{}]", name)
+                    format!("[{name}]")
                 } else {
                     name.clone()
                 }
@@ -296,6 +291,8 @@ mod tests {
             permission_mode: crate::templates::schema::PermissionMode::Default,
             json_schema: None,
             json_schema_file: None,
+            artifact_patterns: vec![],
+            agent: None,
         }
     }
 
@@ -307,14 +304,14 @@ mod tests {
         // Create a temp file for the ticket
         let temp_dir = tempfile::tempdir().unwrap();
         let ticket_path = temp_dir.path().join("20241221-1430-FEAT-gamesvc-test.md");
-        let content = r#"---
+        let content = r"---
 id: FEAT-1234
 status: queued
 step: plan
 ---
 
 # Feature: Test feature
-"#;
+";
         std::fs::write(&ticket_path, content).unwrap();
 
         let mut ticket = crate::queue::Ticket::from_file(&ticket_path).unwrap();

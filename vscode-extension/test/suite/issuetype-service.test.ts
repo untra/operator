@@ -70,7 +70,7 @@ suite('IssueType Service Test Suite', () => {
       const customUrl = 'http://custom:9000';
       fetchStub.resolves(new Response(JSON.stringify([]), { status: 200 }));
 
-      service.refresh();
+      void service.refresh();
 
       assert.ok(
         fetchStub.calledWith(`${customUrl}/api/v1/issuetypes`),
@@ -378,7 +378,7 @@ suite('IssueType Service Test Suite', () => {
 
       // Verify by checking fetch calls
       fetchStub.resolves(new Response(JSON.stringify([]), { status: 200 }));
-      service.refresh();
+      void service.refresh();
 
       assert.ok(
         fetchStub.calledWith('http://newurl:9000/api/v1/issuetypes'),
@@ -391,9 +391,9 @@ suite('IssueType Service Test Suite', () => {
     test('fetches issue types from API and updates types', async () => {
       service = new IssueTypeService(outputChannel, 'http://localhost:7008');
 
-      const apiResponse: IssueTypeSummary[] = await fs
-        .readFile(path.join(fixturesDir, 'issuetypes-response.json'), 'utf-8')
-        .then(JSON.parse);
+      const apiResponse: IssueTypeSummary[] = JSON.parse(
+        await fs.readFile(path.join(fixturesDir, 'issuetypes-response.json'), 'utf-8')
+      ) as IssueTypeSummary[];
 
       fetchStub.resolves(
         new Response(JSON.stringify(apiResponse), { status: 200 })

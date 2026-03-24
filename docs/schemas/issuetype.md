@@ -3,7 +3,7 @@ title: "Issue Type Schema"
 layout: doc
 ---
 
-<!-- AUTO-GENERATED FROM src/templates/issuetype_schema.json - DO NOT EDIT MANUALLY -->
+<!-- AUTO-GENERATED FROM src/schemas/issuetype_schema.json - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
 # Issue Type Schema
@@ -75,7 +75,8 @@ Schema for validating operator issuetype template configurations
 
 - **Description**: Optional color for the glyph in TUI display
 - **Type**: `string`
-- **Allowed Values**: `blue`, `cyan`, `green`, `yellow`, `magenta`, `red`
+- **Default**: `"white"`
+- **Allowed Values**: `white`, `blue`, `cyan`, `green`, `yellow`, `magenta`, `red`, `black`
 
 ### project_required
 
@@ -139,8 +140,9 @@ Schema for validating operator issuetype template configurations
 | `permissions` | → `stepPermissions` | No | Provider-agnostic permissions for this step, merged additively with project settings |
 | `cli_args` | → `providerCliArgs` | No | Arbitrary CLI arguments per provider |
 | `permission_mode` | `string` | No | Preferred LLM permission mode for this step. Only applies to providers that support it (e.g., Claude). No-op for unsupported providers. |
-| `jsonSchema` | `object` | No | Inline JSON schema for structured output. Claude-specific: sets --json-schema flag. Takes precedence over jsonSchemaFile if both are defined. **⚠️ Temporarily disabled** due to command line length issues. |
-| `jsonSchemaFile` | `string` | No | Path to a local JSON schema file for structured output, relative to the project root. Claude-specific: sets --json-schema flag. **⚠️ Temporarily disabled** due to command line length issues. |
+| `jsonSchema` | `object` | No | Inline JSON schema for structured output. Claude-specific: sets --json-schema flag. Takes precedence over jsonSchemaFile if both are defined. |
+| `jsonSchemaFile` | `string` | No | Path to a local JSON schema file for structured output, relative to the project root. Claude-specific: sets --json-schema flag. |
+| `artifact_patterns` | `array` | No | File glob patterns in the worktree that signal this step is complete (e.g., '.tickets/plans/*.md') |
 
 ### Definition: stepPermissions
 

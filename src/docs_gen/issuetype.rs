@@ -8,7 +8,7 @@ use serde_json::Value;
 /// Schema JSON embedded at compile time
 const ISSUETYPE_SCHEMA: &str = include_str!("../schemas/issuetype_schema.json");
 
-/// Generates documentation from issuetype_schema.json
+/// Generates documentation from `issuetype_schema.json`
 pub struct IssuetypeSchemaDocGenerator;
 
 impl DocGenerator for IssuetypeSchemaDocGenerator {
@@ -32,7 +32,7 @@ impl DocGenerator for IssuetypeSchemaDocGenerator {
         output.push_str(&heading(1, "Issue Type Schema"));
 
         if let Some(desc) = schema.get("description").and_then(|d| d.as_str()) {
-            output.push_str(&format!("{}\n\n", desc));
+            output.push_str(&format!("{desc}\n\n"));
         }
 
         // Schema metadata
@@ -114,7 +114,7 @@ impl IssuetypeSchemaDocGenerator {
             output.push_str(&table(headers, &rows));
 
             // Detailed property descriptions
-            for (name, prop) in properties.iter() {
+            for (name, prop) in properties {
                 if name == "$schema" {
                     continue;
                 }
@@ -173,10 +173,10 @@ impl IssuetypeSchemaDocGenerator {
 
         if let Some(definitions) = schema.get("definitions").and_then(|d| d.as_object()) {
             for (name, def) in definitions {
-                output.push_str(&heading(3, &format!("Definition: {}", name)));
+                output.push_str(&heading(3, &format!("Definition: {name}")));
 
                 if let Some(desc) = def.get("description").and_then(|d| d.as_str()) {
-                    output.push_str(&format!("{}\n\n", desc));
+                    output.push_str(&format!("{desc}\n\n"));
                 }
 
                 // Show the definition structure

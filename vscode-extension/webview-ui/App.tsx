@@ -13,10 +13,16 @@ import type {
   JiraValidationInfo,
   LinearValidationInfo,
   ProjectSummary,
+  IssueTypeSummary,
+  IssueTypeResponse,
+  CollectionResponse,
+  ExternalIssueTypeSummary,
 } from './types/messages';
 import type { JiraConfig } from '../src/generated/JiraConfig';
 import type { LinearConfig } from '../src/generated/LinearConfig';
 import type { ProjectSyncConfig } from '../src/generated/ProjectSyncConfig';
+import type { CreateIssueTypeRequest } from '../src/generated/CreateIssueTypeRequest';
+import type { UpdateIssueTypeRequest } from '../src/generated/UpdateIssueTypeRequest';
 
 export function App() {
   const [config, setConfig] = useState<WebviewConfig | null>(null);
@@ -29,6 +35,16 @@ export function App() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [issueTypes, setIssueTypes] = useState<IssueTypeSummary[]>([]);
+  const [issueTypesLoading, setIssueTypesLoading] = useState(false);
+  const [selectedIssueType, setSelectedIssueType] = useState<IssueTypeResponse | null>(null);
+  const [collections, setCollections] = useState<CollectionResponse[]>([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [externalIssueTypes, setExternalIssueTypes] = useState<Map<string, ExternalIssueTypeSummary[]>>(new Map());
+  const [issueTypeError, setIssueTypeError] = useState<string | null>(null);
+  const [collectionsError, setCollectionsError] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<'view' | 'edit' | 'create'>('view');
 
   useEffect(() => {
     const cleanup = onMessage((msg: ExtensionToWebviewMessage) => {
@@ -66,6 +82,10 @@ export function App() {
           if (msg.reachable) {
             setProjectsLoading(true);
             postMessage({ type: 'getProjects' });
+            setIssueTypesLoading(true);
+            postMessage({ type: 'getIssueTypes' });
+            setCollectionsLoading(true);
+            postMessage({ type: 'getCollections' });
           }
           break;
         case 'projectsLoaded':
@@ -83,6 +103,76 @@ export function App() {
           break;
         case 'assessTicketError':
           setProjectsError(`Failed to assess ${msg.projectName}: ${msg.error}`);
+          break;
+        case 'issueTypesLoaded':
+          setIssueTypes(msg.issueTypes);
+          setIssueTypesLoading(false);
+          setIssueTypeError(null);
+          break;
+        case 'issueTypeLoaded':
+          setSelectedIssueType(msg.issueType);
+          break;
+        case 'issueTypeError':
+          setIssueTypeError(msg.error);
+          setIssueTypesLoading(false);
+          break;
+        case 'collectionsLoaded':
+          setCollections(msg.collections);
+          setCollectionsLoading(false);
+          setCollectionsError(null);
+          break;
+        case 'collectionActivated':
+          // Refresh issue types after collection change
+          postMessage({ type: 'getIssueTypes' });
+          break;
+        case 'collectionsError':
+          setCollectionsError(msg.error);
+          setCollectionsLoading(false);
+          break;
+        case 'externalIssueTypesLoaded':
+          setExternalIssueTypes(prev => {
+            const next = new Map(prev);
+            next.set(`${msg.provider}/${msg.projectKey}`, msg.types);
+            return next;
+          });
+          break;
+        case 'externalIssueTypesError':
+          setIssueTypeError(msg.error);
+          break;
+        case 'issueTypeCreated':
+          setIssueTypes(prev => [...prev, {
+            key: msg.issueType.key,
+            name: msg.issueType.name,
+            description: msg.issueType.description,
+            mode: msg.issueType.mode,
+            glyph: msg.issueType.glyph,
+            color: msg.issueType.color ?? undefined,
+            source: msg.issueType.source,
+            stepCount: msg.issueType.steps.length,
+          }]);
+          setSelectedIssueType(msg.issueType);
+          break;
+        case 'issueTypeUpdated':
+          setIssueTypes(prev => prev.map(it =>
+            it.key === msg.issueType.key ? {
+              key: msg.issueType.key,
+              name: msg.issueType.name,
+              description: msg.issueType.description,
+              mode: msg.issueType.mode,
+              glyph: msg.issueType.glyph,
+              color: msg.issueType.color ?? undefined,
+              source: msg.issueType.source,
+              stepCount: msg.issueType.steps.length,
+            } : it
+          ));
+          setSelectedIssueType(msg.issueType);
+          break;
+        case 'issueTypeDeleted':
+          setIssueTypes(prev => prev.filter(it => it.key !== msg.key));
+          if (selectedIssueType?.key === msg.key) {
+            setSelectedIssueType(null);
+            setDrawerOpen(false);
+          }
           break;
       }
     });
@@ -149,6 +239,50 @@ export function App() {
     postMessage({ type: 'openProjectFolder', projectPath });
   }, []);
 
+  const handleGetIssueTypes = useCallback(() => {
+    setIssueTypesLoading(true);
+    postMessage({ type: 'getIssueTypes' });
+  }, []);
+
+  const handleGetIssueType = useCallback((key: string) => {
+    postMessage({ type: 'getIssueType', key });
+  }, []);
+
+  const handleGetCollections = useCallback(() => {
+    setCollectionsLoading(true);
+    postMessage({ type: 'getCollections' });
+  }, []);
+
+  const handleActivateCollection = useCallback((name: string) => {
+    postMessage({ type: 'activateCollection', name });
+  }, []);
+
+  const handleGetExternalIssueTypes = useCallback((provider: string, domain: string, projectKey: string) => {
+    postMessage({ type: 'getExternalIssueTypes', provider, domain, projectKey });
+  }, []);
+
+  const handleCreateIssueType = useCallback((request: CreateIssueTypeRequest) => {
+    postMessage({ type: 'createIssueType', request });
+  }, []);
+
+  const handleUpdateIssueType = useCallback((key: string, request: UpdateIssueTypeRequest) => {
+    postMessage({ type: 'updateIssueType', key, request });
+  }, []);
+
+  const handleDeleteIssueType = useCallback((key: string) => {
+    postMessage({ type: 'deleteIssueType', key });
+  }, []);
+
+  const handleOpenDrawer = useCallback((mode: 'view' | 'edit' | 'create', issueType?: IssueTypeResponse) => {
+    setDrawerMode(mode);
+    setSelectedIssueType(issueType ?? null);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerOpen(false);
+  }, []);
+
   return (
     <ThemeWrapper>
       {error && (
@@ -176,6 +310,26 @@ export function App() {
           onAssessProject={handleAssessProject}
           onRefreshProjects={handleRefreshProjects}
           onOpenProject={handleOpenProject}
+          issueTypes={issueTypes}
+          issueTypesLoading={issueTypesLoading}
+          issueTypeError={issueTypeError}
+          collections={collections}
+          collectionsLoading={collectionsLoading}
+          collectionsError={collectionsError}
+          externalIssueTypes={externalIssueTypes}
+          selectedIssueType={selectedIssueType}
+          drawerOpen={drawerOpen}
+          drawerMode={drawerMode}
+          onGetIssueTypes={handleGetIssueTypes}
+          onGetIssueType={handleGetIssueType}
+          onGetCollections={handleGetCollections}
+          onActivateCollection={handleActivateCollection}
+          onGetExternalIssueTypes={handleGetExternalIssueTypes}
+          onCreateIssueType={handleCreateIssueType}
+          onUpdateIssueType={handleUpdateIssueType}
+          onDeleteIssueType={handleDeleteIssueType}
+          onOpenDrawer={handleOpenDrawer}
+          onCloseDrawer={handleCloseDrawer}
         />
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 2 }}>
@@ -227,7 +381,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: T): T {
 
 const DEFAULT_JIRA: JiraConfig = { enabled: false, api_key_env: 'OPERATOR_JIRA_API_KEY', email: '', projects: {} };
 const DEFAULT_LINEAR: LinearConfig = { enabled: false, api_key_env: 'OPERATOR_LINEAR_API_KEY', projects: {} };
-const DEFAULT_PROJECT_SYNC: ProjectSyncConfig = { sync_user_id: '', sync_statuses: [], collection_name: '' };
+const DEFAULT_PROJECT_SYNC: ProjectSyncConfig = { sync_user_id: '', sync_statuses: [], collection_name: '', type_mappings: {} };
 
 /** Apply an update to the config object by section/key path */
 function applyUpdate(
@@ -269,7 +423,7 @@ function applyUpdate(
       } else if (key === 'domain' && typeof value === 'string' && value !== domain) {
         delete jiraMap[domain];
         jiraMap[value] = ws;
-      } else if (key === 'project_key' || key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id') {
+      } else if (key === 'project_key' || key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id' || key === 'type_mappings') {
         const projects = { ...ws.projects };
         const pKeys = Object.keys(projects);
         const pKey = pKeys[0] ?? 'default';
@@ -284,6 +438,19 @@ function applyUpdate(
         }
         ws.projects = projects;
         jiraMap[domain] = ws;
+      } else if (key.startsWith('projects.')) {
+        // Multi-project writes: projects.{projectKey}.{field}
+        const parts = key.split('.');
+        if (parts.length >= 3) {
+          const pKey = parts[1];
+          const field = parts.slice(2).join('.');
+          const projects = { ...ws.projects };
+          const existing = { ...(projects[pKey] ?? DEFAULT_PROJECT_SYNC) };
+          (existing as Record<string, unknown>)[field] = value;
+          projects[pKey] = existing;
+          ws.projects = projects;
+          jiraMap[domain] = ws;
+        }
       }
       next.config.kanban = { ...next.config.kanban, jira: jiraMap };
       break;
@@ -301,7 +468,7 @@ function applyUpdate(
       } else if (key === 'team_id' && typeof value === 'string' && value !== teamId) {
         delete linearMap[teamId];
         linearMap[value] = ws;
-      } else if (key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id') {
+      } else if (key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id' || key === 'type_mappings') {
         const projects = { ...ws.projects };
         const pKeys = Object.keys(projects);
         const pKey = pKeys[0] ?? 'default';
@@ -310,6 +477,19 @@ function applyUpdate(
         projects[pKey] = existing;
         ws.projects = projects;
         linearMap[teamId] = ws;
+      } else if (key.startsWith('projects.')) {
+        // Multi-project writes: projects.{projectKey}.{field}
+        const parts = key.split('.');
+        if (parts.length >= 3) {
+          const pKey = parts[1];
+          const field = parts.slice(2).join('.');
+          const projects = { ...ws.projects };
+          const existing = { ...(projects[pKey] ?? DEFAULT_PROJECT_SYNC) };
+          (existing as Record<string, unknown>)[field] = value;
+          projects[pKey] = existing;
+          ws.projects = projects;
+          linearMap[teamId] = ws;
+        }
       }
       next.config.kanban = { ...next.config.kanban, linear: linearMap };
       break;

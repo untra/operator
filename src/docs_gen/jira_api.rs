@@ -105,7 +105,7 @@ impl JiraApiDocGenerator {
                 output.push_str(&heading(3, name));
 
                 if let Some(desc) = def.get("description").and_then(|d| d.as_str()) {
-                    output.push_str(&format!("{}\n\n", desc));
+                    output.push_str(&format!("{desc}\n\n"));
                 }
 
                 // Show properties if object type
@@ -133,7 +133,7 @@ impl JiraApiDocGenerator {
                 if let Some(items) = def.get("items") {
                     output.push_str(&format!("{} ", bold("Array of:")));
                     let item_type = Self::get_type_string(items);
-                    output.push_str(&format!("{}\n\n", item_type));
+                    output.push_str(&format!("{item_type}\n\n"));
                 }
             }
         }
@@ -149,7 +149,7 @@ impl JiraApiDocGenerator {
                     if s == "array" {
                         if let Some(items) = prop.get("items") {
                             let item_type = Self::get_type_string(items);
-                            format!("{}[]", item_type)
+                            format!("{item_type}[]")
                         } else {
                             inline_code("array")
                         }

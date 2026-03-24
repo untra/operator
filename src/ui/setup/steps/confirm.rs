@@ -108,13 +108,13 @@ impl SetupScreen {
             Style::default().fg(Color::Green)
         };
 
-        let cancel_style = if !self.confirm_selected {
+        let cancel_style = if self.confirm_selected {
+            Style::default().fg(Color::Red)
+        } else {
             Style::default()
                 .fg(Color::Black)
                 .bg(Color::Red)
                 .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::Red)
         };
 
         let buttons = Line::from(vec![

@@ -121,7 +121,7 @@ mod tests {
         assert!(result.contains("`Tab`"));
         assert!(result.contains("`j/↓`"));
         assert!(result.contains("`Enter`"));
-        assert!(result.contains("`L/l`"));
+        assert!(result.contains("`L`"));
     }
 
     #[test]

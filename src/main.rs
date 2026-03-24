@@ -23,6 +23,7 @@ mod types;
 mod agents;
 mod docs_gen;
 pub mod env_vars;
+mod mcp;
 mod notifications;
 mod queue;
 mod rest;
@@ -42,7 +43,7 @@ fn detect_llm_tools() -> Vec<String> {
     tools
         .iter()
         .filter(|tool| which::which(tool).is_ok())
-        .map(|s| s.to_string())
+        .map(|s| (*s).to_string())
         .collect()
 }
 
@@ -68,7 +69,7 @@ fn check_tmux_available() -> Result<(), TmuxError> {
     if !version.meets_minimum(MIN_MAJOR, MIN_MINOR) {
         return Err(TmuxError::VersionTooOld(
             version.raw,
-            format!("{}.{}", MIN_MAJOR, MIN_MINOR),
+            format!("{MIN_MAJOR}.{MIN_MINOR}"),
         ));
     }
 
@@ -78,7 +79,7 @@ fn check_tmux_available() -> Result<(), TmuxError> {
 
 /// Print a helpful error message for tmux issues
 fn print_tmux_error(err: &TmuxError) {
-    eprintln!("Error: {}", err);
+    eprintln!("Error: {err}");
     eprintln!();
 
     match err {
@@ -93,8 +94,7 @@ fn print_tmux_error(err: &TmuxError) {
         }
         TmuxError::VersionTooOld(current, required) => {
             eprintln!(
-                "Your tmux version ({}) is older than the minimum required ({}).",
-                current, required
+                "Your tmux version ({current}) is older than the minimum required ({required})."
             );
             eprintln!();
             eprintln!("Please upgrade tmux to continue.");
@@ -318,6 +318,7 @@ async fn main() -> Result<()> {
         }
         None => {
             // No subcommand = launch TUI dashboard
+            #[allow(clippy::large_futures)] // TUI state is inherently large
             run_tui(config, logging_handle.log_file_path, cli.web).await?;
         }
     }
@@ -394,10 +395,7 @@ async fn cmd_launch(config: &Config, ticket: Option<String>, skip_confirm: bool)
     let max_agents = config.effective_max_agents();
 
     if running_count >= max_agents {
-        println!(
-            "Cannot launch: {} agents running (max {})",
-            running_count, max_agents
-        );
+        println!("Cannot launch: {running_count} agents running (max {max_agents})");
         println!("Use 'operator agents' to see running agents");
         return Ok(());
     }
@@ -477,7 +475,7 @@ async fn cmd_agents(config: &Config, verbose: bool) -> Result<()> {
         if verbose {
             println!("    Started: {}", agent.started_at);
             if let Some(ref msg) = agent.last_message {
-                println!("    Last: {}", msg);
+                println!("    Last: {msg}");
             }
             println!();
         }
@@ -518,7 +516,7 @@ async fn cmd_stalled(config: &Config) -> Result<()> {
             agent.project, agent.ticket_type, agent.ticket_id
         );
         if let Some(ref msg) = agent.last_message {
-            println!("    Question: {}", msg);
+            println!("    Question: {msg}");
         }
         println!();
     }
@@ -563,15 +561,12 @@ async fn cmd_create(
 
     // Parse template type
     let template_type = match template.as_deref() {
-        Some("feature") | Some("feat") => TemplateType::Feature,
+        Some("feature" | "feat") => TemplateType::Feature,
         Some("fix") => TemplateType::Fix,
         Some("spike") => TemplateType::Spike,
-        Some("inv") | Some("investigation") => TemplateType::Investigation,
+        Some("inv" | "investigation") => TemplateType::Investigation,
         Some(other) => {
-            println!(
-                "Unknown template type: {}. Use: feature, fix, spike, investigation",
-                other
-            );
+            println!("Unknown template type: {other}. Use: feature, fix, spike, investigation");
             return Ok(());
         }
         None => {
@@ -646,8 +641,7 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
         }
         Some(other) => {
             println!(
-                "Unknown generator: {}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api",
-                other
+                "Unknown generator: {other}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api"
             );
             return Ok(());
         }
@@ -683,7 +677,7 @@ async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
     let port = port.unwrap_or(config.rest_api.port);
 
     println!("Starting REST API server...");
-    println!("  Port: {}", port);
+    println!("  Port: {port}");
     println!("  Endpoints:");
     println!("    GET  /api/v1/health           Health check");
     println!("    GET  /api/v1/status           Server status");
@@ -729,10 +723,7 @@ fn cmd_setup(
         match provider.to_lowercase().as_str() {
             "jira" | "linear" => {}
             other => {
-                anyhow::bail!(
-                    "Unknown kanban provider: {}. Use 'jira' or 'linear'.",
-                    other
-                );
+                anyhow::bail!("Unknown kanban provider: {other}. Use 'jira' or 'linear'.");
             }
         }
     }
@@ -742,10 +733,7 @@ fn cmd_setup(
         match tool.to_lowercase().as_str() {
             "claude" | "codex" | "gemini" => {}
             other => {
-                anyhow::bail!(
-                    "Unknown LLM tool: {}. Use 'claude', 'codex', or 'gemini'.",
-                    other
-                );
+                anyhow::bail!("Unknown LLM tool: {other}. Use 'claude', 'codex', or 'gemini'.");
             }
         }
     }
@@ -768,6 +756,18 @@ fn cmd_setup(
         ..Default::default()
     };
 
+    // Apply working_dir to config paths so tickets_path() resolves correctly
+    // (without this, relative ".tickets" resolves against cwd which may be wrong)
+    if let Some(ref wd) = options.working_dir {
+        config.paths.tickets = wd.join(".tickets").to_string_lossy().to_string();
+        config.paths.projects = wd.to_string_lossy().to_string();
+        config.paths.state = wd
+            .join(".tickets")
+            .join("operator")
+            .to_string_lossy()
+            .to_string();
+    }
+
     println!("Initializing operator workspace...");
     println!("  Collection: {:?}", options.preset);
     println!(
@@ -783,10 +783,10 @@ fn cmd_setup(
         println!("  Working Dir: {}", dir.display());
     }
     if let Some(ref provider) = options.kanban_provider {
-        println!("  Kanban:     {}", provider);
+        println!("  Kanban:     {provider}");
     }
     if let Some(ref tool) = options.llm_tool {
-        println!("  LLM Tool:   {}", tool);
+        println!("  LLM Tool:   {tool}");
     }
     println!();
 
@@ -823,7 +823,7 @@ fn cmd_setup(
     Ok(())
 }
 
-/// Parse a template type string into a TemplateType.
+/// Parse a template type string into a `TemplateType`.
 /// Used for testing and CLI parsing.
 #[allow(dead_code)]
 fn parse_template_type(s: &str) -> Option<templates::TemplateType> {

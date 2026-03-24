@@ -64,7 +64,7 @@ impl From<std::io::Error> for ApiError {
 
 impl From<serde_json::Error> for ApiError {
     fn from(err: serde_json::Error) -> Self {
-        ApiError::BadRequest(format!("JSON error: {}", err))
+        ApiError::BadRequest(format!("JSON error: {err}"))
     }
 }
 

@@ -2,7 +2,7 @@
 //!
 //! Ensures that Core Operations are available across all session management tools:
 //! - TUI (keybindings)
-//! - VSCode Extension (commands in package.json)
+//! - `VSCode` Extension (commands in package.json)
 //! - REST API (endpoints)
 //!
 //! Core Operations:
@@ -36,7 +36,7 @@ fn get_keybinding_descriptions() -> Vec<String> {
 }
 
 /// Core Operations that must be supported by all session management tools.
-/// Each tuple: (TUI description pattern, VSCode command, API endpoint)
+/// Each tuple: (TUI description pattern, `VSCode` command, API endpoint)
 const CORE_OPERATIONS: &[(&str, &str, &str)] = &[
     (
         "Sync kanban",
@@ -77,13 +77,12 @@ fn test_tui_has_all_core_operations() {
 
         assert!(
             found,
-            "TUI should have keybinding containing '{}'\nAvailable keybindings: {:?}",
-            tui_pattern, descriptions
+            "TUI should have keybinding containing '{tui_pattern}'\nAvailable keybindings: {descriptions:?}"
         );
     }
 }
 
-/// Test that VSCode extension has commands for all Core Operations
+/// Test that `VSCode` extension has commands for all Core Operations
 #[test]
 fn test_vscode_extension_has_all_core_operations() {
     // Read package.json from vscode-extension
@@ -92,8 +91,7 @@ fn test_vscode_extension_has_all_core_operations() {
     for (_, vscode_cmd, _) in CORE_OPERATIONS {
         assert!(
             package_json.contains(vscode_cmd),
-            "VSCode extension should have command '{}' in package.json",
-            vscode_cmd
+            "VSCode extension should have command '{vscode_cmd}' in package.json"
         );
     }
 }
@@ -218,7 +216,7 @@ mod detailed_tests {
         assert!(reject_exists, "Reject review shortcut should exist");
     }
 
-    /// Verify VSCode commands have proper titles
+    /// Verify `VSCode` commands have proper titles
     #[test]
     fn test_vscode_command_titles() {
         let package_json = include_str!("../vscode-extension/package.json");

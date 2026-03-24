@@ -57,7 +57,7 @@ pub async fn get_one(
         .delegators
         .iter()
         .find(|d| d.name == name)
-        .ok_or_else(|| ApiError::NotFound(format!("Delegator '{}' not found", name)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Delegator '{name}' not found")))?;
 
     Ok(Json(delegator_to_response(delegator)))
 }
@@ -103,7 +103,7 @@ pub async fn create(
     config.delegators.push(delegator.clone());
     config
         .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
 
     Ok(Json(delegator_to_response(&delegator)))
 }
@@ -131,7 +131,7 @@ pub async fn delete(
         .delegators
         .iter()
         .find(|d| d.name == name)
-        .ok_or_else(|| ApiError::NotFound(format!("Delegator '{}' not found", name)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Delegator '{name}' not found")))?;
     let response = delegator_to_response(delegator);
 
     // Read current config, remove delegator, save
@@ -139,12 +139,12 @@ pub async fn delete(
     config.delegators.retain(|d| d.name != name);
     config
         .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
 
     Ok(Json(response))
 }
 
-/// Convert a Delegator config to a DelegatorResponse DTO
+/// Convert a Delegator config to a `DelegatorResponse` DTO
 fn delegator_to_response(d: &Delegator) -> DelegatorResponse {
     DelegatorResponse {
         name: d.name.clone(),

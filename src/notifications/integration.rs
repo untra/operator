@@ -9,6 +9,7 @@ use super::NotificationEvent;
 ///
 /// Each integration (OS notifications, webhooks, etc.) implements this trait
 /// to receive and handle notification events.
+#[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
 #[async_trait]
 pub trait NotificationIntegration: Send + Sync {
     /// Integration name (for logging and config identification)

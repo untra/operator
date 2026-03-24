@@ -15,8 +15,8 @@ sound: boolean,
 /**
  * Events to send (empty = all events)
  * Possible values: agent.started, agent.completed, agent.failed,
- * agent.awaiting_input, agent.session_lost, pr.created, pr.merged,
- * pr.closed, pr.ready_to_merge, pr.changes_requested,
+ * `agent.awaiting_input`, `agent.session_lost`, pr.created, pr.merged,
+ * pr.closed, `pr.ready_to_merge`, `pr.changes_requested`,
  * ticket.returned, investigation.created
  */
 events: Array<string>, };

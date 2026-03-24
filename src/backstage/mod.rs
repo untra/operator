@@ -16,7 +16,8 @@ pub mod scaffold;
 pub mod server;
 pub mod taxonomy;
 
-// Re-exports for TUI integration and testing
+// Re-exports for TUI integration and testing (used by main.rs binary)
+#[allow(unused_imports)]
 pub use server::{BackstageServer, ServerStatus};
 
 // Runtime management re-exports (public API for future use)

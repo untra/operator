@@ -77,10 +77,13 @@ export function PrimaryConfigSection({
           }
         >
           <MenuItem value="vscode">VS Code Terminal</MenuItem>
-          <MenuItem value="tmux">tmux</MenuItem>
+          <MenuItem value="tmux" disabled>tmux</MenuItem>
+          <MenuItem value="cmux" disabled>cmux</MenuItem>
+          <MenuItem value="zellij" disabled>zellij</MenuItem>
         </Select>
-        <Typography color="text.secondary">
-          Designates how launched ticket work is wrapped when started from VS Code
+        <Typography variant="caption" color="text.secondary">
+          Only VS Code Terminal is available when running from the extension.
+          Other wrappers require running Operator from the CLI.
         </Typography>
       </FormControl>
     </Box>

@@ -5,8 +5,8 @@
 //!
 //! This module provides auto-documentation generation for:
 //! - Project taxonomy (24 Kinds from taxonomy.toml)
-//! - Issue type schemas (from issuetype_schema.json)
-//! - Ticket metadata schema (from ticket_metadata.schema.json)
+//! - Issue type schemas (from `issuetype_schema.json`)
+//! - Ticket metadata schema (from `ticket_metadata.schema.json`)
 //! - Keyboard shortcuts (from keybindings registry)
 //! - CLI reference (from clap definitions and env vars registry)
 //! - Configuration reference (from config.rs via schemars)

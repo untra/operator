@@ -264,7 +264,12 @@ impl SetupScreen {
         }
 
         // Preview info
-        let preview = if !self.kanban_issue_types.is_empty() {
+        let preview = if self.kanban_issue_types.is_empty() {
+            Line::from(vec![Span::styled(
+                "Select a project to see details",
+                Style::default().fg(Color::DarkGray),
+            )])
+        } else {
             Line::from(vec![
                 Span::styled("Issue Types: ", Style::default().fg(Color::Yellow)),
                 Span::styled(
@@ -278,11 +283,6 @@ impl SetupScreen {
                     Style::default().fg(Color::White),
                 ),
             ])
-        } else {
-            Line::from(vec![Span::styled(
-                "Select a project to see details",
-                Style::default().fg(Color::DarkGray),
-            )])
         };
         let preview_para = Paragraph::new(preview);
         frame.render_widget(preview_para, chunks[4]);

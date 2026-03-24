@@ -4,7 +4,7 @@ import type { CollectionPreset } from "./CollectionPreset";
 export type TemplatesConfig = { 
 /**
  * Named preset for issue type collection
- * Options: simple, dev_kanban, devops_kanban, custom
+ * Options: simple, `dev_kanban`, `devops_kanban`, custom
  */
 preset: CollectionPreset, 
 /**

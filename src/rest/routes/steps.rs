@@ -31,7 +31,7 @@ pub async fn list(
     let registry = state.registry.read().await;
     let issue_type = registry
         .get(&key.to_uppercase())
-        .ok_or_else(|| ApiError::NotFound(format!("Issue type '{}' not found", key)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?;
 
     let steps: Vec<StepResponse> = issue_type.steps.iter().map(StepResponse::from).collect();
     Ok(Json(steps))
@@ -58,11 +58,11 @@ pub async fn get_one(
     let registry = state.registry.read().await;
     let issue_type = registry
         .get(&key.to_uppercase())
-        .ok_or_else(|| ApiError::NotFound(format!("Issue type '{}' not found", key)))?;
+        .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?;
 
-    let step = issue_type.get_step(&step_name).ok_or_else(|| {
-        ApiError::NotFound(format!("Step '{}' not found in '{}'", step_name, key))
-    })?;
+    let step = issue_type
+        .get_step(&step_name)
+        .ok_or_else(|| ApiError::NotFound(format!("Step '{step_name}' not found in '{key}'")))?;
 
     Ok(Json(StepResponse::from(step)))
 }
@@ -96,15 +96,14 @@ pub async fn update(
         let registry = state.registry.read().await;
         registry
             .get(&key)
-            .ok_or_else(|| ApiError::NotFound(format!("Issue type '{}' not found", key)))?
+            .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?
             .clone()
     };
 
     // Check if it's a builtin
     if matches!(issue_type.source, IssueTypeSource::Builtin) {
         return Err(ApiError::BuiltinReadOnly(format!(
-            "Cannot modify steps in builtin issue type '{}'",
-            key
+            "Cannot modify steps in builtin issue type '{key}'"
         )));
     }
 
@@ -113,9 +112,7 @@ pub async fn update(
         .steps
         .iter_mut()
         .find(|s| s.name == step_name)
-        .ok_or_else(|| {
-            ApiError::NotFound(format!("Step '{}' not found in '{}'", step_name, key))
-        })?;
+        .ok_or_else(|| ApiError::NotFound(format!("Step '{step_name}' not found in '{key}'")))?;
 
     // Apply updates
     if let Some(display_name) = request.display_name {
@@ -171,12 +168,15 @@ pub async fn update(
 
     // Validate the entire issue type
     issue_type.validate().map_err(|errors| {
-        let msgs: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
+        let msgs: Vec<String> = errors
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         ApiError::ValidationError(msgs.join("; "))
     })?;
 
     // Persist to filesystem
-    let filepath = state.issuetypes_path().join(format!("{}.json", key));
+    let filepath = state.issuetypes_path().join(format!("{key}.json"));
     let json = issue_type.to_json()?;
     tokio::fs::write(&filepath, json).await?;
 
@@ -184,7 +184,7 @@ pub async fn update(
     let mut registry = state.registry.write().await;
     registry
         .register(issue_type)
-        .map_err(|e| ApiError::InternalError(format!("Failed to update issue type: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to update issue type: {e}")))?;
 
     Ok(Json(StepResponse::from(&updated_step)))
 }

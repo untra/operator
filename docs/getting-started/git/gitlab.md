@@ -1,78 +1,131 @@
 ---
 title: "GitLab"
-description: "Configure GitLab integration with Operator (Coming Soon)."
+description: "Configure GitLab integration with Operator."
 layout: doc
 published: true
 ---
 
 # GitLab
 
-GitLab integration is planned for a future release.
+Connect Operator to GitLab for repository management and merge requests.
 
-## Planned Features
+## Prerequisites
 
-When available, GitLab support will include:
+| Requirement | Purpose | Verification |
+|------------|---------|--------------|
+| `git` | Version control | `git --version` |
+| `glab` | GitLab CLI | `glab --version` |
+| GitLab account | Repository access | - |
+| Push access | Create branches/MRs | - |
 
-- Merge request creation and monitoring
-- Review status tracking
-- CI/CD pipeline status integration
-- Branch management
+## Install GitLab CLI
 
-## Expected Prerequisites
+The `glab` CLI handles authentication and API operations. Operator uses `glab` directly rather than raw API calls.
 
-GitLab integration will require:
+### macOS
 
-| Requirement | Purpose |
-|------------|---------|
-| GitLab account | Repository access |
-| Personal Access Token or Project Token | API authentication |
-| `glab` CLI (optional) | Alternative to direct API |
+```bash
+brew install glab
+```
 
-### Token Scopes (Planned)
+### Linux
 
-- `api` - Full API access
-- `read_repository` - Read repository contents
-- `write_repository` - Push changes
+```bash
+# Debian/Ubuntu
+curl -fsSL https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest/downloads/glab_amd64.deb -o glab.deb
+sudo dpkg -i glab.deb
 
-## Planned Configuration
+# Fedora/RHEL
+sudo dnf install glab
+```
+
+### Windows
+
+```powershell
+winget install --id GLab.GLab
+```
+
+## Authenticate
+
+The `glab` CLI manages authentication, including OAuth flows and credential storage:
+
+```bash
+glab auth login
+```
+
+Follow the prompts to authenticate via browser or token. Verify with:
+
+```bash
+glab auth status
+```
+
+## Configuration
+
+Add GitLab to your Operator configuration:
 
 ```toml
 # ~/.config/operator/config.toml
 
-[git]
-provider = "gitlab"
-
 [git.gitlab]
 enabled = true
-token_env = "GITLAB_TOKEN"
-host = "gitlab.com"  # Or self-hosted instance
-project_id = "namespace/project"
+token_env = "GITLAB_TOKEN"       # env var for token (used as fallback if glab CLI auth is unavailable)
+host = "gitlab.com"              # or your self-hosted instance (e.g., "gitlab.example.com")
 ```
 
-### Merge Request Settings (Planned)
-
-```toml
-[git.gitlab.mr]
-target_branch = "main"
-draft = false
-remove_source_branch = true
-squash = false
-reviewers = ["username1", "username2"]
-labels = ["automated", "ai-generated"]
-```
-
-## CLI Alternative
-
-GitLab's official CLI (`glab`) may be used as an alternative:
+If `token_env` is set, export the token:
 
 ```bash
-# Install glab
-brew install glab
-
-# Authenticate
-glab auth login
+export GITLAB_TOKEN="glpat-xxxxx"
 ```
 
-## Contributing
+Merge request operations (create, monitor, review tracking) are not yet implemented. Provider detection, configuration, and `glab` CLI authentication work today.
 
-Interested in helping implement GitLab support? See the [Provider Support](/getting-started/git/provider-support/) guide for architecture details.
+### Provider Auto-Detection
+
+Operator auto-detects GitLab from your git remote URL, including self-hosted instances (any URL containing `gitlab.`):
+
+```bash
+# All of these are auto-detected as GitLab:
+git@gitlab.com:owner/repo.git
+https://gitlab.com/owner/repo
+https://gitlab.example.com/owner/repo
+```
+
+You can also set the provider explicitly:
+
+```toml
+[git]
+provider = "gitlab"
+```
+
+### Shared Git Settings
+
+Branch naming and worktree settings live under the shared `[git]` section (see [Supported Git Repositories](/getting-started/git/) for details):
+
+```toml
+[git]
+branch_format = "{type}/{ticket_id}"
+use_worktrees = false
+```
+
+## Troubleshooting
+
+### Authentication errors
+
+Check your auth status:
+
+```bash
+glab auth status
+```
+
+### Permission denied
+
+Ensure you have push access to the repository and your `glab` session is authenticated.
+
+### Self-hosted connectivity
+
+If using a self-hosted GitLab instance, verify the `host` value in your config matches the instance hostname and that the instance is reachable:
+
+```bash
+glab auth status --hostname gitlab.example.com
+```

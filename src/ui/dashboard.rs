@@ -379,7 +379,8 @@ mod tests {
         let mut dashboard = make_test_dashboard();
         dashboard.status_message = Some("Old message".to_string());
         // Set timestamp to 6 seconds ago
-        dashboard.status_message_at = Some(Instant::now() - Duration::from_secs(6));
+        dashboard.status_message_at =
+            Some(Instant::now().checked_sub(Duration::from_secs(6)).unwrap());
 
         dashboard.clear_expired_status();
         assert!(dashboard.status_message.is_none());

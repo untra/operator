@@ -27,7 +27,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<LlmToolsResponse> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Config, DetectedTool};
+    use crate::config::{Config, DetectedTool, ToolCapabilities};
     use std::path::PathBuf;
 
     #[tokio::test]
@@ -55,7 +55,7 @@ mod tests {
                 "haiku".to_string(),
             ],
             command_template: String::new(),
-            capabilities: Default::default(),
+            capabilities: ToolCapabilities::default(),
             yolo_flags: vec![],
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));

@@ -2,6 +2,7 @@
 title: "GitHub"
 description: "Configure GitHub integration with Operator."
 layout: doc
+published: true
 ---
 
 # GitHub
@@ -19,7 +20,7 @@ Connect Operator to GitHub for repository management and pull requests.
 
 ## Install GitHub CLI
 
-The `gh` CLI handles authentication and API operations.
+The `gh` CLI handles authentication and API operations. Operator uses `gh` directly rather than raw API calls.
 
 ### macOS
 
@@ -35,6 +36,9 @@ curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo 
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
 sudo apt update
 sudo apt install gh
+
+# Fedora/RHEL
+sudo dnf install gh
 ```
 
 ### Windows
@@ -43,20 +47,19 @@ sudo apt install gh
 winget install --id GitHub.cli
 ```
 
-### Authenticate
+## Authenticate
+
+The `gh` CLI manages authentication, including OAuth flows and credential storage:
 
 ```bash
 gh auth login
 ```
 
-Follow the prompts to authenticate via browser or token.
+Follow the prompts to authenticate via browser or token. Verify with:
 
-## Create Personal Access Token
-
-1. Go to GitHub Settings > Developer settings > Personal access tokens
-2. Click "Generate new token (classic)"
-3. Select scopes: `repo`, `workflow`
-4. Copy the token
+```bash
+gh auth status
+```
 
 ## Configuration
 
@@ -67,38 +70,32 @@ Add GitHub to your Operator configuration:
 
 [git.github]
 enabled = true
-token_env = "GITHUB_TOKEN"
-owner = "your-username"  # or organization
-repo = "your-repo"
+token_env = "GITHUB_TOKEN"   # env var for token (used as fallback if gh CLI auth is unavailable)
 ```
 
-Set your token:
+If `token_env` is set, export the token:
 
 ```bash
 export GITHUB_TOKEN="ghp_xxxxx"
 ```
 
-## Pull Request Settings
+### Provider Auto-Detection
 
-Configure PR behavior:
+Operator auto-detects GitHub from your git remote URL. You can also set it explicitly:
 
 ```toml
-[git.github.pr]
-base_branch = "main"
-draft = false
-auto_merge = false
-reviewers = ["teammate1", "teammate2"]
-labels = ["automated", "ai-generated"]
+[git]
+provider = "github"
 ```
 
-## Branch Naming
+### Shared Git Settings
 
-Configure branch name format:
+Branch naming and worktree settings live under the shared `[git]` section (see [Supported Git Repositories](/getting-started/git/) for details):
 
 ```toml
-[git.github]
-branch_format = "{type}/{ticket_id}-{slug}"
-# Example: feat/PROJ-123-add-login
+[git]
+branch_format = "{type}/{ticket_id}"
+use_worktrees = false
 ```
 
 ## Commit Messages
@@ -117,22 +114,20 @@ Ticket: PROJ-123
 
 ### Authentication errors
 
-Test your token:
+Check your auth status:
 
 ```bash
-curl -H "Authorization: token $GITHUB_TOKEN" \
-     https://api.github.com/user
+gh auth status
 ```
 
 ### Permission denied
 
-Ensure your token has `repo` scope and you have push access.
+Ensure you have push access to the repository and your `gh` session is authenticated.
 
 ### Rate limiting
 
-GitHub has API rate limits. Check remaining quota:
+Check remaining API quota:
 
 ```bash
-curl -H "Authorization: token $GITHUB_TOKEN" \
-     https://api.github.com/rate_limit
+gh api rate_limit
 ```

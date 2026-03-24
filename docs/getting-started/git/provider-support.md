@@ -30,9 +30,12 @@ Operator uses a trait-based architecture for Git provider support:
 
 Uses the provider's official CLI tool:
 
-| Provider | CLI Tool | Install |
-|----------|----------|---------|
-| GitHub | `gh` | `brew install gh` |
+| Provider | CLI Tool | Install | Status |
+|----------|----------|---------|--------|
+| GitHub | `gh` | `brew install gh` | Implemented |
+| GitLab | `glab` | `brew install glab` | Detection only |
+| Bitbucket | `bb` | — | Detection only |
+| Azure DevOps | `az` | — | Detection only |
 
 **Advantages:**
 - Built-in authentication management
@@ -181,12 +184,12 @@ async fn test_newprovider_create_pr() { ... }
 
 Different providers use different terminology for similar concepts:
 
-| Concept | GitHub | Other Providers |
-|---------|--------|-----------------|
-| Code Review Request | Pull Request | Merge Request, Pull Request |
-| CI Status | Checks | Pipelines, Builds |
-| CI Automation | Actions | CI/CD, Pipelines |
-| Approval | Review | Approval, Review |
+| Concept | GitHub | GitLab | Bitbucket |
+|---------|--------|--------|-----------|
+| Code Review Request | Pull Request | Merge Request | Pull Request |
+| CI Status | Checks | Pipelines | Pipelines |
+| CI Automation | Actions | CI/CD | Pipelines |
+| Approval | Review | Approval | Approval |
 
 ## Provider Detection
 
@@ -194,10 +197,16 @@ Operator auto-detects the provider from git remote URLs:
 
 ```rust
 pub fn detect_provider(remote_url: &str) -> Option<GitProvider> {
-    if remote_url.contains("github.com") {
+    let url_lower = remote_url.to_lowercase();
+    if url_lower.contains("github.com") {
         Some(GitProvider::GitHub)
+    } else if url_lower.contains("gitlab.com") || url_lower.contains("gitlab.") {
+        Some(GitProvider::GitLab)
+    } else if url_lower.contains("bitbucket.org") {
+        Some(GitProvider::Bitbucket)
+    } else if url_lower.contains("dev.azure.com") || url_lower.contains("visualstudio.com") {
+        Some(GitProvider::AzureDevOps)
     } else {
-        // Future providers can be detected here
         None
     }
 }
@@ -210,14 +219,21 @@ pub fn detect_provider(remote_url: &str) -> Option<GitProvider> {
 ```toml
 [git]
 provider = "github"  # Auto-detected if not specified
-branch_format = "{type}/{ticket_id}-{slug}"
+branch_format = "{type}/{ticket_id}"
+use_worktrees = false
 ```
 
 ### Provider-Specific
 
 ```toml
 [git.github]
+enabled = true
 token_env = "GITHUB_TOKEN"
+
+[git.gitlab]
+enabled = true
+token_env = "GITLAB_TOKEN"
+host = "gitlab.example.com"   # For self-hosted instances
 ```
 
 ## Testing Guidelines

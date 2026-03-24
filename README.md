@@ -151,29 +151,25 @@ Within each priority level, tickets are processed FIFO by timestamp.
 ## Dashboard Layout
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ operator v0.1.0                    ▶ RUNNING   5/7 agents  │
-├─────────────┬─────────────┬─────────────┬───────────────────┤
-│ QUEUE (12)  │ RUNNING (5) │ AWAITING (1)│ COMPLETED (8)     │
-├─────────────┼─────────────┼─────────────┼───────────────────┤
-│ INV-003 ‼️  │ backend     │ SPIKE-015   │ ✓ FEAT-040 12:30  │
-│ FIX-089     │  FEAT-042   │  "what auth │ ✓ FIX-088  12:15  │
-│ FIX-090     │  ██████░░   │   pattern?" │ ✓ FEAT-041 11:45  │
-│ FEAT-043    │ frontend    │             │ ✓ FIX-087  11:30  │
-│ FEAT-044    │  FIX-091    │ [R]espond   │                   │
-│ FEAT-045    │  ████░░░░   │             │                   │
-│             │ api         │             │                   │
-│             │  FEAT-046   │             │                   │
-│             │  ██░░░░░░   │             │                   │
-│             │ admin       │             │                   │
-│             │  FEAT-047   │             │                   │
-│             │  █████████  │             │                   │
-│             │ infra       │             │                   │
-│             │  FIX-092    │             │                   │
-│             │  ███░░░░░   │             │                   │
-├─────────────┴─────────────┴─────────────┴───────────────────┤
-│ [Q]ueue [L]aunch [P]ause [R]esume [A]gents [N]otifs [?]Help│
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ operator v0.1.28                      ▶ RUNNING   5/7       │
+├──────────┬────────────┬──────────────────┬───────────────────┤
+│ STATUS   │ QUEUE (12) │ IN PROGRESS (5)  │ DONE (8)          │
+├──────────┼────────────┼──────────────────┼───────────────────┤
+│ ▾ Config │ INV-003 ‼️ │ A▶ backend       │ ✓ FEAT-040 12:30  │
+│   ✓ dir  │ FIX-089    │   FEAT-042  5m   │ ✓ FIX-088  12:15  │
+│   ✓ cfg  │ FIX-090    │ A▶ frontend      │ ✓ FEAT-041 11:45  │
+│   ✓ tkts │ FEAT-043   │   FIX-091  3m    │ ✓ FIX-087  11:30  │
+│ ▾ Conns  │ FEAT-044   │ C⏸ api           │                   │
+│   ✓ API  │ FEAT-045   │   SPIKE-015 12m  │                   │
+│   ✓ Web  │            │   Awaiting input │                   │
+│   tmux   │            │ A▶ admin         │                   │
+│ ▸ Kanban │            │   FEAT-047  1m   │                   │
+│ ▸ LLM    │            │ A▶ infra         │                   │
+│ ▸ Git    │            │   FIX-092  8m    │                   │
+├──────────┴────────────┴──────────────────┴───────────────────┤
+│ [Q]ueue [L]aunch [P]ause [R]esume [A]gents [?]Help [q]uit   │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## Keyboard Shortcuts

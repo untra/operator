@@ -3,13 +3,15 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection, WebhookStatus, ApiStatus } from './types';
+import type { SectionId, SectionHealth } from '../generated';
 import { SessionInfo } from '../types';
 import { discoverApiUrl, ApiSessionInfo } from '../api-client';
 import { getOperatorPath, getOperatorVersion } from '../operator-binary';
 import { isMcpServerRegistered } from '../mcp-connect';
 
 export class ConnectionsSection implements StatusSection {
-  readonly sectionId = 'connections';
+  readonly sectionId: SectionId = 'connections';
+  readonly prerequisites: SectionId[] = ['config'];
 
   private webhookStatus: WebhookStatus = { running: false };
   private apiStatus: ApiStatus = { connected: false };
@@ -23,6 +25,14 @@ export class ConnectionsSection implements StatusSection {
 
   isConfigured(): boolean {
     return this.apiStatus.connected || this.webhookStatus.running;
+  }
+
+  health(): SectionHealth {
+    const api = this.apiStatus.connected;
+    const wh = this.webhookStatus.running;
+    if (api && wh) { return 'Green'; }
+    if (api || wh) { return 'Yellow'; }
+    return 'Red';
   }
 
   async check(ctx: SectionContext): Promise<void> {

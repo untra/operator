@@ -187,6 +187,92 @@ impl App {
         Ok(())
     }
 
+    /// Auto-launch the selected ticket using the delegator resolution chain,
+    /// skipping the confirmation dialog.
+    pub(super) async fn auto_launch(&mut self) -> Result<()> {
+        // Same validation as try_launch
+        let state = State::load(&self.config)?;
+        let running_count = state.running_agents().len();
+        let max = self.config.effective_max_agents();
+
+        if running_count >= max {
+            self.dashboard.set_status(&format!(
+                "Cannot launch: {running_count}/{max} agents active"
+            ));
+            return Ok(());
+        }
+
+        if self.dashboard.paused {
+            self.dashboard.set_status("Cannot launch: queue is paused");
+            return Ok(());
+        }
+
+        let Some(ticket) = self.dashboard.selected_ticket().cloned() else {
+            return Ok(());
+        };
+
+        if state.is_project_busy(&ticket.project) {
+            self.dashboard.set_status(&format!(
+                "Cannot launch: {} has an active agent",
+                ticket.project
+            ));
+            return Ok(());
+        }
+
+        // Build agent context from issuetype registry
+        let agent_context = self
+            .issue_type_registry
+            .get(&ticket.ticket_type.to_uppercase())
+            .map(|issue_type| {
+                use crate::agents::delegator_resolution::AgentContext;
+                let step_agent = if ticket.step.is_empty() {
+                    issue_type.first_step().and_then(|s| s.agent.clone())
+                } else {
+                    issue_type
+                        .get_step(&ticket.step)
+                        .and_then(|s| s.agent.clone())
+                };
+                AgentContext {
+                    step_agent,
+                    issuetype_agent: issue_type.agent.clone(),
+                }
+            });
+
+        // Resolve launch options via the delegator chain
+        let options = match crate::agents::delegator_resolution::resolve_launch_options(
+            &self.config,
+            None, // no explicit delegator — let the chain resolve
+            None, // no explicit provider
+            None, // no explicit model
+            false,
+            agent_context.as_ref(),
+        ) {
+            Ok(opts) => opts,
+            Err(e) => {
+                self.dashboard
+                    .set_status(&format!("Auto-launch failed: {e}"));
+                return Ok(());
+            }
+        };
+
+        let delegator_label = options
+            .delegator_name
+            .as_deref()
+            .unwrap_or("default")
+            .to_string();
+
+        let launcher = Launcher::new(&self.config)?;
+        launcher.launch_with_options(&ticket, options).await?;
+
+        self.dashboard.set_status(&format!(
+            "Auto-launched {} → {}",
+            ticket.id, delegator_label
+        ));
+        self.refresh_data()?;
+
+        Ok(())
+    }
+
     pub(super) async fn launch_confirmed(&mut self) -> Result<()> {
         if let Some(ticket) = self.confirm_dialog.ticket.take() {
             let launcher = Launcher::new(&self.config)?;
@@ -206,6 +292,7 @@ impl App {
                 docker_mode: self.confirm_dialog.docker_selected,
                 yolo_mode: self.confirm_dialog.yolo_selected,
                 project_override,
+                ..Default::default()
             };
 
             launcher.launch_with_options(&ticket, options).await?;
@@ -218,14 +305,14 @@ impl App {
     /// Get the selected session info (name, wrapper, context ref) based on focused panel.
     fn selected_session_info(&self) -> (Option<String>, Option<String>, Option<String>) {
         match self.dashboard.focused {
-            FocusedPanel::Agents => {
+            FocusedPanel::InProgress => {
                 // Check if an orphan session is selected
                 if let Some(orphan) = self.dashboard.selected_orphan() {
                     (Some(orphan.session_name.clone()), None, None)
                 } else {
-                    // Otherwise get selected running agent's session
+                    // Otherwise get selected agent's session
                     self.dashboard
-                        .selected_running_agent()
+                        .selected_agent()
                         .map_or((None, None, None), |a| {
                             (
                                 a.session_name.clone(),
@@ -234,17 +321,6 @@ impl App {
                             )
                         })
                 }
-            }
-            FocusedPanel::Awaiting => {
-                self.dashboard
-                    .selected_awaiting_agent()
-                    .map_or((None, None, None), |a| {
-                        (
-                            a.session_name.clone(),
-                            a.session_wrapper.clone(),
-                            a.session_context_ref.clone(),
-                        )
-                    })
             }
             _ => (None, None, None),
         }
@@ -435,10 +511,9 @@ impl App {
 
     /// Show session preview for the selected agent
     pub(super) fn show_session_preview(&mut self) -> Result<()> {
-        // Only works when agents or awaiting panel is focused
+        // Only works when in-progress panel is focused
         let agent = match self.dashboard.focused {
-            FocusedPanel::Agents => self.dashboard.selected_running_agent().cloned(),
-            FocusedPanel::Awaiting => self.dashboard.selected_awaiting_agent().cloned(),
+            FocusedPanel::InProgress => self.dashboard.selected_agent().cloned(),
             _ => None,
         };
 

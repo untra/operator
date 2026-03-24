@@ -9,6 +9,7 @@
 pub mod agents;
 pub mod api;
 pub mod config;
+pub mod editors;
 pub mod git;
 pub mod queue;
 pub mod rest;

@@ -50,6 +50,16 @@ use self::prompt::{
 /// Session name prefix for operator-managed tmux sessions
 pub const SESSION_PREFIX: &str = "op-";
 
+/// Apply delegator prompt prefix/suffix wrapping to a generated prompt
+fn apply_prompt_wrapping(prompt: String, options: &LaunchOptions) -> String {
+    match (&options.prompt_prefix, &options.prompt_suffix) {
+        (Some(pre), Some(suf)) => format!("{pre}\n\n{prompt}\n\n{suf}"),
+        (Some(pre), None) => format!("{pre}\n\n{prompt}"),
+        (None, Some(suf)) => format!("{prompt}\n\n{suf}"),
+        (None, None) => prompt,
+    }
+}
+
 /// Result of preparing a launch without executing it
 ///
 /// Contains all the information needed to launch an agent in any wrapper
@@ -237,9 +247,14 @@ impl Launcher {
         };
 
         // Setup worktree for per-ticket isolation (if project is a git repo)
-        let working_dir = setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
-            .await
-            .context("Failed to setup worktree for ticket")?;
+        let working_dir = setup_worktree_for_ticket(
+            &self.config,
+            &mut ticket,
+            &project_path,
+            options.use_worktrees_override,
+        )
+        .await
+        .context("Failed to setup worktree for ticket")?;
 
         // Deploy operator skills for all tools this ticket may use across steps
         let primary_tool = options
@@ -256,6 +271,7 @@ impl Launcher {
 
         // Generate the initial prompt for the agent
         let initial_prompt = generate_prompt(&self.config, &ticket);
+        let initial_prompt = apply_prompt_wrapping(initial_prompt, &options);
 
         // Dispatch based on session wrapper type
         let (session_name, wrapper_name, cmux_refs) =
@@ -413,7 +429,7 @@ impl Launcher {
         };
 
         // Setup worktree for per-ticket isolation (if project is a git repo)
-        let working_dir = setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
+        let working_dir = setup_worktree_for_ticket(&self.config, &mut ticket, &project_path, None)
             .await
             .context("Failed to setup worktree for ticket")?;
 
@@ -481,6 +497,7 @@ impl Launcher {
 
         // Build the full prompt using the interpolation engine
         let initial_prompt = generate_prompt(&self.config, &ticket);
+        let initial_prompt = apply_prompt_wrapping(initial_prompt, &options);
         let full_prompt = if get_template_prompt(&ticket.ticket_type).is_some() {
             let interpolator = PromptInterpolator::new();
             match interpolator.build_launch_prompt(&self.config, &ticket, &working_dir_str) {
@@ -619,6 +636,8 @@ impl Launcher {
                 PathBuf::from(self.get_project_path(&ticket)?)
             };
 
+        let worktree_override = options.launch_options.use_worktrees_override;
+
         // Get working directory (reuse existing worktree or create new one)
         let working_dir = if let Some(ref worktree_path) = ticket.worktree_path {
             let path = PathBuf::from(worktree_path);
@@ -627,13 +646,18 @@ impl Launcher {
                 path
             } else {
                 // Worktree was deleted, recreate it
-                setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
-                    .await
-                    .context("Failed to recreate worktree for ticket")?
+                setup_worktree_for_ticket(
+                    &self.config,
+                    &mut ticket,
+                    &project_path,
+                    worktree_override,
+                )
+                .await
+                .context("Failed to recreate worktree for ticket")?
             }
         } else {
             // No worktree yet, try to create one
-            setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
+            setup_worktree_for_ticket(&self.config, &mut ticket, &project_path, worktree_override)
                 .await
                 .context("Failed to setup worktree for ticket")?
         };
@@ -706,6 +730,7 @@ impl Launcher {
 
         // Build the full prompt using the interpolation engine
         let initial_prompt = generate_prompt(&self.config, &ticket);
+        let initial_prompt = apply_prompt_wrapping(initial_prompt, &options.launch_options);
         let mut full_prompt = if get_template_prompt(&ticket.ticket_type).is_some() {
             let interpolator = PromptInterpolator::new();
             match interpolator.build_launch_prompt(&self.config, &ticket, &working_dir_str) {
@@ -848,6 +873,7 @@ impl Launcher {
 
         // Get working directory (use existing worktree, or setup new one)
         let project_path = PathBuf::from(self.get_project_path(&ticket)?);
+        let worktree_override = options.launch_options.use_worktrees_override;
         let working_dir = if let Some(ref worktree_path) = ticket.worktree_path {
             let path = PathBuf::from(worktree_path);
             if path.exists() {
@@ -855,13 +881,18 @@ impl Launcher {
                 path
             } else {
                 // Worktree was deleted, recreate it
-                setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
-                    .await
-                    .context("Failed to recreate worktree for ticket")?
+                setup_worktree_for_ticket(
+                    &self.config,
+                    &mut ticket,
+                    &project_path,
+                    worktree_override,
+                )
+                .await
+                .context("Failed to recreate worktree for ticket")?
             }
         } else {
             // No worktree yet, try to create one
-            setup_worktree_for_ticket(&self.config, &mut ticket, &project_path)
+            setup_worktree_for_ticket(&self.config, &mut ticket, &project_path, worktree_override)
                 .await
                 .context("Failed to setup worktree for ticket")?
         };
@@ -882,6 +913,7 @@ impl Launcher {
 
         // Generate the initial prompt for the agent
         let initial_prompt = generate_prompt(&self.config, &ticket);
+        let initial_prompt = apply_prompt_wrapping(initial_prompt, &options.launch_options);
 
         // Dispatch based on session wrapper type
         let (session_name, wrapper_name, cmux_refs) =

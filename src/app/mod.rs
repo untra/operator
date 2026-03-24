@@ -20,18 +20,20 @@ use crate::ui::projects_dialog::ProjectsDialog;
 use crate::ui::session_preview::SessionPreview;
 use crate::ui::setup::{DetectedToolInfo, SetupScreen};
 use crate::ui::{
-    CollectionSwitchDialog, ConfirmDialog, Dashboard, KanbanView, SessionRecoveryDialog,
-    SyncConfirmDialog, TerminalGuard,
+    CollectionSwitchDialog, ConfirmDialog, Dashboard, GitTokenDialog, KanbanView,
+    SessionRecoveryDialog, SyncConfirmDialog, TerminalGuard,
 };
 use std::sync::Arc;
 
 mod agents;
 mod data_sync;
+mod git_onboarding;
 mod kanban;
 mod keyboard;
 mod pr_workflow;
 mod review;
 mod session;
+mod status_actions;
 mod tickets;
 
 #[cfg(test)]
@@ -77,6 +79,8 @@ pub struct App {
     pub(crate) kanban_view: KanbanView,
     /// Kanban sync confirmation dialog
     pub(crate) sync_confirm_dialog: SyncConfirmDialog,
+    /// Git token input dialog
+    pub(crate) git_token_dialog: GitTokenDialog,
     /// Kanban sync service
     pub(crate) kanban_sync_service: KanbanSyncService,
     /// Issue type registry for dynamic issue types
@@ -281,6 +285,7 @@ impl App {
             collection_dialog: CollectionSwitchDialog::new(),
             kanban_view: KanbanView::new(),
             sync_confirm_dialog: SyncConfirmDialog::new(),
+            git_token_dialog: GitTokenDialog::new(),
             kanban_sync_service,
             issue_type_registry,
             pr_event_rx,
@@ -388,6 +393,7 @@ impl App {
                         self.kanban_view.render(f, f.area());
                     }
                     self.sync_confirm_dialog.render(f);
+                    self.git_token_dialog.render(f);
                 }
             })?;
 
@@ -406,7 +412,7 @@ impl App {
                                 self.exit_confirmation_mode = false;
                                 self.exit_confirmation_time = None;
                             }
-                            self.handle_key(key.code, &mut terminal).await?;
+                            self.handle_key(key, &mut terminal).await?;
                         }
                     }
                 }

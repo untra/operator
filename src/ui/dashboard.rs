@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::path::Path;
 use std::time::Instant;
 
 use ratatui::{
@@ -7,25 +8,31 @@ use ratatui::{
     Frame,
 };
 
-use super::panels::{AgentsPanel, AwaitingPanel, CompletedPanel, HeaderBar, QueuePanel, StatusBar};
+use super::in_progress_panel::InProgressPanel;
+use super::panels::{CompletedPanel, HeaderBar, QueuePanel, StatusBar};
+use super::status_panel::{
+    DelegatorInfo, KanbanProviderInfo, LlmToolInfo, StatusPanel, StatusSnapshot,
+    WrapperConnectionStatus,
+};
 use crate::backstage::ServerStatus;
-use crate::config::Config;
+use crate::config::{Config, GitProviderConfig, SessionWrapperType};
+use crate::editors::EditorConfig;
 use crate::queue::Ticket;
 use crate::rest::RestApiStatus;
 use crate::state::{AgentState, CompletedTicket, OrphanSession};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FocusedPanel {
+    Status,
     Queue,
-    Agents,
-    Awaiting,
+    InProgress,
     Completed,
 }
 
 pub struct Dashboard {
+    pub status_panel: StatusPanel,
     pub queue_panel: QueuePanel,
-    pub agents_panel: AgentsPanel,
-    pub awaiting_panel: AwaitingPanel,
+    pub in_progress_panel: InProgressPanel,
     pub completed_panel: CompletedPanel,
     pub focused: FocusedPanel,
     pub paused: bool,
@@ -44,16 +51,22 @@ pub struct Dashboard {
     pub status_message: Option<String>,
     /// When the status message was set
     pub status_message_at: Option<Instant>,
+    /// Cached wrapper connection status (updated periodically)
+    pub wrapper_connection_status: WrapperConnectionStatus,
+    /// Config snapshot for status panel
+    config: Config,
+    /// Resolved editor environment variables
+    pub editor_config: EditorConfig,
 }
 
 impl Dashboard {
     pub fn new(config: &Config) -> Self {
-        Self {
+        let mut dashboard = Self {
+            status_panel: StatusPanel::new(config.ui.panel_names.status.clone()),
             queue_panel: QueuePanel::new(config.ui.panel_names.queue.clone()),
-            agents_panel: AgentsPanel::new(config.ui.panel_names.agents.clone()),
-            awaiting_panel: AwaitingPanel::new(config.ui.panel_names.awaiting.clone()),
+            in_progress_panel: InProgressPanel::new(config.ui.panel_names.in_progress.clone()),
             completed_panel: CompletedPanel::new(config.ui.panel_names.completed.clone()),
-            focused: FocusedPanel::Queue,
+            focused: FocusedPanel::Status,
             paused: false,
             max_agents: config.effective_max_agents(),
             wrapper_name: config.sessions.wrapper.display_name(),
@@ -63,6 +76,30 @@ impl Dashboard {
             update_available_version: None,
             status_message: None,
             status_message_at: None,
+            wrapper_connection_status: Self::initial_wrapper_status(config),
+            config: config.clone(),
+            editor_config: EditorConfig::detect(config.sessions.wrapper),
+        };
+        dashboard.compute_initial_focus();
+        dashboard
+    }
+
+    /// Determine the best panel to focus on startup.
+    ///
+    /// Priority:
+    /// 1. Status panel — if any section needs attention (Yellow/Red), focus there
+    ///    and select the first section that needs attention
+    /// 2. In Progress — if there are active agents
+    /// 3. Queue — default fallback
+    pub fn compute_initial_focus(&mut self) {
+        let snapshot = self.build_status_snapshot();
+        if self.status_panel.has_attention_needed(&snapshot) {
+            self.focused = FocusedPanel::Status;
+            self.status_panel.focus_first_attention(&snapshot);
+        } else if !self.in_progress_panel.agents.is_empty() {
+            self.focused = FocusedPanel::InProgress;
+        } else {
+            self.focused = FocusedPanel::Queue;
         }
     }
 
@@ -98,18 +135,33 @@ impl Dashboard {
         }
     }
 
+    pub fn update_config(&mut self, config: &Config) {
+        self.config = config.clone();
+    }
+
+    pub fn expand_and_focus_section(&mut self, section_id: super::status_panel::SectionId) {
+        let snapshot = self.build_status_snapshot();
+        self.status_panel
+            .tree_state
+            .expanded
+            .insert(section_id, true);
+        // Find the header row for the section and select it
+        let rows = self.status_panel.flatten(&snapshot);
+        for (i, row) in rows.iter().enumerate() {
+            if row.is_header && row.section_id == section_id {
+                self.status_panel.tree_state.selected = i;
+                break;
+            }
+        }
+    }
+
     pub fn update_queue(&mut self, tickets: Vec<Ticket>) {
         self.queue_panel.tickets = tickets;
     }
 
     pub fn update_agents(&mut self, agents: Vec<AgentState>) {
-        // Split into running and awaiting
-        let (awaiting, running): (Vec<_>, Vec<_>) = agents
-            .into_iter()
-            .partition(|a| a.status == "awaiting_input");
-
-        self.agents_panel.agents = running;
-        self.awaiting_panel.agents = awaiting;
+        // All agents go to the unified in_progress_panel
+        self.in_progress_panel.agents = agents;
     }
 
     pub fn update_completed(&mut self, tickets: Vec<CompletedTicket>) {
@@ -117,10 +169,129 @@ impl Dashboard {
     }
 
     pub fn update_orphan_sessions(&mut self, orphans: Vec<OrphanSession>) {
-        self.agents_panel.orphan_sessions = orphans;
+        self.in_progress_panel.orphan_sessions = orphans;
+    }
+
+    /// Create initial wrapper connection status based on config.
+    fn initial_wrapper_status(config: &Config) -> WrapperConnectionStatus {
+        match config.sessions.wrapper {
+            SessionWrapperType::Tmux => WrapperConnectionStatus::Tmux {
+                available: false,
+                server_running: false,
+                version: None,
+            },
+            SessionWrapperType::Vscode => WrapperConnectionStatus::Vscode {
+                webhook_running: false,
+                port: Some(config.sessions.vscode.webhook_port),
+            },
+            SessionWrapperType::Cmux => WrapperConnectionStatus::Cmux {
+                binary_available: false,
+                in_cmux: std::env::var("CMUX_WORKSPACE_ID").is_ok(),
+            },
+            SessionWrapperType::Zellij => WrapperConnectionStatus::Zellij {
+                binary_available: false,
+                in_zellij: std::env::var("ZELLIJ").is_ok(),
+            },
+        }
+    }
+
+    /// Update the cached wrapper connection status.
+    pub fn update_wrapper_connection_status(&mut self, status: WrapperConnectionStatus) {
+        self.wrapper_connection_status = status;
+    }
+
+    /// Build a status snapshot from current config and runtime state
+    fn build_status_snapshot(&self) -> StatusSnapshot {
+        let config = &self.config;
+
+        // Working directory is where the operator process runs from
+        let working_dir = std::env::current_dir()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let config_path = Config::operator_config_path()
+            .to_string_lossy()
+            .into_owned();
+        let tickets_dir = config.paths.tickets.clone();
+        let tickets_dir_exists = Path::new(&tickets_dir).exists();
+
+        // Build kanban provider info from jira + linear configs
+        let mut kanban_providers: Vec<KanbanProviderInfo> = Vec::new();
+        for domain in config.kanban.jira.keys() {
+            kanban_providers.push(KanbanProviderInfo {
+                provider_type: "jira".to_string(),
+                domain: domain.clone(),
+            });
+        }
+        for slug in config.kanban.linear.keys() {
+            kanban_providers.push(KanbanProviderInfo {
+                provider_type: "linear".to_string(),
+                domain: slug.clone(),
+            });
+        }
+
+        // Build LLM tool info from detected tools
+        let llm_tools: Vec<LlmToolInfo> = config
+            .llm_tools
+            .detected
+            .iter()
+            .map(|t| LlmToolInfo {
+                name: t.name.clone(),
+                version: t.version.clone(),
+                model_aliases: t.model_aliases.clone(),
+            })
+            .collect();
+
+        // Build delegator info
+        let delegators: Vec<DelegatorInfo> = config
+            .delegators
+            .iter()
+            .map(|d| DelegatorInfo {
+                name: d.name.clone(),
+                display_name: d.display_name.clone(),
+                llm_tool: d.llm_tool.clone(),
+                model: d.model.clone(),
+                yolo: d.launch_config.as_ref().is_some_and(|lc| lc.yolo),
+            })
+            .collect();
+
+        // Git config
+        let git_provider = config.git.provider.as_ref().map(|p| format!("{p:?}"));
+        let git_token_set = match config.git.provider {
+            Some(GitProviderConfig::GitLab) => std::env::var(&config.git.gitlab.token_env).is_ok(),
+            // GitHub is the default for all other providers (including None)
+            _ => std::env::var(&config.git.github.token_env).is_ok(),
+        };
+
+        StatusSnapshot {
+            working_dir,
+            config_file_found: true, // We have a config if we're running
+            config_path,
+            tickets_dir,
+            tickets_dir_exists,
+            wrapper_type: config.sessions.wrapper.display_name().to_string(),
+            operator_version: env!("CARGO_PKG_VERSION").to_string(),
+            api_status: self.rest_api_status.clone(),
+            backstage_status: self.backstage_status.clone(),
+            backstage_display: config.backstage.display,
+            kanban_providers,
+            llm_tools,
+            default_llm_tool: config.llm_tools.default_tool.clone(),
+            default_llm_model: config.llm_tools.default_model.clone(),
+            delegators,
+            git_provider,
+            git_token_set,
+            git_branch_format: Some(config.git.branch_format.clone()),
+            git_use_worktrees: config.git.use_worktrees,
+            update_available_version: self.update_available_version.clone(),
+            wrapper_connection_status: self.wrapper_connection_status.clone(),
+            env_editor: self.editor_config.editor.clone(),
+            env_visual: self.editor_config.visual.clone(),
+        }
     }
 
     pub fn render(&mut self, frame: &mut Frame) {
+        let snapshot = self.build_status_snapshot();
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -137,32 +308,40 @@ impl Dashboard {
         };
         header.render(frame, chunks[0]);
 
-        // Main content - 4 columns
+        // Main content - 4 columns: Status | Queue | In Progress | Completed
+        // Focused panel gets 40% width, others get 20%
+        let (s, q, ip, c) = match self.focused {
+            FocusedPanel::Status => (40, 20, 20, 20),
+            FocusedPanel::Queue => (20, 40, 20, 20),
+            FocusedPanel::InProgress => (20, 20, 40, 20),
+            FocusedPanel::Completed => (20, 20, 20, 40),
+        };
         let main_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(25), // Queue
-                Constraint::Percentage(30), // Running
-                Constraint::Percentage(25), // Awaiting
-                Constraint::Percentage(20), // Completed
+                Constraint::Percentage(s),
+                Constraint::Percentage(q),
+                Constraint::Percentage(ip),
+                Constraint::Percentage(c),
             ])
             .split(chunks[1]);
 
         // Render panels
-        self.queue_panel
-            .render(frame, main_chunks[0], self.focused == FocusedPanel::Queue);
-
-        self.agents_panel.render(
+        self.status_panel.render(
             frame,
-            main_chunks[1],
-            self.focused == FocusedPanel::Agents,
-            self.max_agents,
+            main_chunks[0],
+            self.focused == FocusedPanel::Status,
+            &snapshot,
         );
 
-        self.awaiting_panel.render(
+        self.queue_panel
+            .render(frame, main_chunks[1], self.focused == FocusedPanel::Queue);
+
+        self.in_progress_panel.render(
             frame,
             main_chunks[2],
-            self.focused == FocusedPanel::Awaiting,
+            self.focused == FocusedPanel::InProgress,
+            self.max_agents,
         );
 
         self.completed_panel.render(
@@ -174,7 +353,7 @@ impl Dashboard {
         // Status bar
         let status = StatusBar {
             paused: self.paused,
-            agent_count: self.agents_panel.agents.len() + self.awaiting_panel.agents.len(),
+            agent_count: self.in_progress_panel.agents.len(),
             max_agents: self.max_agents,
             backstage_status: self.backstage_status.clone(),
             rest_api_status: self.rest_api_status.clone(),
@@ -187,24 +366,28 @@ impl Dashboard {
 
     pub fn focus_next(&mut self) {
         self.focused = match self.focused {
-            FocusedPanel::Queue => FocusedPanel::Agents,
-            FocusedPanel::Agents => FocusedPanel::Awaiting,
-            FocusedPanel::Awaiting => FocusedPanel::Completed,
-            FocusedPanel::Completed => FocusedPanel::Queue,
+            FocusedPanel::Status => FocusedPanel::Queue,
+            FocusedPanel::Queue => FocusedPanel::InProgress,
+            FocusedPanel::InProgress => FocusedPanel::Completed,
+            FocusedPanel::Completed => FocusedPanel::Status,
         };
     }
 
     pub fn focus_prev(&mut self) {
         self.focused = match self.focused {
-            FocusedPanel::Queue => FocusedPanel::Completed,
-            FocusedPanel::Agents => FocusedPanel::Queue,
-            FocusedPanel::Awaiting => FocusedPanel::Agents,
-            FocusedPanel::Completed => FocusedPanel::Awaiting,
+            FocusedPanel::Status => FocusedPanel::Completed,
+            FocusedPanel::Queue => FocusedPanel::Status,
+            FocusedPanel::InProgress => FocusedPanel::Queue,
+            FocusedPanel::Completed => FocusedPanel::InProgress,
         };
     }
 
     pub fn select_next(&mut self) {
         match self.focused {
+            FocusedPanel::Status => {
+                let snapshot = self.build_status_snapshot();
+                self.status_panel.select_next(&snapshot);
+            }
             FocusedPanel::Queue => {
                 let len = self.queue_panel.tickets.len();
                 if len > 0 {
@@ -218,31 +401,17 @@ impl Dashboard {
                     self.queue_panel.state.select(Some(i));
                 }
             }
-            FocusedPanel::Agents => {
-                // Include orphan sessions in total count
-                let len = self.agents_panel.total_items();
+            FocusedPanel::InProgress => {
+                let len = self.in_progress_panel.total_items();
                 if len > 0 {
-                    let i = self.agents_panel.state.selected().map_or(0, |i| {
+                    let i = self.in_progress_panel.state.selected().map_or(0, |i| {
                         if i >= len - 1 {
                             0
                         } else {
                             i + 1
                         }
                     });
-                    self.agents_panel.state.select(Some(i));
-                }
-            }
-            FocusedPanel::Awaiting => {
-                let len = self.awaiting_panel.agents.len();
-                if len > 0 {
-                    let i = self.awaiting_panel.state.selected().map_or(0, |i| {
-                        if i >= len - 1 {
-                            0
-                        } else {
-                            i + 1
-                        }
-                    });
-                    self.awaiting_panel.state.select(Some(i));
+                    self.in_progress_panel.state.select(Some(i));
                 }
             }
             FocusedPanel::Completed => {}
@@ -251,6 +420,10 @@ impl Dashboard {
 
     pub fn select_prev(&mut self) {
         match self.focused {
+            FocusedPanel::Status => {
+                let snapshot = self.build_status_snapshot();
+                self.status_panel.select_prev(&snapshot);
+            }
             FocusedPanel::Queue => {
                 let len = self.queue_panel.tickets.len();
                 if len > 0 {
@@ -264,35 +437,31 @@ impl Dashboard {
                     self.queue_panel.state.select(Some(i));
                 }
             }
-            FocusedPanel::Agents => {
-                // Include orphan sessions in total count
-                let len = self.agents_panel.total_items();
+            FocusedPanel::InProgress => {
+                let len = self.in_progress_panel.total_items();
                 if len > 0 {
-                    let i = self.agents_panel.state.selected().map_or(0, |i| {
+                    let i = self.in_progress_panel.state.selected().map_or(0, |i| {
                         if i == 0 {
                             len - 1
                         } else {
                             i - 1
                         }
                     });
-                    self.agents_panel.state.select(Some(i));
-                }
-            }
-            FocusedPanel::Awaiting => {
-                let len = self.awaiting_panel.agents.len();
-                if len > 0 {
-                    let i = self.awaiting_panel.state.selected().map_or(0, |i| {
-                        if i == 0 {
-                            len - 1
-                        } else {
-                            i - 1
-                        }
-                    });
-                    self.awaiting_panel.state.select(Some(i));
+                    self.in_progress_panel.state.select(Some(i));
                 }
             }
             FocusedPanel::Completed => {}
         }
+    }
+
+    /// Get the action for the currently selected status panel row.
+    /// Section toggles are handled internally by the status panel.
+    pub fn status_action(
+        &mut self,
+        button: super::status_panel::ActionButton,
+    ) -> super::status_panel::StatusAction {
+        let snapshot = self.build_status_snapshot();
+        self.status_panel.action_for_current(&snapshot, button)
     }
 
     pub fn selected_ticket(&self) -> Option<&Ticket> {
@@ -308,39 +477,18 @@ impl Dashboard {
 
     pub fn selected_agent(&self) -> Option<&AgentState> {
         match self.focused {
-            FocusedPanel::Agents => self
-                .agents_panel
+            FocusedPanel::InProgress => self
+                .in_progress_panel
                 .state
                 .selected()
-                .and_then(|i| self.agents_panel.agents.get(i)),
-            FocusedPanel::Awaiting => self
-                .awaiting_panel
-                .state
-                .selected()
-                .and_then(|i| self.awaiting_panel.agents.get(i)),
+                .and_then(|i| self.in_progress_panel.agents.get(i)),
             _ => None,
         }
     }
 
-    /// Get the selected running agent (from agents panel)
-    pub fn selected_running_agent(&self) -> Option<&AgentState> {
-        self.agents_panel
-            .state
-            .selected()
-            .and_then(|i| self.agents_panel.agents.get(i))
-    }
-
-    /// Get the selected awaiting agent (from awaiting panel)
-    pub fn selected_awaiting_agent(&self) -> Option<&AgentState> {
-        self.awaiting_panel
-            .state
-            .selected()
-            .and_then(|i| self.awaiting_panel.agents.get(i))
-    }
-
-    /// Get the selected orphan session (from agents panel, below the fold)
+    /// Get the selected orphan session (from `in_progress` panel, below the fold)
     pub fn selected_orphan(&self) -> Option<&OrphanSession> {
-        self.agents_panel.selected_orphan()
+        self.in_progress_panel.selected_orphan()
     }
 }
 
@@ -415,5 +563,44 @@ mod tests {
                 "Version component '{part}' should be numeric"
             );
         }
+    }
+
+    #[test]
+    fn test_focus_next_cycles_through_all_panels() {
+        let mut dashboard = make_test_dashboard();
+        dashboard.focused = FocusedPanel::Status;
+
+        dashboard.focus_next();
+        assert_eq!(dashboard.focused, FocusedPanel::Queue);
+        dashboard.focus_next();
+        assert_eq!(dashboard.focused, FocusedPanel::InProgress);
+        dashboard.focus_next();
+        assert_eq!(dashboard.focused, FocusedPanel::Completed);
+        dashboard.focus_next();
+        assert_eq!(dashboard.focused, FocusedPanel::Status);
+    }
+
+    #[test]
+    fn test_focus_prev_cycles_through_all_panels() {
+        let mut dashboard = make_test_dashboard();
+        dashboard.focused = FocusedPanel::Status;
+
+        dashboard.focus_prev();
+        assert_eq!(dashboard.focused, FocusedPanel::Completed);
+        dashboard.focus_prev();
+        assert_eq!(dashboard.focused, FocusedPanel::InProgress);
+        dashboard.focus_prev();
+        assert_eq!(dashboard.focused, FocusedPanel::Queue);
+        dashboard.focus_prev();
+        assert_eq!(dashboard.focused, FocusedPanel::Status);
+    }
+
+    #[test]
+    fn test_update_agents_no_partition() {
+        let mut dashboard = make_test_dashboard();
+        // All agents should go to in_progress_panel without splitting
+        let agents = vec![];
+        dashboard.update_agents(agents);
+        assert!(dashboard.in_progress_panel.agents.is_empty());
     }
 }

@@ -20,20 +20,26 @@ export class TerminalManager {
   private issueTypeService: IssueTypeService | undefined;
 
   constructor() {
-    // Track shell execution for activity detection
+    // Track shell execution for activity detection (requires VS Code 1.93+)
+    if (typeof vscode.window.onDidStartTerminalShellExecution === 'function') {
+      this.disposables.push(
+        vscode.window.onDidStartTerminalShellExecution((e) => {
+          const name = this.findTerminalName(e.terminal);
+          if (name && this.terminals.has(name)) {
+            this.activityState.set(name, 'running');
+          }
+        }),
+        vscode.window.onDidEndTerminalShellExecution((e) => {
+          const name = this.findTerminalName(e.terminal);
+          if (name && this.terminals.has(name)) {
+            this.activityState.set(name, 'idle');
+          }
+        })
+      );
+    }
+
+    // Always track terminal close (available in all supported VS Code versions)
     this.disposables.push(
-      vscode.window.onDidStartTerminalShellExecution((e) => {
-        const name = this.findTerminalName(e.terminal);
-        if (name && this.terminals.has(name)) {
-          this.activityState.set(name, 'running');
-        }
-      }),
-      vscode.window.onDidEndTerminalShellExecution((e) => {
-        const name = this.findTerminalName(e.terminal);
-        if (name && this.terminals.has(name)) {
-          this.activityState.set(name, 'idle');
-        }
-      }),
       vscode.window.onDidCloseTerminal((t) => {
         const name = this.findTerminalName(t);
         if (name) {

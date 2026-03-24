@@ -58,6 +58,8 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
             }],
             detection_complete: true,
             skill_directory_overrides: std::collections::HashMap::new(),
+            default_tool: None,
+            default_model: None,
         },
         // Disable notifications in tests
         notifications: crate::config::NotificationsConfig {

@@ -4,11 +4,11 @@ use utoipa::OpenApi;
 
 use crate::mcp::descriptor::McpDescriptorResponse;
 use crate::rest::dto::{
-    CollectionResponse, CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest,
-    CreateStepRequest, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
-    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, LaunchTicketRequest,
-    LaunchTicketResponse, SkillEntry, SkillsResponse, StatusResponse, StepResponse,
-    UpdateIssueTypeRequest, UpdateStepRequest,
+    CollectionResponse, CreateDelegatorFromToolRequest, CreateDelegatorRequest, CreateFieldRequest,
+    CreateIssueTypeRequest, CreateStepRequest, DefaultLlmResponse, DelegatorLaunchConfigDto,
+    DelegatorResponse, DelegatorsResponse, FieldResponse, HealthResponse, IssueTypeResponse,
+    IssueTypeSummary, LaunchTicketRequest, LaunchTicketResponse, SetDefaultLlmRequest, SkillEntry,
+    SkillsResponse, StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
 };
 use crate::rest::error::ErrorResponse;
 
@@ -52,7 +52,13 @@ use crate::rest::error::ErrorResponse;
         crate::rest::routes::delegators::list,
         crate::rest::routes::delegators::get_one,
         crate::rest::routes::delegators::create,
+        crate::rest::routes::delegators::create_from_tool,
+        crate::rest::routes::delegators::update,
         crate::rest::routes::delegators::delete,
+        // LLM tools endpoints
+        crate::rest::routes::llm_tools::list,
+        crate::rest::routes::llm_tools::get_default,
+        crate::rest::routes::llm_tools::set_default,
         // MCP endpoints
         crate::mcp::descriptor::descriptor,
     ),
@@ -82,7 +88,11 @@ use crate::rest::error::ErrorResponse;
             DelegatorResponse,
             DelegatorsResponse,
             CreateDelegatorRequest,
+            CreateDelegatorFromToolRequest,
             DelegatorLaunchConfigDto,
+            // LLM tools types
+            SetDefaultLlmRequest,
+            DefaultLlmResponse,
             // MCP types
             McpDescriptorResponse,
         )

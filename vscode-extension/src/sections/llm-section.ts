@@ -1,17 +1,23 @@
 import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection, LlmState, LlmToolInfo } from './types';
+import type { SectionId, SectionHealth } from '../generated';
 import { detectInstalledLlmTools } from '../walkthrough';
 import { discoverApiUrl } from '../api-client';
 import type { DetectedTool } from '../generated/DetectedTool';
 
 export class LlmSection implements StatusSection {
-  readonly sectionId = 'llm';
+  readonly sectionId: SectionId = 'llm';
+  readonly prerequisites: SectionId[] = ['connections'];
 
-  private state: LlmState = { detected: false, tools: [], configDetected: [], toolDetails: [] };
+  private state: LlmState = { detected: false, tools: [], configDetected: [], toolDetails: [], defaultTool: undefined, defaultModel: undefined };
 
   isConfigured(): boolean {
     return this.state.detected;
+  }
+
+  health(): SectionHealth {
+    return this.state.detected ? 'Green' : 'Yellow';
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -81,11 +87,31 @@ export class LlmSection implements StatusSection {
         )
       : [];
 
+    // Fetch current default LLM tool + model
+    let defaultTool: string | undefined;
+    let defaultModel: string | undefined;
+    try {
+      const apiUrl = await discoverApiUrl(ctx.ticketsDir);
+      const defaultResp = await fetch(`${apiUrl}/api/v1/llm-tools/default`);
+      if (defaultResp.ok) {
+        const data = await defaultResp.json() as { tool: string; model: string };
+        if (data.tool) { defaultTool = data.tool; defaultModel = data.model; }
+      }
+    } catch {
+      // API not available — fall back to config TOML
+      const cfgForDefault = await ctx.readConfigToml();
+      const llmToolsCfg = cfgForDefault.llm_tools as Record<string, unknown> | undefined;
+      if (typeof llmToolsCfg?.default_tool === 'string') { defaultTool = llmToolsCfg.default_tool; }
+      if (typeof llmToolsCfg?.default_model === 'string') { defaultModel = llmToolsCfg.default_model; }
+    }
+
     this.state = {
       detected: toolDetails.length > 0,
       tools,
       configDetected,
       toolDetails,
+      defaultTool,
+      defaultModel,
     };
   }
 
@@ -169,20 +195,32 @@ export class LlmSection implements StatusSection {
     const tool = this.state.toolDetails.find(t => t.name === toolName);
     if (!tool) { return []; }
 
-    return tool.models.map(model => new StatusItem({
-      label: model,
-      icon: 'symbol-field',
-      tooltip: `Create delegator for ${toolName}:${model}`,
-      command: {
-        command: 'operator.openCreateDelegator',
-        title: 'Create Delegator',
-        arguments: [toolName, model],
-      },
-      sectionId: this.sectionId,
-    }));
+    return tool.models.map(model => {
+      const isDefault = this.state.defaultTool === toolName
+        && this.state.defaultModel === model;
+      return new StatusItem({
+        label: isDefault ? `${model} (default)` : model,
+        icon: isDefault ? 'check' : 'symbol-field',
+        tooltip: isDefault
+          ? `${toolName}:${model} is the current default`
+          : `Set ${toolName}:${model} as default`,
+        command: {
+          command: 'operator.setDefaultLlm',
+          title: 'Set as Default LLM',
+          arguments: [toolName, model],
+        },
+        sectionId: this.sectionId,
+      });
+    });
   }
 
   private getLlmSummary(): string {
+    if (this.state.defaultTool && this.state.defaultModel) {
+      return `Default: ${this.state.defaultTool}:${this.state.defaultModel}`;
+    }
+    if (this.state.defaultTool) {
+      return `Default: ${this.state.defaultTool}`;
+    }
     const count = this.state.toolDetails.length;
     if (count === 0) { return ''; }
     const first = this.state.toolDetails[0]!;

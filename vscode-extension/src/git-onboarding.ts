@@ -116,13 +116,23 @@ export async function onboardGitHub(): Promise<void> {
 
   // Fall back to manual input
   if (!token) {
-    const message = ghPath
-      ? 'gh CLI found but not authenticated. Enter a GitHub Personal Access Token:'
-      : 'Enter a GitHub Personal Access Token (or install gh CLI for auto-detection):';
+    if (!ghPath) {
+      // CLI not installed — open install page
+      await vscode.env.openExternal(vscode.Uri.parse('https://cli.github.com/'));
+      void vscode.window.showInformationMessage(
+        'Install the GitHub CLI (gh), then re-run this command to connect.'
+      );
+      return;
+    }
+
+    // CLI installed but not authenticated — open PAT creation page, then prompt
+    await vscode.env.openExternal(
+      vscode.Uri.parse('https://github.com/settings/personal-access-tokens/new')
+    );
 
     token = await vscode.window.showInputBox({
       title: 'GitHub Authentication',
-      prompt: message,
+      prompt: 'gh CLI found but not authenticated. Enter a GitHub Personal Access Token:',
       password: true,
       ignoreFocusOut: true,
       placeHolder: 'ghp_...',
@@ -207,13 +217,23 @@ export async function onboardGitLab(): Promise<void> {
 
   // Fall back to manual input
   if (!token) {
-    const message = glabPath
-      ? 'glab CLI found but not authenticated. Enter a GitLab Personal Access Token:'
-      : 'Enter a GitLab Personal Access Token (or install glab CLI for auto-detection):';
+    if (!glabPath) {
+      // CLI not installed — open install page
+      await vscode.env.openExternal(vscode.Uri.parse('https://docs.gitlab.com/cli'));
+      void vscode.window.showInformationMessage(
+        'Install the GitLab CLI (glab), then re-run this command to connect.'
+      );
+      return;
+    }
+
+    // CLI installed but not authenticated — open PAT creation page, then prompt
+    await vscode.env.openExternal(
+      vscode.Uri.parse('https://gitlab.com/-/user_settings/personal_access_tokens')
+    );
 
     token = await vscode.window.showInputBox({
       title: 'GitLab Authentication',
-      prompt: message,
+      prompt: 'glab CLI found but not authenticated. Enter a GitLab Personal Access Token:',
       password: true,
       ignoreFocusOut: true,
       placeHolder: 'glpat-...',

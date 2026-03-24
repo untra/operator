@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection, GitState } from './types';
+import type { SectionId, SectionHealth } from '../generated';
 
 /** Map provider names to branded ThemeIcon IDs */
 const PROVIDER_ICONS: Record<string, string> = {
@@ -11,12 +12,19 @@ const PROVIDER_ICONS: Record<string, string> = {
 };
 
 export class GitSection implements StatusSection {
-  readonly sectionId = 'git';
+  readonly sectionId: SectionId = 'git';
+  readonly prerequisites: SectionId[] = ['connections'];
 
   private state: GitState = { configured: false };
 
   isConfigured(): boolean {
     return this.state.configured;
+  }
+
+  health(): SectionHealth {
+    if (!this.state.configured) { return 'Red'; }
+    if (!this.state.tokenSet) { return 'Yellow'; }
+    return 'Green';
   }
 
   async check(ctx: SectionContext): Promise<void> {

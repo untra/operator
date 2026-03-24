@@ -2,7 +2,7 @@
   "name": "operator-terminals",
   "displayName": "Operator! Terminals for vscode",
   "description": "VS Code terminal integration for Operator! multi-agent orchestration",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "publisher": "untra",
   "author": {
     "name": "Samuel Volin",
@@ -15,7 +15,7 @@
   },
   "license": "MIT",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.93.0"
   },
   "categories": [
     "Other"
@@ -29,7 +29,17 @@
   ],
   "icon": "images/operator-logo-128.png",
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:operator-status",
+    "onView:operator-in-progress",
+    "onView:operator-queue",
+    "onView:operator-completed",
+    "onCommand:operator.showStatus",
+    "onCommand:operator.startOperatorServer",
+    "onCommand:operator.launchTicket",
+    "onCommand:operator.openSettings",
+    "onCommand:operator.openWalkthrough",
+    "onCommand:operator.selectWorkingDirectory"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
@@ -121,6 +131,18 @@
         "command": "operator.refreshTickets",
         "title": "Refresh Tickets",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "operator.statusSpecialAction",
+        "title": "Operator: Special Action (X)"
+      },
+      {
+        "command": "operator.statusRefreshAction",
+        "title": "Operator: Refresh Action (Y)"
+      },
+      {
+        "command": "operator.statusBackAction",
+        "title": "Operator: Go Back (B)"
       },
       {
         "command": "operator.focusTicket",
@@ -226,6 +248,10 @@
         "title": "Operator: Detect LLM Tools"
       },
       {
+        "command": "operator.setDefaultLlm",
+        "title": "Operator: Set Default LLM"
+      },
+      {
         "command": "operator.openWalkthrough",
         "title": "Operator: Open Setup Walkthrough"
       },
@@ -253,6 +279,36 @@
         "command": "operator.connectMcpServer",
         "title": "Operator: Connect MCP Server",
         "icon": "$(plug)"
+      },
+      {
+        "command": "operator.runSetup",
+        "title": "Operator: Run Setup"
+      },
+      {
+        "command": "operator.startWebhookServer",
+        "title": "Operator: Start Webhook Server"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "operator.statusSpecialAction",
+        "key": "shift+enter",
+        "when": "focusedView == operator-status"
+      },
+      {
+        "command": "operator.statusRefreshAction",
+        "key": "ctrl+enter",
+        "when": "focusedView == operator-status"
+      },
+      {
+        "command": "operator.statusBackAction",
+        "key": "escape",
+        "when": "focusedView == operator-status && listHasSelectionOrFocus"
+      },
+      {
+        "command": "operator.launchTicketWithOptions",
+        "key": "enter",
+        "when": "focusedView == operator-queue && listHasSelectionOrFocus"
       }
     ],
     "menus": {
@@ -481,7 +537,7 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@types/sinon": "^17.0.3",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.93.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@vscode/test-cli": "^0.0.4",

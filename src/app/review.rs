@@ -10,10 +10,9 @@ impl App {
     /// Only works for agents in `awaiting_input` with a `review_state` of `pending_plan` or `pending_visual`.
     /// Creates a signal file to trigger resume in the next sync cycle.
     pub(super) fn handle_review_approval(&mut self) -> Result<()> {
-        // Only works when agents or awaiting panel is focused
+        // Only works when in-progress panel is focused
         let agent = match self.dashboard.focused {
-            FocusedPanel::Agents => self.dashboard.selected_running_agent().cloned(),
-            FocusedPanel::Awaiting => self.dashboard.selected_awaiting_agent().cloned(),
+            FocusedPanel::InProgress => self.dashboard.selected_agent().cloned(),
             _ => None,
         };
 
@@ -48,10 +47,9 @@ impl App {
     /// For now, this just logs the rejection. A full implementation would show a dialog
     /// for entering a rejection reason and possibly restart the step.
     pub(super) fn handle_review_rejection(&mut self) -> Result<()> {
-        // Only works when agents or awaiting panel is focused
+        // Only works when in-progress panel is focused
         let agent = match self.dashboard.focused {
-            FocusedPanel::Agents => self.dashboard.selected_running_agent().cloned(),
-            FocusedPanel::Awaiting => self.dashboard.selected_awaiting_agent().cloned(),
+            FocusedPanel::InProgress => self.dashboard.selected_agent().cloned(),
             _ => None,
         };
 

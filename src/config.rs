@@ -258,26 +258,26 @@ pub struct UiConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct PanelNamesConfig {
+    #[serde(default = "default_status_name")]
+    pub status: String,
     #[serde(default = "default_todo_name")]
     pub queue: String,
-    #[serde(default = "default_doing_name")]
-    pub agents: String,
-    #[serde(default = "default_awaiting_name")]
-    pub awaiting: String,
+    #[serde(default = "default_in_progress_name", alias = "agents")]
+    pub in_progress: String,
     #[serde(default = "default_done_name")]
     pub completed: String,
+}
+
+fn default_status_name() -> String {
+    "STATUS".to_string()
 }
 
 fn default_todo_name() -> String {
     "TODO QUEUE".to_string()
 }
 
-fn default_doing_name() -> String {
-    "DOING".to_string()
-}
-
-fn default_awaiting_name() -> String {
-    "AWAITING".to_string()
+fn default_in_progress_name() -> String {
+    "IN PROGRESS".to_string()
 }
 
 fn default_done_name() -> String {
@@ -287,9 +287,9 @@ fn default_done_name() -> String {
 impl Default for PanelNamesConfig {
     fn default() -> Self {
         Self {
+            status: default_status_name(),
             queue: default_todo_name(),
-            agents: default_doing_name(),
-            awaiting: default_awaiting_name(),
+            in_progress: default_in_progress_name(),
             completed: default_done_name(),
         }
     }
@@ -584,6 +584,9 @@ pub struct BackstageConfig {
     /// Whether Backstage integration is enabled
     #[serde(default = "default_backstage_enabled")]
     pub enabled: bool,
+    /// Whether to show Backstage in the Connections status section
+    #[serde(default)]
+    pub display: bool,
     /// Port for the Backstage server
     #[serde(default = "default_backstage_port")]
     pub port: u16,
@@ -723,6 +726,7 @@ impl Default for BackstageConfig {
     fn default() -> Self {
         Self {
             enabled: default_backstage_enabled(),
+            display: false,
             port: default_backstage_port(),
             auto_start: false,
             subpath: default_backstage_subpath(),
@@ -783,6 +787,14 @@ pub struct LlmToolsConfig {
     /// Whether detection has been completed
     #[serde(default)]
     pub detection_complete: bool,
+
+    /// User's preferred default LLM tool (e.g., "claude")
+    #[serde(default)]
+    pub default_tool: Option<String>,
+
+    /// User's preferred default model alias (e.g., "opus")
+    #[serde(default)]
+    pub default_model: Option<String>,
 
     /// Per-tool overrides for skill directories (keyed by `tool_name`)
     #[serde(default)]
@@ -907,6 +919,9 @@ pub struct Delegator {
 }
 
 /// Launch configuration for a delegator
+///
+/// Controls how the delegator launches agents. Optional fields use tri-state
+/// semantics: `None` = inherit from global config, `Some(true/false)` = override.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct DelegatorLaunchConfig {
@@ -919,6 +934,21 @@ pub struct DelegatorLaunchConfig {
     /// Additional CLI flags
     #[serde(default)]
     pub flags: Vec<String>,
+    /// Override global `git.use_worktrees` per-delegator (None = use global setting)
+    #[serde(default)]
+    pub use_worktrees: Option<bool>,
+    /// Whether to create a git branch for the ticket (None = default behavior)
+    #[serde(default)]
+    pub create_branch: Option<bool>,
+    /// Run in docker container (None = use global `launch.docker.enabled`)
+    #[serde(default)]
+    pub docker: Option<bool>,
+    /// Prompt text to prepend before the generated step prompt
+    #[serde(default)]
+    pub prompt_prefix: Option<String>,
+    /// Prompt text to append after the generated step prompt
+    #[serde(default)]
+    pub prompt_suffix: Option<String>,
 }
 
 /// Predefined issue type collections
@@ -1576,6 +1606,7 @@ mod tests {
                 yolo: true,
                 permission_mode: Some("delegate".to_string()),
                 flags: vec!["--verbose".to_string()],
+                ..Default::default()
             }),
         };
 

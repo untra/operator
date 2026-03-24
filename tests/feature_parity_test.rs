@@ -176,6 +176,101 @@ fn test_feature_parity_summary() {
     println!();
 }
 
+// =============================================================================
+// View Structure Parity
+// =============================================================================
+
+/// The four canonical views that all interfaces must implement.
+/// Each tuple: (view name, TUI panel pattern in dashboard.rs, `VSCode` view ID in package.json)
+const CANONICAL_VIEWS: &[(&str, &str, &str)] = &[
+    ("Status", "StatusPanel", "operator-status"),
+    ("Queue", "QueuePanel", "operator-queue"),
+    ("In Progress", "InProgressPanel", "operator-in-progress"),
+    ("Completed", "CompletedPanel", "operator-completed"),
+];
+
+/// Status panel sections that must exist in both TUI and `VSCode`.
+/// Each tuple: (section name, TUI `SectionId` variant, `VSCode` `sectionId` string)
+const STATUS_SECTIONS: &[(&str, &str, &str)] = &[
+    ("Configuration", "Configuration", "config"),
+    ("Connections", "Connections", "connections"),
+    ("Kanban", "Kanban", "kanban"),
+    ("LLM Tools", "LlmTools", "llm"),
+    ("Delegators", "Delegators", "delegators"),
+    ("Git", "Git", "git"),
+];
+
+/// Verify TUI has all 4 canonical view panels
+#[test]
+fn test_tui_has_all_canonical_views() {
+    let dashboard_src = include_str!("../src/ui/dashboard.rs");
+    for (name, tui_pattern, _) in CANONICAL_VIEWS {
+        assert!(
+            dashboard_src.contains(tui_pattern),
+            "TUI dashboard should contain {tui_pattern} for '{name}' view"
+        );
+    }
+}
+
+/// Verify `VSCode` extension has all 4 canonical views
+#[test]
+fn test_vscode_has_all_canonical_views() {
+    let package_json = include_str!("../vscode-extension/package.json");
+    for (name, _, vscode_id) in CANONICAL_VIEWS {
+        assert!(
+            package_json.contains(vscode_id),
+            "VSCode extension should have view '{vscode_id}' for '{name}'"
+        );
+    }
+}
+
+/// Verify TUI status panel has all canonical sections
+#[test]
+fn test_tui_has_all_status_sections() {
+    let status_panel_src = include_str!("../src/ui/status_panel.rs");
+    for (name, tui_variant, _) in STATUS_SECTIONS {
+        assert!(
+            status_panel_src.contains(tui_variant),
+            "TUI StatusPanel should have SectionId::{tui_variant} for '{name}'"
+        );
+    }
+}
+
+/// Verify `VSCode` extension has all status sections
+#[test]
+fn test_vscode_has_all_status_sections() {
+    let status_provider_src = include_str!("../vscode-extension/src/status-provider.ts");
+    for (name, _, vscode_section) in STATUS_SECTIONS {
+        assert!(
+            status_provider_src.contains(vscode_section),
+            "VSCode StatusTreeProvider should have sectionId '{vscode_section}' for '{name}'"
+        );
+    }
+}
+
+/// View structure parity summary
+#[test]
+fn test_view_structure_parity_summary() {
+    let dashboard_src = include_str!("../src/ui/dashboard.rs");
+    let package_json = include_str!("../vscode-extension/package.json");
+
+    println!("\n=== View Structure Parity ===\n");
+    println!("{:<15} | {:<5} | {:<7}", "View", "TUI", "VSCode");
+    println!("{:-<15}-+-{:-<5}-+-{:-<7}", "", "", "");
+
+    for (name, tui_pattern, vscode_id) in CANONICAL_VIEWS {
+        let has_tui = dashboard_src.contains(tui_pattern);
+        let has_vscode = package_json.contains(vscode_id);
+        println!(
+            "{:<15} | {:<5} | {:<7}",
+            name,
+            if has_tui { "✓" } else { "✗" },
+            if has_vscode { "✓" } else { "✗" },
+        );
+    }
+    println!();
+}
+
 #[cfg(test)]
 mod detailed_tests {
     use super::*;

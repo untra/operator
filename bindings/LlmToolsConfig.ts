@@ -21,6 +21,14 @@ providers: Array<LlmProvider>,
  */
 detection_complete: boolean, 
 /**
+ * User's preferred default LLM tool (e.g., "claude")
+ */
+default_tool: string | null, 
+/**
+ * User's preferred default model alias (e.g., "opus")
+ */
+default_model: string | null, 
+/**
  * Per-tool overrides for skill directories (keyed by `tool_name`)
  */
 skill_directory_overrides: { [key in string]?: SkillDirectoriesOverride }, };

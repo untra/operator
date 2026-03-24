@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection } from './types';
+import type { SectionId, SectionHealth } from '../generated';
 import { discoverApiUrl } from '../api-client';
 import type { DelegatorResponse } from '../generated/DelegatorResponse';
 import type { DelegatorsResponse } from '../generated/DelegatorsResponse';
@@ -11,9 +12,15 @@ interface DelegatorState {
 }
 
 export class DelegatorSection implements StatusSection {
-  readonly sectionId = 'delegators';
+  readonly sectionId: SectionId = 'delegators';
+  readonly prerequisites: SectionId[] = ['llm'];
 
   private state: DelegatorState = { apiAvailable: false, delegators: [] };
+
+  health(): SectionHealth {
+    if (!this.state.apiAvailable) { return 'Yellow'; }
+    return this.state.delegators.length > 0 ? 'Green' : 'Yellow';
+  }
 
   async check(ctx: SectionContext): Promise<void> {
     try {

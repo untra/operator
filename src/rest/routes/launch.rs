@@ -8,8 +8,8 @@ use axum::{
     Json,
 };
 
+use crate::agents::delegator_resolution::{self, AgentContext};
 use crate::agents::{LaunchOptions, Launcher, PreparedLaunch, RelaunchOptions};
-use crate::config::{Config, Delegator, LlmProvider};
 use crate::queue::Queue;
 use crate::rest::dto::{
     LaunchTicketRequest, LaunchTicketResponse, NextStepInfo, StepCompleteRequest,
@@ -69,6 +69,26 @@ pub async fn launch_ticket(
         .map_err(|e| ApiError::InternalError(e.to_string()))?
         .ok_or_else(|| ApiError::NotFound(format!("Ticket '{ticket_id}' not found")))?;
 
+    // Resolve issuetype agent context for delegator layering
+    let agent_context = {
+        let registry = state.registry.read().await;
+        registry
+            .get(&ticket.ticket_type.to_uppercase())
+            .map(|issue_type| {
+                let step_agent = if ticket.step.is_empty() {
+                    issue_type.first_step().and_then(|s| s.agent.clone())
+                } else {
+                    issue_type
+                        .get_step(&ticket.step)
+                        .and_then(|s| s.agent.clone())
+                };
+                AgentContext {
+                    step_agent,
+                    issuetype_agent: issue_type.agent.clone(),
+                }
+            })
+    };
+
     // Check if ticket is in-progress directory
     let in_progress_path = state
         .config
@@ -82,14 +102,14 @@ pub async fn launch_ticket(
 
     let prepared = if in_progress_path.exists() {
         // Ticket is in-progress - use relaunch flow (no claim needed)
-        let relaunch_options = build_relaunch_options(&state, &request)?;
+        let relaunch_options = build_relaunch_options(&state, &request, agent_context.as_ref())?;
         launcher
             .prepare_relaunch(&ticket, relaunch_options)
             .await
             .map_err(|e| ApiError::InternalError(e.to_string()))?
     } else {
         // New launch - claim ticket from queue
-        let launch_options = build_launch_options(&state, &request)?;
+        let launch_options = build_launch_options(&state, &request, agent_context.as_ref())?;
         launcher
             .prepare_launch(&ticket, launch_options)
             .await
@@ -99,144 +119,30 @@ pub async fn launch_ticket(
     Ok(Json(prepared_launch_to_response(prepared)))
 }
 
-/// Convert a `Delegator` into an `LlmProvider`
-fn delegator_to_provider(d: &Delegator) -> LlmProvider {
-    LlmProvider {
-        tool: d.llm_tool.clone(),
-        model: d.model.clone(),
-        ..Default::default()
-    }
-}
-
-/// Resolve a default delegator when none is explicitly specified.
-///
-/// Resolution chain:
-/// 1. Single configured delegator → use it
-/// 2. Delegator matching the user's preferred LLM tool → use it
-/// 3. None → caller falls back to first detected tool + first model alias
-fn resolve_default_delegator(config: &Config) -> Option<&Delegator> {
-    match config.delegators.len() {
-        0 => None,
-        1 => Some(&config.delegators[0]),
-        _ => {
-            // Prefer delegator matching the user's preferred LLM tool
-            let preferred_tool = config.llm_tools.detected.first().map(|t| &t.name);
-            if let Some(tool_name) = preferred_tool {
-                config.delegators.iter().find(|d| &d.llm_tool == tool_name)
-            } else {
-                Some(&config.delegators[0])
-            }
-        }
-    }
-}
-
-/// Build `LaunchOptions` from the request
-///
-/// Resolution chain: delegator name > provider/model > default delegator > detected tool defaults
+/// Build `LaunchOptions` from the request, delegating to the shared resolution module.
 fn build_launch_options(
     state: &ApiState,
     request: &LaunchTicketRequest,
+    agent_context: Option<&AgentContext>,
 ) -> Result<LaunchOptions, ApiError> {
-    let mut options = LaunchOptions {
-        yolo_mode: request.yolo_mode,
-        ..Default::default()
-    };
-
-    // 1. Explicit delegator name takes precedence
-    if let Some(ref delegator_name) = request.delegator {
-        let delegator = state
-            .config
-            .delegators
-            .iter()
-            .find(|d| d.name == *delegator_name)
-            .ok_or_else(|| ApiError::BadRequest(format!("Unknown delegator '{delegator_name}'")))?;
-
-        options.provider = Some(delegator_to_provider(delegator));
-        options.delegator_name = Some(delegator.name.clone());
-
-        // Apply delegator launch_config
-        if let Some(ref lc) = delegator.launch_config {
-            options.yolo_mode = options.yolo_mode || lc.yolo;
-            options.extra_flags.clone_from(&lc.flags);
-        }
-
-        return Ok(options);
-    }
-
-    // 2. Legacy: explicit provider/model
-    if let Some(ref provider_name) = request.provider {
-        let provider = state
-            .config
-            .llm_tools
-            .providers
-            .iter()
-            .find(|p| p.tool == *provider_name)
-            .cloned();
-
-        if let Some(p) = provider {
-            let model = request.model.clone().unwrap_or(p.model.clone());
-            options.provider = Some(LlmProvider {
-                tool: p.tool,
-                model,
-                ..Default::default()
-            });
-        } else {
-            return Err(ApiError::BadRequest(format!(
-                "Unknown provider '{provider_name}'"
-            )));
-        }
-
-        return Ok(options);
-    }
-
-    if let Some(ref model) = request.model {
-        if let Some(p) = state.config.llm_tools.providers.first().cloned() {
-            options.provider = Some(LlmProvider {
-                tool: p.tool,
-                model: model.clone(),
-                ..Default::default()
-            });
-        }
-
-        return Ok(options);
-    }
-
-    // 3. No explicit selection — resolve default delegator
-    if let Some(delegator) = resolve_default_delegator(&state.config) {
-        options.provider = Some(delegator_to_provider(delegator));
-        options.delegator_name = Some(delegator.name.clone());
-
-        if let Some(ref lc) = delegator.launch_config {
-            options.yolo_mode = options.yolo_mode || lc.yolo;
-            options.extra_flags.clone_from(&lc.flags);
-        }
-
-        return Ok(options);
-    }
-
-    // 4. No delegators at all — fall back to first detected tool + first model alias
-    if let Some(tool) = state.config.llm_tools.detected.first() {
-        let model = tool
-            .model_aliases
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "default".to_string());
-        options.provider = Some(LlmProvider {
-            tool: tool.name.clone(),
-            model,
-            ..Default::default()
-        });
-    }
-
-    Ok(options)
+    delegator_resolution::resolve_launch_options(
+        &state.config,
+        request.delegator.as_deref(),
+        request.provider.as_deref(),
+        request.model.as_deref(),
+        request.yolo_mode,
+        agent_context,
+    )
+    .map_err(|e| ApiError::BadRequest(e.to_string()))
 }
 
 /// Build `RelaunchOptions` from the request
 fn build_relaunch_options(
     state: &ApiState,
     request: &LaunchTicketRequest,
+    agent_context: Option<&AgentContext>,
 ) -> Result<RelaunchOptions, ApiError> {
-    let launch_options = build_launch_options(state, request)?;
+    let launch_options = build_launch_options(state, request, agent_context)?;
 
     Ok(RelaunchOptions {
         launch_options,
@@ -396,7 +302,7 @@ mod tests {
             resume_session_id: None,
         };
 
-        let result = build_launch_options(&state, &request);
+        let result = build_launch_options(&state, &request, None);
         assert!(result.is_ok());
 
         let options = result.unwrap();
@@ -417,7 +323,7 @@ mod tests {
             resume_session_id: None,
         };
 
-        let result = build_launch_options(&state, &request);
+        let result = build_launch_options(&state, &request, None);
         assert!(result.is_ok());
 
         let options = result.unwrap();
@@ -437,7 +343,7 @@ mod tests {
             resume_session_id: None,
         };
 
-        let result = build_launch_options(&state, &request);
+        let result = build_launch_options(&state, &request, None);
         assert!(result.is_err());
     }
 
@@ -454,7 +360,7 @@ mod tests {
             resume_session_id: Some("abc-123".to_string()),
         };
 
-        let result = build_relaunch_options(&state, &request);
+        let result = build_relaunch_options(&state, &request, None);
         assert!(result.is_ok());
 
         let options = result.unwrap();
@@ -464,5 +370,248 @@ mod tests {
             Some("Previous attempt timed out".to_string())
         );
         assert_eq!(options.resume_session_id, Some("abc-123".to_string()));
+    }
+
+    #[test]
+    fn test_build_launch_options_delegator_propagates_all_fields() {
+        let mut config = Config::default();
+        config.delegators.push(crate::config::Delegator {
+            name: "full-delegator".to_string(),
+            llm_tool: "claude".to_string(),
+            model: "opus".to_string(),
+            display_name: None,
+            model_properties: std::collections::HashMap::new(),
+            launch_config: Some(crate::config::DelegatorLaunchConfig {
+                yolo: true,
+                permission_mode: Some("accept-edits".to_string()),
+                flags: vec!["--verbose".to_string()],
+                use_worktrees: Some(true),
+                create_branch: Some(false),
+                docker: Some(true),
+                prompt_prefix: Some("PREFIX".to_string()),
+                prompt_suffix: Some("SUFFIX".to_string()),
+            }),
+        });
+        let state = ApiState::new(config, PathBuf::from("/tmp/test-launch"));
+
+        let request = LaunchTicketRequest {
+            delegator: Some("full-delegator".to_string()),
+            provider: None,
+            model: None,
+            yolo_mode: false,
+            wrapper: None,
+            retry_reason: None,
+            resume_session_id: None,
+        };
+
+        let result = build_launch_options(&state, &request, None);
+        assert!(result.is_ok());
+
+        let options = result.unwrap();
+        assert!(options.yolo_mode);
+        assert!(options.docker_mode);
+        assert_eq!(options.use_worktrees_override, Some(true));
+        assert_eq!(options.create_branch_override, Some(false));
+        assert_eq!(options.prompt_prefix.as_deref(), Some("PREFIX"));
+        assert_eq!(options.prompt_suffix.as_deref(), Some("SUFFIX"));
+        assert_eq!(options.extra_flags, vec!["--verbose".to_string()]);
+        assert_eq!(options.delegator_name.as_deref(), Some("full-delegator"));
+    }
+
+    #[test]
+    fn test_build_launch_options_delegator_none_overrides_inherit() {
+        let mut config = Config::default();
+        config.delegators.push(crate::config::Delegator {
+            name: "minimal".to_string(),
+            llm_tool: "claude".to_string(),
+            model: "sonnet".to_string(),
+            display_name: None,
+            model_properties: std::collections::HashMap::new(),
+            launch_config: Some(crate::config::DelegatorLaunchConfig::default()),
+        });
+        let state = ApiState::new(config, PathBuf::from("/tmp/test-launch"));
+
+        let request = LaunchTicketRequest {
+            delegator: Some("minimal".to_string()),
+            provider: None,
+            model: None,
+            yolo_mode: false,
+            wrapper: None,
+            retry_reason: None,
+            resume_session_id: None,
+        };
+
+        let result = build_launch_options(&state, &request, None);
+        assert!(result.is_ok());
+
+        let options = result.unwrap();
+        assert!(!options.yolo_mode);
+        assert!(!options.docker_mode);
+        assert!(options.use_worktrees_override.is_none());
+        assert!(options.create_branch_override.is_none());
+        assert!(options.prompt_prefix.is_none());
+        assert!(options.prompt_suffix.is_none());
+    }
+
+    // --- Layered delegator resolution tests ---
+
+    fn make_state_with_delegators(delegators: Vec<crate::config::Delegator>) -> ApiState {
+        let mut config = Config::default();
+        config.delegators = delegators;
+        ApiState::new(config, PathBuf::from("/tmp/test-launch"))
+    }
+
+    fn make_delegator(name: &str, tool: &str, model: &str) -> crate::config::Delegator {
+        crate::config::Delegator {
+            name: name.to_string(),
+            llm_tool: tool.to_string(),
+            model: model.to_string(),
+            display_name: None,
+            model_properties: std::collections::HashMap::new(),
+            launch_config: None,
+        }
+    }
+
+    fn empty_request() -> LaunchTicketRequest {
+        LaunchTicketRequest {
+            delegator: None,
+            provider: None,
+            model: None,
+            yolo_mode: false,
+            wrapper: None,
+            retry_reason: None,
+            resume_session_id: None,
+        }
+    }
+
+    #[test]
+    fn test_build_launch_options_step_agent_resolves() {
+        let state =
+            make_state_with_delegators(vec![make_delegator("claude-opus", "claude", "opus")]);
+        let ctx = AgentContext {
+            step_agent: Some("claude-opus".to_string()),
+            issuetype_agent: None,
+        };
+
+        let options = build_launch_options(&state, &empty_request(), Some(&ctx)).unwrap();
+        let provider = options.provider.unwrap();
+        assert_eq!(provider.tool, "claude");
+        assert_eq!(provider.model, "opus");
+        assert_eq!(options.delegator_name.as_deref(), Some("claude-opus"));
+    }
+
+    #[test]
+    fn test_build_launch_options_issuetype_agent_fallback() {
+        let state =
+            make_state_with_delegators(vec![make_delegator("claude-opus", "claude", "opus")]);
+        let ctx = AgentContext {
+            step_agent: None,
+            issuetype_agent: Some("claude-opus".to_string()),
+        };
+
+        let options = build_launch_options(&state, &empty_request(), Some(&ctx)).unwrap();
+        let provider = options.provider.unwrap();
+        assert_eq!(provider.tool, "claude");
+        assert_eq!(provider.model, "opus");
+    }
+
+    #[test]
+    fn test_build_launch_options_step_agent_overrides_issuetype() {
+        let state = make_state_with_delegators(vec![
+            make_delegator("claude-opus", "claude", "opus"),
+            make_delegator("claude-sonnet", "claude", "sonnet"),
+        ]);
+        let ctx = AgentContext {
+            step_agent: Some("claude-opus".to_string()),
+            issuetype_agent: Some("claude-sonnet".to_string()),
+        };
+
+        let options = build_launch_options(&state, &empty_request(), Some(&ctx)).unwrap();
+        let provider = options.provider.unwrap();
+        assert_eq!(provider.model, "opus");
+        assert_eq!(options.delegator_name.as_deref(), Some("claude-opus"));
+    }
+
+    #[test]
+    fn test_build_launch_options_request_delegator_overrides_context() {
+        let state = make_state_with_delegators(vec![
+            make_delegator("claude-opus", "claude", "opus"),
+            make_delegator("gemini-pro", "gemini", "pro"),
+        ]);
+        let ctx = AgentContext {
+            step_agent: Some("claude-opus".to_string()),
+            issuetype_agent: Some("claude-opus".to_string()),
+        };
+        let request = LaunchTicketRequest {
+            delegator: Some("gemini-pro".to_string()),
+            ..empty_request()
+        };
+
+        let options = build_launch_options(&state, &request, Some(&ctx)).unwrap();
+        let provider = options.provider.unwrap();
+        assert_eq!(provider.tool, "gemini");
+        assert_eq!(provider.model, "pro");
+        assert_eq!(options.delegator_name.as_deref(), Some("gemini-pro"));
+    }
+
+    #[test]
+    fn test_build_launch_options_unknown_step_agent_falls_through() {
+        let state =
+            make_state_with_delegators(vec![make_delegator("claude-opus", "claude", "opus")]);
+        let ctx = AgentContext {
+            step_agent: Some("nonexistent-delegator".to_string()),
+            issuetype_agent: Some("claude-opus".to_string()),
+        };
+
+        let options = build_launch_options(&state, &empty_request(), Some(&ctx)).unwrap();
+        let provider = options.provider.unwrap();
+        assert_eq!(provider.model, "opus");
+        assert_eq!(options.delegator_name.as_deref(), Some("claude-opus"));
+    }
+
+    #[test]
+    fn test_build_launch_options_no_context_preserves_existing() {
+        let state =
+            make_state_with_delegators(vec![make_delegator("claude-opus", "claude", "opus")]);
+
+        // With a single delegator and no context, should resolve to default delegator
+        let options = build_launch_options(&state, &empty_request(), None).unwrap();
+        let provider = options.provider.unwrap();
+        assert_eq!(provider.tool, "claude");
+        assert_eq!(provider.model, "opus");
+    }
+
+    #[test]
+    fn test_build_launch_options_step_agent_applies_launch_config() {
+        let state = make_state_with_delegators(vec![crate::config::Delegator {
+            name: "codex-auto".to_string(),
+            llm_tool: "codex".to_string(),
+            model: "o3".to_string(),
+            display_name: None,
+            model_properties: std::collections::HashMap::new(),
+            launch_config: Some(crate::config::DelegatorLaunchConfig {
+                yolo: true,
+                permission_mode: None,
+                flags: vec!["--full-auto".to_string()],
+                use_worktrees: Some(true),
+                create_branch: Some(true),
+                docker: Some(false),
+                prompt_prefix: Some("BEGIN".to_string()),
+                prompt_suffix: Some("END".to_string()),
+            }),
+        }]);
+        let ctx = AgentContext {
+            step_agent: Some("codex-auto".to_string()),
+            issuetype_agent: None,
+        };
+
+        let options = build_launch_options(&state, &empty_request(), Some(&ctx)).unwrap();
+        assert!(options.yolo_mode);
+        assert!(!options.docker_mode);
+        assert_eq!(options.use_worktrees_override, Some(true));
+        assert_eq!(options.create_branch_override, Some(true));
+        assert_eq!(options.extra_flags, vec!["--full-auto".to_string()]);
+        assert_eq!(options.prompt_prefix.as_deref(), Some("BEGIN"));
+        assert_eq!(options.prompt_suffix.as_deref(), Some("END"));
     }
 }

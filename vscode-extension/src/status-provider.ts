@@ -8,7 +8,7 @@
  *   Tier 0: Configuration (always visible)
  *   Tier 1: Connections (requires configReady)
  *   Tier 2: Kanban, LLM Tools, Git (requires connectionsReady)
- *   Tier 3: Issue Types (kanbanConfigured), Delegators (llmConfigured), Managed Projects (gitConfigured)
+ *   Tier 3: Issue Types/issuetypes (kanbanConfigured), Delegators/delegators (llmConfigured), Managed Projects/projects (gitConfigured)
  */
 
 import * as vscode from 'vscode';
@@ -160,25 +160,34 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   }
 
   /**
-   * Build the list of sections visible based on current readiness flags.
+   * Build the list of sections visible based on prerequisite health.
+   *
+   * A section is visible when all its prerequisite sections report Green health.
+   * This replaces the hardcoded tier system with a declarative, data-driven approach
+   * that matches the Rust TUI's `StatusSection` trait prerequisites.
    */
   private getVisibleSections(): StatusSection[] {
-    const visible: StatusSection[] = [this.configSection];
+    const healthCache = new Map<string, string>();
 
-    // Tier 1: requires config ready
-    if (!this.ctx.configReady) { return visible; }
-    visible.push(this.connectionsSection);
+    const getSectionHealth = (sectionId: string): string => {
+      if (healthCache.has(sectionId)) { return healthCache.get(sectionId)!; }
+      const section = this.sectionMap.get(sectionId);
+      if (!section) { return 'Red'; }
+      const h = section.health();
+      healthCache.set(sectionId, h);
+      return h;
+    };
 
-    // Tier 2: requires connections ready (API or webhook)
-    if (!this.ctx.connectionsReady) { return visible; }
-    visible.push(this.kanbanSection, this.llmSection, this.gitSection);
+    const prerequisitesMet = (section: StatusSection): boolean => {
+      return section.prerequisites.every(prereqId => {
+        // Prerequisite must itself be visible (transitive) and Green
+        const prereqSection = this.sectionMap.get(prereqId);
+        if (!prereqSection) { return false; }
+        return prerequisitesMet(prereqSection) && getSectionHealth(prereqId) === 'Green';
+      });
+    };
 
-    // Tier 3: each requires its parent tier-2 section configured
-    if (this.ctx.kanbanConfigured) { visible.push(this.issueTypeSection); }
-    if (this.ctx.llmConfigured) { visible.push(this.delegatorSection); }
-    if (this.ctx.gitConfigured) { visible.push(this.managedProjectsSection); }
-
-    return visible;
+    return this.allSections.filter(s => prerequisitesMet(s));
   }
 
   getTreeItem(element: StatusItem): vscode.TreeItem {

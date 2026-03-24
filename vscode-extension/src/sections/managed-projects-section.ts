@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection } from './types';
+import type { SectionId, SectionHealth } from '../generated';
 import { discoverApiUrl } from '../api-client';
 import type { ProjectSummary } from '../generated/ProjectSummary';
 
@@ -10,9 +11,15 @@ interface ManagedProjectsState {
 }
 
 export class ManagedProjectsSection implements StatusSection {
-  readonly sectionId = 'projects';
+  readonly sectionId: SectionId = 'projects';
+  readonly prerequisites: SectionId[] = ['git'];
 
   private state: ManagedProjectsState = { configured: false, projects: [] };
+
+  health(): SectionHealth {
+    if (!this.state.configured) { return 'Yellow'; }
+    return this.state.projects.length > 0 ? 'Green' : 'Yellow';
+  }
 
   async check(ctx: SectionContext): Promise<void> {
     try {

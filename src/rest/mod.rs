@@ -118,12 +118,22 @@ pub fn build_router(state: ApiState) -> Router {
         )
         // Skills endpoint
         .route("/api/v1/skills", get(routes::skills::list))
-        // LLM tools endpoint
+        // LLM tools endpoints
         .route("/api/v1/llm-tools", get(routes::llm_tools::list))
+        .route(
+            "/api/v1/llm-tools/default",
+            get(routes::llm_tools::get_default).put(routes::llm_tools::set_default),
+        )
         // Delegator endpoints
         .route("/api/v1/delegators", get(routes::delegators::list))
         .route("/api/v1/delegators", post(routes::delegators::create))
+        // from-tool must be registered before :name to avoid path capture
+        .route(
+            "/api/v1/delegators/from-tool",
+            post(routes::delegators::create_from_tool),
+        )
         .route("/api/v1/delegators/:name", get(routes::delegators::get_one))
+        .route("/api/v1/delegators/:name", put(routes::delegators::update))
         .route(
             "/api/v1/delegators/:name",
             delete(routes::delegators::delete),

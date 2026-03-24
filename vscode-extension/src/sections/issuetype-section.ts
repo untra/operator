@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection } from './types';
+import type { SectionId, SectionHealth } from '../generated';
 import type { IssueTypeSummary } from '../generated/IssueTypeSummary';
 import { DEFAULT_ISSUE_TYPES, GLYPH_TO_ICON, COLOR_TO_THEME } from '../issuetype-service';
 import { discoverApiUrl } from '../api-client';
@@ -11,9 +12,15 @@ interface IssueTypeState {
 }
 
 export class IssueTypeSection implements StatusSection {
-  readonly sectionId = 'issuetypes';
+  readonly sectionId: SectionId = 'issuetypes';
+  readonly prerequisites: SectionId[] = ['kanban'];
 
   private state: IssueTypeState = { apiAvailable: false, types: [] };
+
+  health(): SectionHealth {
+    if (!this.state.apiAvailable) { return 'Yellow'; }
+    return this.state.types.length > 0 ? 'Green' : 'Yellow';
+  }
 
   async check(ctx: SectionContext): Promise<void> {
     // Try fetching from API

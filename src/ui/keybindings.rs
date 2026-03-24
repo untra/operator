@@ -5,13 +5,15 @@
 //! - `HelpDialog` for displaying help text
 //! - `ShortcutsDocGenerator` for generating documentation
 
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 
 /// A keyboard shortcut definition
 #[derive(Debug, Clone)]
 pub struct Shortcut {
     /// Primary key for this shortcut
     pub key: KeyCode,
+    /// Modifier keys required (e.g., Shift, Ctrl)
+    pub modifiers: KeyModifiers,
     /// Alternative key (e.g., lowercase variant or arrow key)
     pub alt_key: Option<KeyCode>,
     /// Human-readable description of what this shortcut does
@@ -36,6 +38,8 @@ pub enum ShortcutCategory {
 pub enum ShortcutContext {
     /// Active in the main dashboard
     Global,
+    /// Active when the status panel is focused
+    StatusPanel,
     /// Active in session preview mode
     Preview,
     /// Active in the launch confirmation dialog
@@ -69,6 +73,7 @@ impl ShortcutContext {
     pub fn display_name(&self) -> &'static str {
         match self {
             ShortcutContext::Global => "Dashboard",
+            ShortcutContext::StatusPanel => "Status Panel",
             ShortcutContext::Preview => "Session Preview",
             ShortcutContext::LaunchDialog => "Launch Dialog",
         }
@@ -78,6 +83,7 @@ impl ShortcutContext {
     pub fn all() -> &'static [ShortcutContext] {
         &[
             ShortcutContext::Global,
+            ShortcutContext::StatusPanel,
             ShortcutContext::Preview,
             ShortcutContext::LaunchDialog,
         ]
@@ -85,9 +91,19 @@ impl ShortcutContext {
 }
 
 impl Shortcut {
-    /// Format key for display (e.g., "q", "Tab", "j/↓")
+    /// Format key for display (e.g., "q", "Tab", "Shift+Enter", "j/↓")
     pub fn key_display(&self) -> String {
-        let primary = format_keycode(&self.key);
+        let mut prefix = String::new();
+        if self.modifiers.contains(KeyModifiers::CONTROL) {
+            prefix.push_str("Ctrl+");
+        }
+        if self.modifiers.contains(KeyModifiers::SHIFT) {
+            prefix.push_str("Shift+");
+        }
+        if self.modifiers.contains(KeyModifiers::ALT) {
+            prefix.push_str("Alt+");
+        }
+        let primary = format!("{}{}", prefix, format_keycode(&self.key));
         match &self.alt_key {
             Some(alt) => format!("{}/{}", primary, format_keycode(alt)),
             None => primary,
@@ -129,6 +145,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     // General
     Shortcut {
         key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Quit Operator",
         category: ShortcutCategory::General,
@@ -136,6 +153,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('?'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Toggle help",
         category: ShortcutCategory::General,
@@ -144,6 +162,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     // Navigation
     Shortcut {
         key: KeyCode::Tab,
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Switch between panels",
         category: ShortcutCategory::Navigation,
@@ -151,6 +170,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('j'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Down),
         description: "Move down",
         category: ShortcutCategory::Navigation,
@@ -158,6 +178,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('k'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Up),
         description: "Move up",
         category: ShortcutCategory::Navigation,
@@ -165,6 +186,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('Q'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Focus Queue panel",
         category: ShortcutCategory::Navigation,
@@ -172,6 +194,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('A'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('a')),
         description: "Focus Agents panel",
         category: ShortcutCategory::Navigation,
@@ -179,6 +202,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('h'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Left),
         description: "Previous panel",
         category: ShortcutCategory::Navigation,
@@ -186,6 +210,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('l'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Right),
         description: "Next panel",
         category: ShortcutCategory::Navigation,
@@ -194,13 +219,23 @@ pub static SHORTCUTS: &[Shortcut] = &[
     // Actions
     Shortcut {
         key: KeyCode::Enter,
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Select / Confirm",
         category: ShortcutCategory::Actions,
         context: ShortcutContext::Global,
     },
     Shortcut {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::SHIFT,
+        alt_key: None,
+        description: "Auto-launch (delegator chain)",
+        category: ShortcutCategory::Actions,
+        context: ShortcutContext::Global,
+    },
+    Shortcut {
         key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Cancel / Close",
         category: ShortcutCategory::Actions,
@@ -208,6 +243,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('L'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Launch selected ticket",
         category: ShortcutCategory::Actions,
@@ -215,6 +251,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('P'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('p')),
         description: "Pause queue processing",
         category: ShortcutCategory::Actions,
@@ -222,6 +259,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('R'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('r')),
         description: "Resume queue processing",
         category: ShortcutCategory::Actions,
@@ -229,6 +267,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('S'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Sync kanban collections",
         category: ShortcutCategory::Actions,
@@ -236,6 +275,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('Y'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('y')),
         description: "Approve review (agents panel)",
         category: ShortcutCategory::Actions,
@@ -243,6 +283,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('X'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('x')),
         description: "Reject review (agents panel)",
         category: ShortcutCategory::Actions,
@@ -250,6 +291,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('W'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('w')),
         description: "Toggle Backstage server",
         category: ShortcutCategory::Actions,
@@ -257,6 +299,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('V'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('v')),
         description: "Show session preview",
         category: ShortcutCategory::Actions,
@@ -264,6 +307,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('F'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Focus cmux window",
         category: ShortcutCategory::Actions,
@@ -272,6 +316,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     // Dialogs
     Shortcut {
         key: KeyCode::Char('C'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Create new ticket",
         category: ShortcutCategory::Dialogs,
@@ -279,6 +324,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('J'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Open Projects menu",
         category: ShortcutCategory::Dialogs,
@@ -286,6 +332,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('T'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('t')),
         description: "Switch issue type collection",
         category: ShortcutCategory::Dialogs,
@@ -293,14 +340,49 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('K'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Open Kanban providers view",
         category: ShortcutCategory::Dialogs,
         context: ShortcutContext::Global,
     },
+    // === Status Panel Context ===
+    Shortcut {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::NONE,
+        alt_key: None,
+        description: "Activate (A)",
+        category: ShortcutCategory::Actions,
+        context: ShortcutContext::StatusPanel,
+    },
+    Shortcut {
+        key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
+        alt_key: Some(KeyCode::Backspace),
+        description: "Go back (B)",
+        category: ShortcutCategory::Navigation,
+        context: ShortcutContext::StatusPanel,
+    },
+    Shortcut {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::SHIFT,
+        alt_key: None,
+        description: "Special action (X) *",
+        category: ShortcutCategory::Actions,
+        context: ShortcutContext::StatusPanel,
+    },
+    Shortcut {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::CONTROL,
+        alt_key: None,
+        description: "Refresh (Y) \u{27F3}",
+        category: ShortcutCategory::Actions,
+        context: ShortcutContext::StatusPanel,
+    },
     // === Preview Context ===
     Shortcut {
         key: KeyCode::Char('g'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Scroll to top",
         category: ShortcutCategory::Navigation,
@@ -308,6 +390,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('G'),
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Scroll to bottom",
         category: ShortcutCategory::Navigation,
@@ -315,6 +398,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::PageUp,
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Page up",
         category: ShortcutCategory::Navigation,
@@ -322,6 +406,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::PageDown,
+        modifiers: KeyModifiers::NONE,
         alt_key: None,
         description: "Page down",
         category: ShortcutCategory::Navigation,
@@ -329,6 +414,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('q')),
         description: "Close preview",
         category: ShortcutCategory::Actions,
@@ -337,6 +423,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     // === Launch Dialog Context ===
     Shortcut {
         key: KeyCode::Char('L'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('l')),
         description: "Launch agent",
         category: ShortcutCategory::Actions,
@@ -344,6 +431,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('V'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('v')),
         description: "View ticket ($VISUAL or open)",
         category: ShortcutCategory::Actions,
@@ -351,6 +439,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('E'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('e')),
         description: "Edit ticket ($EDITOR)",
         category: ShortcutCategory::Actions,
@@ -358,6 +447,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('N'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('n')),
         description: "Cancel",
         category: ShortcutCategory::Actions,
@@ -365,6 +455,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('M'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('m')),
         description: "Cycle provider/model",
         category: ShortcutCategory::Actions,
@@ -372,6 +463,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('D'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('d')),
         description: "Toggle Docker mode",
         category: ShortcutCategory::Actions,
@@ -379,6 +471,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
     },
     Shortcut {
         key: KeyCode::Char('Y'),
+        modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('y')),
         description: "Toggle Auto-accept (YOLO)",
         category: ShortcutCategory::Actions,
@@ -439,6 +532,7 @@ mod tests {
     fn test_key_display_single_key() {
         let shortcut = Shortcut {
             key: KeyCode::Char('q'),
+            modifiers: KeyModifiers::NONE,
             alt_key: None,
             description: "Test",
             category: ShortcutCategory::General,
@@ -451,12 +545,36 @@ mod tests {
     fn test_key_display_with_alt() {
         let shortcut = Shortcut {
             key: KeyCode::Char('j'),
+            modifiers: KeyModifiers::NONE,
             alt_key: Some(KeyCode::Down),
             description: "Test",
             category: ShortcutCategory::Navigation,
             context: ShortcutContext::Global,
         };
         assert_eq!(shortcut.key_display(), "j/↓");
+    }
+
+    #[test]
+    fn test_key_display_with_modifiers() {
+        let shortcut = Shortcut {
+            key: KeyCode::Enter,
+            modifiers: KeyModifiers::SHIFT,
+            alt_key: None,
+            description: "Test",
+            category: ShortcutCategory::Actions,
+            context: ShortcutContext::StatusPanel,
+        };
+        assert_eq!(shortcut.key_display(), "Shift+Enter");
+
+        let shortcut = Shortcut {
+            key: KeyCode::Enter,
+            modifiers: KeyModifiers::CONTROL,
+            alt_key: None,
+            description: "Test",
+            category: ShortcutCategory::Actions,
+            context: ShortcutContext::StatusPanel,
+        };
+        assert_eq!(shortcut.key_display(), "Ctrl+Enter");
     }
 
     #[test]
@@ -509,6 +627,6 @@ mod tests {
     #[test]
     fn test_all_shortcuts_grouped() {
         let grouped = all_shortcuts_grouped();
-        assert_eq!(grouped.len(), 3); // Global, Preview, LaunchDialog
+        assert_eq!(grouped.len(), 4); // Global, StatusPanel, Preview, LaunchDialog
     }
 }

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { DetectedToolResult } from '../walkthrough';
+import type { SectionId, SectionHealth } from '../generated';
 
 /** Shared context provided by the orchestrator to all sections */
 export interface SectionContext {
@@ -26,8 +27,14 @@ export interface SectionContext {
 
 /** Every status tree section implements this interface */
 export interface StatusSection {
-  readonly sectionId: string;
+  /** Canonical section identifier (matches Rust SectionId enum) */
+  readonly sectionId: SectionId;
+  /** Which sections must be healthy before this section is visible */
+  readonly prerequisites: SectionId[];
+  /** Run health/state checks */
   check(ctx: SectionContext): Promise<void>;
+  /** Current health state — controls header icon/color */
+  health(): SectionHealth;
   getTopLevelItem(ctx: SectionContext): StatusItem;
   getChildren(ctx: SectionContext, element?: StatusItem): StatusItem[];
 }
@@ -59,6 +66,11 @@ export interface ConfigState {
   workingDir: string;
   configExists: boolean;
   configPath: string;
+  wrapperType: string;
+  operatorVersion?: string;
+  updateAvailable?: string;
+  editorVar: string;
+  visualVar: string;
 }
 
 /** Config-driven state for a single kanban provider */
@@ -94,6 +106,8 @@ export interface LlmState {
   tools: DetectedToolResult[];
   configDetected: Array<{ name: string; version?: string }>;
   toolDetails: LlmToolInfo[];
+  defaultTool?: string;
+  defaultModel?: string;
 }
 
 /** Internal state for the Git section */

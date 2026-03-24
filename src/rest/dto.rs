@@ -143,6 +143,7 @@ impl CreateIssueTypeRequest {
                 .map(std::convert::Into::into)
                 .collect(),
             agent_prompt: None,
+            agent: None,
             source: IssueTypeSource::User,
             external_id: None,
         }
@@ -1009,6 +1010,9 @@ pub struct CreateDelegatorRequest {
 }
 
 /// Launch configuration DTO for delegators
+///
+/// Optional fields use tri-state semantics: `None` = inherit global config,
+/// `Some(true/false)` = explicit override per-delegator.
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct DelegatorLaunchConfigDto {
@@ -1016,11 +1020,26 @@ pub struct DelegatorLaunchConfigDto {
     #[serde(default)]
     pub yolo: bool,
     /// Permission mode override
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission_mode: Option<String>,
     /// Additional CLI flags
     #[serde(default)]
     pub flags: Vec<String>,
+    /// Override global `git.use_worktrees` (None = use global setting)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub use_worktrees: Option<bool>,
+    /// Whether to create a git branch for the ticket (None = default behavior)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub create_branch: Option<bool>,
+    /// Run in docker container (None = use global `launch.docker.enabled`)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docker: Option<bool>,
+    /// Prompt text to prepend before the generated step prompt
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt_prefix: Option<String>,
+    /// Prompt text to append after the generated step prompt
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt_suffix: Option<String>,
 }
 
 /// Response listing all delegators
@@ -1031,6 +1050,30 @@ pub struct DelegatorsResponse {
     pub delegators: Vec<DelegatorResponse>,
     /// Total count
     pub total: usize,
+}
+
+/// Request to create a delegator from a detected LLM tool
+///
+/// Pre-populates delegator fields from the detected tool, requiring minimal input.
+/// If `name` is omitted, auto-generates as `"{tool_name}-{model}"`.
+/// If `model` is omitted, uses the tool's first model alias.
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct CreateDelegatorFromToolRequest {
+    /// Name of the detected tool (e.g., "claude", "codex", "gemini")
+    pub tool_name: String,
+    /// Model alias to use (e.g., "opus"). If omitted, uses the tool's first model alias.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Custom delegator name. If omitted, auto-generates as `"{tool_name}-{model}"`.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Optional display name for UI
+    #[serde(default)]
+    pub display_name: Option<String>,
+    /// Optional launch configuration
+    #[serde(default)]
+    pub launch_config: Option<DelegatorLaunchConfigDto>,
 }
 
 // =============================================================================
@@ -1045,6 +1088,26 @@ pub struct LlmToolsResponse {
     pub tools: Vec<crate::config::DetectedTool>,
     /// Total count
     pub total: usize,
+}
+
+/// Request to set the global default LLM tool and model
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct SetDefaultLlmRequest {
+    /// Tool name (must match a detected tool, e.g., "claude")
+    pub tool: String,
+    /// Model alias (e.g., "opus", "sonnet")
+    pub model: String,
+}
+
+/// Response with the current default LLM tool and model
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct DefaultLlmResponse {
+    /// Default tool name (empty string if not set)
+    pub tool: String,
+    /// Default model alias (empty string if not set)
+    pub model: String,
 }
 
 #[cfg(test)]

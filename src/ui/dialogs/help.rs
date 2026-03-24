@@ -63,6 +63,27 @@ impl HelpDialog {
             }
         }
 
+        // Add Status Panel section
+        help_text.push(Line::from(""));
+        help_text.push(Line::from(Span::styled(
+            "In Status Panel:",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Cyan),
+        )));
+
+        for (_, shortcuts) in shortcuts_by_category_for_context(ShortcutContext::StatusPanel) {
+            for shortcut in shortcuts {
+                help_text.push(Line::from(vec![
+                    Span::styled(
+                        shortcut.key_display_padded(),
+                        Style::default().fg(Color::Yellow),
+                    ),
+                    Span::raw(shortcut.description),
+                ]));
+            }
+        }
+
         // Add Launch Dialog section
         help_text.push(Line::from(""));
         help_text.push(Line::from(Span::styled(

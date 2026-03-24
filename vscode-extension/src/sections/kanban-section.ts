@@ -1,15 +1,21 @@
 import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection, KanbanState, KanbanProviderState } from './types';
+import type { SectionId, SectionHealth } from '../generated';
 import { getKanbanWorkspaces } from '../walkthrough';
 
 export class KanbanSection implements StatusSection {
-  readonly sectionId = 'kanban';
+  readonly sectionId: SectionId = 'kanban';
+  readonly prerequisites: SectionId[] = ['connections'];
 
   private state: KanbanState = { configured: false, providers: [] };
 
   isConfigured(): boolean {
     return this.state.configured;
+  }
+
+  health(): SectionHealth {
+    return this.state.configured ? 'Green' : 'Red';
   }
 
   async check(ctx: SectionContext): Promise<void> {

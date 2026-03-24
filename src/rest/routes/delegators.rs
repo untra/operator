@@ -10,7 +10,8 @@ use axum::{
 
 use crate::config::{Config, Delegator, DelegatorLaunchConfig};
 use crate::rest::dto::{
-    CreateDelegatorRequest, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
+    CreateDelegatorFromToolRequest, CreateDelegatorRequest, DelegatorLaunchConfigDto,
+    DelegatorResponse, DelegatorsResponse,
 };
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
@@ -91,11 +92,7 @@ pub async fn create(
         model: req.model,
         display_name: req.display_name,
         model_properties: req.model_properties,
-        launch_config: req.launch_config.map(|lc| DelegatorLaunchConfig {
-            yolo: lc.yolo,
-            permission_mode: lc.permission_mode,
-            flags: lc.flags,
-        }),
+        launch_config: req.launch_config.map(dto_to_launch_config),
     };
 
     // Read current config, add delegator, save
@@ -144,6 +141,34 @@ pub async fn delete(
     Ok(Json(response))
 }
 
+/// Convert a `DelegatorLaunchConfigDto` to a `DelegatorLaunchConfig`
+fn dto_to_launch_config(lc: DelegatorLaunchConfigDto) -> DelegatorLaunchConfig {
+    DelegatorLaunchConfig {
+        yolo: lc.yolo,
+        permission_mode: lc.permission_mode,
+        flags: lc.flags,
+        use_worktrees: lc.use_worktrees,
+        create_branch: lc.create_branch,
+        docker: lc.docker,
+        prompt_prefix: lc.prompt_prefix,
+        prompt_suffix: lc.prompt_suffix,
+    }
+}
+
+/// Convert a `DelegatorLaunchConfig` to a `DelegatorLaunchConfigDto`
+fn launch_config_to_dto(lc: &DelegatorLaunchConfig) -> DelegatorLaunchConfigDto {
+    DelegatorLaunchConfigDto {
+        yolo: lc.yolo,
+        permission_mode: lc.permission_mode.clone(),
+        flags: lc.flags.clone(),
+        use_worktrees: lc.use_worktrees,
+        create_branch: lc.create_branch,
+        docker: lc.docker,
+        prompt_prefix: lc.prompt_prefix.clone(),
+        prompt_suffix: lc.prompt_suffix.clone(),
+    }
+}
+
 /// Convert a Delegator config to a `DelegatorResponse` DTO
 fn delegator_to_response(d: &Delegator) -> DelegatorResponse {
     DelegatorResponse {
@@ -152,12 +177,119 @@ fn delegator_to_response(d: &Delegator) -> DelegatorResponse {
         model: d.model.clone(),
         display_name: d.display_name.clone(),
         model_properties: d.model_properties.clone(),
-        launch_config: d.launch_config.as_ref().map(|lc| DelegatorLaunchConfigDto {
-            yolo: lc.yolo,
-            permission_mode: lc.permission_mode.clone(),
-            flags: lc.flags.clone(),
-        }),
+        launch_config: d.launch_config.as_ref().map(launch_config_to_dto),
     }
+}
+
+/// Create a delegator from a detected LLM tool
+///
+/// Pre-populates delegator fields from the detected tool, requiring minimal input.
+#[utoipa::path(
+    post,
+    path = "/api/v1/delegators/from-tool",
+    tag = "Delegators",
+    request_body = CreateDelegatorFromToolRequest,
+    responses(
+        (status = 200, description = "Delegator created from tool", body = DelegatorResponse),
+        (status = 404, description = "Tool not detected"),
+        (status = 409, description = "Delegator already exists")
+    )
+)]
+pub async fn create_from_tool(
+    State(state): State<ApiState>,
+    Json(req): Json<CreateDelegatorFromToolRequest>,
+) -> Result<Json<DelegatorResponse>, ApiError> {
+    // Find the detected tool
+    let tool = state
+        .config
+        .llm_tools
+        .detected
+        .iter()
+        .find(|t| t.name == req.tool_name)
+        .ok_or_else(|| ApiError::NotFound(format!("Tool '{}' not detected", req.tool_name)))?;
+
+    // Resolve model (explicit or first alias or "default")
+    let model = req.model.unwrap_or_else(|| {
+        tool.model_aliases
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "default".to_string())
+    });
+
+    // Auto-generate name if not provided
+    let name = req
+        .name
+        .unwrap_or_else(|| format!("{}-{}", tool.name, model));
+
+    // Check for duplicate
+    if state.config.delegators.iter().any(|d| d.name == name) {
+        return Err(ApiError::Conflict(format!(
+            "Delegator '{name}' already exists"
+        )));
+    }
+
+    let delegator = Delegator {
+        name,
+        llm_tool: tool.name.clone(),
+        model,
+        display_name: req.display_name,
+        model_properties: std::collections::HashMap::new(),
+        launch_config: req.launch_config.map(dto_to_launch_config),
+    };
+
+    // Save to config
+    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    config.delegators.push(delegator.clone());
+    config
+        .save()
+        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+
+    Ok(Json(delegator_to_response(&delegator)))
+}
+
+/// Update an existing delegator
+#[utoipa::path(
+    put,
+    path = "/api/v1/delegators/{name}",
+    tag = "Delegators",
+    params(
+        ("name" = String, Path, description = "Delegator name")
+    ),
+    request_body = CreateDelegatorRequest,
+    responses(
+        (status = 200, description = "Delegator updated", body = DelegatorResponse),
+        (status = 404, description = "Delegator not found")
+    )
+)]
+pub async fn update(
+    State(state): State<ApiState>,
+    Path(name): Path<String>,
+    Json(req): Json<CreateDelegatorRequest>,
+) -> Result<Json<DelegatorResponse>, ApiError> {
+    // Verify the delegator exists
+    if !state.config.delegators.iter().any(|d| d.name == name) {
+        return Err(ApiError::NotFound(format!("Delegator '{name}' not found")));
+    }
+
+    let updated = Delegator {
+        name: name.clone(),
+        llm_tool: req.llm_tool,
+        model: req.model,
+        display_name: req.display_name,
+        model_properties: req.model_properties,
+        launch_config: req.launch_config.map(dto_to_launch_config),
+    };
+
+    // Replace in config and save
+    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    if let Some(existing) = config.delegators.iter_mut().find(|d| d.name == name) {
+        *existing = updated.clone();
+    }
+    config
+        .save()
+        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+
+    Ok(Json(delegator_to_response(&updated)))
 }
 
 #[cfg(test)]
@@ -216,6 +348,7 @@ mod tests {
                 yolo: true,
                 permission_mode: None,
                 flags: vec![],
+                ..Default::default()
             }),
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
@@ -226,5 +359,59 @@ mod tests {
         assert_eq!(resp.name, "my-delegator");
         assert_eq!(resp.llm_tool, "codex");
         assert!(resp.launch_config.as_ref().unwrap().yolo);
+    }
+
+    #[tokio::test]
+    async fn test_get_one_with_extended_launch_config() {
+        let mut config = Config::default();
+        config.delegators.push(Delegator {
+            name: "full-config".to_string(),
+            llm_tool: "claude".to_string(),
+            model: "opus".to_string(),
+            display_name: Some("Full Config".to_string()),
+            model_properties: std::collections::HashMap::new(),
+            launch_config: Some(DelegatorLaunchConfig {
+                yolo: true,
+                permission_mode: Some("accept-edits".to_string()),
+                flags: vec!["--verbose".to_string()],
+                use_worktrees: Some(true),
+                create_branch: Some(true),
+                docker: Some(false),
+                prompt_prefix: Some("Always follow TDD.".to_string()),
+                prompt_suffix: Some("Run tests before finishing.".to_string()),
+            }),
+        });
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let result = get_one(State(state), Path("full-config".to_string())).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        let lc = resp.launch_config.as_ref().unwrap();
+        assert!(lc.yolo);
+        assert_eq!(lc.use_worktrees, Some(true));
+        assert_eq!(lc.create_branch, Some(true));
+        assert_eq!(lc.docker, Some(false));
+        assert_eq!(lc.prompt_prefix.as_deref(), Some("Always follow TDD."));
+        assert_eq!(
+            lc.prompt_suffix.as_deref(),
+            Some("Run tests before finishing.")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_create_from_tool_unknown() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let req = crate::rest::dto::CreateDelegatorFromToolRequest {
+            tool_name: "nonexistent".to_string(),
+            model: None,
+            name: None,
+            display_name: None,
+            launch_config: None,
+        };
+
+        let result = create_from_tool(State(state), Json(req)).await;
+        assert!(result.is_err());
     }
 }

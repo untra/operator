@@ -10,6 +10,10 @@ export type BackstageConfig = {
  */
 enabled: boolean, 
 /**
+ * Whether to show Backstage in the Connections status section
+ */
+display: boolean, 
+/**
  * Port for the Backstage server
  */
 port: number, 

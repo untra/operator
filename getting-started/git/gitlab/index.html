@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitLab | Operator! Documentation</title>
+  <meta name="description" content="Configure GitLab integration with Operator.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>GitLab | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="GitLab" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Configure GitLab integration with Operator." />
+<meta property="og:description" content="Configure GitLab integration with Operator." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/git/gitlab/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/git/gitlab/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="GitLab" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Configure GitLab integration with Operator.","headline":"GitLab","url":"https://operator.untra.io/getting-started/git/gitlab/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link ">Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Backstage</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/git/gitlab.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.27</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-03-24</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">GitLab</h1>
+  
+
+  <h1 id="gitlab">GitLab</h1>
+
+<p>Connect Operator to GitLab for repository management and merge requests.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Requirement</th>
+      <th>Purpose</th>
+      <th>Verification</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">git</code></td>
+      <td>Version control</td>
+      <td><code class="language-plaintext highlighter-rouge">git --version</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">glab</code></td>
+      <td>GitLab CLI</td>
+      <td><code class="language-plaintext highlighter-rouge">glab --version</code></td>
+    </tr>
+    <tr>
+      <td>GitLab account</td>
+      <td>Repository access</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Push access</td>
+      <td>Create branches/MRs</td>
+      <td>-</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="install-gitlab-cli">Install GitLab CLI</h2>
+
+<p>The <code class="language-plaintext highlighter-rouge">glab</code> CLI handles authentication and API operations. Operator uses <code class="language-plaintext highlighter-rouge">glab</code> directly rather than raw API calls.</p>
+
+<h3 id="macos">macOS</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>brew <span class="nb">install </span>glab
+</code></pre></div></div>
+
+<h3 id="linux">Linux</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Debian/Ubuntu</span>
+curl <span class="nt">-fsSL</span> https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest/downloads/glab_amd64.deb <span class="nt">-o</span> glab.deb
+<span class="nb">sudo </span>dpkg <span class="nt">-i</span> glab.deb
+
+<span class="c"># Fedora/RHEL</span>
+<span class="nb">sudo </span>dnf <span class="nb">install </span>glab
+</code></pre></div></div>
+
+<h3 id="windows">Windows</h3>
+
+<div class="language-powershell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">winget</span><span class="w"> </span><span class="nx">install</span><span class="w"> </span><span class="nt">--id</span><span class="w"> </span><span class="nx">GLab.GLab</span><span class="w">
+</span></code></pre></div></div>
+
+<h2 id="authenticate">Authenticate</h2>
+
+<p>The <code class="language-plaintext highlighter-rouge">glab</code> CLI manages authentication, including OAuth flows and credential storage:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>glab auth login
+</code></pre></div></div>
+
+<p>Follow the prompts to authenticate via browser or token. Verify with:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>glab auth status
+</code></pre></div></div>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>Add GitLab to your Operator configuration:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># ~/.config/operator/config.toml</span>
+
+<span class="k">[</span><span class="n">git</span><span class="k">.</span><span class="n">gitlab</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">token_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"GITLAB_TOKEN"</span>       <span class="c"># env var for token (used as fallback if glab CLI auth is unavailable)</span>
+<span class="n">host</span> <span class="o">=</span><span class="w"> </span><span class="s">"gitlab.com"</span>              <span class="c"># or your self-hosted instance (e.g., "gitlab.example.com")</span>
+</code></pre></div></div>
+
+<p>If <code class="language-plaintext highlighter-rouge">token_env</code> is set, export the token:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">GITLAB_TOKEN</span><span class="o">=</span><span class="s2">"glpat-xxxxx"</span>
+</code></pre></div></div>
+
+<p>Merge request operations (create, monitor, review tracking) are not yet implemented. Provider detection, configuration, and <code class="language-plaintext highlighter-rouge">glab</code> CLI authentication work today.</p>
+
+<h3 id="provider-auto-detection">Provider Auto-Detection</h3>
+
+<p>Operator auto-detects GitLab from your git remote URL, including self-hosted instances (any URL containing <code class="language-plaintext highlighter-rouge">gitlab.</code>):</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># All of these are auto-detected as GitLab:</span>
+git@gitlab.com:owner/repo.git
+https://gitlab.com/owner/repo
+https://gitlab.example.com/owner/repo
+</code></pre></div></div>
+
+<p>You can also set the provider explicitly:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">git</span><span class="k">]</span>
+<span class="n">provider</span> <span class="o">=</span><span class="w"> </span><span class="s">"gitlab"</span>
+</code></pre></div></div>
+
+<h3 id="shared-git-settings">Shared Git Settings</h3>
+
+<p>Branch naming and worktree settings live under the shared <code class="language-plaintext highlighter-rouge">[git]</code> section (see <a href="/getting-started/git/">Supported Git Repositories</a> for details):</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">git</span><span class="k">]</span>
+<span class="n">branch_format</span> <span class="o">=</span><span class="w"> </span><span class="s">"{type}/{ticket_id}"</span>
+<span class="n">use_worktrees</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</code></pre></div></div>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="authentication-errors">Authentication errors</h3>
+
+<p>Check your auth status:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>glab auth status
+</code></pre></div></div>
+
+<h3 id="permission-denied">Permission denied</h3>
+
+<p>Ensure you have push access to the repository and your <code class="language-plaintext highlighter-rouge">glab</code> session is authenticated.</p>
+
+<h3 id="self-hosted-connectivity">Self-hosted connectivity</h3>
+
+<p>If using a self-hosted GitLab instance, verify the <code class="language-plaintext highlighter-rouge">host</code> value in your config matches the instance hostname and that the instance is reachable:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>glab auth status <span class="nt">--hostname</span> gitlab.example.com
+</code></pre></div></div>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

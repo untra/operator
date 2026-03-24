@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zellij Sessions | Operator! Documentation</title>
+  <meta name="description" content="Zellij terminal workspace manager integration for managing AI agent sessions in Zellij tabs.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Zellij Sessions | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Zellij Sessions" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Zellij terminal workspace manager integration for managing AI agent sessions in Zellij tabs." />
+<meta property="og:description" content="Zellij terminal workspace manager integration for managing AI agent sessions in Zellij tabs." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/sessions/zellij/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/sessions/zellij/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Zellij Sessions" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Zellij terminal workspace manager integration for managing AI agent sessions in Zellij tabs.","headline":"Zellij Sessions","url":"https://operator.untra.io/getting-started/sessions/zellij/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link ">Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Backstage</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/sessions/zellij.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.27</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-03-24</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Zellij Sessions</h1>
+  
+
+  <h1 id="zellij-sessions">Zellij Sessions</h1>
+
+<p><span class="badge supported">Supported</span></p>
+
+<p><span class="operator-brand">Operator!</span> supports <a href="https://zellij.dev" target="_blank"><strong>Zellij</strong></a>, a terminal workspace manager, as a session management backend. When running inside Zellij, Operator can launch and manage AI coding agents in dedicated Zellij tabs.</p>
+
+<blockquote>
+  <p><strong>Note:</strong> Zellij support requires that the Operator process itself is running inside a Zellij session. Zellij works on macOS and Linux.</p>
+</blockquote>
+
+<h2 id="what-is-zellij">What is Zellij?</h2>
+
+<p>Zellij is a terminal workspace manager written in Rust. It organizes work into <strong>sessions</strong>, <strong>tabs</strong>, and <strong>panes</strong> — a 3-tier hierarchy that provides flexible terminal management with a modern interface.</p>
+
+<p>Operator uses Zellij tabs to run LLM agent sessions, with each agent getting its own dedicated tab. This keeps agents isolated while letting you switch between them using Zellij’s native tab navigation.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<ol>
+  <li><strong>Zellij installed</strong> — install via your package manager or from <a href="https://zellij.dev">zellij.dev</a></li>
+  <li><strong>Running inside Zellij</strong> — Operator must be launched from within a Zellij session (the <code class="language-plaintext highlighter-rouge">ZELLIJ</code> environment variable must be present)</li>
+</ol>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>Set Zellij as your session wrapper in <code class="language-plaintext highlighter-rouge">operator.toml</code>:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">sessions</span><span class="k">]</span>
+<span class="n">wrapper</span> <span class="o">=</span><span class="w"> </span><span class="s">"zellij"</span>
+
+<span class="k">[</span><span class="n">sessions</span><span class="k">.</span><span class="n">zellij</span><span class="k">]</span>
+<span class="n">require_in_zellij</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</code></pre></div></div>
+
+<h3 id="configuration-options">Configuration Options</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Setting</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">require_in_zellij</code></td>
+      <td><code class="language-plaintext highlighter-rouge">true</code></td>
+      <td>Require Operator to be running inside Zellij</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="how-it-works">How It Works</h2>
+
+<h3 id="launching-agents">Launching Agents</h3>
+
+<p>When Operator launches a ticket:</p>
+
+<ol>
+  <li>Checks that Zellij is available and Operator is running inside Zellij</li>
+  <li>Creates a new tab named <code class="language-plaintext highlighter-rouge">op:{PROJECT}:{TICKET_ID}</code> with the project directory as the working directory</li>
+  <li>Sends the LLM agent command to the tab</li>
+</ol>
+
+<h3 id="focusing-agents">Focusing Agents</h3>
+
+<p>When you press Enter on an agent in the TUI, Operator focuses the corresponding Zellij tab. Like cmux, this does <strong>not</strong> suspend the TUI — Zellij handles tab focus natively.</p>
+
+<h3 id="session-preview">Session Preview</h3>
+
+<p>Press <code class="language-plaintext highlighter-rouge">p</code> on an agent to preview its terminal content directly in the TUI. Operator captures the Zellij tab’s screen content via <code class="language-plaintext highlighter-rouge">zellij action dump-screen</code>.</p>
+
+<blockquote>
+  <p><strong>Note:</strong> Screen capture requires briefly focusing the target tab. You may notice a momentary tab switch during preview or health monitoring.</p>
+</blockquote>
+
+<h3 id="agent-switching">Agent Switching</h3>
+
+<p>When a workflow step specifies a different agent (delegator), Operator gracefully exits the current agent and launches the new one in the same Zellij tab using the 3-tier escalation (<code class="language-plaintext highlighter-rouge">/exit</code> → <code class="language-plaintext highlighter-rouge">Ctrl+C</code> → <code class="language-plaintext highlighter-rouge">Ctrl+D</code>).</p>
+
+<h2 id="known-limitations">Known Limitations</h2>
+
+<ul>
+  <li><strong>Screen capture requires focus:</strong> Zellij’s <code class="language-plaintext highlighter-rouge">dump-screen</code> command captures the currently focused pane. Operator must briefly switch tabs to capture content, which may cause a momentary visual flicker.</li>
+  <li><strong>Tab operations require focus:</strong> Closing a tab or sending text requires first focusing the tab. There is a potential race condition if you manually switch tabs at the same moment.</li>
+</ul>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="zellij-is-not-installed">“zellij is not installed”</h3>
+
+<p>Verify Zellij is installed and on your PATH:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>zellij <span class="nt">--version</span>
+</code></pre></div></div>
+
+<p>Install Zellij if needed:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># macOS</span>
+brew <span class="nb">install </span>zellij
+
+<span class="c"># Linux (cargo)</span>
+cargo <span class="nb">install</span> <span class="nt">--locked</span> zellij
+
+<span class="c"># Linux (package managers)</span>
+<span class="c"># See https://zellij.dev/documentation/installation</span>
+</code></pre></div></div>
+
+<h3 id="not-running-inside-zellij">“Not running inside Zellij”</h3>
+
+<p>Operator requires the <code class="language-plaintext highlighter-rouge">ZELLIJ</code> environment variable to be set, which is present when running inside a Zellij session. Launch Operator from within Zellij:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Start a Zellij session first</span>
+zellij
+
+<span class="c"># Then run Operator inside it</span>
+operator
+</code></pre></div></div>
+
+<p>If you want to bypass this check (not recommended), set:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">sessions</span><span class="k">.</span><span class="n">zellij</span><span class="k">]</span>
+<span class="n">require_in_zellij</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</code></pre></div></div>
+
+<h3 id="agent-tab-not-appearing">Agent tab not appearing</h3>
+
+<ol>
+  <li>Check that you’re running Operator inside a Zellij session</li>
+  <li>Look at Zellij’s tab bar for tabs prefixed with <code class="language-plaintext highlighter-rouge">op:</code></li>
+  <li>Check Operator logs for zellij-related errors</li>
+</ol>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

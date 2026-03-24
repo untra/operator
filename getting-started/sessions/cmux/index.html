@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cmux Sessions | Operator! Documentation</title>
+  <meta name="description" content="macOS terminal multiplexer integration for managing AI agent sessions in cmux workspaces.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>cmux Sessions | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="cmux Sessions" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="macOS terminal multiplexer integration for managing AI agent sessions in cmux workspaces." />
+<meta property="og:description" content="macOS terminal multiplexer integration for managing AI agent sessions in cmux workspaces." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/sessions/cmux/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/sessions/cmux/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="cmux Sessions" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"macOS terminal multiplexer integration for managing AI agent sessions in cmux workspaces.","headline":"cmux Sessions","url":"https://operator.untra.io/getting-started/sessions/cmux/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" >Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" >Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" >Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link ">Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" >CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" >LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" >Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" >Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Backstage</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/backstage/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text">Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/sessions/cmux.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.1.27</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-03-24</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">cmux Sessions</h1>
+  
+
+  <h1 id="cmux-sessions">cmux Sessions</h1>
+
+<p><span class="badge supported">Supported</span></p>
+
+<p><span class="operator-brand">Operator!</span> supports <a href="https://cmux.app" target="_blank"><strong>cmux</strong></a>, a macOS terminal multiplexer, as a session management backend. When running inside cmux, Operator can launch and manage AI coding agents directly in cmux workspaces.</p>
+
+<blockquote>
+  <p><strong>Note:</strong> cmux support requires macOS and that the Operator process itself is running inside a cmux session. For cross-platform support, consider the <a href="/getting-started/sessions/vscode/">VS Code Extension</a> or <a href="/getting-started/sessions/tmux/">tmux</a>.</p>
+</blockquote>
+
+<h2 id="what-is-cmux">What is cmux?</h2>
+
+<p>cmux is a macOS-native terminal multiplexer that organizes work into <strong>windows</strong> and <strong>workspaces</strong>. Each workspace provides an isolated terminal environment within a window, similar to how tmux organizes sessions and panes — but with a native macOS interface.</p>
+
+<p>Operator uses cmux workspaces to run LLM agent sessions, allowing you to focus and switch between agents without leaving your terminal environment.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<ol>
+  <li><strong>macOS</strong> — cmux is a macOS-only application</li>
+  <li><strong>cmux installed</strong> — by default, Operator looks for the binary at <code class="language-plaintext highlighter-rouge">/Applications/cmux.app/Contents/Resources/bin/cmux</code></li>
+  <li><strong>Running inside cmux</strong> — Operator must be launched from within a cmux session (the <code class="language-plaintext highlighter-rouge">CMUX_WORKSPACE_ID</code> environment variable must be present)</li>
+</ol>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>Set cmux as your session wrapper in <code class="language-plaintext highlighter-rouge">operator.toml</code>:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">sessions</span><span class="k">]</span>
+<span class="n">wrapper</span> <span class="o">=</span><span class="w"> </span><span class="s">"cmux"</span>
+
+<span class="k">[</span><span class="n">sessions</span><span class="k">.</span><span class="n">cmux</span><span class="k">]</span>
+<span class="n">binary_path</span> <span class="o">=</span><span class="w"> </span><span class="s">"/Applications/cmux.app/Contents/Resources/bin/cmux"</span>
+<span class="n">require_in_cmux</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">placement</span> <span class="o">=</span><span class="w"> </span><span class="s">"auto"</span>
+</code></pre></div></div>
+
+<h3 id="configuration-options">Configuration Options</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Setting</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">binary_path</code></td>
+      <td><code class="language-plaintext highlighter-rouge">/Applications/cmux.app/Contents/Resources/bin/cmux</code></td>
+      <td>Path to the cmux CLI binary</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">require_in_cmux</code></td>
+      <td><code class="language-plaintext highlighter-rouge">true</code></td>
+      <td>Require Operator to be running inside cmux</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">placement</code></td>
+      <td><code class="language-plaintext highlighter-rouge">"auto"</code></td>
+      <td>Where to place new agent sessions (see below)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="placement-policy">Placement Policy</h2>
+
+<p>The <code class="language-plaintext highlighter-rouge">placement</code> setting controls how Operator creates new agent sessions:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Policy</th>
+      <th>Behavior</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">auto</code></td>
+      <td><strong>0–1 open windows</strong>: creates a new workspace in the active window. <strong>&gt;1 open windows</strong>: creates a new window for the ticket.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">workspace</code></td>
+      <td>Always creates a new workspace in the active window</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">window</code></td>
+      <td>Always creates a new window for each ticket</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong><code class="language-plaintext highlighter-rouge">auto</code></strong> (default) is recommended for most workflows. It keeps things simple when you have a single window, but avoids cluttering that window when you already have multiple windows open.</p>
+
+<h3 id="examples">Examples</h3>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Always create a new workspace in the current window</span>
+<span class="k">[</span><span class="n">sessions</span><span class="k">.</span><span class="n">cmux</span><span class="k">]</span>
+<span class="n">placement</span> <span class="o">=</span><span class="w"> </span><span class="s">"workspace"</span>
+
+<span class="c"># Always create a dedicated window per ticket</span>
+<span class="k">[</span><span class="n">sessions</span><span class="k">.</span><span class="n">cmux</span><span class="k">]</span>
+<span class="n">placement</span> <span class="o">=</span><span class="w"> </span><span class="s">"window"</span>
+
+<span class="c"># Custom binary location</span>
+<span class="k">[</span><span class="n">sessions</span><span class="k">.</span><span class="n">cmux</span><span class="k">]</span>
+<span class="n">binary_path</span> <span class="o">=</span><span class="w"> </span><span class="s">"/usr/local/bin/cmux"</span>
+</code></pre></div></div>
+
+<h2 id="how-it-works">How It Works</h2>
+
+<h3 id="launching-agents">Launching Agents</h3>
+
+<p>When Operator launches a ticket:</p>
+
+<ol>
+  <li>Checks that cmux is available and Operator is running inside cmux</li>
+  <li>Applies the configured placement policy to determine where to create the session</li>
+  <li>Creates a new workspace (and optionally a new window) named <code class="language-plaintext highlighter-rouge">op-{TICKET_ID}</code></li>
+  <li>Sends the LLM agent command to the workspace</li>
+</ol>
+
+<h3 id="focusing-agents">Focusing Agents</h3>
+
+<p>When you press Enter on an agent in the TUI, Operator focuses the corresponding cmux workspace. Unlike tmux, this does <strong>not</strong> suspend the TUI — cmux handles window/workspace focus natively.</p>
+
+<h3 id="session-preview">Session Preview</h3>
+
+<p>Press <code class="language-plaintext highlighter-rouge">p</code> on an agent to preview its terminal content directly in the TUI. Operator reads the cmux workspace screen content without needing to switch focus.</p>
+
+<h3 id="agent-switching">Agent Switching</h3>
+
+<p>When a workflow step specifies a different agent (delegator), Operator gracefully exits the current agent and launches the new one in the same cmux workspace using the same 3-tier escalation as tmux (<code class="language-plaintext highlighter-rouge">/exit</code> → <code class="language-plaintext highlighter-rouge">Ctrl+C</code> → <code class="language-plaintext highlighter-rouge">Ctrl+D</code>).</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="cmux-binary-not-found">“cmux binary not found”</h3>
+
+<p>Verify the binary exists at the configured path:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> <span class="nt">-la</span> /Applications/cmux.app/Contents/Resources/bin/cmux
+</code></pre></div></div>
+
+<p>If cmux is installed elsewhere, update <code class="language-plaintext highlighter-rouge">sessions.cmux.binary_path</code> in your config.</p>
+
+<h3 id="not-running-inside-cmux">“Not running inside cmux”</h3>
+
+<p>Operator requires the <code class="language-plaintext highlighter-rouge">CMUX_WORKSPACE_ID</code> environment variable to be set, which is present when running inside a cmux session. Launch Operator from within cmux:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Inside a cmux workspace</span>
+operator
+</code></pre></div></div>
+
+<p>If you want to bypass this check (not recommended), set:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">sessions</span><span class="k">.</span><span class="n">cmux</span><span class="k">]</span>
+<span class="n">require_in_cmux</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</code></pre></div></div>
+
+<h3 id="agent-not-appearing-in-cmux">Agent not appearing in cmux</h3>
+
+<ol>
+  <li>Check that the placement policy created the workspace in the expected location</li>
+  <li>Use <code class="language-plaintext highlighter-rouge">placement = "window"</code> to ensure each agent gets its own visible window</li>
+  <li>Check Operator logs for cmux-related errors</li>
+</ol>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

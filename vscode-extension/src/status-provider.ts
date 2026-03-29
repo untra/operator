@@ -180,10 +180,10 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
 
     const prerequisitesMet = (section: StatusSection): boolean => {
       return section.prerequisites.every(prereqId => {
-        // Prerequisite must itself be visible (transitive) and Green
+        // Prerequisite must itself be visible (transitive) and not Red
         const prereqSection = this.sectionMap.get(prereqId);
         if (!prereqSection) { return false; }
-        return prerequisitesMet(prereqSection) && getSectionHealth(prereqId) === 'Green';
+        return prerequisitesMet(prereqSection) && getSectionHealth(prereqId) !== 'Red';
       });
     };
 

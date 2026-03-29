@@ -456,8 +456,10 @@ mod tests {
     // --- Layered delegator resolution tests ---
 
     fn make_state_with_delegators(delegators: Vec<crate::config::Delegator>) -> ApiState {
-        let mut config = Config::default();
-        config.delegators = delegators;
+        let config = Config {
+            delegators,
+            ..Default::default()
+        };
         ApiState::new(config, PathBuf::from("/tmp/test-launch"))
     }
 

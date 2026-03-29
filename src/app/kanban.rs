@@ -83,14 +83,15 @@ impl App {
         );
     }
 
-    /// Show the kanban providers view
+    /// Show the kanban providers view.
+    ///
+    /// If no providers are configured, opens the onboarding wizard dialog
+    /// directly so the user can add their first provider without manually
+    /// editing config.toml.
     pub(super) fn show_kanban_view(&mut self) {
         let collections = self.kanban_sync_service.configured_collections();
         if collections.is_empty() {
-            // No kanban providers configured, show a message
-            self.sync_status_message = Some(
-                "No kanban providers configured. Add [kanban] section to config.toml".to_string(),
-            );
+            self.show_kanban_onboarding_dialog();
             return;
         }
         self.kanban_view.show(collections);

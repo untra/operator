@@ -5,6 +5,10 @@
  */
 export type JiraIssueTypeRef = { 
 /**
+ * Issue type ID (e.g., "10001")
+ */
+id: string | null, 
+/**
  * Issue type name (e.g., "Bug", "Story", "Task")
  */
 name: string, };

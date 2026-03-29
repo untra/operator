@@ -135,6 +135,7 @@ const DEFAULT_CONFIG: Config = {
   kanban: {
     jira: {},
     linear: {},
+    github: {},
   },
   version_check: {
     enabled: true,

@@ -126,7 +126,7 @@ export function ProjectRow({
             provider={provider}
             domain={domain}
             projectKey={projectKey}
-            collectionName={project.collection_name}
+            collectionName={project.collection_name||''}
             typeMappings={project.type_mappings ?? {}}
             issueTypes={issueTypes}
             externalTypes={externalTypes}

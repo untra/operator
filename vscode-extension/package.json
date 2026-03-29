@@ -514,7 +514,7 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts && eslint webview-ui --ext ts,tsx",
     "test": "vscode-test",
-    "test:coverage": "c8 --reporter=lcov --reporter=text --report-dir=coverage vscode-test",
+    "test:coverage": "node out/test/runTest.js",
     "package": "vsce package",
     "publish": "vsce publish",
     "generate:icons": "fantasticon"

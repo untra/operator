@@ -284,6 +284,10 @@ impl App {
                         self.kanban_view.syncing = false;
                         self.kanban_view.hide();
                     }
+                    KanbanViewResult::AddProvider => {
+                        // Open the kanban onboarding wizard
+                        self.show_kanban_onboarding_dialog();
+                    }
                     KanbanViewResult::Dismissed => {
                         // Already hidden by handle_key
                     }
@@ -371,6 +375,13 @@ impl App {
                     }
                 }
             }
+            return Ok(());
+        }
+
+        // Kanban onboarding dialog handling
+        if self.kanban_onboarding_dialog.visible {
+            let action = self.kanban_onboarding_dialog.handle_key(code);
+            self.handle_kanban_onboarding_action(action).await?;
             return Ok(());
         }
 

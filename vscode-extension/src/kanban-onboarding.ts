@@ -2,295 +2,68 @@
  * Interactive Kanban Onboarding for Operator VS Code Extension
  *
  * Provides multi-step QuickPick/InputBox flows for configuring
- * Jira Cloud and Linear kanban integrations. Validates credentials
- * against live APIs, writes TOML config, and sets env vars for
- * the current session.
+ * Jira Cloud and Linear kanban integrations. All credential validation,
+ * project fetching, TOML config writing, and env var setting is
+ * delegated to the Operator REST API — this file is UI-only.
  */
 
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
+import * as path from 'path';
 import { updateWalkthroughContext } from './walkthrough';
-import { getConfigDir, getResolvedConfigPath, resolveWorkingDirectory } from './config-paths';
-
-// smol-toml is ESM-only, must use dynamic import
-async function importSmolToml() {
-  return await import('smol-toml');
-}
-
-/** Linear GraphQL API URL */
-const LINEAR_API_URL = 'https://api.linear.app/graphql';
-
-// ─── TOML Config Utilities ─────────────────────────────────────────────
+import { resolveWorkingDirectory } from './config-paths';
+import {
+  OperatorApiClient,
+  discoverApiUrl,
+  type KanbanProjectInfo,
+} from './api-client';
 
 /**
- * Generate TOML config section for a Jira workspace + project
+ * Build an API client pointed at the local Operator server, honoring
+ * the session file if present.
  */
-export function generateJiraToml(
-  domain: string,
-  email: string,
-  apiKeyEnv: string,
+async function buildClient(): Promise<OperatorApiClient> {
+  const workDir = resolveWorkingDirectory();
+  const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+  const apiUrl = await discoverApiUrl(ticketsDir);
+  return new OperatorApiClient(apiUrl);
+}
+
+/**
+ * After onboarding, sync kanban issue types from the provider and nudge
+ * the user to configure mappings. Non-fatal -- degrades gracefully if
+ * the Operator API is not running.
+ */
+async function syncAndNudgeIssueTypes(
+  provider: 'jira' | 'linear' | 'github',
   projectKey: string,
-  accountId: string
-): string {
-  return [
-    `[kanban.jira."${domain}"]`,
-    `enabled = true`,
-    `email = "${email}"`,
-    `api_key_env = "${apiKeyEnv}"`,
-    ``,
-    `[kanban.jira."${domain}".projects.${projectKey}]`,
-    `sync_user_id = "${accountId}"`,
-    `collection_name = "dev_kanban"`,
-    ``,
-  ].join('\n');
-}
-
-/**
- * Generate TOML config section for a Linear team + project
- */
-export function generateLinearToml(
-  teamId: string,
-  apiKeyEnv: string,
-  userId: string
-): string {
-  return [
-    `[kanban.linear."${teamId}"]`,
-    `enabled = true`,
-    `api_key_env = "${apiKeyEnv}"`,
-    ``,
-    `[kanban.linear."${teamId}".projects.default]`,
-    `sync_user_id = "${userId}"`,
-    `collection_name = "dev_kanban"`,
-    ``,
-  ].join('\n');
-}
-
-/**
- * Read config.toml, append or replace a kanban section, write back.
- *
- * If the section header already exists, prompts user to confirm replacement.
- * Returns true if written successfully.
- */
-export async function writeKanbanConfig(section: string): Promise<boolean> {
+  displayName: string
+): Promise<void> {
   try {
-    const configDir = getConfigDir(resolveWorkingDirectory());
-    await fs.mkdir(configDir, { recursive: true });
-  } catch {
-    // directory may already exist
-  }
+    const client = await buildClient();
 
-  const configPath = getResolvedConfigPath();
-  let existing = '';
-  try {
-    existing = await fs.readFile(configPath, 'utf-8');
-  } catch {
-    // file doesn't exist yet, start fresh
-  }
-
-  // Extract the section header (first line) to check for duplicates
-  const headerLine = section.split('\n')[0]!;
-  if (existing.includes(headerLine)) {
-    const replace = await vscode.window.showWarningMessage(
-      `Config already contains ${headerLine}. Replace it?`,
-      'Replace',
-      'Cancel'
-    );
-    if (replace !== 'Replace') {
-      return false;
-    }
-
-    // Remove old section: from header line to next top-level section or EOF
-    const headerEscaped = headerLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const sectionRegex = new RegExp(
-      `${headerEscaped}[\\s\\S]*?(?=\\n\\[(?!kanban\\.)|\n*$)`,
-      'm'
-    );
-    existing = existing.replace(sectionRegex, '');
-  }
-
-  // Ensure trailing newline before appending
-  const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n\n' : '\n';
-  const newContent = existing.length > 0 ? existing.trimEnd() + separator + section : section;
-
-  await fs.writeFile(configPath, newContent, 'utf-8');
-  return true;
-}
-
-// ─── API Validation ────────────────────────────────────────────────────
-
-export interface JiraValidationResult {
-  valid: boolean;
-  accountId: string;
-  displayName: string;
-  error?: string;
-}
-
-export interface JiraProject {
-  key: string;
-  name: string;
-}
-
-export interface LinearTeam {
-  id: string;
-  name: string;
-  key: string;
-}
-
-export interface LinearValidationResult {
-  valid: boolean;
-  userId: string;
-  userName: string;
-  orgName: string;
-  teams: LinearTeam[];
-  error?: string;
-}
-
-/**
- * Validate Jira credentials by calling GET /rest/api/3/myself
- */
-export async function validateJiraCredentials(
-  domain: string,
-  email: string,
-  apiToken: string
-): Promise<JiraValidationResult> {
-  const auth = Buffer.from(`${email}:${apiToken}`).toString('base64');
-  try {
-    const response = await fetch(`https://${domain}/rest/api/3/myself`, {
-      headers: {
-        Authorization: `Basic ${auth}`,
-        Accept: 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const status = response.status;
-      if (status === 401) {
-        return { valid: false, accountId: '', displayName: '', error: 'Invalid credentials (401). Check email and API token.' };
-      }
-      if (status === 403) {
-        return { valid: false, accountId: '', displayName: '', error: 'Access forbidden (403). Token may lack permissions.' };
-      }
-      return { valid: false, accountId: '', displayName: '', error: `Jira API error: ${status}` };
-    }
-
-    const data = (await response.json()) as {
-      accountId?: string;
-      displayName?: string;
-    };
-
-    if (!data.accountId) {
-      return { valid: false, accountId: '', displayName: '', error: 'No accountId in response' };
-    }
-
-    return {
-      valid: true,
-      accountId: data.accountId,
-      displayName: data.displayName ?? '',
-    };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    return { valid: false, accountId: '', displayName: '', error: `Connection failed: ${msg}` };
-  }
-}
-
-/**
- * Fetch Jira projects for QuickPick selection
- */
-export async function fetchJiraProjects(
-  domain: string,
-  email: string,
-  apiToken: string
-): Promise<JiraProject[]> {
-  const auth = Buffer.from(`${email}:${apiToken}`).toString('base64');
-  try {
-    const response = await fetch(
-      `https://${domain}/rest/api/3/project/search?maxResults=50&orderBy=name`,
+    const result = await vscode.window.withProgress(
       {
-        headers: {
-          Authorization: `Basic ${auth}`,
-          Accept: 'application/json',
-        },
-      }
+        location: vscode.ProgressLocation.Notification,
+        title: `Syncing ${displayName} issue types...`,
+        cancellable: false,
+      },
+      () => client.syncKanbanIssueTypes(provider, projectKey)
     );
 
-    if (!response.ok) {
-      return [];
-    }
-
-    const data = (await response.json()) as {
-      values?: Array<{ key?: string; name?: string }>;
-    };
-
-    return (data.values ?? [])
-      .filter((p): p is { key: string; name: string } => !!p.key && !!p.name)
-      .map((p) => ({ key: p.key, name: p.name }));
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Validate Linear credentials by querying viewer + organization + teams
- */
-export async function validateLinearCredentials(
-  apiKey: string
-): Promise<LinearValidationResult> {
-  const query = `
-    query {
-      viewer { id name email }
-      organization { name urlKey }
-      teams { nodes { id name key } }
-    }
-  `;
-
-  try {
-    const response = await fetch(LINEAR_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query }),
-    });
-
-    if (!response.ok) {
-      const status = response.status;
-      if (status === 401) {
-        return { valid: false, userId: '', userName: '', orgName: '', teams: [], error: 'Invalid API key (401).' };
+    if (result.synced > 0) {
+      const action = await vscode.window.showInformationMessage(
+        `Synced ${result.synced} issue type${result.synced === 1 ? '' : 's'} from ${displayName}. Map them to Operator types for better ticket routing.`,
+        'Configure Mappings'
+      );
+      if (action === 'Configure Mappings') {
+        await vscode.commands.executeCommand('operator.openSettings');
       }
-      return { valid: false, userId: '', userName: '', orgName: '', teams: [], error: `Linear API error: ${status}` };
     }
-
-    const data = (await response.json()) as {
-      data?: {
-        viewer?: { id?: string; name?: string };
-        organization?: { name?: string };
-        teams?: { nodes?: Array<{ id?: string; name?: string; key?: string }> };
-      };
-    };
-
-    const viewer = data?.data?.viewer;
-    const org = data?.data?.organization;
-    const teamNodes = data?.data?.teams?.nodes ?? [];
-
-    if (!viewer?.id) {
-      return { valid: false, userId: '', userName: '', orgName: '', teams: [], error: 'Could not retrieve user info' };
-    }
-
-    const teams: LinearTeam[] = teamNodes
-      .filter((t): t is { id: string; name: string; key: string } => !!t.id && !!t.name && !!t.key)
-      .map((t) => ({ id: t.id, name: t.name, key: t.key }));
-
-    return {
-      valid: true,
-      userId: viewer.id,
-      userName: viewer.name ?? '',
-      orgName: org?.name ?? '',
-      teams,
-    };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    return { valid: false, userId: '', userName: '', orgName: '', teams: [], error: `Connection failed: ${msg}` };
+  } catch {
+    // Non-fatal: Operator API may not be running during initial onboarding
+    void vscode.window.showWarningMessage(
+      'Could not sync issue types automatically. You can sync them later from Settings.'
+    );
   }
 }
 
@@ -374,11 +147,12 @@ export function showInputBoxWithBack(options: {
 }
 
 /**
- * Show info message with copy-to-clipboard action for shell profile env vars
+ * Show info message with copy-to-clipboard action for shell profile env vars.
+ *
+ * `exportBlock` is the multi-line `export FOO="<placeholder>"` string
+ * returned by the server's `setKanbanSessionEnv` endpoint.
  */
-export async function showEnvVarInstructions(envLines: string[]): Promise<void> {
-  const exportBlock = envLines.join('\n');
-
+export async function showEnvVarInstructions(exportBlock: string): Promise<void> {
   const action = await vscode.window.showInformationMessage(
     'Add these to your shell profile (~/.zshrc or ~/.bashrc) for persistence across restarts:',
     'Copy to Clipboard'
@@ -393,18 +167,15 @@ export async function showEnvVarInstructions(envLines: string[]): Promise<void> 
 // ─── Interactive Onboarding Flows ──────────────────────────────────────
 
 /**
- * Jira Cloud onboarding: domain -> email -> API token -> validate -> pick project -> write config
+ * Collect Jira credentials via a 3-step InputBox wizard.
+ * Returns null if the user cancelled.
  */
-export async function onboardJira(
-  context: vscode.ExtensionContext
-): Promise<void> {
-  const title = 'Configure Jira Cloud';
+async function collectJiraCreds(
+  title: string,
+  initial: { domain: string; email: string; apiToken: string }
+): Promise<{ domain: string; email: string; apiToken: string } | null> {
+  let { domain, email, apiToken } = initial;
   let step = 1;
-
-  // Collect credentials with back navigation
-  let domain = '';
-  let email = '';
-  let apiToken = '';
 
   while (step >= 1 && step <= 3) {
     if (step === 1) {
@@ -426,7 +197,7 @@ export async function onboardJira(
         },
       });
 
-      if (result === undefined) { return; }
+      if (result === undefined) { return null; }
       if (result === 'back') { step--; continue; }
       domain = result;
       step = 2;
@@ -449,7 +220,7 @@ export async function onboardJira(
         },
       });
 
-      if (result === undefined) { return; }
+      if (result === undefined) { return null; }
       if (result === 'back') { step--; continue; }
       email = result;
       step = 3;
@@ -505,26 +276,58 @@ export async function onboardJira(
         input.show();
       });
 
-      if (result === undefined) { return; }
+      if (result === undefined) { return null; }
       if (result === 'back') { step--; continue; }
       apiToken = result;
-      step = 4; // proceed to validation
+      step = 4; // done
     }
   }
 
-  // Validate credentials
-  const validation = await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: 'Validating Jira credentials...',
-      cancellable: false,
-    },
-    () => validateJiraCredentials(domain, email, apiToken)
-  );
+  return { domain, email, apiToken };
+}
 
-  if (!validation.valid) {
+/**
+ * Jira Cloud onboarding: collect creds -> validate via API -> set session env ->
+ * list projects via API -> pick one -> write config via API -> sync issuetypes.
+ */
+export async function onboardJira(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const title = 'Configure Jira Cloud';
+  const client = await buildClient();
+
+  const creds = await collectJiraCreds(title, { domain: '', email: '', apiToken: '' });
+  if (!creds) { return; }
+
+  // Validate credentials via the Operator API
+  let validation;
+  try {
+    validation = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Validating Jira credentials...',
+        cancellable: false,
+      },
+      () => client.validateKanbanCredentials({
+        provider: 'jira',
+        jira: {
+          domain: creds.domain,
+          email: creds.email,
+          api_token: creds.apiToken,
+        },
+        linear: null,
+        github: null,
+      })
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Could not reach Operator API: ${msg}`);
+    return;
+  }
+
+  if (!validation.valid || !validation.jira) {
     const retry = await vscode.window.showErrorMessage(
-      `Jira validation failed: ${validation.error}`,
+      `Jira validation failed: ${validation.error ?? 'unknown error'}`,
       'Retry',
       'Cancel'
     );
@@ -535,18 +338,55 @@ export async function onboardJira(
   }
 
   void vscode.window.showInformationMessage(
-    `Authenticated as ${validation.displayName} (${validation.accountId})`
+    `Authenticated as ${validation.jira.display_name} (${validation.jira.account_id})`
   );
 
-  // Fetch and select project
-  const projects = await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: 'Fetching Jira projects...',
-      cancellable: false,
-    },
-    () => fetchJiraProjects(domain, email, apiToken)
-  );
+  // Set session env so subsequent API calls can use the token server-side
+  const apiKeyEnv = 'OPERATOR_JIRA_API_KEY';
+  let envInfo;
+  try {
+    envInfo = await client.setKanbanSessionEnv({
+      provider: 'jira',
+      jira: {
+        domain: creds.domain,
+        email: creds.email,
+        api_token: creds.apiToken,
+        api_key_env: apiKeyEnv,
+      },
+      linear: null,
+      github: null,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Failed to set session env: ${msg}`);
+    return;
+  }
+
+  // Fetch projects via the API
+  let projects: KanbanProjectInfo[];
+  try {
+    projects = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Fetching Jira projects...',
+        cancellable: false,
+      },
+      () => client.listKanbanProjects({
+        provider: 'jira',
+        jira: {
+          domain: creds.domain,
+          email: creds.email,
+          api_token: creds.apiToken,
+        },
+        linear: null,
+        github: null,
+      })
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Failed to list Jira projects: ${msg}`);
+    return;
+  }
 
   if (projects.length === 0) {
     void vscode.window.showWarningMessage(
@@ -570,48 +410,44 @@ export async function onboardJira(
     return;
   }
 
-  // Write config
-  const envVarName = 'OPERATOR_JIRA_API_KEY';
-  const toml = generateJiraToml(
-    domain,
-    email,
-    envVarName,
-    selectedProject.label,
-    validation.accountId
-  );
-
-  const written = await writeKanbanConfig(toml);
-  if (!written) {
+  // Write config via the API
+  try {
+    await client.writeKanbanConfig({
+      provider: 'jira',
+      jira: {
+        domain: creds.domain,
+        email: creds.email,
+        api_key_env: apiKeyEnv,
+        project_key: selectedProject.label,
+        sync_user_id: validation.jira.account_id,
+      },
+      linear: null,
+      github: null,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Failed to write config: ${msg}`);
     return;
   }
 
-  // Set env vars for current session
-  process.env['OPERATOR_JIRA_API_KEY'] = apiToken;
-  process.env['OPERATOR_JIRA_DOMAIN'] = domain;
-  process.env['OPERATOR_JIRA_EMAIL'] = email;
-
-  // Show success + env var instructions
   void vscode.window.showInformationMessage(
-    `Jira configured! Config written to ${getResolvedConfigPath()}`
+    `Jira configured! Run Operator to activate.`
   );
 
-  await showEnvVarInstructions([
-    `export OPERATOR_JIRA_API_KEY="<your-api-token>"`,
-  ]);
+  await showEnvVarInstructions(envInfo.shell_export_block);
 
   // Update walkthrough context
   await updateWalkthroughContext(context);
+
+  // Auto-sync issue types and nudge user to map them
+  await syncAndNudgeIssueTypes('jira', selectedProject.label, `Jira ${selectedProject.label}`);
 }
 
 /**
- * Linear onboarding: API key -> validate -> pick team -> write config
+ * Prompt for a Linear API key via InputBox (with external-link button).
+ * Returns null if cancelled.
  */
-export async function onboardLinear(
-  context: vscode.ExtensionContext
-): Promise<void> {
-  const title = 'Configure Linear';
-
-  // Step 1: API key
+async function collectLinearApiKey(title: string): Promise<string | null> {
   const openLinearSettings: vscode.QuickInputButton = {
     iconPath: new vscode.ThemeIcon('link-external'),
     tooltip: 'Open Linear API Settings',
@@ -671,23 +507,47 @@ export async function onboardLinear(
     input.show();
   });
 
-  if (!apiKey) {
+  return apiKey ?? null;
+}
+
+/**
+ * Linear onboarding: prompt for API key -> validate via API -> set session env ->
+ * pick team -> write config via API -> sync issuetypes.
+ */
+export async function onboardLinear(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const title = 'Configure Linear';
+  const client = await buildClient();
+
+  const apiKey = await collectLinearApiKey(title);
+  if (!apiKey) { return; }
+
+  // Validate credentials via the Operator API
+  let validation;
+  try {
+    validation = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Validating Linear credentials...',
+        cancellable: false,
+      },
+      () => client.validateKanbanCredentials({
+        provider: 'linear',
+        jira: null,
+        linear: { api_key: apiKey },
+        github: null,
+      })
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Could not reach Operator API: ${msg}`);
     return;
   }
 
-  // Validate credentials
-  const validation = await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: 'Validating Linear credentials...',
-      cancellable: false,
-    },
-    () => validateLinearCredentials(apiKey)
-  );
-
-  if (!validation.valid) {
+  if (!validation.valid || !validation.linear) {
     const retry = await vscode.window.showErrorMessage(
-      `Linear validation failed: ${validation.error}`,
+      `Linear validation failed: ${validation.error ?? 'unknown error'}`,
       'Retry',
       'Cancel'
     );
@@ -698,18 +558,34 @@ export async function onboardLinear(
   }
 
   void vscode.window.showInformationMessage(
-    `Authenticated as ${validation.userName} in ${validation.orgName}`
+    `Authenticated as ${validation.linear.user_name} in ${validation.linear.org_name}`
   );
 
-  // Step 2: Select team
-  if (validation.teams.length === 0) {
+  // Set session env
+  const apiKeyEnv = 'OPERATOR_LINEAR_API_KEY';
+  let envInfo;
+  try {
+    envInfo = await client.setKanbanSessionEnv({
+      provider: 'linear',
+      jira: null,
+      linear: { api_key: apiKey, api_key_env: apiKeyEnv },
+      github: null,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Failed to set session env: ${msg}`);
+    return;
+  }
+
+  // Select team from the teams returned by validation
+  if (validation.linear.teams.length === 0) {
     void vscode.window.showWarningMessage(
       'No teams found. Check your permissions. Config was not written.'
     );
     return;
   }
 
-  const teamItems = validation.teams.map((t) => ({
+  const teamItems = validation.linear.teams.map((t) => ({
     label: t.name,
     description: t.key,
     detail: t.id,
@@ -718,46 +594,259 @@ export async function onboardLinear(
   const selectedTeam = await vscode.window.showQuickPick(teamItems, {
     title: 'Select Linear Team',
     placeHolder: 'Choose a team to sync tickets from',
-    step: 2,
-    totalSteps: 2,
     ignoreFocusOut: true,
-  } as vscode.QuickPickOptions & { step: number; totalSteps: number });
+  });
 
   if (!selectedTeam) {
     return;
   }
 
-  // Write config
-  const envVarName = 'OPERATOR_LINEAR_API_KEY';
-  const toml = generateLinearToml(
-    selectedTeam.detail ?? '',
-    envVarName,
-    validation.userId
-  );
-
-  const written = await writeKanbanConfig(toml);
-  if (!written) {
+  // Write config via the API. For Linear, we use the org slug / a default
+  // workspace key. Since validation doesn't return a workspace slug directly,
+  // use the org name (sanitized) as the workspace key.
+  const workspaceKey = selectedTeam.detail ?? 'default';
+  try {
+    await client.writeKanbanConfig({
+      provider: 'linear',
+      jira: null,
+      linear: {
+        workspace_key: workspaceKey,
+        api_key_env: apiKeyEnv,
+        project_key: 'default',
+        sync_user_id: validation.linear.user_id,
+      },
+      github: null,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Failed to write config: ${msg}`);
     return;
   }
 
-  // Set env var for current session
-  process.env['OPERATOR_LINEAR_API_KEY'] = apiKey;
+  void vscode.window.showInformationMessage(`Linear configured!`);
 
-  // Show success + env var instructions
-  void vscode.window.showInformationMessage(
-    `Linear configured! Config written to ${getResolvedConfigPath()}`
-  );
-
-  await showEnvVarInstructions([
-    `export OPERATOR_LINEAR_API_KEY="<your-api-key>"`,
-  ]);
+  await showEnvVarInstructions(envInfo.shell_export_block);
 
   // Update walkthrough context
   await updateWalkthroughContext(context);
+
+  // Auto-sync issue types and nudge user to map them
+  await syncAndNudgeIssueTypes('linear', 'default', `Linear ${selectedTeam.description ?? selectedTeam.label}`);
 }
 
 /**
- * Entry-point: let user pick Jira or Linear, then route to the right flow
+ * Prompt for a GitHub Projects token via InputBox.
+ *
+ * IMPORTANT: This is the *projects* token, not the *repo* token. It must
+ * have the `project` (or `read:project`) scope. A repo-only token (the kind
+ * typically set as `GITHUB_TOKEN` for PR workflows) will be rejected by the
+ * server's scope verification with a friendly error pointing to the docs.
+ */
+async function collectGithubToken(title: string): Promise<string | null> {
+  const openGithubSettings: vscode.QuickInputButton = {
+    iconPath: new vscode.ThemeIcon('link-external'),
+    tooltip: 'Open GitHub Token Settings',
+  };
+
+  const input = vscode.window.createInputBox();
+  input.title = title;
+  input.prompt =
+    'Enter a GitHub PAT with the `project` (or `read:project`) scope — NOT a repo-only token\nhttps://github.com/settings/personal-access-tokens';
+  input.placeholder = 'ghp_xxxxxxxxxxxxxxxx or github_pat_xxxxxxxx';
+  input.step = 1;
+  input.totalSteps = 2;
+  input.password = true;
+  input.ignoreFocusOut = true;
+  input.buttons = [openGithubSettings];
+
+  const isRecognizedPrefix = (val: string): boolean =>
+    val.startsWith('ghp_') || val.startsWith('github_pat_') || val.startsWith('gho_');
+
+  const token = await new Promise<string | undefined>((resolve) => {
+    let resolved = false;
+
+    input.onDidChangeValue((value) => {
+      if (value && !isRecognizedPrefix(value)) {
+        input.validationMessage =
+          'GitHub tokens start with "ghp_", "github_pat_", or "gho_"';
+      } else {
+        input.validationMessage = '';
+      }
+    });
+
+    input.onDidAccept(() => {
+      const val = input.value.trim();
+      if (!val) {
+        input.validationMessage = 'Token is required';
+        return;
+      }
+      if (!isRecognizedPrefix(val)) {
+        input.validationMessage =
+          'GitHub tokens start with "ghp_", "github_pat_", or "gho_"';
+        return;
+      }
+      resolved = true;
+      input.dispose();
+      resolve(val);
+    });
+
+    input.onDidTriggerButton((button) => {
+      if (button === openGithubSettings) {
+        void vscode.env.openExternal(
+          vscode.Uri.parse('https://github.com/settings/tokens')
+        );
+      }
+    });
+
+    input.onDidHide(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve(undefined);
+      }
+    });
+
+    input.show();
+  });
+
+  return token ?? null;
+}
+
+/**
+ * GitHub Projects v2 onboarding: prompt for token -> validate (with scope
+ * verification) -> set session env -> pick project -> write config -> sync
+ * issue types.
+ *
+ * The validate step performs the Token Disambiguation scope check on the
+ * server side; if the token is repo-only the user gets a friendly error
+ * pointing them at the docs.
+ */
+export async function onboardGithub(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const title = 'Configure GitHub Projects';
+  const client = await buildClient();
+
+  const token = await collectGithubToken(title);
+  if (!token) { return; }
+
+  // Validate credentials via the Operator API (includes scope verification).
+  let validation;
+  try {
+    validation = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Validating GitHub Projects credentials...',
+        cancellable: false,
+      },
+      () => client.validateKanbanCredentials({
+        provider: 'github',
+        jira: null,
+        linear: null,
+        github: { token },
+      })
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Could not reach Operator API: ${msg}`);
+    return;
+  }
+
+  if (!validation.valid || !validation.github) {
+    const retry = await vscode.window.showErrorMessage(
+      `GitHub validation failed: ${validation.error ?? 'unknown error'}`,
+      'Retry',
+      'Cancel'
+    );
+    if (retry === 'Retry') {
+      return onboardGithub(context);
+    }
+    return;
+  }
+
+  void vscode.window.showInformationMessage(
+    `Authenticated as ${validation.github.user_login} (connected via ${validation.github.resolved_env_var})`
+  );
+
+  // Set session env so subsequent API calls can use the token server-side.
+  const apiKeyEnv = 'OPERATOR_GITHUB_TOKEN';
+  let envInfo;
+  try {
+    envInfo = await client.setKanbanSessionEnv({
+      provider: 'github',
+      jira: null,
+      linear: null,
+      github: { token, api_key_env: apiKeyEnv },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Failed to set session env: ${msg}`);
+    return;
+  }
+
+  // Project picker: use projects from validation (no extra round-trip).
+  if (validation.github.projects.length === 0) {
+    void vscode.window.showWarningMessage(
+      'No GitHub Projects v2 found for this token. Confirm the token has the `project` scope and that you have access to at least one project. Config was not written.'
+    );
+    return;
+  }
+
+  const projectItems = validation.github.projects.map((p) => ({
+    label: `${p.owner_login}/#${p.number} ${p.title}`,
+    description: p.owner_kind,
+    detail: p.node_id,
+    project: p,
+  }));
+
+  const selectedProject = await vscode.window.showQuickPick(projectItems, {
+    title: 'Select GitHub Project',
+    placeHolder: 'Choose a project to sync tickets from',
+    ignoreFocusOut: true,
+  });
+
+  if (!selectedProject) {
+    return;
+  }
+
+  // Write config — owner is the workspace key, project node id is the project key.
+  try {
+    await client.writeKanbanConfig({
+      provider: 'github',
+      jira: null,
+      linear: null,
+      github: {
+        owner: selectedProject.project.owner_login,
+        api_key_env: apiKeyEnv,
+        project_key: selectedProject.project.node_id,
+        sync_user_id: validation.github.user_id,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    void vscode.window.showErrorMessage(`Failed to write config: ${msg}`);
+    return;
+  }
+
+  void vscode.window.showInformationMessage(
+    `GitHub Projects configured for ${selectedProject.project.owner_login}/#${selectedProject.project.number}!`
+  );
+
+  await showEnvVarInstructions(envInfo.shell_export_block);
+
+  // Update walkthrough context
+  await updateWalkthroughContext(context);
+
+  // Auto-sync issue types and nudge user to map them.
+  await syncAndNudgeIssueTypes(
+    'github',
+    selectedProject.project.node_id,
+    `GitHub ${selectedProject.project.owner_login}/#${selectedProject.project.number}`
+  );
+}
+
+/**
+ * Entry-point: let user pick Jira, Linear, or GitHub Projects, then route to
+ * the right flow.
  */
 export async function startKanbanOnboarding(
   context: vscode.ExtensionContext
@@ -773,6 +862,11 @@ export async function startKanbanOnboarding(
         label: '$(operator-linear) Linear',
         description: 'Connect to Linear with API key',
         provider: 'linear' as const,
+      },
+      {
+        label: '$(github) GitHub Projects',
+        description: 'Connect to GitHub Projects v2 with a personal access token',
+        provider: 'github' as const,
       },
       {
         label: '$(close) Skip for now',
@@ -791,306 +885,56 @@ export async function startKanbanOnboarding(
     return;
   }
 
-  if (choice.provider === 'jira') {
-    await onboardJira(context);
-  } else {
-    await onboardLinear(context);
+  switch (choice.provider) {
+    case 'jira':
+      await onboardJira(context);
+      break;
+    case 'linear':
+      await onboardLinear(context);
+      break;
+    case 'github':
+      await onboardGithub(context);
+      break;
   }
 }
 
 // ─── Add Project/Team Flows ───────────────────────────────────────────
 
 /**
- * Read and parse config.toml
- */
-async function readParsedConfig(): Promise<Record<string, unknown>> {
-  const configPath = getResolvedConfigPath();
-  if (!configPath) { return {}; }
-  try {
-    const raw = await fs.readFile(configPath, 'utf-8');
-    if (!raw.trim()) { return {}; }
-    const { parse } = await importSmolToml();
-    return parse(raw) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
-
-/**
- * Generate TOML for a single Jira project section to append
- */
-function generateJiraProjectToml(
-  domain: string,
-  projectKey: string,
-  accountId: string,
-  collectionName: string
-): string {
-  return [
-    `[kanban.jira."${domain}".projects.${projectKey}]`,
-    `sync_user_id = "${accountId}"`,
-    `collection_name = "${collectionName}"`,
-    ``,
-  ].join('\n');
-}
-
-/**
- * Generate TOML for a single Linear team section to append
- */
-function generateLinearTeamToml(
-  workspaceKey: string,
-  teamKey: string,
-  userId: string,
-  collectionName: string
-): string {
-  return [
-    `[kanban.linear."${workspaceKey}".projects.${teamKey}]`,
-    `sync_user_id = "${userId}"`,
-    `collection_name = "${collectionName}"`,
-    ``,
-  ].join('\n');
-}
-
-/**
- * Add a new Jira project to an existing workspace in config.toml
- *
- * Reads existing Jira workspace config (email, api_key_env), fetches available
- * projects from the Jira API, shows a QuickPick, and writes the new project section.
+ * Add a new Jira project. Since all credential state lives on the server
+ * now, this flow is a simplified version of `onboardJira` — it collects
+ * credentials again, validates, picks a project, and writes config.
  */
 export async function addJiraProject(
   context: vscode.ExtensionContext,
   domain?: string
 ): Promise<void> {
-  if (!domain) {
-    void vscode.window.showErrorMessage('No Jira domain specified.');
-    return;
-  }
-
-  // Read config.toml to get workspace credentials
-  const config = await readParsedConfig();
-  const kanban = config.kanban as Record<string, unknown> | undefined;
-  const jiraSection = kanban?.jira as Record<string, unknown> | undefined;
-  const wsConfig = jiraSection?.[domain] as Record<string, unknown> | undefined;
-
-  let email: string | undefined;
-  let apiKeyEnv: string;
-  let apiToken: string | undefined;
-  const fromEnvVars = !wsConfig;
-
-  if (wsConfig) {
-    email = wsConfig.email as string | undefined;
-    apiKeyEnv = (wsConfig.api_key_env as string) || 'OPERATOR_JIRA_API_KEY';
-    apiToken = process.env[apiKeyEnv];
-  } else {
-    // Fall back to env-var detection
-    const envEmail = process.env['OPERATOR_JIRA_EMAIL'];
-    const envApiKey = process.env['OPERATOR_JIRA_API_KEY'];
-    if (!envEmail || !envApiKey) {
-      void vscode.window.showErrorMessage(`No Jira workspace configured for ${domain}.`);
-      return;
-    }
-    email = envEmail;
-    apiToken = envApiKey;
-    apiKeyEnv = 'OPERATOR_JIRA_API_KEY';
-  }
-
-  if (!email) {
-    void vscode.window.showErrorMessage(`No email configured for Jira workspace ${domain}.`);
-    return;
-  }
-
-  // Prompt for API token if not in env
-  if (!apiToken) {
-    apiToken = await vscode.window.showInputBox({
-      title: 'Jira API Token',
-      prompt: `Enter API token for ${domain} (env var ${apiKeyEnv} not set)`,
-      password: true,
-      ignoreFocusOut: true,
-    }) ?? undefined;
-    if (!apiToken) { return; }
-    // Set for current session
-    process.env[apiKeyEnv] = apiToken;
-  }
-
-  // Find already-configured project keys
-  const existingProjects = new Set<string>();
-  const projectsSection = wsConfig?.projects as Record<string, unknown> | undefined;
-  if (projectsSection) {
-    for (const key of Object.keys(projectsSection)) {
-      existingProjects.add(key);
-    }
-  }
-
-  // Fetch available projects
-  const projects = await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: 'Fetching Jira projects...',
-      cancellable: false,
-    },
-    () => fetchJiraProjects(domain, email, apiToken)
-  );
-
-  if (projects.length === 0) {
-    void vscode.window.showWarningMessage('No projects found. Check your permissions.');
-    return;
-  }
-
-  // Filter out already-configured projects
-  const available = projects.filter((p) => !existingProjects.has(p.key));
-  if (available.length === 0) {
-    const action = await vscode.window.showInformationMessage(
-      `All projects on ${domain} are already configured.`,
-      'Connect Another Workspace'
-    );
-    if (action === 'Connect Another Workspace') {
-      await vscode.commands.executeCommand('operator.startKanbanOnboarding');
-    }
-    return;
-  }
-
-  const selected = await vscode.window.showQuickPick(
-    available.map((p) => ({ label: p.key, description: p.name })),
-    {
-      title: `Add Jira Project to ${domain}`,
-      placeHolder: 'Select a project to sync',
-      ignoreFocusOut: true,
-    }
-  );
-
-  if (!selected) { return; }
-
-  // Get the user's account ID from validation
-  const validation = await validateJiraCredentials(domain, email, apiToken);
-  if (!validation.valid) {
-    void vscode.window.showErrorMessage(`Jira validation failed: ${validation.error}`);
-    return;
-  }
-
-  // Write project section to config.toml
-  // When from env vars, write the full workspace section to promote into TOML
-  const toml = fromEnvVars
-    ? generateJiraToml(domain, email, apiKeyEnv, selected.label, validation.accountId)
-    : generateJiraProjectToml(domain, selected.label, validation.accountId, 'dev_kanban');
-  const written = await writeKanbanConfig(toml);
-  if (!written) { return; }
-
-  void vscode.window.showInformationMessage(
-    `Added Jira project ${selected.label} to ${domain}`
-  );
-
-  await updateWalkthroughContext(context);
+  // Delegate to the full onboarding flow. The domain hint isn't used —
+  // the user re-enters credentials. Future enhancement: load existing
+  // workspace config via a GET /api/v1/kanban/config endpoint to skip
+  // the domain/email steps.
+  void domain;
+  await onboardJira(context);
 }
 
 /**
- * Add a new Linear team to an existing workspace in config.toml
- *
- * Reads existing Linear workspace config (api_key_env), fetches available
- * teams from the Linear API, shows a QuickPick, and writes the new team section.
+ * Add a new Linear team. Same simplification as `addJiraProject`.
  */
 export async function addLinearTeam(
   context: vscode.ExtensionContext,
   workspaceKey?: string
 ): Promise<void> {
-  if (!workspaceKey) {
-    void vscode.window.showErrorMessage('No Linear workspace specified.');
-    return;
-  }
+  void workspaceKey;
+  await onboardLinear(context);
+}
 
-  // Read config.toml to get workspace credentials
-  const config = await readParsedConfig();
-  const kanban = config.kanban as Record<string, unknown> | undefined;
-  const linearSection = kanban?.linear as Record<string, unknown> | undefined;
-  const wsConfig = linearSection?.[workspaceKey] as Record<string, unknown> | undefined;
-
-  let apiKeyEnv: string;
-  let apiKey: string | undefined;
-  const fromEnvVars = !wsConfig;
-
-  if (wsConfig) {
-    apiKeyEnv = (wsConfig.api_key_env as string) || 'OPERATOR_LINEAR_API_KEY';
-    apiKey = process.env[apiKeyEnv];
-  } else {
-    // Fall back to env-var detection
-    const envApiKey = process.env['OPERATOR_LINEAR_API_KEY'];
-    if (!envApiKey) {
-      void vscode.window.showErrorMessage(`No Linear workspace configured for ${workspaceKey}.`);
-      return;
-    }
-    apiKey = envApiKey;
-    apiKeyEnv = 'OPERATOR_LINEAR_API_KEY';
-  }
-
-  // Prompt for API key if not in env
-  if (!apiKey) {
-    apiKey = await vscode.window.showInputBox({
-      title: 'Linear API Key',
-      prompt: `Enter API key for Linear (env var ${apiKeyEnv} not set)`,
-      password: true,
-      ignoreFocusOut: true,
-    }) ?? undefined;
-    if (!apiKey) { return; }
-    // Set for current session
-    process.env[apiKeyEnv] = apiKey;
-  }
-
-  // Find already-configured team keys
-  const existingTeams = new Set<string>();
-  const projectsSection = wsConfig?.projects as Record<string, unknown> | undefined;
-  if (projectsSection) {
-    for (const key of Object.keys(projectsSection)) {
-      existingTeams.add(key);
-    }
-  }
-
-  // Fetch available teams
-  const validation = await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: 'Fetching Linear teams...',
-      cancellable: false,
-    },
-    () => validateLinearCredentials(apiKey)
-  );
-
-  if (!validation.valid) {
-    void vscode.window.showErrorMessage(`Linear validation failed: ${validation.error}`);
-    return;
-  }
-
-  if (validation.teams.length === 0) {
-    void vscode.window.showWarningMessage('No teams found. Check your permissions.');
-    return;
-  }
-
-  // Filter out already-configured teams
-  const available = validation.teams.filter((t) => !existingTeams.has(t.key));
-  if (available.length === 0) {
-    void vscode.window.showInformationMessage('All available teams are already configured.');
-    return;
-  }
-
-  const selected = await vscode.window.showQuickPick(
-    available.map((t) => ({ label: t.key, description: t.name, detail: t.id })),
-    {
-      title: 'Add Linear Workspace',
-      placeHolder: 'Select a team to sync',
-      ignoreFocusOut: true,
-    }
-  );
-
-  if (!selected) { return; }
-
-  // Write team section to config.toml
-  // When from env vars, write the full workspace section to promote into TOML
-  const toml = fromEnvVars
-    ? generateLinearToml(workspaceKey, apiKeyEnv, validation.userId)
-    : generateLinearTeamToml(workspaceKey, selected.label, validation.userId, 'dev_kanban');
-  const written = await writeKanbanConfig(toml);
-  if (!written) { return; }
-
-  void vscode.window.showInformationMessage(
-    `Added Linear team ${selected.label} (${selected.description})`
-  );
-
-  await updateWalkthroughContext(context);
+/**
+ * Add a new GitHub Project. Same simplification as `addJiraProject`.
+ */
+export async function addGithubProject(
+  context: vscode.ExtensionContext,
+  owner?: string
+): Promise<void> {
+  void owner;
+  await onboardGithub(context);
 }

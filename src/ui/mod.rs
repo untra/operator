@@ -21,9 +21,10 @@ pub mod terminal_suspend;
 pub use collection_dialog::{CollectionInfo, CollectionSwitchDialog, CollectionSwitchResult};
 pub use dashboard::Dashboard;
 pub use dialogs::{
-    ConfirmDialog, ConfirmDialogFocus, ConfirmSelection, GitTokenDialog, RejectionDialog,
-    RejectionResult, SelectedOption, SessionRecoveryDialog, SessionRecoverySelection,
-    SyncConfirmDialog, SyncConfirmResult,
+    ConfirmDialog, ConfirmDialogFocus, ConfirmSelection, GitTokenDialog, KanbanOnboardingAction,
+    KanbanOnboardingDialog, KanbanOnboardingProject, KanbanOnboardingProvider,
+    KanbanOnboardingState, RejectionDialog, RejectionResult, SelectedOption, SessionRecoveryDialog,
+    SessionRecoverySelection, SyncConfirmDialog, SyncConfirmResult,
 };
 pub use kanban_view::{KanbanView, KanbanViewResult};
 pub use paginated_list::{render_paginated_list, PaginatedList};

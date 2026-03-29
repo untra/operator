@@ -8,10 +8,30 @@ use tracing::{debug, warn};
 
 use super::{ExternalIssue, ExternalIssueType, ExternalUser, KanbanProvider, ProjectInfo};
 use crate::api::error::ApiError;
-use crate::issuetypes::IssueType;
+use crate::issuetypes::kanban_type::KanbanIssueTypeRef;
 
 const LINEAR_API_URL: &str = "https://api.linear.app/graphql";
 const PROVIDER_NAME: &str = "linear";
+
+/// Info about a Linear team (returned by `validate_detailed`).
+#[derive(Debug, Clone)]
+pub struct LinearTeamInfo {
+    pub id: String,
+    pub key: String,
+    pub name: String,
+}
+
+/// Detailed validation result for Linear onboarding.
+///
+/// Richer than `KanbanProvider::test_connection` — includes viewer, org, and
+/// the full list of teams available to the API key in a single round-trip.
+#[derive(Debug, Clone)]
+pub struct LinearValidationDetails {
+    pub user_id: String,
+    pub user_name: String,
+    pub org_name: String,
+    pub teams: Vec<LinearTeamInfo>,
+}
 
 /// Linear API provider
 pub struct LinearProvider {
@@ -187,6 +207,74 @@ impl LinearProvider {
                 )
             })
     }
+
+    /// Detailed credential validation for onboarding.
+    ///
+    /// A single `GraphQL` query returns viewer (user), organization, and the
+    /// full list of teams accessible to the API key. The onboarding flow
+    /// uses the `viewer.id` as `sync_user_id` and shows the team list in a
+    /// picker.
+    pub async fn validate_detailed(&self) -> Result<LinearValidationDetails, ApiError> {
+        let query = r"
+            query {
+                viewer { id name }
+                organization { name urlKey }
+                teams { nodes { id key name } }
+            }
+        ";
+
+        #[derive(Deserialize)]
+        struct ValidateResponse {
+            viewer: ViewerNode,
+            organization: OrgNode,
+            teams: TeamsNodesPayload,
+        }
+
+        #[derive(Deserialize)]
+        struct ViewerNode {
+            id: String,
+            #[serde(default)]
+            name: String,
+        }
+
+        #[derive(Deserialize)]
+        struct OrgNode {
+            #[serde(default)]
+            name: String,
+            #[serde(default, rename = "urlKey")]
+            #[allow(dead_code)]
+            url_key: String,
+        }
+
+        #[derive(Deserialize)]
+        struct TeamsNodesPayload {
+            nodes: Vec<TeamNodePayload>,
+        }
+
+        #[derive(Deserialize)]
+        struct TeamNodePayload {
+            id: String,
+            key: String,
+            name: String,
+        }
+
+        let resp: ValidateResponse = self.graphql(query, None).await?;
+        Ok(LinearValidationDetails {
+            user_id: resp.viewer.id,
+            user_name: resp.viewer.name,
+            org_name: resp.organization.name,
+            teams: resp
+                .teams
+                .nodes
+                .into_iter()
+                .map(|t| LinearTeamInfo {
+                    id: t.id,
+                    key: t.key,
+                    name: t.name,
+                })
+                .collect(),
+        })
+    }
 }
 
 // Linear GraphQL response types
@@ -303,6 +391,8 @@ struct LinearIssue {
     assignee: Option<LinearUser>,
     priority: i32,
     url: String,
+    #[serde(default)]
+    labels: Option<LabelsNodes>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -464,36 +554,6 @@ impl KanbanProvider for LinearProvider {
             .collect())
     }
 
-    fn convert_to_issuetype(&self, external: &ExternalIssueType, project_key: &str) -> IssueType {
-        // Sanitize key: uppercase, letters only, max 10 chars
-        let key: String = external
-            .name
-            .chars()
-            .filter(char::is_ascii_alphabetic)
-            .take(10)
-            .collect::<String>()
-            .to_uppercase();
-
-        // Ensure minimum key length
-        let key = if key.len() < 2 {
-            format!("{key}X")
-        } else {
-            key
-        };
-
-        IssueType::new_imported(
-            key,
-            external.name.clone(),
-            external
-                .description
-                .clone()
-                .unwrap_or_else(|| format!("Imported from Linear: {}", external.name)),
-            "linear".to_string(),
-            project_key.to_string(),
-            Some(external.id.clone()),
-        )
-    }
-
     async fn test_connection(&self) -> Result<bool, ApiError> {
         let query = r"
             query {
@@ -626,6 +686,12 @@ impl KanbanProvider for LinearProvider {
                             }
                             priority
                             url
+                            labels {
+                                nodes {
+                                    id
+                                    name
+                                }
+                            }
                         }
                     }
                 }
@@ -657,6 +723,12 @@ impl KanbanProvider for LinearProvider {
                             }
                             priority
                             url
+                            labels {
+                                nodes {
+                                    id
+                                    name
+                                }
+                            }
                         }
                     }
                 }
@@ -682,21 +754,36 @@ impl KanbanProvider for LinearProvider {
             .issues
             .nodes
             .into_iter()
-            .map(|issue| ExternalIssue {
-                id: issue.id,
-                key: issue.identifier,
-                summary: issue.title,
-                description: issue.description,
-                issue_type: "Issue".to_string(), // Linear doesn't have issue types
-                status: issue.state.name,
-                assignee: issue.assignee.map(|u| ExternalUser {
-                    id: u.id,
-                    name: u.name,
-                    email: u.email,
-                    avatar_url: u.avatar_url,
-                }),
-                url: issue.url,
-                priority: priority_to_string(issue.priority),
+            .map(|issue| {
+                let kanban_issue_types = issue
+                    .labels
+                    .map(|labels| {
+                        labels
+                            .nodes
+                            .into_iter()
+                            .map(|l| KanbanIssueTypeRef {
+                                id: l.id,
+                                name: l.name,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                ExternalIssue {
+                    id: issue.id,
+                    key: issue.identifier,
+                    summary: issue.title,
+                    description: issue.description,
+                    kanban_issue_types,
+                    status: issue.state.name,
+                    assignee: issue.assignee.map(|u| ExternalUser {
+                        id: u.id,
+                        name: u.name,
+                        email: u.email,
+                        avatar_url: u.avatar_url,
+                    }),
+                    url: issue.url,
+                    priority: priority_to_string(issue.priority),
+                }
             })
             .collect())
     }
@@ -726,6 +813,12 @@ impl KanbanProvider for LinearProvider {
                         }
                         priority
                         url
+                        labels {
+                            nodes {
+                                id
+                                name
+                            }
+                        }
                     }
                 }
             }
@@ -769,7 +862,19 @@ impl KanbanProvider for LinearProvider {
                 key: issue.identifier,
                 summary: issue.title,
                 description: issue.description,
-                issue_type: "Issue".to_string(),
+                kanban_issue_types: issue
+                    .labels
+                    .map(|labels| {
+                        labels
+                            .nodes
+                            .into_iter()
+                            .map(|l| KanbanIssueTypeRef {
+                                id: l.id,
+                                name: l.name,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
                 status: issue.state.name,
                 assignee: issue.assignee.map(|u| ExternalUser {
                     id: u.id,
@@ -814,6 +919,12 @@ impl KanbanProvider for LinearProvider {
                         }
                         priority
                         url
+                        labels {
+                            nodes {
+                                id
+                                name
+                            }
+                        }
                     }
                 }
             }
@@ -847,7 +958,19 @@ impl KanbanProvider for LinearProvider {
             key: issue.identifier,
             summary: issue.title,
             description: issue.description,
-            issue_type: "Issue".to_string(),
+            kanban_issue_types: issue
+                .labels
+                .map(|labels| {
+                    labels
+                        .nodes
+                        .into_iter()
+                        .map(|l| KanbanIssueTypeRef {
+                            id: l.id,
+                            name: l.name,
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
             status: issue.state.name,
             assignee: issue.assignee.map(|u| ExternalUser {
                 id: u.id,
@@ -874,41 +997,37 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_to_issuetype() {
-        let provider = LinearProvider::new("test_key".to_string());
+    fn test_labels_deserialized_on_issue() {
+        let json = r#"{
+            "issues": {
+                "nodes": [
+                    {
+                        "id": "issue-with-labels",
+                        "identifier": "ENG-789",
+                        "title": "Issue with labels",
+                        "description": null,
+                        "state": { "name": "Todo" },
+                        "assignee": null,
+                        "priority": 3,
+                        "url": "https://linear.app/team/issue/ENG-789",
+                        "labels": {
+                            "nodes": [
+                                { "id": "label-bug", "name": "Bug", "description": null, "color": null },
+                                { "id": "label-urgent", "name": "Urgent", "description": null, "color": null }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }"#;
 
-        let external = ExternalIssueType {
-            id: "label-123".to_string(),
-            name: "Feature".to_string(),
-            description: Some("A feature request".to_string()),
-            icon_url: None,
-            custom_fields: vec![],
-        };
-
-        let issue_type = provider.convert_to_issuetype(&external, "TEAM-ABC");
-
-        assert_eq!(issue_type.key, "FEATURE");
-        assert_eq!(issue_type.name, "Feature");
-        assert_eq!(issue_type.glyph, "F");
-        assert!(issue_type.is_autonomous());
-    }
-
-    #[test]
-    fn test_convert_with_numbers() {
-        let provider = LinearProvider::new("test_key".to_string());
-
-        let external = ExternalIssueType {
-            id: "label-123".to_string(),
-            name: "P0 Bug".to_string(),
-            description: None,
-            icon_url: None,
-            custom_fields: vec![],
-        };
-
-        let issue_type = provider.convert_to_issuetype(&external, "TEAM-ABC");
-
-        // Should filter out numbers and spaces
-        assert_eq!(issue_type.key, "PBUG");
+        let response: IssuesResponse = serde_json::from_str(json).unwrap();
+        let issue = &response.issues.nodes[0];
+        assert!(issue.labels.is_some());
+        let labels = issue.labels.as_ref().unwrap();
+        assert_eq!(labels.nodes.len(), 2);
+        assert_eq!(labels.nodes[0].id, "label-bug");
+        assert_eq!(labels.nodes[0].name, "Bug");
     }
 
     #[test]

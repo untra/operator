@@ -1,6 +1,7 @@
 mod confirm;
 mod git_token;
 mod help;
+mod kanban_onboarding;
 mod rejection;
 mod session_recovery;
 mod sync_confirm;
@@ -10,6 +11,10 @@ pub use confirm::{
 };
 pub use git_token::GitTokenDialog;
 pub use help::HelpDialog;
+pub use kanban_onboarding::{
+    KanbanOnboardingAction, KanbanOnboardingDialog, KanbanOnboardingProject,
+    KanbanOnboardingProvider, KanbanOnboardingState,
+};
 pub use rejection::{RejectionDialog, RejectionResult};
 pub use session_recovery::{SessionRecoveryDialog, SessionRecoverySelection};
 pub use sync_confirm::{SyncConfirmDialog, SyncConfirmResult, SyncableCollectionDisplay};

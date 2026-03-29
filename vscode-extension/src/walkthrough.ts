@@ -16,7 +16,7 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 /** Kanban provider types */
-export type KanbanProviderType = 'jira' | 'linear';
+export type KanbanProviderType = 'jira' | 'linear' | 'github';
 
 /** Detected kanban workspace with connection details */
 export interface KanbanWorkspace {
@@ -51,6 +51,13 @@ export const KANBAN_ENV_VARS = {
   },
   linear: {
     apiKey: ['OPERATOR_LINEAR_API_KEY', 'LINEAR_API_KEY'] as const,
+  },
+  github: {
+    // Token Disambiguation: ONLY OPERATOR_GITHUB_TOKEN is checked here.
+    // We deliberately do NOT fall through to GITHUB_TOKEN — that env var
+    // belongs to the git provider (PR/branch workflows) and detecting it
+    // here would surface a spurious "GitHub kanban detected" prompt.
+    apiKey: ['OPERATOR_GITHUB_TOKEN'] as const,
   },
 } as const;
 
@@ -165,6 +172,17 @@ export function checkKanbanEnvVars(): KanbanEnvResult {
       provider: 'linear',
       name: 'Linear', // Placeholder, updated by fetchLinearWorkspace
       url: 'https://linear.app',
+      configured: true,
+    });
+  }
+
+  // Check GitHub Projects - token only, name resolved server-side at validation
+  const githubToken = findEnvVar(KANBAN_ENV_VARS.github.apiKey);
+  if (githubToken) {
+    workspaces.push({
+      provider: 'github',
+      name: 'GitHub Projects',
+      url: 'https://github.com',
       configured: true,
     });
   }

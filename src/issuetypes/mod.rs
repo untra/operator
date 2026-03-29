@@ -43,6 +43,7 @@
 #![allow(dead_code)] // PARTIAL: Schema used internally, registry not yet exposed to UI
 
 pub mod collection;
+pub mod kanban_type;
 pub mod loader;
 pub mod schema;
 

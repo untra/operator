@@ -6,6 +6,7 @@ pub mod delegators;
 pub mod health;
 pub mod issuetypes;
 pub mod kanban;
+pub mod kanban_onboarding;
 pub mod launch;
 pub mod llm_tools;
 pub mod projects;

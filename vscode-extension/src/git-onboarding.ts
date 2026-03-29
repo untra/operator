@@ -178,9 +178,7 @@ export async function onboardGitHub(): Promise<void> {
     `GitHub connected as ${user.login}! Config written to ${getResolvedConfigPath()}`
   );
 
-  await showEnvVarInstructions([
-    `export GITHUB_TOKEN="<your-token>"`,
-  ]);
+  await showEnvVarInstructions(`export GITHUB_TOKEN="<your-token>"`);
 }
 
 /**
@@ -281,9 +279,7 @@ export async function onboardGitLab(): Promise<void> {
     `GitLab connected as ${user.username}! Config written to ${getResolvedConfigPath()}`
   );
 
-  await showEnvVarInstructions([
-    `export GITLAB_TOKEN="<your-token>"`,
-  ]);
+  await showEnvVarInstructions(`export GITLAB_TOKEN="<your-token>"`);
 }
 
 /**

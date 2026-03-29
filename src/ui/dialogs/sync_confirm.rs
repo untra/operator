@@ -15,7 +15,7 @@ use super::centered_rect;
 pub struct SyncableCollectionDisplay {
     pub provider: String,
     pub project_key: String,
-    pub collection_name: String,
+    pub collection_name: Option<String>,
     pub status_count: usize,
 }
 
@@ -241,7 +241,10 @@ impl SyncConfirmDialog {
                 ),
                 Span::styled("→ ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    &collection.collection_name,
+                    collection
+                        .collection_name
+                        .as_deref()
+                        .unwrap_or("(unmapped)"),
                     Style::default().fg(Color::Cyan),
                 ),
                 Span::styled(status_suffix, Style::default().fg(Color::DarkGray)),
@@ -297,7 +300,7 @@ mod tests {
         let collections = vec![crate::services::SyncableCollection {
             provider: "jira".to_string(),
             project_key: "PROJ".to_string(),
-            collection_name: "jira-proj".to_string(),
+            collection_name: Some("jira-proj".to_string()),
             sync_user_id: "user123".to_string(),
             sync_statuses: vec!["To Do".to_string()],
         }];

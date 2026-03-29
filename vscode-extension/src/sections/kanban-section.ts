@@ -81,6 +81,38 @@ export class KanbanSection implements StatusSection {
           });
         }
       }
+
+      // Parse GitHub Projects providers from config.toml
+      const githubSection = kanbanSection.github as Record<string, unknown> | undefined;
+      if (githubSection) {
+        for (const [owner, wsConfig] of Object.entries(githubSection)) {
+          const ws = wsConfig as Record<string, unknown>;
+          if (ws.enabled === false) { continue; }
+          const projects: KanbanProviderState['projects'] = [];
+          const projectsSection = ws.projects as Record<string, unknown> | undefined;
+          if (projectsSection) {
+            for (const [projectKey, projConfig] of Object.entries(projectsSection)) {
+              const proj = projConfig as Record<string, unknown>;
+              // Project keys are GraphQL node IDs; we can't link directly to
+              // them without the project number, so link to the owner's
+              // projects index page.
+              projects.push({
+                key: projectKey,
+                collectionName: (proj.collection_name as string) || 'dev_kanban',
+                url: `https://github.com/${owner}?tab=projects`,
+              });
+            }
+          }
+          providers.push({
+            provider: 'github',
+            key: owner,
+            enabled: ws.enabled !== false,
+            displayName: owner,
+            url: `https://github.com/${owner}?tab=projects`,
+            projects,
+          });
+        }
+      }
     }
 
     // Fall back to env-var-based detection if config.toml has no kanban section
@@ -133,8 +165,14 @@ export class KanbanSection implements StatusSection {
 
     if (this.state.configured) {
       for (const prov of this.state.providers) {
-        const providerLabel = prov.provider === 'jira' ? 'Jira' : 'Linear';
-        const providerIcon = prov.provider === 'jira' ? 'operator-atlassian' : 'operator-linear';
+        const providerLabel =
+          prov.provider === 'jira' ? 'Jira'
+            : prov.provider === 'linear' ? 'Linear'
+              : 'GitHub Projects';
+        const providerIcon =
+          prov.provider === 'jira' ? 'operator-atlassian'
+            : prov.provider === 'linear' ? 'operator-linear'
+              : 'github';
         items.push(new StatusItem({
           label: providerLabel,
           description: prov.displayName,
@@ -212,8 +250,14 @@ export class KanbanSection implements StatusSection {
       }));
     }
 
-    const addLabel = provider === 'jira' ? 'Add Jira Project' : 'Add Linear Workspace';
-    const addCommand = provider === 'jira' ? 'operator.addJiraProject' : 'operator.addLinearTeam';
+    const addLabel =
+      provider === 'jira' ? 'Add Jira Project'
+        : provider === 'linear' ? 'Add Linear Workspace'
+          : 'Add GitHub Project';
+    const addCommand =
+      provider === 'jira' ? 'operator.addJiraProject'
+        : provider === 'linear' ? 'operator.addLinearTeam'
+          : 'operator.addGithubProject';
     items.push(new StatusItem({
       label: addLabel,
       icon: 'add',
@@ -233,7 +277,10 @@ export class KanbanSection implements StatusSection {
     if (!prov) {
       return '';
     }
-    const provider = prov.provider === 'jira' ? 'Jira' : 'Linear';
+    const provider =
+      prov.provider === 'jira' ? 'Jira'
+        : prov.provider === 'linear' ? 'Linear'
+          : 'GitHub';
     return `${provider}: ${prov.displayName}`;
   }
 }

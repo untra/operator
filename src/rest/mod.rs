@@ -116,6 +116,27 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/kanban/:provider/:project_key/issuetypes",
             get(routes::kanban::external_issue_types),
         )
+        .route(
+            "/api/v1/kanban/:provider/:project_key/issuetypes/sync",
+            post(routes::kanban::sync_issue_types),
+        )
+        // Kanban onboarding endpoints (validate, list projects, write config, set env)
+        .route(
+            "/api/v1/kanban/validate",
+            post(routes::kanban_onboarding::validate_credentials),
+        )
+        .route(
+            "/api/v1/kanban/projects",
+            post(routes::kanban_onboarding::list_projects),
+        )
+        .route(
+            "/api/v1/kanban/config",
+            put(routes::kanban_onboarding::write_config),
+        )
+        .route(
+            "/api/v1/kanban/session-env",
+            post(routes::kanban_onboarding::set_session_env),
+        )
         // Skills endpoint
         .route("/api/v1/skills", get(routes::skills::list))
         // LLM tools endpoints

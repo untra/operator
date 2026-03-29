@@ -10,9 +10,19 @@ use ts_rs::TS;
 
 use super::{ExternalIssue, ExternalIssueType, ExternalUser, KanbanProvider, ProjectInfo};
 use crate::api::error::ApiError;
-use crate::issuetypes::IssueType;
+use crate::issuetypes::kanban_type::KanbanIssueTypeRef;
 
 const PROVIDER_NAME: &str = "jira";
+
+/// Detailed validation result for Jira onboarding.
+///
+/// Richer than `KanbanProvider::test_connection` — includes the authenticated
+/// user's `accountId` (used as `sync_user_id` in config) and display name.
+#[derive(Debug, Clone)]
+pub struct JiraValidationDetails {
+    pub account_id: String,
+    pub display_name: String,
+}
 
 /// Jira Cloud API provider
 pub struct JiraProvider {
@@ -203,7 +213,10 @@ impl JiraProvider {
             key: issue.key,
             summary: issue.fields.summary,
             description: extract_description_text(&issue.fields.description),
-            issue_type: issue.fields.issuetype.name,
+            kanban_issue_types: vec![KanbanIssueTypeRef {
+                id: String::new(), // not available from single issue fetch
+                name: issue.fields.issuetype.name,
+            }],
             status: issue.fields.status.name,
             assignee: issue.fields.assignee.map(|u| ExternalUser {
                 id: u.account_id,
@@ -213,6 +226,27 @@ impl JiraProvider {
             }),
             url,
             priority: issue.fields.priority.map(|p| p.name),
+        })
+    }
+
+    /// Detailed credential validation for onboarding.
+    ///
+    /// Hits `/rest/api/3/myself` and returns the authenticated user's
+    /// `accountId` + `displayName`, which the onboarding flow uses as
+    /// `sync_user_id` in `ProjectSyncConfig`.
+    pub async fn validate_detailed(&self) -> Result<JiraValidationDetails, ApiError> {
+        #[derive(Deserialize)]
+        struct MySelf {
+            #[serde(rename = "accountId")]
+            account_id: String,
+            #[serde(rename = "displayName", default)]
+            display_name: String,
+        }
+
+        let me: MySelf = self.get("/myself").await?;
+        Ok(JiraValidationDetails {
+            account_id: me.account_id,
+            display_name: me.display_name,
         })
     }
 }
@@ -398,6 +432,9 @@ pub struct JiraDescription {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct JiraIssueTypeRef {
+    /// Issue type ID (e.g., "10001")
+    #[serde(default)]
+    pub id: Option<String>,
     /// Issue type name (e.g., "Bug", "Story", "Task")
     pub name: String,
 }
@@ -512,36 +549,6 @@ impl KanbanProvider for JiraProvider {
             .collect())
     }
 
-    fn convert_to_issuetype(&self, external: &ExternalIssueType, project_key: &str) -> IssueType {
-        // Sanitize key: uppercase, letters only, max 10 chars
-        let key: String = external
-            .name
-            .chars()
-            .filter(char::is_ascii_alphabetic)
-            .take(10)
-            .collect::<String>()
-            .to_uppercase();
-
-        // Ensure minimum key length
-        let key = if key.len() < 2 {
-            format!("{key}X")
-        } else {
-            key
-        };
-
-        IssueType::new_imported(
-            key,
-            external.name.clone(),
-            external
-                .description
-                .clone()
-                .unwrap_or_else(|| format!("Imported from Jira: {}", external.name)),
-            "jira".to_string(),
-            project_key.to_string(),
-            Some(external.id.clone()),
-        )
-    }
-
     async fn test_connection(&self) -> Result<bool, ApiError> {
         // Try to get current user to verify credentials
         #[derive(Deserialize)]
@@ -621,7 +628,10 @@ impl KanbanProvider for JiraProvider {
                     key: issue.key,
                     summary: issue.fields.summary,
                     description: extract_description_text(&issue.fields.description),
-                    issue_type: issue.fields.issuetype.name,
+                    kanban_issue_types: vec![KanbanIssueTypeRef {
+                        id: issue.fields.issuetype.id.unwrap_or_default(),
+                        name: issue.fields.issuetype.name,
+                    }],
                     status: issue.fields.status.name,
                     assignee: issue.fields.assignee.map(|u| ExternalUser {
                         id: u.account_id,
@@ -754,71 +764,20 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_to_issuetype() {
-        let provider = JiraProvider::new(
-            "test.atlassian.net".to_string(),
-            "test@test.com".to_string(),
-            "token".to_string(),
-        );
-
-        let external = ExternalIssueType {
-            id: "10001".to_string(),
-            name: "Bug".to_string(),
-            description: Some("A software bug".to_string()),
-            icon_url: None,
-            custom_fields: vec![],
-        };
-
-        let issue_type = provider.convert_to_issuetype(&external, "PROJ");
-
-        assert_eq!(issue_type.key, "BUG");
-        assert_eq!(issue_type.name, "Bug");
-        assert_eq!(issue_type.glyph, "B");
-        assert!(issue_type.is_autonomous());
+    fn test_issue_type_ref_has_id() {
+        // JiraIssueTypeRef now includes optional id for kanban issue type refs
+        let json = r#"{"id": "10001", "name": "Bug"}"#;
+        let type_ref: JiraIssueTypeRef = serde_json::from_str(json).unwrap();
+        assert_eq!(type_ref.id, Some("10001".to_string()));
+        assert_eq!(type_ref.name, "Bug");
     }
 
     #[test]
-    fn test_convert_long_name() {
-        let provider = JiraProvider::new(
-            "test.atlassian.net".to_string(),
-            "test@test.com".to_string(),
-            "token".to_string(),
-        );
-
-        let external = ExternalIssueType {
-            id: "10001".to_string(),
-            name: "Very Long Issue Type Name".to_string(),
-            description: None,
-            icon_url: None,
-            custom_fields: vec![],
-        };
-
-        let issue_type = provider.convert_to_issuetype(&external, "PROJ");
-
-        // Should be truncated to 10 chars
-        assert!(issue_type.key.len() <= 10);
-        assert!(issue_type.key.chars().all(|c| c.is_ascii_uppercase()));
-    }
-
-    #[test]
-    fn test_convert_short_name() {
-        let provider = JiraProvider::new(
-            "test.atlassian.net".to_string(),
-            "test@test.com".to_string(),
-            "token".to_string(),
-        );
-
-        let external = ExternalIssueType {
-            id: "10001".to_string(),
-            name: "X".to_string(),
-            description: None,
-            icon_url: None,
-            custom_fields: vec![],
-        };
-
-        let issue_type = provider.convert_to_issuetype(&external, "PROJ");
-
-        // Should be padded to minimum 2 chars
-        assert!(issue_type.key.len() >= 2);
+    fn test_issue_type_ref_no_id() {
+        // id is optional for backward compatibility
+        let json = r#"{"name": "Bug"}"#;
+        let type_ref: JiraIssueTypeRef = serde_json::from_str(json).unwrap();
+        assert_eq!(type_ref.id, None);
+        assert_eq!(type_ref.name, "Bug");
     }
 }

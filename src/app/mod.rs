@@ -20,8 +20,8 @@ use crate::ui::projects_dialog::ProjectsDialog;
 use crate::ui::session_preview::SessionPreview;
 use crate::ui::setup::{DetectedToolInfo, SetupScreen};
 use crate::ui::{
-    CollectionSwitchDialog, ConfirmDialog, Dashboard, GitTokenDialog, KanbanView,
-    SessionRecoveryDialog, SyncConfirmDialog, TerminalGuard,
+    CollectionSwitchDialog, ConfirmDialog, Dashboard, GitTokenDialog, KanbanOnboardingDialog,
+    KanbanView, SessionRecoveryDialog, SyncConfirmDialog, TerminalGuard,
 };
 use std::sync::Arc;
 
@@ -29,6 +29,7 @@ mod agents;
 mod data_sync;
 mod git_onboarding;
 mod kanban;
+mod kanban_onboarding;
 mod keyboard;
 mod pr_workflow;
 mod review;
@@ -81,6 +82,10 @@ pub struct App {
     pub(crate) sync_confirm_dialog: SyncConfirmDialog,
     /// Git token input dialog
     pub(crate) git_token_dialog: GitTokenDialog,
+    /// Kanban onboarding wizard dialog (new providers from main TUI)
+    pub(crate) kanban_onboarding_dialog: KanbanOnboardingDialog,
+    /// In-flight credentials for kanban onboarding (cleared on dialog close)
+    pub(crate) kanban_onboarding_creds: kanban_onboarding::KanbanOnboardingCreds,
     /// Kanban sync service
     pub(crate) kanban_sync_service: KanbanSyncService,
     /// Issue type registry for dynamic issue types
@@ -286,6 +291,8 @@ impl App {
             kanban_view: KanbanView::new(),
             sync_confirm_dialog: SyncConfirmDialog::new(),
             git_token_dialog: GitTokenDialog::new(),
+            kanban_onboarding_dialog: KanbanOnboardingDialog::new(),
+            kanban_onboarding_creds: kanban_onboarding::KanbanOnboardingCreds::default(),
             kanban_sync_service,
             issue_type_registry,
             pr_event_rx,
@@ -394,6 +401,7 @@ impl App {
                     }
                     self.sync_confirm_dialog.render(f);
                     self.git_token_dialog.render(f);
+                    self.kanban_onboarding_dialog.render(f);
                 }
             })?;
 

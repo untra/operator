@@ -232,7 +232,10 @@ impl GithubProjectsProvider {
             let combined = messages.join("; ");
             // If the `GraphQL` errors mention permissions/scopes/projects, escalate
             // with the friendly disambiguation hint so users see it via the
-            // generic provider_error_message helper.
+            // generic provider_error_message helper. Preserve the raw error so
+            // legitimate bugs (field-level permission failures, feature-gated
+            // fields, etc.) are still debuggable — the hint alone was masking
+            // real root causes.
             let lower = combined.to_lowercase();
             if lower.contains("project")
                 && (lower.contains("permission")
@@ -242,7 +245,7 @@ impl GithubProjectsProvider {
                 return Err(ApiError::http(
                     PROVIDER_NAME,
                     403,
-                    SCOPE_ERROR_MSG.to_string(),
+                    format!("{SCOPE_ERROR_MSG} (raw GraphQL error: {combined})"),
                 ));
             }
             return Err(ApiError::http(PROVIDER_NAME, 0, combined));

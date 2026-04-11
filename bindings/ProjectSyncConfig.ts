@@ -8,6 +8,7 @@ export type ProjectSyncConfig = {
  * User ID to sync issues for (provider-specific format)
  * - Jira: accountId (e.g., "5e3f7acd9876543210abcdef")
  * - Linear: user ID (e.g., "abc12345-6789-0abc-def0-123456789abc")
+ * - GitHub Projects: numeric GitHub `databaseId` (e.g., "12345678")
  */
 sync_user_id: string, 
 /**
@@ -15,11 +16,12 @@ sync_user_id: string,
  */
 sync_statuses: Array<string>, 
 /**
- * `IssueTypeCollection` name this project maps to
+ * Optional `IssueTypeCollection` name this project maps to.
+ * Not required for kanban onboarding or sync.
  */
-collection_name: string, 
+collection_name: string | null, 
 /**
- * Optional explicit mapping overrides: external issue type name → operator issue type key
- * When empty, convention-based auto-matching is used (Bug→FIX, Story→FEAT, etc.)
+ * Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX).
+ * Multiple kanban types can map to the same operator template.
  */
 type_mappings: { [key in string]?: string }, };

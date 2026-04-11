@@ -28,6 +28,10 @@ on:
         description: 'Run Linear integration tests'
         type: boolean
         default: true
+      run_github:
+        description: 'Run GitHub Projects integration tests'
+        type: boolean
+        default: true
       run_git:
         description: 'Run Git integration tests'
         type: boolean
@@ -86,6 +90,15 @@ jobs:
           OPERATOR_LINEAR_TEST_TEAM: ${{ secrets.OPERATOR_LINEAR_TEST_TEAM }}
         run: cargo test --test kanban_integration linear_tests -- --nocapture --test-threads=1
 
+      - name: Run GitHub Projects integration tests
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.run_github) &&
+          env.OPERATOR_GITHUB_TOKEN != ''
+        env:
+          OPERATOR_GITHUB_TOKEN: ${{ secrets.OPERATOR_GITHUB_TOKEN }}
+          OPERATOR_GITHUB_TEST_PROJECT: ${{ secrets.OPERATOR_GITHUB_TEST_PROJECT }}
+        run: cargo test --test kanban_integration github_tests -- --nocapture --test-threads=1
+
       - name: Run cross-provider tests
         env:
           OPERATOR_JIRA_DOMAIN: ${{ secrets.OPERATOR_JIRA_DOMAIN }}
@@ -94,6 +107,8 @@ jobs:
           OPERATOR_JIRA_TEST_PROJECT: ${{ secrets.OPERATOR_JIRA_TEST_PROJECT }}
           OPERATOR_LINEAR_API_KEY: ${{ secrets.OPERATOR_LINEAR_API_KEY }}
           OPERATOR_LINEAR_TEST_TEAM: ${{ secrets.OPERATOR_LINEAR_TEST_TEAM }}
+          OPERATOR_GITHUB_TOKEN: ${{ secrets.OPERATOR_GITHUB_TOKEN }}
+          OPERATOR_GITHUB_TEST_PROJECT: ${{ secrets.OPERATOR_GITHUB_TEST_PROJECT }}
         run: cargo test --test kanban_integration test_provider_interface_consistency -- --nocapture
 
       # Git Integration Tests

@@ -15,6 +15,10 @@ export interface StatusItemOptions {
   provider?: string;        // 'jira' | 'linear'
   workspaceKey?: string;    // domain or teamId (config key)
   projectKey?: string;      // project/team sync config key
+  /** X button (Shift+Enter) — special/tertiary action */
+  specialCommand?: vscode.Command;
+  /** Y button (Ctrl+Enter) — contextual refresh */
+  refreshCommand?: vscode.Command;
 }
 
 /**
@@ -25,6 +29,10 @@ export class StatusItem extends vscode.TreeItem {
   public readonly provider?: string;
   public readonly workspaceKey?: string;
   public readonly projectKey?: string;
+  /** X button (Shift+Enter) — special/tertiary action */
+  public readonly specialCommand?: vscode.Command;
+  /** Y button (Ctrl+Enter) — contextual refresh */
+  public readonly refreshCommand?: vscode.Command;
 
   constructor(opts: StatusItemOptions) {
     super(
@@ -35,12 +43,43 @@ export class StatusItem extends vscode.TreeItem {
     this.provider = opts.provider;
     this.workspaceKey = opts.workspaceKey;
     this.projectKey = opts.projectKey;
-    if (opts.description !== undefined) {
-      this.description = opts.description;
+    this.specialCommand = opts.specialCommand;
+    this.refreshCommand = opts.refreshCommand;
+
+    // Build description with action indicator titles
+    let desc = opts.description ?? '';
+    const indicators: string[] = [];
+    if (opts.specialCommand) {
+      indicators.push(opts.specialCommand.title || '*');
     }
-    this.tooltip = opts.tooltip || (opts.description
+    if (opts.refreshCommand) {
+      indicators.push(opts.refreshCommand.title || '\u27F3');
+    }
+    if (indicators.length > 0) {
+      desc = desc ? `${desc} ${indicators.join(' ')}` : indicators.join(' ');
+    }
+
+    if (desc) {
+      this.description = desc;
+    }
+
+    // Build rich tooltip with action hints
+    const tooltipLines: string[] = [];
+    const baseTooltip = opts.tooltip || (opts.description
       ? `${opts.label}: ${opts.description}`
       : opts.label);
+    tooltipLines.push(baseTooltip);
+    if (opts.command) {
+      tooltipLines.push(`Enter: ${opts.command.title}`);
+    }
+    if (opts.specialCommand?.tooltip) {
+      tooltipLines.push(`Shift+Enter: ${opts.specialCommand.tooltip}`);
+    }
+    if (opts.refreshCommand?.tooltip) {
+      tooltipLines.push(`Ctrl+Enter: ${opts.refreshCommand.tooltip}`);
+    }
+    this.tooltip = tooltipLines.join('\n');
+
     this.iconPath = new vscode.ThemeIcon(opts.icon);
     if (opts.command) {
       this.command = opts.command;

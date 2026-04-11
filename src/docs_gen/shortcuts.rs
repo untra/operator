@@ -79,6 +79,9 @@ impl ShortcutsDocGenerator {
             ShortcutContext::Preview => {
                 "These shortcuts are available when viewing a session preview."
             }
+            ShortcutContext::StatusPanel => {
+                "These shortcuts are available when the status panel is focused. Actions use an ABXY gamepad-style mapping."
+            }
             ShortcutContext::LaunchDialog => {
                 "These shortcuts are available in the ticket launch confirmation dialog."
             }

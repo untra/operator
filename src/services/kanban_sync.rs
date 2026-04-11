@@ -15,8 +15,9 @@ use std::fs;
 use std::path::Path;
 use tracing::{debug, info, warn};
 
-use crate::api::providers::kanban::{get_provider, ExternalIssue, KanbanProvider};
+use crate::api::providers::kanban::{get_provider, ExternalIssue};
 use crate::config::{Config, ProjectSyncConfig};
+use crate::issuetypes::kanban_type::KanbanIssueTypeRef;
 
 /// A collection that can be synced from a kanban provider
 #[derive(Debug, Clone)]
@@ -25,8 +26,8 @@ pub struct SyncableCollection {
     pub provider: String,
     /// Project/team key in the provider
     pub project_key: String,
-    /// `IssueTypeCollection` name in Operator
-    pub collection_name: String,
+    /// Optional `IssueTypeCollection` name in Operator
+    pub collection_name: Option<String>,
     /// User ID to sync issues for
     pub sync_user_id: String,
     /// Statuses to sync (empty = default only)
@@ -110,6 +111,21 @@ impl KanbanSyncService {
             }
         }
 
+        // Check all GitHub Projects instances (keyed by owner login)
+        for github_config in self.config.kanban.github.values() {
+            if github_config.enabled {
+                for (project_key, project_config) in &github_config.projects {
+                    collections.push(SyncableCollection {
+                        provider: "github".to_string(),
+                        project_key: project_key.clone(),
+                        collection_name: project_config.collection_name.clone(),
+                        sync_user_id: project_config.sync_user_id.clone(),
+                        sync_statuses: project_config.sync_statuses.clone(),
+                    });
+                }
+            }
+        }
+
         collections
     }
 
@@ -164,7 +180,12 @@ impl KanbanSyncService {
                 continue;
             }
 
-            match self.create_ticket_from_issue(&issue, provider_name, project_key) {
+            let type_mappings = if project_config.type_mappings.is_empty() {
+                None
+            } else {
+                Some(&project_config.type_mappings)
+            };
+            match self.create_ticket_from_issue(&issue, provider_name, project_key, type_mappings) {
                 Ok(filename) => {
                     info!("Created ticket: {}", filename);
                     result.created.push(issue.key.clone());
@@ -289,6 +310,7 @@ impl KanbanSyncService {
         issue: &ExternalIssue,
         provider: &str,
         project_key: &str,
+        type_mappings: Option<&std::collections::HashMap<String, String>>,
     ) -> Result<String> {
         let queue_path = Path::new(&self.config.paths.tickets).join("queue");
         fs::create_dir_all(&queue_path)?;
@@ -296,11 +318,19 @@ impl KanbanSyncService {
         // Generate filename: YYYYMMDD-HHMM-TYPE-PROJECT-summary.md
         let now = Local::now();
         let timestamp = now.format("%Y%m%d-%H%M").to_string();
-        let ticket_type = map_issue_type_to_operator(&issue.issue_type);
+        // Resolve operator type from kanban issue type refs via type_mappings,
+        // falling back to TASK with needs_issuetype_mapping flag
+        let (ticket_type, needs_mapping) =
+            resolve_ticket_type(&issue.kanban_issue_types, type_mappings);
         let slug = slugify(&issue.summary, 50);
         let filename = format!("{timestamp}-{ticket_type}-{project_key}-{slug}.md");
 
         // Build frontmatter
+        let needs_mapping_line = if needs_mapping {
+            "\nneeds_issuetype_mapping: true"
+        } else {
+            ""
+        };
         let frontmatter = format!(
             r"---
 id: {}-{}
@@ -309,7 +339,7 @@ priority: {}
 step: plan
 external_id: {}
 external_url: {}
-external_provider: {}
+external_provider: {}{}
 ---",
             ticket_type,
             issue.key.replace('-', ""),
@@ -317,6 +347,7 @@ external_provider: {}
             issue.key,
             issue.url,
             provider,
+            needs_mapping_line,
         );
 
         // Build content
@@ -365,15 +396,35 @@ fn extract_external_id(content: &str) -> Option<String> {
     None
 }
 
-/// Map external issue type to Operator type
-fn map_issue_type_to_operator(issue_type: &str) -> &'static str {
-    match issue_type.to_lowercase().as_str() {
-        "bug" | "fix" | "defect" => "FIX",
-        "feature" | "story" | "user story" | "enhancement" => "FEAT",
-        "spike" | "research" | "investigation" => "SPIKE",
-        "task" | "sub-task" | "subtask" => "TASK",
-        _ => "TASK", // Default to TASK for unknown types
+/// Resolve operator issuetype from kanban issue type refs.
+///
+/// Uses `type_mappings` (keyed by provider type ID) to resolve.
+/// For Linear: sorts labels by name, picks first mapped label.
+/// Returns `(operator_key, needs_mapping)` -- if unmapped, returns `("TASK", true)`.
+fn resolve_ticket_type(
+    kanban_refs: &[KanbanIssueTypeRef],
+    type_mappings: Option<&std::collections::HashMap<String, String>>,
+) -> (&'static str, bool) {
+    if let Some(mappings) = type_mappings {
+        // Sort refs by name for deterministic resolution (important for Linear labels)
+        let mut sorted_refs: Vec<_> = kanban_refs.iter().collect();
+        sorted_refs.sort_by(|a, b| a.name.cmp(&b.name));
+
+        for r in &sorted_refs {
+            if let Some(operator_key) = mappings.get(&r.id) {
+                return (leak_string(operator_key), false);
+            }
+        }
     }
+
+    // No mapping found -- fallback to TASK with mapping nudge
+    ("TASK", true)
+}
+
+/// Leak a string to get a `&'static str`.
+/// Used for dynamic operator keys from `type_mappings`.
+fn leak_string(s: &str) -> &'static str {
+    Box::leak(s.to_string().into_boxed_str())
 }
 
 /// Map external priority to Operator priority
@@ -418,14 +469,73 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_map_issue_type_to_operator() {
-        assert_eq!(map_issue_type_to_operator("Bug"), "FIX");
-        assert_eq!(map_issue_type_to_operator("bug"), "FIX");
-        assert_eq!(map_issue_type_to_operator("Feature"), "FEAT");
-        assert_eq!(map_issue_type_to_operator("Story"), "FEAT");
-        assert_eq!(map_issue_type_to_operator("Spike"), "SPIKE");
-        assert_eq!(map_issue_type_to_operator("Task"), "TASK");
-        assert_eq!(map_issue_type_to_operator("Unknown"), "TASK");
+    fn test_resolve_ticket_type_with_mapping() {
+        let mut mappings = std::collections::HashMap::new();
+        mappings.insert("10001".to_string(), "FIX".to_string());
+        mappings.insert("10002".to_string(), "FEAT".to_string());
+
+        let refs = vec![KanbanIssueTypeRef {
+            id: "10001".to_string(),
+            name: "Bug".to_string(),
+        }];
+        let (key, needs) = resolve_ticket_type(&refs, Some(&mappings));
+        assert_eq!(key, "FIX");
+        assert!(!needs);
+    }
+
+    #[test]
+    fn test_resolve_ticket_type_no_mapping() {
+        let refs = vec![KanbanIssueTypeRef {
+            id: "10001".to_string(),
+            name: "Bug".to_string(),
+        }];
+        let (key, needs) = resolve_ticket_type(&refs, None);
+        assert_eq!(key, "TASK");
+        assert!(needs);
+    }
+
+    #[test]
+    fn test_resolve_ticket_type_unmapped_id() {
+        let mut mappings = std::collections::HashMap::new();
+        mappings.insert("10002".to_string(), "FEAT".to_string());
+
+        let refs = vec![KanbanIssueTypeRef {
+            id: "10001".to_string(),
+            name: "Bug".to_string(),
+        }];
+        let (key, needs) = resolve_ticket_type(&refs, Some(&mappings));
+        assert_eq!(key, "TASK");
+        assert!(needs);
+    }
+
+    #[test]
+    fn test_resolve_ticket_type_linear_labels_sorted() {
+        let mut mappings = std::collections::HashMap::new();
+        mappings.insert("label-bug".to_string(), "FIX".to_string());
+        mappings.insert("label-feat".to_string(), "FEAT".to_string());
+
+        // Multiple labels -- should sort by name and pick first mapped
+        let refs = vec![
+            KanbanIssueTypeRef {
+                id: "label-feat".to_string(),
+                name: "Feature".to_string(),
+            },
+            KanbanIssueTypeRef {
+                id: "label-bug".to_string(),
+                name: "Bug".to_string(),
+            },
+        ];
+        // Sorted by name: Bug < Feature, so Bug matches first -> FIX
+        let (key, needs) = resolve_ticket_type(&refs, Some(&mappings));
+        assert_eq!(key, "FIX");
+        assert!(!needs);
+    }
+
+    #[test]
+    fn test_resolve_ticket_type_empty_refs() {
+        let (key, needs) = resolve_ticket_type(&[], None);
+        assert_eq!(key, "TASK");
+        assert!(needs);
     }
 
     #[test]

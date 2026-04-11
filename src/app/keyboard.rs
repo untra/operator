@@ -1,20 +1,25 @@
 use anyhow::Result;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::ui::setup::SetupResult;
+use crate::ui::status_panel::ActionButton;
 use crate::ui::{ConfirmSelection, KanbanViewResult, SessionRecoverySelection, SyncConfirmResult};
 
+use super::git_onboarding;
 use super::{App, AppTerminal};
 
 impl App {
     pub(super) async fn handle_key(
         &mut self,
-        key: KeyCode,
+        key: KeyEvent,
         terminal: &mut AppTerminal,
     ) -> Result<()> {
+        let code = key.code;
+        let mods = key.modifiers;
+
         // Setup screen takes absolute priority
         if let Some(ref mut setup) = self.setup_screen {
-            match key {
+            match code {
                 KeyCode::Char('i' | 'I') => {
                     if setup.confirm_selected {
                         self.initialize_tickets()?;
@@ -76,7 +81,7 @@ impl App {
 
         // Session preview handling
         if self.session_preview.visible {
-            match key {
+            match code {
                 KeyCode::Esc | KeyCode::Char('q') => {
                     self.session_preview.hide();
                 }
@@ -105,7 +110,7 @@ impl App {
 
         // Create dialog handling
         if self.create_dialog.visible {
-            if let Some(result) = self.create_dialog.handle_key(key) {
+            if let Some(result) = self.create_dialog.handle_key(code) {
                 self.create_ticket(result, terminal)?;
             }
             return Ok(());
@@ -113,7 +118,7 @@ impl App {
 
         // Projects dialog handling
         if self.projects_dialog.visible {
-            if let Some(result) = self.projects_dialog.handle_key(key) {
+            if let Some(result) = self.projects_dialog.handle_key(code) {
                 self.execute_project_action(result)?;
             }
             return Ok(());
@@ -123,7 +128,7 @@ impl App {
         if self.confirm_dialog.visible {
             // Check if options are focused for different key behavior
             if self.confirm_dialog.is_options_focused() {
-                match key {
+                match code {
                     // Down or Enter moves focus back to buttons
                     KeyCode::Down | KeyCode::Enter => {
                         self.confirm_dialog.focus_buttons();
@@ -164,7 +169,7 @@ impl App {
                 }
             } else {
                 // Buttons focused (default behavior)
-                match key {
+                match code {
                     KeyCode::Char('y' | 'Y') => {
                         self.launch_confirmed().await?;
                     }
@@ -219,7 +224,7 @@ impl App {
 
         // Session recovery dialog handling
         if self.session_recovery_dialog.visible {
-            match key {
+            match code {
                 KeyCode::Char('r' | 'R') => {
                     if self.session_recovery_dialog.has_session_id() {
                         self.handle_session_recovery(SessionRecoverySelection::ResumeSession)
@@ -254,7 +259,7 @@ impl App {
 
         // Collection dialog handling
         if self.collection_dialog.visible {
-            if let Some(result) = self.collection_dialog.handle_key(key) {
+            if let Some(result) = self.collection_dialog.handle_key(code) {
                 self.handle_collection_switch(result)?;
             }
             return Ok(());
@@ -262,7 +267,7 @@ impl App {
 
         // Kanban view handling
         if self.kanban_view.visible {
-            if let Some(result) = self.kanban_view.handle_key(key) {
+            if let Some(result) = self.kanban_view.handle_key(code) {
                 match result {
                     KanbanViewResult::Sync {
                         provider,
@@ -279,6 +284,10 @@ impl App {
                         self.kanban_view.syncing = false;
                         self.kanban_view.hide();
                     }
+                    KanbanViewResult::AddProvider => {
+                        // Open the kanban onboarding wizard
+                        self.show_kanban_onboarding_dialog();
+                    }
                     KanbanViewResult::Dismissed => {
                         // Already hidden by handle_key
                     }
@@ -287,9 +296,76 @@ impl App {
             return Ok(());
         }
 
+        // Git token dialog handling
+        if self.git_token_dialog.visible {
+            match code {
+                KeyCode::Esc => {
+                    self.git_token_dialog.hide();
+                }
+                KeyCode::Enter => {
+                    let token = self.git_token_dialog.token().to_string();
+                    if token.is_empty() {
+                        self.git_token_dialog.set_error("Token cannot be empty");
+                    } else {
+                        let provider = self.git_token_dialog.provider.clone();
+                        let provider_display = self.git_token_dialog.provider_display.clone();
+                        match git_onboarding::validate_token(&provider, &token) {
+                            Ok(username) => {
+                                match git_onboarding::complete_git_onboarding(
+                                    &mut self.config,
+                                    &provider,
+                                    &token,
+                                ) {
+                                    Ok(()) => {
+                                        self.git_token_dialog.hide();
+                                        self.dashboard.update_config(&self.config);
+                                        self.refresh_data()?;
+                                        self.dashboard.set_status(&format!(
+                                            "{provider_display} connected as {username}"
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        self.git_token_dialog
+                                            .set_error(&format!("Failed to save config: {e}"));
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                self.git_token_dialog
+                                    .set_error(&format!("Token validation failed: {e}"));
+                            }
+                        }
+                    }
+                }
+                KeyCode::Char(c) => {
+                    self.git_token_dialog.handle_char(c);
+                }
+                KeyCode::Backspace => {
+                    self.git_token_dialog.handle_backspace();
+                }
+                KeyCode::Delete => {
+                    self.git_token_dialog.handle_delete();
+                }
+                KeyCode::Left => {
+                    self.git_token_dialog.cursor_left();
+                }
+                KeyCode::Right => {
+                    self.git_token_dialog.cursor_right();
+                }
+                KeyCode::Home => {
+                    self.git_token_dialog.cursor_home();
+                }
+                KeyCode::End => {
+                    self.git_token_dialog.cursor_end();
+                }
+                _ => {}
+            }
+            return Ok(());
+        }
+
         // Sync confirm dialog handling
         if self.sync_confirm_dialog.visible {
-            if let Some(result) = self.sync_confirm_dialog.handle_key(key) {
+            if let Some(result) = self.sync_confirm_dialog.handle_key(code) {
                 match result {
                     SyncConfirmResult::Confirmed => {
                         self.run_kanban_sync_all().await?;
@@ -302,8 +378,15 @@ impl App {
             return Ok(());
         }
 
+        // Kanban onboarding dialog handling
+        if self.kanban_onboarding_dialog.visible {
+            let action = self.kanban_onboarding_dialog.handle_key(code);
+            self.handle_kanban_onboarding_action(action).await?;
+            return Ok(());
+        }
+
         // Normal mode
-        match key {
+        match code {
             KeyCode::Char('q') => {
                 // Stop servers if running before exiting
                 if self.rest_api_server.is_running() || self.backstage_server.is_running() {
@@ -341,13 +424,27 @@ impl App {
                 self.dashboard.focus_next();
             }
             KeyCode::Enter => {
-                // Enter key behavior depends on focused panel
+                // Enter key behavior depends on focused panel and modifiers
                 match self.dashboard.focused {
-                    crate::ui::dashboard::FocusedPanel::Queue => {
-                        self.try_launch()?;
+                    crate::ui::dashboard::FocusedPanel::Status => {
+                        let button = if mods.contains(KeyModifiers::SHIFT) {
+                            ActionButton::X
+                        } else if mods.contains(KeyModifiers::CONTROL) {
+                            ActionButton::Y
+                        } else {
+                            ActionButton::A
+                        };
+                        let action = self.dashboard.status_action(button);
+                        self.execute_status_action(action, terminal)?;
                     }
-                    crate::ui::dashboard::FocusedPanel::Agents
-                    | crate::ui::dashboard::FocusedPanel::Awaiting => {
+                    crate::ui::dashboard::FocusedPanel::Queue => {
+                        if mods.contains(KeyModifiers::SHIFT) {
+                            self.auto_launch().await?;
+                        } else {
+                            self.try_launch()?;
+                        }
+                    }
+                    crate::ui::dashboard::FocusedPanel::InProgress => {
                         self.attach_to_session(terminal)?;
                     }
                     crate::ui::dashboard::FocusedPanel::Completed => {
@@ -365,7 +462,7 @@ impl App {
                 self.dashboard.focused = crate::ui::dashboard::FocusedPanel::Queue;
             }
             KeyCode::Char('A' | 'a') => {
-                self.dashboard.focused = crate::ui::dashboard::FocusedPanel::Agents;
+                self.dashboard.focused = crate::ui::dashboard::FocusedPanel::InProgress;
             }
             KeyCode::Char('C') => {
                 self.create_dialog.show();
@@ -394,49 +491,7 @@ impl App {
                 }
             }
             KeyCode::Char('W' | 'w') => {
-                // Toggle both REST API and Backstage servers together
-                let backstage_running = self.backstage_server.is_running();
-                let rest_running = self.rest_api_server.is_running();
-
-                if backstage_running && rest_running {
-                    // Both running - stop both
-                    self.rest_api_server.stop();
-                    if let Err(e) = self.backstage_server.stop() {
-                        tracing::error!("Backstage stop failed: {}", e);
-                    }
-                } else {
-                    // Show yellow "Starting" indicator immediately for feedback
-                    use crate::backstage::ServerStatus;
-                    self.dashboard
-                        .update_backstage_status(ServerStatus::Starting);
-                    terminal.draw(|f| self.dashboard.render(f))?;
-
-                    // Start both if not running
-                    if !rest_running {
-                        if let Err(e) = self.rest_api_server.start() {
-                            tracing::error!("REST API start failed: {}", e);
-                        }
-                    }
-                    if !backstage_running {
-                        if let Err(e) = self.backstage_server.start() {
-                            tracing::error!("Backstage start failed: {}", e);
-                        }
-                    }
-                    // Wait for server to be ready before opening browser
-                    // Polls /health every 500ms, up to 50 times (25 seconds)
-                    if self.backstage_server.is_running() {
-                        match self.backstage_server.wait_for_ready(25000) {
-                            Ok(()) => {
-                                if let Err(e) = self.backstage_server.open_browser() {
-                                    tracing::warn!("Failed to open browser: {}", e);
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!("Server not ready: {}", e);
-                            }
-                        }
-                    }
-                }
+                self.toggle_web_servers(terminal)?;
             }
             KeyCode::Char('T' | 't') => {
                 // Open collection switch dialog
@@ -449,6 +504,13 @@ impl App {
             KeyCode::Char('F') => {
                 // Focus agent's cmux window (cmux power-user action)
                 self.focus_agent_window()?;
+            }
+            KeyCode::Esc | KeyCode::Backspace
+                if self.dashboard.focused == crate::ui::dashboard::FocusedPanel::Status =>
+            {
+                // B-action: go back / collapse section in status panel
+                let action = self.dashboard.status_action(ActionButton::B);
+                self.execute_status_action(action, terminal)?;
             }
             _ => {}
         }

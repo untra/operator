@@ -47,6 +47,7 @@ pub fn branch_name_for_ticket(ticket: &Ticket) -> String {
 /// * `config` - Operator configuration
 /// * `ticket` - The ticket to create a worktree for (will be mutated to set `worktree_path` and branch)
 /// * `project_path` - Path to the project directory
+/// * `use_worktrees_override` - Per-delegator override for worktree behavior (None = use global config)
 ///
 /// # Returns
 /// * `Ok(PathBuf)` - The path to use as working directory (worktree or project)
@@ -55,9 +56,11 @@ pub async fn setup_worktree_for_ticket(
     config: &Config,
     ticket: &mut Ticket,
     project_path: &Path,
+    use_worktrees_override: Option<bool>,
 ) -> Result<PathBuf> {
-    // Check if worktrees are enabled in config
-    if !config.git.use_worktrees {
+    // Check if worktrees are enabled (delegator override takes precedence over global config)
+    let use_worktrees = use_worktrees_override.unwrap_or(config.git.use_worktrees);
+    if !use_worktrees {
         // Use branch-only workflow instead
         return setup_branch_for_ticket(config, ticket, project_path).await;
     }

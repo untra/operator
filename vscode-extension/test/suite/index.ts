@@ -63,13 +63,16 @@ export async function run(): Promise<void> {
   await nyc.reset();
   await nyc.wrap();
 
-  // Re-require already-loaded modules for instrumentation
-  Object.keys(require.cache)
-    .filter((f) => nyc.exclude.shouldInstrument(f))
-    .forEach((m) => {
-      delete require.cache[m];
-      require(m);
-    });
+  // Clear all out/ module cache so tests load fresh through NYC's hooked require.
+  // Extension activation loads src modules before NYC hooks are set up.
+  // By clearing both src and test caches, when Mocha loads test files they'll
+  // require instrumented src modules through NYC's hooks.
+  const outDir = path.join(workspaceRoot, 'out');
+  for (const key of Object.keys(require.cache)) {
+    if (key.startsWith(outDir) && !key.includes('node_modules')) {
+      delete require.cache[key];
+    }
+  }
 
   // Create the mocha test
   const mocha = new Mocha({
@@ -87,6 +90,20 @@ export async function run(): Promise<void> {
     mocha.run((failures) => {
       // Write coverage data and report asynchronously, then resolve/reject
       void (async () => {
+        // Load any src modules not yet required by tests for `all` coverage.
+        // This ensures files like extension.ts appear in the report even if
+        // no test imports them directly.
+        const srcGlob = await glob('out/src/**/*.js', {
+          cwd: workspaceRoot,
+          ignore: ['out/src/generated/**'],
+        });
+        for (const f of srcGlob) {
+          const fullPath = path.join(workspaceRoot, f);
+          if (!require.cache[fullPath]) {
+            try { require(fullPath); } catch { /* ok — some modules need VS Code context */ }
+          }
+        }
+
         await nyc.writeCoverageFile();
 
         // Generate and display coverage report

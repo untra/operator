@@ -4,11 +4,13 @@
 //!
 //! Supports importing issue types and syncing work items from Jira, Linear, and other kanban providers.
 
+mod github_projects;
 mod jira;
 mod linear;
 
-pub use jira::JiraProvider;
-pub use linear::LinearProvider;
+pub use github_projects::{GithubProjectInfo, GithubProjectsProvider, GithubValidationDetails};
+pub use jira::{JiraProvider, JiraValidationDetails};
+pub use linear::{LinearProvider, LinearTeamInfo, LinearValidationDetails};
 
 // Re-export Jira API response types for schema/binding generation
 pub use jira::{
@@ -20,7 +22,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::api::error::ApiError;
-use crate::issuetypes::IssueType;
+use crate::issuetypes::kanban_type::KanbanIssueTypeRef;
 
 /// Information about a project/team from a kanban provider
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,8 +59,8 @@ pub struct ExternalIssue {
     pub summary: String,
     /// Full description (may be markdown)
     pub description: Option<String>,
-    /// Issue type name (e.g., "Bug", "Story", "Task")
-    pub issue_type: String,
+    /// Kanban issue type refs from the provider (Jira: one issuetype, Linear: labels)
+    pub kanban_issue_types: Vec<KanbanIssueTypeRef>,
     /// Current status name (e.g., "To Do", "In Progress")
     pub status: String,
     /// Assigned user (if any)
@@ -85,7 +87,7 @@ pub struct ExternalIssueType {
 }
 
 /// External field definition from a kanban provider
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExternalField {
     /// Field identifier
     pub id: String,
@@ -144,9 +146,6 @@ pub trait KanbanProvider: Send + Sync {
 
     /// Get issue types for a project
     async fn get_issue_types(&self, project_key: &str) -> Result<Vec<ExternalIssueType>, ApiError>;
-
-    /// Convert an external issue type to an Operator `IssueType`
-    fn convert_to_issuetype(&self, external: &ExternalIssueType, project_key: &str) -> IssueType;
 
     /// Test connectivity to the API
     async fn test_connection(&self) -> Result<bool, ApiError>;
@@ -211,6 +210,13 @@ pub fn detect_configured_providers() -> Vec<String> {
         providers.push("linear".to_string());
     }
 
+    if GithubProjectsProvider::from_env()
+        .map(|p| p.is_configured())
+        .unwrap_or(false)
+    {
+        providers.push("github".to_string());
+    }
+
     providers
 }
 
@@ -219,6 +225,7 @@ pub fn detect_configured_providers() -> Vec<String> {
 pub enum KanbanProviderType {
     Jira,
     Linear,
+    Github,
 }
 
 impl KanbanProviderType {
@@ -227,6 +234,7 @@ impl KanbanProviderType {
         match self {
             KanbanProviderType::Jira => "Jira Cloud",
             KanbanProviderType::Linear => "Linear",
+            KanbanProviderType::Github => "GitHub Projects",
         }
     }
 
@@ -235,6 +243,7 @@ impl KanbanProviderType {
         match self {
             KanbanProviderType::Jira => "OPERATOR_JIRA_API_KEY",
             KanbanProviderType::Linear => "OPERATOR_LINEAR_API_KEY",
+            KanbanProviderType::Github => "OPERATOR_GITHUB_TOKEN",
         }
     }
 }
@@ -289,6 +298,14 @@ impl DetectedKanbanProvider {
                 // Linear just needs API key
                 self.env_vars_found.iter().any(|v| v.contains("API_KEY"))
             }
+            KanbanProviderType::Github => {
+                // GitHub Projects just needs the token. Note: only
+                // OPERATOR_GITHUB_TOKEN counts here — see Token
+                // Disambiguation rule 5 in github_projects.rs.
+                self.env_vars_found
+                    .iter()
+                    .any(|v| v.contains("TOKEN") || v.contains("API_KEY"))
+            }
         }
     }
 }
@@ -337,6 +354,24 @@ pub fn detect_kanban_env_vars() -> Vec<DetectedKanbanProvider> {
             domain: "linear.app".to_string(),
             email: None,
             env_vars_found: vec!["OPERATOR_LINEAR_API_KEY".to_string()],
+            status: ProviderStatus::Untested,
+        });
+    }
+
+    // Check for GitHub Projects environment variables.
+    //
+    // Token Disambiguation rule 5: ONLY OPERATOR_GITHUB_TOKEN qualifies.
+    // GITHUB_TOKEN belongs to the git provider (PR/branch workflows) and
+    // detecting it here would surface a spurious "GitHub kanban detected"
+    // prompt for every operator user with a PR-flow git token.
+    let github_token = env::var("OPERATOR_GITHUB_TOKEN").ok();
+
+    if github_token.is_some() {
+        providers.push(DetectedKanbanProvider {
+            provider_type: KanbanProviderType::Github,
+            domain: "github.com".to_string(),
+            email: None,
+            env_vars_found: vec!["OPERATOR_GITHUB_TOKEN".to_string()],
             status: ProviderStatus::Untested,
         });
     }
@@ -460,6 +495,16 @@ pub async fn test_provider_credentials(provider: &DetectedKanbanProvider) -> Res
 
             Ok(())
         }
+        KanbanProviderType::Github => {
+            let gh = GithubProjectsProvider::from_env()
+                .map_err(|e| format!("Failed to create provider: {e}"))?;
+
+            gh.test_connection()
+                .await
+                .map_err(|e| format!("Connection failed: {e}"))?;
+
+            Ok(())
+        }
     }
 }
 
@@ -470,6 +515,9 @@ pub fn get_provider(name: &str) -> Option<Box<dyn KanbanProvider>> {
             .ok()
             .map(|p| Box::new(p) as Box<dyn KanbanProvider>),
         "linear" => LinearProvider::from_env()
+            .ok()
+            .map(|p| Box::new(p) as Box<dyn KanbanProvider>),
+        "github" => GithubProjectsProvider::from_env()
             .ok()
             .map(|p| Box::new(p) as Box<dyn KanbanProvider>),
         _ => None,
@@ -504,8 +552,20 @@ pub fn get_provider_from_config(
             LinearProvider::from_config(workspace, cfg)
                 .map(|p| Box::new(p) as Box<dyn KanbanProvider>)
         }
+        "github" => {
+            let (owner, cfg) = kanban
+                .github
+                .iter()
+                .find(|(_, cfg)| cfg.enabled && cfg.projects.contains_key(project_key))
+                .or_else(|| kanban.github.iter().find(|(_, cfg)| cfg.enabled))
+                .ok_or_else(|| {
+                    ApiError::not_configured("No enabled GitHub Projects provider configured")
+                })?;
+            GithubProjectsProvider::from_config(owner, cfg)
+                .map(|p| Box::new(p) as Box<dyn KanbanProvider>)
+        }
         _ => Err(ApiError::not_configured(format!(
-            "Unknown provider: '{provider_name}'. Supported: jira, linear"
+            "Unknown provider: '{provider_name}'. Supported: jira, linear, github"
         ))),
     }
 }
@@ -557,7 +617,10 @@ mod tests {
             key: "PROJ-123".to_string(),
             summary: "Fix login bug".to_string(),
             description: Some("Users cannot log in with SSO".to_string()),
-            issue_type: "Bug".to_string(),
+            kanban_issue_types: vec![KanbanIssueTypeRef {
+                id: "10001".to_string(),
+                name: "Bug".to_string(),
+            }],
             status: "To Do".to_string(),
             assignee: Some(ExternalUser {
                 id: "user-123".to_string(),
@@ -581,7 +644,10 @@ mod tests {
             key: "ENG-456".to_string(),
             summary: "Add dark mode".to_string(),
             description: None,
-            issue_type: "Feature".to_string(),
+            kanban_issue_types: vec![KanbanIssueTypeRef {
+                id: "label-feat".to_string(),
+                name: "Feature".to_string(),
+            }],
             status: "Backlog".to_string(),
             assignee: None,
             url: "https://linear.app/team/ENG-456".to_string(),
@@ -620,6 +686,7 @@ mod tests {
     fn test_kanban_provider_type_display_name() {
         assert_eq!(KanbanProviderType::Jira.display_name(), "Jira Cloud");
         assert_eq!(KanbanProviderType::Linear.display_name(), "Linear");
+        assert_eq!(KanbanProviderType::Github.display_name(), "GitHub Projects");
     }
 
     #[test]
@@ -631,6 +698,10 @@ mod tests {
         assert_eq!(
             KanbanProviderType::Linear.default_api_key_env(),
             "OPERATOR_LINEAR_API_KEY"
+        );
+        assert_eq!(
+            KanbanProviderType::Github.default_api_key_env(),
+            "OPERATOR_GITHUB_TOKEN"
         );
     }
 
@@ -669,6 +740,18 @@ mod tests {
             domain: "linear.app".to_string(),
             email: None,
             env_vars_found: vec!["OPERATOR_LINEAR_API_KEY".to_string()],
+            status: ProviderStatus::Untested,
+        };
+        assert!(provider.has_required_env_vars());
+    }
+
+    #[test]
+    fn test_detected_provider_has_required_env_vars_github() {
+        let provider = DetectedKanbanProvider {
+            provider_type: KanbanProviderType::Github,
+            domain: "github.com".to_string(),
+            email: None,
+            env_vars_found: vec!["OPERATOR_GITHUB_TOKEN".to_string()],
             status: ProviderStatus::Untested,
         };
         assert!(provider.has_required_env_vars());

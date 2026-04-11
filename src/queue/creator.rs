@@ -26,13 +26,15 @@ impl TicketCreator {
         }
     }
 
-    /// Create a new ticket from template with pre-filled values and open in $EDITOR
+    /// Create a new ticket from template with pre-filled values and open in editor.
     ///
-    /// Returns the path to the created ticket file
+    /// Returns the path to the created ticket file.
+    /// `editor_cmd` is the resolved editor command (e.g. from `EditorConfig::file_editor()`).
     pub fn create_ticket_with_values(
         &self,
         template_type: TemplateType,
         values: &HashMap<String, String>,
+        editor_cmd: &str,
     ) -> Result<PathBuf> {
         // Generate filename with timestamp
         let now = Utc::now();
@@ -59,19 +61,23 @@ impl TicketCreator {
         // Write to file
         fs::write(&filepath, &content).context("Failed to write ticket file")?;
 
-        // Open in $EDITOR
-        self.open_in_editor(&filepath)?;
+        // Open in editor
+        self.open_in_editor(&filepath, editor_cmd)?;
 
         Ok(filepath)
     }
 
-    /// Create a new ticket from template and open in $EDITOR (legacy method)
+    /// Create a new ticket from template and open in editor (legacy method).
     ///
-    /// Returns the path to the created ticket file
-    pub fn create_ticket(&self, template_type: TemplateType, project: &str) -> Result<PathBuf> {
-        // Generate auto-filled values
+    /// Returns the path to the created ticket file.
+    pub fn create_ticket(
+        &self,
+        template_type: TemplateType,
+        project: &str,
+        editor_cmd: &str,
+    ) -> Result<PathBuf> {
         let values = self.generate_default_values(template_type, project);
-        self.create_ticket_with_values(template_type, &values)
+        self.create_ticket_with_values(template_type, &values, editor_cmd)
     }
 
     /// Generate default values for auto-filled fields
@@ -104,13 +110,14 @@ impl TicketCreator {
     }
 
     /// Open a file in the user's preferred editor
-    fn open_in_editor(&self, filepath: &PathBuf) -> Result<()> {
-        let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
+    fn open_in_editor(&self, filepath: &PathBuf, editor_cmd: &str) -> Result<()> {
+        let (prog, args) = crate::editors::EditorConfig::split_command(editor_cmd);
 
-        let status = Command::new(&editor)
+        let status = Command::new(prog)
+            .args(&args)
             .arg(filepath)
             .status()
-            .context(format!("Failed to open editor: {editor}"))?;
+            .context(format!("Failed to open editor: {editor_cmd}"))?;
 
         if !status.success() {
             anyhow::bail!("Editor exited with non-zero status");

@@ -62,6 +62,7 @@ fn template_schema_to_issuetype(schema: TemplateSchema, source: IssueTypeSource)
         fields: schema.fields,
         steps: schema.steps,
         agent_prompt: schema.agent_prompt,
+        agent: schema.agent,
         source,
         external_id: None,
     }

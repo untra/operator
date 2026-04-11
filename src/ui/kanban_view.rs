@@ -18,8 +18,8 @@ pub struct KanbanCollectionInfo {
     pub provider: String,
     /// Project/team key
     pub project_key: String,
-    /// Collection name in Operator
-    pub collection_name: String,
+    /// Optional collection name in Operator
+    pub collection_name: Option<String>,
     /// User ID configured for sync (will be displayed when sync UI is expanded)
     #[allow(dead_code)]
     pub sync_user_id: String,
@@ -47,6 +47,8 @@ pub enum KanbanViewResult {
         provider: String,
         project_key: String,
     },
+    /// User requested to add a new kanban provider via the onboarding wizard.
+    AddProvider,
     /// User dismissed the view
     Dismissed,
 }
@@ -175,6 +177,11 @@ impl KanbanView {
                         project_key: collection.project_key.clone(),
                     })
             }
+            KeyCode::Char('a' | 'A') => {
+                // Add a new provider via the onboarding wizard
+                self.hide();
+                Some(KanbanViewResult::AddProvider)
+            }
             KeyCode::Esc | KeyCode::Char('q') => {
                 self.hide();
                 Some(KanbanViewResult::Dismissed)
@@ -277,7 +284,13 @@ impl KanbanView {
 
                 // Collection name
                 let collection_name = Span::styled(
-                    format!(" → {} ", collection.collection_name),
+                    format!(
+                        " → {} ",
+                        collection
+                            .collection_name
+                            .as_deref()
+                            .unwrap_or("(unmapped)")
+                    ),
                     Style::default().fg(Color::DarkGray),
                 );
 
@@ -324,6 +337,8 @@ impl KanbanView {
             vec![
                 Span::styled("[S]", Style::default().fg(Color::Cyan)),
                 Span::raw("ync  "),
+                Span::styled("[A]", Style::default().fg(Color::Cyan)),
+                Span::raw("dd provider  "),
                 Span::styled("[↑/↓]", Style::default().fg(Color::Cyan)),
                 Span::raw("Navigate  "),
                 Span::styled("[Esc]", Style::default().fg(Color::Cyan)),
@@ -357,7 +372,7 @@ mod tests {
         let collections = vec![SyncableCollection {
             provider: "jira".to_string(),
             project_key: "PROJ".to_string(),
-            collection_name: "jira-proj".to_string(),
+            collection_name: Some("jira-proj".to_string()),
             sync_user_id: "user123".to_string(),
             sync_statuses: vec!["To Do".to_string()],
         }];
@@ -379,14 +394,14 @@ mod tests {
             SyncableCollection {
                 provider: "jira".to_string(),
                 project_key: "PROJ1".to_string(),
-                collection_name: "jira-proj1".to_string(),
+                collection_name: Some("jira-proj1".to_string()),
                 sync_user_id: "user1".to_string(),
                 sync_statuses: vec![],
             },
             SyncableCollection {
                 provider: "linear".to_string(),
                 project_key: "ENG".to_string(),
-                collection_name: "linear-eng".to_string(),
+                collection_name: Some("linear-eng".to_string()),
                 sync_user_id: "user2".to_string(),
                 sync_statuses: vec![],
             },
@@ -417,7 +432,7 @@ mod tests {
         let collections = vec![SyncableCollection {
             provider: "jira".to_string(),
             project_key: "PROJ".to_string(),
-            collection_name: "jira-proj".to_string(),
+            collection_name: Some("jira-proj".to_string()),
             sync_user_id: "user123".to_string(),
             sync_statuses: vec![],
         }];

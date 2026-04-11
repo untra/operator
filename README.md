@@ -3,7 +3,10 @@
 # Operator!
 [![GitHub Tag](https://img.shields.io/github/v/tag/untra/operator)](https://github.com/untra/operator/releases) [![codecov](https://codecov.io/gh/untra/operator/branch/main/graph/badge.svg)](https://codecov.io/gh/untra/operator) [![VS Code Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/untra.operator-terminals?label=VS%20Code%20Installs)](https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals)
 
-**Session** [![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=white)](https://operator.untra.io/getting-started/sessions/tmux/) [![cmux](https://img.shields.io/badge/cmux-333333)](https://operator.untra.io/getting-started/sessions/cmux/) [![Zellij](https://img.shields.io/badge/Zellij-E8590C)](https://operator.untra.io/getting-started/sessions/zellij/) **|** **LLM Tool** [![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/agents/claude/) [![Codex](https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/agents/codex/) [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](https://operator.untra.io/getting-started/agents/gemini-cli/) **|** **Kanban Provider** [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) **|** **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/)
+**|** **Session** [![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=white)](https://operator.untra.io/getting-started/sessions/tmux/) [![cmux](https://img.shields.io/badge/cmux-333333)](https://operator.untra.io/getting-started/sessions/cmux/) [![Zellij](https://img.shields.io/badge/Zellij-E8590C)](https://operator.untra.io/getting-started/sessions/zellij/)
+**|** **LLM Tool** [![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/agents/claude/) [![Codex](https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/agents/codex/) [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](https://operator.untra.io/getting-started/agents/gemini-cli/)
+**|** **Kanban Provider** [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) [![GitHub Projects](https://img.shields.io/badge/GitHub_Projects-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/kanban/github/)
+**|** **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/)
 
 An orchestration tool for [**AI-assisted**](https://operator.untra.io/getting-started/agents/) [_kanban-shaped_](https://operator.untra.io/getting-started/kanban/) [git-versioned](https://operator.untra.io/getting-started/git/) software development.
 
@@ -11,7 +14,7 @@ An orchestration tool for [**AI-assisted**](https://operator.untra.io/getting-st
 
 **Operator** is for you if:
 
-- you do work assigned from tickets on a kanban board, such as [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/) or [_Linear_](https://operator.untra.io/getting-started/kanban/linear/)
+- you do work assigned from tickets on a kanban board, such as [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/), [_Linear_](https://operator.untra.io/getting-started/kanban/linear/), or [_GitHub Projects_](https://operator.untra.io/getting-started/kanban/github/)
 - you use LLM assisted coding agent tools to accomplish work, such as [_Claude Code_](https://operator.untra.io/getting-started/agents/claude/), [_OpenAI Codex_](https://operator.untra.io/getting-started/agents/codex/), or [_Gemini CLI_](https://operator.untra.io/getting-started/agents/gemini-cli/)
 - your work is version controlled with a git repository provider like [_GitHub_](https://operator.untra.io/getting-started/git/github/) or [_GitLab_](https://operator.untra.io/getting-started/git/gitlab/)
 
@@ -151,29 +154,25 @@ Within each priority level, tickets are processed FIFO by timestamp.
 ## Dashboard Layout
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ operator v0.1.0                    ▶ RUNNING   5/7 agents  │
-├─────────────┬─────────────┬─────────────┬───────────────────┤
-│ QUEUE (12)  │ RUNNING (5) │ AWAITING (1)│ COMPLETED (8)     │
-├─────────────┼─────────────┼─────────────┼───────────────────┤
-│ INV-003 ‼️  │ backend     │ SPIKE-015   │ ✓ FEAT-040 12:30  │
-│ FIX-089     │  FEAT-042   │  "what auth │ ✓ FIX-088  12:15  │
-│ FIX-090     │  ██████░░   │   pattern?" │ ✓ FEAT-041 11:45  │
-│ FEAT-043    │ frontend    │             │ ✓ FIX-087  11:30  │
-│ FEAT-044    │  FIX-091    │ [R]espond   │                   │
-│ FEAT-045    │  ████░░░░   │             │                   │
-│             │ api         │             │                   │
-│             │  FEAT-046   │             │                   │
-│             │  ██░░░░░░   │             │                   │
-│             │ admin       │             │                   │
-│             │  FEAT-047   │             │                   │
-│             │  █████████  │             │                   │
-│             │ infra       │             │                   │
-│             │  FIX-092    │             │                   │
-│             │  ███░░░░░   │             │                   │
-├─────────────┴─────────────┴─────────────┴───────────────────┤
-│ [Q]ueue [L]aunch [P]ause [R]esume [A]gents [N]otifs [?]Help│
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ operator v0.1.28                      ▶ RUNNING   5/7       │
+├──────────┬────────────┬──────────────────┬───────────────────┤
+│ STATUS   │ QUEUE (12) │ IN PROGRESS (5)  │ DONE (8)          │
+├──────────┼────────────┼──────────────────┼───────────────────┤
+│ ▾ Config │ INV-003 ‼️ │ A▶ backend       │ ✓ FEAT-040 12:30  │
+│   ✓ dir  │ FIX-089    │   FEAT-042  5m   │ ✓ FIX-088  12:15  │
+│   ✓ cfg  │ FIX-090    │ A▶ frontend      │ ✓ FEAT-041 11:45  │
+│   ✓ tkts │ FEAT-043   │   FIX-091  3m    │ ✓ FIX-087  11:30  │
+│ ▾ Conns  │ FEAT-044   │ C⏸ api           │                   │
+│   ✓ API  │ FEAT-045   │   SPIKE-015 12m  │                   │
+│   ✓ Web  │            │   Awaiting input │                   │
+│   tmux   │            │ A▶ admin         │                   │
+│ ▸ Kanban │            │   FEAT-047  1m   │                   │
+│ ▸ LLM    │            │ A▶ infra         │                   │
+│ ▸ Git    │            │   FIX-092  8m    │                   │
+├──────────┴────────────┴──────────────────┴───────────────────┤
+│ [Q]ueue [L]aunch [P]ause [R]esume [A]gents [?]Help [q]uit   │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## Keyboard Shortcuts

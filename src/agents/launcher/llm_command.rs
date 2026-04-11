@@ -278,6 +278,8 @@ mod tests {
                 }],
                 detection_complete: true,
                 skill_directory_overrides: std::collections::HashMap::new(),
+                default_tool: None,
+                default_model: None,
             },
             ..Default::default()
         }

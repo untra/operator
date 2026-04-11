@@ -2,24 +2,36 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection, ConfigState } from './types';
+import type { SectionId, SectionHealth } from '../generated';
 import {
   resolveWorkingDirectory,
   configFileExists,
   getResolvedConfigPath,
 } from '../config-paths';
+import { getOperatorPath, getOperatorVersion } from '../operator-binary';
 
 export class ConfigSection implements StatusSection {
-  readonly sectionId = 'config';
+  readonly sectionId: SectionId = 'config';
+  readonly prerequisites: SectionId[] = [];
 
   private state: ConfigState = {
     workingDirSet: false,
     workingDir: '',
     configExists: false,
     configPath: '',
+    wrapperType: 'vscode',
+    editorVar: process.env.EDITOR || 'vim',
+    visualVar: process.env.VISUAL || 'code --wait',
   };
 
   isReady(): boolean {
     return this.state.workingDirSet && this.state.configExists;
+  }
+
+  health(): SectionHealth {
+    if (!this.state.configExists) { return 'Red'; }
+    if (!this.state.workingDirSet) { return 'Yellow'; }
+    return 'Green';
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -29,11 +41,38 @@ export class ConfigSection implements StatusSection {
     const configExists = await configFileExists();
     const configPath = getResolvedConfigPath();
 
+    // Read wrapper type from config
+    let wrapperType = 'vscode';
+    let operatorVersion: string | undefined;
+    try {
+      const config = await ctx.readConfigToml();
+      const sessions = config.sessions as Record<string, unknown> | undefined;
+      if (sessions?.wrapper && typeof sessions.wrapper === 'string') {
+        wrapperType = sessions.wrapper;
+      }
+    } catch {
+      // Default to vscode
+    }
+
+    // Try to get operator version from binary
+    try {
+      const operatorPath = await getOperatorPath(ctx.extensionContext);
+      if (operatorPath) {
+        operatorVersion = await getOperatorVersion(operatorPath) || undefined;
+      }
+    } catch {
+      // Version unknown
+    }
+
     this.state = {
       workingDirSet,
       workingDir: workingDir || '',
       configExists,
       configPath: configPath || '',
+      wrapperType,
+      operatorVersion,
+      editorVar: process.env.EDITOR || 'vim',
+      visualVar: process.env.VISUAL || 'code --wait',
     };
   }
 
@@ -117,6 +156,45 @@ export class ConfigSection implements StatusSection {
         sectionId: this.sectionId,
       }));
     }
+
+    // Session wrapper (readonly)
+    items.push(new StatusItem({
+      label: 'Wrapper',
+      description: this.state.wrapperType,
+      icon: 'terminal',
+      sectionId: this.sectionId,
+    }));
+
+    // Editor environment variables
+    items.push(new StatusItem({
+      label: '$EDITOR',
+      description: this.state.editorVar || 'Not set',
+      icon: this.state.editorVar ? 'check' : 'warning',
+      sectionId: this.sectionId,
+    }));
+
+    items.push(new StatusItem({
+      label: '$VISUAL',
+      description: this.state.visualVar || 'Not set',
+      icon: this.state.visualVar ? 'check' : 'warning',
+      sectionId: this.sectionId,
+    }));
+
+    // Operator version with update nudge
+    const versionDesc = this.state.updateAvailable
+      ? `${this.state.operatorVersion ?? 'Unknown'} → ${this.state.updateAvailable} available`
+      : this.state.operatorVersion ?? 'Unknown';
+    items.push(new StatusItem({
+      label: 'Version',
+      description: versionDesc,
+      icon: this.state.updateAvailable ? 'warning' : 'versions',
+      command: {
+        command: 'vscode.open',
+        title: 'Open Downloads',
+        arguments: [vscode.Uri.parse('https://operator.untra.io/downloads/')],
+      },
+      sectionId: this.sectionId,
+    }));
 
     return items;
   }

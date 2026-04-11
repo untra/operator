@@ -71,6 +71,8 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
             }],
             detection_complete: true,
             skill_directory_overrides: std::collections::HashMap::new(),
+            default_tool: None,
+            default_model: None,
         },
         // Disable notifications in tests to avoid DBus requirement on Linux CI
         notifications: crate::config::NotificationsConfig {
@@ -1242,5 +1244,205 @@ fn test_relaunch_missing_prompt_fresh_start() {
     assert!(
         !script_content.contains("--resume"),
         "Should fall back to fresh start when prompt file missing, got: {script_content}"
+    );
+}
+
+#[test]
+fn test_apply_prompt_wrapping_both() {
+    let options = LaunchOptions {
+        prompt_prefix: Some("PREFIX".to_string()),
+        prompt_suffix: Some("SUFFIX".to_string()),
+        ..Default::default()
+    };
+    let result = super::apply_prompt_wrapping("BODY".to_string(), &options);
+    assert_eq!(result, "PREFIX\n\nBODY\n\nSUFFIX");
+}
+
+#[test]
+fn test_apply_prompt_wrapping_prefix_only() {
+    let options = LaunchOptions {
+        prompt_prefix: Some("PREFIX".to_string()),
+        ..Default::default()
+    };
+    let result = super::apply_prompt_wrapping("BODY".to_string(), &options);
+    assert_eq!(result, "PREFIX\n\nBODY");
+}
+
+#[test]
+fn test_apply_prompt_wrapping_suffix_only() {
+    let options = LaunchOptions {
+        prompt_suffix: Some("SUFFIX".to_string()),
+        ..Default::default()
+    };
+    let result = super::apply_prompt_wrapping("BODY".to_string(), &options);
+    assert_eq!(result, "BODY\n\nSUFFIX");
+}
+
+#[test]
+fn test_apply_prompt_wrapping_none() {
+    let options = LaunchOptions::default();
+    let result = super::apply_prompt_wrapping("BODY".to_string(), &options);
+    assert_eq!(result, "BODY");
+}
+
+// --- Project directory and permission layering tests ---
+
+#[test]
+fn test_launch_correct_project_directory_from_ticket() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn crate::agents::tmux::TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions::default();
+
+    let result = super::tmux_session::launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let working_dir = mock.get_session_working_dir(&session_name);
+    assert!(working_dir.is_some(), "Session should have been created");
+    assert_eq!(working_dir.unwrap(), project_path);
+}
+
+#[test]
+fn test_launch_with_different_project_directories() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+
+    // Create a second project
+    let second_project = temp_dir.path().join("projects").join("second-project");
+    std::fs::create_dir_all(&second_project).unwrap();
+    std::fs::write(second_project.join("CLAUDE.md"), "# Second").unwrap();
+
+    let mock = Arc::new(MockTmuxClient::new());
+    let launcher = Launcher::with_tmux_client(&config, mock).unwrap();
+
+    let ticket_a = make_test_ticket("test-project");
+    let ticket_b = make_test_ticket("second-project");
+
+    let path_a = launcher.get_project_path(&ticket_a).unwrap();
+    let path_b = launcher.get_project_path(&ticket_b).unwrap();
+
+    assert_ne!(path_a, path_b);
+    assert!(path_a.ends_with("test-project"));
+    assert!(path_b.ends_with("second-project"));
+}
+
+#[test]
+fn test_launch_provider_from_delegator_determines_tool() {
+    let temp_dir = TempDir::new().unwrap();
+    let mut config = make_test_config(&temp_dir);
+    // Add codex as a detected tool
+    config.llm_tools.detected.push(crate::config::DetectedTool {
+        name: "codex".to_string(),
+        path: "/usr/bin/codex".to_string(),
+        version: "1.0.0".to_string(),
+        min_version: None,
+        version_ok: true,
+        model_aliases: vec!["o3".to_string()],
+        command_template:
+            "codex {{config_flags}}{{model_flag}}--session {{session_id}} --prompt {{prompt_file}}"
+                .to_string(),
+        capabilities: crate::config::ToolCapabilities::default(),
+        yolo_flags: vec!["--full-auto".to_string()],
+    });
+
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn crate::agents::tmux::TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+
+    // Launch with codex provider (simulating a delegator that maps to codex)
+    let options = LaunchOptions {
+        provider: Some(crate::config::LlmProvider {
+            tool: "codex".to_string(),
+            model: "o3".to_string(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let result = super::tmux_session::launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    let script_content = read_command_file_content(sent_cmd).expect("Should read command file");
+    assert!(
+        script_content.contains("codex"),
+        "Command should use codex tool, got: {script_content}"
+    );
+    assert!(
+        script_content.contains("--model o3"),
+        "Command should use o3 model, got: {script_content}"
+    );
+}
+
+#[test]
+fn test_launch_yolo_flags_per_tool() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn crate::agents::tmux::TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+
+    // Claude's yolo flag is --dangerously-skip-permissions
+    let options = LaunchOptions {
+        yolo_mode: true,
+        ..Default::default()
+    };
+
+    let result = super::tmux_session::launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+    );
+
+    assert!(result.is_ok());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    let script_content = read_command_file_content(sent_cmd).expect("Should read command file");
+    assert!(
+        script_content.contains("--dangerously-skip-permissions"),
+        "Claude yolo should use --dangerously-skip-permissions, got: {script_content}"
     );
 }

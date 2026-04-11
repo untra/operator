@@ -6,7 +6,9 @@
 use axum::extract::State;
 use axum::Json;
 
-use crate::rest::dto::LlmToolsResponse;
+use crate::config::Config;
+use crate::rest::dto::{DefaultLlmResponse, LlmToolsResponse, SetDefaultLlmRequest};
+use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 
 /// List detected LLM tools with model aliases
@@ -22,6 +24,73 @@ pub async fn list(State(state): State<ApiState>) -> Json<LlmToolsResponse> {
     let tools = state.config.llm_tools.detected.clone();
     let total = tools.len();
     Json(LlmToolsResponse { tools, total })
+}
+
+/// Get the current default LLM tool and model
+#[utoipa::path(
+    get,
+    path = "/api/v1/llm-tools/default",
+    tag = "LLM Tools",
+    responses(
+        (status = 200, description = "Current default LLM", body = DefaultLlmResponse)
+    )
+)]
+pub async fn get_default(State(state): State<ApiState>) -> Json<DefaultLlmResponse> {
+    Json(DefaultLlmResponse {
+        tool: state
+            .config
+            .llm_tools
+            .default_tool
+            .clone()
+            .unwrap_or_default(),
+        model: state
+            .config
+            .llm_tools
+            .default_model
+            .clone()
+            .unwrap_or_default(),
+    })
+}
+
+/// Set the global default LLM tool and model
+#[utoipa::path(
+    put,
+    path = "/api/v1/llm-tools/default",
+    tag = "LLM Tools",
+    request_body = SetDefaultLlmRequest,
+    responses(
+        (status = 200, description = "Default LLM set", body = DefaultLlmResponse),
+        (status = 404, description = "Tool not detected")
+    )
+)]
+pub async fn set_default(
+    State(state): State<ApiState>,
+    Json(req): Json<SetDefaultLlmRequest>,
+) -> Result<Json<DefaultLlmResponse>, ApiError> {
+    if !state
+        .config
+        .llm_tools
+        .detected
+        .iter()
+        .any(|t| t.name == req.tool)
+    {
+        return Err(ApiError::NotFound(format!(
+            "Tool '{}' not detected",
+            req.tool
+        )));
+    }
+
+    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    config.llm_tools.default_tool = Some(req.tool.clone());
+    config.llm_tools.default_model = Some(req.model.clone());
+    config
+        .save()
+        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+
+    Ok(Json(DefaultLlmResponse {
+        tool: req.tool,
+        model: req.model,
+    }))
 }
 
 #[cfg(test)]

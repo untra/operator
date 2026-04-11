@@ -53,3 +53,13 @@ When work finishes:
 - **Autonomous agents** (FEAT, FIX) can run in parallel on different projects
 - **Paired agents** (SPIKE, INV) run one at a time per operator
 - **Same project** = sequential execution to avoid conflicts
+
+## External Providers
+
+In addition to the local `.tickets/` queue described above, <span class="operator-brand">Operator!</span> can sync items from external kanban systems:
+
+- [**Jira Cloud**](../getting-started/kanban/jira.md) — REST API, project + issue type sync
+- [**Linear**](../getting-started/kanban/linear.md) — GraphQL API, team-scoped sync
+- [**GitHub Projects v2**](../getting-started/kanban/github.md) — GraphQL API, project node ID sync
+
+GitHub Projects integration uses a **separate token** from <span class="operator-brand">Operator!</span>'s PR/git workflows — the kanban provider needs the `project` scope while the git provider needs `repo`. See the [GitHub Projects guide](../getting-started/kanban/github.md) for the full disambiguation.

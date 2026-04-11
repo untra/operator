@@ -29,8 +29,12 @@ export class TicketTreeProvider
   constructor(
     private readonly status: 'in-progress' | 'queue' | 'completed',
     private readonly issueTypeService: IssueTypeService,
-    private readonly terminalManager?: TerminalManager
+    private terminalManager?: TerminalManager
   ) {}
+
+  setTerminalManager(manager: TerminalManager): void {
+    this.terminalManager = manager;
+  }
 
   async setTicketsDir(dir: string | undefined): Promise<void> {
     this.ticketsDir = dir;
@@ -138,8 +142,15 @@ export class TicketItem extends vscode.TreeItem {
         title: 'Focus Terminal',
         arguments: [ticket.terminalName, ticket],
       };
+    } else if (ticket.status === 'queue') {
+      // Queue items open the launch confirmation dialog
+      this.command = {
+        command: 'operator.launchTicketWithOptions',
+        title: 'Launch Ticket',
+        arguments: [this],
+      };
     } else {
-      // Queue and completed items open the file
+      // Completed items open the file
       this.command = {
         command: 'operator.openTicket',
         title: 'Open Ticket',

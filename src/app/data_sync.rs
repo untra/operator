@@ -2,9 +2,11 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use crate::config::SessionWrapperType;
 use crate::notifications::NotificationEvent;
 use crate::queue::Queue;
 use crate::state::State;
+use crate::ui::status_panel::WrapperConnectionStatus;
 
 use super::App;
 
@@ -36,7 +38,67 @@ impl App {
         self.dashboard
             .update_backstage_status(self.backstage_server.status());
 
+        // Update wrapper connection status
+        let wrapper_status = self.check_wrapper_connection();
+        self.dashboard
+            .update_wrapper_connection_status(wrapper_status);
+
         Ok(())
+    }
+
+    /// Check the health of the active session wrapper connection.
+    pub(super) fn check_wrapper_connection(&self) -> WrapperConnectionStatus {
+        match self.config.sessions.wrapper {
+            SessionWrapperType::Tmux => self.check_tmux_status(),
+            SessionWrapperType::Vscode => {
+                let port = self.config.sessions.vscode.webhook_port;
+                // Quick health check against the webhook server
+                let webhook_running = std::net::TcpStream::connect_timeout(
+                    &std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+                    std::time::Duration::from_millis(100),
+                )
+                .is_ok();
+                WrapperConnectionStatus::Vscode {
+                    webhook_running,
+                    port: Some(port),
+                }
+            }
+            SessionWrapperType::Cmux => {
+                let binary_path = &self.config.sessions.cmux.binary_path;
+                let binary_available = std::path::Path::new(binary_path).exists();
+                let in_cmux = std::env::var("CMUX_WORKSPACE_ID").is_ok();
+                WrapperConnectionStatus::Cmux {
+                    binary_available,
+                    in_cmux,
+                }
+            }
+            SessionWrapperType::Zellij => {
+                let binary_available = which::which("zellij").is_ok();
+                let in_zellij = std::env::var("ZELLIJ").is_ok();
+                WrapperConnectionStatus::Zellij {
+                    binary_available,
+                    in_zellij,
+                }
+            }
+        }
+    }
+
+    /// Check tmux connection status using the `TmuxClient` trait.
+    ///
+    /// Uses the proper `TmuxClient` abstraction which handles socket names
+    /// and correctly interprets exit codes (e.g., exit code 1 = server running,
+    /// no sessions).
+    pub(super) fn check_tmux_status(&self) -> WrapperConnectionStatus {
+        let (available, version) = match self.tmux_client.check_available() {
+            Ok(v) => (true, Some(v.raw)),
+            Err(_) => (false, None),
+        };
+        let server_running = self.tmux_client.server_running();
+        WrapperConnectionStatus::Tmux {
+            available,
+            server_running,
+            version,
+        }
     }
 
     /// Reconcile state with actual tmux sessions on startup

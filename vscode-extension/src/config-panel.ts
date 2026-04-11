@@ -12,11 +12,6 @@ import * as path from 'path';
 async function importSmolToml() {
   return await import('smol-toml');
 }
-import {
-  validateJiraCredentials,
-  fetchJiraProjects,
-  validateLinearCredentials,
-} from './kanban-onboarding';
 import { detectInstalledLlmTools } from './walkthrough';
 import {
   getConfigDir,
@@ -180,28 +175,61 @@ export class ConfigPanel {
       }
 
       case 'validateJira': {
-        const result = await validateJiraCredentials(
-          message.domain as string,
-          message.email as string,
-          message.apiToken as string
-        );
+        // Delegate credential validation to the Operator REST API.
+        const workDir = resolveWorkingDirectory();
+        const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+        const apiUrl = await discoverApiUrl(ticketsDir);
+        const client = new OperatorApiClient(apiUrl);
 
+        let valid = false;
+        let displayName = '';
+        let accountId = '';
+        let errorMsg: string | undefined;
         let projects: Array<{ key: string; name: string }> = [];
-        if (result.valid) {
-          projects = await fetchJiraProjects(
-            message.domain as string,
-            message.email as string,
-            message.apiToken as string
-          );
+
+        try {
+          const result = await client.validateKanbanCredentials({
+            provider: 'jira',
+            jira: {
+              domain: message.domain as string,
+              email: message.email as string,
+              api_token: message.apiToken as string,
+            },
+            linear: null,
+            github: null,
+          });
+          valid = result.valid;
+          if (result.jira) {
+            displayName = result.jira.display_name;
+            accountId = result.jira.account_id;
+          }
+          errorMsg = result.error ?? undefined;
+
+          if (valid) {
+            const projs = await client.listKanbanProjects({
+              provider: 'jira',
+              jira: {
+                domain: message.domain as string,
+                email: message.email as string,
+                api_token: message.apiToken as string,
+              },
+              linear: null,
+              github: null,
+            });
+            projects = projs.map((p) => ({ key: p.key, name: p.name }));
+          }
+        } catch (err) {
+          valid = false;
+          errorMsg = err instanceof Error ? err.message : 'Unknown error';
         }
 
         void this._panel.webview.postMessage({
           type: 'jiraValidationResult',
           result: {
-            valid: result.valid,
-            displayName: result.displayName,
-            accountId: result.accountId,
-            error: result.error,
+            valid,
+            displayName,
+            accountId,
+            error: errorMsg,
             projects,
           },
         });
@@ -209,19 +237,51 @@ export class ConfigPanel {
       }
 
       case 'validateLinear': {
-        const result = await validateLinearCredentials(
-          message.apiKey as string
-        );
+        const workDir = resolveWorkingDirectory();
+        const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+        const apiUrl = await discoverApiUrl(ticketsDir);
+        const client = new OperatorApiClient(apiUrl);
+
+        let valid = false;
+        let userName = '';
+        let orgName = '';
+        let userId = '';
+        let teams: Array<{ id: string; name: string; key: string }> = [];
+        let errorMsg: string | undefined;
+
+        try {
+          const result = await client.validateKanbanCredentials({
+            provider: 'linear',
+            jira: null,
+            linear: { api_key: message.apiKey as string },
+            github: null,
+          });
+          valid = result.valid;
+          if (result.linear) {
+            userName = result.linear.user_name;
+            orgName = result.linear.org_name;
+            userId = result.linear.user_id;
+            teams = result.linear.teams.map((t) => ({
+              id: t.id,
+              name: t.name,
+              key: t.key,
+            }));
+          }
+          errorMsg = result.error ?? undefined;
+        } catch (err) {
+          valid = false;
+          errorMsg = err instanceof Error ? err.message : 'Unknown error';
+        }
 
         void this._panel.webview.postMessage({
           type: 'linearValidationResult',
           result: {
-            valid: result.valid,
-            userName: result.userName,
-            orgName: result.orgName,
-            userId: result.userId,
-            error: result.error,
-            teams: result.teams,
+            valid,
+            userName,
+            orgName,
+            userId,
+            error: errorMsg,
+            teams,
           },
         });
         break;
@@ -652,7 +712,7 @@ async function writeConfigField(
           delete projects[oldKeys[0]];
           projects[value as string] = oldProject;
         } else {
-          projects[value as string] = { sync_user_id: '', collection_name: 'dev_kanban' };
+          projects[value as string] = { sync_user_id: '' };
         }
       } else if (key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id' || key === 'type_mappings') {
         // Write to the first project sub-table
@@ -670,7 +730,7 @@ async function writeConfigField(
           const field = parts.slice(2).join('.');
           if (!ws.projects) { ws.projects = {}; }
           const projects = ws.projects as TomlConfig;
-          if (!projects[pKey]) { projects[pKey] = { sync_user_id: '', collection_name: 'dev_kanban' }; }
+          if (!projects[pKey]) { projects[pKey] = { sync_user_id: '' }; }
           (projects[pKey] as TomlConfig)[field] = value;
         }
       } else {
@@ -711,7 +771,7 @@ async function writeConfigField(
           const field = parts.slice(2).join('.');
           if (!ws.projects) { ws.projects = {}; }
           const projects = ws.projects as TomlConfig;
-          if (!projects[pKey]) { projects[pKey] = { sync_user_id: '', collection_name: '' }; }
+          if (!projects[pKey]) { projects[pKey] = { sync_user_id: '' }; }
           (projects[pKey] as TomlConfig)[field] = value;
         }
       } else {

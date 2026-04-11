@@ -7,6 +7,7 @@ mod app;
 mod backstage;
 mod collections;
 mod config;
+mod editors;
 mod git;
 mod issuetypes;
 mod llm;
@@ -578,8 +579,9 @@ async fn cmd_create(
 
     let project = project.unwrap_or_else(|| "global".to_string());
 
+    let editor_config = editors::EditorConfig::detect(config.sessions.wrapper);
     let creator = TicketCreator::new(config);
-    let filepath = creator.create_ticket(template_type, &project)?;
+    let filepath = creator.create_ticket(template_type, &project, editor_config.file_editor())?;
 
     println!("Created ticket: {}", filepath.display());
 

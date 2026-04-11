@@ -237,10 +237,14 @@ impl App {
     ) -> Result<()> {
         let config = self.config.clone();
 
+        let editor_cmd = self.dashboard.editor_config.file_editor().to_string();
         let result = with_suspended_tui(terminal, || {
             let creator = TicketCreator::new(&config);
-            // Use the new method that accepts pre-filled values
-            creator.create_ticket_with_values(dialog_result.template_type, &dialog_result.values)
+            creator.create_ticket_with_values(
+                dialog_result.template_type,
+                &dialog_result.values,
+                &editor_cmd,
+            )
         });
 
         // Handle result after TUI is restored
@@ -341,12 +345,16 @@ impl App {
             return Ok(());
         };
 
+        let visual = self.dashboard.editor_config.visual.clone();
         with_suspended_tui(terminal, || {
-            // Try $VISUAL first, then fall back to `open` (macOS)
-            let result = if let Ok(visual) = std::env::var("VISUAL") {
-                std::process::Command::new(&visual).arg(&filepath).status()
-            } else {
+            let result = if visual.is_empty() {
                 std::process::Command::new("open").arg(&filepath).status()
+            } else {
+                let (prog, args) = crate::editors::EditorConfig::split_command(&visual);
+                std::process::Command::new(prog)
+                    .args(&args)
+                    .arg(&filepath)
+                    .status()
             };
 
             if let Err(e) = result {
@@ -363,13 +371,17 @@ impl App {
             return Ok(());
         };
 
-        let Ok(editor) = std::env::var("EDITOR") else {
-            // No EDITOR set, do nothing
+        let editor = self.dashboard.editor_config.editor.clone();
+        if editor.is_empty() {
             return Ok(());
-        };
+        }
 
         with_suspended_tui(terminal, || {
-            let result = std::process::Command::new(&editor).arg(&filepath).status();
+            let (prog, args) = crate::editors::EditorConfig::split_command(&editor);
+            let result = std::process::Command::new(prog)
+                .args(&args)
+                .arg(&filepath)
+                .status();
 
             if let Err(e) = result {
                 tracing::warn!("Failed to open editor: {}", e);

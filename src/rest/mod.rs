@@ -116,14 +116,45 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/kanban/:provider/:project_key/issuetypes",
             get(routes::kanban::external_issue_types),
         )
+        .route(
+            "/api/v1/kanban/:provider/:project_key/issuetypes/sync",
+            post(routes::kanban::sync_issue_types),
+        )
+        // Kanban onboarding endpoints (validate, list projects, write config, set env)
+        .route(
+            "/api/v1/kanban/validate",
+            post(routes::kanban_onboarding::validate_credentials),
+        )
+        .route(
+            "/api/v1/kanban/projects",
+            post(routes::kanban_onboarding::list_projects),
+        )
+        .route(
+            "/api/v1/kanban/config",
+            put(routes::kanban_onboarding::write_config),
+        )
+        .route(
+            "/api/v1/kanban/session-env",
+            post(routes::kanban_onboarding::set_session_env),
+        )
         // Skills endpoint
         .route("/api/v1/skills", get(routes::skills::list))
-        // LLM tools endpoint
+        // LLM tools endpoints
         .route("/api/v1/llm-tools", get(routes::llm_tools::list))
+        .route(
+            "/api/v1/llm-tools/default",
+            get(routes::llm_tools::get_default).put(routes::llm_tools::set_default),
+        )
         // Delegator endpoints
         .route("/api/v1/delegators", get(routes::delegators::list))
         .route("/api/v1/delegators", post(routes::delegators::create))
+        // from-tool must be registered before :name to avoid path capture
+        .route(
+            "/api/v1/delegators/from-tool",
+            post(routes::delegators::create_from_tool),
+        )
         .route("/api/v1/delegators/:name", get(routes::delegators::get_one))
+        .route("/api/v1/delegators/:name", put(routes::delegators::update))
         .route(
             "/api/v1/delegators/:name",
             delete(routes::delegators::delete),

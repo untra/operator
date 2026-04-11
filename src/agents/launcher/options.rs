@@ -17,6 +17,14 @@ pub struct LaunchOptions {
     pub yolo_mode: bool,
     /// Override project path (if None, use ticket's project)
     pub project_override: Option<String>,
+    /// Override global `git.use_worktrees` from delegator (None = use global config)
+    pub use_worktrees_override: Option<bool>,
+    /// Override branch creation from delegator (None = default behavior)
+    pub create_branch_override: Option<bool>,
+    /// Prompt text to prepend before the generated step prompt
+    pub prompt_prefix: Option<String>,
+    /// Prompt text to append after the generated step prompt
+    pub prompt_suffix: Option<String>,
 }
 
 impl LaunchOptions {

@@ -20,6 +20,16 @@ import type {
   ExternalIssueTypeSummary,
   CreateIssueTypeRequest,
   UpdateIssueTypeRequest,
+  SyncKanbanIssueTypesResponse,
+  ValidateKanbanCredentialsRequest,
+  ValidateKanbanCredentialsResponse,
+  ListKanbanProjectsRequest,
+  ListKanbanProjectsResponse,
+  KanbanProjectInfo,
+  WriteKanbanConfigRequest,
+  WriteKanbanConfigResponse,
+  SetKanbanSessionEnvRequest,
+  SetKanbanSessionEnvResponse,
 } from './generated';
 
 // Re-export generated types for consumers
@@ -32,6 +42,16 @@ export type {
   ExternalIssueTypeSummary,
   CreateIssueTypeRequest,
   UpdateIssueTypeRequest,
+  SyncKanbanIssueTypesResponse,
+  ValidateKanbanCredentialsRequest,
+  ValidateKanbanCredentialsResponse,
+  ListKanbanProjectsRequest,
+  ListKanbanProjectsResponse,
+  KanbanProjectInfo,
+  WriteKanbanConfigRequest,
+  WriteKanbanConfigResponse,
+  SetKanbanSessionEnvRequest,
+  SetKanbanSessionEnvResponse,
 };
 
 /**
@@ -531,5 +551,139 @@ export class OperatorApiClient {
     }
 
     return (await response.json()) as ExternalIssueTypeSummary[];
+  }
+
+  /**
+   * Sync kanban issue types from a provider for a project.
+   * Triggers a fresh fetch from the external provider and persists to the local catalog.
+   */
+  async syncKanbanIssueTypes(
+    provider: string,
+    projectKey: string
+  ): Promise<SyncKanbanIssueTypesResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/kanban/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}/issuetypes/sync`,
+      { method: 'POST' }
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as SyncKanbanIssueTypesResponse;
+  }
+
+  // ─── Kanban Onboarding ────────────────────────────────────────────────
+
+  /**
+   * Validate kanban provider credentials against the live provider API.
+   *
+   * Auth failures return `valid: false` with `error` set — NOT a thrown
+   * exception — so callers can display errors inline and offer retry.
+   * Network / server errors throw.
+   */
+  async validateKanbanCredentials(
+    req: ValidateKanbanCredentialsRequest
+  ): Promise<ValidateKanbanCredentialsResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/kanban/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as ValidateKanbanCredentialsResponse;
+  }
+
+  /**
+   * List available projects/teams from a kanban provider using ephemeral
+   * credentials. No persistence side effects.
+   */
+  async listKanbanProjects(
+    req: ListKanbanProjectsRequest
+  ): Promise<KanbanProjectInfo[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/kanban/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    const body = (await response.json()) as ListKanbanProjectsResponse;
+    return body.projects;
+  }
+
+  /**
+   * Write (upsert) a kanban provider + project section into config.toml.
+   *
+   * Does NOT receive the actual secret — only the env var name
+   * (`api_key_env`). The secret is set via `setKanbanSessionEnv`.
+   */
+  async writeKanbanConfig(
+    req: WriteKanbanConfigRequest
+  ): Promise<WriteKanbanConfigResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/kanban/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as WriteKanbanConfigResponse;
+  }
+
+  /**
+   * Set kanban env vars on the server process for the current session
+   * so subsequent sync calls find the API key.
+   *
+   * The returned `shell_export_block` uses `<your-token>` placeholders,
+   * not the real secret — safe to display to the user.
+   */
+  async setKanbanSessionEnv(
+    req: SetKanbanSessionEnvRequest
+  ): Promise<SetKanbanSessionEnvResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/kanban/session-env`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req),
+      }
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as SetKanbanSessionEnvResponse;
   }
 }

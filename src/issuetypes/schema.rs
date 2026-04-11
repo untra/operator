@@ -51,6 +51,9 @@ pub struct IssueType {
     /// Prompt for generating this issue type's operator agent via `claude -p`
     #[serde(default)]
     pub agent_prompt: Option<String>,
+    /// Default delegator name for this issuetype (overridden by step.agent)
+    #[serde(default)]
+    pub agent: Option<String>,
     /// Source of this issue type (builtin, user, import)
     #[serde(default)]
     pub source: IssueTypeSource,
@@ -169,6 +172,7 @@ impl IssueType {
                 agent: None,
             }],
             agent_prompt: None,
+            agent: None,
             source: IssueTypeSource::Import { provider, project },
             external_id,
         }
@@ -337,6 +341,7 @@ mod tests {
                 agent: None,
             }],
             agent_prompt: None,
+            agent: None,
             source: IssueTypeSource::User,
             external_id: None,
         }

@@ -338,7 +338,7 @@ suite('Status Provider Test Suite', () => {
       const labels = getSectionLabels(provider.getChildren());
       assert.deepStrictEqual(
         labels,
-        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Git']
+        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Git', 'Delegators']
       );
     });
 
@@ -442,7 +442,7 @@ suite('Status Provider Test Suite', () => {
       const labels = getSectionLabels(provider.getChildren());
       assert.deepStrictEqual(
         labels,
-        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Git', 'Issue Types', 'Managed Projects']
+        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Git', 'Issue Types', 'Delegators', 'Managed Projects']
       );
     });
 

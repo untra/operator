@@ -60,6 +60,7 @@ jobs:
           DISPLAY: ':99.0'
 
       - name: Upload coverage to Codecov
+        if: always()
         uses: codecov/codecov-action@v5
         with:
           files: vscode-extension/coverage/lcov.info

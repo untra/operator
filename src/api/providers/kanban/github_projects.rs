@@ -1427,6 +1427,11 @@ impl GithubProjectsProvider {
         project_id: &str,
         after: Option<&str>,
     ) -> Result<ItemsPage, ApiError> {
+        // NOTE: assignees.nodes must NOT request `email` — GitHub gates the
+        // `User.email` field behind `user:email` or `read:user` scope, which
+        // is orthogonal to the `project` scope this provider requires and
+        // would break any token scoped to projects-only. `RawAssignee.email`
+        // stays in the struct (serde-default `None`) for forward compat.
         let query = r"
             query($projectId: ID!, $first: Int!, $after: String) {
                 node(id: $projectId) {
@@ -1450,7 +1455,6 @@ impl GithubProjectsProvider {
                                                 login
                                                 databaseId
                                                 name
-                                                email
                                                 avatarUrl
                                             }
                                         }
@@ -1469,7 +1473,6 @@ impl GithubProjectsProvider {
                                                 login
                                                 databaseId
                                                 name
-                                                email
                                                 avatarUrl
                                             }
                                         }
@@ -1484,7 +1487,6 @@ impl GithubProjectsProvider {
                                                 login
                                                 databaseId
                                                 name
-                                                email
                                                 avatarUrl
                                             }
                                         }

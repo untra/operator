@@ -365,6 +365,7 @@ impl From<CreateStepRequest> for StepSchema {
         Self {
             name: s.name,
             display_name: s.display_name,
+            step_type: crate::templates::schema::StepTypeTag::Task,
             prompt: s.prompt,
             outputs: s
                 .outputs
@@ -403,6 +404,13 @@ impl From<CreateStepRequest> for StepSchema {
             json_schema_file: None,
             artifact_patterns: vec![],
             agent: None,
+            classifier_config: None,
+            rag_config: None,
+            delegator_config: None,
+            mcp_config: None,
+            multi_model_config: None,
+            multi_prompt_config: None,
+            matrixed_config: None,
         }
     }
 }
@@ -1311,6 +1319,9 @@ pub struct DelegatorResponse {
     pub display_name: Option<String>,
     /// Arbitrary model properties
     pub model_properties: std::collections::HashMap<String, String>,
+    /// Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_server: Option<String>,
     /// Optional launch configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub launch_config: Option<DelegatorLaunchConfigDto>,
@@ -1332,6 +1343,9 @@ pub struct CreateDelegatorRequest {
     /// Arbitrary model properties
     #[serde(default)]
     pub model_properties: std::collections::HashMap<String, String>,
+    /// Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
+    #[serde(default)]
+    pub model_server: Option<String>,
     /// Optional launch configuration
     #[serde(default)]
     pub launch_config: Option<DelegatorLaunchConfigDto>,
@@ -1399,9 +1413,71 @@ pub struct CreateDelegatorFromToolRequest {
     /// Optional display name for UI
     #[serde(default)]
     pub display_name: Option<String>,
+    /// Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
+    #[serde(default)]
+    pub model_server: Option<String>,
     /// Optional launch configuration
     #[serde(default)]
     pub launch_config: Option<DelegatorLaunchConfigDto>,
+}
+
+// =============================================================================
+// Model Server DTOs
+// =============================================================================
+
+/// Response for a single model server
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ModelServerResponse {
+    /// Unique name (e.g., "ollama-local")
+    pub name: String,
+    /// Kind: "ollama", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio"
+    pub kind: String,
+    /// Base URL of the inference endpoint (e.g., `http://localhost:11434`)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+    /// Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_key_env: Option<String>,
+    /// Additional environment variables set when spawning agents that use this server
+    pub extra_env: std::collections::HashMap<String, String>,
+    /// Optional display name for UI
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    /// Whether this is a user-declared server (true) or an implicit builtin (false)
+    pub user_declared: bool,
+}
+
+/// Response listing all model servers (declared + implicit builtins)
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ModelServersResponse {
+    /// List of model servers
+    pub servers: Vec<ModelServerResponse>,
+    /// Total count
+    pub total: usize,
+}
+
+/// Request to create a new model server
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct CreateModelServerRequest {
+    /// Unique name for this model server
+    pub name: String,
+    /// Kind: "ollama", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio"
+    pub kind: String,
+    /// Base URL of the inference endpoint
+    #[serde(default)]
+    pub base_url: Option<String>,
+    /// Name of an env var providing the API key
+    #[serde(default)]
+    pub api_key_env: Option<String>,
+    /// Additional environment variables
+    #[serde(default)]
+    pub extra_env: std::collections::HashMap<String, String>,
+    /// Optional display name for UI
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 // =============================================================================

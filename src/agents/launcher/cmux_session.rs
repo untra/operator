@@ -85,8 +85,12 @@ pub fn launch_in_cmux_with_options(
     cmux.check_in_cmux()
         .map_err(|e| anyhow::anyhow!("Not running inside cmux: {e}"))?;
 
-    // Create session name from ticket ID
-    let session_name = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    // Create session name from ticket ID, with suffix for multi-agent fan-out
+    let base = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    let session_name = match &options.session_suffix {
+        Some(sfx) => format!("{base}-{}", sanitize_session_name(sfx)),
+        None => base,
+    };
 
     // Resolve placement policy
     let (window_ref, _new_window) = resolve_placement(cmux, config.sessions.cmux.placement)?;

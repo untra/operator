@@ -92,6 +92,7 @@ pub async fn create(
         model: req.model,
         display_name: req.display_name,
         model_properties: req.model_properties,
+        model_server: req.model_server,
         launch_config: req.launch_config.map(dto_to_launch_config),
     };
 
@@ -177,6 +178,7 @@ fn delegator_to_response(d: &Delegator) -> DelegatorResponse {
         model: d.model.clone(),
         display_name: d.display_name.clone(),
         model_properties: d.model_properties.clone(),
+        model_server: d.model_server.clone(),
         launch_config: d.launch_config.as_ref().map(launch_config_to_dto),
     }
 }
@@ -234,6 +236,7 @@ pub async fn create_from_tool(
         model,
         display_name: req.display_name,
         model_properties: std::collections::HashMap::new(),
+        model_server: req.model_server.clone(),
         launch_config: req.launch_config.map(dto_to_launch_config),
     };
 
@@ -277,6 +280,7 @@ pub async fn update(
         model: req.model,
         display_name: req.display_name,
         model_properties: req.model_properties,
+        model_server: req.model_server,
         launch_config: req.launch_config.map(dto_to_launch_config),
     };
 
@@ -317,6 +321,7 @@ mod tests {
             model: "opus".to_string(),
             display_name: Some("Test".to_string()),
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: None,
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
@@ -344,6 +349,7 @@ mod tests {
             model: "gpt-4o".to_string(),
             display_name: None,
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: Some(DelegatorLaunchConfig {
                 yolo: true,
                 permission_mode: None,
@@ -370,6 +376,7 @@ mod tests {
             model: "opus".to_string(),
             display_name: Some("Full Config".to_string()),
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: Some(DelegatorLaunchConfig {
                 yolo: true,
                 permission_mode: Some("accept-edits".to_string()),
@@ -408,6 +415,7 @@ mod tests {
             model: None,
             name: None,
             display_name: None,
+            model_server: None,
             launch_config: None,
         };
 

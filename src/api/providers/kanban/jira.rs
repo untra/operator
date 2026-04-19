@@ -736,6 +736,49 @@ impl KanbanProvider for JiraProvider {
     }
 }
 
+#[async_trait]
+impl super::onboarding::KanbanOnboarding for JiraProvider {
+    fn provider_kind(&self) -> super::KanbanProviderType {
+        super::KanbanProviderType::Jira
+    }
+
+    async fn validate_onboarding(&self) -> Result<super::onboarding::ValidatedWorkspace, ApiError> {
+        let details = self.validate_detailed().await?;
+        Ok(super::onboarding::ValidatedWorkspace {
+            provider_kind: super::KanbanProviderType::Jira,
+            workspace_key: self.domain.clone(),
+            workspace_display_name: self.domain.clone(),
+            sync_user_id: details.account_id,
+            sync_user_display_name: details.display_name,
+            api_key_env: "OPERATOR_JIRA_API_KEY".to_string(),
+            prefetched_projects: None,
+            extra: super::onboarding::WorkspaceExtra::Jira {
+                email: self.email.clone(),
+            },
+        })
+    }
+
+    async fn discover_projects(
+        &self,
+        workspace: &super::onboarding::ValidatedWorkspace,
+    ) -> Result<Vec<super::onboarding::DiscoveredProject>, ApiError> {
+        let projects = self.list_projects().await?;
+        Ok(projects
+            .into_iter()
+            .map(|p| super::onboarding::DiscoveredProject {
+                workspace_key: workspace.workspace_key.clone(),
+                project_key: p.key,
+                project_display_name: p.name,
+                provider_url: Some(format!(
+                    "https://{}/browse/{}",
+                    workspace.workspace_key, p.id
+                )),
+                provider_native_id: Some(p.id),
+            })
+            .collect())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

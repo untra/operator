@@ -29,8 +29,14 @@ pub fn launch_in_tmux_with_options(
     initial_prompt: &str,
     options: &LaunchOptions,
 ) -> Result<String> {
-    // Create session name from ticket ID (sanitize for tmux)
-    let session_name = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    // Create session name from ticket ID (sanitize for tmux).
+    // For multi-agent fan-out, append the session_suffix to distinguish
+    // parallel sub-agents on the same ticket.
+    let base = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    let session_name = match &options.session_suffix {
+        Some(sfx) => format!("{base}-{}", sanitize_session_name(sfx)),
+        None => base,
+    };
 
     // Check if session already exists
     match tmux.session_exists(&session_name) {

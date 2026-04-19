@@ -44,6 +44,10 @@ pub struct Config {
     /// Agent delegator configurations for autonomous ticket launching
     #[serde(default)]
     pub delegators: Vec<Delegator>,
+    /// User-declared model servers (ollama, lmstudio, any OpenAI-compat host).
+    /// Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.
+    #[serde(default)]
+    pub model_servers: Vec<ModelServer>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -916,6 +920,63 @@ pub struct Delegator {
     /// Optional launch configuration
     #[serde(default)]
     pub launch_config: Option<DelegatorLaunchConfig>,
+    /// Name of a declared `ModelServer` (from `Config.model_servers`).
+    /// `None` means use the `llm_tool`'s implicit vendor default
+    /// (claude → anthropic-api, codex → openai-api, gemini → google-api).
+    #[serde(default)]
+    pub model_server: Option<String>,
+}
+
+/// A named host that serves models via an inference API.
+///
+/// Model servers are orthogonal to `llm_tools`: a delegator pairs an agentic CLI
+/// (`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint
+/// (`model_server`, e.g. ollama-local, openai-api, a custom vllm host).
+///
+/// Implicit builtin servers (`anthropic-api`, `openai-api`, `google-api`) are
+/// returned by [`implicit_model_server_for_tool`] and do not need to be declared
+/// in config.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct ModelServer {
+    /// Unique name (e.g., "ollama-local", "vllm-gpu1")
+    pub name: String,
+    /// Kind: "ollama", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio"
+    pub kind: String,
+    /// Base URL of the inference endpoint (e.g., `http://localhost:11434`).
+    /// `None` for implicit vendor servers means use the SDK default.
+    #[serde(default)]
+    pub base_url: Option<String>,
+    /// Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`)
+    #[serde(default)]
+    pub api_key_env: Option<String>,
+    /// Additional environment variables set when spawning agents that use this server
+    #[serde(default)]
+    pub extra_env: std::collections::HashMap<String, String>,
+    /// Optional display name for UI
+    #[serde(default)]
+    pub display_name: Option<String>,
+}
+
+/// Returns the implicit builtin `ModelServer` associated with a given `llm_tool`.
+///
+/// Used when a `Delegator` has no explicit `model_server`. Unknown tools
+/// fall back to an `"openai-api"` server so arbitrary future tools still resolve.
+pub fn implicit_model_server_for_tool(tool: &str) -> ModelServer {
+    let (name, kind) = match tool {
+        "claude" => ("anthropic-api", "anthropic-api"),
+        "codex" => ("openai-api", "openai-api"),
+        "gemini" => ("google-api", "google-api"),
+        _ => ("openai-api", "openai-api"),
+    };
+    ModelServer {
+        name: name.to_string(),
+        kind: kind.to_string(),
+        base_url: None,
+        api_key_env: None,
+        extra_env: std::collections::HashMap::new(),
+        display_name: None,
+    }
 }
 
 /// Launch configuration for a delegator
@@ -1313,6 +1374,40 @@ impl KanbanConfig {
             },
         );
     }
+
+    /// Provider-neutral upsert dispatcher.
+    ///
+    /// Delegates to the provider-specific upsert method based on the
+    /// `WorkspaceExtra` variant in the validated workspace.
+    #[allow(dead_code)] // Will be used by onboarding service in Phase 1b
+    pub fn upsert_project(
+        &mut self,
+        workspace: &crate::api::providers::kanban::ValidatedWorkspace,
+        project: &crate::api::providers::kanban::DiscoveredProject,
+    ) {
+        use crate::api::providers::kanban::WorkspaceExtra;
+        match &workspace.extra {
+            WorkspaceExtra::Jira { email } => self.upsert_jira_project(
+                &workspace.workspace_key,
+                email,
+                &workspace.api_key_env,
+                &project.project_key,
+                &workspace.sync_user_id,
+            ),
+            WorkspaceExtra::Linear => self.upsert_linear_project(
+                &workspace.workspace_key,
+                &workspace.api_key_env,
+                &project.project_key,
+                &workspace.sync_user_id,
+            ),
+            WorkspaceExtra::Github => self.upsert_github_project(
+                &workspace.workspace_key,
+                &workspace.api_key_env,
+                &project.project_key,
+                &workspace.sync_user_id,
+            ),
+        }
+    }
 }
 
 /// Per-project/team sync configuration for a kanban provider
@@ -1708,6 +1803,7 @@ impl Default for Config {
             kanban: KanbanConfig::default(),
             version_check: VersionCheckConfig::default(),
             delegators: Vec::new(),
+            model_servers: Vec::new(),
         }
     }
 }
@@ -1750,6 +1846,7 @@ mod tests {
                 flags: vec!["--verbose".to_string()],
                 ..Default::default()
             }),
+            model_server: None,
         };
 
         let json = serde_json::to_string(&delegator).unwrap();
@@ -1758,6 +1855,92 @@ mod tests {
         assert_eq!(parsed.llm_tool, "claude");
         assert_eq!(parsed.model, "opus");
         assert!(parsed.launch_config.unwrap().yolo);
+        assert!(parsed.model_server.is_none());
+    }
+
+    #[test]
+    fn test_model_server_toml_roundtrip() {
+        let toml_str = r#"
+            name = "ollama-local"
+            kind = "ollama"
+            base_url = "http://localhost:11434"
+            display_name = "Ollama (local)"
+        "#;
+        let server: ModelServer = toml::from_str(toml_str).unwrap();
+        assert_eq!(server.name, "ollama-local");
+        assert_eq!(server.kind, "ollama");
+        assert_eq!(server.base_url.as_deref(), Some("http://localhost:11434"));
+        assert_eq!(server.display_name.as_deref(), Some("Ollama (local)"));
+        assert!(server.extra_env.is_empty());
+        assert!(server.api_key_env.is_none());
+    }
+
+    #[test]
+    fn test_delegator_with_model_server_ref_roundtrip() {
+        let toml_str = r#"
+            name = "codex-local-qwen"
+            llm_tool = "codex"
+            model = "qwen2.5-coder"
+            model_server = "ollama-local"
+        "#;
+        let d: Delegator = toml::from_str(toml_str).unwrap();
+        assert_eq!(d.name, "codex-local-qwen");
+        assert_eq!(d.model_server.as_deref(), Some("ollama-local"));
+    }
+
+    #[test]
+    fn test_delegator_without_model_server_field_still_parses() {
+        let toml_str = r#"
+            name = "claude-opus-auto"
+            llm_tool = "claude"
+            model = "opus"
+        "#;
+        let d: Delegator = toml::from_str(toml_str).unwrap();
+        assert_eq!(d.name, "claude-opus-auto");
+        assert!(d.model_server.is_none());
+    }
+
+    #[test]
+    fn test_implicit_model_server_for_known_tools() {
+        assert_eq!(
+            implicit_model_server_for_tool("claude").kind,
+            "anthropic-api"
+        );
+        assert_eq!(implicit_model_server_for_tool("codex").kind, "openai-api");
+        assert_eq!(implicit_model_server_for_tool("gemini").kind, "google-api");
+        assert_eq!(implicit_model_server_for_tool("unknown").kind, "openai-api");
+    }
+
+    #[test]
+    fn test_config_without_model_servers_field_still_parses() {
+        let toml_str = r#"
+            [agents]
+            max_parallel = 1
+            cores_reserved = 0
+            health_check_interval = 5
+            [notifications]
+            enabled = false
+            [queue]
+            auto_assign = true
+            priority_order = []
+            poll_interval_ms = 1000
+            [paths]
+            tickets = ".tickets"
+            projects = "."
+            state = ".tickets/operator"
+            worktrees = ".worktrees"
+            [ui]
+            refresh_rate_ms = 100
+            completed_history_hours = 1
+            summary_max_length = 40
+            [launch]
+            confirm_autonomous = false
+            confirm_paired = false
+            launch_delay_ms = 0
+            [templates]
+        "#;
+        let cfg: Config = toml::from_str(toml_str).unwrap();
+        assert!(cfg.model_servers.is_empty());
     }
 
     #[test]
@@ -2067,5 +2250,119 @@ mod tests {
             kanban.jira["second.atlassian.net"].api_key_env,
             "OPERATOR_JIRA_SECOND_API_KEY"
         );
+    }
+
+    #[test]
+    fn test_upsert_project_jira() {
+        use crate::api::providers::kanban::{
+            DiscoveredProject, KanbanProviderType, ValidatedWorkspace, WorkspaceExtra,
+        };
+
+        let mut kanban = KanbanConfig::default();
+        let ws = ValidatedWorkspace {
+            provider_kind: KanbanProviderType::Jira,
+            workspace_key: "acme.atlassian.net".to_string(),
+            workspace_display_name: "Acme Corp".to_string(),
+            sync_user_id: "acct-123".to_string(),
+            sync_user_display_name: "Alice".to_string(),
+            api_key_env: "OPERATOR_JIRA_API_KEY".to_string(),
+            prefetched_projects: None,
+            extra: WorkspaceExtra::Jira {
+                email: "alice@acme.com".to_string(),
+            },
+        };
+        let project = DiscoveredProject {
+            workspace_key: "acme.atlassian.net".to_string(),
+            project_key: "PROJ".to_string(),
+            project_display_name: "My Project".to_string(),
+            provider_url: None,
+            provider_native_id: None,
+        };
+
+        kanban.upsert_project(&ws, &project);
+
+        let entry = kanban
+            .jira
+            .get("acme.atlassian.net")
+            .expect("workspace should be created");
+        assert!(entry.enabled);
+        assert_eq!(entry.email, "alice@acme.com");
+        assert_eq!(entry.api_key_env, "OPERATOR_JIRA_API_KEY");
+        let proj = entry.projects.get("PROJ").expect("project should exist");
+        assert_eq!(proj.sync_user_id, "acct-123");
+    }
+
+    #[test]
+    fn test_upsert_project_linear() {
+        use crate::api::providers::kanban::{
+            DiscoveredProject, KanbanProviderType, ValidatedWorkspace, WorkspaceExtra,
+        };
+
+        let mut kanban = KanbanConfig::default();
+        let ws = ValidatedWorkspace {
+            provider_kind: KanbanProviderType::Linear,
+            workspace_key: "acme".to_string(),
+            workspace_display_name: "Acme Inc".to_string(),
+            sync_user_id: "user-uuid-1".to_string(),
+            sync_user_display_name: "Bob".to_string(),
+            api_key_env: "OPERATOR_LINEAR_API_KEY".to_string(),
+            prefetched_projects: None,
+            extra: WorkspaceExtra::Linear,
+        };
+        let project = DiscoveredProject {
+            workspace_key: "acme".to_string(),
+            project_key: "ENG".to_string(),
+            project_display_name: "Engineering".to_string(),
+            provider_url: None,
+            provider_native_id: None,
+        };
+
+        kanban.upsert_project(&ws, &project);
+
+        let entry = kanban
+            .linear
+            .get("acme")
+            .expect("workspace should be created");
+        assert!(entry.enabled);
+        assert_eq!(entry.api_key_env, "OPERATOR_LINEAR_API_KEY");
+        let proj = entry.projects.get("ENG").expect("project should exist");
+        assert_eq!(proj.sync_user_id, "user-uuid-1");
+    }
+
+    #[test]
+    fn test_upsert_project_github() {
+        use crate::api::providers::kanban::{
+            DiscoveredProject, KanbanProviderType, ValidatedWorkspace, WorkspaceExtra,
+        };
+
+        let mut kanban = KanbanConfig::default();
+        let ws = ValidatedWorkspace {
+            provider_kind: KanbanProviderType::Github,
+            workspace_key: "my-org".to_string(),
+            workspace_display_name: "github.com".to_string(),
+            sync_user_id: "12345678".to_string(),
+            sync_user_display_name: "octocat".to_string(),
+            api_key_env: "OPERATOR_GITHUB_TOKEN".to_string(),
+            prefetched_projects: None,
+            extra: WorkspaceExtra::Github,
+        };
+        let project = DiscoveredProject {
+            workspace_key: "my-org".to_string(),
+            project_key: "PVT_abc".to_string(),
+            project_display_name: "My Board".to_string(),
+            provider_url: None,
+            provider_native_id: None,
+        };
+
+        kanban.upsert_project(&ws, &project);
+
+        let entry = kanban
+            .github
+            .get("my-org")
+            .expect("workspace should be created");
+        assert!(entry.enabled);
+        assert_eq!(entry.api_key_env, "OPERATOR_GITHUB_TOKEN");
+        let proj = entry.projects.get("PVT_abc").expect("project should exist");
+        assert_eq!(proj.sync_user_id, "12345678");
     }
 }

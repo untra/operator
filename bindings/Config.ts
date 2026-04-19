@@ -8,6 +8,7 @@ import type { KanbanConfig } from "./KanbanConfig";
 import type { LaunchConfig } from "./LaunchConfig";
 import type { LlmToolsConfig } from "./LlmToolsConfig";
 import type { LoggingConfig } from "./LoggingConfig";
+import type { ModelServer } from "./ModelServer";
 import type { NotificationsConfig } from "./NotificationsConfig";
 import type { PathsConfig } from "./PathsConfig";
 import type { QueueConfig } from "./QueueConfig";
@@ -38,4 +39,9 @@ version_check: VersionCheckConfig,
 /**
  * Agent delegator configurations for autonomous ticket launching
  */
-delegators: Array<Delegator>, };
+delegators: Array<Delegator>, 
+/**
+ * User-declared model servers (ollama, lmstudio, any OpenAI-compat host).
+ * Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.
+ */
+model_servers: Array<ModelServer>, };

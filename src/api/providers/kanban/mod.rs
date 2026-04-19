@@ -7,10 +7,12 @@
 mod github_projects;
 mod jira;
 mod linear;
+pub mod onboarding;
 
 pub use github_projects::{GithubProjectInfo, GithubProjectsProvider, GithubValidationDetails};
 pub use jira::{JiraProvider, JiraValidationDetails};
 pub use linear::{LinearProvider, LinearTeamInfo, LinearValidationDetails};
+pub use onboarding::{DiscoveredProject, KanbanOnboarding, ValidatedWorkspace, WorkspaceExtra};
 
 // Re-export Jira API response types for schema/binding generation
 pub use jira::{

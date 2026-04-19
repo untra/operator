@@ -27,6 +27,7 @@ mod pr_config;
 mod projects;
 mod services;
 mod startup;
+mod steps;
 mod templates;
 pub mod version;
 

@@ -25,6 +25,10 @@ pub struct LaunchOptions {
     pub prompt_prefix: Option<String>,
     /// Prompt text to append after the generated step prompt
     pub prompt_suffix: Option<String>,
+    /// Suffix appended to the generated session name to differentiate
+    /// multiple sub-agents launched for the same ticket (multi-agent steps).
+    /// When `None`, session name is the usual `{prefix}{sanitized-ticket-id}`.
+    pub session_suffix: Option<String>,
 }
 
 impl LaunchOptions {

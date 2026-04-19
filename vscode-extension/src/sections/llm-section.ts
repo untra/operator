@@ -130,6 +130,7 @@ export class LlmSection implements StatusSection {
         command: 'operator.detectLlmTools',
         title: 'Detect LLM Tools',
       },
+      health: this.health(),
     });
   }
 

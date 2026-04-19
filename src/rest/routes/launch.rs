@@ -18,6 +18,100 @@ use crate::rest::dto::{
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 
+/// If the sub-agent identified by `request.session_id` (or by ticket fallback)
+/// belongs to a multi-agent group, write its individual output artifact to
+/// `{worktree}/.tickets/steps/{step_name}/{agent_id}.json` and return a
+/// `group_partial` / `group_complete` response. Returns `Ok(None)` when this
+/// is a normal single-agent completion and the caller should fall through to
+/// existing logic.
+fn handle_multi_agent_completion(
+    state: &ApiState,
+    ticket: &crate::queue::Ticket,
+    step_name: &str,
+    request: &StepCompleteRequest,
+) -> Result<Option<StepCompleteResponse>, ApiError> {
+    let mut app_state = crate::state::State::load(&state.config)
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
+
+    // Resolve the sub-agent: prefer session-id lookup, fall back to ticket.
+    let agent_id = request
+        .session_id
+        .as_deref()
+        .and_then(|sid| app_state.agent_by_session(sid))
+        .or_else(|| app_state.agent_by_ticket(&ticket.id))
+        .map(|a| a.id.clone());
+
+    let Some(agent_id) = agent_id else {
+        return Ok(None);
+    };
+
+    // If this agent is not in a group, fall through.
+    if app_state.get_group_for_agent(&agent_id).is_none() {
+        return Ok(None);
+    }
+
+    // Build the per-sub-agent output payload from the POSTed OperatorOutput.
+    let output_payload = request
+        .output
+        .as_ref()
+        .map(|o| serde_json::to_value(o).unwrap_or(serde_json::Value::Null))
+        .unwrap_or(serde_json::Value::Null);
+
+    // Persist the per-sub-agent file — the sync loop picks it up.
+    crate::steps::manager::StepManager::write_agent_step_output(
+        ticket,
+        step_name,
+        &agent_id,
+        &output_payload,
+    )
+    .map_err(|e| ApiError::InternalError(format!("write sub-agent output: {e}")))?;
+
+    // Preview whether this was the final sub-agent for the group. The actual
+    // all-done decision is made by the sync loop when it calls record_agent_output.
+    let all_done = app_state
+        .get_group_for_agent(&agent_id)
+        .map(|g| g.individual_outputs.len() + 1 >= g.expected_total)
+        .unwrap_or(false);
+
+    // Mark the sub-agent as completing so the sync loop stops polling.
+    let _ = app_state.update_agent_status(
+        &agent_id,
+        "completing",
+        Some("sub-agent complete".to_string()),
+    );
+
+    // Build a minimal response — the group aggregation/advancement happens
+    // in the sync loop, not here.
+    let (previous_summary, previous_recommendation, cumulative_files_modified, cumulative_errors) =
+        request.output.as_ref().map_or((None, None, 0, 0), |o| {
+            (
+                o.summary.clone(),
+                o.recommendation.clone(),
+                o.files_modified.unwrap_or(0),
+                o.error_count.unwrap_or(0),
+            )
+        });
+
+    Ok(Some(StepCompleteResponse {
+        status: if all_done {
+            "group_complete".to_string()
+        } else {
+            "group_partial".to_string()
+        },
+        next_step: None,
+        auto_proceed: false,
+        next_command: None,
+        output_valid: request.output.is_some(),
+        should_iterate: false,
+        iteration_count: 1,
+        circuit_state: "closed".to_string(),
+        previous_summary,
+        previous_recommendation,
+        cumulative_files_modified,
+        cumulative_errors,
+    }))
+}
+
 /// Convert `PreparedLaunch` to `LaunchTicketResponse`
 fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse {
     LaunchTicketResponse {
@@ -200,6 +294,13 @@ pub async fn complete_step(
         ))
     })?;
 
+    // Multi-agent branch: if the calling sub-agent belongs to a group,
+    // write its individual output file and return a group_* status.
+    // The sync loop owns aggregation, advancement, and artifact writing.
+    if let Some(response) = handle_multi_agent_completion(&state, &ticket, &step_name, &request)? {
+        return Ok(Json(response));
+    }
+
     // Determine status based on exit code and validation
     let status = if request.exit_code != 0 {
         "failed".to_string()
@@ -381,6 +482,7 @@ mod tests {
             model: "opus".to_string(),
             display_name: None,
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: Some(crate::config::DelegatorLaunchConfig {
                 yolo: true,
                 permission_mode: Some("accept-edits".to_string()),
@@ -427,6 +529,7 @@ mod tests {
             model: "sonnet".to_string(),
             display_name: None,
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: Some(crate::config::DelegatorLaunchConfig::default()),
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test-launch"));
@@ -470,6 +573,7 @@ mod tests {
             model: model.to_string(),
             display_name: None,
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: None,
         }
     }
@@ -591,6 +695,7 @@ mod tests {
             model: "o3".to_string(),
             display_name: None,
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: Some(crate::config::DelegatorLaunchConfig {
                 yolo: true,
                 permission_mode: None,
@@ -615,5 +720,244 @@ mod tests {
         assert_eq!(options.extra_flags, vec!["--full-auto".to_string()]);
         assert_eq!(options.prompt_prefix.as_deref(), Some("BEGIN"));
         assert_eq!(options.prompt_suffix.as_deref(), Some("END"));
+    }
+
+    // ─── Multi-agent grouped completion tests ───────────────────────────
+
+    use crate::queue::Ticket;
+    use crate::rest::dto::OperatorOutput;
+    use crate::state::{PendingSubAgent, State};
+    use tempfile::TempDir;
+
+    fn make_state_with_temp(temp_dir: &TempDir) -> ApiState {
+        let state_path = temp_dir.path().join("state");
+        std::fs::create_dir_all(&state_path).unwrap();
+        let mut config = Config::default();
+        config.paths.state = state_path.to_string_lossy().to_string();
+        ApiState::new(config, temp_dir.path().to_path_buf())
+    }
+
+    fn make_multi_agent_ticket(temp_dir: &TempDir) -> Ticket {
+        let worktree = temp_dir.path().join("worktree");
+        std::fs::create_dir_all(&worktree).unwrap();
+        Ticket {
+            filename: "multi.md".to_string(),
+            filepath: worktree.join("multi.md").to_string_lossy().to_string(),
+            timestamp: "20241221-1430".to_string(),
+            ticket_type: "TASK".to_string(),
+            project: "test".to_string(),
+            id: "TASK-555".to_string(),
+            summary: "Multi-agent ticket".to_string(),
+            priority: "P2-medium".to_string(),
+            status: "running".to_string(),
+            step: "review".to_string(),
+            content: "# test".to_string(),
+            sessions: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
+            worktree_path: Some(worktree.to_string_lossy().to_string()),
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
+        }
+    }
+
+    fn make_complete_request(session_id: &str) -> StepCompleteRequest {
+        StepCompleteRequest {
+            exit_code: 0,
+            output_valid: true,
+            output_schema_errors: None,
+            session_id: Some(session_id.to_string()),
+            duration_secs: 10,
+            output_sample: None,
+            output: Some(OperatorOutput {
+                status: "complete".to_string(),
+                exit_signal: true,
+                summary: Some("done".to_string()),
+                ..Default::default()
+            }),
+        }
+    }
+
+    #[test]
+    fn test_handle_multi_agent_completion_returns_none_when_no_group() {
+        let temp_dir = TempDir::new().unwrap();
+        let api_state = make_state_with_temp(&temp_dir);
+        let ticket = make_multi_agent_ticket(&temp_dir);
+
+        // Fresh state — no groups, no agents.
+        let req = StepCompleteRequest {
+            exit_code: 0,
+            output_valid: true,
+            output_schema_errors: None,
+            session_id: None,
+            duration_secs: 0,
+            output_sample: None,
+            output: None,
+        };
+
+        let response = handle_multi_agent_completion(&api_state, &ticket, "review", &req).unwrap();
+        assert!(
+            response.is_none(),
+            "no group → fall through to single-agent path"
+        );
+    }
+
+    #[test]
+    fn test_handle_multi_agent_completion_partial_writes_file_and_returns_group_partial() {
+        let temp_dir = TempDir::new().unwrap();
+        let api_state = make_state_with_temp(&temp_dir);
+        let ticket = make_multi_agent_ticket(&temp_dir);
+
+        // Build a group with 2 expected sub-agents; launch one (mark_launched).
+        let (agent_id, session_name) = {
+            let mut state = State::load(&api_state.config).unwrap();
+            let group_id = state
+                .create_multi_agent_group(
+                    &ticket.id,
+                    "review",
+                    "multi_model",
+                    vec![
+                        PendingSubAgent {
+                            delegator_name: "d1".to_string(),
+                            prompt: "p".to_string(),
+                            variant_key: "d1".to_string(),
+                        },
+                        PendingSubAgent {
+                            delegator_name: "d2".to_string(),
+                            prompt: "p".to_string(),
+                            variant_key: "d2".to_string(),
+                        },
+                    ],
+                )
+                .unwrap();
+
+            // Add one agent, record its session id, and mark it launched.
+            let agent_id = state
+                .add_agent_with_options(
+                    ticket.id.clone(),
+                    ticket.ticket_type.clone(),
+                    ticket.project.clone(),
+                    false,
+                    Some("claude".to_string()),
+                    Some("default".to_string()),
+                )
+                .unwrap();
+            let session_name = "op-TASK-555-d1".to_string();
+            state
+                .update_agent_session(&agent_id, &session_name)
+                .unwrap();
+            state.mark_launched(&group_id, "d1", &agent_id).unwrap();
+            (agent_id, session_name)
+        };
+
+        let req = make_complete_request(&session_name);
+        let response = handle_multi_agent_completion(&api_state, &ticket, "review", &req)
+            .unwrap()
+            .expect("group member → returns Some");
+
+        assert_eq!(response.status, "group_partial");
+        assert!(!response.auto_proceed);
+        assert!(response.next_step.is_none());
+
+        // Per-sub-agent file written at the expected path
+        let expected = temp_dir
+            .path()
+            .join("worktree")
+            .join(".tickets")
+            .join("steps")
+            .join("review")
+            .join(format!("{agent_id}.json"));
+        assert!(
+            expected.exists(),
+            "sub-agent output file should exist at {expected:?}"
+        );
+    }
+
+    #[test]
+    fn test_handle_multi_agent_completion_final_returns_group_complete() {
+        let temp_dir = TempDir::new().unwrap();
+        let api_state = make_state_with_temp(&temp_dir);
+        let ticket = make_multi_agent_ticket(&temp_dir);
+
+        // 2 sub-agents, both launched; the FIRST has already recorded its output.
+        let (second_agent_id, session_name) = {
+            let mut state = State::load(&api_state.config).unwrap();
+            let group_id = state
+                .create_multi_agent_group(
+                    &ticket.id,
+                    "review",
+                    "multi_model",
+                    vec![
+                        PendingSubAgent {
+                            delegator_name: "d1".to_string(),
+                            prompt: "p".to_string(),
+                            variant_key: "d1".to_string(),
+                        },
+                        PendingSubAgent {
+                            delegator_name: "d2".to_string(),
+                            prompt: "p".to_string(),
+                            variant_key: "d2".to_string(),
+                        },
+                    ],
+                )
+                .unwrap();
+
+            let a1 = state
+                .add_agent_with_options(
+                    ticket.id.clone(),
+                    ticket.ticket_type.clone(),
+                    ticket.project.clone(),
+                    false,
+                    Some("claude".to_string()),
+                    Some("default".to_string()),
+                )
+                .unwrap();
+            state.update_agent_session(&a1, "op-TASK-555-d1").unwrap();
+            state.mark_launched(&group_id, "d1", &a1).unwrap();
+            // Simulate first sub-agent already recorded (as if sync had processed it)
+            state
+                .record_agent_output(&a1, serde_json::json!({"summary": "first"}))
+                .unwrap();
+
+            let a2 = state
+                .add_agent_with_options(
+                    ticket.id.clone(),
+                    ticket.ticket_type.clone(),
+                    ticket.project.clone(),
+                    false,
+                    Some("claude".to_string()),
+                    Some("default".to_string()),
+                )
+                .unwrap();
+            let session_name = "op-TASK-555-d2".to_string();
+            state.update_agent_session(&a2, &session_name).unwrap();
+            state.mark_launched(&group_id, "d2", &a2).unwrap();
+            (a2, session_name)
+        };
+
+        let req = make_complete_request(&session_name);
+        let response = handle_multi_agent_completion(&api_state, &ticket, "review", &req)
+            .unwrap()
+            .expect("group member → returns Some");
+
+        assert_eq!(
+            response.status, "group_complete",
+            "last sub-agent should return group_complete"
+        );
+        assert!(
+            !response.auto_proceed,
+            "sync loop handles advancement, not REST"
+        );
+
+        // Our sub-agent's file is written
+        let expected = temp_dir
+            .path()
+            .join("worktree")
+            .join(".tickets")
+            .join("steps")
+            .join("review")
+            .join(format!("{second_agent_id}.json"));
+        assert!(expected.exists());
     }
 }

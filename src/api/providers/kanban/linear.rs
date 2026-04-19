@@ -30,6 +30,7 @@ pub struct LinearValidationDetails {
     pub user_id: String,
     pub user_name: String,
     pub org_name: String,
+    pub url_key: String,
     pub teams: Vec<LinearTeamInfo>,
 }
 
@@ -242,7 +243,6 @@ impl LinearProvider {
             #[serde(default)]
             name: String,
             #[serde(default, rename = "urlKey")]
-            #[allow(dead_code)]
             url_key: String,
         }
 
@@ -263,6 +263,7 @@ impl LinearProvider {
             user_id: resp.viewer.id,
             user_name: resp.viewer.name,
             org_name: resp.organization.name,
+            url_key: resp.organization.url_key,
             teams: resp
                 .teams
                 .nodes
@@ -981,6 +982,45 @@ impl KanbanProvider for LinearProvider {
             url: issue.url,
             priority: priority_to_string(issue.priority),
         })
+    }
+}
+
+#[async_trait]
+impl super::onboarding::KanbanOnboarding for LinearProvider {
+    fn provider_kind(&self) -> super::KanbanProviderType {
+        super::KanbanProviderType::Linear
+    }
+
+    async fn validate_onboarding(&self) -> Result<super::onboarding::ValidatedWorkspace, ApiError> {
+        let details = self.validate_detailed().await?;
+        let prefetched: Vec<super::onboarding::DiscoveredProject> = details
+            .teams
+            .iter()
+            .map(|t| super::onboarding::DiscoveredProject {
+                workspace_key: details.url_key.clone(),
+                project_key: t.key.clone(),
+                project_display_name: t.name.clone(),
+                provider_url: None,
+                provider_native_id: Some(t.id.clone()),
+            })
+            .collect();
+        Ok(super::onboarding::ValidatedWorkspace {
+            provider_kind: super::KanbanProviderType::Linear,
+            workspace_key: details.url_key,
+            workspace_display_name: details.org_name,
+            sync_user_id: details.user_id,
+            sync_user_display_name: details.user_name,
+            api_key_env: "OPERATOR_LINEAR_API_KEY".to_string(),
+            prefetched_projects: Some(prefetched),
+            extra: super::onboarding::WorkspaceExtra::Linear,
+        })
+    }
+
+    async fn discover_projects(
+        &self,
+        workspace: &super::onboarding::ValidatedWorkspace,
+    ) -> Result<Vec<super::onboarding::DiscoveredProject>, ApiError> {
+        Ok(workspace.prefetched_projects.clone().unwrap_or_default())
     }
 }
 

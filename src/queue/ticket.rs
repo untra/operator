@@ -339,11 +339,13 @@ impl Ticket {
         let current_step = self.current_step_schema();
         if let Some(step) = current_step {
             if let Some(next_name) = step.next_step {
-                // Look up next step's agent override
+                // Look up next step's effective agent (accounts for step type configs)
                 let switch_agent = self
                     .template_schema()
                     .and_then(|t| t.get_step(&next_name).cloned())
-                    .and_then(|s| s.agent);
+                    .and_then(|s| {
+                        crate::templates::step_type::effective_agent(&s).map(String::from)
+                    });
 
                 self.update_field("step", &next_name)?;
                 return Ok(StepAdvanceResult::Advanced {

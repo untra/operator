@@ -102,7 +102,7 @@ Issue type collections and presets
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `preset` | → `CollectionPreset` | - | Named preset for issue type collection Options: simple, dev_kanban, devops_kanban, custom |
+| `preset` | → `CollectionPreset` | - | Named preset for issue type collection Options: simple, `dev_kanban`, `devops_kanban`, custom |
 | `collection` | `array`[`string`] | - | Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV |
 | `active_collection` | `string` \| `null` | - | Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection |
 
@@ -140,12 +140,13 @@ Backstage server integration
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | true | Whether Backstage integration is enabled |
+| `display` | `boolean` | - | Whether to show Backstage in the Connections status section |
 | `port` | `integer` | 7007 | Port for the Backstage server |
 | `auto_start` | `boolean` | false | Auto-start Backstage server when TUI launches |
-| `subpath` | `string` | backstage | Subdirectory within state_path for Backstage installation |
+| `subpath` | `string` | backstage | Subdirectory within `state_path` for Backstage installation |
 | `branding_subpath` | `string` | branding | Subdirectory within backstage path for branding customization |
 | `release_url` | `string` | - | Base URL for downloading backstage-server binary |
-| `local_binary_path` | `string` \| `null` | - | Optional local path to backstage-server binary If set, this is used instead of downloading from release_url |
+| `local_binary_path` | `string` \| `null` | - | Optional local path to backstage-server binary If set, this is used instead of downloading from `release_url` |
 | `branding` | → `BrandingConfig` | - | Branding and theming configuration |
 
 ## `[llm_tools]`
@@ -157,13 +158,16 @@ LLM CLI tool detection and providers
 | `detected` | `array`[→ `DetectedTool`] | - | Detected CLI tools (populated on first startup) |
 | `providers` | `array`[→ `LlmProvider`] | - | Available {tool, model} pairs for launching tickets Built from detected tools + their model aliases |
 | `detection_complete` | `boolean` | - | Whether detection has been completed |
-| `skill_directory_overrides` | `object` | - | Per-tool overrides for skill directories (keyed by tool_name) |
+| `default_tool` | `string` \| `null` | - | User's preferred default LLM tool (e.g., "claude") |
+| `default_model` | `string` \| `null` | - | User's preferred default model alias (e.g., "opus") |
+| `skill_directory_overrides` | `object` | - | Per-tool overrides for skill directories (keyed by `tool_name`) |
 
 ## Example Configuration
 
 ```toml
 projects = []
 delegators = []
+model_servers = []
 
 [agents]
 max_parallel = 5
@@ -212,9 +216,9 @@ completed_history_hours = 24
 summary_max_length = 40
 
 [ui.panel_names]
+status = "STATUS"
 queue = "TODO QUEUE"
-agents = "DOING"
-awaiting = "AWAITING"
+in_progress = "IN PROGRESS"
 completed = "DONE"
 
 [launch]
@@ -264,6 +268,9 @@ binary_path = "/Applications/cmux.app/Contents/Resources/bin/cmux"
 require_in_cmux = true
 placement = "auto"
 
+[sessions.zellij]
+require_in_zellij = true
+
 [llm_tools]
 detected = []
 providers = []
@@ -273,6 +280,7 @@ detection_complete = false
 
 [backstage]
 enabled = true
+display = false
 port = 7007
 auto_start = false
 subpath = "backstage"
@@ -311,6 +319,8 @@ token_env = ""
 [kanban.jira]
 
 [kanban.linear]
+
+[kanban.github]
 
 [version_check]
 enabled = true

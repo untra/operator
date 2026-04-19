@@ -50,6 +50,7 @@ export class DelegatorSection implements StatusSection {
           ? vscode.TreeItemCollapsibleState.Collapsed
           : vscode.TreeItemCollapsibleState.Expanded,
         sectionId: this.sectionId,
+        health: this.health(),
       });
     }
 
@@ -59,6 +60,7 @@ export class DelegatorSection implements StatusSection {
       icon: 'rocket',
       collapsibleState: vscode.TreeItemCollapsibleState.None,
       sectionId: this.sectionId,
+      health: this.health(),
     });
   }
 
@@ -72,10 +74,11 @@ export class DelegatorSection implements StatusSection {
     for (const delegator of this.state.delegators) {
       const label = delegator.display_name || delegator.name;
       const yoloFlag = delegator.launch_config?.yolo ? ' · yolo' : '';
+      const serverSuffix = delegator.model_server ? ` @ ${delegator.model_server}` : '';
 
       items.push(new StatusItem({
         label,
-        description: `${delegator.llm_tool}:${delegator.model}${yoloFlag}`,
+        description: `${delegator.llm_tool}:${delegator.model}${yoloFlag}${serverSuffix}`,
         icon: `operator-${delegator.llm_tool}`,
         tooltip: this.buildTooltip(delegator),
         sectionId: this.sectionId,
@@ -97,6 +100,7 @@ export class DelegatorSection implements StatusSection {
 
   private buildTooltip(d: DelegatorResponse): string {
     const lines = [`${d.name}: ${d.llm_tool} / ${d.model}`];
+    if (d.model_server) { lines.push(`Model server: ${d.model_server}`); }
     if (d.launch_config) {
       if (d.launch_config.yolo) { lines.push('YOLO mode: enabled'); }
       if (d.launch_config.permission_mode) { lines.push(`Permission: ${d.launch_config.permission_mode}`); }

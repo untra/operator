@@ -149,10 +149,11 @@ impl AgentSwitcher {
         step: &StepSchema,
         config: &Config,
     ) -> Option<Delegator> {
-        let agent_name = step.agent.as_ref()?;
+        // Use effective_agent which accounts for step type configs
+        let agent_name = crate::templates::step_type::effective_agent(step)?;
 
         // Look up agent name in config.delegators
-        let delegator = config.delegators.iter().find(|d| &d.name == agent_name)?;
+        let delegator = config.delegators.iter().find(|d| d.name == agent_name)?;
 
         // Compare to current tool/model
         if delegator.llm_tool == current_tool && delegator.model == current_model {
@@ -298,6 +299,7 @@ mod tests {
         StepSchema {
             name: "build".to_string(),
             display_name: None,
+            step_type: crate::templates::schema::StepTypeTag::Task,
             outputs: vec![],
             prompt: "Build it".to_string(),
             allowed_tools: vec![],
@@ -312,6 +314,13 @@ mod tests {
             json_schema: None,
             json_schema_file: None,
             artifact_patterns: vec![],
+            classifier_config: None,
+            rag_config: None,
+            delegator_config: None,
+            mcp_config: None,
+            multi_model_config: None,
+            multi_prompt_config: None,
+            matrixed_config: None,
         }
     }
 
@@ -329,6 +338,7 @@ mod tests {
             model: model.to_string(),
             display_name: None,
             model_properties: HashMap::default(),
+            model_server: None,
             launch_config: None,
         }
     }

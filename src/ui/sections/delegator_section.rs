@@ -42,7 +42,13 @@ impl StatusSection for DelegatorSection {
             .map(|d| {
                 let label = d.display_name.as_deref().unwrap_or(&d.name).to_string();
                 let yolo_flag = if d.yolo { " · yolo" } else { "" };
-                let description = format!("{}:{}{}", d.llm_tool, d.model, yolo_flag);
+                let server_suffix = d
+                    .model_server
+                    .as_deref()
+                    .map(|s| format!(" @ {s}"))
+                    .unwrap_or_default();
+                let description =
+                    format!("{}:{}{}{}", d.llm_tool, d.model, yolo_flag, server_suffix);
 
                 TreeRow {
                     section_id: SectionId::Delegators,
@@ -66,5 +72,78 @@ impl StatusSection for DelegatorSection {
                 }
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backstage::ServerStatus;
+    use crate::rest::RestApiStatus;
+    use crate::ui::status_panel::{DelegatorInfo, WrapperConnectionStatus};
+
+    fn snapshot_with(delegators: Vec<DelegatorInfo>) -> StatusSnapshot {
+        StatusSnapshot {
+            working_dir: "/test".into(),
+            config_file_found: true,
+            config_path: "operator.toml".into(),
+            tickets_dir: ".tickets".into(),
+            tickets_dir_exists: true,
+            wrapper_type: "tmux".into(),
+            operator_version: "0.1.30".into(),
+            api_status: RestApiStatus::Stopped,
+            backstage_status: ServerStatus::Stopped,
+            backstage_display: false,
+            kanban_providers: vec![],
+            llm_tools: vec![],
+            default_llm_tool: None,
+            default_llm_model: None,
+            delegators,
+            model_servers: vec![],
+            git_provider: None,
+            git_token_set: false,
+            git_branch_format: None,
+            git_use_worktrees: false,
+            update_available_version: None,
+            wrapper_connection_status: WrapperConnectionStatus::Tmux {
+                available: true,
+                server_running: true,
+                version: None,
+            },
+            env_editor: String::new(),
+            env_visual: String::new(),
+        }
+    }
+
+    fn delegator(name: &str, tool: &str, model: &str, server: Option<&str>) -> DelegatorInfo {
+        DelegatorInfo {
+            name: name.into(),
+            display_name: None,
+            llm_tool: tool.into(),
+            model: model.into(),
+            yolo: false,
+            model_server: server.map(String::from),
+        }
+    }
+
+    #[test]
+    fn test_description_includes_server_when_set() {
+        let snap = snapshot_with(vec![delegator(
+            "codex-qwen",
+            "codex",
+            "qwen2.5-coder",
+            Some("ollama-local"),
+        )]);
+        let rows = DelegatorSection.children(&snap);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].description, "codex:qwen2.5-coder @ ollama-local");
+    }
+
+    #[test]
+    fn test_description_omits_server_when_default() {
+        let snap = snapshot_with(vec![delegator("claude-opus", "claude", "opus", None)]);
+        let rows = DelegatorSection.children(&snap);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].description, "claude:opus");
     }
 }

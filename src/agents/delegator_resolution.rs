@@ -3,7 +3,10 @@
 //! Used by both the REST API launch endpoint and the TUI auto-launch path.
 
 use crate::agents::LaunchOptions;
-use crate::config::{Config, Delegator, DelegatorLaunchConfig, LlmProvider};
+use crate::config::{
+    implicit_model_server_for_tool, Config, Delegator, DelegatorLaunchConfig, LlmProvider,
+    ModelServer,
+};
 
 /// Issuetype/step agent context for delegator resolution during launch.
 ///
@@ -18,15 +21,39 @@ pub struct AgentContext {
 
 /// Error type for delegator resolution failures.
 #[derive(Debug, thiserror::Error)]
+#[allow(clippy::enum_variant_names)] // All failures are "unknown reference to X"; prefix is semantic.
 pub enum ResolutionError {
     #[error("Unknown delegator '{0}'")]
     UnknownDelegator(String),
     #[error("Unknown provider '{0}'")]
     UnknownProvider(String),
+    #[error("Unknown model_server '{0}'")]
+    UnknownModelServer(String),
 }
 
-/// Convert a `Delegator` into an `LlmProvider`
-fn delegator_to_provider(d: &Delegator) -> LlmProvider {
+/// Resolve a delegator's `ModelServer`: named lookup if set, else implicit vendor default.
+pub(crate) fn resolve_model_server_for_delegator(
+    config: &Config,
+    d: &Delegator,
+) -> Result<ModelServer, ResolutionError> {
+    match d.model_server.as_deref() {
+        Some(name) => config
+            .model_servers
+            .iter()
+            .find(|s| s.name == name)
+            .cloned()
+            .ok_or_else(|| ResolutionError::UnknownModelServer(name.to_string())),
+        None => Ok(implicit_model_server_for_tool(&d.llm_tool)),
+    }
+}
+
+/// Convert a `Delegator` into an `LlmProvider`.
+///
+/// v1: populates `tool` and `model` only. The delegator's `model_server` is
+/// resolved and env vars are expected to be injected into `LlmProvider.env`
+/// at spawn time — currently a no-op. TODO(model-servers-v2): thread the
+/// resolved `ModelServer` through to `LlmProvider.env` via a per-tool mapping.
+pub(crate) fn delegator_to_provider(d: &Delegator) -> LlmProvider {
     LlmProvider {
         tool: d.llm_tool.clone(),
         model: d.model.clone(),
@@ -35,7 +62,7 @@ fn delegator_to_provider(d: &Delegator) -> LlmProvider {
 }
 
 /// Apply a delegator's launch config to launch options
-fn apply_delegator_launch_config(
+pub(crate) fn apply_delegator_launch_config(
     options: &mut LaunchOptions,
     launch_config: &Option<DelegatorLaunchConfig>,
 ) {
@@ -223,6 +250,7 @@ mod tests {
             model: model.to_string(),
             display_name: None,
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: None,
         }
     }
@@ -233,6 +261,53 @@ mod tests {
         let options = resolve_launch_options(&config, None, None, None, false, None).unwrap();
         assert!(options.provider.is_none());
         assert!(!options.yolo_mode);
+    }
+
+    #[test]
+    fn test_resolve_model_server_implicit_for_claude() {
+        let config = Config::default();
+        let d = make_delegator("claude-opus", "claude", "opus");
+        let server = resolve_model_server_for_delegator(&config, &d).unwrap();
+        assert_eq!(server.name, "anthropic-api");
+        assert_eq!(server.kind, "anthropic-api");
+    }
+
+    #[test]
+    fn test_resolve_model_server_implicit_for_codex() {
+        let config = Config::default();
+        let d = make_delegator("codex-gpt", "codex", "gpt-4o");
+        let server = resolve_model_server_for_delegator(&config, &d).unwrap();
+        assert_eq!(server.name, "openai-api");
+    }
+
+    #[test]
+    fn test_resolve_model_server_named_lookup() {
+        let mut config = Config::default();
+        config.model_servers.push(crate::config::ModelServer {
+            name: "ollama-local".to_string(),
+            kind: "ollama".to_string(),
+            base_url: Some("http://localhost:11434".to_string()),
+            api_key_env: None,
+            extra_env: std::collections::HashMap::new(),
+            display_name: None,
+        });
+
+        let mut d = make_delegator("codex-local-qwen", "codex", "qwen2.5-coder");
+        d.model_server = Some("ollama-local".to_string());
+
+        let server = resolve_model_server_for_delegator(&config, &d).unwrap();
+        assert_eq!(server.name, "ollama-local");
+        assert_eq!(server.kind, "ollama");
+        assert_eq!(server.base_url.as_deref(), Some("http://localhost:11434"));
+    }
+
+    #[test]
+    fn test_resolve_model_server_unknown_name_errors() {
+        let config = Config::default();
+        let mut d = make_delegator("d", "claude", "opus");
+        d.model_server = Some("nonexistent".to_string());
+        let err = resolve_model_server_for_delegator(&config, &d).unwrap_err();
+        assert!(matches!(err, ResolutionError::UnknownModelServer(_)));
     }
 
     #[test]
@@ -336,6 +411,7 @@ mod tests {
             model: "opus".to_string(),
             display_name: None,
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: Some(DelegatorLaunchConfig {
                 yolo: true,
                 permission_mode: None,

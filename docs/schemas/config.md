@@ -48,6 +48,7 @@ JSON Schema for the Operator configuration file (`config.toml`).
 | `kanban` | → `KanbanConfig` | No | Kanban provider configuration for syncing issues from Jira, Linear, etc. |
 | `version_check` | → `VersionCheckConfig` | No | Version check configuration for automatic update notifications |
 | `delegators` | `array` | No | Agent delegator configurations for autonomous ticket launching |
+| `model_servers` | `array` | No | User-declared model servers (ollama, lmstudio, any OpenAI-compat host). Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration. |
 
 ## Type Definitions
 
@@ -82,7 +83,7 @@ OS notification configuration.
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether OS notifications are enabled |
 | `sound` | `boolean` | No | Play sound with notifications |
-| `events` | `array` | No | Events to send (empty = all events) Possible values: agent.started, agent.completed, agent.failed, agent.awaiting_input, agent.session_lost, pr.created, pr.merged, pr.closed, pr.ready_to_merge, pr.changes_requested, ticket.returned, investigation.created |
+| `events` | `array` | No | Events to send (empty = all events) Possible values: agent.started, agent.completed, agent.failed, `agent.awaiting_input`, `agent.session_lost`, pr.created, pr.merged, pr.closed, `pr.ready_to_merge`, `pr.changes_requested`, ticket.returned, investigation.created |
 
 ### WebhookConfig
 
@@ -129,9 +130,9 @@ Webhook notification configuration.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
+| `status` | `string` | No |  |
 | `queue` | `string` | No |  |
-| `agents` | `string` | No |  |
-| `awaiting` | `string` | No |  |
+| `in_progress` | `string` | No |  |
 | `completed` | `string` | No |  |
 
 ### LaunchConfig
@@ -168,7 +169,7 @@ YOLO (auto-accept) mode configuration for fully autonomous execution
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `preset` | → `CollectionPreset` | No | Named preset for issue type collection Options: simple, dev_kanban, devops_kanban, custom |
+| `preset` | → `CollectionPreset` | No | Named preset for issue type collection Options: simple, `dev_kanban`, `devops_kanban`, custom |
 | `collection` | `array` | No | Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV |
 | `active_collection` | `string` \| `null` | No | Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection |
 
@@ -213,10 +214,11 @@ Logging configuration
 Session wrapper configuration
 
 Controls how operator creates and manages terminal sessions for agents.
-Three modes are supported:
+Four modes are supported:
 - tmux: Standalone tmux sessions (default)
 - vscode: VS Code integrated terminal (requires extension)
 - cmux: macOS terminal multiplexer (requires running inside cmux)
+- zellij: Zellij terminal workspace manager
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -224,6 +226,7 @@ Three modes are supported:
 | `tmux` | → `SessionsTmuxConfig` | No | Tmux-specific configuration |
 | `vscode` | → `SessionsVSCodeConfig` | No | VS Code-specific configuration |
 | `cmux` | → `SessionsCmuxConfig` | No | cmux-specific configuration |
+| `zellij` | → `SessionsZellijConfig` | No | Zellij-specific configuration |
 
 ### SessionWrapperType
 
@@ -234,6 +237,7 @@ Session wrapper type for terminal session management
 - `tmux` - Standalone tmux sessions (default)
 - `vscode` - VS Code integrated terminal (via extension webhook)
 - `cmux` - cmux macOS terminal multiplexer
+- `zellij` - Zellij terminal workspace manager
 
 ### SessionsTmuxConfig
 
@@ -260,7 +264,7 @@ cmux macOS terminal multiplexer session configuration
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `binary_path` | `string` | No | Path to the cmux binary |
-| `require_in_cmux` | `boolean` | No | Require running inside cmux (CMUX_WORKSPACE_ID env var present) |
+| `require_in_cmux` | `boolean` | No | Require running inside cmux (`CMUX_WORKSPACE_ID` env var present) |
 | `placement` | → `CmuxPlacementPolicy` | No | Where to place new agent sessions: "auto", "workspace", or "window" |
 
 ### CmuxPlacementPolicy
@@ -273,6 +277,14 @@ Placement policy for cmux sessions: where to create new agent terminals
 - `workspace` - Always create a new workspace in the active window
 - `window` - Always create a new window for each ticket
 
+### SessionsZellijConfig
+
+Zellij terminal workspace manager session configuration
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `require_in_zellij` | `boolean` | No | Require running inside Zellij (ZELLIJ env var present) |
+
 ### LlmToolsConfig
 
 LLM CLI tools configuration
@@ -282,7 +294,9 @@ LLM CLI tools configuration
 | `detected` | `array` | No | Detected CLI tools (populated on first startup) |
 | `providers` | `array` | No | Available {tool, model} pairs for launching tickets Built from detected tools + their model aliases |
 | `detection_complete` | `boolean` | No | Whether detection has been completed |
-| `skill_directory_overrides` | `object` | No | Per-tool overrides for skill directories (keyed by tool_name) |
+| `default_tool` | `string` \| `null` | No | User's preferred default LLM tool (e.g., "claude") |
+| `default_model` | `string` \| `null` | No | User's preferred default model alias (e.g., "opus") |
+| `skill_directory_overrides` | `object` | No | Per-tool overrides for skill directories (keyed by `tool_name`) |
 
 ### DetectedTool
 
@@ -295,8 +309,8 @@ A detected CLI tool (e.g., claude binary)
 | `version` | `string` | Yes | Version string |
 | `min_version` | `string` \| `null` | No | Minimum required version for Operator compatibility |
 | `version_ok` | `boolean` | No | Whether the installed version meets the minimum requirement |
-| `model_aliases` | `array` | Yes | Available model aliases (e.g., ["opus", "sonnet", "haiku"]) |
-| `command_template` | `string` | No | Command template with {{model}}, {{session_id}}, {{prompt_file}} placeholders |
+| `model_aliases` | `array` | No | Available model aliases (e.g., ["opus", "sonnet", "haiku"]) |
+| `command_template` | `string` | No | Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders |
 | `capabilities` | → `ToolCapabilities` | No | Tool capabilities |
 | `yolo_flags` | `array` | No | CLI flags for YOLO (auto-accept) mode |
 
@@ -342,12 +356,13 @@ Backstage integration configuration
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether Backstage integration is enabled |
+| `display` | `boolean` | No | Whether to show Backstage in the Connections status section |
 | `port` | `integer` | No | Port for the Backstage server |
 | `auto_start` | `boolean` | No | Auto-start Backstage server when TUI launches |
-| `subpath` | `string` | No | Subdirectory within state_path for Backstage installation |
+| `subpath` | `string` | No | Subdirectory within `state_path` for Backstage installation |
 | `branding_subpath` | `string` | No | Subdirectory within backstage path for branding customization |
 | `release_url` | `string` | No | Base URL for downloading backstage-server binary |
-| `local_binary_path` | `string` \| `null` | No | Optional local path to backstage-server binary If set, this is used instead of downloading from release_url |
+| `local_binary_path` | `string` \| `null` | No | Optional local path to backstage-server binary If set, this is used instead of downloading from `release_url` |
 | `branding` | → `BrandingConfig` | No | Branding and theming configuration |
 
 ### BrandingConfig
@@ -414,7 +429,7 @@ GitHub-specific configuration
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether GitHub integration is enabled |
-| `token_env` | `string` | No | Environment variable containing the GitHub token (default: GITHUB_TOKEN) |
+| `token_env` | `string` | No | Environment variable containing the GitHub token (default: `GITHUB_TOKEN`) |
 
 ### GitLabConfig
 
@@ -423,7 +438,7 @@ GitLab-specific configuration (planned)
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether GitLab integration is enabled |
-| `token_env` | `string` | No | Environment variable containing the GitLab token (default: GITLAB_TOKEN) |
+| `token_env` | `string` | No | Environment variable containing the GitLab token (default: `GITLAB_TOKEN`) |
 | `host` | `string` \| `null` | No | GitLab host (default: gitlab.com, can be self-hosted) |
 
 ### KanbanConfig
@@ -433,23 +448,25 @@ Kanban provider configuration for syncing issues from external systems
 Providers are keyed by domain/workspace:
 - Jira: keyed by domain (e.g., "foobar.atlassian.net")
 - Linear: keyed by workspace slug (e.g., "myworkspace")
+- GitHub Projects: keyed by owner login (e.g., "my-org")
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `jira` | `object` | No | Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net") |
 | `linear` | `object` | No | Linear instances keyed by workspace slug |
+| `github` | `object` | No | GitHub Projects v2 instances keyed by owner login (user or org)  NOTE: This is the *kanban* GitHub integration (Projects v2), distinct from `GitHubConfig` which is the *git provider* used for PRs and branches. The two use different env vars and different scopes — see `docs/getting-started/kanban/github.md` for the full disambiguation. |
 
 ### JiraConfig
 
 Jira Cloud provider configuration
 
-The domain is specified as the HashMap key in KanbanConfig.jira
+The domain is specified as the `HashMap` key in KanbanConfig.jira
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether this provider is enabled |
-| `api_key_env` | `string` | No | Environment variable name containing the API key (default: OPERATOR_JIRA_API_KEY) |
-| `email` | `string` | Yes | Atlassian account email for authentication |
+| `api_key_env` | `string` | No | Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`) |
+| `email` | `string` | No | Atlassian account email for authentication |
 | `projects` | `object` | No | Per-project sync configuration |
 
 ### ProjectSyncConfig
@@ -458,22 +475,43 @@ Per-project/team sync configuration for a kanban provider
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `sync_user_id` | `string` | No | User ID to sync issues for (provider-specific format) - Jira: accountId (e.g., "5e3f7acd9876543210abcdef") - Linear: user ID (e.g., "abc12345-6789-0abc-def0-123456789abc") |
+| `sync_user_id` | `string` | No | User ID to sync issues for (provider-specific format) - Jira: accountId (e.g., "5e3f7acd9876543210abcdef") - Linear: user ID (e.g., "abc12345-6789-0abc-def0-123456789abc") - GitHub Projects: numeric GitHub `databaseId` (e.g., "12345678") |
 | `sync_statuses` | `array` | No | Workflow statuses to sync (empty = default/first status only) |
-| `collection_name` | `string` | No | IssueTypeCollection name this project maps to |
-| `type_mappings` | `object` | No | Optional explicit mapping overrides: external issue type name → operator issue type key When empty, convention-based auto-matching is used (Bug→FIX, Story→FEAT, etc.) |
+| `collection_name` | `string` \| `null` | No | Optional `IssueTypeCollection` name this project maps to. Not required for kanban onboarding or sync. |
+| `type_mappings` | `object` | No | Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX). Multiple kanban types can map to the same operator template. |
 
 ### LinearConfig
 
 Linear provider configuration
 
-The workspace slug is specified as the HashMap key in KanbanConfig.linear
+The workspace slug is specified as the `HashMap` key in KanbanConfig.linear
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether this provider is enabled |
-| `api_key_env` | `string` | No | Environment variable name containing the API key (default: OPERATOR_LINEAR_API_KEY) |
+| `api_key_env` | `string` | No | Environment variable name containing the API key (default: `OPERATOR_LINEAR_API_KEY`) |
 | `projects` | `object` | No | Per-team sync configuration |
+
+### GithubProjectsConfig
+
+GitHub Projects v2 (kanban) provider configuration
+
+The owner login (user or org) is specified as the `HashMap` key in
+`KanbanConfig.github`. Project keys inside `projects` are `GraphQL` node
+IDs (e.g., `PVT_kwDOABcdefg`) — opaque, stable identifiers used directly
+by every GitHub Projects v2 mutation without needing a lookup.
+
+**Distinct from `GitHubConfig`** (the git provider used for PR/branch
+operations). They live in different parts of the config tree, use
+different env vars (`OPERATOR_GITHUB_TOKEN` vs `GITHUB_TOKEN`), and
+require different OAuth scopes (`project` vs `repo`). See
+`docs/getting-started/kanban/github.md` for the full rationale.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No | Whether this provider is enabled |
+| `api_key_env` | `string` | No | Environment variable name containing the GitHub token (default: `OPERATOR_GITHUB_TOKEN`). The token must have `project` (or `read:project`) scope, NOT just `repo` — see the disambiguation guide in the kanban github docs. |
+| `projects` | `object` | No | Per-project sync configuration. Keys are `GraphQL` project node IDs. |
 
 ### VersionCheckConfig
 
@@ -498,16 +536,46 @@ that can be used to launch agents for tickets.
 | `llm_tool` | `string` | Yes | LLM tool name (must match a detected tool, e.g., "claude", "codex") |
 | `model` | `string` | Yes | Model alias (e.g., "opus", "sonnet", "gpt-4o") |
 | `display_name` | `string` \| `null` | No | Optional display name for UI |
-| `model_properties` | `object` | No | Arbitrary model properties (e.g., reasoning_effort, sandbox) |
+| `model_properties` | `object` | No | Arbitrary model properties (e.g., `reasoning_effort`, sandbox) |
 | `launch_config` | object | No | Optional launch configuration |
+| `model_server` | `string` \| `null` | No | Name of a declared `ModelServer` (from `Config.model_servers`). `None` means use the `llm_tool`'s implicit vendor default (claude → anthropic-api, codex → openai-api, gemini → google-api). |
 
 ### DelegatorLaunchConfig
 
 Launch configuration for a delegator
+
+Controls how the delegator launches agents. Optional fields use tri-state
+semantics: `None` = inherit from global config, `Some(true/false)` = override.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `yolo` | `boolean` | No | Run in YOLO (auto-accept) mode |
 | `permission_mode` | `string` \| `null` | No | Permission mode override |
 | `flags` | `array` | No | Additional CLI flags |
+| `use_worktrees` | `boolean` \| `null` | No | Override global `git.use_worktrees` per-delegator (None = use global setting) |
+| `create_branch` | `boolean` \| `null` | No | Whether to create a git branch for the ticket (None = default behavior) |
+| `docker` | `boolean` \| `null` | No | Run in docker container (None = use global `launch.docker.enabled`) |
+| `prompt_prefix` | `string` \| `null` | No | Prompt text to prepend before the generated step prompt |
+| `prompt_suffix` | `string` \| `null` | No | Prompt text to append after the generated step prompt |
+
+### ModelServer
+
+A named host that serves models via an inference API.
+
+Model servers are orthogonal to `llm_tools`: a delegator pairs an agentic CLI
+(`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint
+(`model_server`, e.g. ollama-local, openai-api, a custom vllm host).
+
+Implicit builtin servers (`anthropic-api`, `openai-api`, `google-api`) are
+returned by [`implicit_model_server_for_tool`] and do not need to be declared
+in config.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Unique name (e.g., "ollama-local", "vllm-gpu1") |
+| `kind` | `string` | Yes | Kind: "ollama", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio" |
+| `base_url` | `string` \| `null` | No | Base URL of the inference endpoint (e.g., `http://localhost:11434`). `None` for implicit vendor servers means use the SDK default. |
+| `api_key_env` | `string` \| `null` | No | Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`) |
+| `extra_env` | `object` | No | Additional environment variables set when spawning agents that use this server |
+| `display_name` | `string` \| `null` | No | Optional display name for UI |
 

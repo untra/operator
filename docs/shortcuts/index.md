@@ -21,9 +21,12 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `k/↑` | Move up | Dashboard |
 | `Q` | Focus Queue panel | Dashboard |
 | `A/a` | Focus Agents panel | Dashboard |
+| `h/←` | Previous panel | Dashboard |
+| `l/→` | Next panel | Dashboard |
 | `Enter` | Select / Confirm | Dashboard |
+| `Shift+Enter` | Auto-launch (delegator chain) | Dashboard |
 | `Esc` | Cancel / Close | Dashboard |
-| `L/l` | Launch selected ticket | Dashboard |
+| `L` | Launch selected ticket | Dashboard |
 | `P/p` | Pause queue processing | Dashboard |
 | `R/r` | Resume queue processing | Dashboard |
 | `S` | Sync kanban collections | Dashboard |
@@ -31,10 +34,15 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `X/x` | Reject review (agents panel) | Dashboard |
 | `W/w` | Toggle Backstage server | Dashboard |
 | `V/v` | Show session preview | Dashboard |
+| `F` | Focus cmux window | Dashboard |
 | `C` | Create new ticket | Dashboard |
 | `J` | Open Projects menu | Dashboard |
 | `T/t` | Switch issue type collection | Dashboard |
 | `K` | Open Kanban providers view | Dashboard |
+| `Enter` | Activate (A) | Status Panel |
+| `Esc/Backspace` | Go back (B) | Status Panel |
+| `Shift+Enter` | Special action (X) * | Status Panel |
+| `Ctrl+Enter` | Refresh (Y) ⟳ | Status Panel |
 | `g` | Scroll to top | Session Preview |
 | `G` | Scroll to bottom | Session Preview |
 | `PgUp` | Page up | Session Preview |
@@ -68,14 +76,17 @@ These shortcuts are available in the main dashboard view.
 | `k/↑` | Move up |
 | `Q` | Focus Queue panel |
 | `A/a` | Focus Agents panel |
+| `h/←` | Previous panel |
+| `l/→` | Next panel |
 
 ### Actions
 
 | Key | Action |
 | --- | --- |
 | `Enter` | Select / Confirm |
+| `Shift+Enter` | Auto-launch (delegator chain) |
 | `Esc` | Cancel / Close |
-| `L/l` | Launch selected ticket |
+| `L` | Launch selected ticket |
 | `P/p` | Pause queue processing |
 | `R/r` | Resume queue processing |
 | `S` | Sync kanban collections |
@@ -83,6 +94,7 @@ These shortcuts are available in the main dashboard view.
 | `X/x` | Reject review (agents panel) |
 | `W/w` | Toggle Backstage server |
 | `V/v` | Show session preview |
+| `F` | Focus cmux window |
 
 ### Dialogs
 
@@ -92,6 +104,24 @@ These shortcuts are available in the main dashboard view.
 | `J` | Open Projects menu |
 | `T/t` | Switch issue type collection |
 | `K` | Open Kanban providers view |
+
+## Status Panel
+
+These shortcuts are available when the status panel is focused. Actions use an ABXY gamepad-style mapping.
+
+### Navigation
+
+| Key | Action |
+| --- | --- |
+| `Esc/Backspace` | Go back (B) |
+
+### Actions
+
+| Key | Action |
+| --- | --- |
+| `Enter` | Activate (A) |
+| `Shift+Enter` | Special action (X) * |
+| `Ctrl+Enter` | Refresh (Y) ⟳ |
 
 ## Session Preview
 

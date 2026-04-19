@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OperatorOutput",
+  "description": "Standardized agent output for progress tracking and step transitions.\n\nAgents output a status block in their response which is parsed into this structure.\nUsed for progress tracking, loop detection, and intelligent step transitions.",
+  "type": "object",
+  "properties": {
+    "status": {
+      "description": "Current work status: `in_progress`, complete, blocked, failed",
+      "type": "string"
+    },
+    "exit_signal": {
+      "description": "Agent signals done with step (true) or more work remains (false)",
+      "type": "boolean"
+    },
+    "confidence": {
+      "description": "Agent's confidence in completion (0-100%)",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint8",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "files_modified": {
+      "description": "Number of files changed this iteration",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0
+    },
+    "tests_status": {
+      "description": "Test suite status: passing, failing, skipped, `not_run`",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "error_count": {
+      "description": "Number of errors encountered",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0
+    },
+    "tasks_completed": {
+      "description": "Number of sub-tasks completed this iteration",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0
+    },
+    "tasks_remaining": {
+      "description": "Estimated remaining sub-tasks",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0
+    },
+    "summary": {
+      "description": "Brief description of work done (max 500 chars)",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "recommendation": {
+      "description": "Suggested next action (max 200 chars)",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "blockers": {
+      "description": "Issues preventing progress (signals intervention needed)",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "status",
+    "exit_signal"
+  ],
+  "$id": "https://operator.dev/schemas/operator_output.schema.json",
+  "$comment": "AUTO-GENERATED FROM src/rest/dto.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only operator-output-schema"
+}

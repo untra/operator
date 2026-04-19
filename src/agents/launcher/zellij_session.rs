@@ -47,12 +47,18 @@ pub fn launch_in_zellij_with_options(
         .check_in_zellij()
         .map_err(|e| anyhow::anyhow!("Not running inside zellij: {e}"))?;
 
-    // Create session name from ticket ID with project for scannable Zellij tab bar
-    let session_name = format!(
+    // Create session name from ticket ID with project for scannable Zellij tab bar.
+    // For multi-agent fan-out, append the session_suffix so parallel sub-agents
+    // of the same ticket don't collide.
+    let base = format!(
         "op:{}:{}",
         sanitize_session_name(&ticket.project),
         sanitize_session_name(&ticket.id)
     );
+    let session_name = match &options.session_suffix {
+        Some(sfx) => format!("{base}:{}", sanitize_session_name(sfx)),
+        None => base,
+    };
 
     // Tab name = session name (1:1 mapping)
     let tab_name = session_name.clone();

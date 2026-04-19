@@ -75,6 +75,7 @@ Reference to an issue type
 
 | Property | Type | Description |
 | --- | --- | --- |
+| `id` | `string` (optional) | Issue type ID (e.g., "10001") |
 | `name` | `string` | Issue type name (e.g., "Bug", "Story", "Task") |
 
 ### JiraPriority

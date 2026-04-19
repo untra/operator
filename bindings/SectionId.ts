@@ -5,4 +5,4 @@
  *
  * String values match the `sectionId` used in the `VSCode` extension tree routing.
  */
-export type SectionId = "config" | "connections" | "kanban" | "llm" | "git" | "issuetypes" | "delegators" | "projects";
+export type SectionId = "config" | "connections" | "kanban" | "llm" | "model-servers" | "git" | "issuetypes" | "delegators" | "projects";

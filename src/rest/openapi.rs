@@ -5,10 +5,11 @@ use utoipa::OpenApi;
 use crate::mcp::descriptor::McpDescriptorResponse;
 use crate::rest::dto::{
     CollectionResponse, CreateDelegatorFromToolRequest, CreateDelegatorRequest, CreateFieldRequest,
-    CreateIssueTypeRequest, CreateStepRequest, DefaultLlmResponse, DelegatorLaunchConfigDto,
-    DelegatorResponse, DelegatorsResponse, FieldResponse, HealthResponse, IssueTypeResponse,
-    IssueTypeSummary, LaunchTicketRequest, LaunchTicketResponse, SetDefaultLlmRequest, SkillEntry,
-    SkillsResponse, StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    CreateIssueTypeRequest, CreateModelServerRequest, CreateStepRequest, DefaultLlmResponse,
+    DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse, FieldResponse, HealthResponse,
+    IssueTypeResponse, IssueTypeSummary, LaunchTicketRequest, LaunchTicketResponse,
+    ModelServerResponse, ModelServersResponse, SetDefaultLlmRequest, SkillEntry, SkillsResponse,
+    StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
 };
 use crate::rest::error::ErrorResponse;
 
@@ -59,6 +60,11 @@ use crate::rest::error::ErrorResponse;
         crate::rest::routes::llm_tools::list,
         crate::rest::routes::llm_tools::get_default,
         crate::rest::routes::llm_tools::set_default,
+        // Model server endpoints
+        crate::rest::routes::model_servers::list,
+        crate::rest::routes::model_servers::get_one,
+        crate::rest::routes::model_servers::create,
+        crate::rest::routes::model_servers::delete,
         // MCP endpoints
         crate::mcp::descriptor::descriptor,
     ),
@@ -90,6 +96,10 @@ use crate::rest::error::ErrorResponse;
             CreateDelegatorRequest,
             CreateDelegatorFromToolRequest,
             DelegatorLaunchConfigDto,
+            // Model server types
+            ModelServerResponse,
+            ModelServersResponse,
+            CreateModelServerRequest,
             // LLM tools types
             SetDefaultLlmRequest,
             DefaultLlmResponse,
@@ -105,6 +115,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Launch", description = "Ticket launch operations"),
         (name = "Skills", description = "Skill discovery across LLM tools"),
         (name = "Delegators", description = "Agent delegator CRUD operations"),
+        (name = "ModelServers", description = "Model server (ollama, openai-compat, etc.) CRUD operations"),
         (name = "MCP", description = "Model Context Protocol integration"),
     )
 )]

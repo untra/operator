@@ -18,7 +18,7 @@ An orchestration tool for [**AI-assisted**](https://operator.untra.io/getting-st
 **Operator** is for you if:
 
 - you do work assigned from tickets on a kanban board, such as [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/), [_Linear_](https://operator.untra.io/getting-started/kanban/linear/), or [_GitHub Projects_](https://operator.untra.io/getting-started/kanban/github/)
-- you use LLM assisted coding agent tools to accomplish work, such as [_Claude Code_](https://operator.untra.io/getting-started/agents/claude/), [_OpenAI Codex_](https://operator.untra.io/getting-started/agents/codex/), or [_Gemini CLI_](https://operator.untra.io/getting-started/agents/gemini-cli/)
+- you use LLM assisted coding agent tools to accomplish work, such as [_Claude Code_](https://operator.untra.io/getting-started/agents/claude/), [_OpenAI Codex_](https://operator.untra.io/getting-started/agents/codex/), or [_Google Gemini CLI_](https://operator.untra.io/getting-started/agents/gemini-cli/)
 - your work is version controlled with a git repository provider like [_GitHub_](https://operator.untra.io/getting-started/git/github/) or [_GitLab_](https://operator.untra.io/getting-started/git/gitlab/)
 
 - you are drowning in the AI software development soup.
@@ -235,6 +235,56 @@ Create a new JSON tool config following the schema in `src/llm/tools/tool_config
 - Must support model selection
 - Should support session/conversation ID for continuity
 - Should run interactively in a terminal (for session wrapper integration)
+
+## Model Servers
+
+Operator's agent-launch hierarchy has three layers:
+
+```
+┌─ llm_tools ─────────┐   ┌─ model_servers ──────┐
+│ claude  (detected)  │   │ anthropic-api (impl.)│
+│ codex   (detected)  │   │ openai-api    (impl.)│
+│ gemini  (detected)  │   │ google-api    (impl.)│
+│                     │   │ ollama-local  (user) │
+└─────────────────────┘   └──────────────────────┘
+            ▲                        ▲
+            │                        │
+            └───── delegators ───────┘
+   name, llm_tool, model, model_server (optional)
+```
+
+- **`llm_tools`** are the agentic coding-agent CLIs (claude/codex/gemini). They're detected on PATH and drive the session.
+- **`model_servers`** name the host that serves the model weights. Implicit builtins (`anthropic-api`, `openai-api`, `google-api`) exist without declaration. Users can declare additional servers for ollama, lmstudio, vllm, or any OpenAI-compatible endpoint.
+- **`delegators`** are named `(llm_tool, model, model_server?)` triples used to launch a ticket. When `model_server` is omitted, the llm_tool's implicit vendor default is used.
+
+Example `operator.toml`:
+
+```toml
+[[model_servers]]
+name = "ollama-local"
+kind = "ollama"
+base_url = "http://localhost:11434"
+
+[[delegators]]
+name = "codex-local-qwen"
+llm_tool = "codex"
+model = "qwen2.5-coder"
+model_server = "ollama-local"
+```
+
+Ad-hoc launch flags:
+
+```bash
+# Named delegator (recommended)
+operator launch --delegator codex-local-qwen
+
+# Ad-hoc override
+operator launch --llm-tool codex --model qwen2.5-coder --model-server ollama-local
+```
+
+**Protocol compatibility.** Codex speaks the OpenAI API — pairing with ollama requires no bridge. Claude and Gemini use their own vendor protocols and require a translating proxy (e.g. `claude-code-router`, `litellm-proxy`) between the CLI and ollama; declare the bridge URL as your `model_server.base_url`.
+
+Current release ships the infrastructure — ollama detection and automatic env-var injection on spawn land in the next release. See `docs/getting-started/model-servers/` for the full walkthrough.
 
 ## Development
 

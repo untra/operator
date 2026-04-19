@@ -151,6 +151,7 @@ export class KanbanSection implements StatusSection {
         command: 'operator.startKanbanOnboarding',
         title: 'Configure Kanban',
       },
+      health: this.health(),
     });
   }
 

@@ -1,4 +1,15 @@
 import * as vscode from 'vscode';
+import type { SectionHealth } from './generated';
+
+/**
+ * Map a SectionHealth value to a VS Code theme color id used to tint the
+ * row icon. Yellow/Red nudge the user to address the item; Green and Gray
+ * leave the icon at its default theme color.
+ */
+const HEALTH_THEME_COLOR: Partial<Record<SectionHealth, string>> = {
+  Yellow: 'list.warningForeground',
+  Red: 'list.errorForeground',
+};
 
 /**
  * StatusItem options
@@ -19,6 +30,13 @@ export interface StatusItemOptions {
   specialCommand?: vscode.Command;
   /** Y button (Ctrl+Enter) — contextual refresh */
   refreshCommand?: vscode.Command;
+  /**
+   * Optional health state. When `Yellow` or `Red`, the row icon is tinted
+   * with the corresponding semantic theme color so the user is nudged to
+   * address the item. Mirrors the Rust TUI `kanban_section.rs` header
+   * colorization driven by `SectionHealth::to_color()`.
+   */
+  health?: SectionHealth;
 }
 
 /**
@@ -80,7 +98,10 @@ export class StatusItem extends vscode.TreeItem {
     }
     this.tooltip = tooltipLines.join('\n');
 
-    this.iconPath = new vscode.ThemeIcon(opts.icon);
+    const themeColorId = opts.health ? HEALTH_THEME_COLOR[opts.health] : undefined;
+    this.iconPath = themeColorId
+      ? new vscode.ThemeIcon(opts.icon, new vscode.ThemeColor(themeColorId))
+      : new vscode.ThemeIcon(opts.icon);
     if (opts.command) {
       this.command = opts.command;
     }

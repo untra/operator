@@ -251,8 +251,34 @@ impl Dashboard {
                 llm_tool: d.llm_tool.clone(),
                 model: d.model.clone(),
                 yolo: d.launch_config.as_ref().is_some_and(|lc| lc.yolo),
+                model_server: d.model_server.clone(),
             })
             .collect();
+
+        // Build model server info — implicit builtins plus any user-declared.
+        let mut model_servers: Vec<crate::ui::status_panel::ModelServerInfo> = config
+            .model_servers
+            .iter()
+            .map(|s| crate::ui::status_panel::ModelServerInfo {
+                name: s.name.clone(),
+                kind: s.kind.clone(),
+                base_url: s.base_url.clone(),
+                display_name: s.display_name.clone(),
+                user_declared: true,
+            })
+            .collect();
+        for tool in ["claude", "codex", "gemini"] {
+            let implicit = crate::config::implicit_model_server_for_tool(tool);
+            if !model_servers.iter().any(|s| s.name == implicit.name) {
+                model_servers.push(crate::ui::status_panel::ModelServerInfo {
+                    name: implicit.name,
+                    kind: implicit.kind,
+                    base_url: implicit.base_url,
+                    display_name: implicit.display_name,
+                    user_declared: false,
+                });
+            }
+        }
 
         // Git config
         let git_provider = config.git.provider.as_ref().map(|p| format!("{p:?}"));
@@ -278,6 +304,7 @@ impl Dashboard {
             default_llm_tool: config.llm_tools.default_tool.clone(),
             default_llm_model: config.llm_tools.default_model.clone(),
             delegators,
+            model_servers,
             git_provider,
             git_token_set,
             git_branch_format: Some(config.git.branch_format.clone()),

@@ -26,6 +26,10 @@ name: string | null,
  */
 display_name: string | null, 
 /**
+ * Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
+ */
+model_server: string | null, 
+/**
  * Optional launch configuration
  */
 launch_config: DelegatorLaunchConfigDto | null, };

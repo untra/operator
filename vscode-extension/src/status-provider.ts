@@ -23,6 +23,7 @@ import { LlmSection } from './sections/llm-section';
 import { GitSection } from './sections/git-section';
 import { IssueTypeSection } from './sections/issuetype-section';
 import { DelegatorSection } from './sections/delegator-section';
+import { ModelServerSection } from './sections/modelserver-section';
 import { ManagedProjectsSection } from './sections/managed-projects-section';
 
 // Backward-compatible re-exports
@@ -57,6 +58,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   private gitSection: GitSection;
   private issueTypeSection: IssueTypeSection;
   private delegatorSection: DelegatorSection;
+  private modelServerSection: ModelServerSection;
   private managedProjectsSection: ManagedProjectsSection;
 
   // All sections for check() and routing
@@ -73,6 +75,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     this.gitSection = new GitSection();
     this.issueTypeSection = new IssueTypeSection();
     this.delegatorSection = new DelegatorSection();
+    this.modelServerSection = new ModelServerSection();
     this.managedProjectsSection = new ManagedProjectsSection();
 
     this.allSections = [
@@ -80,6 +83,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       this.connectionsSection,
       this.kanbanSection,
       this.llmSection,
+      this.modelServerSection,
       this.gitSection,
       this.issueTypeSection,
       this.delegatorSection,

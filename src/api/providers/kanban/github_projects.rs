@@ -1562,6 +1562,45 @@ fn content_assignees(content: &RawContent) -> &[RawAssignee] {
     assignees.map(|a| a.nodes.as_slice()).unwrap_or(&[])
 }
 
+#[async_trait]
+impl super::onboarding::KanbanOnboarding for GithubProjectsProvider {
+    fn provider_kind(&self) -> super::KanbanProviderType {
+        super::KanbanProviderType::Github
+    }
+
+    async fn validate_onboarding(&self) -> Result<super::onboarding::ValidatedWorkspace, ApiError> {
+        let details = self.validate_detailed().await?;
+        let prefetched: Vec<super::onboarding::DiscoveredProject> = details
+            .projects
+            .iter()
+            .map(|p| super::onboarding::DiscoveredProject {
+                workspace_key: details.user_login.clone(),
+                project_key: p.node_id.clone(),
+                project_display_name: format!("{}/{} ({})", p.owner_login, p.title, p.number),
+                provider_url: None,
+                provider_native_id: Some(p.node_id.clone()),
+            })
+            .collect();
+        Ok(super::onboarding::ValidatedWorkspace {
+            provider_kind: super::KanbanProviderType::Github,
+            workspace_key: details.user_login,
+            workspace_display_name: "github.com".to_string(),
+            sync_user_id: details.user_id,
+            sync_user_display_name: String::new(),
+            api_key_env: details.resolved_env_var,
+            prefetched_projects: Some(prefetched),
+            extra: super::onboarding::WorkspaceExtra::Github,
+        })
+    }
+
+    async fn discover_projects(
+        &self,
+        workspace: &super::onboarding::ValidatedWorkspace,
+    ) -> Result<Vec<super::onboarding::DiscoveredProject>, ApiError> {
+        Ok(workspace.prefetched_projects.clone().unwrap_or_default())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

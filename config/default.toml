@@ -106,8 +106,30 @@ webhook_port = 7009
 # Connection timeout in milliseconds
 connect_timeout_ms = 5000
 
+# Model servers (where models are hosted)
+# Implicit builtins exist for anthropic-api, openai-api, google-api and do not
+# need to be declared. Declare a `[[model_servers]]` entry when pointing a
+# delegator at an alternate host (ollama, lmstudio, vllm, any OpenAI-compatible
+# endpoint).
+#
+# [[model_servers]]
+# name = "ollama-local"
+# kind = "ollama"
+# base_url = "http://localhost:11434"
+# display_name = "Ollama (local)"
+#
+# # Example for running an Anthropic-protocol bridge (e.g. claude-code-router)
+# # in front of ollama so the `claude` CLI can talk to local models:
+# [[model_servers]]
+# name = "claude-router"
+# kind = "anthropic-api"
+# base_url = "http://localhost:4000"
+# api_key_env = "ANTHROPIC_API_KEY"
+
 # Agent delegator configurations
-# Delegators are named {tool, model} pairings for autonomous ticket launching
+# Delegators are named {tool, model, model_server} triples for autonomous
+# ticket launching. `model_server` is optional — omit it to use the llm_tool's
+# implicit vendor default (claude → anthropic-api, codex → openai-api, etc.).
 # [[delegators]]
 # name = "claude-opus-auto"
 # llm_tool = "claude"
@@ -117,6 +139,13 @@ connect_timeout_ms = 5000
 # yolo = true
 # permission_mode = "delegate"
 # flags = []
+#
+# # Codex pointed at a locally-hosted Qwen model via ollama
+# [[delegators]]
+# name = "codex-local-qwen"
+# llm_tool = "codex"
+# model = "qwen2.5-coder"
+# model_server = "ollama-local"
 
 [version_check]
 # Enable automatic version checking on startup

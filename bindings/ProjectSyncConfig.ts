@@ -24,4 +24,10 @@ collection_name: string | null,
  * Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX).
  * Multiple kanban types can map to the same operator template.
  */
-type_mappings: { [key in string]?: string }, };
+type_mappings: { [key in string]?: string }, 
+/**
+ * When true, operator pushes status changes and activity logs back to this kanban project.
+ * Ticket state changes (todo→doing, doing→done) and step completions with delegator info
+ * are reflected upstream. Default: false.
+ */
+bidirectional: boolean, };

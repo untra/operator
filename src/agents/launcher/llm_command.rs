@@ -30,6 +30,7 @@ pub fn build_llm_command_with_permissions_for_tool(
     prompt_file: &std::path::Path,
     ticket: Option<&Ticket>,
     project_path: Option<&str>,
+    operator_relay: Option<bool>,
 ) -> Result<String> {
     // Find the specified tool
     let tool = get_detected_tool(config, tool_name).ok_or_else(|| {
@@ -43,7 +44,14 @@ pub fn build_llm_command_with_permissions_for_tool(
 
     // Generate config flags from permissions
     let config_flags = if let (Some(ticket), Some(project_path)) = (ticket, project_path) {
-        generate_config_flags(config, &tool.name, ticket, project_path, session_id)?
+        generate_config_flags(
+            config,
+            &tool.name,
+            ticket,
+            project_path,
+            session_id,
+            operator_relay,
+        )?
     } else {
         String::new()
     };
@@ -126,6 +134,20 @@ pub fn build_docker_command(
     Ok(docker_args.join(" "))
 }
 
+/// Determine whether to inject the relay MCP config for this launch.
+///
+/// - `delegator_setting`: per-ticket override from `LaunchOptions.operator_relay`
+/// - `hub_available`: whether `RELAY_HUB_SOCKET` is set in the environment
+/// - `global_default`: `config.relay.auto_inject_mcp` fallback
+fn resolve_relay_injection(
+    delegator_setting: Option<bool>,
+    hub_available: bool,
+    global_default: bool,
+) -> bool {
+    let effective = delegator_setting.unwrap_or(global_default);
+    effective && hub_available
+}
+
 /// Generate config flags for the LLM command based on step permissions
 fn generate_config_flags(
     config: &Config,
@@ -133,6 +155,7 @@ fn generate_config_flags(
     ticket: &Ticket,
     project_path: &str,
     session_id: &str,
+    operator_relay: Option<bool>,
 ) -> Result<String> {
     // Load project permissions
     let project_perms = load_project_permissions(config, project_path)?;
@@ -196,8 +219,9 @@ fn generate_config_flags(
         cli_flags.push("--add-dir".to_string());
         cli_flags.push(project_path.to_string());
 
-        // Inject relay-channel MCP server when hub is running
-        if std::env::var("RELAY_HUB_SOCKET").is_ok() {
+        // Inject relay MCP server based on effective relay setting
+        let hub_available = std::env::var("RELAY_HUB_SOCKET").is_ok();
+        if resolve_relay_injection(operator_relay, hub_available, config.relay.auto_inject_mcp) {
             if let Some(config_path) = relay_mcp_config_flag(&session_dir) {
                 cli_flags.push("--mcp-config".to_string());
                 cli_flags.push(config_path);
@@ -279,34 +303,34 @@ fn relay_mcp_config_flag_with_command(
     Some(config_path.display().to_string())
 }
 
-/// Locate the relay-channel command, returning `(binary_path, extra_args)`.
+/// Locate the relay command, returning `(binary_path, extra_args)`.
 ///
 /// Discovery order:
-/// 1. `opr8r` alongside the running operator binary → returns `(opr8r, ["relay-channel"])`
-/// 2. `RELAY_CHANNEL` env var → returns `(path, ["relay-channel"])` (treated as opr8r)
-/// 3. `opr8r` on PATH → returns `(opr8r, ["relay-channel"])`
-/// 4. Legacy `relay-channel` standalone binary alongside operator → returns `(relay-channel, [])`
-/// 5. Legacy `relay-channel` on PATH → returns `(relay-channel, [])`
+/// 1. `opr8r` alongside the running operator binary → returns `(opr8r, ["relay"])`
+/// 2. `OPERATOR_RELAY` env var → returns `(path, ["relay"])` (treated as opr8r)
+/// 3. `opr8r` on PATH → returns `(opr8r, ["relay"])`
+/// 4. Legacy `operator-relay` standalone binary alongside operator → returns `(operator-relay, [])`
+/// 5. Legacy `operator-relay` on PATH → returns `(operator-relay, [])`
 fn locate_relay_command() -> Option<(PathBuf, Vec<String>)> {
     // 1. opr8r alongside the running operator binary (primary: signed distribution)
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
             let candidate = parent.join("opr8r");
             if candidate.exists() {
-                return Some((candidate, vec!["relay-channel".to_string()]));
+                return Some((candidate, vec!["relay".to_string()]));
             }
-            // 4. Legacy standalone relay-channel alongside operator
-            let legacy = parent.join("relay-channel");
+            // 4. Legacy standalone operator-relay alongside operator
+            let legacy = parent.join("operator-relay");
             if legacy.exists() {
                 return Some((legacy, vec![]));
             }
         }
     }
-    // 2. RELAY_CHANNEL env var (user override — treated as opr8r path)
-    if let Ok(path) = std::env::var("RELAY_CHANNEL") {
+    // 2. OPERATOR_RELAY env var (user override — treated as opr8r path)
+    if let Ok(path) = std::env::var("OPERATOR_RELAY") {
         let p = PathBuf::from(&path);
         if p.exists() {
-            return Some((p, vec!["relay-channel".to_string()]));
+            return Some((p, vec!["relay".to_string()]));
         }
     }
     // 3. opr8r on PATH
@@ -316,16 +340,16 @@ fn locate_relay_command() -> Option<(PathBuf, Vec<String>)> {
         .map(|o| o.status.success())
         .unwrap_or(false)
     {
-        return Some((PathBuf::from("opr8r"), vec!["relay-channel".to_string()]));
+        return Some((PathBuf::from("opr8r"), vec!["relay".to_string()]));
     }
-    // 5. Legacy relay-channel on PATH
+    // 5. Legacy operator-relay on PATH
     if std::process::Command::new("which")
-        .arg("relay-channel")
+        .arg("operator-relay")
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
     {
-        return Some((PathBuf::from("relay-channel"), vec![]));
+        return Some((PathBuf::from("operator-relay"), vec![]));
     }
     None
 }
@@ -646,6 +670,7 @@ mod tests {
             Path::new("/tmp/prompt.md"),
             None,
             None,
+            None,
         );
 
         assert!(result.is_err());
@@ -667,6 +692,7 @@ mod tests {
             "opus",
             "sess-abc",
             Path::new("/tmp/prompt.md"),
+            None,
             None,
             None,
         );
@@ -700,6 +726,7 @@ mod tests {
             Path::new("/tmp/prompt.md"),
             None, // No ticket
             None, // No project path
+            None,
         );
 
         assert!(result.is_ok());
@@ -722,6 +749,7 @@ mod tests {
             "haiku",
             "sess-xyz",
             Path::new("/tmp/p.md"),
+            None,
             None,
             None,
         );
@@ -1159,12 +1187,12 @@ mod tests {
     // ========================================
 
     #[test]
-    fn test_relay_mcp_config_with_opr8r_includes_relay_channel_arg() {
+    fn test_relay_mcp_config_with_opr8r_includes_relay_arg() {
         let dir = tempfile::tempdir().unwrap();
         let result = relay_mcp_config_flag_with_command(
             dir.path(),
             PathBuf::from("/usr/local/bin/opr8r"),
-            vec!["relay-channel".to_string()],
+            vec!["relay".to_string()],
         );
         assert!(result.is_some(), "Config path should be returned");
         let config_path = result.unwrap();
@@ -1172,8 +1200,8 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&content).unwrap();
         assert_eq!(
             v["mcpServers"]["relay"]["args"][0].as_str(),
-            Some("relay-channel"),
-            "First arg must be relay-channel: {content}"
+            Some("relay"),
+            "First arg must be relay: {content}"
         );
         assert_eq!(
             v["mcpServers"]["relay"]["command"].as_str(),
@@ -1187,7 +1215,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let result = relay_mcp_config_flag_with_command(
             dir.path(),
-            PathBuf::from("/usr/local/bin/relay-channel"),
+            PathBuf::from("/usr/local/bin/operator-relay"),
             vec![],
         );
         assert!(result.is_some());
@@ -1199,5 +1227,39 @@ mod tests {
             v["mcpServers"]["relay"].get("args").is_none(),
             "No args key for standalone binary: {content}"
         );
+    }
+
+    // ========================================
+    // resolve_relay_injection() tests
+    // ========================================
+
+    #[test]
+    fn test_relay_injection_disabled_by_delegator() {
+        let result = resolve_relay_injection(Some(false), true, true);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_relay_injection_enabled_by_delegator_with_hub() {
+        let result = resolve_relay_injection(Some(true), true, true);
+        assert!(result);
+    }
+
+    #[test]
+    fn test_relay_injection_enabled_by_delegator_without_hub() {
+        let result = resolve_relay_injection(Some(true), false, true);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_relay_injection_none_uses_global_default_false() {
+        let result = resolve_relay_injection(None, true, false);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_relay_injection_none_uses_global_default_true() {
+        let result = resolve_relay_injection(None, true, true);
+        assert!(result);
     }
 }

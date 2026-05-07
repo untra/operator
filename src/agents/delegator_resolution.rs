@@ -76,6 +76,7 @@ pub(crate) fn apply_delegator_launch_config(
         options.create_branch_override = lc.create_branch;
         options.prompt_prefix.clone_from(&lc.prompt_prefix);
         options.prompt_suffix.clone_from(&lc.prompt_suffix);
+        options.operator_relay = lc.operator_relay;
     }
 }
 
@@ -421,6 +422,7 @@ mod tests {
                 docker: Some(true),
                 prompt_prefix: Some("PREFIX".to_string()),
                 prompt_suffix: Some("SUFFIX".to_string()),
+                operator_relay: None,
             }),
         });
 

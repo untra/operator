@@ -26,6 +26,7 @@ use anyhow::{Context, Result};
 use crate::agents::cmux::{CmuxClient, SystemCmuxClient};
 use crate::agents::tmux::{sanitize_session_name, SystemTmuxClient, TmuxClient, TmuxError};
 use crate::agents::zellij::{SystemZellijClient, ZellijClient};
+use crate::api::kanban_sync::KanbanBidirectionalSync;
 use crate::config::{Config, SessionWrapperType};
 use crate::notifications;
 use crate::queue::{Queue, Ticket};
@@ -235,6 +236,13 @@ impl Launcher {
         // Move ticket to in-progress
         let queue = Queue::new(&self.config)?;
         queue.claim_ticket(&ticket)?;
+
+        // Best-effort: notify upstream kanban that ticket is now in-progress.
+        let ks = KanbanBidirectionalSync::new(Arc::new(self.config.clone()));
+        let ticket_clone = ticket.clone();
+        tokio::spawn(async move {
+            ks.on_ticket_claimed(&ticket_clone).await;
+        });
 
         // Get project path (use override if provided)
         let project_path = if let Some(ref override_project) = options.project_override {
@@ -723,6 +731,13 @@ impl Launcher {
         let queue = Queue::new(&self.config)?;
         queue.claim_ticket(&ticket)?;
 
+        // Best-effort: notify upstream kanban that ticket is now in-progress.
+        let ks = KanbanBidirectionalSync::new(Arc::new(self.config.clone()));
+        let ticket_clone = ticket.clone();
+        tokio::spawn(async move {
+            ks.on_ticket_claimed(&ticket_clone).await;
+        });
+
         // Get project path (use override if provided)
         let project_path = if let Some(ref override_project) = options.project_override {
             PathBuf::from(self.get_project_path_for(override_project)?)
@@ -837,6 +852,7 @@ impl Launcher {
             &prompt_file,
             Some(&ticket),
             Some(&working_dir_str),
+            options.operator_relay,
         )?;
 
         // Apply YOLO flags if enabled
@@ -1077,6 +1093,7 @@ impl Launcher {
             &prompt_file,
             Some(&ticket),
             Some(&working_dir_str),
+            options.launch_options.operator_relay,
         )?;
 
         // Apply YOLO flags if enabled

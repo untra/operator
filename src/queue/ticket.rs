@@ -66,6 +66,9 @@ pub struct Ticket {
     pub external_url: Option<String>,
     /// Provider name for the external issue (e.g., "jira", "linear")
     pub external_provider: Option<String>,
+    /// Delegator name used per completed step (`step_name` → `delegator_name`).
+    /// Populated when a step is launched; used for bidirectional kanban activity logs.
+    pub step_delegators: HashMap<String, String>,
 }
 
 impl Ticket {
@@ -90,13 +93,16 @@ impl Ticket {
             step,
             summary,
             sessions,
+            step_delegators,
             llm_task,
             worktree_path,
             branch,
             external_id,
             external_url,
             external_provider,
-        ) = if let Some((frontmatter, sessions, llm_task, body)) = extract_frontmatter(&content) {
+        ) = if let Some((frontmatter, sessions, step_delegators, llm_task, body)) =
+            extract_frontmatter(&content)
+        {
             let id = frontmatter
                 .get("id")
                 .cloned()
@@ -126,6 +132,7 @@ impl Ticket {
                 step,
                 summary,
                 sessions,
+                step_delegators,
                 llm_task,
                 worktree_path,
                 branch,
@@ -149,6 +156,7 @@ impl Ticket {
                 step,
                 summary,
                 HashMap::new(),
+                HashMap::new(),
                 LlmTask::default(),
                 None,
                 None,
@@ -171,6 +179,7 @@ impl Ticket {
             step,
             content,
             sessions,
+            step_delegators,
             llm_task,
             worktree_path,
             branch,
@@ -220,7 +229,7 @@ impl Ticket {
     /// Update a frontmatter field in the ticket file and save
     pub fn update_field(&mut self, field: &str, value: &str) -> Result<()> {
         // Parse frontmatter
-        if let Some((mut frontmatter, sessions, llm_task, body)) =
+        if let Some((mut frontmatter, sessions, step_delegators, llm_task, body)) =
             extract_frontmatter(&self.content)
         {
             frontmatter.insert(field.to_string(), value.to_string());
@@ -236,6 +245,14 @@ impl Ticket {
                 yaml_lines.push("sessions:".to_string());
                 for (step, session_id) in &sessions {
                     yaml_lines.push(format!("  {step}: {session_id}"));
+                }
+            }
+
+            // Add step_delegators if present
+            if !step_delegators.is_empty() {
+                yaml_lines.push("step_delegators:".to_string());
+                for (step_name, delegator_name) in &step_delegators {
+                    yaml_lines.push(format!("  {step_name}: {delegator_name}"));
                 }
             }
 
@@ -373,6 +390,13 @@ impl Ticket {
         self.sessions
             .insert(step_name.to_string(), session_id.to_string());
         self.save_sessions_to_frontmatter()
+    }
+
+    /// Set the delegator name for a specific step and save to frontmatter
+    pub fn set_step_delegator(&mut self, step_name: &str, delegator_name: &str) -> Result<()> {
+        self.step_delegators
+            .insert(step_name.to_string(), delegator_name.to_string());
+        self.save_step_delegators_to_frontmatter()
     }
 
     /// Set the LLM task ID and save to frontmatter
@@ -577,6 +601,67 @@ impl Ticket {
         }
         lines.join("\n")
     }
+
+    /// Save the `step_delegators` map to the ticket frontmatter
+    fn save_step_delegators_to_frontmatter(&mut self) -> Result<()> {
+        let content = self.content.trim_start();
+
+        if !content.starts_with("---") {
+            let step_delegators_yaml = self.format_step_delegators_yaml();
+            let new_content = format!(
+                "---\nid: {}\nstatus: {}\npriority: {}\nstep: {}\n{}\n---\n{}",
+                self.id, self.status, self.priority, self.step, step_delegators_yaml, content
+            );
+            self.content = new_content.clone();
+            fs::write(&self.filepath, new_content).context("Failed to write ticket file")?;
+            return Ok(());
+        }
+
+        let after_open = &content[3..];
+        if let Some(end_idx) = after_open.find("\n---") {
+            let yaml_str = &after_open[..end_idx];
+            let rest = &after_open[end_idx + 4..];
+
+            let mut frontmatter: serde_yaml::Value = serde_yaml::from_str(yaml_str)
+                .unwrap_or(serde_yaml::Value::Mapping(serde_yaml::Mapping::new()));
+
+            if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
+                let mut delegators_map = serde_yaml::Mapping::new();
+                for (step_name, delegator_name) in &self.step_delegators {
+                    delegators_map.insert(
+                        serde_yaml::Value::String(step_name.clone()),
+                        serde_yaml::Value::String(delegator_name.clone()),
+                    );
+                }
+                map.insert(
+                    serde_yaml::Value::String("step_delegators".to_string()),
+                    serde_yaml::Value::Mapping(delegators_map),
+                );
+            }
+
+            let new_yaml =
+                serde_yaml::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
+
+            let new_content = format!("---\n{new_yaml}---{rest}");
+            self.content = new_content.clone();
+            fs::write(&self.filepath, new_content).context("Failed to write ticket file")?;
+        }
+
+        Ok(())
+    }
+
+    /// Format `step_delegators` as YAML for frontmatter
+    fn format_step_delegators_yaml(&self) -> String {
+        if self.step_delegators.is_empty() {
+            return String::new();
+        }
+
+        let mut lines = vec!["step_delegators:".to_string()];
+        for (step_name, delegator_name) in &self.step_delegators {
+            lines.push(format!("  {step_name}: {delegator_name}"));
+        }
+        lines.join("\n")
+    }
 }
 
 /// Extract sessions mapping from YAML frontmatter value
@@ -584,6 +669,23 @@ fn extract_sessions_from_yaml(
     frontmatter: &HashMap<String, serde_yaml::Value>,
 ) -> HashMap<String, String> {
     if let Some(serde_yaml::Value::Mapping(map)) = frontmatter.get("sessions") {
+        map.iter()
+            .filter_map(|(k, v)| {
+                let key = k.as_str()?.to_string();
+                let value = v.as_str()?.to_string();
+                Some((key, value))
+            })
+            .collect()
+    } else {
+        HashMap::new()
+    }
+}
+
+/// Extract `step_delegators` mapping from YAML frontmatter value
+fn extract_step_delegators_from_yaml(
+    frontmatter: &HashMap<String, serde_yaml::Value>,
+) -> HashMap<String, String> {
+    if let Some(serde_yaml::Value::Mapping(map)) = frontmatter.get("step_delegators") {
         map.iter()
             .filter_map(|(k, v)| {
                 let key = k.as_str()?.to_string();
@@ -630,11 +732,12 @@ fn extract_llm_task_from_yaml(frontmatter: &HashMap<String, serde_yaml::Value>) 
 }
 
 /// Extract YAML frontmatter from markdown content
-/// Returns the parsed frontmatter as a `HashMap`, sessions `HashMap`, `LlmTask`, and the content after the frontmatter
+/// Returns the parsed frontmatter as a `HashMap`, sessions `HashMap`, `step_delegators` `HashMap`, `LlmTask`, and the content after the frontmatter
 #[allow(clippy::type_complexity)]
 fn extract_frontmatter(
     content: &str,
 ) -> Option<(
+    HashMap<String, String>,
     HashMap<String, String>,
     HashMap<String, String>,
     LlmTask,
@@ -657,6 +760,9 @@ fn extract_frontmatter(
     // Extract sessions before converting to strings
     let sessions = extract_sessions_from_yaml(&frontmatter);
 
+    // Extract step delegators per step
+    let step_delegators = extract_step_delegators_from_yaml(&frontmatter);
+
     // Extract LLM task metadata
     let llm_task = extract_llm_task_from_yaml(&frontmatter);
 
@@ -677,7 +783,7 @@ fn extract_frontmatter(
         })
         .collect();
 
-    Some((string_map, sessions, llm_task, rest))
+    Some((string_map, sessions, step_delegators, llm_task, rest))
 }
 
 fn parse_filename(filename: &str) -> Result<(String, String, String)> {
@@ -884,7 +990,8 @@ status: queued
 
 # Feature: Test feature
 ";
-        let (frontmatter, _sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
+        let (frontmatter, _sessions, _step_delegators, _llm_task, _body) =
+            extract_frontmatter(content).unwrap();
         let step = frontmatter.get("step").cloned().unwrap_or_default();
         assert!(
             step.is_empty(),
@@ -902,7 +1009,8 @@ status: queued
 
 # Feature: Test feature
 ";
-        let (frontmatter, _sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
+        let (frontmatter, _sessions, _step_delegators, _llm_task, _body) =
+            extract_frontmatter(content).unwrap();
         let step = frontmatter.get("step").cloned().unwrap_or_default();
         assert!(
             step.is_empty(),
@@ -959,7 +1067,8 @@ sessions:
 
 # Feature: Test feature
 ";
-        let (frontmatter, sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
+        let (frontmatter, sessions, _step_delegators, _llm_task, _body) =
+            extract_frontmatter(content).unwrap();
         assert_eq!(frontmatter.get("id").unwrap(), "FEAT-1234");
         assert_eq!(sessions.len(), 2);
         assert_eq!(
@@ -981,7 +1090,8 @@ status: queued
 
 # Feature: Test feature
 ";
-        let (_frontmatter, sessions, _llm_task, _body) = extract_frontmatter(content).unwrap();
+        let (_frontmatter, sessions, _step_delegators, _llm_task, _body) =
+            extract_frontmatter(content).unwrap();
         assert!(sessions.is_empty());
     }
 
@@ -1098,7 +1208,8 @@ llm_task:
 
 # Feature: Test feature
 ";
-        let (_frontmatter, _sessions, llm_task, _body) = extract_frontmatter(content).unwrap();
+        let (_frontmatter, _sessions, _step_delegators, llm_task, _body) =
+            extract_frontmatter(content).unwrap();
         assert_eq!(
             llm_task.id,
             Some("abc12345-6789-0abc-def0-123456789abc".to_string())
@@ -1118,7 +1229,8 @@ status: queued
 
 # Feature: Test feature
 ";
-        let (_frontmatter, _sessions, llm_task, _body) = extract_frontmatter(content).unwrap();
+        let (_frontmatter, _sessions, _step_delegators, llm_task, _body) =
+            extract_frontmatter(content).unwrap();
         assert_eq!(llm_task, LlmTask::default());
     }
 

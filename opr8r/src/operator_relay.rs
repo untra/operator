@@ -1,16 +1,15 @@
-//! MCP stdio relay-channel server mode for opr8r.
+//! relay: MCP stdio server that Operator ships to connect LLM agents to the relay hub.
 //!
-//! Invoked via `opr8r relay-channel`. Connects to the relay hub and exposes
+//! Invoked via `opr8r relay`. Connects to the relay hub and exposes
 //! relay tools (relay_peers, relay_ask, relay_reply, relay_broadcast,
 //! relay_rename) to LLM agents via the MCP stdio protocol.
 //!
-//! This is the distribution vehicle for relay-channel: since opr8r is signed,
-//! notarized, and released on all platforms, relay functionality is available
-//! to agents on any machine with a standard operator install.
+//! Since opr8r is signed, notarized, and released on all platforms, relay
+//! functionality is available to agents on any machine with a standard operator install.
 
 use std::io::{BufRead, Write};
 use std::process::ExitCode;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use operator_relay::channel_session::ChannelSession;
 use operator_relay::protocol::ServerMsg;
@@ -19,65 +18,19 @@ use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-// ── Tool schemas ──────────────────────────────────────────────────────────────
+// ── Config loader ─────────────────────────────────────────────────────────────
 
-fn tools_list() -> Value {
-    json!([
-        {
-            "name": "relay_peers",
-            "description": "List OTHER active sessions on this machine. Returns {me, peers} where me is your own session name and peers is every other session (excluding you). Each peer has cwd and git_branch for disambiguation.",
-            "inputSchema": { "type": "object", "properties": {}, "required": [] }
-        },
-        {
-            "name": "relay_ask",
-            "description": "Ask a specific peer a question. Non-blocking: returns immediately with {ok, ask_id}; the reply arrives later as a channel notification whose meta carries the same ask_id. Errors tied to this ask (peer_not_found, peer_gone, timeout) also arrive as channel notifications. Correlate by ask_id. If multiple peers may share a similar name, call relay_peers first and match by cwd or git_branch to pick the right target.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "to": { "type": "string", "description": "Name of the peer to ask" },
-                    "question": { "type": "string", "description": "The question to send" },
-                    "thread_id": { "type": "string", "description": "Optional thread identifier to correlate multi-turn exchanges. If you received an ask with a thread_id and are replying or continuing, pass the same thread_id." },
-                    "timeout_ms": { "type": "number", "description": "Timeout in milliseconds (default: 120000)" }
-                },
-                "required": ["to", "question"]
-            }
-        },
-        {
-            "name": "relay_reply",
-            "description": "Reply to an incoming ask by its ask_id. text is a plain string. Replies are one-shot — no streaming, no cancellation, no structured payload. If you need structured data, serialize JSON inside the string; the asker parses it.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "ask_id": { "type": "string", "description": "The ask_id from the incoming ask notification" },
-                    "text": { "type": "string", "description": "The reply text" }
-                },
-                "required": ["ask_id", "text"]
-            }
-        },
-        {
-            "name": "relay_broadcast",
-            "description": "Broadcast a question to ALL other peers on this machine, including sessions on unrelated projects. Use ONLY when the user explicitly wants every session asked. Do NOT use as a fallback when relay_ask returns an error (peer_not_found, peer_gone, timeout); surface the error to the user and let them decide. If you want to reach a specific peer, use relay_ask.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "question": { "type": "string", "description": "The question to broadcast" },
-                    "exclude_self": { "type": "boolean", "description": "If true (default), the sender is excluded from recipients." }
-                },
-                "required": ["question"]
-            }
-        },
-        {
-            "name": "relay_rename",
-            "description": "Rename this session's registered name.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "new_name": { "type": "string", "description": "New peer name (alphanumeric, ., -, _ only)" }
-                },
-                "required": ["new_name"]
-            }
-        }
-    ])
+static CONFIG: OnceLock<Value> = OnceLock::new();
+
+fn config() -> &'static Value {
+    CONFIG.get_or_init(|| {
+        serde_json::from_str(include_str!("../config/operator-relay.json"))
+            .expect("config/operator-relay.json must be valid JSON")
+    })
+}
+
+fn tools_list() -> &'static Value {
+    &config()["tools"]
 }
 
 // ── Stdout helpers ────────────────────────────────────────────────────────────
@@ -108,7 +61,7 @@ fn write_notification(method: &str, params: Value) {
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
-/// Run the relay-channel MCP stdio server.
+/// Run the relay MCP stdio server.
 pub async fn run() -> ExitCode {
     let socket_path = hub_socket_path();
 
@@ -130,7 +83,7 @@ pub async fn run() -> ExitCode {
         match ChannelSession::connect(&socket_path, name, cwd, git_branch).await {
             Ok(pair) => pair,
             Err(e) => {
-                eprintln!("[opr8r relay-channel] Failed to connect to relay hub: {e}");
+                eprintln!("[opr8r relay] Failed to connect to relay hub: {e}");
                 return ExitCode::from(1);
             }
         };
@@ -151,7 +104,7 @@ pub async fn run() -> ExitCode {
             })
             .await
         {
-            eprintln!("[opr8r relay-channel] Warning: could not watch for session renames: {e}");
+            eprintln!("[opr8r relay] Warning: could not watch for session renames: {e}");
         }
     }
 
@@ -249,6 +202,7 @@ async fn handle_request(line: &str, session: &Arc<ChannelSession>) {
 
     match method {
         "initialize" => {
+            let cfg = config();
             write_response(
                 id,
                 json!({
@@ -257,11 +211,11 @@ async fn handle_request(line: &str, session: &Arc<ChannelSession>) {
                         "tools": {},
                         "experimental": { "claude/channel": {} }
                     },
-                    "serverInfo": { "name": "relay-channel", "version": "0.1.0" },
-                    "instructions": "Always reply to <channel> messages via relay_reply BEFORE \
-                                     other work. Use relay_peers to pick targets. Use relay_ask \
-                                     for one peer, relay_broadcast for all. Surface ask errors \
-                                     to the user."
+                    "serverInfo": {
+                        "name": cfg["serverInfo"]["name"],
+                        "version": env!("CARGO_PKG_VERSION")
+                    },
+                    "instructions": cfg["instructions"]
                 }),
             );
         }
@@ -424,5 +378,79 @@ async fn dispatch_tool(
         other => {
             write_error(id, -32601, &format!("Unknown tool: {other}"));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_loads_and_has_required_fields() {
+        let cfg = config();
+        assert!(
+            cfg.get("serverInfo").is_some(),
+            "config must have serverInfo"
+        );
+        assert!(
+            cfg.get("instructions").is_some(),
+            "config must have instructions"
+        );
+        assert!(cfg.get("tools").is_some(), "config must have tools");
+    }
+
+    #[test]
+    fn test_tools_list_has_five_tools() {
+        let tools = tools_list();
+        let arr = tools.as_array().expect("tools must be an array");
+        assert_eq!(arr.len(), 5, "expected 5 relay tools, got {}", arr.len());
+    }
+
+    #[test]
+    fn test_tools_list_each_tool_has_required_mcp_fields() {
+        let tools = tools_list();
+        let arr = tools.as_array().unwrap();
+        for tool in arr {
+            let name = tool.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            assert!(!name.is_empty(), "tool must have non-empty name: {tool}");
+            assert!(
+                tool.get("description").is_some(),
+                "tool '{name}' must have description"
+            );
+            assert!(
+                tool.get("inputSchema").is_some(),
+                "tool '{name}' must have inputSchema"
+            );
+        }
+    }
+
+    #[test]
+    fn test_tools_list_names_are_expected() {
+        let tools = tools_list();
+        let names: Vec<&str> = tools
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|t| t.get("name")?.as_str())
+            .collect();
+        for expected in [
+            "relay_peers",
+            "relay_ask",
+            "relay_reply",
+            "relay_broadcast",
+            "relay_rename",
+        ] {
+            assert!(
+                names.contains(&expected),
+                "missing tool '{expected}', got: {names:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_server_info_name_is_relay() {
+        let cfg = config();
+        let name = cfg["serverInfo"]["name"].as_str().unwrap_or("");
+        assert_eq!(name, "relay", "serverInfo.name must be 'relay'");
     }
 }

@@ -293,6 +293,7 @@ mod tests {
             step: "plan".to_string(),
             content: "# Feature Description\n\nThis is the feature content.".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,

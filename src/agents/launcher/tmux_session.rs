@@ -170,6 +170,7 @@ pub fn launch_in_tmux_with_options(
         &prompt_file,
         Some(ticket),
         Some(project_path),
+        options.operator_relay,
     )?;
 
     // Apply YOLO flags if enabled
@@ -383,6 +384,7 @@ pub fn launch_in_tmux_with_relaunch_options(
         &prompt_file,
         Some(ticket),
         Some(project_path),
+        options.launch_options.operator_relay,
     )?;
 
     // Add resume flag if resuming

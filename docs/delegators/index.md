@@ -76,6 +76,21 @@ prompt_suffix    = "\n\nBe concise."
 
 `inherit` means the global config value is used.
 
+### Relay MCP injection
+
+Set `operator_relay = true` to enable the relay MCP server for Claude Code
+launches from this delegator. Use `false` to disable it even when the global
+default is `true`. Omit the field to use the global `relay.auto_inject_mcp`
+default.
+
+```toml
+[delegators.coordination.launch_config]
+operator_relay = true   # coordination-heavy delegators: enable relay
+
+[delegators.task.launch_config]
+operator_relay = false  # single-agent task delegators: disable relay
+```
+
 ## Using a custom model server
 
 To route a delegator through a local Ollama instance:

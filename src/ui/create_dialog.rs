@@ -882,7 +882,6 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 }
 
 /// Render a form with its fields (free function to avoid borrow issues)
-#[allow(dead_code)]
 fn render_form(frame: &mut Frame, area: Rect, form: &mut TicketForm) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)

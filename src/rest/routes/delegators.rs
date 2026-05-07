@@ -153,6 +153,7 @@ fn dto_to_launch_config(lc: DelegatorLaunchConfigDto) -> DelegatorLaunchConfig {
         docker: lc.docker,
         prompt_prefix: lc.prompt_prefix,
         prompt_suffix: lc.prompt_suffix,
+        operator_relay: lc.operator_relay,
     }
 }
 
@@ -167,6 +168,7 @@ fn launch_config_to_dto(lc: &DelegatorLaunchConfig) -> DelegatorLaunchConfigDto 
         docker: lc.docker,
         prompt_prefix: lc.prompt_prefix.clone(),
         prompt_suffix: lc.prompt_suffix.clone(),
+        operator_relay: lc.operator_relay,
     }
 }
 
@@ -386,6 +388,7 @@ mod tests {
                 docker: Some(false),
                 prompt_prefix: Some("Always follow TDD.".to_string()),
                 prompt_suffix: Some("Run tests before finishing.".to_string()),
+                operator_relay: None,
             }),
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
@@ -421,5 +424,24 @@ mod tests {
 
         let result = create_from_tool(State(state), Json(req)).await;
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_dto_round_trips_operator_relay() {
+        let config = DelegatorLaunchConfig {
+            yolo: false,
+            permission_mode: None,
+            flags: vec![],
+            use_worktrees: None,
+            create_branch: None,
+            docker: None,
+            prompt_prefix: None,
+            prompt_suffix: None,
+            operator_relay: Some(true),
+        };
+        let dto = launch_config_to_dto(&config);
+        assert_eq!(dto.operator_relay, Some(true));
+        let round_tripped = dto_to_launch_config(dto);
+        assert_eq!(round_tripped.operator_relay, Some(true));
     }
 }

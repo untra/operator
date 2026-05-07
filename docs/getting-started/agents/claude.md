@@ -46,30 +46,19 @@ claude auth login
 
 ## Multi-agent relay
 
-Agents launched by Operator automatically participate in the relay hub when the hub is running. Operator:
+Agents launched by Operator can participate in the relay hub when the hub is running.
+As long as the delegator (or global config) has enabled relay MCP injection.
 
-1. Injects `RELAY_HUB_SOCKET` and `RELAY_AGENT_NAME` (the ticket ID, e.g. `FEAT-042`) into the session environment.
-2. Writes a per-session `relay-mcp.json` config and passes `--mcp-config <path>` to Claude Code, so the `relay-channel` MCP server starts automatically alongside the agent.
+When relay is enabled for a delegator, Operator:
 
-This means Claude agents can use `relay_peers`, `relay_ask`, `relay_reply`, `relay_broadcast`, and `relay_rename` tools out of the box — no manual MCP server configuration needed.
+1. Injects `RELAY_HUB_SOCKET` and `RELAY_AGENT_NAME` (the ticket ID,
+   e.g. `FEAT-042`) into the session environment.
+2. Writes a per-session `relay-mcp.json` config and passes
+   `--mcp-config <path>` to Claude Code, so the `relay` MCP server starts alongside the agent.
+
+To enable relay for a delegator, set `operator_relay = true` in its
+`launch_config`. The global default is `false` (opt-in), so single-agent
+workflows stay lean unless relay is explicitly requested.
 
 See [Relay](/docs/relay/) for the full architecture.
 
-## Troubleshooting
-
-### Claude not found
-
-Ensure Claude is in your PATH:
-
-```bash
-which claude
-```
-
-### Authentication errors
-
-Re-authenticate with:
-
-```bash
-claude auth logout
-claude auth login
-```

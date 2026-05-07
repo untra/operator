@@ -124,6 +124,7 @@ pub fn launch_in_zellij_with_options(
         &prompt_file,
         Some(ticket),
         Some(project_path),
+        options.operator_relay,
     )?;
 
     if options.yolo_mode {
@@ -276,6 +277,7 @@ pub fn launch_in_zellij_with_relaunch_options(
         &prompt_file,
         Some(ticket),
         Some(project_path),
+        options.launch_options.operator_relay,
     )?;
 
     if is_resume {

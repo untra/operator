@@ -1,7 +1,7 @@
 mod api;
 mod cli;
+mod operator_relay;
 mod output_parser;
-mod relay_server;
 mod runner;
 mod transition;
 
@@ -54,9 +54,9 @@ fn build_step_complete_request(
 async fn main() -> ExitCode {
     let args = Args::parse_args();
 
-    // Dispatch relay-channel subcommand before any step-wrapper logic
-    if args.subcommand == Some(Cmd::RelayChannel) {
-        return relay_server::run().await;
+    // Dispatch relay subcommand before any step-wrapper logic
+    if args.subcommand == Some(Cmd::Relay) {
+        return operator_relay::run().await;
     }
 
     // Step-wrapper mode: validate required fields

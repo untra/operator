@@ -117,12 +117,6 @@ impl KanbanView {
         self.status_message = Some(message.to_string());
     }
 
-    /// Clear status message (used when sync completes)
-    #[allow(dead_code)]
-    pub fn clear_status(&mut self) {
-        self.status_message = None;
-    }
-
     fn selected_index(&self) -> usize {
         self.list_state.selected().unwrap_or(0)
     }

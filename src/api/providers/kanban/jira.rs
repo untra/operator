@@ -167,6 +167,40 @@ impl JiraProvider {
             .map_err(|e| ApiError::http(PROVIDER_NAME, 0, format!("Parse error: {e}")))
     }
 
+    /// Make an authenticated PUT request that returns no content (204/200)
+    async fn put_no_content<B: Serialize>(&self, path: &str, body: &B) -> Result<(), ApiError> {
+        let url = format!("{}{}", self.base_url(), path);
+        debug!("Jira PUT (no content): {}", url);
+
+        let response = self
+            .client
+            .put(&url)
+            .header("Authorization", self.auth_header())
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| ApiError::network(PROVIDER_NAME, e.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return match status.as_u16() {
+                401 => Err(ApiError::unauthorized(PROVIDER_NAME)),
+                403 => Err(ApiError::forbidden(PROVIDER_NAME)),
+                404 => Err(ApiError::http(
+                    PROVIDER_NAME,
+                    404,
+                    format!("Not found: {path}"),
+                )),
+                429 => Err(ApiError::rate_limited(PROVIDER_NAME, None)),
+                _ => Err(ApiError::http(PROVIDER_NAME, status.as_u16(), body)),
+            };
+        }
+        Ok(())
+    }
+
     /// Make an authenticated POST request that returns no content (204)
     async fn post_no_content<B: Serialize>(&self, path: &str, body: &B) -> Result<(), ApiError> {
         let url = format!("{}{}", self.base_url(), path);
@@ -733,6 +767,77 @@ impl KanbanProvider for JiraProvider {
 
         // Fetch and return the updated issue
         self.fetch_issue(issue_key).await
+    }
+
+    async fn update_issue_labels(
+        &self,
+        issue_key: &str,
+        labels: &[String],
+    ) -> Result<(), ApiError> {
+        // Fetch current labels using a labels-only fields query
+        #[derive(Deserialize)]
+        struct LabelFields {
+            #[serde(default)]
+            labels: Vec<String>,
+        }
+        #[derive(Deserialize)]
+        struct LabelIssue {
+            fields: LabelFields,
+        }
+
+        let path = format!("/issue/{issue_key}?fields=labels");
+        let current: LabelIssue = self.get(&path).await?;
+
+        // Merge: existing labels + new labels (deduplicated)
+        let mut merged: Vec<String> = current.fields.labels;
+        for label in labels {
+            if !merged.contains(label) {
+                merged.push(label.clone());
+            }
+        }
+
+        // PUT the merged label set back
+        let body = serde_json::json!({
+            "fields": { "labels": merged }
+        });
+        let put_path = format!("/issue/{issue_key}");
+        self.put_no_content(&put_path, &body).await
+    }
+
+    async fn append_activity_log(
+        &self,
+        issue_key: &str,
+        entry: &super::ActivityLogEntry,
+    ) -> Result<(), ApiError> {
+        // Format the comment text
+        let timestamp = entry.completed_at.format("%Y-%m-%d %H:%M UTC").to_string();
+        let mut text = format!(
+            "🤖 opr8r — step: {} | delegator: {} | {}",
+            entry.step, entry.delegator, timestamp
+        );
+        if let Some(ref summary) = entry.summary {
+            text.push('\n');
+            text.push_str(summary);
+        }
+
+        // Build ADF comment body
+        let body = serde_json::json!({
+            "body": {
+                "type": "doc",
+                "version": 1,
+                "content": [{
+                    "type": "paragraph",
+                    "content": [{
+                        "type": "text",
+                        "text": text
+                    }]
+                }]
+            }
+        });
+
+        let path = format!("/issue/{issue_key}/comment");
+        let _: serde_json::Value = self.post(&path, &body).await?;
+        Ok(())
     }
 }
 

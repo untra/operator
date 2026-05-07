@@ -318,6 +318,7 @@ fn make_test_ticket(project: &str) -> Ticket {
         step: String::new(),
         content: "Test content".to_string(),
         sessions: std::collections::HashMap::new(),
+        step_delegators: std::collections::HashMap::new(),
         llm_task: crate::queue::LlmTask::default(),
         worktree_path: None,
         branch: None,

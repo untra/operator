@@ -169,6 +169,7 @@ mod tests {
             status: "TODO".to_string(),
             content: String::new(),
             sessions: HashMap::new(),
+            step_delegators: HashMap::new(),
             llm_task: LlmTask::default(),
             worktree_path: None,
             branch: None,

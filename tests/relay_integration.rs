@@ -6,14 +6,14 @@
 //! Exercises ask/reply, broadcast, rename, timeout, and peer-gone flows
 //! using only in-process async code (no external services needed).
 //!
-//! **Layer 2** — `relay-channel` binary driven via JSON-RPC stdio.
+//! **Layer 2** — `opr8r relay` binary driven via JSON-RPC stdio.
 //! Verifies the MCP protocol surface: initialize, tools/list, relay_peers.
 //! Binary tests skip gracefully if the binary hasn't been built yet.
 //!
 //! ## Running
 //!
 //! ```bash
-//! # Build opr8r first (provides relay-channel subcommand for Layer 2)
+//! # Build opr8r first (provides relay subcommand for Layer 2)
 //! cargo build --manifest-path opr8r/Cargo.toml
 //!
 //! # Run all relay integration tests
@@ -343,40 +343,40 @@ async fn test_peer_gone_on_disconnect() {
     ctx.hub.shutdown().await;
 }
 
-// ── Layer 2: relay-channel binary via JSON-RPC stdio ─────────────────────────
+// ── Layer 2: opr8r relay binary via JSON-RPC stdio ───────────────────────────
 
-/// Returns `(binary_path, extra_args)` for invoking the relay-channel MCP server.
+/// Returns `(binary_path, extra_args)` for invoking the relay MCP server.
 ///
 /// Preference order:
-/// 1. `opr8r/target/debug/opr8r relay-channel` (primary distribution vehicle)
-/// 2. `opr8r/target/release/opr8r relay-channel`
-/// 3. `target/debug/relay-channel` (legacy standalone, kept for transition)
-/// 4. `target/release/relay-channel`
-fn relay_channel_command() -> (PathBuf, Vec<String>) {
+/// 1. `opr8r/target/debug/opr8r relay` (primary distribution vehicle)
+/// 2. `opr8r/target/release/opr8r relay`
+/// 3. `target/debug/operator-relay` (legacy standalone, kept for transition)
+/// 4. `target/release/operator-relay`
+fn operator_relay_command() -> (PathBuf, Vec<String>) {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let opr8r_debug = manifest.join("opr8r/target/debug/opr8r");
     if opr8r_debug.exists() {
-        return (opr8r_debug, vec!["relay-channel".to_string()]);
+        return (opr8r_debug, vec!["relay".to_string()]);
     }
     let opr8r_release = manifest.join("opr8r/target/release/opr8r");
     if opr8r_release.exists() {
-        return (opr8r_release, vec!["relay-channel".to_string()]);
+        return (opr8r_release, vec!["relay".to_string()]);
     }
-    let debug = manifest.join("target/debug/relay-channel");
+    let debug = manifest.join("target/debug/operator-relay");
     if debug.exists() {
         return (debug, vec![]);
     }
-    (manifest.join("target/release/relay-channel"), vec![])
+    (manifest.join("target/release/operator-relay"), vec![])
 }
 
 fn binary_available() -> bool {
-    let (binary, _) = relay_channel_command();
+    let (binary, _) = operator_relay_command();
     binary.exists()
 }
 
-/// Create a tokio Command pre-configured to run the relay-channel MCP server.
-fn make_relay_channel_cmd() -> tokio::process::Command {
-    let (binary, args) = relay_channel_command();
+/// Create a tokio Command pre-configured to run the relay MCP server.
+fn make_operator_relay_cmd() -> tokio::process::Command {
+    let (binary, args) = operator_relay_command();
     let mut cmd = tokio::process::Command::new(binary);
     cmd.args(args);
     cmd
@@ -401,7 +401,7 @@ async fn rpc_recv(
             line.clear();
             let n = reader.read_line(&mut line).await.expect("read_line failed");
             if n == 0 {
-                panic!("relay-channel process closed stdout waiting for id={id}");
+                panic!("relay process closed stdout waiting for id={id}");
             }
             if let Ok(val) = serde_json::from_str::<serde_json::Value>(line.trim()) {
                 if val.get("id").and_then(|v| v.as_u64()) == Some(id) {
@@ -419,21 +419,21 @@ async fn test_binary_initialize() {
     skip_if_not_configured!();
     if !binary_available() {
         eprintln!(
-            "Skipping: relay-channel binary not found (run `cargo build --bin relay-channel`)"
+            "Skipping: operator-relay binary not found (run `cargo build --manifest-path opr8r/Cargo.toml`)"
         );
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "test-agent-init")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
@@ -456,7 +456,7 @@ async fn test_binary_initialize() {
 
     assert_eq!(
         resp["result"]["serverInfo"]["name"].as_str(),
-        Some("relay-channel"),
+        Some("relay"),
         "serverInfo.name mismatch: {resp}"
     );
     assert!(
@@ -484,20 +484,20 @@ async fn test_binary_initialize() {
 async fn test_binary_tools_list() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "test-agent-tools")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
@@ -553,20 +553,20 @@ async fn test_binary_tools_list() {
 async fn test_binary_relay_peers_empty() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "solo-agent")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
@@ -612,7 +612,7 @@ async fn test_binary_relay_peers_empty() {
 async fn test_binary_relay_peers_with_peer() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
@@ -621,14 +621,14 @@ async fn test_binary_relay_peers_with_peer() {
     // Register alice via ChannelSession so the binary will see her
     let (alice, _) = ctx.connect_as("alice").await;
 
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "observer")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
@@ -675,20 +675,20 @@ async fn test_binary_relay_peers_with_peer() {
 async fn test_binary_relay_ask_returns_immediately() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "asker")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
@@ -741,20 +741,20 @@ async fn test_binary_relay_ask_returns_immediately() {
 async fn test_binary_relay_rename_structured() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "old-name")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
@@ -799,21 +799,21 @@ async fn test_binary_relay_rename_structured() {
 async fn test_binary_incoming_ask_notification_shape() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
     // Spawn a binary that will receive the ask
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "receiver")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let stdout_raw = child.stdout.take().unwrap();
@@ -904,20 +904,20 @@ async fn test_binary_incoming_ask_notification_shape() {
 async fn test_binary_incoming_reply_notification_content_is_raw_text() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut asker_child = make_relay_channel_cmd()
+    let mut asker_child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "asker2")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut asker_stdin = asker_child.stdin.take().unwrap();
     let mut asker_stdout = BufReader::new(asker_child.stdout.take().unwrap());
@@ -997,20 +997,20 @@ async fn test_binary_incoming_reply_notification_content_is_raw_text() {
 async fn test_binary_ask_error_notification_uses_lowercase_code() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "err-tester")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let stdout_raw = child.stdout.take().unwrap();
@@ -1089,20 +1089,20 @@ async fn test_binary_ask_error_notification_uses_lowercase_code() {
 async fn test_binary_relay_ask_schema_has_thread_id() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "schema-tester")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
@@ -1145,20 +1145,20 @@ async fn test_binary_relay_ask_schema_has_thread_id() {
 async fn test_binary_relay_ask_thread_id_propagated_to_notification() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut receiver_child = make_relay_channel_cmd()
+    let mut receiver_child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "thread-receiver")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel (receiver)");
+        .expect("failed to spawn relay (receiver)");
 
     let mut receiver_stdin = receiver_child.stdin.take().unwrap();
     let receiver_stdout_raw = receiver_child.stdout.take().unwrap();
@@ -1226,20 +1226,20 @@ async fn test_binary_relay_ask_thread_id_propagated_to_notification() {
 async fn test_binary_relay_broadcast_schema_has_exclude_self() {
     skip_if_not_configured!();
     if !binary_available() {
-        eprintln!("Skipping: relay-channel binary not found");
+        eprintln!("Skipping: operator-relay binary not found");
         return;
     }
 
     let ctx = RelayTestContext::new().await;
 
-    let mut child = make_relay_channel_cmd()
+    let mut child = make_operator_relay_cmd()
         .env("RELAY_HUB_SOCKET", ctx.socket_path.to_str().unwrap())
         .env("RELAY_AGENT_NAME", "broadcast-schema-tester")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .expect("failed to spawn relay-channel");
+        .expect("failed to spawn relay");
 
     let mut stdin = child.stdin.take().unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());

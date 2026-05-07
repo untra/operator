@@ -327,6 +327,9 @@ enabled = true
 url = "https://operator.untra.io/VERSION"
 timeout_secs = 3
 
+[relay]
+auto_inject_mcp = false
+
 ```
 
 ## Configuration Files

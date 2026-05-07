@@ -983,6 +983,199 @@ impl KanbanProvider for LinearProvider {
             priority: priority_to_string(issue.priority),
         })
     }
+
+    async fn update_issue_labels(
+        &self,
+        issue_key: &str,
+        labels: &[String],
+    ) -> Result<(), ApiError> {
+        if labels.is_empty() {
+            return Ok(());
+        }
+
+        let (issue_id, team_id) = self.get_issue_info(issue_key).await?;
+
+        // Query: current issue labels + all team labels
+        let query = r"
+            query($issueId: String!, $teamId: String!) {
+                issue(id: $issueId) {
+                    labels {
+                        nodes { id name }
+                    }
+                }
+                team(id: $teamId) {
+                    labels {
+                        nodes { id name }
+                    }
+                }
+            }
+        ";
+
+        #[derive(Deserialize)]
+        struct LabelNode {
+            id: String,
+            name: String,
+        }
+        #[derive(Deserialize)]
+        struct LabelNodes {
+            nodes: Vec<LabelNode>,
+        }
+        #[derive(Deserialize)]
+        struct IssueLabels {
+            labels: LabelNodes,
+        }
+        #[derive(Deserialize)]
+        struct TeamLabels {
+            labels: LabelNodes,
+        }
+        #[derive(Deserialize)]
+        struct LabelsQueryResponse {
+            issue: IssueLabels,
+            team: TeamLabels,
+        }
+
+        let vars = serde_json::json!({ "issueId": issue_id, "teamId": team_id });
+        let data: LabelsQueryResponse = self.graphql(query, Some(vars)).await?;
+
+        // Start with existing issue label IDs
+        let mut label_ids: Vec<String> = data
+            .issue
+            .labels
+            .nodes
+            .iter()
+            .map(|l| l.id.clone())
+            .collect();
+
+        // For each desired label, find or create it
+        for label_name in labels {
+            // Check if already on the issue
+            if data
+                .issue
+                .labels
+                .nodes
+                .iter()
+                .any(|l| l.name.eq_ignore_ascii_case(label_name))
+            {
+                continue;
+            }
+            // Find existing team label
+            if let Some(team_label) = data
+                .team
+                .labels
+                .nodes
+                .iter()
+                .find(|l| l.name.eq_ignore_ascii_case(label_name))
+            {
+                label_ids.push(team_label.id.clone());
+            } else {
+                // Create new label
+                let create_mutation = r"
+                    mutation($input: IssueLabelCreateInput!) {
+                        issueLabelCreate(input: $input) {
+                            issueLabel { id name }
+                        }
+                    }
+                ";
+                #[derive(Deserialize)]
+                struct IssueLabelCreateResponse {
+                    #[serde(rename = "issueLabelCreate")]
+                    issue_label_create: IssueLabelPayload,
+                }
+                #[derive(Deserialize)]
+                struct IssueLabelPayload {
+                    #[serde(rename = "issueLabel")]
+                    issue_label: Option<LabelNode>,
+                }
+                let create_vars = serde_json::json!({
+                    "input": { "name": label_name, "teamId": team_id }
+                });
+                let create_resp: IssueLabelCreateResponse =
+                    self.graphql(create_mutation, Some(create_vars)).await?;
+                if let Some(new_label) = create_resp.issue_label_create.issue_label {
+                    label_ids.push(new_label.id);
+                }
+            }
+        }
+
+        // Update issue with all label IDs
+        let update_mutation = r"
+            mutation($id: String!, $labelIds: [String!]!) {
+                issueUpdate(id: $id, input: { labelIds: $labelIds }) {
+                    success
+                }
+            }
+        ";
+        #[derive(Deserialize)]
+        struct LocalIssueUpdateResponse {
+            #[serde(rename = "issueUpdate")]
+            issue_update: LocalIssueUpdatePayload,
+        }
+        #[derive(Deserialize)]
+        struct LocalIssueUpdatePayload {
+            success: bool,
+        }
+        let update_vars = serde_json::json!({ "id": issue_id, "labelIds": label_ids });
+        let update_resp: LocalIssueUpdateResponse =
+            self.graphql(update_mutation, Some(update_vars)).await?;
+
+        if !update_resp.issue_update.success {
+            return Err(ApiError::http(
+                PROVIDER_NAME,
+                400,
+                "Failed to update issue labels".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    async fn append_activity_log(
+        &self,
+        issue_key: &str,
+        entry: &super::ActivityLogEntry,
+    ) -> Result<(), ApiError> {
+        let (issue_id, _team_id) = self.get_issue_info(issue_key).await?;
+
+        let timestamp = entry.completed_at.format("%Y-%m-%d %H:%M UTC");
+        let mut body = format!(
+            "**opr8r activity** — step: `{}` | delegator: `{}` | {}",
+            entry.step, entry.delegator, timestamp
+        );
+        if let Some(ref summary) = entry.summary {
+            body.push_str(&format!("\n\n> {summary}"));
+        }
+
+        let mutation = r"
+            mutation($input: CommentCreateInput!) {
+                commentCreate(input: $input) {
+                    success
+                }
+            }
+        ";
+
+        #[derive(Deserialize)]
+        struct CommentCreateResponse {
+            #[serde(rename = "commentCreate")]
+            comment_create: CommentCreatePayload,
+        }
+        #[derive(Deserialize)]
+        struct CommentCreatePayload {
+            success: bool,
+        }
+
+        let vars = serde_json::json!({
+            "input": { "issueId": issue_id, "body": body }
+        });
+
+        let resp: CommentCreateResponse = self.graphql(mutation, Some(vars)).await?;
+        if !resp.comment_create.success {
+            return Err(ApiError::http(
+                PROVIDER_NAME,
+                400,
+                "Failed to create comment".to_string(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]

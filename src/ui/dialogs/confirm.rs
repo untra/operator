@@ -648,6 +648,7 @@ mod tests {
             step: String::new(),
             content: "Test content".to_string(),
             sessions: HashMap::new(),
+            step_delegators: HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,

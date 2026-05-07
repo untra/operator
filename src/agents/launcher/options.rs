@@ -29,6 +29,8 @@ pub struct LaunchOptions {
     /// multiple sub-agents launched for the same ticket (multi-agent steps).
     /// When `None`, session name is the usual `{prefix}{sanitized-ticket-id}`.
     pub session_suffix: Option<String>,
+    /// Enable relay MCP server injection for this launch (None = use global config)
+    pub operator_relay: Option<bool>,
 }
 
 impl LaunchOptions {
@@ -40,6 +42,30 @@ impl LaunchOptions {
             (false, true) => "yolo".to_string(),
             (false, false) => "default".to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_launch_options_carries_operator_relay() {
+        let opts = LaunchOptions {
+            provider: None,
+            delegator_name: None,
+            extra_flags: vec![],
+            docker_mode: false,
+            yolo_mode: false,
+            project_override: None,
+            use_worktrees_override: None,
+            create_branch_override: None,
+            prompt_prefix: None,
+            prompt_suffix: None,
+            session_suffix: None,
+            operator_relay: Some(false),
+        };
+        assert_eq!(opts.operator_relay, Some(false));
     }
 }
 

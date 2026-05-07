@@ -12,6 +12,7 @@ import type { ModelServer } from "./ModelServer";
 import type { NotificationsConfig } from "./NotificationsConfig";
 import type { PathsConfig } from "./PathsConfig";
 import type { QueueConfig } from "./QueueConfig";
+import type { RelayConfig } from "./RelayConfig";
 import type { RestApiConfig } from "./RestApiConfig";
 import type { SessionsConfig } from "./SessionsConfig";
 import type { TemplatesConfig } from "./TemplatesConfig";
@@ -44,4 +45,8 @@ delegators: Array<Delegator>,
  * User-declared model servers (ollama, lmstudio, any OpenAI-compat host).
  * Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.
  */
-model_servers: Array<ModelServer>, };
+model_servers: Array<ModelServer>, 
+/**
+ * Relay MCP injection configuration
+ */
+relay: RelayConfig, };

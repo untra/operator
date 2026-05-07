@@ -61,6 +61,13 @@ jobs:
       - name: Tests
         run: cargo test --all-features
 
+      - name: cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: Cargo.toml
+          arguments: --all-features
+          command: check
+
   coverage:
     needs: lint-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -178,7 +185,7 @@ jobs:
           key: ${{ runner.os }}-cargo-relay-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-relay-
 
-      - name: Build opr8r (provides relay-channel subcommand)
+      - name: Build opr8r (provides relay subcommand)
         run: cargo build --manifest-path opr8r/Cargo.toml
 
       - name: Run relay integration tests

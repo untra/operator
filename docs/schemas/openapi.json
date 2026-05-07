@@ -1471,6 +1471,13 @@
             },
             "description": "Additional CLI flags"
           },
+          "operator_relay": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Override global relay auto-inject MCP setting per-delegator (None = use global setting)"
+          },
           "permission_mode": {
             "type": [
               "string",

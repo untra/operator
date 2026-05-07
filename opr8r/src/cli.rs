@@ -5,12 +5,12 @@ use clap::Parser;
 /// Wraps LLM commands (claude, gemini, codex), passes through output,
 /// and orchestrates step transitions via the Operator API.
 ///
-/// Run `opr8r relay-channel` to start as an MCP stdio relay-channel server.
+/// Run `opr8r relay` to start as an MCP stdio relay server.
 #[derive(Parser, Debug)]
 #[command(name = "opr8r")]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    /// Subcommand (e.g., relay-channel). If absent, runs in step-wrapper mode.
+    /// Subcommand (e.g., relay). If absent, runs in step-wrapper mode.
     #[command(subcommand)]
     pub subcommand: Option<Cmd>,
 
@@ -51,12 +51,12 @@ pub struct Args {
 /// Available subcommands for opr8r.
 #[derive(clap::Subcommand, Debug, PartialEq)]
 pub enum Cmd {
-    /// Run as an MCP stdio relay-channel server.
+    /// Run as an MCP stdio relay server.
     ///
     /// Connects to the relay hub and exposes relay tools (relay_peers,
     /// relay_ask, relay_reply, relay_broadcast, relay_rename) to LLM agents
     /// via the MCP stdio protocol.
-    RelayChannel,
+    Relay,
 }
 
 impl Args {
@@ -95,14 +95,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_relay_channel_subcommand_parses() {
-        let result = Args::try_parse_from(["opr8r", "relay-channel"]);
+    fn test_relay_subcommand_parses() {
+        let result = Args::try_parse_from(["opr8r", "relay"]);
         assert!(
             result.is_ok(),
-            "relay-channel subcommand should parse successfully"
+            "relay subcommand should parse successfully"
         );
         let args = result.unwrap();
-        assert!(matches!(args.subcommand, Some(Cmd::RelayChannel)));
+        assert!(matches!(args.subcommand, Some(Cmd::Relay)));
     }
 
     #[test]

@@ -3,6 +3,8 @@
 //! Provides the launch endpoint for starting agents via external clients
 //! like the VS Code extension.
 
+use std::sync::Arc;
+
 use axum::{
     extract::{Path, State},
     Json,
@@ -310,6 +312,20 @@ pub async fn complete_step(
         "completed".to_string()
     };
 
+    // Fire-and-forget: push step-completed activity log to upstream kanban provider.
+    if status == "completed" {
+        if let Some(ref ks) = state.kanban_sync {
+            let ks = Arc::clone(ks);
+            let ticket_clone = ticket.clone();
+            let step = step_name.clone();
+            let summary = request.output.as_ref().and_then(|o| o.summary.clone());
+            tokio::spawn(async move {
+                ks.on_step_completed(&ticket_clone, &step, "unknown", summary.as_deref())
+                    .await;
+            });
+        }
+    }
+
     // Find next step info
     let next_step_info = current_step.next_step.as_ref().and_then(|next_name| {
         issue_type.get_step(next_name).map(|step| NextStepInfo {
@@ -492,6 +508,7 @@ mod tests {
                 docker: Some(true),
                 prompt_prefix: Some("PREFIX".to_string()),
                 prompt_suffix: Some("SUFFIX".to_string()),
+                operator_relay: None,
             }),
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test-launch"));
@@ -705,6 +722,7 @@ mod tests {
                 docker: Some(false),
                 prompt_prefix: Some("BEGIN".to_string()),
                 prompt_suffix: Some("END".to_string()),
+                operator_relay: None,
             }),
         }]);
         let ctx = AgentContext {
@@ -753,6 +771,7 @@ mod tests {
             step: "review".to_string(),
             content: "# test".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: Some(worktree.to_string_lossy().to_string()),
             branch: None,

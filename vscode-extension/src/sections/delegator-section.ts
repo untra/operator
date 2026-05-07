@@ -89,7 +89,7 @@ export class DelegatorSection implements StatusSection {
       label: 'Add Delegator',
       icon: 'add',
       command: {
-        command: 'operator.openSettings',
+        command: 'operator.openCreateDelegator',
         title: 'Add Delegator',
       },
       sectionId: this.sectionId,

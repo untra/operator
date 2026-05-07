@@ -36,6 +36,19 @@ impl StatusSection for DelegatorSection {
     }
 
     fn children(&self, snapshot: &StatusSnapshot) -> Vec<TreeRow> {
+        if snapshot.delegators.is_empty() {
+            return vec![TreeRow {
+                section_id: SectionId::Delegators,
+                depth: 1,
+                label: "Add delegator".into(),
+                description: "Edit config to configure a delegator".into(),
+                icon: StatusIcon::Tool,
+                is_header: false,
+                actions: ActionSet::primary(StatusAction::EditFile(snapshot.config_path.clone())),
+                health: SectionHealth::Gray,
+            }];
+        }
+
         snapshot
             .delegators
             .iter()
@@ -124,6 +137,18 @@ mod tests {
             yolo: false,
             model_server: server.map(String::from),
         }
+    }
+
+    #[test]
+    fn test_empty_delegators_shows_add_row() {
+        let snap = snapshot_with(vec![]);
+        let rows = DelegatorSection.children(&snap);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].label, "Add delegator");
+        assert!(matches!(
+            &rows[0].actions.primary,
+            StatusAction::EditFile(_)
+        ));
     }
 
     #[test]

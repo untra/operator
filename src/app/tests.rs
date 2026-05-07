@@ -814,7 +814,7 @@ mod agent_switches {
             .iter()
             .filter_map(|agent| {
                 let rs = agent.review_state.as_ref()?;
-                rs.strip_prefix("switching_agent:").map(|s| s.to_string())
+                rs.strip_prefix("switching_agent:").map(str::to_string)
             })
             .collect();
 
@@ -845,7 +845,7 @@ mod agent_switches {
             .iter()
             .filter_map(|agent| {
                 let rs = agent.review_state.as_ref()?;
-                rs.strip_prefix("switching_agent:").map(|s| s.to_string())
+                rs.strip_prefix("switching_agent:").map(str::to_string)
             })
             .collect();
 
@@ -875,7 +875,7 @@ mod agent_switches {
             .iter()
             .filter_map(|agent| {
                 let rs = agent.review_state.as_ref()?;
-                rs.strip_prefix("switching_agent:").map(|s| s.to_string())
+                rs.strip_prefix("switching_agent:").map(str::to_string)
             })
             .collect();
 
@@ -928,7 +928,7 @@ mod agent_switches {
             .iter()
             .filter_map(|agent| {
                 let rs = agent.review_state.as_ref()?;
-                rs.strip_prefix("switching_agent:").map(|s| s.to_string())
+                rs.strip_prefix("switching_agent:").map(str::to_string)
             })
             .collect();
 

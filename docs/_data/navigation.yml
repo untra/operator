@@ -5,6 +5,8 @@ docs:
         url: /getting-started/
       - title: Prerequisites
         url: /getting-started/prerequisites/
+      - title: Platform Support
+        url: /getting-started/platform-support/
       - title: Installation
         url: /getting-started/installation/
       - title: Supported Session Management

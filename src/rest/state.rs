@@ -180,11 +180,13 @@ mod tests {
         let mut jira_map = HashMap::new();
         jira_map.insert("test.atlassian.net".to_string(), jira_config);
 
-        let mut config = Config::default();
-        config.kanban = KanbanConfig {
-            jira: jira_map,
-            linear: HashMap::new(),
-            github: HashMap::new(),
+        let config = Config {
+            kanban: KanbanConfig {
+                jira: jira_map,
+                linear: HashMap::new(),
+                github: HashMap::new(),
+            },
+            ..Default::default()
         };
 
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));

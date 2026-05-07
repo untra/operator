@@ -271,7 +271,7 @@ mod tests {
 
     fn make_sync_cfg(statuses: Vec<&str>) -> ProjectSyncConfig {
         ProjectSyncConfig {
-            sync_statuses: statuses.into_iter().map(|s| s.to_string()).collect(),
+            sync_statuses: statuses.into_iter().map(ToString::to_string).collect(),
             bidirectional: true,
             ..Default::default()
         }

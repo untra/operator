@@ -12,7 +12,9 @@ use crate::backstage::BackstageServer;
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
 use crate::notifications::NotificationService;
+#[cfg(unix)]
 use crate::relay::hub::RelayHub;
+#[cfg(unix)]
 use crate::relay::socket_path::hub_socket_path;
 use crate::rest::RestApiServer;
 use crate::services::{KanbanSyncService, PrMonitorService, PrStatusEvent, TrackedPr};
@@ -111,6 +113,7 @@ pub struct App {
     /// True if REST API port was in use at startup (another instance may be running)
     pub(crate) api_port_conflict: bool,
     /// Relay hub handle (None if hub failed to start or another instance is running)
+    #[cfg(unix)]
     pub(crate) relay_hub: Option<RelayHub>,
 }
 
@@ -272,6 +275,7 @@ impl App {
         let help_dialog = HelpDialog::new(config.sessions.wrapper);
 
         // Start the relay hub embedded in this process
+        #[cfg(unix)]
         let relay_hub = match RelayHub::start(hub_socket_path()).await {
             Ok(hub) => {
                 // Export socket path so child processes (agents) can find the hub
@@ -321,6 +325,7 @@ impl App {
             update_notification_shown_at: None,
             version_rx,
             api_port_conflict: false,
+            #[cfg(unix)]
             relay_hub,
             tmux_client,
         })
@@ -480,6 +485,7 @@ impl App {
         // Terminal cleanup is handled by _terminal_guard drop
 
         // Shut down relay hub before exit
+        #[cfg(unix)]
         if let Some(hub) = self.relay_hub.take() {
             hub.shutdown().await;
         }

@@ -112,14 +112,9 @@ pub async fn run() -> ExitCode {
     let (stdin_tx, mut stdin_rx) = mpsc::channel::<String>(32);
     std::thread::spawn(move || {
         let stdin = std::io::stdin();
-        for line in stdin.lock().lines() {
-            match line {
-                Ok(l) if !l.is_empty() => {
-                    if stdin_tx.blocking_send(l).is_err() {
-                        break;
-                    }
-                }
-                _ => {}
+        for l in stdin.lock().lines().map_while(Result::ok) {
+            if !l.is_empty() && stdin_tx.blocking_send(l).is_err() {
+                break;
             }
         }
     });

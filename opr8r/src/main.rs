@@ -1,5 +1,6 @@
 mod api;
 mod cli;
+#[cfg(unix)]
 mod operator_relay;
 mod output_parser;
 mod runner;
@@ -56,7 +57,15 @@ async fn main() -> ExitCode {
 
     // Dispatch relay subcommand before any step-wrapper logic
     if args.subcommand == Some(Cmd::Relay) {
+        #[cfg(unix)]
         return operator_relay::run().await;
+        #[cfg(not(unix))]
+        {
+            eprintln!(
+                "[opr8r relay] relay is not supported on this platform (requires Unix sockets)"
+            );
+            return ExitCode::from(1);
+        }
     }
 
     // Step-wrapper mode: validate required fields

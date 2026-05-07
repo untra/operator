@@ -83,6 +83,8 @@ Windows support has some limitations:
 - **Backstage Server**: Not supported on Windows
 - **Notifications**: Native notifications are planned; currently logs only
 
+See [Platform Support & Limitations](/getting-started/platform-support/) for a complete list of OS-specific gaps, their reasons, and planned resolutions.
+
 ## Optional Dependencies
 
 ### Coding Agent

@@ -7,7 +7,7 @@
  * Sections use progressive disclosure — they only appear when prerequisites are met:
  *   Tier 0: Configuration (always visible)
  *   Tier 1: Connections (requires configReady)
- *   Tier 2: Kanban, LLM Tools, Git (requires connectionsReady)
+ *   Tier 2: Kanban, LLM Tools, Model Servers, Git (requires connectionsReady / llmReady)
  *   Tier 3: Issue Types/issuetypes (kanbanConfigured), Delegators/delegators (llmConfigured), Managed Projects/projects (gitConfigured)
  */
 

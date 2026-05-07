@@ -143,6 +143,8 @@ const DEFAULT_CONFIG: Config = {
     timeout_secs: BigInt(10),
   },
   delegators: [],
+  model_servers: [],
+  relay: { auto_inject_mcp: false },
 };
 
 export const DEFAULT_WEBVIEW_CONFIG: WebviewConfig = {

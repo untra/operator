@@ -7,7 +7,7 @@
 //! using only in-process async code (no external services needed).
 //!
 //! **Layer 2** — `opr8r relay` binary driven via JSON-RPC stdio.
-//! Verifies the MCP protocol surface: initialize, tools/list, relay_peers.
+//! Verifies the MCP protocol surface: initialize, tools/list, `relay_peers`.
 //! Binary tests skip gracefully if the binary hasn't been built yet.
 //!
 //! ## Running
@@ -400,11 +400,9 @@ async fn rpc_recv(
         loop {
             line.clear();
             let n = reader.read_line(&mut line).await.expect("read_line failed");
-            if n == 0 {
-                panic!("relay process closed stdout waiting for id={id}");
-            }
+            assert!(n != 0, "relay process closed stdout waiting for id={id}");
             if let Ok(val) = serde_json::from_str::<serde_json::Value>(line.trim()) {
-                if val.get("id").and_then(|v| v.as_u64()) == Some(id) {
+                if val.get("id").and_then(serde_json::Value::as_u64) == Some(id) {
                     return val;
                 }
             }
@@ -849,9 +847,7 @@ async fn test_binary_incoming_ask_notification_shape() {
         loop {
             line.clear();
             let n = reader.read_line(&mut line).await.expect("read_line failed");
-            if n == 0 {
-                panic!("stdout closed");
-            }
+            assert!(n != 0, "stdout closed");
             if let Ok(val) = serde_json::from_str::<serde_json::Value>(line.trim()) {
                 if val.get("method").and_then(|m| m.as_str())
                     == Some("notifications/claude/channel")
@@ -963,9 +959,7 @@ async fn test_binary_incoming_reply_notification_content_is_raw_text() {
                 .read_line(&mut line)
                 .await
                 .expect("read_line failed");
-            if n == 0 {
-                panic!("stdout closed");
-            }
+            assert!(n != 0, "stdout closed");
             if let Ok(val) = serde_json::from_str::<serde_json::Value>(line.trim()) {
                 if val.get("method").and_then(|m| m.as_str())
                     == Some("notifications/claude/channel")
@@ -1044,9 +1038,7 @@ async fn test_binary_ask_error_notification_uses_lowercase_code() {
         loop {
             line.clear();
             let n = reader.read_line(&mut line).await.expect("read_line failed");
-            if n == 0 {
-                panic!("stdout closed");
-            }
+            assert!(n != 0, "stdout closed");
             if let Ok(val) = serde_json::from_str::<serde_json::Value>(line.trim()) {
                 if val.get("method").and_then(|m| m.as_str())
                     == Some("notifications/claude/channel")
@@ -1194,9 +1186,7 @@ async fn test_binary_relay_ask_thread_id_propagated_to_notification() {
         loop {
             line.clear();
             let n = reader.read_line(&mut line).await.expect("read_line failed");
-            if n == 0 {
-                panic!("stdout closed");
-            }
+            assert!(n != 0, "stdout closed");
             if let Ok(val) = serde_json::from_str::<serde_json::Value>(line.trim()) {
                 if val.get("method").and_then(|m| m.as_str())
                     == Some("notifications/claude/channel")

@@ -6,5 +6,6 @@
 //! See `docs/relay/` for architecture documentation.
 
 // Re-export the shared relay crate so existing `crate::relay::*` paths continue to work.
+#[cfg(unix)]
 pub use operator_relay::hub;
 pub use operator_relay::socket_path;

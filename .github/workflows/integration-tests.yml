@@ -58,7 +58,7 @@ jobs:
           git remote set-head origin --auto || true
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
 
       - name: Cache cargo
         uses: actions/cache@v4

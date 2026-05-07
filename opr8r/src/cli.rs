@@ -97,10 +97,7 @@ mod tests {
     #[test]
     fn test_relay_subcommand_parses() {
         let result = Args::try_parse_from(["opr8r", "relay"]);
-        assert!(
-            result.is_ok(),
-            "relay subcommand should parse successfully"
-        );
+        assert!(result.is_ok(), "relay subcommand should parse successfully");
         let args = result.unwrap();
         assert!(matches!(args.subcommand, Some(Cmd::Relay)));
     }

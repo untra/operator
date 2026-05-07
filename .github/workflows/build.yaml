@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
         with:
           components: rustfmt, clippy
 
@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
         with:
           components: llvm-tools-preview
 
@@ -137,7 +137,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
 
       - name: Install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
@@ -173,7 +173,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -221,7 +221,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: ${{ matrix.target }}
 
@@ -362,7 +362,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
 
       - name: Cache cargo registry
         uses: actions/cache@v4

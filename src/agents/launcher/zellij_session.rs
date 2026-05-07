@@ -137,6 +137,15 @@ pub fn launch_in_zellij_with_options(
     // Write the command to a shell script file
     let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
 
+    // Inject relay env vars so agents can find the hub and register with their ticket ID
+    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+        let export_cmd = format!(
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}\n",
+            ticket.id
+        );
+        let _ = zellij.send_text(&tab_name, &export_cmd);
+    }
+
     // Send the command to the zellij tab
     let bash_cmd = format!("bash {}\n", command_file.display());
     if let Err(e) = zellij.send_text(&tab_name, &bash_cmd) {
@@ -286,6 +295,13 @@ pub fn launch_in_zellij_with_relaunch_options(
 
     // Write and send command
     let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+        let export_cmd = format!(
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}\n",
+            ticket.id
+        );
+        let _ = zellij.send_text(&tab_name, &export_cmd);
+    }
     let bash_cmd = format!("bash {}\n", command_file.display());
     if let Err(e) = zellij.send_text(&tab_name, &bash_cmd) {
         let _ = zellij.close_tab(&tab_name);

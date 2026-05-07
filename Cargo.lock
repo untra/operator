@@ -2023,6 +2023,7 @@ dependencies = [
  "notify",
  "notify-rust",
  "once_cell",
+ "operator-relay",
  "ratatui",
  "regex",
  "reqwest",
@@ -2048,6 +2049,21 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "which",
+]
+
+[[package]]
+name = "operator-relay"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "dirs",
+ "notify",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

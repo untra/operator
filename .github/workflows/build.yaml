@@ -159,6 +159,33 @@ jobs:
           tmux list-sessions -F '#{session_name}' 2>/dev/null | grep '^op' | xargs -I {} tmux kill-session -t {} || true
           zellij delete-all-sessions --yes --force 2>/dev/null || true
 
+  relay-integration:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-relay-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-relay-
+
+      - name: Build opr8r (provides relay-channel subcommand)
+        run: cargo build --manifest-path opr8r/Cargo.toml
+
+      - name: Run relay integration tests
+        env:
+          OPERATOR_RELAY_INTEGRATION_TEST_ENABLED: 'true'
+        run: cargo test --test relay_integration -- --nocapture --test-threads=1
+
   build:
     needs: lint-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

@@ -196,6 +196,14 @@ fn generate_config_flags(
         cli_flags.push("--add-dir".to_string());
         cli_flags.push(project_path.to_string());
 
+        // Inject relay-channel MCP server when hub is running
+        if std::env::var("RELAY_HUB_SOCKET").is_ok() {
+            if let Some(config_path) = relay_mcp_config_flag(&session_dir) {
+                cli_flags.push("--mcp-config".to_string());
+                cli_flags.push(config_path);
+            }
+        }
+
         // Add JSON schema flag for structured output (when enabled)
         // Write schema to a file to avoid shell escaping issues with inline JSON
         // Inline jsonSchema takes precedence over jsonSchemaFile
@@ -245,6 +253,81 @@ fn generate_config_flags(
     } else {
         Ok(format!("{} ", cli_flags.join(" ")))
     }
+}
+
+/// Write a per-session relay MCP config and return the path for `--mcp-config`.
+/// Returns `None` if the relay command cannot be located.
+fn relay_mcp_config_flag(session_dir: &std::path::Path) -> Option<String> {
+    let (binary, args) = locate_relay_command()?;
+    relay_mcp_config_flag_with_command(session_dir, binary, args)
+}
+
+fn relay_mcp_config_flag_with_command(
+    session_dir: &std::path::Path,
+    binary: PathBuf,
+    args: Vec<String>,
+) -> Option<String> {
+    let config_path = session_dir.join("relay-mcp.json");
+    let relay_entry = if args.is_empty() {
+        serde_json::json!({ "command": binary.display().to_string(), "type": "stdio" })
+    } else {
+        serde_json::json!({ "command": binary.display().to_string(), "args": args, "type": "stdio" })
+    };
+    let config = serde_json::json!({ "mcpServers": { "relay": relay_entry } });
+    let content = serde_json::to_string_pretty(&config).ok()?;
+    fs::write(&config_path, content).ok()?;
+    Some(config_path.display().to_string())
+}
+
+/// Locate the relay-channel command, returning `(binary_path, extra_args)`.
+///
+/// Discovery order:
+/// 1. `opr8r` alongside the running operator binary → returns `(opr8r, ["relay-channel"])`
+/// 2. `RELAY_CHANNEL` env var → returns `(path, ["relay-channel"])` (treated as opr8r)
+/// 3. `opr8r` on PATH → returns `(opr8r, ["relay-channel"])`
+/// 4. Legacy `relay-channel` standalone binary alongside operator → returns `(relay-channel, [])`
+/// 5. Legacy `relay-channel` on PATH → returns `(relay-channel, [])`
+fn locate_relay_command() -> Option<(PathBuf, Vec<String>)> {
+    // 1. opr8r alongside the running operator binary (primary: signed distribution)
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let candidate = parent.join("opr8r");
+            if candidate.exists() {
+                return Some((candidate, vec!["relay-channel".to_string()]));
+            }
+            // 4. Legacy standalone relay-channel alongside operator
+            let legacy = parent.join("relay-channel");
+            if legacy.exists() {
+                return Some((legacy, vec![]));
+            }
+        }
+    }
+    // 2. RELAY_CHANNEL env var (user override — treated as opr8r path)
+    if let Ok(path) = std::env::var("RELAY_CHANNEL") {
+        let p = PathBuf::from(&path);
+        if p.exists() {
+            return Some((p, vec!["relay-channel".to_string()]));
+        }
+    }
+    // 3. opr8r on PATH
+    if std::process::Command::new("which")
+        .arg("opr8r")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        return Some((PathBuf::from("opr8r"), vec!["relay-channel".to_string()]));
+    }
+    // 5. Legacy relay-channel on PATH
+    if std::process::Command::new("which")
+        .arg("relay-channel")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        return Some((PathBuf::from("relay-channel"), vec![]));
+    }
+    None
 }
 
 /// Get the detected tool for a given provider
@@ -934,6 +1017,35 @@ mod tests {
     }
 
     // ========================================
+    // Relay MCP config injection tests
+    // ========================================
+
+    #[test]
+    fn test_relay_mcp_config_flag_writes_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let result =
+            relay_mcp_config_flag_with_command(dir.path(), PathBuf::from("/usr/bin/true"), vec![]);
+        assert!(result.is_some(), "Should return config path");
+        let returned_path = result.unwrap();
+        assert!(
+            returned_path.contains("relay-mcp.json"),
+            "Path should contain relay-mcp.json"
+        );
+        let config_path = dir.path().join("relay-mcp.json");
+        let contents = std::fs::read_to_string(config_path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&contents).unwrap();
+        assert!(
+            json["mcpServers"]["relay"]["command"].is_string(),
+            "command should be a string"
+        );
+        assert_eq!(json["mcpServers"]["relay"]["type"].as_str(), Some("stdio"));
+        assert_eq!(
+            json["mcpServers"]["relay"]["command"].as_str(),
+            Some("/usr/bin/true")
+        );
+    }
+
+    // ========================================
     // JSON schema file path tests
     // ========================================
     mod json_schema {
@@ -1040,5 +1152,52 @@ mod tests {
                 .unwrap()
                 .contains("$(subshell)"));
         }
+    }
+
+    // ========================================
+    // relay MCP config tests
+    // ========================================
+
+    #[test]
+    fn test_relay_mcp_config_with_opr8r_includes_relay_channel_arg() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = relay_mcp_config_flag_with_command(
+            dir.path(),
+            PathBuf::from("/usr/local/bin/opr8r"),
+            vec!["relay-channel".to_string()],
+        );
+        assert!(result.is_some(), "Config path should be returned");
+        let config_path = result.unwrap();
+        let content = std::fs::read_to_string(&config_path).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(
+            v["mcpServers"]["relay"]["args"][0].as_str(),
+            Some("relay-channel"),
+            "First arg must be relay-channel: {content}"
+        );
+        assert_eq!(
+            v["mcpServers"]["relay"]["command"].as_str(),
+            Some("/usr/local/bin/opr8r"),
+            "Command must be opr8r path: {content}"
+        );
+    }
+
+    #[test]
+    fn test_relay_mcp_config_with_empty_args_has_no_args_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = relay_mcp_config_flag_with_command(
+            dir.path(),
+            PathBuf::from("/usr/local/bin/relay-channel"),
+            vec![],
+        );
+        assert!(result.is_some());
+        let config_path = result.unwrap();
+        let content = std::fs::read_to_string(&config_path).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&content).unwrap();
+        // No "args" key when args are empty (backward compat with standalone binary)
+        assert!(
+            v["mcpServers"]["relay"].get("args").is_none(),
+            "No args key for standalone binary: {content}"
+        );
     }
 }

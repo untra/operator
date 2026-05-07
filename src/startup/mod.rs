@@ -82,7 +82,8 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
     },
     SetupStepInfo {
         name: "Tmux Onboarding",
-        description: "Help and documentation about tmux session management (shown if tmux selected)",
+        description:
+            "Help and documentation about tmux session management (shown if tmux selected)",
         help_text: "Operator launches Coding agents in tmux sessions. Essential commands:\n\
             - **Detach from session**: Ctrl+a (quick, no prefix needed!)\n\
             - **Fallback detach**: Ctrl+b then d\n\
@@ -110,7 +111,8 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
     SetupStepInfo {
         name: "Zellij Setup",
         description: "Zellij session wrapper setup (shown if Zellij selected)",
-        help_text: "Zellij is a modern terminal workspace with built-in layouts and multiplexing.\n\n\
+        help_text:
+            "Zellij is a modern terminal workspace with built-in layouts and multiplexing.\n\n\
             This step verifies Zellij is installed and configures the layout Operator will use \
             when launching agents.",
         navigation: "Enter to continue, Esc to go back",
@@ -119,7 +121,8 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
     SetupStepInfo {
         name: "Kanban Info",
         description: "Kanban integration overview and provider credential detection",
-        help_text: "Operator can sync with external kanban providers to pull in issues as tickets.\n\
+        help_text:
+            "Operator can sync with external kanban providers to pull in issues as tickets.\n\
             Supported providers: Jira, Linear, GitHub Projects.\n\n\
             Credentials are read from environment variables (e.g. OPERATOR_JIRA_API_KEY). \
             This step shows which providers were detected and validates connectivity.",
@@ -134,7 +137,8 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
             3. Discovers available projects for you to select\n\n\
             Only projects you select will be synced to your ticket queue. \
             You can skip this step to configure kanban providers later.",
-        navigation: "↑/↓ or j/k to navigate, Space to select projects, Enter to confirm, Esc to go back",
+        navigation:
+            "↑/↓ or j/k to navigate, Space to select projects, Enter to confirm, Esc to go back",
     },
     // ── Tier 3: Issue types (configured after kanban providers are connected) ─
     SetupStepInfo {

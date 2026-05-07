@@ -365,6 +365,10 @@ pub static ENV_VARS: &[EnvVar] = &[
         default: Some("true"),
         example: Some("false"),
     },
+    // Note: RELAY_HUB_SOCKET and RELAY_AGENT_NAME are intentionally excluded from this
+    // registry because they follow the cross-project claude-relay naming convention
+    // (no OPERATOR_ prefix) for wire compatibility with existing TS relay channels.
+    // They are documented in docs/relay/ instead.
 ];
 
 /// Get all environment variables for a given category

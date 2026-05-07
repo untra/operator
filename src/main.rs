@@ -27,6 +27,7 @@ pub mod env_vars;
 mod mcp;
 mod notifications;
 mod queue;
+mod relay;
 mod rest;
 mod setup;
 mod startup;
@@ -370,7 +371,7 @@ async fn run_tui(config: Config, log_file_path: Option<PathBuf>, start_web: bool
 
     // Note: tmux availability is now checked in the setup wizard (TmuxOnboarding step)
     // when the user selects tmux as their session wrapper
-    let mut app = App::new(config, start_web)?;
+    let mut app = App::new(config, start_web).await?;
     let result = app.run().await;
 
     // Print log file path on exit if logs were written

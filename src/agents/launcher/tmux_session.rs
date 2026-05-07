@@ -186,6 +186,15 @@ pub fn launch_in_tmux_with_options(
     // and special characters when using tmux send-keys
     let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
 
+    // Inject relay env vars so agents can find the hub and register with their ticket ID
+    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+        let export_cmd = format!(
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}",
+            ticket.id
+        );
+        let _ = tmux.send_keys(&session_name, &export_cmd, true);
+    }
+
     // Send simple bash command to execute the script (always short, so no buffer needed)
     let bash_cmd = format!("bash {}", command_file.display());
     if let Err(e) = tmux.send_keys(&session_name, &bash_cmd, true) {
@@ -399,6 +408,15 @@ pub fn launch_in_tmux_with_relaunch_options(
     // Write the command to a shell script file to avoid issues with long commands
     // and special characters when using tmux send-keys
     let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+
+    // Inject relay env vars so agents can find the hub and register with their ticket ID
+    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+        let export_cmd = format!(
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}",
+            ticket.id
+        );
+        let _ = tmux.send_keys(&session_name, &export_cmd, true);
+    }
 
     // Send simple bash command to execute the script (always short, so no buffer needed)
     let bash_cmd = format!("bash {}", command_file.display());

@@ -36,3 +36,6 @@ pub mod mcp;
 
 // Re-export env_vars for potential external use
 pub mod env_vars;
+
+// Relay hub and channel client
+pub mod relay;

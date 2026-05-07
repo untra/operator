@@ -44,6 +44,17 @@ Claude Code requires an API key or Claude Pro subscription. Set up authenticatio
 claude auth login
 ```
 
+## Multi-agent relay
+
+Agents launched by Operator automatically participate in the relay hub when the hub is running. Operator:
+
+1. Injects `RELAY_HUB_SOCKET` and `RELAY_AGENT_NAME` (the ticket ID, e.g. `FEAT-042`) into the session environment.
+2. Writes a per-session `relay-mcp.json` config and passes `--mcp-config <path>` to Claude Code, so the `relay-channel` MCP server starts automatically alongside the agent.
+
+This means Claude agents can use `relay_peers`, `relay_ask`, `relay_reply`, `relay_broadcast`, and `relay_rename` tools out of the box — no manual MCP server configuration needed.
+
+See [Relay](/docs/relay/) for the full architecture.
+
 ## Troubleshooting
 
 ### Claude not found

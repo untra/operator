@@ -15,6 +15,7 @@ use crate::rest::RestApiStatus;
 
 use super::sections::{
     ConfigSection, ConnectionsSection, DelegatorSection, GitSection, KanbanSection, LlmSection,
+    ModelServerSection,
 };
 
 // ---------------------------------------------------------------------------
@@ -35,6 +36,8 @@ pub enum SectionId {
     Kanban,
     #[serde(rename = "llm")]
     LlmTools,
+    #[serde(rename = "model-servers")]
+    ModelServers,
     #[serde(rename = "git")]
     Git,
     #[serde(rename = "issuetypes")]
@@ -280,6 +283,19 @@ pub struct DelegatorInfo {
     pub llm_tool: String,
     pub model: String,
     pub yolo: bool,
+    /// Referenced model server name (None = implicit vendor default).
+    pub model_server: Option<String>,
+}
+
+/// Information about a declared (or implicit builtin) model server.
+#[derive(Debug, Clone)]
+pub struct ModelServerInfo {
+    pub name: String,
+    pub kind: String,
+    pub base_url: Option<String>,
+    pub display_name: Option<String>,
+    /// False for implicit builtins (anthropic-api, openai-api, google-api).
+    pub user_declared: bool,
 }
 
 /// Connection status for the active session wrapper.
@@ -401,6 +417,7 @@ pub struct StatusSnapshot {
     pub default_llm_tool: Option<String>,
     pub default_llm_model: Option<String>,
     pub delegators: Vec<DelegatorInfo>,
+    pub model_servers: Vec<ModelServerInfo>,
     pub git_provider: Option<String>,
     pub git_token_set: bool,
     pub git_branch_format: Option<String>,
@@ -470,6 +487,7 @@ impl TreeState {
         expanded.insert(SectionId::Connections, false);
         expanded.insert(SectionId::Kanban, false);
         expanded.insert(SectionId::LlmTools, false);
+        expanded.insert(SectionId::ModelServers, false);
         expanded.insert(SectionId::Delegators, false);
         expanded.insert(SectionId::Git, false);
         Self {
@@ -499,6 +517,7 @@ impl StatusPanel {
             Box::new(ConnectionsSection),
             Box::new(KanbanSection),
             Box::new(LlmSection),
+            Box::new(ModelServerSection),
             Box::new(DelegatorSection),
             Box::new(GitSection),
         ];
@@ -850,7 +869,9 @@ mod tests {
                 llm_tool: "claude".into(),
                 model: "opus".into(),
                 yolo: false,
+                model_server: None,
             }],
+            model_servers: Vec::new(),
             git_provider: Some("GitHub".into()),
             git_token_set: true,
             git_branch_format: Some("feature/{ticket}".into()),

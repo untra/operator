@@ -38,4 +38,8 @@ prompt_prefix: string | null,
 /**
  * Prompt text to append after the generated step prompt
  */
-prompt_suffix: string | null, };
+prompt_suffix: string | null, 
+/**
+ * Override global relay auto-inject MCP setting per-delegator (None = use global setting)
+ */
+operator_relay: boolean | null, };

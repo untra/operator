@@ -159,6 +159,17 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/delegators/:name",
             delete(routes::delegators::delete),
         )
+        // Model server endpoints
+        .route("/api/v1/model-servers", get(routes::model_servers::list))
+        .route("/api/v1/model-servers", post(routes::model_servers::create))
+        .route(
+            "/api/v1/model-servers/:name",
+            get(routes::model_servers::get_one),
+        )
+        .route(
+            "/api/v1/model-servers/:name",
+            delete(routes::model_servers::delete),
+        )
         // MCP endpoints
         .route(
             "/api/v1/mcp/descriptor",

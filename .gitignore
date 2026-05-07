@@ -1,4 +1,5 @@
 # Rust build artifacts
+crates/**/target/
 /target/
 opr8r/target/
 zed-extension/target/

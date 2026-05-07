@@ -318,6 +318,7 @@ fn make_test_ticket(project: &str) -> Ticket {
         step: String::new(),
         content: "Test content".to_string(),
         sessions: std::collections::HashMap::new(),
+        step_delegators: std::collections::HashMap::new(),
         llm_task: crate::queue::LlmTask::default(),
         worktree_path: None,
         branch: None,
@@ -1444,5 +1445,209 @@ fn test_launch_yolo_flags_per_tool() {
     assert!(
         script_content.contains("--dangerously-skip-permissions"),
         "Claude yolo should use --dangerously-skip-permissions, got: {script_content}"
+    );
+}
+
+// ========================================
+// Multi-agent fan-out tests
+// ========================================
+
+use crate::config::Delegator;
+use crate::state::{PendingSubAgent, State};
+
+fn add_delegators(config: &mut Config, names: &[&str]) {
+    for name in names {
+        config.delegators.push(Delegator {
+            name: (*name).to_string(),
+            llm_tool: "claude".to_string(),
+            model: "sonnet".to_string(),
+            display_name: None,
+            model_properties: std::collections::HashMap::new(),
+            model_server: None,
+            launch_config: None,
+        });
+    }
+}
+
+#[tokio::test]
+async fn test_launch_pending_sub_agents_launches_all_when_slots_allow() {
+    let temp_dir = TempDir::new().unwrap();
+    let mut config = make_test_config(&temp_dir);
+    config.agents.max_parallel = 10;
+    config.agents.cores_reserved = 0;
+    add_delegators(&mut config, &["claude-opus", "gemini-pro"]);
+
+    let mock = Arc::new(MockTmuxClient::new());
+    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let ticket = make_test_ticket("test-project");
+
+    // Seed a group with 2 pending sub-agents
+    let group_id = {
+        let mut state = State::load(&config).unwrap();
+        state
+            .create_multi_agent_group(
+                &ticket.id,
+                "review",
+                "multi_model",
+                vec![
+                    PendingSubAgent {
+                        delegator_name: "claude-opus".to_string(),
+                        prompt: "do the thing".to_string(),
+                        variant_key: "claude-opus".to_string(),
+                    },
+                    PendingSubAgent {
+                        delegator_name: "gemini-pro".to_string(),
+                        prompt: "do the thing".to_string(),
+                        variant_key: "gemini-pro".to_string(),
+                    },
+                ],
+            )
+            .unwrap()
+    };
+
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+
+    launcher
+        .launch_pending_sub_agents(&ticket, &group_id, &project_path, &LaunchOptions::default())
+        .await
+        .unwrap();
+
+    // Both sub-agents launched
+    let state = State::load(&config).unwrap();
+    let group = state
+        .multi_agent_groups
+        .iter()
+        .find(|g| g.group_id == group_id)
+        .unwrap();
+    assert_eq!(group.agent_ids.len(), 2);
+    assert!(group.pending_launches.is_empty());
+    assert_eq!(group.expected_total, 2);
+    assert_eq!(group.agent_variant_keys.len(), 2);
+
+    // Distinct tmux sessions created (op-{id}-{variant})
+    let base = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    let s1 = format!("{base}-{}", sanitize_session_name("claude-opus"));
+    let s2 = format!("{base}-{}", sanitize_session_name("gemini-pro"));
+    assert!(
+        mock.get_session_working_dir(&s1).is_some(),
+        "session {s1} should exist"
+    );
+    assert!(
+        mock.get_session_working_dir(&s2).is_some(),
+        "session {s2} should exist"
+    );
+}
+
+#[tokio::test]
+async fn test_launch_pending_sub_agents_respects_slot_budget() {
+    let temp_dir = TempDir::new().unwrap();
+    let mut config = make_test_config(&temp_dir);
+    // Budget of exactly 1 slot
+    config.agents.max_parallel = 1;
+    config.agents.cores_reserved = 0;
+    add_delegators(&mut config, &["claude-opus", "gemini-pro"]);
+
+    let mock = Arc::new(MockTmuxClient::new());
+    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let ticket = make_test_ticket("test-project");
+
+    let group_id = {
+        let mut state = State::load(&config).unwrap();
+        state
+            .create_multi_agent_group(
+                &ticket.id,
+                "review",
+                "multi_model",
+                vec![
+                    PendingSubAgent {
+                        delegator_name: "claude-opus".to_string(),
+                        prompt: "p".to_string(),
+                        variant_key: "claude-opus".to_string(),
+                    },
+                    PendingSubAgent {
+                        delegator_name: "gemini-pro".to_string(),
+                        prompt: "p".to_string(),
+                        variant_key: "gemini-pro".to_string(),
+                    },
+                ],
+            )
+            .unwrap()
+    };
+
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+
+    launcher
+        .launch_pending_sub_agents(&ticket, &group_id, &project_path, &LaunchOptions::default())
+        .await
+        .unwrap();
+
+    let state = State::load(&config).unwrap();
+    let group = state
+        .multi_agent_groups
+        .iter()
+        .find(|g| g.group_id == group_id)
+        .unwrap();
+    assert_eq!(group.agent_ids.len(), 1, "only 1 slot, 1 agent launched");
+    assert_eq!(
+        group.pending_launches.len(),
+        1,
+        "1 sub-agent should stay pending"
+    );
+    // The first pending (claude-opus) should have been launched; gemini-pro is still pending
+    assert_eq!(group.pending_launches[0].variant_key, "gemini-pro");
+}
+
+#[tokio::test]
+async fn test_launch_pending_sub_agents_errors_on_unknown_delegator() {
+    let temp_dir = TempDir::new().unwrap();
+    let mut config = make_test_config(&temp_dir);
+    config.agents.max_parallel = 10;
+    // Intentionally do NOT add any delegators.
+
+    let mock = Arc::new(MockTmuxClient::new());
+    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let ticket = make_test_ticket("test-project");
+
+    let group_id = {
+        let mut state = State::load(&config).unwrap();
+        state
+            .create_multi_agent_group(
+                &ticket.id,
+                "review",
+                "multi_model",
+                vec![PendingSubAgent {
+                    delegator_name: "does-not-exist".to_string(),
+                    prompt: "p".to_string(),
+                    variant_key: "does-not-exist".to_string(),
+                }],
+            )
+            .unwrap()
+    };
+
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+
+    let err = launcher
+        .launch_pending_sub_agents(&ticket, &group_id, &project_path, &LaunchOptions::default())
+        .await
+        .unwrap_err();
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("does-not-exist"),
+        "error should mention missing delegator name, got: {msg}"
     );
 }

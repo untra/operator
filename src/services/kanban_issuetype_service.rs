@@ -214,6 +214,46 @@ impl KanbanIssueTypeService {
     }
 }
 
+// ─── Mapping-Status Utilities ───────────────────────────────────────────────
+
+/// Per-issue-type mapping status for display.
+#[derive(Debug, Clone)]
+pub struct IssueTypeMappingStatus {
+    /// The kanban issue type from the provider.
+    pub issue_type: KanbanIssueType,
+    /// Operator issue type key this maps to, if any (e.g., "TASK", "FEAT", "FIX").
+    pub operator_key: Option<String>,
+}
+
+impl IssueTypeMappingStatus {
+    /// Whether this issue type has been mapped to an operator key.
+    pub fn is_mapped(&self) -> bool {
+        self.operator_key.is_some()
+    }
+}
+
+/// Compute mapping status for a list of issue types against `type_mappings`.
+///
+/// For each `KanbanIssueType`, looks up its `id` in the mappings to see if
+/// an operator key is assigned.
+pub fn compute_mapping_status(
+    issue_types: &[KanbanIssueType],
+    type_mappings: &HashMap<String, String>,
+) -> Vec<IssueTypeMappingStatus> {
+    issue_types
+        .iter()
+        .map(|t| IssueTypeMappingStatus {
+            issue_type: t.clone(),
+            operator_key: type_mappings.get(&t.id).cloned(),
+        })
+        .collect()
+}
+
+/// Count unmapped issue types.
+pub fn unmapped_count(status: &[IssueTypeMappingStatus]) -> usize {
+    status.iter().filter(|s| s.operator_key.is_none()).count()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -474,5 +514,79 @@ mod tests {
 
         let result = service.resolve_legacy_mapping("Nonexistent", "jira", "PROJ");
         assert_eq!(result, None);
+    }
+
+    fn make_kanban_type(id: &str, name: &str) -> KanbanIssueType {
+        KanbanIssueType {
+            id: id.to_string(),
+            name: name.to_string(),
+            description: None,
+            icon_url: None,
+            custom_fields: vec![],
+            provider: "jira".to_string(),
+            project: "PROJ".to_string(),
+            source_kind: "issuetype".to_string(),
+            synced_at: "2026-04-11T00:00:00Z".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_compute_mapping_status_fully_mapped() {
+        let types = vec![
+            make_kanban_type("10001", "Bug"),
+            make_kanban_type("10002", "Story"),
+        ];
+        let mut mappings = HashMap::new();
+        mappings.insert("10001".to_string(), "FIX".to_string());
+        mappings.insert("10002".to_string(), "FEAT".to_string());
+
+        let status = compute_mapping_status(&types, &mappings);
+        assert_eq!(status.len(), 2);
+        assert!(status[0].is_mapped());
+        assert_eq!(status[0].operator_key, Some("FIX".to_string()));
+        assert!(status[1].is_mapped());
+        assert_eq!(status[1].operator_key, Some("FEAT".to_string()));
+        assert_eq!(unmapped_count(&status), 0);
+    }
+
+    #[test]
+    fn test_compute_mapping_status_fully_unmapped() {
+        let types = vec![
+            make_kanban_type("10001", "Bug"),
+            make_kanban_type("10002", "Story"),
+        ];
+        let mappings = HashMap::new();
+
+        let status = compute_mapping_status(&types, &mappings);
+        assert_eq!(status.len(), 2);
+        assert!(!status[0].is_mapped());
+        assert!(!status[1].is_mapped());
+        assert_eq!(unmapped_count(&status), 2);
+    }
+
+    #[test]
+    fn test_compute_mapping_status_mixed() {
+        let types = vec![
+            make_kanban_type("10001", "Bug"),
+            make_kanban_type("10002", "Story"),
+        ];
+        let mut mappings = HashMap::new();
+        mappings.insert("10001".to_string(), "FIX".to_string());
+
+        let status = compute_mapping_status(&types, &mappings);
+        assert_eq!(status.len(), 2);
+        assert!(status[0].is_mapped());
+        assert!(!status[1].is_mapped());
+        assert_eq!(unmapped_count(&status), 1);
+    }
+
+    #[test]
+    fn test_compute_mapping_status_empty() {
+        let types: Vec<KanbanIssueType> = vec![];
+        let mappings = HashMap::new();
+
+        let status = compute_mapping_status(&types, &mappings);
+        assert!(status.is_empty());
+        assert_eq!(unmapped_count(&status), 0);
     }
 }

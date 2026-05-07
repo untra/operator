@@ -96,6 +96,7 @@ export class ConfigSection implements StatusSection {
         : vscode.TreeItemCollapsibleState.Expanded,
       sectionId: this.sectionId,
       command: configCommand,
+      health: this.health(),
     });
   }
 

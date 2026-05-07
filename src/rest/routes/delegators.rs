@@ -92,6 +92,7 @@ pub async fn create(
         model: req.model,
         display_name: req.display_name,
         model_properties: req.model_properties,
+        model_server: req.model_server,
         launch_config: req.launch_config.map(dto_to_launch_config),
     };
 
@@ -152,6 +153,7 @@ fn dto_to_launch_config(lc: DelegatorLaunchConfigDto) -> DelegatorLaunchConfig {
         docker: lc.docker,
         prompt_prefix: lc.prompt_prefix,
         prompt_suffix: lc.prompt_suffix,
+        operator_relay: lc.operator_relay,
     }
 }
 
@@ -166,6 +168,7 @@ fn launch_config_to_dto(lc: &DelegatorLaunchConfig) -> DelegatorLaunchConfigDto 
         docker: lc.docker,
         prompt_prefix: lc.prompt_prefix.clone(),
         prompt_suffix: lc.prompt_suffix.clone(),
+        operator_relay: lc.operator_relay,
     }
 }
 
@@ -177,6 +180,7 @@ fn delegator_to_response(d: &Delegator) -> DelegatorResponse {
         model: d.model.clone(),
         display_name: d.display_name.clone(),
         model_properties: d.model_properties.clone(),
+        model_server: d.model_server.clone(),
         launch_config: d.launch_config.as_ref().map(launch_config_to_dto),
     }
 }
@@ -234,6 +238,7 @@ pub async fn create_from_tool(
         model,
         display_name: req.display_name,
         model_properties: std::collections::HashMap::new(),
+        model_server: req.model_server.clone(),
         launch_config: req.launch_config.map(dto_to_launch_config),
     };
 
@@ -277,6 +282,7 @@ pub async fn update(
         model: req.model,
         display_name: req.display_name,
         model_properties: req.model_properties,
+        model_server: req.model_server,
         launch_config: req.launch_config.map(dto_to_launch_config),
     };
 
@@ -317,6 +323,7 @@ mod tests {
             model: "opus".to_string(),
             display_name: Some("Test".to_string()),
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: None,
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
@@ -344,6 +351,7 @@ mod tests {
             model: "gpt-4o".to_string(),
             display_name: None,
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: Some(DelegatorLaunchConfig {
                 yolo: true,
                 permission_mode: None,
@@ -370,6 +378,7 @@ mod tests {
             model: "opus".to_string(),
             display_name: Some("Full Config".to_string()),
             model_properties: std::collections::HashMap::new(),
+            model_server: None,
             launch_config: Some(DelegatorLaunchConfig {
                 yolo: true,
                 permission_mode: Some("accept-edits".to_string()),
@@ -379,6 +388,7 @@ mod tests {
                 docker: Some(false),
                 prompt_prefix: Some("Always follow TDD.".to_string()),
                 prompt_suffix: Some("Run tests before finishing.".to_string()),
+                operator_relay: None,
             }),
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
@@ -408,10 +418,30 @@ mod tests {
             model: None,
             name: None,
             display_name: None,
+            model_server: None,
             launch_config: None,
         };
 
         let result = create_from_tool(State(state), Json(req)).await;
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_dto_round_trips_operator_relay() {
+        let config = DelegatorLaunchConfig {
+            yolo: false,
+            permission_mode: None,
+            flags: vec![],
+            use_worktrees: None,
+            create_branch: None,
+            docker: None,
+            prompt_prefix: None,
+            prompt_suffix: None,
+            operator_relay: Some(true),
+        };
+        let dto = launch_config_to_dto(&config);
+        assert_eq!(dto.operator_relay, Some(true));
+        let round_tripped = dto_to_launch_config(dto);
+        assert_eq!(round_tripped.operator_relay, Some(true));
     }
 }

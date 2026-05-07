@@ -74,6 +74,9 @@
           "binary_path": "/Applications/cmux.app/Contents/Resources/bin/cmux",
           "require_in_cmux": true,
           "placement": "auto"
+        },
+        "zellij": {
+          "require_in_zellij": true
         }
       }
     },
@@ -83,6 +86,8 @@
         "detected": [],
         "providers": [],
         "detection_complete": false,
+        "default_tool": null,
+        "default_model": null,
         "skill_directory_overrides": {}
       }
     },
@@ -90,6 +95,7 @@
       "$ref": "#/$defs/BackstageConfig",
       "default": {
         "enabled": true,
+        "display": false,
         "port": 7007,
         "auto_start": false,
         "subpath": "backstage",
@@ -140,7 +146,8 @@
       "$ref": "#/$defs/KanbanConfig",
       "default": {
         "jira": {},
-        "linear": {}
+        "linear": {},
+        "github": {}
       }
     },
     "version_check": {
@@ -157,6 +164,14 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/Delegator"
+      },
+      "default": []
+    },
+    "model_servers": {
+      "description": "User-declared model servers (ollama, lmstudio, any OpenAI-compat host).\nImplicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ModelServer"
       },
       "default": []
     }
@@ -281,7 +296,7 @@
           "default": false
         },
         "events": {
-          "description": "Events to send (empty = all events)\nPossible values: agent.started, agent.completed, agent.failed,\nagent.awaiting_input, agent.session_lost, pr.created, pr.merged,\npr.closed, pr.ready_to_merge, pr.changes_requested,\nticket.returned, investigation.created",
+          "description": "Events to send (empty = all events)\nPossible values: agent.started, agent.completed, agent.failed,\n`agent.awaiting_input`, `agent.session_lost`, pr.created, pr.merged,\npr.closed, `pr.ready_to_merge`, `pr.changes_requested`,\nticket.returned, investigation.created",
           "type": "array",
           "items": {
             "type": "string"
@@ -426,9 +441,9 @@
         "panel_names": {
           "$ref": "#/$defs/PanelNamesConfig",
           "default": {
+            "status": "STATUS",
             "queue": "TODO QUEUE",
-            "agents": "DOING",
-            "awaiting": "AWAITING",
+            "in_progress": "IN PROGRESS",
             "completed": "DONE"
           }
         }
@@ -442,17 +457,17 @@
     "PanelNamesConfig": {
       "type": "object",
       "properties": {
+        "status": {
+          "type": "string",
+          "default": "STATUS"
+        },
         "queue": {
           "type": "string",
           "default": "TODO QUEUE"
         },
-        "agents": {
+        "in_progress": {
           "type": "string",
-          "default": "DOING"
-        },
-        "awaiting": {
-          "type": "string",
-          "default": "AWAITING"
+          "default": "IN PROGRESS"
         },
         "completed": {
           "type": "string",
@@ -551,7 +566,7 @@
       "type": "object",
       "properties": {
         "preset": {
-          "description": "Named preset for issue type collection\nOptions: simple, dev_kanban, devops_kanban, custom",
+          "description": "Named preset for issue type collection\nOptions: simple, `dev_kanban`, `devops_kanban`, custom",
           "$ref": "#/$defs/CollectionPreset",
           "default": "dev_kanban"
         },
@@ -651,7 +666,7 @@
       }
     },
     "SessionsConfig": {
-      "description": "Session wrapper configuration\n\nControls how operator creates and manages terminal sessions for agents.\nThree modes are supported:\n- tmux: Standalone tmux sessions (default)\n- vscode: VS Code integrated terminal (requires extension)\n- cmux: macOS terminal multiplexer (requires running inside cmux)",
+      "description": "Session wrapper configuration\n\nControls how operator creates and manages terminal sessions for agents.\nFour modes are supported:\n- tmux: Standalone tmux sessions (default)\n- vscode: VS Code integrated terminal (requires extension)\n- cmux: macOS terminal multiplexer (requires running inside cmux)\n- zellij: Zellij terminal workspace manager",
       "type": "object",
       "properties": {
         "wrapper": {
@@ -683,6 +698,13 @@
             "require_in_cmux": true,
             "placement": "auto"
           }
+        },
+        "zellij": {
+          "description": "Zellij-specific configuration",
+          "$ref": "#/$defs/SessionsZellijConfig",
+          "default": {
+            "require_in_zellij": true
+          }
         }
       }
     },
@@ -703,6 +725,11 @@
           "description": "cmux macOS terminal multiplexer",
           "type": "string",
           "const": "cmux"
+        },
+        {
+          "description": "Zellij terminal workspace manager",
+          "type": "string",
+          "const": "zellij"
         }
       ]
     },
@@ -753,7 +780,7 @@
           "default": "/Applications/cmux.app/Contents/Resources/bin/cmux"
         },
         "require_in_cmux": {
-          "description": "Require running inside cmux (CMUX_WORKSPACE_ID env var present)",
+          "description": "Require running inside cmux (`CMUX_WORKSPACE_ID` env var present)",
           "type": "boolean",
           "default": true
         },
@@ -784,6 +811,17 @@
         }
       ]
     },
+    "SessionsZellijConfig": {
+      "description": "Zellij terminal workspace manager session configuration",
+      "type": "object",
+      "properties": {
+        "require_in_zellij": {
+          "description": "Require running inside Zellij (ZELLIJ env var present)",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
     "LlmToolsConfig": {
       "description": "LLM CLI tools configuration",
       "type": "object",
@@ -809,8 +847,24 @@
           "type": "boolean",
           "default": false
         },
+        "default_tool": {
+          "description": "User's preferred default LLM tool (e.g., \"claude\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "default_model": {
+          "description": "User's preferred default model alias (e.g., \"opus\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "skill_directory_overrides": {
-          "description": "Per-tool overrides for skill directories (keyed by tool_name)",
+          "description": "Per-tool overrides for skill directories (keyed by `tool_name`)",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/SkillDirectoriesOverride"
@@ -853,10 +907,11 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "default": []
         },
         "command_template": {
-          "description": "Command template with {{model}}, {{session_id}}, {{prompt_file}} placeholders",
+          "description": "Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders",
           "type": "string",
           "default": ""
         },
@@ -880,8 +935,7 @@
       "required": [
         "name",
         "path",
-        "version",
-        "model_aliases"
+        "version"
       ]
     },
     "ToolCapabilities": {
@@ -999,6 +1053,11 @@
           "type": "boolean",
           "default": true
         },
+        "display": {
+          "description": "Whether to show Backstage in the Connections status section",
+          "type": "boolean",
+          "default": false
+        },
         "port": {
           "description": "Port for the Backstage server",
           "type": "integer",
@@ -1013,7 +1072,7 @@
           "default": false
         },
         "subpath": {
-          "description": "Subdirectory within state_path for Backstage installation",
+          "description": "Subdirectory within `state_path` for Backstage installation",
           "type": "string",
           "default": "backstage"
         },
@@ -1028,7 +1087,7 @@
           "default": "https://github.com/untra/operator/releases/latest/download"
         },
         "local_binary_path": {
-          "description": "Optional local path to backstage-server binary\nIf set, this is used instead of downloading from release_url",
+          "description": "Optional local path to backstage-server binary\nIf set, this is used instead of downloading from `release_url`",
           "type": [
             "string",
             "null"
@@ -1226,7 +1285,7 @@
           "default": true
         },
         "token_env": {
-          "description": "Environment variable containing the GitHub token (default: GITHUB_TOKEN)",
+          "description": "Environment variable containing the GitHub token (default: `GITHUB_TOKEN`)",
           "type": "string",
           "default": "GITHUB_TOKEN"
         }
@@ -1242,7 +1301,7 @@
           "default": false
         },
         "token_env": {
-          "description": "Environment variable containing the GitLab token (default: GITLAB_TOKEN)",
+          "description": "Environment variable containing the GitLab token (default: `GITLAB_TOKEN`)",
           "type": "string",
           "default": "GITLAB_TOKEN"
         },
@@ -1257,7 +1316,7 @@
       }
     },
     "KanbanConfig": {
-      "description": "Kanban provider configuration for syncing issues from external systems\n\nProviders are keyed by domain/workspace:\n- Jira: keyed by domain (e.g., \"foobar.atlassian.net\")\n- Linear: keyed by workspace slug (e.g., \"myworkspace\")",
+      "description": "Kanban provider configuration for syncing issues from external systems\n\nProviders are keyed by domain/workspace:\n- Jira: keyed by domain (e.g., \"foobar.atlassian.net\")\n- Linear: keyed by workspace slug (e.g., \"myworkspace\")\n- GitHub Projects: keyed by owner login (e.g., \"my-org\")",
       "type": "object",
       "properties": {
         "jira": {
@@ -1275,11 +1334,19 @@
             "$ref": "#/$defs/LinearConfig"
           },
           "default": {}
+        },
+        "github": {
+          "description": "GitHub Projects v2 instances keyed by owner login (user or org)\n\nNOTE: This is the *kanban* GitHub integration (Projects v2), distinct\nfrom `GitHubConfig` which is the *git provider* used for PRs and\nbranches. The two use different env vars and different scopes — see\n`docs/getting-started/kanban/github.md` for the full disambiguation.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/GithubProjectsConfig"
+          },
+          "default": {}
         }
       }
     },
     "JiraConfig": {
-      "description": "Jira Cloud provider configuration\n\nThe domain is specified as the HashMap key in KanbanConfig.jira",
+      "description": "Jira Cloud provider configuration\n\nThe domain is specified as the `HashMap` key in KanbanConfig.jira",
       "type": "object",
       "properties": {
         "enabled": {
@@ -1288,13 +1355,14 @@
           "default": false
         },
         "api_key_env": {
-          "description": "Environment variable name containing the API key (default: OPERATOR_JIRA_API_KEY)",
+          "description": "Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`)",
           "type": "string",
           "default": "OPERATOR_JIRA_API_KEY"
         },
         "email": {
           "description": "Atlassian account email for authentication",
-          "type": "string"
+          "type": "string",
+          "default": ""
         },
         "projects": {
           "description": "Per-project sync configuration",
@@ -1304,17 +1372,14 @@
           },
           "default": {}
         }
-      },
-      "required": [
-        "email"
-      ]
+      }
     },
     "ProjectSyncConfig": {
       "description": "Per-project/team sync configuration for a kanban provider",
       "type": "object",
       "properties": {
         "sync_user_id": {
-          "description": "User ID to sync issues for (provider-specific format)\n- Jira: accountId (e.g., \"5e3f7acd9876543210abcdef\")\n- Linear: user ID (e.g., \"abc12345-6789-0abc-def0-123456789abc\")",
+          "description": "User ID to sync issues for (provider-specific format)\n- Jira: accountId (e.g., \"5e3f7acd9876543210abcdef\")\n- Linear: user ID (e.g., \"abc12345-6789-0abc-def0-123456789abc\")\n- GitHub Projects: numeric GitHub `databaseId` (e.g., \"12345678\")",
           "type": "string",
           "default": ""
         },
@@ -1327,12 +1392,14 @@
           "default": []
         },
         "collection_name": {
-          "description": "IssueTypeCollection name this project maps to",
-          "type": "string",
-          "default": ""
+          "description": "Optional `IssueTypeCollection` name this project maps to.\nNot required for kanban onboarding or sync.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "type_mappings": {
-          "description": "Optional explicit mapping overrides: external issue type name → operator issue type key\nWhen empty, convention-based auto-matching is used (Bug→FIX, Story→FEAT, etc.)",
+          "description": "Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX).\nMultiple kanban types can map to the same operator template.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -1342,7 +1409,7 @@
       }
     },
     "LinearConfig": {
-      "description": "Linear provider configuration\n\nThe workspace slug is specified as the HashMap key in KanbanConfig.linear",
+      "description": "Linear provider configuration\n\nThe workspace slug is specified as the `HashMap` key in KanbanConfig.linear",
       "type": "object",
       "properties": {
         "enabled": {
@@ -1351,12 +1418,36 @@
           "default": false
         },
         "api_key_env": {
-          "description": "Environment variable name containing the API key (default: OPERATOR_LINEAR_API_KEY)",
+          "description": "Environment variable name containing the API key (default: `OPERATOR_LINEAR_API_KEY`)",
           "type": "string",
           "default": "OPERATOR_LINEAR_API_KEY"
         },
         "projects": {
           "description": "Per-team sync configuration",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ProjectSyncConfig"
+          },
+          "default": {}
+        }
+      }
+    },
+    "GithubProjectsConfig": {
+      "description": "GitHub Projects v2 (kanban) provider configuration\n\nThe owner login (user or org) is specified as the `HashMap` key in\n`KanbanConfig.github`. Project keys inside `projects` are `GraphQL` node\nIDs (e.g., `PVT_kwDOABcdefg`) — opaque, stable identifiers used directly\nby every GitHub Projects v2 mutation without needing a lookup.\n\n**Distinct from `GitHubConfig`** (the git provider used for PR/branch\noperations). They live in different parts of the config tree, use\ndifferent env vars (`OPERATOR_GITHUB_TOKEN` vs `GITHUB_TOKEN`), and\nrequire different OAuth scopes (`project` vs `repo`). See\n`docs/getting-started/kanban/github.md` for the full rationale.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether this provider is enabled",
+          "type": "boolean",
+          "default": false
+        },
+        "api_key_env": {
+          "description": "Environment variable name containing the GitHub token (default:\n`OPERATOR_GITHUB_TOKEN`). The token must have `project` (or\n`read:project`) scope, NOT just `repo` — see the disambiguation\nguide in the kanban github docs.",
+          "type": "string",
+          "default": "OPERATOR_GITHUB_TOKEN"
+        },
+        "projects": {
+          "description": "Per-project sync configuration. Keys are `GraphQL` project node IDs.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/ProjectSyncConfig"
@@ -1416,7 +1507,7 @@
           "default": null
         },
         "model_properties": {
-          "description": "Arbitrary model properties (e.g., reasoning_effort, sandbox)",
+          "description": "Arbitrary model properties (e.g., `reasoning_effort`, sandbox)",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -1434,6 +1525,14 @@
             }
           ],
           "default": null
+        },
+        "model_server": {
+          "description": "Name of a declared `ModelServer` (from `Config.model_servers`).\n`None` means use the `llm_tool`'s implicit vendor default\n(claude → anthropic-api, codex → openai-api, gemini → google-api).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [
@@ -1443,7 +1542,7 @@
       ]
     },
     "DelegatorLaunchConfig": {
-      "description": "Launch configuration for a delegator",
+      "description": "Launch configuration for a delegator\n\nControls how the delegator launches agents. Optional fields use tri-state\nsemantics: `None` = inherit from global config, `Some(true/false)` = override.",
       "type": "object",
       "properties": {
         "yolo": {
@@ -1466,8 +1565,98 @@
             "type": "string"
           },
           "default": []
+        },
+        "use_worktrees": {
+          "description": "Override global `git.use_worktrees` per-delegator (None = use global setting)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "create_branch": {
+          "description": "Whether to create a git branch for the ticket (None = default behavior)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "docker": {
+          "description": "Run in docker container (None = use global `launch.docker.enabled`)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "prompt_prefix": {
+          "description": "Prompt text to prepend before the generated step prompt",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "prompt_suffix": {
+          "description": "Prompt text to append after the generated step prompt",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       }
+    },
+    "ModelServer": {
+      "description": "A named host that serves models via an inference API.\n\nModel servers are orthogonal to `llm_tools`: a delegator pairs an agentic CLI\n(`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint\n(`model_server`, e.g. ollama-local, openai-api, a custom vllm host).\n\nImplicit builtin servers (`anthropic-api`, `openai-api`, `google-api`) are\nreturned by [`implicit_model_server_for_tool`] and do not need to be declared\nin config.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Unique name (e.g., \"ollama-local\", \"vllm-gpu1\")",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind: \"ollama\", \"openai-compat\", \"anthropic-api\", \"openai-api\", \"google-api\", \"lmstudio\"",
+          "type": "string"
+        },
+        "base_url": {
+          "description": "Base URL of the inference endpoint (e.g., `http://localhost:11434`).\n`None` for implicit vendor servers means use the SDK default.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "api_key_env": {
+          "description": "Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "extra_env": {
+          "description": "Additional environment variables set when spawning agents that use this server",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "display_name": {
+          "description": "Optional display name for UI",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ]
     }
   }
 }

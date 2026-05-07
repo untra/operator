@@ -193,8 +193,122 @@ impl StepManager {
             );
         }
 
+        // Load step output artifacts into {{ steps.{name}.* }} context
+        let steps_data = Self::load_step_outputs(ticket);
+        if !steps_data.is_empty() {
+            data.insert("steps".to_string(), serde_json::Value::Object(steps_data));
+        }
+
         hbs.render_template(template, &serde_json::Value::Object(data))
             .context("Failed to render step prompt")
+    }
+
+    /// Read a single sub-agent's step output file at
+    /// `{worktree}/.tickets/steps/{step_name}/{key}.json`.
+    ///
+    /// Returns `Value::Null` if the file is missing or can't be parsed;
+    /// callers should treat that as "sub-agent did not produce output".
+    pub fn read_agent_step_output(
+        ticket: &Ticket,
+        step_name: &str,
+        key: &str,
+    ) -> serde_json::Value {
+        let Some(worktree) = ticket.worktree_path.as_deref() else {
+            return serde_json::Value::Null;
+        };
+        let path = std::path::PathBuf::from(worktree)
+            .join(".tickets")
+            .join("steps")
+            .join(step_name)
+            .join(format!("{key}.json"));
+        match std::fs::read_to_string(&path) {
+            Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::Value::Null),
+            Err(_) => serde_json::Value::Null,
+        }
+    }
+
+    /// Write a per-sub-agent output file at
+    /// `{worktree}/.tickets/steps/{step_name}/{key}.json`.
+    pub fn write_agent_step_output(
+        ticket: &Ticket,
+        step_name: &str,
+        key: &str,
+        output: &serde_json::Value,
+    ) -> anyhow::Result<()> {
+        let worktree = ticket
+            .worktree_path
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("ticket {} has no worktree_path", ticket.id))?;
+        let dir = std::path::PathBuf::from(worktree)
+            .join(".tickets")
+            .join("steps")
+            .join(step_name);
+        std::fs::create_dir_all(&dir)
+            .with_context(|| format!("create_dir_all {}", dir.display()))?;
+        let path = dir.join(format!("{key}.json"));
+        let contents = serde_json::to_string_pretty(output)?;
+        std::fs::write(&path, contents).with_context(|| format!("write {}", path.display()))?;
+        Ok(())
+    }
+
+    /// Write the aggregated step output artifact at
+    /// `{worktree}/.tickets/steps/{step_name}.output.json`.
+    /// This is the file `load_step_outputs` reads into `{{ steps.{name}.* }}`.
+    pub fn write_step_output_artifact(
+        ticket: &Ticket,
+        step_name: &str,
+        output: &serde_json::Value,
+    ) -> anyhow::Result<()> {
+        let worktree = ticket
+            .worktree_path
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("ticket {} has no worktree_path", ticket.id))?;
+        let steps_dir = std::path::PathBuf::from(worktree)
+            .join(".tickets")
+            .join("steps");
+        std::fs::create_dir_all(&steps_dir)
+            .with_context(|| format!("create_dir_all {}", steps_dir.display()))?;
+        let path = steps_dir.join(format!("{step_name}.output.json"));
+        let contents = serde_json::to_string_pretty(output)?;
+        std::fs::write(&path, contents).with_context(|| format!("write {}", path.display()))?;
+        Ok(())
+    }
+
+    /// Load step output artifact JSON files from `.tickets/steps/` in the ticket's worktree
+    fn load_step_outputs(ticket: &Ticket) -> serde_json::Map<String, serde_json::Value> {
+        let mut steps_map = serde_json::Map::new();
+
+        let base_path = match &ticket.worktree_path {
+            Some(p) => std::path::PathBuf::from(p),
+            None => return steps_map,
+        };
+
+        let steps_dir = base_path.join(".tickets").join("steps");
+        let entries = match std::fs::read_dir(&steps_dir) {
+            Ok(e) => e,
+            Err(_) => return steps_map,
+        };
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            // Extract step name from "{step_name}.output.json"
+            let filename = match path.file_stem().and_then(|s| s.to_str()) {
+                Some(f) => f.to_string(),
+                None => continue,
+            };
+            let step_name = filename.strip_suffix(".output").unwrap_or(&filename);
+
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
+                    steps_map.insert(step_name.to_string(), value);
+                }
+            }
+        }
+
+        steps_map
     }
 
     /// Get allowed tools for current step
@@ -290,6 +404,7 @@ mod tests {
             step: step.to_string(),
             content: "Test content".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,
@@ -343,5 +458,177 @@ mod tests {
         let progress = manager.format_progress(&ticket);
         assert!(progress.contains("[code]"));
         assert!(progress.contains("plan >"));
+    }
+
+    #[test]
+    fn test_load_step_outputs_no_worktree() {
+        let ticket = make_test_ticket("FEAT", "plan");
+        let outputs = StepManager::load_step_outputs(&ticket);
+        assert!(outputs.is_empty());
+    }
+
+    #[test]
+    fn test_load_step_outputs_with_artifacts() {
+        let tmp = tempfile::tempdir().unwrap();
+        let steps_dir = tmp.path().join(".tickets").join("steps");
+        std::fs::create_dir_all(&steps_dir).unwrap();
+
+        // Write a classifier output artifact
+        std::fs::write(
+            steps_dir.join("classify.output.json"),
+            r#"{"output_type": "enum", "value": "high"}"#,
+        )
+        .unwrap();
+
+        // Write a multi-model output artifact
+        std::fs::write(
+            steps_dir.join("consensus.output.json"),
+            r#"{"winner_response": "Use approach A"}"#,
+        )
+        .unwrap();
+
+        let mut ticket = make_test_ticket("FEAT", "plan");
+        ticket.worktree_path = Some(tmp.path().to_string_lossy().to_string());
+
+        let outputs = StepManager::load_step_outputs(&ticket);
+        assert_eq!(outputs.len(), 2);
+        assert_eq!(outputs["classify"]["value"], "high");
+        assert_eq!(outputs["consensus"]["winner_response"], "Use approach A");
+    }
+
+    #[test]
+    fn test_load_step_outputs_ignores_non_json() {
+        let tmp = tempfile::tempdir().unwrap();
+        let steps_dir = tmp.path().join(".tickets").join("steps");
+        std::fs::create_dir_all(&steps_dir).unwrap();
+
+        std::fs::write(steps_dir.join("notes.txt"), "not json").unwrap();
+        std::fs::write(steps_dir.join("valid.output.json"), r#"{"value": true}"#).unwrap();
+
+        let mut ticket = make_test_ticket("FEAT", "plan");
+        ticket.worktree_path = Some(tmp.path().to_string_lossy().to_string());
+
+        let outputs = StepManager::load_step_outputs(&ticket);
+        assert_eq!(outputs.len(), 1);
+        assert!(outputs.contains_key("valid"));
+    }
+
+    #[test]
+    fn test_render_prompt_with_step_outputs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let steps_dir = tmp.path().join(".tickets").join("steps");
+        std::fs::create_dir_all(&steps_dir).unwrap();
+
+        std::fs::write(
+            steps_dir.join("classify.output.json"),
+            r#"{"value": "critical"}"#,
+        )
+        .unwrap();
+
+        let config = Config::default();
+        let manager = StepManager::new(&config);
+
+        let mut ticket = make_test_ticket("FEAT", "plan");
+        ticket.worktree_path = Some(tmp.path().to_string_lossy().to_string());
+
+        let result = manager
+            .render_prompt("Severity is {{ steps.classify.value }}", &ticket, None)
+            .unwrap();
+
+        assert_eq!(result, "Severity is critical");
+    }
+
+    #[test]
+    fn test_render_prompt_missing_step_output_is_empty() {
+        let config = Config::default();
+        let manager = StepManager::new(&config);
+
+        let ticket = make_test_ticket("FEAT", "plan");
+        let result = manager
+            .render_prompt("Severity is {{ steps.classify.value }}", &ticket, None)
+            .unwrap();
+
+        // strict_mode is false, so missing values render as empty string
+        assert_eq!(result, "Severity is ");
+    }
+
+    // ─── Per-sub-agent artifact tests ─────────────────────────────────
+
+    #[test]
+    fn test_read_agent_step_output_missing_returns_null() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut ticket = make_test_ticket("FEAT", "plan");
+        ticket.worktree_path = Some(tmp.path().to_string_lossy().to_string());
+
+        let out = StepManager::read_agent_step_output(&ticket, "review", "agent-A");
+        assert_eq!(out, serde_json::Value::Null);
+    }
+
+    #[test]
+    fn test_read_agent_step_output_no_worktree_returns_null() {
+        let ticket = make_test_ticket("FEAT", "plan");
+        let out = StepManager::read_agent_step_output(&ticket, "review", "agent-A");
+        assert_eq!(out, serde_json::Value::Null);
+    }
+
+    #[test]
+    fn test_write_and_read_agent_step_output_roundtrip() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut ticket = make_test_ticket("FEAT", "plan");
+        ticket.worktree_path = Some(tmp.path().to_string_lossy().to_string());
+
+        let payload = serde_json::json!({
+            "summary": "looks good",
+            "score": 87,
+        });
+
+        StepManager::write_agent_step_output(&ticket, "review", "agent-A", &payload).unwrap();
+
+        // File exists at expected path
+        let expected = tmp
+            .path()
+            .join(".tickets")
+            .join("steps")
+            .join("review")
+            .join("agent-A.json");
+        assert!(
+            expected.exists(),
+            "output file should exist at {expected:?}"
+        );
+
+        let round = StepManager::read_agent_step_output(&ticket, "review", "agent-A");
+        assert_eq!(round, payload);
+    }
+
+    #[test]
+    fn test_write_step_output_artifact_creates_file_read_by_load_step_outputs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut ticket = make_test_ticket("FEAT", "plan");
+        ticket.worktree_path = Some(tmp.path().to_string_lossy().to_string());
+
+        let aggregated = serde_json::json!({
+            "type": "multi_model",
+            "winner_response": "Use approach A",
+        });
+
+        StepManager::write_step_output_artifact(&ticket, "consensus", &aggregated).unwrap();
+
+        // load_step_outputs picks it up under the step name
+        let outputs = StepManager::load_step_outputs(&ticket);
+        assert_eq!(outputs.len(), 1);
+        assert_eq!(outputs["consensus"]["winner_response"], "Use approach A");
+    }
+
+    #[test]
+    fn test_write_agent_step_output_without_worktree_errors() {
+        let ticket = make_test_ticket("FEAT", "plan");
+        let err = StepManager::write_agent_step_output(
+            &ticket,
+            "review",
+            "agent-A",
+            &serde_json::json!({}),
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("worktree_path"));
     }
 }

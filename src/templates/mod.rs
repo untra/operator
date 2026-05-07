@@ -6,6 +6,7 @@
 #![allow(dead_code)] // Registry helper functions used when registry is integrated
 
 pub mod schema;
+pub mod step_type;
 
 use crate::issuetypes::IssueTypeRegistry;
 use schema::TemplateSchema;

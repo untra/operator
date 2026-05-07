@@ -85,8 +85,12 @@ pub fn launch_in_cmux_with_options(
     cmux.check_in_cmux()
         .map_err(|e| anyhow::anyhow!("Not running inside cmux: {e}"))?;
 
-    // Create session name from ticket ID
-    let session_name = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    // Create session name from ticket ID, with suffix for multi-agent fan-out
+    let base = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    let session_name = match &options.session_suffix {
+        Some(sfx) => format!("{base}-{}", sanitize_session_name(sfx)),
+        None => base,
+    };
 
     // Resolve placement policy
     let (window_ref, _new_window) = resolve_placement(cmux, config.sessions.cmux.placement)?;
@@ -152,6 +156,7 @@ pub fn launch_in_cmux_with_options(
         &prompt_file,
         Some(ticket),
         Some(project_path),
+        options.operator_relay,
     )?;
 
     if options.yolo_mode {
@@ -164,6 +169,15 @@ pub fn launch_in_cmux_with_options(
 
     // Write the command to a shell script file
     let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+
+    // Inject relay env vars so agents can find the hub and register with their ticket ID
+    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+        let export_cmd = format!(
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}\n",
+            ticket.id
+        );
+        let _ = cmux.send_text(&workspace_ref, &export_cmd);
+    }
 
     // Send the command to the cmux workspace
     let bash_cmd = format!("bash {}\n", command_file.display());
@@ -291,6 +305,7 @@ pub fn launch_in_cmux_with_relaunch_options(
         &prompt_file,
         Some(ticket),
         Some(project_path),
+        options.launch_options.operator_relay,
     )?;
 
     if is_resume {
@@ -310,6 +325,13 @@ pub fn launch_in_cmux_with_relaunch_options(
 
     // Write and send command
     let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+        let export_cmd = format!(
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}\n",
+            ticket.id
+        );
+        let _ = cmux.send_text(&workspace_ref, &export_cmd);
+    }
     let bash_cmd = format!("bash {}\n", command_file.display());
     if let Err(e) = cmux.send_text(&workspace_ref, &bash_cmd) {
         let _ = cmux.close_workspace(&workspace_ref);

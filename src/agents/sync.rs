@@ -109,7 +109,23 @@ impl TicketSessionSync {
         let tickets = queue.list_in_progress()?;
 
         for mut ticket in tickets {
-            // Find the corresponding agent
+            // If this ticket has an active multi-agent group, route sub-agent
+            // completions through group-aware aggregation instead of the
+            // per-agent single-agent path.
+            if state.get_group_for_ticket(&ticket.id).is_some() {
+                if let Err(e) =
+                    self.sync_multi_agent_ticket(&mut ticket, state, health_result, &mut result)
+                {
+                    result.errors.push(format!(
+                        "Failed to sync multi-agent ticket {}: {e}",
+                        ticket.id
+                    ));
+                }
+                result.synced += 1;
+                continue;
+            }
+
+            // Find the corresponding agent (single-agent path)
             if let Some(agent) = state.agent_by_ticket(&ticket.id) {
                 let agent_id = agent.id.clone();
                 let session_name = agent.session_name.clone().unwrap_or_default();
@@ -327,6 +343,185 @@ impl TicketSessionSync {
         }
 
         Ok(result)
+    }
+
+    /// Sync a multi-agent ticket: iterate each sub-agent in the group,
+    /// collect their outputs, and when all `expected_total` sub-agents
+    /// have reported, aggregate + write artifact + advance the step once.
+    fn sync_multi_agent_ticket(
+        &mut self,
+        ticket: &mut Ticket,
+        state: &mut State,
+        health_result: &HealthCheckResult,
+        result: &mut SyncResult,
+    ) -> Result<()> {
+        use crate::state::MultiAgentPhase;
+        use crate::steps::manager::StepManager;
+        use crate::templates::step_type;
+
+        // Snapshot the group so we can iterate without holding a borrow on state.
+        let group = state
+            .get_group_for_ticket(&ticket.id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("group vanished while syncing ticket {}", ticket.id))?;
+
+        let group_id = group.group_id.clone();
+        let step_name = group.step_name.clone();
+
+        // Only process sub-agents while the group is still in fan-out phase.
+        if group.phase != MultiAgentPhase::FanOut {
+            return Ok(());
+        }
+
+        // Process each launched sub-agent's health-check action.
+        let agent_ids = group.agent_ids.clone();
+        for agent_id in &agent_ids {
+            let session_name = state
+                .agents
+                .iter()
+                .find(|a| &a.id == agent_id)
+                .and_then(|a| a.session_name.clone())
+                .unwrap_or_default();
+
+            let action = self.determine_action(ticket, &session_name, health_result);
+            match action {
+                SyncAction::StepCompleted => {
+                    // Read this sub-agent's output file (keyed by the
+                    // agent_id the REST handler used when writing it).
+                    let output = StepManager::read_agent_step_output(ticket, &step_name, agent_id);
+                    let all_done = state.record_agent_output(agent_id, output)?;
+
+                    // Mark this sub-agent as completing so we stop polling it.
+                    state.update_agent_status(
+                        agent_id,
+                        "completing",
+                        Some("sub-agent complete".to_string()),
+                    )?;
+                    let _ = self.tmux.reset_silence_flag(&session_name);
+
+                    if all_done {
+                        // Re-fetch the now-fully-populated group to aggregate.
+                        let finished =
+                            state
+                                .get_group_for_ticket(&ticket.id)
+                                .cloned()
+                                .ok_or_else(|| {
+                                    anyhow::anyhow!("group {group_id} missing after all_done")
+                                })?;
+
+                        // Load the step schema to get the config for aggregation.
+                        let step_schema = ticket.current_step_schema();
+                        let aggregated = match group.step_type.as_str() {
+                            "multi_model" => step_schema
+                                .as_ref()
+                                .and_then(|s| s.multi_model_config.as_ref())
+                                .map_or(serde_json::Value::Null, |cfg| {
+                                    step_type::aggregate_multi_model(
+                                        &finished.individual_outputs,
+                                        cfg,
+                                    )
+                                }),
+                            "multi_prompt" => step_schema
+                                .as_ref()
+                                .and_then(|s| s.multi_prompt_config.as_ref())
+                                .map_or(serde_json::Value::Null, |cfg| {
+                                    step_type::aggregate_multi_prompt(
+                                        &finished.individual_outputs,
+                                        cfg,
+                                    )
+                                }),
+                            "matrixed" => step_schema
+                                .as_ref()
+                                .and_then(|s| s.matrixed_config.as_ref())
+                                .map_or(serde_json::Value::Null, |cfg| {
+                                    step_type::aggregate_matrixed(
+                                        &finished.individual_outputs,
+                                        cfg,
+                                        &step_name,
+                                    )
+                                }),
+                            other => {
+                                tracing::warn!(
+                                    step_type = other,
+                                    "unknown multi-agent step_type, skipping aggregation"
+                                );
+                                serde_json::Value::Null
+                            }
+                        };
+
+                        // Persist the aggregated artifact for the next step to read.
+                        StepManager::write_step_output_artifact(ticket, &step_name, &aggregated)?;
+
+                        // Mark the group complete with the aggregated result.
+                        state.complete_group(&group_id, aggregated)?;
+
+                        // Advance the ticket's step exactly once for the group.
+                        let step_display = ticket.current_step_display_name();
+                        match ticket.advance_step() {
+                            Ok(StepAdvanceResult::Advanced { step, .. }) => {
+                                if let Err(e) = ticket.append_history(&format!(
+                                    "- **{}** - Multi-agent step \"{}\" completed, advancing to \"{}\"",
+                                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                                    step_display,
+                                    step,
+                                )) {
+                                    result.errors.push(format!(
+                                        "Failed to add history for {}: {e}",
+                                        ticket.id
+                                    ));
+                                }
+                                tracing::info!(
+                                    ticket_id = %ticket.id,
+                                    step = %step_display,
+                                    next = %step,
+                                    "Multi-agent step aggregated, advanced"
+                                );
+                            }
+                            Ok(StepAdvanceResult::FinalStep) => {
+                                tracing::info!(
+                                    ticket_id = %ticket.id,
+                                    step = %step_display,
+                                    "Multi-agent final step completed"
+                                );
+                            }
+                            Err(e) => {
+                                result
+                                    .errors
+                                    .push(format!("Failed to advance step for {}: {e}", ticket.id));
+                            }
+                        }
+
+                        // Remove all sub-agent records now that the group is done.
+                        for aid in &agent_ids {
+                            state.remove_agent(aid)?;
+                        }
+                        state.cleanup_finished_groups()?;
+
+                        result.completed.push(ticket.id.clone());
+                        // Other sub-agents (if any) were already completing;
+                        // we've recorded the aggregation, exit the loop.
+                        break;
+                    }
+                }
+                SyncAction::TimedOut | SyncAction::Hung => {
+                    tracing::warn!(
+                        ticket_id = %ticket.id,
+                        agent_id = %agent_id,
+                        action = ?action,
+                        "Multi-agent sub-agent stuck (will not advance step)"
+                    );
+                }
+                SyncAction::UpdatedStatus(new_status) => {
+                    state.update_agent_status(agent_id, &new_status, None)?;
+                }
+                // Awaiting / resumed / no-change: ignore at group level for v1.
+                SyncAction::NoChange
+                | SyncAction::MovedToAwaiting
+                | SyncAction::ResumedFromAwaiting => {}
+            }
+        }
+
+        Ok(())
     }
 
     /// Determine what sync action to take for a ticket based on health check results
@@ -669,6 +864,7 @@ mod tests {
             step: "plan".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,
@@ -705,6 +901,7 @@ mod tests {
             step: "plan".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,
@@ -741,6 +938,7 @@ mod tests {
             step: "implement".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,
@@ -779,6 +977,7 @@ mod tests {
             step: "test".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,
@@ -817,6 +1016,7 @@ mod tests {
             step: "plan".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,
@@ -854,6 +1054,7 @@ mod tests {
             step: "plan".to_string(),
             content: "# Test".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,

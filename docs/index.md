@@ -40,6 +40,8 @@ Welcome friend! <span class="operator-brand">Operator!</span> is an application 
 These are tools that comparable and aspirational for Operator
 
 - [agtx](https://github.com/fynnfluegge/agtx)
+- [claude-relay](https://github.com/Innestic/claude-relay)
+- [gastown](https://github.com/gastownhall/gastown)
 
 ## Similar, but Worse:
 

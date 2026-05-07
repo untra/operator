@@ -7,10 +7,12 @@
 mod github_projects;
 mod jira;
 mod linear;
+pub mod onboarding;
 
 pub use github_projects::{GithubProjectInfo, GithubProjectsProvider, GithubValidationDetails};
 pub use jira::{JiraProvider, JiraValidationDetails};
 pub use linear::{LinearProvider, LinearTeamInfo, LinearValidationDetails};
+pub use onboarding::{DiscoveredProject, KanbanOnboarding, ValidatedWorkspace, WorkspaceExtra};
 
 // Re-export Jira API response types for schema/binding generation
 pub use jira::{
@@ -132,6 +134,20 @@ pub struct UpdateStatusRequest {
     pub status: String,
 }
 
+/// A single agent activity record to append to an upstream kanban issue.
+/// Used by bidirectional sync to track which AI delegator worked each step.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityLogEntry {
+    /// Step name (e.g., "plan", "build", "test")
+    pub step: String,
+    /// Delegator name/model that worked this step (e.g., "claude-opus-4-7")
+    pub delegator: String,
+    /// When the step completed (UTC)
+    pub completed_at: chrono::DateTime<chrono::Utc>,
+    /// Optional step summary from `OperatorOutput` (max ~500 chars)
+    pub summary: Option<String>,
+}
+
 /// Trait for kanban providers that can export issue types and sync work items
 #[async_trait]
 pub trait KanbanProvider: Send + Sync {
@@ -190,6 +206,33 @@ pub trait KanbanProvider: Send + Sync {
         issue_key: &str,
         request: UpdateStatusRequest,
     ) -> Result<ExternalIssue, ApiError>;
+
+    /// Apply labels to an upstream issue without removing existing labels.
+    ///
+    /// Provider implementations may need to create labels that do not exist yet.
+    /// Default: no-op (returns `Ok(())`).
+    async fn update_issue_labels(
+        &self,
+        issue_key: &str,
+        labels: &[String],
+    ) -> Result<(), ApiError> {
+        let _ = (issue_key, labels);
+        Ok(())
+    }
+
+    /// Append an agent activity entry to the upstream issue.
+    ///
+    /// Implementations append (not replace) a structured log entry — as a comment
+    /// on Jira/Linear, or as a body update on GitHub draft issues.
+    /// Default: no-op (returns `Ok(())`).
+    async fn append_activity_log(
+        &self,
+        issue_key: &str,
+        entry: &ActivityLogEntry,
+    ) -> Result<(), ApiError> {
+        let _ = (issue_key, entry);
+        Ok(())
+    }
 }
 
 /// Detect which kanban providers are configured based on environment variables

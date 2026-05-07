@@ -44,21 +44,21 @@ Claude Code requires an API key or Claude Pro subscription. Set up authenticatio
 claude auth login
 ```
 
-## Troubleshooting
+## Multi-agent relay
 
-### Claude not found
+Agents launched by Operator can participate in the relay hub when the hub is running.
+As long as the delegator (or global config) has enabled relay MCP injection.
 
-Ensure Claude is in your PATH:
+When relay is enabled for a delegator, Operator:
 
-```bash
-which claude
-```
+1. Injects `RELAY_HUB_SOCKET` and `RELAY_AGENT_NAME` (the ticket ID,
+   e.g. `FEAT-042`) into the session environment.
+2. Writes a per-session `relay-mcp.json` config and passes
+   `--mcp-config <path>` to Claude Code, so the `relay` MCP server starts alongside the agent.
 
-### Authentication errors
+To enable relay for a delegator, set `operator_relay = true` in its
+`launch_config`. The global default is `false` (opt-in), so single-agent
+workflows stay lean unless relay is explicitly requested.
 
-Re-authenticate with:
+See [Relay](/docs/relay/) for the full architecture.
 
-```bash
-claude auth logout
-claude auth login
-```

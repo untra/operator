@@ -31,12 +31,20 @@
       "default": {}
     },
     "project_collection_prefs": {
-      "description": "Per-project issue type collection preferences (project_name -> collection_name)",
+      "description": "Per-project issue type collection preferences (`project_name` -> `collection_name`)",
       "type": "object",
       "additionalProperties": {
         "type": "string"
       },
       "default": {}
+    },
+    "multi_agent_groups": {
+      "description": "Active multi-agent step groups (`multi_model`, `multi_prompt`, `matrixed`)",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/MultiAgentGroup"
+      },
+      "default": []
     }
   },
   "required": [
@@ -96,24 +104,24 @@
           ],
           "default": null
         },
-        "cmux_window_ref": {
-          "description": "cmux window reference ID",
+        "session_window_ref": {
+          "description": "Session window reference ID (top-level grouping: cmux window, tmux session, etc.)",
           "type": [
             "string",
             "null"
           ],
           "default": null
         },
-        "cmux_workspace_ref": {
-          "description": "cmux workspace reference ID",
+        "session_context_ref": {
+          "description": "Session context reference ID (mid-level: cmux workspace, tmux window, etc.)",
           "type": [
             "string",
             "null"
           ],
           "default": null
         },
-        "cmux_surface_ref": {
-          "description": "cmux surface reference ID",
+        "session_pane_ref": {
+          "description": "Session pane reference ID (leaf-level: cmux surface, tmux pane, etc.)",
           "type": [
             "string",
             "null"
@@ -181,7 +189,7 @@
           "default": null
         },
         "pr_status": {
-          "description": "Last known PR status (\"open\", \"approved\", \"changes_requested\", \"merged\", \"closed\")",
+          "description": "Last known PR status (\"open\", \"approved\", \"`changes_requested`\", \"merged\", \"closed\")",
           "type": [
             "string",
             "null"
@@ -221,7 +229,7 @@
           "default": null
         },
         "review_state": {
-          "description": "Review state for awaiting_input agents\nValues: \"pending_plan\", \"pending_visual\", \"pending_pr_creation\", \"pending_pr_merge\"",
+          "description": "Review state for `awaiting_input` agents\nValues: \"`pending_plan`\", \"`pending_visual`\", \"`pending_pr_creation`\", \"`pending_pr_merge`\"",
           "type": [
             "string",
             "null"
@@ -436,6 +444,128 @@
       },
       "required": [
         "model"
+      ]
+    },
+    "MultiAgentGroup": {
+      "description": "Tracks a group of agents working on a single multi-agent step",
+      "type": "object",
+      "properties": {
+        "group_id": {
+          "description": "Unique group identifier",
+          "type": "string"
+        },
+        "ticket_id": {
+          "description": "Ticket this group belongs to",
+          "type": "string"
+        },
+        "step_name": {
+          "description": "Step name being executed",
+          "type": "string"
+        },
+        "step_type": {
+          "description": "Step type (`multi_model`, `multi_prompt`, `matrixed`)",
+          "type": "string"
+        },
+        "agent_ids": {
+          "description": "Agent IDs in this group (populated as sub-agents launch)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "phase": {
+          "description": "Current execution phase",
+          "$ref": "#/$defs/MultiAgentPhase"
+        },
+        "individual_outputs": {
+          "description": "Collected outputs from completed sub-agents, keyed by `variant_key`\n(delegator name for `multi_model`, index for `multi_prompt`,\n`{delegator}:{prompt_idx}` for `matrixed`).",
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "aggregated_output": {
+          "description": "Final aggregated output (set when phase = Complete)",
+          "default": null
+        },
+        "expected_total": {
+          "description": "Total sub-agents expected (`agent_ids.len() + pending_launches.len()`).",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 0
+        },
+        "pending_launches": {
+          "description": "Sub-agents that still need launching (waiting for a free slot).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PendingSubAgent"
+          },
+          "default": []
+        },
+        "agent_variant_keys": {
+          "description": "Maps launched `agent_id` to the `variant_key` used as the output key.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      },
+      "required": [
+        "group_id",
+        "ticket_id",
+        "step_name",
+        "step_type",
+        "agent_ids",
+        "phase"
+      ]
+    },
+    "MultiAgentPhase": {
+      "description": "Execution phase for a multi-agent group",
+      "oneOf": [
+        {
+          "description": "Phase 1: all sub-agents running the initial prompt",
+          "type": "string",
+          "const": "fan_out"
+        },
+        {
+          "description": "Phase 2: voting/selection round (`multi_model` with `share_answers`)",
+          "type": "string",
+          "const": "voting"
+        },
+        {
+          "description": "All done, aggregated output ready",
+          "type": "string",
+          "const": "complete"
+        },
+        {
+          "description": "One or more sub-agents failed",
+          "type": "string",
+          "const": "failed"
+        }
+      ]
+    },
+    "PendingSubAgent": {
+      "description": "A sub-agent that has been planned but not yet launched (slot queue).",
+      "type": "object",
+      "properties": {
+        "delegator_name": {
+          "description": "Delegator (from `config.delegators`) this sub-agent should use.",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Fully-rendered prompt text for this sub-agent.",
+          "type": "string"
+        },
+        "variant_key": {
+          "description": "Key under which this sub-agent's output is recorded (see `individual_outputs`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "delegator_name",
+        "prompt",
+        "variant_key"
       ]
     }
   }

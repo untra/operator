@@ -12,6 +12,10 @@ use crate::backstage::BackstageServer;
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
 use crate::notifications::NotificationService;
+#[cfg(unix)]
+use crate::relay::hub::RelayHub;
+#[cfg(unix)]
+use crate::relay::socket_path::hub_socket_path;
 use crate::rest::RestApiServer;
 use crate::services::{KanbanSyncService, PrMonitorService, PrStatusEvent, TrackedPr};
 use crate::ui::create_dialog::CreateDialog;
@@ -108,10 +112,13 @@ pub struct App {
     pub(crate) version_rx: mpsc::UnboundedReceiver<String>,
     /// True if REST API port was in use at startup (another instance may be running)
     pub(crate) api_port_conflict: bool,
+    /// Relay hub handle (None if hub failed to start or another instance is running)
+    #[cfg(unix)]
+    pub(crate) relay_hub: Option<RelayHub>,
 }
 
 impl App {
-    pub fn new(mut config: Config, start_web: bool) -> Result<Self> {
+    pub async fn new(mut config: Config, start_web: bool) -> Result<Self> {
         // Run LLM tool detection on first startup
         if !config.llm_tools.detection_complete {
             tracing::info!("Detecting LLM CLI tools...");
@@ -267,6 +274,21 @@ impl App {
         let kanban_sync_service = KanbanSyncService::new(&config);
         let help_dialog = HelpDialog::new(config.sessions.wrapper);
 
+        // Start the relay hub embedded in this process
+        #[cfg(unix)]
+        let relay_hub = match RelayHub::start(hub_socket_path()).await {
+            Ok(hub) => {
+                // Export socket path so child processes (agents) can find the hub
+                std::env::set_var("RELAY_HUB_SOCKET", hub.socket_path());
+                tracing::info!(socket = %hub.socket_path().display(), "Relay hub started");
+                Some(hub)
+            }
+            Err(e) => {
+                tracing::warn!("Relay hub failed to start (another instance may be running): {e}");
+                None
+            }
+        };
+
         Ok(Self {
             config,
             dashboard,
@@ -303,6 +325,8 @@ impl App {
             update_notification_shown_at: None,
             version_rx,
             api_port_conflict: false,
+            #[cfg(unix)]
+            relay_hub,
             tmux_client,
         })
     }
@@ -459,6 +483,12 @@ impl App {
         }
 
         // Terminal cleanup is handled by _terminal_guard drop
+
+        // Shut down relay hub before exit
+        #[cfg(unix)]
+        if let Some(hub) = self.relay_hub.take() {
+            hub.shutdown().await;
+        }
 
         // Check for exit message (unimplemented features)
         if let Some(message) = &self.exit_message {

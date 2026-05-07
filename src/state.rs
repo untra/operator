@@ -28,6 +28,10 @@ pub struct State {
     #[serde(default)]
     pub project_collection_prefs: HashMap<String, String>,
 
+    /// Active multi-agent step groups (`multi_model`, `multi_prompt`, `matrixed`)
+    #[serde(default)]
+    pub multi_agent_groups: Vec<MultiAgentGroup>,
+
     #[serde(skip)]
     #[ts(skip)]
     state_path: PathBuf,
@@ -134,6 +138,69 @@ pub struct OrphanSession {
     pub attached: bool,
 }
 
+/// Tracks a group of agents working on a single multi-agent step
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct MultiAgentGroup {
+    /// Unique group identifier
+    pub group_id: String,
+    /// Ticket this group belongs to
+    pub ticket_id: String,
+    /// Step name being executed
+    pub step_name: String,
+    /// Step type (`multi_model`, `multi_prompt`, `matrixed`)
+    pub step_type: String,
+    /// Agent IDs in this group (populated as sub-agents launch)
+    pub agent_ids: Vec<String>,
+    /// Current execution phase
+    pub phase: MultiAgentPhase,
+    /// Collected outputs from completed sub-agents, keyed by `variant_key`
+    /// (delegator name for `multi_model`, index for `multi_prompt`,
+    /// `{delegator}:{prompt_idx}` for `matrixed`).
+    #[serde(default)]
+    pub individual_outputs: HashMap<String, serde_json::Value>,
+    /// Final aggregated output (set when phase = Complete)
+    #[serde(default)]
+    pub aggregated_output: Option<serde_json::Value>,
+    /// Total sub-agents expected (`agent_ids.len() + pending_launches.len()`).
+    #[serde(default)]
+    pub expected_total: usize,
+    /// Sub-agents that still need launching (waiting for a free slot).
+    #[serde(default)]
+    pub pending_launches: Vec<PendingSubAgent>,
+    /// Maps launched `agent_id` to the `variant_key` used as the output key.
+    #[serde(default)]
+    pub agent_variant_keys: HashMap<String, String>,
+}
+
+/// A sub-agent that has been planned but not yet launched (slot queue).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct PendingSubAgent {
+    /// Delegator (from `config.delegators`) this sub-agent should use.
+    pub delegator_name: String,
+    /// Fully-rendered prompt text for this sub-agent.
+    pub prompt: String,
+    /// Key under which this sub-agent's output is recorded (see `individual_outputs`).
+    pub variant_key: String,
+}
+
+/// Execution phase for a multi-agent group
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum MultiAgentPhase {
+    /// Phase 1: all sub-agents running the initial prompt
+    #[default]
+    FanOut,
+    /// Phase 2: voting/selection round (`multi_model` with `share_answers`)
+    Voting,
+    /// All done, aggregated output ready
+    Complete,
+    /// One or more sub-agents failed
+    Failed,
+}
+
 impl State {
     pub fn load(config: &Config) -> Result<Self> {
         let state_path = config.state_path();
@@ -154,6 +221,7 @@ impl State {
                 completed: Vec::new(),
                 project_llm_stats: HashMap::new(),
                 project_collection_prefs: HashMap::new(),
+                multi_agent_groups: Vec::new(),
                 state_path,
             })
         }
@@ -761,6 +829,153 @@ impl State {
             .map(|(k, v)| (k.as_str(), v.as_str()))
             .collect()
     }
+
+    // ── Multi-agent group management ────────────────────────────────
+
+    /// Create a new multi-agent group with all sub-agents still pending.
+    ///
+    /// `expected_total` is taken as `pending.len()`. Sub-agents are moved out of
+    /// `pending_launches` and into `agent_ids` via `mark_launched` as slots open.
+    pub fn create_multi_agent_group(
+        &mut self,
+        ticket_id: &str,
+        step_name: &str,
+        step_type: &str,
+        pending: Vec<PendingSubAgent>,
+    ) -> Result<String> {
+        let group_id = Uuid::new_v4().to_string();
+        let expected_total = pending.len();
+        let group = MultiAgentGroup {
+            group_id: group_id.clone(),
+            ticket_id: ticket_id.to_string(),
+            step_name: step_name.to_string(),
+            step_type: step_type.to_string(),
+            agent_ids: Vec::new(),
+            phase: MultiAgentPhase::FanOut,
+            individual_outputs: HashMap::new(),
+            aggregated_output: None,
+            expected_total,
+            pending_launches: pending,
+            agent_variant_keys: HashMap::new(),
+        };
+        self.multi_agent_groups.push(group);
+        self.save()?;
+        Ok(group_id)
+    }
+
+    /// Find the multi-agent group that contains a given agent ID
+    pub fn get_group_for_agent(&self, agent_id: &str) -> Option<&MultiAgentGroup> {
+        self.multi_agent_groups
+            .iter()
+            .find(|g| g.agent_ids.contains(&agent_id.to_string()))
+    }
+
+    /// Find the multi-agent group for a ticket's current step
+    pub fn get_group_for_ticket(&self, ticket_id: &str) -> Option<&MultiAgentGroup> {
+        self.multi_agent_groups
+            .iter()
+            .find(|g| g.ticket_id == ticket_id && g.phase != MultiAgentPhase::Complete)
+    }
+
+    /// Return the next pending sub-agent for a group (cloned, not removed).
+    ///
+    /// Returns `None` if the group has no pending launches or does not exist.
+    pub fn next_pending_for_group(&self, group_id: &str) -> Option<PendingSubAgent> {
+        self.multi_agent_groups
+            .iter()
+            .find(|g| g.group_id == group_id)
+            .and_then(|g| g.pending_launches.first().cloned())
+    }
+
+    /// Remove the pending entry matching `variant_key` and record the new
+    /// `agent_id` against it. Persists state.
+    pub fn mark_launched(
+        &mut self,
+        group_id: &str,
+        variant_key: &str,
+        agent_id: &str,
+    ) -> Result<()> {
+        if let Some(group) = self
+            .multi_agent_groups
+            .iter_mut()
+            .find(|g| g.group_id == group_id)
+        {
+            if let Some(pos) = group
+                .pending_launches
+                .iter()
+                .position(|p| p.variant_key == variant_key)
+            {
+                group.pending_launches.remove(pos);
+            }
+            group.agent_ids.push(agent_id.to_string());
+            group
+                .agent_variant_keys
+                .insert(agent_id.to_string(), variant_key.to_string());
+            self.save()?;
+        }
+        Ok(())
+    }
+
+    /// Record an individual agent's output in its group, keyed by the
+    /// agent's `variant_key`. Returns `true` when all `expected_total`
+    /// sub-agents have recorded outputs.
+    pub fn record_agent_output(
+        &mut self,
+        agent_id: &str,
+        output: serde_json::Value,
+    ) -> Result<bool> {
+        if let Some(group) = self
+            .multi_agent_groups
+            .iter_mut()
+            .find(|g| g.agent_ids.contains(&agent_id.to_string()))
+        {
+            let variant_key = group
+                .agent_variant_keys
+                .get(agent_id)
+                .cloned()
+                .unwrap_or_else(|| agent_id.to_string());
+            group.individual_outputs.insert(variant_key, output);
+            let all_done = group.individual_outputs.len() >= group.expected_total;
+            self.save()?;
+            Ok(all_done)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Update a multi-agent group's phase
+    pub fn update_group_phase(&mut self, group_id: &str, phase: MultiAgentPhase) -> Result<()> {
+        if let Some(group) = self
+            .multi_agent_groups
+            .iter_mut()
+            .find(|g| g.group_id == group_id)
+        {
+            group.phase = phase;
+            self.save()?;
+        }
+        Ok(())
+    }
+
+    /// Set the aggregated output for a group and mark as complete
+    pub fn complete_group(&mut self, group_id: &str, aggregated: serde_json::Value) -> Result<()> {
+        if let Some(group) = self
+            .multi_agent_groups
+            .iter_mut()
+            .find(|g| g.group_id == group_id)
+        {
+            group.aggregated_output = Some(aggregated);
+            group.phase = MultiAgentPhase::Complete;
+            self.save()?;
+        }
+        Ok(())
+    }
+
+    /// Remove completed/failed groups (cleanup)
+    pub fn cleanup_finished_groups(&mut self) -> Result<()> {
+        self.multi_agent_groups
+            .retain(|g| g.phase != MultiAgentPhase::Complete && g.phase != MultiAgentPhase::Failed);
+        self.save()
+    }
 }
 
 #[cfg(test)]
@@ -1325,5 +1540,179 @@ mod tests {
         // Should not error on nonexistent agent
         let result = state.update_agent_tool_and_model("nonexistent-id", "gemini", "pro");
         assert!(result.is_ok());
+    }
+
+    // ─── Multi-agent group tests ────────────────────────────────────────
+
+    fn pending(variant: &str, delegator: &str) -> PendingSubAgent {
+        PendingSubAgent {
+            delegator_name: delegator.to_string(),
+            prompt: "do the thing".to_string(),
+            variant_key: variant.to_string(),
+        }
+    }
+
+    #[test]
+    fn test_create_group_sets_expected_total_and_pending() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let gid = state
+            .create_multi_agent_group(
+                "FEAT-1",
+                "review",
+                "multi_model",
+                vec![
+                    pending("claude-opus", "claude-opus"),
+                    pending("gemini-pro", "gemini-pro"),
+                ],
+            )
+            .unwrap();
+
+        let group = state
+            .multi_agent_groups
+            .iter()
+            .find(|g| g.group_id == gid)
+            .unwrap();
+        assert_eq!(group.expected_total, 2);
+        assert_eq!(group.pending_launches.len(), 2);
+        assert!(group.agent_ids.is_empty());
+        assert!(group.agent_variant_keys.is_empty());
+    }
+
+    #[test]
+    fn test_mark_launched_moves_pending_to_agent_ids() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let gid = state
+            .create_multi_agent_group(
+                "FEAT-1",
+                "review",
+                "multi_model",
+                vec![
+                    pending("claude-opus", "claude-opus"),
+                    pending("gemini-pro", "gemini-pro"),
+                ],
+            )
+            .unwrap();
+
+        state.mark_launched(&gid, "claude-opus", "agent-A").unwrap();
+
+        let group = state.get_group_for_agent("agent-A").unwrap();
+        assert_eq!(group.agent_ids, vec!["agent-A"]);
+        assert_eq!(group.pending_launches.len(), 1);
+        assert_eq!(group.pending_launches[0].variant_key, "gemini-pro");
+        assert_eq!(
+            group.agent_variant_keys.get("agent-A").unwrap(),
+            "claude-opus"
+        );
+    }
+
+    #[test]
+    fn test_next_pending_returns_first_then_none_after_all_launched() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let gid = state
+            .create_multi_agent_group(
+                "FEAT-1",
+                "review",
+                "multi_model",
+                vec![pending("d1", "d1"), pending("d2", "d2")],
+            )
+            .unwrap();
+
+        let first = state.next_pending_for_group(&gid).unwrap();
+        assert_eq!(first.variant_key, "d1");
+
+        state.mark_launched(&gid, "d1", "agent-A").unwrap();
+        let second = state.next_pending_for_group(&gid).unwrap();
+        assert_eq!(second.variant_key, "d2");
+
+        state.mark_launched(&gid, "d2", "agent-B").unwrap();
+        assert!(state.next_pending_for_group(&gid).is_none());
+    }
+
+    #[test]
+    fn test_record_agent_output_keys_by_variant_and_signals_all_done() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let gid = state
+            .create_multi_agent_group(
+                "FEAT-1",
+                "review",
+                "multi_model",
+                vec![
+                    pending("claude-opus", "claude-opus"),
+                    pending("gemini-pro", "gemini-pro"),
+                ],
+            )
+            .unwrap();
+
+        state.mark_launched(&gid, "claude-opus", "agent-A").unwrap();
+        state.mark_launched(&gid, "gemini-pro", "agent-B").unwrap();
+
+        let done_after_first = state
+            .record_agent_output("agent-A", serde_json::json!({"v": 1}))
+            .unwrap();
+        assert!(!done_after_first, "not done after first agent");
+
+        let done_after_second = state
+            .record_agent_output("agent-B", serde_json::json!({"v": 2}))
+            .unwrap();
+        assert!(done_after_second, "all done after second agent");
+
+        let group = state
+            .multi_agent_groups
+            .iter()
+            .find(|g| g.group_id == gid)
+            .unwrap();
+        // Outputs are keyed by variant_key, not agent_id
+        assert_eq!(
+            group.individual_outputs.get("claude-opus"),
+            Some(&serde_json::json!({"v": 1}))
+        );
+        assert_eq!(
+            group.individual_outputs.get("gemini-pro"),
+            Some(&serde_json::json!({"v": 2}))
+        );
+    }
+
+    #[test]
+    fn test_group_roundtrips_through_disk_with_pending_queue() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let gid = state
+            .create_multi_agent_group(
+                "FEAT-1",
+                "review",
+                "multi_prompt",
+                vec![pending("0", "claude-opus"), pending("1", "claude-opus")],
+            )
+            .unwrap();
+
+        state.mark_launched(&gid, "0", "agent-A").unwrap();
+        // "1" stays pending
+
+        // Reload and verify shape persists
+        let reloaded = State::load(&config).unwrap();
+        let group = reloaded
+            .multi_agent_groups
+            .iter()
+            .find(|g| g.group_id == gid)
+            .unwrap();
+        assert_eq!(group.expected_total, 2);
+        assert_eq!(group.agent_ids, vec!["agent-A"]);
+        assert_eq!(group.pending_launches.len(), 1);
+        assert_eq!(group.pending_launches[0].variant_key, "1");
+        assert_eq!(group.agent_variant_keys.get("agent-A").unwrap(), "0");
     }
 }

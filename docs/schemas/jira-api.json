@@ -117,6 +117,14 @@
       "description": "Reference to an issue type",
       "type": "object",
       "properties": {
+        "id": {
+          "description": "Issue type ID (e.g., \"10001\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "name": {
           "description": "Issue type name (e.g., \"Bug\", \"Story\", \"Task\")",
           "type": "string"

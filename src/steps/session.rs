@@ -62,8 +62,12 @@ impl StepSession {
             .get_step_prompt(ticket, pr_config)
             .context("Failed to get step prompt")?;
 
-        // Build a comprehensive prompt with context
-        let allowed_tools = step.allowed_tools.join(", ");
+        // Use effective allowed_tools (type-specific configs may override)
+        let effective_tools = crate::templates::step_type::effective_allowed_tools(step);
+        let allowed_tools = effective_tools.join(", ");
+
+        // Get step-type-specific prompt augmentation
+        let type_augmentation = crate::templates::step_type::prompt_augmentation(step);
 
         let prompt = format!(
             r#"You are working on step "{}" ({}) for ticket {}.
@@ -80,6 +84,7 @@ impl StepSession {
 
 ## Allowed Tools
 You may use these tools for this step: {}
+{type_augmentation}
 
 ## Guidelines
 - Focus only on completing this specific step
@@ -266,6 +271,7 @@ mod tests {
             step: "plan".to_string(),
             content: "Test content".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,
@@ -279,6 +285,7 @@ mod tests {
         StepSchema {
             name: "plan".to_string(),
             display_name: Some("Planning".to_string()),
+            step_type: crate::templates::schema::StepTypeTag::Task,
             outputs: vec![],
             prompt: "Create a plan".to_string(),
             allowed_tools: vec!["Read".to_string(), "Glob".to_string()],
@@ -293,6 +300,13 @@ mod tests {
             json_schema_file: None,
             artifact_patterns: vec![],
             agent: None,
+            classifier_config: None,
+            rag_config: None,
+            delegator_config: None,
+            mcp_config: None,
+            multi_model_config: None,
+            multi_prompt_config: None,
+            matrixed_config: None,
         }
     }
 

@@ -83,6 +83,7 @@ export class GitSection implements StatusSection {
         command: 'operator.startGitOnboarding',
         title: 'Connect Git Provider',
       },
+      health: this.health(),
     });
   }
 
@@ -112,6 +113,7 @@ export class GitSection implements StatusSection {
           command: providerName === 'gitlab' ? 'operator.configureGitLab' : 'operator.configureGitHub',
           title: 'Set Token',
         },
+        health: this.state.tokenSet ? 'Green' : 'Yellow',
       }));
 
       // Branch Format

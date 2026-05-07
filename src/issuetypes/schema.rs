@@ -1,5 +1,6 @@
 //! Schema definitions for dynamic issue types
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::templates::schema::{
@@ -7,7 +8,7 @@ use crate::templates::schema::{
 };
 
 /// Source of an issue type definition
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum IssueTypeSource {
     /// Built-in to operator binary
@@ -26,7 +27,7 @@ pub enum IssueTypeSource {
 }
 
 /// An issue type definition (dynamic version of `TemplateSchema`)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct IssueType {
     /// Unique issuetype key (e.g., FEAT, FIX, STORY, BUG)
     pub key: String,
@@ -156,6 +157,7 @@ impl IssueType {
             steps: vec![StepSchema {
                 name: "execute".to_string(),
                 display_name: Some("Execute".to_string()),
+                step_type: crate::templates::schema::StepTypeTag::Task,
                 outputs: vec![],
                 prompt: "Execute this task according to the description.".to_string(),
                 allowed_tools: vec!["*".to_string()],
@@ -170,6 +172,13 @@ impl IssueType {
                 json_schema_file: None,
                 artifact_patterns: vec![],
                 agent: None,
+                classifier_config: None,
+                rag_config: None,
+                delegator_config: None,
+                mcp_config: None,
+                multi_model_config: None,
+                multi_prompt_config: None,
+                matrixed_config: None,
             }],
             agent_prompt: None,
             agent: None,
@@ -325,6 +334,7 @@ mod tests {
             steps: vec![StepSchema {
                 name: "execute".to_string(),
                 display_name: Some("Execute".to_string()),
+                step_type: crate::templates::schema::StepTypeTag::Task,
                 outputs: vec![],
                 prompt: "Do the task".to_string(),
                 allowed_tools: vec!["*".to_string()],
@@ -339,6 +349,13 @@ mod tests {
                 json_schema_file: None,
                 artifact_patterns: vec![],
                 agent: None,
+                classifier_config: None,
+                rag_config: None,
+                delegator_config: None,
+                mcp_config: None,
+                multi_model_config: None,
+                multi_prompt_config: None,
+                matrixed_config: None,
             }],
             agent_prompt: None,
             agent: None,

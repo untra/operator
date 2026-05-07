@@ -174,7 +174,7 @@ pr_number: bigint | null,
  */
 github_repo: string | null, 
 /**
- * Current PR status ("open", "approved", "changes_requested", "merged", "closed")
+ * Current PR status ("open", "approved", "`changes_requested`", "merged", "closed")
  */
 pr_status: string | null, 
 /**
@@ -284,7 +284,12 @@ version_check: VersionCheckConfig,
 /**
  * Agent delegator configurations for autonomous ticket launching
  */
-delegators: Array<Delegator>, };
+delegators: Array<Delegator>, 
+/**
+ * User-declared model servers (ollama, lmstudio, any OpenAI-compat host).
+ * Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.
+ */
+model_servers: Array<ModelServer>, };
 
 export type AgentsConfig = { max_parallel: number, cores_reserved: number, health_check_interval: bigint, 
 /**
@@ -332,7 +337,7 @@ worktrees: string, };
 
 export type UiConfig = { refresh_rate_ms: bigint, completed_history_hours: bigint, summary_max_length: number, panel_names: PanelNamesConfig, };
 
-export type PanelNamesConfig = { queue: string, agents: string, awaiting: string, completed: string, };
+export type PanelNamesConfig = { status: string, queue: string, in_progress: string, completed: string, };
 
 export type LaunchConfig = { confirm_autonomous: boolean, confirm_paired: boolean, launch_delay_ms: bigint, 
 /**
@@ -384,6 +389,10 @@ export type BackstageConfig = {
  */
 enabled: boolean, 
 /**
+ * Whether to show Backstage in the Connections status section
+ */
+display: boolean, 
+/**
  * Port for the Backstage server
  */
 port: number, 
@@ -392,7 +401,7 @@ port: number,
  */
 auto_start: boolean, 
 /**
- * Subdirectory within state_path for Backstage installation
+ * Subdirectory within `state_path` for Backstage installation
  */
 subpath: string, 
 /**
@@ -405,7 +414,7 @@ branding_subpath: string,
 release_url: string, 
 /**
  * Optional local path to backstage-server binary
- * If set, this is used instead of downloading from release_url
+ * If set, this is used instead of downloading from `release_url`
  */
 local_binary_path: string | null, 
 /**
@@ -482,7 +491,15 @@ providers: Array<LlmProvider>,
  */
 detection_complete: boolean, 
 /**
- * Per-tool overrides for skill directories (keyed by tool_name)
+ * User's preferred default LLM tool (e.g., "claude")
+ */
+default_tool: string | null, 
+/**
+ * User's preferred default model alias (e.g., "opus")
+ */
+default_model: string | null, 
+/**
+ * Per-tool overrides for skill directories (keyed by `tool_name`)
  */
 skill_directory_overrides: { [key in string]?: SkillDirectoriesOverride }, };
 
@@ -512,7 +529,7 @@ version_ok: boolean,
  */
 model_aliases: Array<string>, 
 /**
- * Command template with {{model}}, {{session_id}}, {{prompt_file}} placeholders
+ * Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders
  */
 command_template: string, 
 /**
@@ -600,13 +617,19 @@ model: string,
  */
 display_name: string | null, 
 /**
- * Arbitrary model properties (e.g., reasoning_effort, sandbox)
+ * Arbitrary model properties (e.g., `reasoning_effort`, sandbox)
  */
 model_properties: { [key in string]?: string }, 
 /**
  * Optional launch configuration
  */
-launch_config: DelegatorLaunchConfig | null, };
+launch_config: DelegatorLaunchConfig | null, 
+/**
+ * Name of a declared `ModelServer` (from `Config.model_servers`).
+ * `None` means use the `llm_tool`'s implicit vendor default
+ * (claude → anthropic-api, codex → openai-api, gemini → google-api).
+ */
+model_server: string | null, };
 
 export type DelegatorLaunchConfig = { 
 /**
@@ -620,14 +643,34 @@ permission_mode: string | null,
 /**
  * Additional CLI flags
  */
-flags: Array<string>, };
+flags: Array<string>, 
+/**
+ * Override global `git.use_worktrees` per-delegator (None = use global setting)
+ */
+use_worktrees: boolean | null, 
+/**
+ * Whether to create a git branch for the ticket (None = default behavior)
+ */
+create_branch: boolean | null, 
+/**
+ * Run in docker container (None = use global `launch.docker.enabled`)
+ */
+docker: boolean | null, 
+/**
+ * Prompt text to prepend before the generated step prompt
+ */
+prompt_prefix: string | null, 
+/**
+ * Prompt text to append after the generated step prompt
+ */
+prompt_suffix: string | null, };
 
 export type CollectionPreset = "simple" | "dev_kanban" | "devops_kanban" | "custom";
 
 export type TemplatesConfig = { 
 /**
  * Named preset for issue type collection
- * Options: simple, dev_kanban, devops_kanban, custom
+ * Options: simple, `dev_kanban`, `devops_kanban`, custom
  */
 preset: CollectionPreset, 
 /**
@@ -671,9 +714,13 @@ export type State = { paused: boolean, agents: Array<AgentState>, completed: Arr
  */
 project_llm_stats: { [key in string]?: ProjectLlmStats }, 
 /**
- * Per-project issue type collection preferences (project_name -> collection_name)
+ * Per-project issue type collection preferences (`project_name` -> `collection_name`)
  */
-project_collection_prefs: { [key in string]?: string }, };
+project_collection_prefs: { [key in string]?: string }, 
+/**
+ * Active multi-agent step groups (`multi_model`, `multi_prompt`, `matrixed`)
+ */
+multi_agent_groups: Array<MultiAgentGroup>, };
 
 export type AgentState = { id: string, ticket_id: string, ticket_type: string, project: string, status: string, started_at: string, last_activity: string, last_message: string | null, paired: boolean, 
 /**
@@ -685,17 +732,17 @@ session_name: string | null,
  */
 session_wrapper: string | null, 
 /**
- * cmux window reference ID
+ * Session window reference ID (top-level grouping: cmux window, tmux session, etc.)
  */
-cmux_window_ref: string | null, 
+session_window_ref: string | null, 
 /**
- * cmux workspace reference ID
+ * Session context reference ID (mid-level: cmux workspace, tmux window, etc.)
  */
-cmux_workspace_ref: string | null, 
+session_context_ref: string | null, 
 /**
- * cmux surface reference ID
+ * Session pane reference ID (leaf-level: cmux surface, tmux pane, etc.)
  */
-cmux_surface_ref: string | null, 
+session_pane_ref: string | null, 
 /**
  * Hash of the last captured pane content (for change detection)
  */
@@ -725,7 +772,7 @@ pr_number: bigint | null,
  */
 github_repo: string | null, 
 /**
- * Last known PR status ("open", "approved", "changes_requested", "merged", "closed")
+ * Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed")
  */
 pr_status: string | null, 
 /**
@@ -745,8 +792,8 @@ llm_model: string | null,
  */
 launch_mode: string | null, 
 /**
- * Review state for awaiting_input agents
- * Values: "pending_plan", "pending_visual", "pending_pr_creation", "pending_pr_merge"
+ * Review state for `awaiting_input` agents
+ * Values: "`pending_plan`", "`pending_visual`", "`pending_pr_creation`", "`pending_pr_merge`"
  */
 review_state: string | null, 
 /**
@@ -846,6 +893,10 @@ display_name: string | null,
  */
 model_properties: { [key in string]?: string }, 
 /**
+ * Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
+ */
+model_server: string | null, 
+/**
  * Optional launch configuration
  */
 launch_config: DelegatorLaunchConfigDto | null, };
@@ -882,6 +933,10 @@ display_name: string | null,
  */
 model_properties: { [key in string]?: string }, 
 /**
+ * Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
+ */
+model_server: string | null, 
+/**
  * Optional launch configuration
  */
 launch_config: DelegatorLaunchConfigDto | null, };
@@ -898,7 +953,27 @@ permission_mode: string | null,
 /**
  * Additional CLI flags
  */
-flags: Array<string>, };
+flags: Array<string>, 
+/**
+ * Override global `git.use_worktrees` (None = use global setting)
+ */
+use_worktrees: boolean | null, 
+/**
+ * Whether to create a git branch for the ticket (None = default behavior)
+ */
+create_branch: boolean | null, 
+/**
+ * Run in docker container (None = use global `launch.docker.enabled`)
+ */
+docker: boolean | null, 
+/**
+ * Prompt text to prepend before the generated step prompt
+ */
+prompt_prefix: string | null, 
+/**
+ * Prompt text to append after the generated step prompt
+ */
+prompt_suffix: string | null, };
 
 export type LlmTask = { 
 /**
@@ -991,6 +1066,10 @@ export type JiraDescription = {
 content: Array<JsonValue> | null, };
 
 export type JiraIssueTypeRef = { 
+/**
+ * Issue type ID (e.g., "10001")
+ */
+id: string | null, 
 /**
  * Issue type name (e.g., "Bug", "Story", "Task")
  */
@@ -1166,7 +1245,11 @@ export type VsCodeModelOption = "sonnet" | "opus" | "haiku";
 
 export type VsCodeLaunchOptions = { 
 /**
- * Model to use (sonnet, opus, haiku)
+ * Named delegator to use (takes precedence over model)
+ */
+delegator: string | null, 
+/**
+ * Model to use (sonnet, opus, haiku) — fallback when no delegator
  */
 model: VsCodeModelOption, 
 /**
@@ -1174,7 +1257,7 @@ model: VsCodeModelOption,
  */
 yoloMode: boolean, 
 /**
- * Resume from existing session (uses session_id from ticket)
+ * Resume from existing session (uses `session_id` from ticket)
  */
 resumeSession: boolean, };
 

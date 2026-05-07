@@ -171,6 +171,7 @@ mod tests {
             kanban_providers: vec![],
             llm_tools: vec![],
             delegators: vec![],
+            model_servers: vec![],
             git_provider: None,
             git_token_set: false,
             git_branch_format: None,

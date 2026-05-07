@@ -12,6 +12,7 @@ pub mod cli_detection;
 pub mod error;
 pub mod gh_cli;
 pub mod github_service;
+pub mod kanban_sync;
 pub mod pr_service;
 pub mod providers;
 

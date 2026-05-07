@@ -29,8 +29,14 @@ pub fn launch_in_tmux_with_options(
     initial_prompt: &str,
     options: &LaunchOptions,
 ) -> Result<String> {
-    // Create session name from ticket ID (sanitize for tmux)
-    let session_name = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    // Create session name from ticket ID (sanitize for tmux).
+    // For multi-agent fan-out, append the session_suffix to distinguish
+    // parallel sub-agents on the same ticket.
+    let base = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
+    let session_name = match &options.session_suffix {
+        Some(sfx) => format!("{base}-{}", sanitize_session_name(sfx)),
+        None => base,
+    };
 
     // Check if session already exists
     match tmux.session_exists(&session_name) {
@@ -164,6 +170,7 @@ pub fn launch_in_tmux_with_options(
         &prompt_file,
         Some(ticket),
         Some(project_path),
+        options.operator_relay,
     )?;
 
     // Apply YOLO flags if enabled
@@ -179,6 +186,15 @@ pub fn launch_in_tmux_with_options(
     // Write the command to a shell script file to avoid issues with long commands
     // and special characters when using tmux send-keys
     let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+
+    // Inject relay env vars so agents can find the hub and register with their ticket ID
+    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+        let export_cmd = format!(
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}",
+            ticket.id
+        );
+        let _ = tmux.send_keys(&session_name, &export_cmd, true);
+    }
 
     // Send simple bash command to execute the script (always short, so no buffer needed)
     let bash_cmd = format!("bash {}", command_file.display());
@@ -368,6 +384,7 @@ pub fn launch_in_tmux_with_relaunch_options(
         &prompt_file,
         Some(ticket),
         Some(project_path),
+        options.launch_options.operator_relay,
     )?;
 
     // Add resume flag if resuming
@@ -393,6 +410,15 @@ pub fn launch_in_tmux_with_relaunch_options(
     // Write the command to a shell script file to avoid issues with long commands
     // and special characters when using tmux send-keys
     let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+
+    // Inject relay env vars so agents can find the hub and register with their ticket ID
+    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+        let export_cmd = format!(
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}",
+            ticket.id
+        );
+        let _ = tmux.send_keys(&session_name, &export_cmd, true);
+    }
 
     // Send simple bash command to execute the script (always short, so no buffer needed)
     let bash_cmd = format!("bash {}", command_file.display());

@@ -160,6 +160,7 @@ export class ConnectionsSection implements StatusSection {
           ? { command: 'operator.runSetup', title: 'Run Operator Setup' }
           : { command: 'operator.selectWorkingDirectory', title: 'Select Working Directory' }
       ),
+      health: this.health(),
     });
   }
 

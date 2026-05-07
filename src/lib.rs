@@ -27,6 +27,7 @@ mod pr_config;
 mod projects;
 mod services;
 mod startup;
+mod steps;
 mod templates;
 pub mod version;
 
@@ -35,3 +36,6 @@ pub mod mcp;
 
 // Re-export env_vars for potential external use
 pub mod env_vars;
+
+// Relay hub and channel client
+pub mod relay;

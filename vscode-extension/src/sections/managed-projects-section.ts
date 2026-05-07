@@ -47,6 +47,7 @@ export class ManagedProjectsSection implements StatusSection {
           ? vscode.TreeItemCollapsibleState.Collapsed
           : vscode.TreeItemCollapsibleState.None,
         sectionId: this.sectionId,
+        health: this.health(),
       });
     }
 
@@ -56,6 +57,7 @@ export class ManagedProjectsSection implements StatusSection {
       icon: 'project',
       collapsibleState: vscode.TreeItemCollapsibleState.None,
       sectionId: this.sectionId,
+      health: this.health(),
     });
   }
 

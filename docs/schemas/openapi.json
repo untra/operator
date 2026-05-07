@@ -10,7 +10,7 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.1.26"
+    "version": "0.1.30"
   },
   "paths": {
     "/api/v1/collections": {
@@ -205,6 +205,44 @@
         }
       }
     },
+    "/api/v1/delegators/from-tool": {
+      "post": {
+        "tags": [
+          "Delegators"
+        ],
+        "summary": "Create a delegator from a detected LLM tool",
+        "description": "Pre-populates delegator fields from the detected tool, requiring minimal input.",
+        "operationId": "create_from_tool",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDelegatorFromToolRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Delegator created from tool",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegatorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tool not detected"
+          },
+          "409": {
+            "description": "Delegator already exists"
+          }
+        }
+      }
+    },
     "/api/v1/delegators/{name}": {
       "get": {
         "tags": [
@@ -226,6 +264,49 @@
         "responses": {
           "200": {
             "description": "Delegator details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegatorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Delegator not found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Delegators"
+        ],
+        "summary": "Update an existing delegator",
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Delegator name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDelegatorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Delegator updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -697,6 +778,227 @@
         }
       }
     },
+    "/api/v1/llm-tools": {
+      "get": {
+        "tags": [
+          "LLM Tools"
+        ],
+        "summary": "List detected LLM tools with model aliases",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "List of detected LLM tools",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmToolsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm-tools/default": {
+      "get": {
+        "tags": [
+          "LLM Tools"
+        ],
+        "summary": "Get the current default LLM tool and model",
+        "operationId": "get_default",
+        "responses": {
+          "200": {
+            "description": "Current default LLM",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultLlmResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "LLM Tools"
+        ],
+        "summary": "Set the global default LLM tool and model",
+        "operationId": "set_default",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDefaultLlmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default LLM set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultLlmResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tool not detected"
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/descriptor": {
+      "get": {
+        "tags": [
+          "MCP"
+        ],
+        "summary": "MCP descriptor endpoint",
+        "description": "Returns metadata for building a VS Code MCP deep link.\nThe transport URL is derived from the request Host header\nso it reflects the actual running port.",
+        "operationId": "descriptor",
+        "responses": {
+          "200": {
+            "description": "MCP server descriptor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpDescriptorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model-servers": {
+      "get": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "List all model servers (user-declared + implicit builtins)",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "List of model servers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelServersResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "Create a new model server",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateModelServerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Model server created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelServerResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Model server already exists"
+          }
+        }
+      }
+    },
+    "/api/v1/model-servers/{name}": {
+      "get": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "Get a single model server by name",
+        "operationId": "get_one",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Model server name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model server details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelServerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Model server not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "Delete a user-declared model server by name",
+        "description": "Implicit builtin servers cannot be deleted.",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Model server name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model server deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelServerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Model server not found"
+          },
+          "409": {
+            "description": "Cannot delete implicit builtin server"
+          }
+        }
+      }
+    },
     "/api/v1/skills": {
       "get": {
         "tags": [
@@ -821,6 +1123,58 @@
           }
         }
       },
+      "CreateDelegatorFromToolRequest": {
+        "type": "object",
+        "description": "Request to create a delegator from a detected LLM tool\n\nPre-populates delegator fields from the detected tool, requiring minimal input.\nIf `name` is omitted, auto-generates as `\"{tool_name}-{model}\"`.\nIf `model` is omitted, uses the tool's first model alias.",
+        "required": [
+          "tool_name"
+        ],
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional display name for UI"
+          },
+          "launch_config": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DelegatorLaunchConfigDto",
+                "description": "Optional launch configuration"
+              }
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Model alias to use (e.g., \"opus\"). If omitted, uses the tool's first model alias."
+          },
+          "model_server": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Custom delegator name. If omitted, auto-generates as `\"{tool_name}-{model}\"`."
+          },
+          "tool_name": {
+            "type": "string",
+            "description": "Name of the detected tool (e.g., \"claude\", \"codex\", \"gemini\")"
+          }
+        }
+      },
       "CreateDelegatorRequest": {
         "type": "object",
         "description": "Request to create a new delegator",
@@ -865,6 +1219,13 @@
             "propertyNames": {
               "type": "string"
             }
+          },
+          "model_server": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default."
           },
           "name": {
             "type": "string",
@@ -971,6 +1332,55 @@
           }
         }
       },
+      "CreateModelServerRequest": {
+        "type": "object",
+        "description": "Request to create a new model server",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of an env var providing the API key"
+          },
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Base URL of the inference endpoint"
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional display name for UI"
+          },
+          "extra_env": {
+            "type": "object",
+            "description": "Additional environment variables",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "Kind: \"ollama\", \"openai-compat\", \"anthropic-api\", \"openai-api\", \"google-api\", \"lmstudio\""
+          },
+          "name": {
+            "type": "string",
+            "description": "Unique name for this model server"
+          }
+        }
+      },
       "CreateStepRequest": {
         "type": "object",
         "description": "Request to create a step",
@@ -1018,10 +1428,42 @@
           }
         }
       },
+      "DefaultLlmResponse": {
+        "type": "object",
+        "description": "Response with the current default LLM tool and model",
+        "required": [
+          "tool",
+          "model"
+        ],
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "Default model alias (empty string if not set)"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Default tool name (empty string if not set)"
+          }
+        }
+      },
       "DelegatorLaunchConfigDto": {
         "type": "object",
-        "description": "Launch configuration DTO for delegators",
+        "description": "Launch configuration DTO for delegators\n\nOptional fields use tri-state semantics: `None` = inherit global config,\n`Some(true/false)` = explicit override per-delegator.",
         "properties": {
+          "create_branch": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether to create a git branch for the ticket (None = default behavior)"
+          },
+          "docker": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Run in docker container (None = use global `launch.docker.enabled`)"
+          },
           "flags": {
             "type": "array",
             "items": {
@@ -1029,12 +1471,40 @@
             },
             "description": "Additional CLI flags"
           },
+          "operator_relay": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Override global relay auto-inject MCP setting per-delegator (None = use global setting)"
+          },
           "permission_mode": {
             "type": [
               "string",
               "null"
             ],
             "description": "Permission mode override"
+          },
+          "prompt_prefix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Prompt text to prepend before the generated step prompt"
+          },
+          "prompt_suffix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Prompt text to append after the generated step prompt"
+          },
+          "use_worktrees": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Override global `git.use_worktrees` (None = use global setting)"
           },
           "yolo": {
             "type": "boolean",
@@ -1088,6 +1558,13 @@
               "type": "string"
             }
           },
+          "model_server": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default."
+          },
           "name": {
             "type": "string",
             "description": "Unique name"
@@ -1113,6 +1590,62 @@
             "type": "integer",
             "description": "Total count",
             "minimum": 0
+          }
+        }
+      },
+      "DetectedTool": {
+        "type": "object",
+        "description": "A detected CLI tool (e.g., claude binary)",
+        "required": [
+          "name",
+          "path",
+          "version"
+        ],
+        "properties": {
+          "capabilities": {
+            "$ref": "#/components/schemas/ToolCapabilities",
+            "description": "Tool capabilities"
+          },
+          "command_template": {
+            "type": "string",
+            "description": "Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders"
+          },
+          "min_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Minimum required version for Operator compatibility"
+          },
+          "model_aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Available model aliases (e.g., [\"opus\", \"sonnet\", \"haiku\"])"
+          },
+          "name": {
+            "type": "string",
+            "description": "Tool name (e.g., \"claude\")"
+          },
+          "path": {
+            "type": "string",
+            "description": "Path to the binary"
+          },
+          "version": {
+            "type": "string",
+            "description": "Version string"
+          },
+          "version_ok": {
+            "type": "boolean",
+            "description": "Whether the installed version meets the minimum requirement"
+          },
+          "yolo_flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "CLI flags for YOLO (auto-accept) mode"
           }
         }
       },
@@ -1304,19 +1837,26 @@
         "type": "object",
         "description": "Request to launch a ticket",
         "properties": {
+          "delegator": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Named delegator to use (takes precedence over provider/model)"
+          },
           "model": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Model to use (e.g., \"sonnet\", \"opus\")"
+            "description": "Model to use (e.g., \"sonnet\", \"opus\") — legacy fallback when no delegator"
           },
           "provider": {
             "type": [
               "string",
               "null"
             ],
-            "description": "LLM provider to use (e.g., \"claude\")"
+            "description": "LLM provider to use (e.g., \"claude\") — legacy fallback when no delegator"
           },
           "resume_session_id": {
             "type": [
@@ -1370,20 +1910,27 @@
             ],
             "description": "Branch name (if worktree was created)"
           },
-          "cmux_window_ref": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "cmux window reference ID (when using cmux wrapper)"
-          },
           "command": {
             "type": "string",
             "description": "Command to execute in terminal"
           },
+          "session_context_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session context reference (e.g. cmux workspace, zellij session)"
+          },
           "session_id": {
             "type": "string",
             "description": "Session UUID for the LLM tool"
+          },
+          "session_window_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session window reference ID (e.g. cmux window, tmux session)"
           },
           "session_wrapper": {
             "type": [
@@ -1394,7 +1941,7 @@
           },
           "terminal_name": {
             "type": "string",
-            "description": "Terminal name to use (same value as tmux_session_name)"
+            "description": "Terminal name to use (same value as `tmux_session_name`)"
           },
           "ticket_id": {
             "type": "string",
@@ -1402,7 +1949,7 @@
           },
           "tmux_session_name": {
             "type": "string",
-            "description": "Tmux session name for attaching (same value as terminal_name, kept for backward compat)"
+            "description": "Tmux session name for attaching (same value as `terminal_name`, kept for backward compat)"
           },
           "working_directory": {
             "type": "string",
@@ -1411,6 +1958,163 @@
           "worktree_created": {
             "type": "boolean",
             "description": "Whether a worktree was created"
+          }
+        }
+      },
+      "LlmToolsResponse": {
+        "type": "object",
+        "description": "Response listing detected LLM tools",
+        "required": [
+          "tools",
+          "total"
+        ],
+        "properties": {
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetectedTool"
+            },
+            "description": "Detected CLI tools with model aliases and capabilities"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total count",
+            "minimum": 0
+          }
+        }
+      },
+      "McpDescriptorResponse": {
+        "type": "object",
+        "description": "MCP server descriptor for client discovery",
+        "required": [
+          "server_name",
+          "server_id",
+          "version",
+          "transport_url",
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Human-readable label for the server"
+          },
+          "openapi_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL of the OpenAPI spec for reference"
+          },
+          "server_id": {
+            "type": "string",
+            "description": "Unique server identifier (e.g. \"operator-mcp\")"
+          },
+          "server_name": {
+            "type": "string",
+            "description": "Server name used in MCP registration (e.g. \"operator\")"
+          },
+          "transport_url": {
+            "type": "string",
+            "description": "Full URL of the MCP SSE transport endpoint"
+          },
+          "version": {
+            "type": "string",
+            "description": "Server version from Cargo.toml"
+          }
+        }
+      },
+      "ModelServerResponse": {
+        "type": "object",
+        "description": "Response for a single model server",
+        "required": [
+          "name",
+          "kind",
+          "extra_env",
+          "user_declared"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`)"
+          },
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Base URL of the inference endpoint (e.g., `http://localhost:11434`)"
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional display name for UI"
+          },
+          "extra_env": {
+            "type": "object",
+            "description": "Additional environment variables set when spawning agents that use this server",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "Kind: \"ollama\", \"openai-compat\", \"anthropic-api\", \"openai-api\", \"google-api\", \"lmstudio\""
+          },
+          "name": {
+            "type": "string",
+            "description": "Unique name (e.g., \"ollama-local\")"
+          },
+          "user_declared": {
+            "type": "boolean",
+            "description": "Whether this is a user-declared server (true) or an implicit builtin (false)"
+          }
+        }
+      },
+      "ModelServersResponse": {
+        "type": "object",
+        "description": "Response listing all model servers (declared + implicit builtins)",
+        "required": [
+          "servers",
+          "total"
+        ],
+        "properties": {
+          "servers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelServerResponse"
+            },
+            "description": "List of model servers"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total count",
+            "minimum": 0
+          }
+        }
+      },
+      "SetDefaultLlmRequest": {
+        "type": "object",
+        "description": "Request to set the global default LLM tool and model",
+        "required": [
+          "tool",
+          "model"
+        ],
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "Model alias (e.g., \"opus\", \"sonnet\")"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Tool name (must match a detected tool, e.g., \"claude\")"
           }
         }
       },
@@ -1542,6 +2246,20 @@
           "review_type": {
             "type": "string",
             "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
+          }
+        }
+      },
+      "ToolCapabilities": {
+        "type": "object",
+        "description": "Tool capabilities",
+        "properties": {
+          "supports_headless": {
+            "type": "boolean",
+            "description": "Whether the tool can run in headless/non-interactive mode"
+          },
+          "supports_sessions": {
+            "type": "boolean",
+            "description": "Whether the tool supports session continuity via UUID"
           }
         }
       },
@@ -1690,6 +2408,14 @@
     {
       "name": "Delegators",
       "description": "Agent delegator CRUD operations"
+    },
+    {
+      "name": "ModelServers",
+      "description": "Model server (ollama, openai-compat, etc.) CRUD operations"
+    },
+    {
+      "name": "MCP",
+      "description": "Model Context Protocol integration"
     }
   ]
 }

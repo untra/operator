@@ -9,6 +9,7 @@ pub mod kanban;
 pub mod kanban_onboarding;
 pub mod launch;
 pub mod llm_tools;
+pub mod model_servers;
 pub mod projects;
 pub mod queue;
 pub mod skills;

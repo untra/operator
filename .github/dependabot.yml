@@ -1,0 +1,38 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      rust-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: cargo
+    directory: "/opr8r"
+    schedule:
+      interval: weekly
+    groups:
+      opr8r-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/vscode-extension"
+    schedule:
+      interval: weekly
+    groups:
+      vscode-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: bundler
+    directory: "/docs"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

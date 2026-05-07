@@ -17,11 +17,14 @@ pub mod cli;
 pub mod config;
 pub mod config_schema;
 pub mod issuetype;
+pub mod issuetype_json_schema;
 pub mod jira_api;
 pub mod llm_tools;
 pub mod markdown;
 pub mod metadata;
 pub mod openapi;
+pub mod operator_output_schema;
+pub mod project_analysis_schema;
 pub mod schema_index;
 pub mod shortcuts;
 pub mod startup;
@@ -92,6 +95,9 @@ pub fn generate_all(docs_dir: &Path) -> Result<()> {
         Box::new(state_schema::StateSchemaDocGenerator),
         Box::new(schema_index::SchemaIndexDocGenerator),
         Box::new(jira_api::JiraApiDocGenerator),
+        Box::new(operator_output_schema::OperatorOutputSchemaDocGenerator),
+        Box::new(issuetype_json_schema::IssuetypeJsonSchemaDocGenerator),
+        Box::new(project_analysis_schema::ProjectAnalysisSchemaDocGenerator),
     ];
 
     for generator in generators {

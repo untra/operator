@@ -30,6 +30,7 @@ pub fn build_llm_command_with_permissions_for_tool(
     prompt_file: &std::path::Path,
     ticket: Option<&Ticket>,
     project_path: Option<&str>,
+    operator_relay: Option<bool>,
 ) -> Result<String> {
     // Find the specified tool
     let tool = get_detected_tool(config, tool_name).ok_or_else(|| {
@@ -43,7 +44,14 @@ pub fn build_llm_command_with_permissions_for_tool(
 
     // Generate config flags from permissions
     let config_flags = if let (Some(ticket), Some(project_path)) = (ticket, project_path) {
-        generate_config_flags(config, &tool.name, ticket, project_path, session_id)?
+        generate_config_flags(
+            config,
+            &tool.name,
+            ticket,
+            project_path,
+            session_id,
+            operator_relay,
+        )?
     } else {
         String::new()
     };
@@ -126,6 +134,20 @@ pub fn build_docker_command(
     Ok(docker_args.join(" "))
 }
 
+/// Determine whether to inject the relay MCP config for this launch.
+///
+/// - `delegator_setting`: per-ticket override from `LaunchOptions.operator_relay`
+/// - `hub_available`: whether `RELAY_HUB_SOCKET` is set in the environment
+/// - `global_default`: `config.relay.auto_inject_mcp` fallback
+fn resolve_relay_injection(
+    delegator_setting: Option<bool>,
+    hub_available: bool,
+    global_default: bool,
+) -> bool {
+    let effective = delegator_setting.unwrap_or(global_default);
+    effective && hub_available
+}
+
 /// Generate config flags for the LLM command based on step permissions
 fn generate_config_flags(
     config: &Config,
@@ -133,6 +155,7 @@ fn generate_config_flags(
     ticket: &Ticket,
     project_path: &str,
     session_id: &str,
+    operator_relay: Option<bool>,
 ) -> Result<String> {
     // Load project permissions
     let project_perms = load_project_permissions(config, project_path)?;
@@ -196,6 +219,15 @@ fn generate_config_flags(
         cli_flags.push("--add-dir".to_string());
         cli_flags.push(project_path.to_string());
 
+        // Inject relay MCP server based on effective relay setting
+        let hub_available = std::env::var("RELAY_HUB_SOCKET").is_ok();
+        if resolve_relay_injection(operator_relay, hub_available, config.relay.auto_inject_mcp) {
+            if let Some(config_path) = relay_mcp_config_flag(&session_dir) {
+                cli_flags.push("--mcp-config".to_string());
+                cli_flags.push(config_path);
+            }
+        }
+
         // Add JSON schema flag for structured output (when enabled)
         // Write schema to a file to avoid shell escaping issues with inline JSON
         // Inline jsonSchema takes precedence over jsonSchemaFile
@@ -245,6 +277,81 @@ fn generate_config_flags(
     } else {
         Ok(format!("{} ", cli_flags.join(" ")))
     }
+}
+
+/// Write a per-session relay MCP config and return the path for `--mcp-config`.
+/// Returns `None` if the relay command cannot be located.
+fn relay_mcp_config_flag(session_dir: &std::path::Path) -> Option<String> {
+    let (binary, args) = locate_relay_command()?;
+    relay_mcp_config_flag_with_command(session_dir, binary, args)
+}
+
+fn relay_mcp_config_flag_with_command(
+    session_dir: &std::path::Path,
+    binary: PathBuf,
+    args: Vec<String>,
+) -> Option<String> {
+    let config_path = session_dir.join("relay-mcp.json");
+    let relay_entry = if args.is_empty() {
+        serde_json::json!({ "command": binary.display().to_string(), "type": "stdio" })
+    } else {
+        serde_json::json!({ "command": binary.display().to_string(), "args": args, "type": "stdio" })
+    };
+    let config = serde_json::json!({ "mcpServers": { "relay": relay_entry } });
+    let content = serde_json::to_string_pretty(&config).ok()?;
+    fs::write(&config_path, content).ok()?;
+    Some(config_path.display().to_string())
+}
+
+/// Locate the relay command, returning `(binary_path, extra_args)`.
+///
+/// Discovery order:
+/// 1. `opr8r` alongside the running operator binary → returns `(opr8r, ["relay"])`
+/// 2. `OPERATOR_RELAY` env var → returns `(path, ["relay"])` (treated as opr8r)
+/// 3. `opr8r` on PATH → returns `(opr8r, ["relay"])`
+/// 4. Legacy `operator-relay` standalone binary alongside operator → returns `(operator-relay, [])`
+/// 5. Legacy `operator-relay` on PATH → returns `(operator-relay, [])`
+fn locate_relay_command() -> Option<(PathBuf, Vec<String>)> {
+    // 1. opr8r alongside the running operator binary (primary: signed distribution)
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let candidate = parent.join("opr8r");
+            if candidate.exists() {
+                return Some((candidate, vec!["relay".to_string()]));
+            }
+            // 4. Legacy standalone operator-relay alongside operator
+            let legacy = parent.join("operator-relay");
+            if legacy.exists() {
+                return Some((legacy, vec![]));
+            }
+        }
+    }
+    // 2. OPERATOR_RELAY env var (user override — treated as opr8r path)
+    if let Ok(path) = std::env::var("OPERATOR_RELAY") {
+        let p = PathBuf::from(&path);
+        if p.exists() {
+            return Some((p, vec!["relay".to_string()]));
+        }
+    }
+    // 3. opr8r on PATH
+    if std::process::Command::new("which")
+        .arg("opr8r")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        return Some((PathBuf::from("opr8r"), vec!["relay".to_string()]));
+    }
+    // 5. Legacy operator-relay on PATH
+    if std::process::Command::new("which")
+        .arg("operator-relay")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        return Some((PathBuf::from("operator-relay"), vec![]));
+    }
+    None
 }
 
 /// Get the detected tool for a given provider
@@ -563,6 +670,7 @@ mod tests {
             Path::new("/tmp/prompt.md"),
             None,
             None,
+            None,
         );
 
         assert!(result.is_err());
@@ -584,6 +692,7 @@ mod tests {
             "opus",
             "sess-abc",
             Path::new("/tmp/prompt.md"),
+            None,
             None,
             None,
         );
@@ -617,6 +726,7 @@ mod tests {
             Path::new("/tmp/prompt.md"),
             None, // No ticket
             None, // No project path
+            None,
         );
 
         assert!(result.is_ok());
@@ -639,6 +749,7 @@ mod tests {
             "haiku",
             "sess-xyz",
             Path::new("/tmp/p.md"),
+            None,
             None,
             None,
         );
@@ -934,6 +1045,35 @@ mod tests {
     }
 
     // ========================================
+    // Relay MCP config injection tests
+    // ========================================
+
+    #[test]
+    fn test_relay_mcp_config_flag_writes_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let result =
+            relay_mcp_config_flag_with_command(dir.path(), PathBuf::from("/usr/bin/true"), vec![]);
+        assert!(result.is_some(), "Should return config path");
+        let returned_path = result.unwrap();
+        assert!(
+            returned_path.contains("relay-mcp.json"),
+            "Path should contain relay-mcp.json"
+        );
+        let config_path = dir.path().join("relay-mcp.json");
+        let contents = std::fs::read_to_string(config_path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&contents).unwrap();
+        assert!(
+            json["mcpServers"]["relay"]["command"].is_string(),
+            "command should be a string"
+        );
+        assert_eq!(json["mcpServers"]["relay"]["type"].as_str(), Some("stdio"));
+        assert_eq!(
+            json["mcpServers"]["relay"]["command"].as_str(),
+            Some("/usr/bin/true")
+        );
+    }
+
+    // ========================================
     // JSON schema file path tests
     // ========================================
     mod json_schema {
@@ -1040,5 +1180,86 @@ mod tests {
                 .unwrap()
                 .contains("$(subshell)"));
         }
+    }
+
+    // ========================================
+    // relay MCP config tests
+    // ========================================
+
+    #[test]
+    fn test_relay_mcp_config_with_opr8r_includes_relay_arg() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = relay_mcp_config_flag_with_command(
+            dir.path(),
+            PathBuf::from("/usr/local/bin/opr8r"),
+            vec!["relay".to_string()],
+        );
+        assert!(result.is_some(), "Config path should be returned");
+        let config_path = result.unwrap();
+        let content = std::fs::read_to_string(&config_path).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(
+            v["mcpServers"]["relay"]["args"][0].as_str(),
+            Some("relay"),
+            "First arg must be relay: {content}"
+        );
+        assert_eq!(
+            v["mcpServers"]["relay"]["command"].as_str(),
+            Some("/usr/local/bin/opr8r"),
+            "Command must be opr8r path: {content}"
+        );
+    }
+
+    #[test]
+    fn test_relay_mcp_config_with_empty_args_has_no_args_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = relay_mcp_config_flag_with_command(
+            dir.path(),
+            PathBuf::from("/usr/local/bin/operator-relay"),
+            vec![],
+        );
+        assert!(result.is_some());
+        let config_path = result.unwrap();
+        let content = std::fs::read_to_string(&config_path).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&content).unwrap();
+        // No "args" key when args are empty (backward compat with standalone binary)
+        assert!(
+            v["mcpServers"]["relay"].get("args").is_none(),
+            "No args key for standalone binary: {content}"
+        );
+    }
+
+    // ========================================
+    // resolve_relay_injection() tests
+    // ========================================
+
+    #[test]
+    fn test_relay_injection_disabled_by_delegator() {
+        let result = resolve_relay_injection(Some(false), true, true);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_relay_injection_enabled_by_delegator_with_hub() {
+        let result = resolve_relay_injection(Some(true), true, true);
+        assert!(result);
+    }
+
+    #[test]
+    fn test_relay_injection_enabled_by_delegator_without_hub() {
+        let result = resolve_relay_injection(Some(true), false, true);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_relay_injection_none_uses_global_default_false() {
+        let result = resolve_relay_injection(None, true, false);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_relay_injection_none_uses_global_default_true() {
+        let result = resolve_relay_injection(None, true, true);
+        assert!(result);
     }
 }

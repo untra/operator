@@ -625,6 +625,7 @@ Test content
             step: String::new(),
             content: "Test content".to_string(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,
@@ -782,6 +783,159 @@ mod kanban_sync {
         assert_eq!(
             sync_status_message.as_deref(),
             Some("No kanban providers configured"),
+        );
+    }
+}
+
+mod agent_switches {
+    use super::*;
+
+    #[test]
+    fn test_switch_marker_detected_on_agent_with_review_state() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "TASK-switch-001".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        state
+            .set_agent_review_state(&agent_id, "switching_agent:my-delegator")
+            .unwrap();
+
+        let switches: Vec<String> = state
+            .agents
+            .iter()
+            .filter_map(|agent| {
+                let rs = agent.review_state.as_ref()?;
+                rs.strip_prefix("switching_agent:").map(str::to_string)
+            })
+            .collect();
+
+        assert_eq!(switches, vec!["my-delegator"]);
+    }
+
+    #[test]
+    fn test_no_switches_when_agents_have_non_switch_review_state() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "TASK-plan-001".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        state
+            .set_agent_review_state(&agent_id, "pending_plan")
+            .unwrap();
+
+        let switches: Vec<String> = state
+            .agents
+            .iter()
+            .filter_map(|agent| {
+                let rs = agent.review_state.as_ref()?;
+                rs.strip_prefix("switching_agent:").map(str::to_string)
+            })
+            .collect();
+
+        assert!(
+            switches.is_empty(),
+            "pending_plan review state should not trigger an agent switch"
+        );
+    }
+
+    #[test]
+    fn test_no_switches_when_all_agents_have_no_review_state() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent(
+                "TASK-noreview".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let switches: Vec<String> = state
+            .agents
+            .iter()
+            .filter_map(|agent| {
+                let rs = agent.review_state.as_ref()?;
+                rs.strip_prefix("switching_agent:").map(str::to_string)
+            })
+            .collect();
+
+        assert!(
+            switches.is_empty(),
+            "Agents with no review_state should not produce switches"
+        );
+    }
+
+    #[test]
+    fn test_only_switch_marked_agents_collected_when_mixed() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+
+        let id_a = state
+            .add_agent(
+                "TASK-a".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        let id_b = state
+            .add_agent(
+                "TASK-b".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        let _id_c = state
+            .add_agent(
+                "TASK-c".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        state
+            .set_agent_review_state(&id_a, "switching_agent:delegator-x")
+            .unwrap();
+        state.set_agent_review_state(&id_b, "pending_plan").unwrap();
+        // _id_c has no review_state
+
+        let switches: Vec<String> = state
+            .agents
+            .iter()
+            .filter_map(|agent| {
+                let rs = agent.review_state.as_ref()?;
+                rs.strip_prefix("switching_agent:").map(str::to_string)
+            })
+            .collect();
+
+        assert_eq!(
+            switches,
+            vec!["delegator-x"],
+            "Only the switch-marked agent should appear"
         );
     }
 }

@@ -1,12 +1,14 @@
 //! Documentation generator for the issuetype schema.
+//!
+//! Generates human-readable markdown documentation from the `TemplateSchema` type
+//! via schemars, making Rust the single source of truth.
 
 use super::markdown::{bold, bullet_list, heading, inline_code, table};
 use super::{format_header, DocGenerator};
+use crate::templates::schema::TemplateSchema;
 use anyhow::Result;
+use schemars::schema_for;
 use serde_json::Value;
-
-/// Schema JSON embedded at compile time
-const ISSUETYPE_SCHEMA: &str = include_str!("../schemas/issuetype_schema.json");
 
 /// Generates documentation from `issuetype_schema.json`
 pub struct IssuetypeSchemaDocGenerator;
@@ -17,7 +19,7 @@ impl DocGenerator for IssuetypeSchemaDocGenerator {
     }
 
     fn source(&self) -> &'static str {
-        "src/schemas/issuetype_schema.json"
+        "src/templates/schema.rs (TemplateSchema)"
     }
 
     fn output_path(&self) -> &'static str {
@@ -25,7 +27,8 @@ impl DocGenerator for IssuetypeSchemaDocGenerator {
     }
 
     fn generate(&self) -> Result<String> {
-        let schema: Value = serde_json::from_str(ISSUETYPE_SCHEMA)?;
+        let root_schema = schema_for!(TemplateSchema);
+        let schema: Value = serde_json::to_value(&root_schema)?;
         let mut output = format_header("Issue Type Schema", self.source());
 
         // Title and description
@@ -171,7 +174,11 @@ impl IssuetypeSchemaDocGenerator {
     fn generate_definitions_section(&self, schema: &Value) -> String {
         let mut output = String::new();
 
-        if let Some(definitions) = schema.get("definitions").and_then(|d| d.as_object()) {
+        if let Some(definitions) = schema
+            .get("$defs")
+            .or_else(|| schema.get("definitions"))
+            .and_then(|d| d.as_object())
+        {
             for (name, def) in definitions {
                 output.push_str(&heading(3, &format!("Definition: {name}")));
 
@@ -269,7 +276,7 @@ mod tests {
 
         // Should have the auto-generated header
         assert!(result.contains("AUTO-GENERATED FROM"));
-        assert!(result.contains("issuetype_schema.json"));
+        assert!(result.contains("TemplateSchema"));
 
         // Should have the main heading
         assert!(result.contains("# Issue Type Schema"));
@@ -284,14 +291,12 @@ mod tests {
 
         // Should have definitions section
         assert!(result.contains("## Definitions"));
-        assert!(result.contains("### Definition: field"));
-        assert!(result.contains("### Definition: step"));
     }
 
     #[test]
-    fn test_schema_parses_successfully() {
-        let schema: Value = serde_json::from_str(ISSUETYPE_SCHEMA).unwrap();
-        assert!(schema.get("properties").is_some());
-        assert!(schema.get("definitions").is_some());
+    fn test_schema_generates_successfully() {
+        let schema = schema_for!(TemplateSchema);
+        let schema_value = serde_json::to_value(&schema).unwrap();
+        assert!(schema_value.get("properties").is_some());
     }
 }

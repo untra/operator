@@ -342,6 +342,7 @@ mod tests {
             step: String::new(),
             content: String::new(),
             sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
             llm_task: crate::queue::LlmTask::default(),
             worktree_path: None,
             branch: None,

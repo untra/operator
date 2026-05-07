@@ -49,6 +49,7 @@ export class IssueTypeSection implements StatusSection {
         icon: 'check',
         collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
         sectionId: this.sectionId,
+        health: this.health(),
       });
     }
 
@@ -58,6 +59,7 @@ export class IssueTypeSection implements StatusSection {
       icon: 'warning',
       collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
       sectionId: this.sectionId,
+      health: this.health(),
     });
   }
 

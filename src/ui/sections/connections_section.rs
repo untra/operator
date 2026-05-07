@@ -160,6 +160,7 @@ mod tests {
             default_llm_tool: None,
             default_llm_model: None,
             delegators: vec![],
+            model_servers: vec![],
             git_provider: None,
             git_token_set: false,
             git_branch_format: None,

@@ -311,7 +311,7 @@ suite('Status Provider Test Suite', () => {
       assert.deepStrictEqual(labels, ['Configuration', 'Connections']);
     });
 
-    test('tier 2: adds Kanban, LLM Tools, Git when connections ready', async () => {
+    test('tier 2: adds Kanban, LLM Tools, Model Servers, Git when connections ready', async () => {
       const mockContext = createMockContext(sandbox, '/fake/working-dir');
       sandbox.stub(configPaths, 'configFileExists').resolves(true);
       sandbox.stub(configPaths, 'getResolvedConfigPath').returns('');
@@ -338,7 +338,7 @@ suite('Status Provider Test Suite', () => {
       const labels = getSectionLabels(provider.getChildren());
       assert.deepStrictEqual(
         labels,
-        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Git', 'Delegators']
+        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Model Servers', 'Git', 'Delegators']
       );
     });
 
@@ -442,7 +442,7 @@ suite('Status Provider Test Suite', () => {
       const labels = getSectionLabels(provider.getChildren());
       assert.deepStrictEqual(
         labels,
-        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Git', 'Issue Types', 'Delegators', 'Managed Projects']
+        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Model Servers', 'Git', 'Issue Types', 'Delegators', 'Managed Projects']
       );
     });
 

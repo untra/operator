@@ -49,6 +49,12 @@ export OPENAI_API_KEY="your-api-key"
 
 Or add it to your shell profile for persistence.
 
+## Multi-agent relay
+
+Operator injects relay env vars (`RELAY_HUB_SOCKET`, `RELAY_AGENT_NAME`) into Codex sessions at launch so agents can discover each other by ticket ID. Full MCP tool support for Codex relay is planned for a future release.
+
+See [Relay](/docs/relay/) for details.
+
 ## API Usage
 
 Codex uses the OpenAI API which has usage-based pricing. Monitor your usage at [platform.openai.com](https://platform.openai.com/).

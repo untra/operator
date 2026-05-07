@@ -33,6 +33,7 @@
 //! let json = serde_json::to_string_pretty(&analysis)?;
 //! ```
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -41,7 +42,7 @@ use std::path::Path;
 ///
 /// This is the top-level structure that conforms to `project_analysis.schema.json`.
 /// Claude fills this structure during the ASSESS issuetype's analyze step.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct ProjectAnalysis {
     /// Project directory name
     pub project_name: String,
@@ -104,7 +105,7 @@ pub struct ProjectAnalysis {
 ///
 /// Foundation tier projects are pure infrastructure with no application-level code.
 /// Noncurrent tier projects are low-importance repos where detailed analysis is skipped.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct KindAssessment {
     /// Primary detected Kind key (e.g., "microservice", "ui-frontend")
     pub primary_kind: String,
@@ -124,7 +125,7 @@ pub struct KindAssessment {
 }
 
 /// Alternative Kind candidate with confidence score.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct KindCandidate {
     /// Kind key
     pub kind: String,
@@ -140,7 +141,7 @@ pub struct KindCandidate {
 ///
 /// Supports both known languages (rust, typescript, python, etc.) and
 /// unknown/emerging languages via free-form string.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct LanguageDetection {
     /// Language identifier (e.g., "rust", "typescript", "python")
     pub language: String,
@@ -164,7 +165,7 @@ pub struct LanguageDetection {
 /// Framework/library detection result.
 ///
 /// Supports both known frameworks and unknown/custom frameworks.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct FrameworkDetection {
     /// Framework identifier (e.g., "axum", "react", "django")
     pub framework: String,
@@ -187,7 +188,7 @@ pub struct FrameworkDetection {
 }
 
 /// Framework categories for classification.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum FrameworkCategory {
     /// Web frameworks (Axum, Express, Django, etc.)
@@ -217,7 +218,7 @@ pub enum FrameworkCategory {
 /// Database detection result.
 ///
 /// Supports both known databases and unknown/custom databases.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct DatabaseDetection {
     /// Database identifier (e.g., "postgres", "mongodb", "redis")
     pub database: String,
@@ -240,7 +241,7 @@ pub struct DatabaseDetection {
 }
 
 /// Database categories for classification.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DatabaseCategory {
     /// SQL databases (`PostgreSQL`, `MySQL`, `SQLite`)
@@ -262,7 +263,7 @@ pub enum DatabaseCategory {
 }
 
 /// Docker configuration detection.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct DockerDetection {
     /// Whether Dockerfile exists
     pub has_dockerfile: bool,
@@ -281,7 +282,7 @@ pub struct DockerDetection {
 }
 
 /// Docker base image information.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct DockerImage {
     /// Image name (e.g., "rust", "node", "postgres")
     pub image: String,
@@ -296,7 +297,7 @@ pub struct DockerImage {
 }
 
 /// Port detection result.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct PortDetection {
     /// Port type category
     pub port_type: PortType,
@@ -317,7 +318,7 @@ pub struct PortDetection {
 }
 
 /// Port type categories.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PortType {
     /// HTTP server port (typically 80, 8080, 3000)
@@ -343,7 +344,7 @@ pub enum PortType {
 }
 
 /// Test framework detection result.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct TestFrameworkDetection {
     /// Framework identifier (e.g., "`cargo_test`", "jest", "pytest")
     pub framework: String,
@@ -362,7 +363,7 @@ pub struct TestFrameworkDetection {
 }
 
 /// Test categories for classification.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TestCategory {
     /// Unit tests
@@ -382,7 +383,7 @@ pub enum TestCategory {
 /// Evidence supporting a detection.
 ///
 /// Provides explainability for why something was detected.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct Evidence {
     /// Type of evidence
     pub evidence_type: EvidenceType,
@@ -405,7 +406,7 @@ pub struct Evidence {
 }
 
 /// Types of evidence for detections.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum EvidenceType {
     /// File exists at expected path
@@ -425,7 +426,7 @@ pub enum EvidenceType {
 }
 
 /// File statistics providing context for the analysis.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct FileStats {
     /// Total number of files analyzed
     pub total_files: usize,
@@ -444,7 +445,7 @@ pub struct FileStats {
 ///
 /// These commands are detected from package.json scripts, Makefile, Cargo.toml,
 /// or other project configuration files.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema)]
 pub struct Commands {
     /// Command to start the application (e.g., "cargo run", "npm start")
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -476,7 +477,7 @@ pub struct Commands {
 }
 
 /// Purpose categories for entry points.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum EntryPointPurpose {
     /// Main binary entry point (e.g., src/main.rs, index.js)
@@ -497,7 +498,7 @@ pub enum EntryPointPurpose {
 ///
 /// Entry points help AI agents understand where to start when exploring
 /// or modifying specific aspects of the project.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct EntryPoint {
     /// Relative path from project root
     pub file: String,
@@ -509,7 +510,7 @@ pub struct EntryPoint {
 /// An environment variable used by the project.
 ///
 /// Detected from .env.example, docker-compose.yml, config files, or code.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct EnvVar {
     /// Environment variable name (e.g., "`DATABASE_URL`")
     pub name: String,

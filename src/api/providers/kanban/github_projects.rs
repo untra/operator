@@ -1417,6 +1417,391 @@ impl KanbanProvider for GithubProjectsProvider {
             priority: None,
         })
     }
+
+    async fn update_issue_labels(
+        &self,
+        issue_key: &str,
+        labels: &[String],
+    ) -> Result<(), ApiError> {
+        if labels.is_empty() {
+            return Ok(());
+        }
+
+        if issue_key.starts_with("draft:") {
+            // For draft items, append labels as metadata text to the body.
+            let item_id = issue_key.trim_start_matches("draft:");
+
+            // Query the draft issue: get its internal id + current body
+            let query = r"
+                query($nodeId: ID!) {
+                    node(id: $nodeId) {
+                        ... on ProjectV2Item {
+                            content {
+                                __typename
+                                ... on DraftIssue {
+                                    id
+                                    body
+                                }
+                            }
+                        }
+                    }
+                }
+            ";
+            #[derive(Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct NodeResp {
+                node: NodeContent,
+            }
+            #[derive(Deserialize)]
+            struct NodeContent {
+                content: Option<DraftContent>,
+            }
+            #[allow(dead_code)]
+            #[derive(Deserialize)]
+            #[serde(tag = "__typename")]
+            enum DraftContent {
+                DraftIssue {
+                    id: String,
+                    #[serde(default)]
+                    body: Option<String>,
+                },
+            }
+
+            let vars = serde_json::json!({ "nodeId": item_id });
+            let resp: NodeResp = self.graphql(query, Some(vars)).await?;
+
+            let (draft_id, current_body) = match resp.node.content {
+                Some(DraftContent::DraftIssue { id, body }) => (id, body.unwrap_or_default()),
+                None => return Ok(()), // Not a draft issue item
+            };
+
+            let label_line = format!("\n**Labels:** {}", labels.join(", "));
+            let new_body = format!("{current_body}{label_line}");
+
+            let mutation = r"
+                mutation($input: UpdateProjectV2DraftIssueInput!) {
+                    updateProjectV2DraftIssue(input: $input) {
+                        draftIssue { id }
+                    }
+                }
+            ";
+            let _: serde_json::Value = self
+                .graphql(
+                    mutation,
+                    Some(serde_json::json!({
+                        "input": { "draftIssueId": draft_id, "body": new_body }
+                    })),
+                )
+                .await?;
+        } else if let Some((owner_repo, number_str)) = issue_key.split_once('#') {
+            // Real repo issue: addLabelsToLabelable
+            let (owner, repo) = owner_repo.split_once('/').ok_or_else(|| {
+                ApiError::http(
+                    PROVIDER_NAME,
+                    400,
+                    format!("Invalid issue key: {issue_key}"),
+                )
+            })?;
+
+            // Get the issue node ID
+            let id_query = r"
+                query($owner: String!, $repo: String!, $number: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                        issue(number: $number) { id }
+                    }
+                }
+            ";
+            let number: i64 = number_str.parse().map_err(|_| {
+                ApiError::http(
+                    PROVIDER_NAME,
+                    400,
+                    format!("Invalid issue number in key: {issue_key}"),
+                )
+            })?;
+            #[derive(Deserialize)]
+            struct IdResp {
+                repository: RepoWithIssue,
+            }
+            #[derive(Deserialize)]
+            struct RepoWithIssue {
+                issue: IssueNode,
+            }
+            #[derive(Deserialize)]
+            struct IssueNode {
+                id: String,
+            }
+            let vars = serde_json::json!({ "owner": owner, "repo": repo, "number": number });
+            let id_resp: IdResp = self.graphql(id_query, Some(vars)).await?;
+            let issue_node_id = id_resp.repository.issue.id;
+
+            // Find or create each label on the repo, then add all to the issue
+            let mut label_ids: Vec<String> = Vec::new();
+            for label_name in labels {
+                // Query for existing repo label by name
+                let label_query = r"
+                    query($owner: String!, $repo: String!, $name: String!) {
+                        repository(owner: $owner, name: $repo) {
+                            label(name: $name) { id }
+                        }
+                    }
+                ";
+                #[derive(Deserialize)]
+                struct LabelResp {
+                    repository: RepoWithLabel,
+                }
+                #[derive(Deserialize)]
+                struct RepoWithLabel {
+                    label: Option<LabelId>,
+                }
+                #[derive(Deserialize)]
+                struct LabelId {
+                    id: String,
+                }
+                let label_vars =
+                    serde_json::json!({ "owner": owner, "repo": repo, "name": label_name });
+                let label_resp: LabelResp = self.graphql(label_query, Some(label_vars)).await?;
+
+                let label_id = if let Some(existing) = label_resp.repository.label {
+                    existing.id
+                } else {
+                    // Create the label
+                    let create_mutation = r"
+                        mutation($repoId: ID!, $name: String!, $color: String!) {
+                            createLabel(input: { repositoryId: $repoId, name: $name, color: $color }) {
+                                label { id }
+                            }
+                        }
+                    ";
+                    // Get repo node ID first
+                    let repo_id_query = r"
+                        query($owner: String!, $repo: String!) {
+                            repository(owner: $owner, name: $repo) { id }
+                        }
+                    ";
+                    #[derive(Deserialize)]
+                    struct RepoIdResp {
+                        repository: RepoId,
+                    }
+                    #[derive(Deserialize)]
+                    struct RepoId {
+                        id: String,
+                    }
+                    let repo_id_vars = serde_json::json!({ "owner": owner, "repo": repo });
+                    let repo_id_resp: RepoIdResp =
+                        self.graphql(repo_id_query, Some(repo_id_vars)).await?;
+
+                    #[derive(Deserialize)]
+                    struct CreateLabelResp {
+                        #[serde(rename = "createLabel")]
+                        create_label: CreateLabelPayload,
+                    }
+                    #[derive(Deserialize)]
+                    struct CreateLabelPayload {
+                        label: LabelId,
+                    }
+                    let create_vars = serde_json::json!({
+                        "repoId": repo_id_resp.repository.id,
+                        "name": label_name,
+                        "color": "ededed"  // default gray
+                    });
+                    let create_resp: CreateLabelResp =
+                        self.graphql(create_mutation, Some(create_vars)).await?;
+                    create_resp.create_label.label.id
+                };
+                label_ids.push(label_id);
+            }
+
+            let add_mutation = r"
+                mutation($labelableId: ID!, $labelIds: [ID!]!) {
+                    addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
+                        labelable { ... on Issue { id } }
+                    }
+                }
+            ";
+            let _: serde_json::Value = self
+                .graphql(
+                    add_mutation,
+                    Some(serde_json::json!({
+                        "labelableId": issue_node_id,
+                        "labelIds": label_ids
+                    })),
+                )
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn append_activity_log(
+        &self,
+        issue_key: &str,
+        entry: &super::ActivityLogEntry,
+    ) -> Result<(), ApiError> {
+        let timestamp = entry.completed_at.format("%Y-%m-%d %H:%M UTC").to_string();
+        let summary_text = entry.summary.as_deref().unwrap_or("");
+
+        if issue_key.starts_with("draft:") {
+            let item_id = issue_key.trim_start_matches("draft:");
+
+            // Query draft issue id + current body
+            let query = r"
+                query($nodeId: ID!) {
+                    node(id: $nodeId) {
+                        ... on ProjectV2Item {
+                            content {
+                                __typename
+                                ... on DraftIssue {
+                                    id
+                                    body
+                                }
+                            }
+                        }
+                    }
+                }
+            ";
+            #[derive(Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct NodeResp {
+                node: NodeContent,
+            }
+            #[derive(Deserialize)]
+            struct NodeContent {
+                content: Option<DraftContent>,
+            }
+            #[allow(dead_code)]
+            #[derive(Deserialize)]
+            #[serde(tag = "__typename")]
+            enum DraftContent {
+                DraftIssue {
+                    id: String,
+                    #[serde(default)]
+                    body: Option<String>,
+                },
+            }
+
+            let vars = serde_json::json!({ "nodeId": item_id });
+            let resp: NodeResp = self.graphql(query, Some(vars)).await?;
+
+            let (draft_id, current_body) = match resp.node.content {
+                Some(DraftContent::DraftIssue { id, body }) => (id, body.unwrap_or_default()),
+                None => return Ok(()),
+            };
+
+            let log_line = if summary_text.is_empty() {
+                format!(
+                    "\n\n---\n**Agent Activity** (opr8r)\n| Step | Delegator | Completed |\n|------|-----------|----------|\n| {} | {} | {} |",
+                    entry.step, entry.delegator, timestamp
+                )
+            } else {
+                format!(
+                    "\n\n---\n**Agent Activity** (opr8r)\n| Step | Delegator | Completed | Summary |\n|------|-----------|----------|---------|\n| {} | {} | {} | {} |",
+                    entry.step, entry.delegator, timestamp, summary_text
+                )
+            };
+
+            // If there's already an Agent Activity section, append a new table row instead
+            let new_body = if current_body.contains("**Agent Activity** (opr8r)") {
+                // Append another row to the existing table
+                let new_row = if summary_text.is_empty() {
+                    format!("\n| {} | {} | {} |", entry.step, entry.delegator, timestamp)
+                } else {
+                    format!(
+                        "\n| {} | {} | {} | {} |",
+                        entry.step, entry.delegator, timestamp, summary_text
+                    )
+                };
+                format!("{current_body}{new_row}")
+            } else {
+                format!("{current_body}{log_line}")
+            };
+
+            let mutation = r"
+                mutation($input: UpdateProjectV2DraftIssueInput!) {
+                    updateProjectV2DraftIssue(input: $input) {
+                        draftIssue { id }
+                    }
+                }
+            ";
+            let _: serde_json::Value = self
+                .graphql(
+                    mutation,
+                    Some(serde_json::json!({
+                        "input": { "draftIssueId": draft_id, "body": new_body }
+                    })),
+                )
+                .await?;
+        } else if let Some((owner_repo, number_str)) = issue_key.split_once('#') {
+            // Real repo issue: add a comment
+            let (owner, repo) = owner_repo.split_once('/').ok_or_else(|| {
+                ApiError::http(
+                    PROVIDER_NAME,
+                    400,
+                    format!("Invalid issue key: {issue_key}"),
+                )
+            })?;
+            let number: i64 = number_str.parse().map_err(|_| {
+                ApiError::http(
+                    PROVIDER_NAME,
+                    400,
+                    format!("Invalid issue number: {issue_key}"),
+                )
+            })?;
+
+            // Get issue node ID
+            let id_query = r"
+                query($owner: String!, $repo: String!, $number: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                        issue(number: $number) { id }
+                    }
+                }
+            ";
+            #[derive(Deserialize)]
+            struct IdResp {
+                repository: RepoWithIssue,
+            }
+            #[derive(Deserialize)]
+            struct RepoWithIssue {
+                issue: IssueNode,
+            }
+            #[derive(Deserialize)]
+            struct IssueNode {
+                id: String,
+            }
+            let vars = serde_json::json!({ "owner": owner, "repo": repo, "number": number });
+            let id_resp: IdResp = self.graphql(id_query, Some(vars)).await?;
+
+            let comment_body = if summary_text.is_empty() {
+                format!(
+                    "🤖 **opr8r activity** — step: `{}` | delegator: `{}` | {}",
+                    entry.step, entry.delegator, timestamp
+                )
+            } else {
+                format!(
+                    "🤖 **opr8r activity** — step: `{}` | delegator: `{}` | {}\n\n> {}",
+                    entry.step, entry.delegator, timestamp, summary_text
+                )
+            };
+
+            let add_comment = r"
+                mutation($subjectId: ID!, $body: String!) {
+                    addComment(input: { subjectId: $subjectId, body: $body }) {
+                        commentEdge { node { id } }
+                    }
+                }
+            ";
+            let _: serde_json::Value = self
+                .graphql(
+                    add_comment,
+                    Some(serde_json::json!({
+                        "subjectId": id_resp.repository.issue.id,
+                        "body": comment_body
+                    })),
+                )
+                .await?;
+        }
+
+        Ok(())
+    }
 }
 
 impl GithubProjectsProvider {
@@ -1560,6 +1945,45 @@ fn content_assignees(content: &RawContent) -> &[RawAssignee] {
         RawContent::DraftIssue { assignees, .. } => assignees.as_ref(),
     };
     assignees.map(|a| a.nodes.as_slice()).unwrap_or(&[])
+}
+
+#[async_trait]
+impl super::onboarding::KanbanOnboarding for GithubProjectsProvider {
+    fn provider_kind(&self) -> super::KanbanProviderType {
+        super::KanbanProviderType::Github
+    }
+
+    async fn validate_onboarding(&self) -> Result<super::onboarding::ValidatedWorkspace, ApiError> {
+        let details = self.validate_detailed().await?;
+        let prefetched: Vec<super::onboarding::DiscoveredProject> = details
+            .projects
+            .iter()
+            .map(|p| super::onboarding::DiscoveredProject {
+                workspace_key: details.user_login.clone(),
+                project_key: p.node_id.clone(),
+                project_display_name: format!("{}/{} ({})", p.owner_login, p.title, p.number),
+                provider_url: None,
+                provider_native_id: Some(p.node_id.clone()),
+            })
+            .collect();
+        Ok(super::onboarding::ValidatedWorkspace {
+            provider_kind: super::KanbanProviderType::Github,
+            workspace_key: details.user_login,
+            workspace_display_name: "github.com".to_string(),
+            sync_user_id: details.user_id,
+            sync_user_display_name: String::new(),
+            api_key_env: details.resolved_env_var,
+            prefetched_projects: Some(prefetched),
+            extra: super::onboarding::WorkspaceExtra::Github,
+        })
+    }
+
+    async fn discover_projects(
+        &self,
+        workspace: &super::onboarding::ValidatedWorkspace,
+    ) -> Result<Vec<super::onboarding::DiscoveredProject>, ApiError> {
+        Ok(workspace.prefetched_projects.clone().unwrap_or_default())
+    }
 }
 
 #[cfg(test)]

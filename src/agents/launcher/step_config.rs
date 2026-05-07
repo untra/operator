@@ -8,8 +8,9 @@ use anyhow::{Context, Result};
 use crate::config::Config;
 use crate::permissions::{ProjectPermissions, ProviderCliArgs, StepPermissions, ToolPattern};
 use crate::queue::Ticket;
+use crate::templates::step_type;
 use crate::templates::{
-    schema::{PermissionMode, TemplateSchema},
+    schema::{PermissionMode, StepTypeTag, TemplateSchema},
     TemplateType,
 };
 
@@ -41,21 +42,76 @@ pub fn get_step_config(ticket: &Ticket) -> Result<StepConfig> {
             if let Some(step) = schema.get_step(&step_name) {
                 let mut permissions = step.permissions.clone().unwrap_or_default();
 
+                // Use effective allowed_tools (type-specific configs may override)
+                let effective_tools = step_type::effective_allowed_tools(step);
+
                 // Bridge: Convert allowed_tools to permissions.tools.allow if not explicitly set
-                if permissions.tools.allow.is_empty() && !step.allowed_tools.is_empty() {
-                    permissions.tools.allow = step
-                        .allowed_tools
+                if permissions.tools.allow.is_empty() && !effective_tools.is_empty() {
+                    permissions.tools.allow = effective_tools
                         .iter()
-                        .filter(|t| *t != "*") // Skip wildcard (allows all tools)
+                        .filter(|t| t.as_str() != "*") // Skip wildcard (allows all tools)
                         .map(ToolPattern::new)
                         .collect();
+                }
+
+                // Derive JSON schema from classifier config if not explicitly set
+                let json_schema = if step.json_schema.is_some() {
+                    step.json_schema.clone()
+                } else if step.step_type == StepTypeTag::Classifier {
+                    step.classifier_config
+                        .as_ref()
+                        .map(step_type::classifier_json_schema)
+                } else {
+                    None
+                };
+
+                // Inject MCP server permissions from mcp_config
+                if let Some(ref mcp_cfg) = step.mcp_config {
+                    for tool_ref in &mcp_cfg.required_tools {
+                        if !permissions.mcp_servers.enable.contains(&tool_ref.server) {
+                            permissions.mcp_servers.enable.push(tool_ref.server.clone());
+                        }
+                    }
+                    for tool_ref in &mcp_cfg.optional_tools {
+                        if !permissions.mcp_servers.enable.contains(&tool_ref.server) {
+                            permissions.mcp_servers.enable.push(tool_ref.server.clone());
+                        }
+                    }
+                }
+
+                // Inject permissions from delegator config
+                if let Some(ref del_cfg) = step.delegator_config {
+                    if let Some(ref del_perms) = del_cfg.permissions {
+                        // Merge delegator permissions additively
+                        permissions
+                            .tools
+                            .allow
+                            .extend(del_perms.tools.allow.clone());
+                        permissions.tools.deny.extend(del_perms.tools.deny.clone());
+                        permissions
+                            .directories
+                            .allow
+                            .extend(del_perms.directories.allow.clone());
+                        permissions
+                            .directories
+                            .deny
+                            .extend(del_perms.directories.deny.clone());
+                        permissions
+                            .mcp_servers
+                            .enable
+                            .extend(del_perms.mcp_servers.enable.clone());
+                        permissions
+                            .mcp_servers
+                            .disable
+                            .extend(del_perms.mcp_servers.disable.clone());
+                    }
                 }
 
                 return Ok(StepConfig {
                     permissions,
                     cli_args: step.cli_args.clone().unwrap_or_default(),
                     permission_mode: step.permission_mode.clone(),
-                    json_schema: step.json_schema.clone(),
+                    json_schema,
                     json_schema_file: step.json_schema_file.clone(),
                 });
             }
@@ -113,6 +169,7 @@ mod tests {
             status: "TODO".to_string(),
             content: String::new(),
             sessions: HashMap::new(),
+            step_delegators: HashMap::new(),
             llm_task: LlmTask::default(),
             worktree_path: None,
             branch: None,

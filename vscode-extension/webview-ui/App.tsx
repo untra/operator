@@ -381,7 +381,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: T): T {
 
 const DEFAULT_JIRA: JiraConfig = { enabled: false, api_key_env: 'OPERATOR_JIRA_API_KEY', email: '', projects: {} };
 const DEFAULT_LINEAR: LinearConfig = { enabled: false, api_key_env: 'OPERATOR_LINEAR_API_KEY', projects: {} };
-const DEFAULT_PROJECT_SYNC: ProjectSyncConfig = { sync_user_id: '', sync_statuses: [], collection_name: null, type_mappings: {} };
+const DEFAULT_PROJECT_SYNC: ProjectSyncConfig = { sync_user_id: '', sync_statuses: [], collection_name: null, type_mappings: {}, bidirectional: false };
 
 /** Apply an update to the config object by section/key path */
 function applyUpdate(

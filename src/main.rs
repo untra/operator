@@ -27,6 +27,7 @@ pub mod env_vars;
 mod mcp;
 mod notifications;
 mod queue;
+mod relay;
 mod rest;
 mod setup;
 mod startup;
@@ -144,6 +145,24 @@ enum Commands {
         /// Skip confirmation prompt
         #[arg(short = 'y', long)]
         yes: bool,
+
+        /// Use a named delegator from config (mutually exclusive with --llm-tool/--model/--model-server)
+        #[arg(long)]
+        delegator: Option<String>,
+
+        /// LLM tool override: claude, codex, gemini
+        #[arg(long = "llm-tool")]
+        llm_tool: Option<String>,
+
+        /// Model override (e.g., opus, gpt-4o, qwen2.5-coder)
+        #[arg(long)]
+        model: Option<String>,
+
+        /// Named model server reference (e.g., ollama-local) — overrides the delegator's default.
+        /// Pairs with --llm-tool/--model for ad-hoc ollama-backed launches. v1 accepts the flag
+        /// and validates the name; env-var injection on spawn ships in v2.
+        #[arg(long = "model-server")]
+        model_server: Option<String>,
     },
 
     /// List active agents
@@ -263,8 +282,26 @@ async fn main() -> Result<()> {
         Some(Commands::Queue { all }) => {
             cmd_queue(&config, all).await?;
         }
-        Some(Commands::Launch { ticket, yes }) => {
-            cmd_launch(&config, ticket, yes).await?;
+        Some(Commands::Launch {
+            ticket,
+            yes,
+            delegator,
+            llm_tool,
+            model,
+            model_server,
+        }) => {
+            cmd_launch(
+                &config,
+                ticket,
+                yes,
+                LaunchOverrides {
+                    delegator,
+                    llm_tool,
+                    model,
+                    model_server,
+                },
+            )
+            .await?;
         }
         Some(Commands::Agents { verbose }) => {
             cmd_agents(&config, verbose).await?;
@@ -334,7 +371,7 @@ async fn run_tui(config: Config, log_file_path: Option<PathBuf>, start_web: bool
 
     // Note: tmux availability is now checked in the setup wizard (TmuxOnboarding step)
     // when the user selects tmux as their session wrapper
-    let mut app = App::new(config, start_web)?;
+    let mut app = App::new(config, start_web).await?;
     let result = app.run().await;
 
     // Print log file path on exit if logs were written
@@ -381,7 +418,51 @@ async fn cmd_queue(config: &Config, all: bool) -> Result<()> {
     Ok(())
 }
 
-async fn cmd_launch(config: &Config, ticket: Option<String>, skip_confirm: bool) -> Result<()> {
+/// Ad-hoc launch overrides parsed from CLI flags.
+///
+/// v1: flags parse and validate; env-var injection for `model_server` ships in v2.
+#[derive(Debug, Default)]
+struct LaunchOverrides {
+    delegator: Option<String>,
+    llm_tool: Option<String>,
+    model: Option<String>,
+    model_server: Option<String>,
+}
+
+async fn cmd_launch(
+    config: &Config,
+    ticket: Option<String>,
+    skip_confirm: bool,
+    overrides: LaunchOverrides,
+) -> Result<()> {
+    // Validate CLI overrides up front so bad input doesn't get swallowed later.
+    // Named model_server must exist among declared servers or implicit builtins.
+    if let Some(ref name) = overrides.model_server {
+        let declared = config.model_servers.iter().any(|s| &s.name == name);
+        let implicit = ["claude", "codex", "gemini"]
+            .iter()
+            .any(|t| &config::implicit_model_server_for_tool(t).name == name);
+        if !declared && !implicit {
+            anyhow::bail!(
+                "Unknown model-server '{name}'. Declare it under [[model_servers]] in your config."
+            );
+        }
+    }
+    // --delegator and ad-hoc (--llm-tool / --model / --model-server) are mutually exclusive.
+    let has_adhoc = overrides.llm_tool.is_some()
+        || overrides.model.is_some()
+        || overrides.model_server.is_some();
+    if overrides.delegator.is_some() && has_adhoc {
+        anyhow::bail!(
+            "--delegator is mutually exclusive with --llm-tool / --model / --model-server"
+        );
+    }
+
+    // TODO(model-servers-v2): thread `overrides` through resolve_launch_options() so the chosen
+    // model_server's env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, etc.) are exported before the
+    // agent CLI spawns. v1 parses and validates; resolution path is unchanged.
+    let _ = &overrides;
+
     // Check tmux availability before launching
     if let Err(err) = check_tmux_available() {
         print_tmux_error(&err);
@@ -590,8 +671,9 @@ async fn cmd_create(
 
 fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
     use docs_gen::{
-        cli, config, config_schema, issuetype, jira_api, metadata, openapi, schema_index,
-        shortcuts, startup, state_schema, taxonomy, DocGenerator,
+        cli, config, config_schema, issuetype, issuetype_json_schema, jira_api, metadata, openapi,
+        operator_output_schema, project_analysis_schema, schema_index, shortcuts, startup,
+        state_schema, taxonomy, DocGenerator,
     };
     use std::path::PathBuf;
 
@@ -641,9 +723,24 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
         Some("jira-api") => {
             vec![Box::new(jira_api::JiraApiDocGenerator)]
         }
+        Some("operator-output-schema") => {
+            vec![Box::new(
+                operator_output_schema::OperatorOutputSchemaDocGenerator,
+            )]
+        }
+        Some("issuetype-json-schema") => {
+            vec![Box::new(
+                issuetype_json_schema::IssuetypeJsonSchemaDocGenerator,
+            )]
+        }
+        Some("project-analysis-schema") => {
+            vec![Box::new(
+                project_analysis_schema::ProjectAnalysisSchemaDocGenerator,
+            )]
+        }
         Some(other) => {
             println!(
-                "Unknown generator: {other}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api"
+                "Unknown generator: {other}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api, operator-output-schema, issuetype-json-schema, project-analysis-schema"
             );
             return Ok(());
         }
@@ -662,6 +759,9 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
                 Box::new(state_schema::StateSchemaDocGenerator),
                 Box::new(schema_index::SchemaIndexDocGenerator),
                 Box::new(jira_api::JiraApiDocGenerator),
+                Box::new(operator_output_schema::OperatorOutputSchemaDocGenerator),
+                Box::new(issuetype_json_schema::IssuetypeJsonSchemaDocGenerator),
+                Box::new(project_analysis_schema::ProjectAnalysisSchemaDocGenerator),
             ]
         }
     };

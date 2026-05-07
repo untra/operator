@@ -20,6 +20,9 @@ name = "generate_types"
 path = "src/bin/generate_types.rs"
 
 [dependencies]
+# Shared relay crate (also used by opr8r)
+operator-relay = { path = "crates/relay" }
+
 # TUI
 ratatui = "0.29"
 crossterm = "0.28"
@@ -89,6 +92,7 @@ utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
 [dev-dependencies]
+operator-relay = { path = "crates/relay" }
 tempfile = "3"
 
 [lints.rust]

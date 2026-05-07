@@ -1,11 +1,13 @@
 mod api;
 mod cli;
+#[cfg(unix)]
+mod operator_relay;
 mod output_parser;
 mod runner;
 mod transition;
 
 use api::{ApiClient, StepCompleteRequest};
-use cli::Args;
+use cli::{Args, Cmd};
 use runner::{dry_run_command, run_command, RunConfig};
 use std::process::ExitCode;
 use transition::{
@@ -53,6 +55,28 @@ fn build_step_complete_request(
 async fn main() -> ExitCode {
     let args = Args::parse_args();
 
+    // Dispatch relay subcommand before any step-wrapper logic
+    if args.subcommand == Some(Cmd::Relay) {
+        #[cfg(unix)]
+        return operator_relay::run().await;
+        #[cfg(not(unix))]
+        {
+            eprintln!(
+                "[opr8r relay] relay is not supported on this platform (requires Unix sockets)"
+            );
+            return ExitCode::from(1);
+        }
+    }
+
+    // Step-wrapper mode: validate required fields
+    if let Err(e) = args.validate_step_wrapper() {
+        eprintln!("[opr8r] Error: {e}");
+        return ExitCode::from(EXIT_CONFIG_ERROR);
+    }
+
+    let ticket_id = args.ticket_id.as_deref().unwrap();
+    let step = args.step.as_deref().unwrap();
+
     // Validate command
     let (program, cmd_args) = match args.command_parts() {
         Some(parts) => parts,
@@ -66,8 +90,8 @@ async fn main() -> ExitCode {
     if args.dry_run {
         dry_run_command(program, cmd_args);
         println!("[opr8r dry-run] Would report to API:");
-        println!("  Ticket: {}", args.ticket_id);
-        println!("  Step: {}", args.step);
+        println!("  Ticket: {ticket_id}");
+        println!("  Step: {step}");
         println!(
             "  API URL: {}",
             args.api_url.as_deref().unwrap_or("auto-discover")
@@ -75,7 +99,7 @@ async fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    print_step_starting(&args.ticket_id, &args.step, args.verbose);
+    print_step_starting(ticket_id, step, args.verbose);
 
     // Configure runner with output capture enabled
     let config = RunConfig::new()
@@ -112,11 +136,11 @@ async fn main() -> ExitCode {
         }
     }
 
-    print_step_completed(&args.step, duration_secs, args.verbose);
+    print_step_completed(step, duration_secs, args.verbose);
 
     // Print command failure if applicable
     if exit_code != 0 {
-        print_command_failed(exit_code, &args.step);
+        print_command_failed(exit_code, step);
     }
 
     // Discover and connect to API
@@ -136,10 +160,7 @@ async fn main() -> ExitCode {
         operator_output,
     );
 
-    let response = match api_client
-        .complete_step(&args.ticket_id, &args.step, request)
-        .await
-    {
+    let response = match api_client.complete_step(ticket_id, step, request).await {
         Ok(r) => r,
         Err(e) => {
             print_api_unreachable_error(&e.to_string());
@@ -160,7 +181,7 @@ async fn main() -> ExitCode {
                 }
             } else {
                 // No next step - workflow complete
-                print_workflow_complete(&args.ticket_id);
+                print_workflow_complete(ticket_id);
             }
         }
         "awaiting_review" => {
@@ -170,7 +191,7 @@ async fn main() -> ExitCode {
                 .as_ref()
                 .map(|s| s.review_type.as_str())
                 .unwrap_or("unknown");
-            print_awaiting_review(&args.step, review_type);
+            print_awaiting_review(step, review_type);
         }
         "failed" => {
             // Step failed

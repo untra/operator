@@ -31,4 +31,10 @@ model_properties: { [key in string]?: string },
 /**
  * Optional launch configuration
  */
-launch_config: DelegatorLaunchConfig | null, };
+launch_config: DelegatorLaunchConfig | null, 
+/**
+ * Name of a declared `ModelServer` (from `Config.model_servers`).
+ * `None` means use the `llm_tool`'s implicit vendor default
+ * (claude → anthropic-api, codex → openai-api, gemini → google-api).
+ */
+model_server: string | null, };

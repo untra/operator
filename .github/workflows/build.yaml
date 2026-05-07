@@ -26,6 +26,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 permissions:
   contents: write
@@ -38,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
         with:
           components: rustfmt, clippy
 
@@ -61,6 +62,13 @@ jobs:
       - name: Tests
         run: cargo test --all-features
 
+      - name: cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: Cargo.toml
+          arguments: --all-features
+          command: check
+
   coverage:
     needs: lint-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -69,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
         with:
           components: llvm-tools-preview
 
@@ -130,7 +138,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
 
       - name: Install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
@@ -158,6 +166,33 @@ jobs:
         run: |
           tmux list-sessions -F '#{session_name}' 2>/dev/null | grep '^op' | xargs -I {} tmux kill-session -t {} || true
           zellij delete-all-sessions --yes --force 2>/dev/null || true
+
+  relay-integration:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@1.88.0
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-relay-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-relay-
+
+      - name: Build opr8r (provides relay subcommand)
+        run: cargo build --manifest-path opr8r/Cargo.toml
+
+      - name: Run relay integration tests
+        env:
+          OPERATOR_RELAY_INTEGRATION_TEST_ENABLED: 'true'
+        run: cargo test --test relay_integration -- --nocapture --test-threads=1
 
   build:
     needs: lint-test
@@ -187,7 +222,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
         with:
           targets: ${{ matrix.target }}
 
@@ -328,7 +363,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.88.0
 
       - name: Cache cargo registry
         uses: actions/cache@v4

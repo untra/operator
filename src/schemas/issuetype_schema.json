@@ -1,409 +1,1285 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gbqr.us/operator/issuetype-template.schema.json",
-  "title": "Issuetype Template Schema",
-  "description": "Schema for validating operator issuetype template configurations",
+  "title": "TemplateSchema",
+  "description": "Schema definition for an issuetype template",
   "type": "object",
-  "required": ["key", "name", "description", "mode", "glyph", "fields", "steps"],
-  "additionalProperties": false,
   "properties": {
-    "$schema": {
-      "type": "string",
-      "description": "JSON Schema reference for validation"
-    },
     "key": {
-      "type": "string",
-      "pattern": "^[A-Z]+$",
       "description": "Unique issuetype key (e.g., FEAT, FIX, SPIKE, INV, TASK)",
-      "examples": ["FEAT", "FIX", "SPIKE", "INV", "TASK"]
+      "type": "string"
     },
     "name": {
-      "type": "string",
-      "minLength": 3,
-      "description": "Human-readable name of the issuetype, eg. bug, feature, task, chore, spike, etc."
+      "description": "Display name of the template type",
+      "type": "string"
     },
     "description": {
-      "type": "string",
-      "description": "Description of what this issuetype is for"
+      "description": "Brief description of when to use this template",
+      "type": "string"
     },
     "mode": {
-      "type": "string",
-      "enum": ["autonomous", "paired"],
-      "description": "Whether this issuetype work runs autonomously or requires human pairing",
-      "default": "paired"
+      "description": "Whether this issuetype runs autonomously or requires human pairing",
+      "$ref": "#/$defs/ExecutionMode"
     },
     "glyph": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 4,
-      "description": "Icon/glyph character displayed in the UI for this issuetype (e.g., '*', '#', '!', '?', '>')",
-      "examples": ["*", "#", "!", "?", ">"]
+      "description": "Glyph character displayed in UI for this issuetype",
+      "type": "string"
     },
     "color": {
-      "type": "string",
-      "enum": ["white", "blue", "cyan", "green", "yellow", "magenta", "red", "black"],
-      "default": "white",
-      "description": "Optional color for the glyph in TUI display"
+      "description": "Optional color for glyph display in TUI",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
     },
     "project_required": {
-      "type": "boolean",
       "description": "Whether a project must be specified for this issuetype",
+      "type": "boolean",
       "default": true
     },
     "fields": {
+      "description": "Field definitions for this template",
       "type": "array",
-      "description": "Field definitions for the ticket form",
       "items": {
-        "$ref": "#/definitions/field"
-      },
-      "minItems": 1
+        "$ref": "#/$defs/FieldSchema"
+      }
     },
     "steps": {
-      "type": "array",
       "description": "Lifecycle steps for completing this ticket type",
+      "type": "array",
       "items": {
-        "$ref": "#/definitions/step"
-      },
-      "minItems": 1
+        "$ref": "#/$defs/StepSchema"
+      }
     },
     "prompt": {
-      "type": "string",
-      "description": "Issue prompt to apply to work creation."
+      "description": "Optional prompt for work launching (interpolated with handlebars)",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
     },
-    "agent_creation_prompt": {
-      "type": "string",
-      "description": "Optional prompt for generating an operator agent for this issuetype via 'claude -p' for this prompt. Should instruct Claude to output ONLY the agent system prompt. If omitted, no operator agent will be generated for this issuetype."
+    "agent_prompt": {
+      "description": "Prompt for generating this issue type's operator agent via `claude -p`",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
     },
     "agent": {
-      "type": "string",
-      "description": "Default delegator name for this issuetype (overridden by step-level agent)"
+      "description": "Default delegator name for this issuetype (overridden by step.agent)",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
     }
   },
-  "definitions": {
-    "field": {
-      "type": "object",
-      "required": ["name", "description", "type"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "pattern": "^[a-z_]+$",
-          "description": "Field identifier (lowercase with underscores)"
-        },
-        "description": {
-          "type": "string",
-          "description": "Human-readable description of the field"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["string", "text", "enum", "date", "boolean", "integer"],
-          "description": "Field data type"
-        },
-        "required": {
-          "type": "boolean",
-          "default": false,
-          "description": "Whether this field must be filled"
-        },
-        "default": {
-          "type": ["string", "boolean", "integer", "null"],
-          "description": "Default value for the field. Required if field is required (except for 'id' field)"
-        },
-        "min": {
-          "type": "integer",
-          "description": "Minimum value for integer fields"
-        },
-        "max": {
-          "type": "integer",
-          "description": "Maximum value for integer fields"
-        },
-        "auto": {
-          "type": "string",
-          "enum": ["id", "date", "branch", "status"],
-          "description": "Auto-generation strategy for this field"
-        },
-        "options": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Available options for enum fields"
-        },
-        "placeholder": {
-          "type": "string",
-          "description": "Placeholder text shown in empty field"
-        },
-        "max_length": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Maximum character length for string/text fields"
-        },
-        "display_order": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Order in which to display this field in the form"
-        },
-        "user_editable": {
-          "type": "boolean",
-          "default": true,
-          "description": "Whether the user can edit this field (false for auto-generated)"
-        }
-      },
-      "allOf": [
+  "required": [
+    "key",
+    "name",
+    "description",
+    "mode",
+    "glyph",
+    "fields",
+    "steps"
+  ],
+  "$defs": {
+    "ExecutionMode": {
+      "description": "Execution mode for an issuetype",
+      "oneOf": [
         {
-          "if": {
-            "properties": {
-              "type": { "const": "enum" }
-            }
-          },
-          "then": {
-            "required": ["options"]
-          }
+          "description": "Runs without human interaction",
+          "type": "string",
+          "const": "autonomous"
         },
         {
-          "if": {
-            "properties": {
-              "required": { "const": true },
-              "auto": false
-            },
-            "not": {
-              "properties": {
-                "name": { "const": "id" }
-              }
-            }
-          },
-          "then": {
-            "required": ["default"]
-          }
+          "description": "Requires human pairing/interaction",
+          "type": "string",
+          "const": "paired"
         }
       ]
     },
-    "step": {
+    "FieldSchema": {
+      "description": "Schema definition for a single field in a template",
       "type": "object",
-      "required": ["name", "outputs", "prompt", "allowed_tools"],
-      "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string",
-          "description": "Step identifier (lowercase)",
-          "pattern": "^[a-z_]+$"
+          "description": "Field identifier (matches handlebar variable name)",
+          "type": "string"
         },
-        "display_name": {
-          "type": "string",
-          "description": "Human-readable step name"
+        "description": {
+          "description": "Help text for the field",
+          "type": "string"
         },
-        "outputs": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["plan", "code", "test", "pr", "ticket", "review", "report", "documentation"]
-          },
-          "description": "Types of outputs this step produces"
+        "type": {
+          "description": "Type of the field",
+          "$ref": "#/$defs/FieldType"
         },
-        "prompt": {
-          "type": "string",
-          "description": "Initial prompt template for the Claude agent at this step"
+        "required": {
+          "description": "Whether this field must be filled",
+          "type": "boolean",
+          "default": false
         },
-        "allowed_tools": {
+        "default": {
+          "description": "Default value if any",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "auto": {
+          "description": "Auto-generation strategy for this field",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AutoGenStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "options": {
+          "description": "Options for enum fields",
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Claude Code tools allowed in this step (e.g., 'Read', 'Write', 'Bash')"
+          "default": []
+        },
+        "placeholder": {
+          "description": "Placeholder text shown in template",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "max_length": {
+          "description": "Maximum length for string fields",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0,
+          "default": null
+        },
+        "display_order": {
+          "description": "Display order in form (lower = first)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32",
+          "default": null
+        },
+        "user_editable": {
+          "description": "Whether the user can edit this field (false for auto-generated)",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "type"
+      ]
+    },
+    "FieldType": {
+      "description": "Types of fields supported in template schemas",
+      "oneOf": [
+        {
+          "description": "Single-line text input",
+          "type": "string",
+          "const": "string"
+        },
+        {
+          "description": "Selection from predefined options",
+          "type": "string",
+          "const": "enum"
+        },
+        {
+          "description": "True/false checkbox",
+          "type": "string",
+          "const": "bool"
+        },
+        {
+          "description": "Date field (YYYY-MM-DD format)",
+          "type": "string",
+          "const": "date"
+        },
+        {
+          "description": "Multi-line text input",
+          "type": "string",
+          "const": "text"
+        },
+        {
+          "description": "Integer number input",
+          "type": "string",
+          "const": "integer"
+        }
+      ]
+    },
+    "AutoGenStrategy": {
+      "description": "Auto-generation strategies for fields",
+      "oneOf": [
+        {
+          "description": "Generate ID from timestamp (e.g., FEAT-1234)",
+          "type": "string",
+          "const": "id"
+        },
+        {
+          "description": "Generate current date (YYYY-MM-DD)",
+          "type": "string",
+          "const": "date"
+        },
+        {
+          "description": "Generate branch name from type and summary",
+          "type": "string",
+          "const": "branch"
+        },
+        {
+          "description": "Set initial status",
+          "type": "string",
+          "const": "status"
+        }
+      ]
+    },
+    "StepSchema": {
+      "description": "Schema definition for a lifecycle step",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Step identifier (lowercase)",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Human-readable step name",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "type": {
+          "description": "Step type discriminator (defaults to \"task\" for backward compatibility)",
+          "$ref": "#/$defs/StepTypeTag",
+          "default": "task"
+        },
+        "outputs": {
+          "description": "Types of outputs this step produces",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StepOutput"
+          }
+        },
+        "prompt": {
+          "description": "Initial prompt template for the Claude agent",
+          "type": "string"
         },
         "review_type": {
-          "type": "string",
-          "enum": ["none", "plan", "visual", "pr"],
-          "default": "none",
-          "description": "Type of review required: none (auto-proceed), plan (approve plan), visual (browser check), pr (GitHub PR review)"
+          "description": "Type of review required for this step (none, plan, visual, pr)",
+          "$ref": "#/$defs/ReviewType",
+          "default": "none"
         },
         "visual_config": {
-          "type": "object",
-          "description": "Configuration for visual review (required when review_type is 'visual')",
-          "properties": {
-            "url": {
-              "type": "string",
-              "description": "URL to open for visual check (supports handlebars templates)"
+          "description": "Configuration for visual review (required when `review_type` is \"visual\")",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisualReviewConfig"
             },
-            "startup_command": {
-              "type": "string",
-              "description": "Optional command to start dev server before opening browser"
-            },
-            "startup_timeout_secs": {
-              "type": "integer",
-              "default": 30,
-              "description": "Timeout in seconds for server startup"
+            {
+              "type": "null"
             }
-          },
-          "required": ["url"]
+          ],
+          "default": null
         },
         "on_reject": {
-          "type": "object",
           "description": "What to do if step output is rejected",
-          "properties": {
-            "goto_step": {
-              "type": "string",
-              "description": "Step name to return to on rejection"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OnReject"
             },
-            "prompt": {
-              "type": "string",
-              "description": "Prompt to use when restarting after rejection"
+            {
+              "type": "null"
             }
-          }
+          ],
+          "default": null
         },
         "next_step": {
-          "type": ["string", "null"],
-          "description": "Name of the next step (null for final step)"
+          "description": "Name of the next step (None for final step)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         },
-        "permissions": {
-          "$ref": "#/definitions/stepPermissions",
-          "description": "Provider-agnostic permissions for this step, merged additively with project settings"
-        },
-        "cli_args": {
-          "$ref": "#/definitions/providerCliArgs",
-          "description": "Arbitrary CLI arguments per provider"
-        },
-        "permission_mode": {
-          "type": "string",
-          "enum": ["default", "plan", "acceptEdits", "delegate"],
-          "default": "default",
-          "description": "Preferred LLM permission mode for this step. Only applies to providers that support it (e.g., Claude). No-op for unsupported providers."
-        },
-        "jsonSchema": {
-          "type": "object",
-          "description": "Inline JSON schema for structured output. Claude-specific: sets --json-schema flag. Takes precedence over jsonSchemaFile if both are defined."
-        },
-        "jsonSchemaFile": {
-          "type": "string",
-          "description": "Path to a local JSON schema file for structured output, relative to the project root. Claude-specific: sets --json-schema flag."
-        },
-        "artifact_patterns": {
+        "allowed_tools": {
+          "description": "Claude Code tools allowed in this step",
           "type": "array",
-          "items": { "type": "string" },
-          "description": "File glob patterns in the worktree that signal this step is complete (e.g., '.tickets/plans/*.md')"
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
         "agent": {
-          "type": "string",
-          "description": "Delegator name override for this step"
+          "description": "Optional agent (delegator) name for this step (overrides ticket's default agent)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "permissions": {
+          "description": "Provider-agnostic permissions for this step",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StepPermissions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cli_args": {
+          "description": "Arbitrary CLI arguments per provider",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProviderCliArgs"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "permission_mode": {
+          "description": "Preferred LLM permission mode for this step",
+          "$ref": "#/$defs/PermissionMode",
+          "default": "default"
+        },
+        "jsonSchema": {
+          "description": "Inline JSON schema for structured output (Claude-specific)",
+          "default": null
+        },
+        "jsonSchemaFile": {
+          "description": "Path to JSON schema file for structured output (Claude-specific)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "artifact_patterns": {
+          "description": "File glob patterns in the worktree that signal this step is complete",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "classifier_config": {
+          "description": "Configuration for classifier steps (required when type=classifier)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClassifierConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rag_config": {
+          "description": "Configuration for RAG steps (required when type=rag)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RagConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "delegator_config": {
+          "description": "Configuration for delegator steps (required when type=delegator)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DelegatorStepConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mcp_config": {
+          "description": "Configuration for MCP steps (required when type=mcp)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/McpStepConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "multi_model_config": {
+          "description": "Configuration for multi-model steps (required when `type=multi_model`)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MultiModelConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "multi_prompt_config": {
+          "description": "Configuration for multi-prompt steps (required when `type=multi_prompt`)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MultiPromptConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "matrixed_config": {
+          "description": "Configuration for matrixed steps (required when type=matrixed)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MatrixedConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
-      }
+      },
+      "required": [
+        "name",
+        "outputs",
+        "prompt"
+      ]
     },
-    "stepPermissions": {
+    "StepTypeTag": {
+      "description": "Discriminator tag for step types",
+      "oneOf": [
+        {
+          "description": "Default pass-through task step",
+          "type": "string",
+          "const": "task"
+        },
+        {
+          "description": "Structured typed output (boolean, number, string, enum)",
+          "type": "string",
+          "const": "classifier"
+        },
+        {
+          "description": "Context-augmented prompting with retrieved sources",
+          "type": "string",
+          "const": "rag"
+        },
+        {
+          "description": "Runs with a specific delegator and prompt flavor",
+          "type": "string",
+          "const": "delegator"
+        },
+        {
+          "description": "Ensures specific MCP tools are available",
+          "type": "string",
+          "const": "mcp"
+        },
+        {
+          "description": "Fan-out to N delegators, then aggregate via voting",
+          "type": "string",
+          "const": "multi_model"
+        },
+        {
+          "description": "N prompt variations with one model, then select best",
+          "type": "string",
+          "const": "multi_prompt"
+        },
+        {
+          "description": "N x M delegators x prompt variations",
+          "type": "string",
+          "const": "matrixed"
+        }
+      ]
+    },
+    "StepOutput": {
+      "description": "Types of outputs a step can produce",
+      "oneOf": [
+        {
+          "description": "Implementation plan",
+          "type": "string",
+          "const": "plan"
+        },
+        {
+          "description": "Source code changes",
+          "type": "string",
+          "const": "code"
+        },
+        {
+          "description": "Test code/results",
+          "type": "string",
+          "const": "test"
+        },
+        {
+          "description": "Pull request",
+          "type": "string",
+          "const": "pr"
+        },
+        {
+          "description": "New ticket(s)",
+          "type": "string",
+          "const": "ticket"
+        },
+        {
+          "description": "Review output",
+          "type": "string",
+          "const": "review"
+        },
+        {
+          "description": "Investigation/research report",
+          "type": "string",
+          "const": "report"
+        },
+        {
+          "description": "Documentation",
+          "type": "string",
+          "const": "documentation"
+        }
+      ]
+    },
+    "ReviewType": {
+      "description": "Type of review required for a step",
+      "oneOf": [
+        {
+          "description": "No review required - proceed automatically",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Review the plan/output before proceeding",
+          "type": "string",
+          "const": "plan"
+        },
+        {
+          "description": "Visual confirmation via browser",
+          "type": "string",
+          "const": "visual"
+        },
+        {
+          "description": "Git interface PR review workflow",
+          "type": "string",
+          "const": "pr"
+        }
+      ]
+    },
+    "VisualReviewConfig": {
+      "description": "Configuration for visual review steps",
       "type": "object",
-      "description": "Provider-agnostic permissions for a step",
-      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "description": "URL to open for visual check (supports handlebars templates)",
+          "type": "string"
+        },
+        "startup_command": {
+          "description": "Optional startup command (e.g., dev server) to run before opening browser",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "startup_timeout_secs": {
+          "description": "Timeout in seconds for server startup (default: 30)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0,
+          "default": null
+        }
+      },
+      "required": [
+        "url"
+      ]
+    },
+    "OnReject": {
+      "description": "Action to take when a step is rejected",
+      "type": "object",
+      "properties": {
+        "goto_step": {
+          "description": "Step name to return to on rejection",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Prompt to use when restarting after rejection",
+          "type": "string"
+        }
+      },
+      "required": [
+        "goto_step",
+        "prompt"
+      ]
+    },
+    "StepPermissions": {
+      "description": "Complete permission set for a step (as defined in issuetype schema)",
+      "type": "object",
       "properties": {
         "tools": {
-          "type": "object",
           "description": "Tool-level allow/deny lists",
-          "additionalProperties": false,
-          "properties": {
-            "allow": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/toolPattern" },
-              "description": "Tools/patterns to allow (additive to project settings)"
-            },
-            "deny": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/toolPattern" },
-              "description": "Tools/patterns to deny (additive to project settings)"
-            }
-          }
+          "$ref": "#/$defs/ToolPermissions"
         },
         "directories": {
-          "type": "object",
           "description": "Directory-level allow/deny lists",
-          "additionalProperties": false,
-          "properties": {
-            "allow": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Additional directories to allow access to (glob patterns)"
-            },
-            "deny": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Directories to deny access to (glob patterns)"
-            }
-          }
+          "$ref": "#/$defs/DirectoryPermissions"
         },
         "mcp_servers": {
-          "type": "object",
           "description": "MCP server enable/disable configuration",
-          "additionalProperties": false,
-          "properties": {
-            "enable": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "MCP servers to enable for this step"
-            },
-            "disable": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "MCP servers to disable for this step"
-            }
-          }
+          "$ref": "#/$defs/McpServerPermissions"
         },
         "custom_flags": {
-          "type": "object",
           "description": "Per-provider custom configuration flags",
-          "additionalProperties": false,
-          "properties": {
-            "claude": {
-              "type": "object",
-              "additionalProperties": true,
-              "description": "Claude-specific configuration flags"
-            },
-            "gemini": {
-              "type": "object",
-              "additionalProperties": true,
-              "description": "Gemini-specific configuration flags"
-            },
-            "codex": {
-              "type": "object",
-              "additionalProperties": true,
-              "description": "Codex-specific configuration flags"
-            }
+          "$ref": "#/$defs/CustomFlags"
+        }
+      }
+    },
+    "ToolPermissions": {
+      "description": "Tool-level permissions (allow/deny lists)",
+      "type": "object",
+      "properties": {
+        "allow": {
+          "description": "Tools/patterns to allow",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ToolPattern"
+          }
+        },
+        "deny": {
+          "description": "Tools/patterns to deny",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ToolPattern"
           }
         }
       }
     },
-    "toolPattern": {
+    "ToolPattern": {
+      "description": "Provider-agnostic tool pattern",
       "type": "object",
-      "description": "Provider-agnostic tool permission pattern",
-      "required": ["tool"],
-      "additionalProperties": false,
       "properties": {
         "tool": {
-          "type": "string",
-          "description": "Tool name: Read, Write, Edit, Bash, Glob, Grep, WebFetch, etc."
+          "description": "Tool name: Read, Write, Edit, Bash, Glob, Grep, `WebFetch`, etc.",
+          "type": "string"
         },
         "pattern": {
-          "type": "string",
-          "description": "Optional pattern for tool arguments (e.g., 'cargo test:*' for Bash)"
+          "description": "Optional pattern for tool arguments (e.g., \"cargo test:*\" for Bash)",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "tool"
+      ]
+    },
+    "DirectoryPermissions": {
+      "description": "Directory-level permissions",
+      "type": "object",
+      "properties": {
+        "allow": {
+          "description": "Additional directories to allow access to (glob patterns)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "deny": {
+          "description": "Directories to deny access to (glob patterns)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
-    "providerCliArgs": {
+    "McpServerPermissions": {
+      "description": "MCP server permissions (server-level enable/disable only)",
       "type": "object",
-      "description": "Arbitrary CLI arguments per provider",
-      "additionalProperties": false,
       "properties": {
-        "claude": {
+        "enable": {
+          "description": "MCP servers to enable for this step",
           "type": "array",
-          "items": { "type": "string" },
-          "description": "CLI arguments for Claude"
+          "items": {
+            "type": "string"
+          }
         },
-        "gemini": {
+        "disable": {
+          "description": "MCP servers to disable for this step",
           "type": "array",
-          "items": { "type": "string" },
-          "description": "CLI arguments for Gemini"
-        },
-        "codex": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "CLI arguments for Codex"
+          "items": {
+            "type": "string"
+          }
         }
       }
+    },
+    "CustomFlags": {
+      "description": "Per-provider custom configuration flags",
+      "type": "object",
+      "properties": {
+        "claude": {
+          "description": "Claude-specific configuration flags",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "gemini": {
+          "description": "Gemini-specific configuration flags",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "codex": {
+          "description": "Codex-specific configuration flags",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "ProviderCliArgs": {
+      "description": "Arbitrary CLI arguments per provider",
+      "type": "object",
+      "properties": {
+        "claude": {
+          "description": "CLI arguments for Claude",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gemini": {
+          "description": "CLI arguments for Gemini",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "codex": {
+          "description": "CLI arguments for Codex",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "PermissionMode": {
+      "description": "Permission mode for LLM interaction",
+      "oneOf": [
+        {
+          "description": "Default permission mode - standard interactive behavior",
+          "type": "string",
+          "const": "default"
+        },
+        {
+          "description": "Plan mode - read-only exploration before implementation",
+          "type": "string",
+          "const": "plan"
+        },
+        {
+          "description": "Accept edits mode - auto-approve file edits",
+          "type": "string",
+          "const": "acceptEdits"
+        },
+        {
+          "description": "Delegate mode - task delegation with DAG management",
+          "type": "string",
+          "const": "delegate"
+        }
+      ]
+    },
+    "ClassifierConfig": {
+      "description": "Configuration for classifier steps that return structured typed output",
+      "type": "object",
+      "properties": {
+        "output_type": {
+          "description": "What type of answer the classifier returns",
+          "$ref": "#/$defs/ClassifierOutputType"
+        },
+        "options": {
+          "description": "For enum type: the allowed options",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "max_length": {
+          "description": "For `short_string`: max character length (default 255)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0,
+          "default": null
+        },
+        "agent": {
+          "description": "Agent/delegator to use (overrides issuetype default)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "output_type"
+      ]
+    },
+    "ClassifierOutputType": {
+      "description": "Output types for classifier steps",
+      "oneOf": [
+        {
+          "description": "true/false answer",
+          "type": "string",
+          "const": "boolean"
+        },
+        {
+          "description": "Numeric answer (integer or float)",
+          "type": "string",
+          "const": "number"
+        },
+        {
+          "description": "Short string < 255 chars",
+          "type": "string",
+          "const": "short_string"
+        },
+        {
+          "description": "Longer arbitrary-length text",
+          "type": "string",
+          "const": "big_text"
+        },
+        {
+          "description": "One of a fixed set of options",
+          "type": "string",
+          "const": "enum"
+        }
+      ]
+    },
+    "RagConfig": {
+      "description": "Configuration for RAG (retrieval-augmented generation) steps",
+      "type": "object",
+      "properties": {
+        "sources": {
+          "description": "Context sources to retrieve before running the prompt",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RagSource"
+          }
+        },
+        "max_context_tokens": {
+          "description": "Maximum tokens of context to inject (default: 50000)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0,
+          "default": null
+        },
+        "agent": {
+          "description": "Agent/delegator to use",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "allowed_tools": {
+          "description": "Tools allowed for the agent",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "sources"
+      ]
+    },
+    "RagSource": {
+      "description": "A source of context for RAG steps",
+      "oneOf": [
+        {
+          "description": "Match files by glob pattern",
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "description": "Glob pattern relative to project root",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "glob"
+            }
+          },
+          "required": [
+            "type",
+            "pattern"
+          ]
+        },
+        {
+          "description": "Single file path",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "File path relative to project root",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "file"
+            }
+          },
+          "required": [
+            "type",
+            "path"
+          ]
+        },
+        {
+          "description": "Retrieve via MCP server tool",
+          "type": "object",
+          "properties": {
+            "server": {
+              "description": "MCP server name",
+              "type": "string"
+            },
+            "tool": {
+              "description": "Tool name on the MCP server",
+              "type": "string"
+            },
+            "query": {
+              "description": "Optional query template (Handlebars)",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "type": {
+              "type": "string",
+              "const": "mcp"
+            }
+          },
+          "required": [
+            "type",
+            "server",
+            "tool"
+          ]
+        }
+      ]
+    },
+    "DelegatorStepConfig": {
+      "description": "Configuration for delegator steps that run with a specific model+flavor",
+      "type": "object",
+      "properties": {
+        "delegator": {
+          "description": "Named delegator reference (from config.delegators)",
+          "type": "string"
+        },
+        "prompt_flavor": {
+          "description": "Additional prompt flavor text prepended to the step prompt",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "allowed_tools": {
+          "description": "Tools allowed",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "permissions": {
+          "description": "Permissions",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StepPermissions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "delegator"
+      ]
+    },
+    "McpStepConfig": {
+      "description": "Configuration for MCP steps that require specific MCP tools",
+      "type": "object",
+      "properties": {
+        "required_tools": {
+          "description": "MCP tools that MUST be available (step fails if missing)",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/McpToolRef"
+          }
+        },
+        "optional_tools": {
+          "description": "MCP tools that SHOULD be available (warning if missing)",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/McpToolRef"
+          },
+          "default": []
+        },
+        "agent": {
+          "description": "Agent/delegator to use",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "allowed_tools": {
+          "description": "Tools allowed (in addition to MCP tools)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "required_tools"
+      ]
+    },
+    "McpToolRef": {
+      "description": "Reference to a specific MCP server tool",
+      "type": "object",
+      "properties": {
+        "server": {
+          "description": "MCP server name",
+          "type": "string"
+        },
+        "tool": {
+          "description": "Specific tool name (None = all tools from this server)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "server"
+      ]
+    },
+    "MultiModelConfig": {
+      "description": "Configuration for multi-model delegation steps (fan-out + vote)",
+      "type": "object",
+      "properties": {
+        "delegators": {
+          "description": "Named delegator references (from config.delegators), minimum 2",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "voting_strategy": {
+          "description": "How to aggregate/select the final answer",
+          "$ref": "#/$defs/VotingStrategy"
+        },
+        "share_answers": {
+          "description": "Whether to share all answers with all models in the voting round",
+          "type": "boolean",
+          "default": true
+        },
+        "voting_prompt": {
+          "description": "Prompt for the voting round (Handlebars, receives {{ answers }} array)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "voting_mode": {
+          "description": "How the voting round executes",
+          "$ref": "#/$defs/VotingMode",
+          "default": "single_judge"
+        }
+      },
+      "required": [
+        "delegators",
+        "voting_strategy"
+      ]
+    },
+    "VotingStrategy": {
+      "description": "Voting strategy for multi-model steps",
+      "oneOf": [
+        {
+          "description": "Simple majority vote",
+          "type": "string",
+          "const": "majority"
+        },
+        {
+          "description": "Ranked choice voting",
+          "type": "string",
+          "const": "ranked"
+        },
+        {
+          "description": "Unanimous required (falls back to longest answer if no consensus)",
+          "type": "string",
+          "const": "unanimous"
+        }
+      ]
+    },
+    "VotingMode": {
+      "description": "How the voting round is executed in multi-model steps",
+      "oneOf": [
+        {
+          "description": "One agent reviews all answers and picks winner (uses 1 slot)",
+          "type": "string",
+          "const": "single_judge"
+        },
+        {
+          "description": "All original delegators re-run with shared answers, each votes (uses N slots)",
+          "type": "string",
+          "const": "multi_voter"
+        }
+      ]
+    },
+    "MultiPromptConfig": {
+      "description": "Configuration for multi-prompt interrogation steps (N variations, select best)",
+      "type": "object",
+      "properties": {
+        "prompt_variations": {
+          "description": "Prompt variations (Handlebars templates), minimum 2",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "selection_strategy": {
+          "description": "How to select the best result",
+          "$ref": "#/$defs/SelectionStrategy"
+        },
+        "agent": {
+          "description": "Agent/delegator to use for all variations",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "selection_prompt": {
+          "description": "Prompt for the selection/review round",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "prompt_variations",
+        "selection_strategy"
+      ]
+    },
+    "SelectionStrategy": {
+      "description": "Selection strategy for multi-prompt steps",
+      "oneOf": [
+        {
+          "description": "Model reviews all outputs and picks the best",
+          "type": "string",
+          "const": "model_choice"
+        },
+        {
+          "description": "Model scores each and highest wins",
+          "type": "string",
+          "const": "scored"
+        }
+      ]
+    },
+    "MatrixedConfig": {
+      "description": "Configuration for matrixed work output steps (N x M delegators x prompts)",
+      "type": "object",
+      "properties": {
+        "delegators": {
+          "description": "Named delegator references (N), minimum 2",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "prompt_variations": {
+          "description": "Prompt variations (M) — Handlebars templates, minimum 2",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "output_format": {
+          "description": "How to organize/present the N x M output",
+          "$ref": "#/$defs/MatrixedOutputFormat"
+        },
+        "aggregation_prompt": {
+          "description": "Optional aggregation prompt (receives the full matrix of results)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "delegators",
+        "prompt_variations",
+        "output_format"
+      ]
+    },
+    "MatrixedOutputFormat": {
+      "description": "Output format for matrixed steps",
+      "oneOf": [
+        {
+          "description": "Each cell's output in `temp_dir/{delegator}/{prompt_index}/`",
+          "type": "string",
+          "const": "directory"
+        },
+        {
+          "description": "Structured N x M JSON matrix in step output artifact",
+          "type": "string",
+          "const": "structured"
+        }
+      ]
     }
-  }
+  },
+  "$id": "https://gbqr.us/operator/issuetype-template.schema.json",
+  "$comment": "AUTO-GENERATED FROM src/templates/schema.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only issuetype-json-schema"
 }

@@ -26,6 +26,7 @@ use anyhow::{Context, Result};
 use crate::agents::cmux::{CmuxClient, SystemCmuxClient};
 use crate::agents::tmux::{sanitize_session_name, SystemTmuxClient, TmuxClient, TmuxError};
 use crate::agents::zellij::{SystemZellijClient, ZellijClient};
+use crate::api::kanban_sync::KanbanBidirectionalSync;
 use crate::config::{Config, SessionWrapperType};
 use crate::notifications;
 use crate::queue::{Queue, Ticket};
@@ -183,12 +184,9 @@ impl Launcher {
 
         if let Some(template) = ticket.template_schema() {
             for step in &template.steps {
-                if let Some(ref agent_name) = step.agent {
-                    if let Some(delegator) = self
-                        .config
-                        .delegators
-                        .iter()
-                        .find(|d| &d.name == agent_name)
+                if let Some(agent_name) = crate::templates::step_type::effective_agent(step) {
+                    if let Some(delegator) =
+                        self.config.delegators.iter().find(|d| d.name == agent_name)
                     {
                         if !tools.contains(&delegator.llm_tool) {
                             tools.push(delegator.llm_tool.clone());
@@ -239,6 +237,13 @@ impl Launcher {
         let queue = Queue::new(&self.config)?;
         queue.claim_ticket(&ticket)?;
 
+        // Best-effort: notify upstream kanban that ticket is now in-progress.
+        let ks = KanbanBidirectionalSync::new(Arc::new(self.config.clone()));
+        let ticket_clone = ticket.clone();
+        tokio::spawn(async move {
+            ks.on_ticket_claimed(&ticket_clone).await;
+        });
+
         // Get project path (use override if provided)
         let project_path = if let Some(ref override_project) = options.project_override {
             PathBuf::from(self.get_project_path_for(override_project)?)
@@ -269,10 +274,49 @@ impl Launcher {
 
         let working_dir_str = working_dir.to_string_lossy().to_string();
 
-        // Generate the initial prompt for the agent
+        // Dispatch multi-agent step types before single-agent launch.
+        // Worktree/skills are already set up above and shared across sub-agents.
+        if let Some(ref step) = ticket.current_step_schema() {
+            match step.step_type {
+                crate::templates::schema::StepTypeTag::MultiModel => {
+                    return self
+                        .launch_multi_model(&ticket, step, &working_dir_str, &options)
+                        .await;
+                }
+                crate::templates::schema::StepTypeTag::MultiPrompt => {
+                    return self
+                        .launch_multi_prompt(&ticket, step, &working_dir_str, &options)
+                        .await;
+                }
+                crate::templates::schema::StepTypeTag::Matrixed => {
+                    return self
+                        .launch_matrixed(&ticket, step, &working_dir_str, &options)
+                        .await;
+                }
+                _ => {}
+            }
+        }
+
+        // Single-agent path: generate prompt and launch one sub-agent.
         let initial_prompt = generate_prompt(&self.config, &ticket);
         let initial_prompt = apply_prompt_wrapping(initial_prompt, &options);
 
+        let (agent_id, _session) = self
+            .launch_one_sub_agent(&ticket, &working_dir_str, &initial_prompt, &options)
+            .await?;
+        Ok(agent_id)
+    }
+
+    /// Dispatch a single sub-agent launch: wrapper dispatch, state registration,
+    /// worktree-path persistence, step recording, and start-up notification.
+    /// Returns `(agent_id, session_name)`.
+    async fn launch_one_sub_agent(
+        &self,
+        ticket: &Ticket,
+        working_dir_str: &str,
+        initial_prompt: &str,
+        options: &LaunchOptions,
+    ) -> Result<(String, String)> {
         // Dispatch based on session wrapper type
         let (session_name, wrapper_name, cmux_refs) =
             if self.config.sessions.wrapper == SessionWrapperType::Cmux {
@@ -282,10 +326,10 @@ impl Launcher {
                 let result = launch_in_cmux_with_options(
                     &self.config,
                     cmux,
-                    &ticket,
-                    &working_dir_str,
-                    &initial_prompt,
-                    &options,
+                    ticket,
+                    working_dir_str,
+                    initial_prompt,
+                    options,
                 )?;
                 (
                     result.session_name,
@@ -299,10 +343,10 @@ impl Launcher {
                 let result = launch_in_zellij_with_options(
                     &self.config,
                     zellij,
-                    &ticket,
-                    &working_dir_str,
-                    &initial_prompt,
-                    &options,
+                    ticket,
+                    working_dir_str,
+                    initial_prompt,
+                    options,
                 )?;
                 (result.session_name, "zellij", None)
             } else {
@@ -310,10 +354,10 @@ impl Launcher {
                 let name = launch_in_tmux_with_options(
                     &self.config,
                     &self.tmux,
-                    &ticket,
-                    &working_dir_str,
-                    &initial_prompt,
-                    &options,
+                    ticket,
+                    working_dir_str,
+                    initial_prompt,
+                    options,
                 )?;
                 (name, "tmux", None)
             };
@@ -399,7 +443,273 @@ impl Launcher {
             )?;
         }
 
-        Ok(agent_id)
+        Ok((agent_id, session_name))
+    }
+
+    /// Build per-sub-agent launch options from a base and a delegator name.
+    ///
+    /// Copies the base options, overrides `provider`/`delegator_name` from the
+    /// delegator, and applies the delegator's `launch_config`. Session suffix
+    /// is set to the `variant_key` so parallel sub-agents don't collide.
+    fn sub_agent_options(
+        &self,
+        base: &LaunchOptions,
+        delegator_name: &str,
+        variant_key: &str,
+    ) -> Result<LaunchOptions> {
+        let delegator = self
+            .config
+            .delegators
+            .iter()
+            .find(|d| d.name == delegator_name)
+            .ok_or_else(|| {
+                anyhow::anyhow!("Delegator '{delegator_name}' not found in config.delegators")
+            })?;
+
+        let mut opts = base.clone();
+        opts.provider = Some(crate::agents::delegator_resolution::delegator_to_provider(
+            delegator,
+        ));
+        opts.delegator_name = Some(delegator.name.clone());
+        crate::agents::delegator_resolution::apply_delegator_launch_config(
+            &mut opts,
+            &delegator.launch_config,
+        );
+        opts.session_suffix = Some(variant_key.to_string());
+        Ok(opts)
+    }
+
+    /// Render a prompt template with the ticket's handlebars context.
+    fn render_variant_prompt(
+        &self,
+        template: &str,
+        ticket: &Ticket,
+        working_dir_str: &str,
+    ) -> Result<String> {
+        let interpolator = self::interpolation::PromptInterpolator::new();
+        let ctx = interpolator.build_context(&self.config, ticket, working_dir_str)?;
+        interpolator.render(template, &ctx)
+    }
+
+    /// Compute the budget for new sub-agent launches based on `max_parallel`.
+    fn available_slots(&self) -> Result<usize> {
+        let state = State::load(&self.config)?;
+        let running = state.running_agents().len();
+        let cap = self.config.effective_max_agents();
+        Ok(cap.saturating_sub(running))
+    }
+
+    /// Fan out a `multi_model` step: N delegators, same prompt for all.
+    ///
+    /// Launches up to `available_slots()` sub-agents immediately; any that
+    /// don't fit are stored in `pending_launches` and drip-launched by the
+    /// sync loop as slots free up. Returns the `agent_id` of the first
+    /// sub-agent launched (or the `group_id` if nothing launched).
+    async fn launch_multi_model(
+        &self,
+        ticket: &Ticket,
+        step: &crate::templates::schema::StepSchema,
+        working_dir_str: &str,
+        base_options: &LaunchOptions,
+    ) -> Result<String> {
+        let cfg = step.multi_model_config.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "multi_model step '{}' is missing multi_model_config",
+                step.name
+            )
+        })?;
+
+        let base_prompt = generate_prompt(&self.config, ticket);
+        let base_prompt = apply_prompt_wrapping(base_prompt, base_options);
+
+        let pending: Vec<crate::state::PendingSubAgent> = cfg
+            .delegators
+            .iter()
+            .map(|d| crate::state::PendingSubAgent {
+                delegator_name: d.clone(),
+                prompt: base_prompt.clone(),
+                variant_key: d.clone(),
+            })
+            .collect();
+
+        self.launch_group(
+            ticket,
+            step,
+            working_dir_str,
+            base_options,
+            "multi_model",
+            pending,
+        )
+        .await
+    }
+
+    /// Fan out a `multi_prompt` step: N prompt variations, one delegator.
+    async fn launch_multi_prompt(
+        &self,
+        ticket: &Ticket,
+        step: &crate::templates::schema::StepSchema,
+        working_dir_str: &str,
+        base_options: &LaunchOptions,
+    ) -> Result<String> {
+        let cfg = step.multi_prompt_config.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "multi_prompt step '{}' is missing multi_prompt_config",
+                step.name
+            )
+        })?;
+
+        // Resolve the delegator for all variations
+        let delegator_name = cfg
+            .agent
+            .clone()
+            .or_else(|| {
+                crate::templates::step_type::effective_agent(step)
+                    .map(std::string::ToString::to_string)
+            })
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "multi_prompt step '{}' has no agent configured \
+                     (set multi_prompt_config.agent or step.agent)",
+                    step.name
+                )
+            })?;
+
+        let mut pending = Vec::with_capacity(cfg.prompt_variations.len());
+        for (i, tpl) in cfg.prompt_variations.iter().enumerate() {
+            let rendered = self.render_variant_prompt(tpl, ticket, working_dir_str)?;
+            let full_prompt = apply_prompt_wrapping(rendered, base_options);
+            pending.push(crate::state::PendingSubAgent {
+                delegator_name: delegator_name.clone(),
+                prompt: full_prompt,
+                variant_key: i.to_string(),
+            });
+        }
+
+        self.launch_group(
+            ticket,
+            step,
+            working_dir_str,
+            base_options,
+            "multi_prompt",
+            pending,
+        )
+        .await
+    }
+
+    /// Fan out a `matrixed` step: N delegators x M prompt variations.
+    async fn launch_matrixed(
+        &self,
+        ticket: &Ticket,
+        step: &crate::templates::schema::StepSchema,
+        working_dir_str: &str,
+        base_options: &LaunchOptions,
+    ) -> Result<String> {
+        let cfg = step.matrixed_config.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("matrixed step '{}' is missing matrixed_config", step.name)
+        })?;
+
+        let mut pending = Vec::with_capacity(cfg.delegators.len() * cfg.prompt_variations.len());
+        for delegator in &cfg.delegators {
+            for (j, tpl) in cfg.prompt_variations.iter().enumerate() {
+                let rendered = self.render_variant_prompt(tpl, ticket, working_dir_str)?;
+                let full_prompt = apply_prompt_wrapping(rendered, base_options);
+                pending.push(crate::state::PendingSubAgent {
+                    delegator_name: delegator.clone(),
+                    prompt: full_prompt,
+                    variant_key: format!("{delegator}:{j}"),
+                });
+            }
+        }
+
+        self.launch_group(
+            ticket,
+            step,
+            working_dir_str,
+            base_options,
+            "matrixed",
+            pending,
+        )
+        .await
+    }
+
+    /// Shared fan-out implementation: create the group, launch as many
+    /// sub-agents as slots allow, queue the rest.
+    async fn launch_group(
+        &self,
+        ticket: &Ticket,
+        step: &crate::templates::schema::StepSchema,
+        working_dir_str: &str,
+        base_options: &LaunchOptions,
+        step_type_name: &str,
+        pending: Vec<crate::state::PendingSubAgent>,
+    ) -> Result<String> {
+        if pending.is_empty() {
+            anyhow::bail!(
+                "multi-agent step '{}' produced zero sub-agents — check config",
+                step.name
+            );
+        }
+
+        // Create the group with everything in pending_launches.
+        let group_id = {
+            let mut state = State::load(&self.config)?;
+            state.create_multi_agent_group(&ticket.id, &step.name, step_type_name, pending)?
+        };
+
+        // Drip-launch up to available_slots() sub-agents right now.
+        self.launch_pending_sub_agents(ticket, &group_id, working_dir_str, base_options)
+            .await?;
+
+        // Return the first launched agent_id (or group_id if nothing launched yet).
+        let state = State::load(&self.config)?;
+        let group = state
+            .multi_agent_groups
+            .iter()
+            .find(|g| g.group_id == group_id)
+            .ok_or_else(|| anyhow::anyhow!("group '{group_id}' not found after creation"))?;
+        Ok(group
+            .agent_ids
+            .first()
+            .cloned()
+            .unwrap_or_else(|| group_id.clone()))
+    }
+
+    /// Launch as many pending sub-agents as current slot budget allows.
+    ///
+    /// Called during initial fan-out AND by the sync loop when slots free up.
+    pub async fn launch_pending_sub_agents(
+        &self,
+        ticket: &Ticket,
+        group_id: &str,
+        working_dir_str: &str,
+        base_options: &LaunchOptions,
+    ) -> Result<()> {
+        loop {
+            let budget = self.available_slots()?;
+            if budget == 0 {
+                break;
+            }
+            let next = {
+                let state = State::load(&self.config)?;
+                state.next_pending_for_group(group_id)
+            };
+            let Some(next) = next else {
+                break;
+            };
+
+            let variant_key = next.variant_key.clone();
+            let delegator_name = next.delegator_name.clone();
+            let prompt = next.prompt.clone();
+
+            let sub_opts = self.sub_agent_options(base_options, &delegator_name, &variant_key)?;
+            let (agent_id, _session) = self
+                .launch_one_sub_agent(ticket, working_dir_str, &prompt, &sub_opts)
+                .await?;
+
+            let mut state = State::load(&self.config)?;
+            state.mark_launched(group_id, &variant_key, &agent_id)?;
+        }
+        Ok(())
     }
 
     /// Prepare a launch without executing it
@@ -420,6 +730,13 @@ impl Launcher {
         // Move ticket to in-progress
         let queue = Queue::new(&self.config)?;
         queue.claim_ticket(&ticket)?;
+
+        // Best-effort: notify upstream kanban that ticket is now in-progress.
+        let ks = KanbanBidirectionalSync::new(Arc::new(self.config.clone()));
+        let ticket_clone = ticket.clone();
+        tokio::spawn(async move {
+            ks.on_ticket_claimed(&ticket_clone).await;
+        });
 
         // Get project path (use override if provided)
         let project_path = if let Some(ref override_project) = options.project_override {
@@ -535,6 +852,7 @@ impl Launcher {
             &prompt_file,
             Some(&ticket),
             Some(&working_dir_str),
+            options.operator_relay,
         )?;
 
         // Apply YOLO flags if enabled
@@ -775,6 +1093,7 @@ impl Launcher {
             &prompt_file,
             Some(&ticket),
             Some(&working_dir_str),
+            options.launch_options.operator_relay,
         )?;
 
         // Apply YOLO flags if enabled

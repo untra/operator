@@ -2,13 +2,13 @@
 # Do not edit manually - regenerated on each release
 
 operator:
-  macos_arm64: "2efbe956aeb308e0e0a0fb47503ecc973cbfaaae1f84cf6cb47349ca62c10650"
-  linux_arm64: "ea727156135de85a4198eebc57cd10569f64a4e87c06ec59dc8fc45fab30f9fc"
-  linux_x86_64: "174360f0df02ff1e9b363b8dde9ee328df7a62a7eb2b9aa4bbb11347b85f6830"
-  windows_x86_64: "5fc76ef531926c27db5b78dc23d72cae17f338894a827e232ff3c50d91254b86"
+  macos_arm64: "0dbc5846eb3267072d9ec1d18d061d4836f17ea9ba1c4e241ff4f1c1d7cdbf36"
+  linux_arm64: "8f88a7faaf536809707c525e71190f3bee70a5c6be5f83636abe90118f83620f"
+  linux_x86_64: "f26ae3badf31a914c15e979696fa4a2850cc6a942475dbe7b4fdb56dbc483d5e"
+  windows_x86_64: "ac832b8daa1c7aa790b3a2921d9a94c193a9764c4f969daa0520dbb52f5001bc"
 
 backstage:
-  darwin_arm64: "abbacc6a4143ea1c32dd23c2d41d3a6b5ef39fb50a4aaca542473259b810fec6"
-  linux_arm64: "634c4ecdbe2b4dd295d41cb3f6476d504413686b80001a5e3e79be2d5afa0ee8"
-  linux_x64: "5e7418194abc3f1a431baa4c9a10bf815a0c882b81fc38680c3dca33ff358d1b"
+  darwin_arm64: "b253c7af7f78dd077cece5ef0e616574a65eb2e976b639bbf4e67156b5bbd850"
+  linux_arm64: "92f345b2c239964e71f5822c796ac04b4c3e9e0a291f4c66c269507dfda17549"
+  linux_x64: "bebbc806b4c0b19deaa8d3707c04e078cff9103e96aa86404aeac565f6c36b5b"
   windows_x64: ""

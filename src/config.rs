@@ -91,6 +91,10 @@ pub struct AgentsConfig {
     /// Seconds of tmux silence before considering agent awaiting input (default: 30)
     #[serde(default = "default_silence_threshold")]
     pub silence_threshold: u64,
+    /// Maximum concurrent agents per repo/project (default: 1).
+    /// Requires `git.use_worktrees = true` to avoid conflicts when > 1.
+    #[serde(default = "default_max_agents_per_repo")]
+    pub max_agents_per_repo: usize,
 }
 
 fn default_generation_timeout() -> u64 {
@@ -107,6 +111,10 @@ fn default_step_timeout() -> u64 {
 
 fn default_silence_threshold() -> u64 {
     6 // 6 seconds
+}
+
+fn default_max_agents_per_repo() -> usize {
+    1
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -682,6 +690,7 @@ impl Default for Config {
                 sync_interval: 60,            // 1 minute
                 step_timeout: 1800,           // 30 minutes
                 silence_threshold: 30,        // 30 seconds
+                max_agents_per_repo: 1,
             },
             notifications: NotificationsConfig::default(),
             queue: QueueConfig {

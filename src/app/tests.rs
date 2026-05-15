@@ -369,6 +369,75 @@ Test content
 
         assert_eq!(tickets.len(), 1, "Queue should have one ticket");
     }
+
+    #[test]
+    fn test_project_agent_count_zero_when_no_agents() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        let state = State::load(&config).unwrap();
+
+        assert_eq!(state.project_agent_count("test-project"), 0);
+    }
+
+    #[test]
+    fn test_project_agent_count_increments_per_running_agent() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent("TASK-001".to_string(), "TASK".to_string(), "test-project".to_string(), false)
+            .unwrap();
+        state
+            .add_agent("TASK-002".to_string(), "TASK".to_string(), "test-project".to_string(), false)
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        assert_eq!(state.project_agent_count("test-project"), 2);
+    }
+
+    #[test]
+    fn test_project_agent_count_ignores_other_projects() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent("TASK-001".to_string(), "TASK".to_string(), "project-a".to_string(), false)
+            .unwrap();
+        state
+            .add_agent("TASK-002".to_string(), "TASK".to_string(), "project-b".to_string(), false)
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        assert_eq!(state.project_agent_count("project-a"), 1);
+        assert_eq!(state.project_agent_count("project-b"), 1);
+        assert_eq!(state.project_agent_count("project-c"), 0);
+    }
+
+    #[test]
+    fn test_max_agents_per_repo_defaults_to_one() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        assert_eq!(config.agents.max_agents_per_repo, 1);
+    }
+
+    #[test]
+    fn test_is_project_busy_reflects_project_agent_count() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        assert!(!state.is_project_busy("test-project"));
+
+        state
+            .add_agent("TASK-001".to_string(), "TASK".to_string(), "test-project".to_string(), false)
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        assert!(state.is_project_busy("test-project"));
+    }
 }
 
 // ============================================

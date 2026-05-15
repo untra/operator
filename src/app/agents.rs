@@ -160,11 +160,13 @@ impl App {
 
         // Get selected ticket
         if let Some(ticket) = self.dashboard.selected_ticket().cloned() {
-            // Check if project is already busy
-            if state.is_project_busy(&ticket.project) {
+            // Check if project has reached its per-repo agent limit
+            let max_per_repo = self.config.agents.max_agents_per_repo;
+            let active = state.project_agent_count(&ticket.project);
+            if active >= max_per_repo {
                 self.dashboard.set_status(&format!(
-                    "Cannot launch: {} has an active agent",
-                    ticket.project
+                    "Cannot launch: {} already has {}/{} agents active",
+                    ticket.project, active, max_per_repo
                 ));
                 return Ok(());
             }
@@ -211,10 +213,12 @@ impl App {
             return Ok(());
         };
 
-        if state.is_project_busy(&ticket.project) {
+        let max_per_repo = self.config.agents.max_agents_per_repo;
+        let active = state.project_agent_count(&ticket.project);
+        if active >= max_per_repo {
             self.dashboard.set_status(&format!(
-                "Cannot launch: {} has an active agent",
-                ticket.project
+                "Cannot launch: {} already has {}/{} agents active",
+                ticket.project, active, max_per_repo
             ));
             return Ok(());
         }

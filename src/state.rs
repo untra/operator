@@ -392,9 +392,14 @@ impl State {
     }
 
     pub fn is_project_busy(&self, project: &str) -> bool {
+        self.project_agent_count(project) >= 1
+    }
+
+    pub fn project_agent_count(&self, project: &str) -> usize {
         self.agents
             .iter()
-            .any(|a| a.project == project && a.status == "running")
+            .filter(|a| a.project == project && a.status == "running")
+            .count()
     }
 
     /// Update the terminal session name for an agent

@@ -40,6 +40,7 @@ Agent lifecycle, parallelism, and health monitoring
 | `sync_interval` | `integer` | 60 | Interval in seconds between ticket-session syncs (default: 60) |
 | `step_timeout` | `integer` | 1800 | Maximum seconds a step can run before timing out (default: 1800 = 30 min) |
 | `silence_threshold` | `integer` | 30 | Seconds of tmux silence before considering agent awaiting input (default: 30) |
+| `max_agents_per_repo` | `integer` | - | Maximum concurrent agents per repo/project (default: 1). Requires `git.use_worktrees = true` to avoid conflicts when > 1. |
 
 ## `[notifications]`
 
@@ -177,6 +178,7 @@ generation_timeout_secs = 300
 sync_interval = 60
 step_timeout = 1800
 silence_threshold = 30
+max_agents_per_repo = 1
 
 [notifications]
 enabled = true
@@ -208,7 +210,7 @@ poll_interval_ms = 1000
 tickets = ".tickets"
 projects = "."
 state = ".tickets/operator"
-worktrees = "/Users/samuelvolin/.operator/worktrees"
+worktrees = "/Users/samuelviolin/.operator/worktrees"
 
 [ui]
 refresh_rate_ms = 250

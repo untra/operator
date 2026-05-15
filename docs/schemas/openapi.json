@@ -10,7 +10,7 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.1.30"
+    "version": "0.1.31"
   },
   "paths": {
     "/api/v1/collections": {

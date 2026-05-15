@@ -16,4 +16,9 @@ step_timeout: bigint,
 /**
  * Seconds of tmux silence before considering agent awaiting input (default: 30)
  */
-silence_threshold: bigint, };
+silence_threshold: bigint, 
+/**
+ * Maximum concurrent agents per repo/project (default: 1).
+ * Requires `git.use_worktrees = true` to avoid conflicts when > 1.
+ */
+max_agents_per_repo: number, };

@@ -289,7 +289,19 @@ delegators: Array<Delegator>,
  * User-declared model servers (ollama, lmstudio, any OpenAI-compat host).
  * Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.
  */
-model_servers: Array<ModelServer>, };
+model_servers: Array<ModelServer>, 
+/**
+ * Relay MCP injection configuration
+ */
+relay: RelayConfig, 
+/**
+ * Model Context Protocol (MCP) server configuration
+ */
+mcp: McpConfig, 
+/**
+ * Agent Client Protocol (ACP) agent configuration
+ */
+acp: AcpConfig, };
 
 export type AgentsConfig = { max_parallel: number, cores_reserved: number, health_check_interval: bigint, 
 /**
@@ -663,7 +675,11 @@ prompt_prefix: string | null,
 /**
  * Prompt text to append after the generated step prompt
  */
-prompt_suffix: string | null, };
+prompt_suffix: string | null, 
+/**
+ * Override global relay auto-inject MCP setting per-delegator (None = use global setting)
+ */
+operator_relay: boolean | null, };
 
 export type CollectionPreset = "simple" | "dev_kanban" | "devops_kanban" | "custom";
 
@@ -973,7 +989,11 @@ prompt_prefix: string | null,
 /**
  * Prompt text to append after the generated step prompt
  */
-prompt_suffix: string | null, };
+prompt_suffix: string | null, 
+/**
+ * Override global relay auto-inject MCP setting per-delegator (None = use global setting)
+ */
+operator_relay: boolean | null, };
 
 export type LlmTask = { 
 /**

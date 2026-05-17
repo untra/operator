@@ -1,8 +1,8 @@
 use crate::backstage::ServerStatus;
 use crate::rest::RestApiStatus;
 use crate::ui::status_panel::{
-    ActionMeta, ActionSet, SectionHealth, SectionId, StatusAction, StatusIcon, StatusSection,
-    StatusSnapshot, TreeRow, WrapperConnectionStatus,
+    ActionMeta, ActionSet, McpHttpStatus, SectionHealth, SectionId, StatusAction, StatusIcon,
+    StatusSection, StatusSnapshot, TreeRow, WrapperConnectionStatus,
 };
 
 pub struct ConnectionsSection;
@@ -116,7 +116,95 @@ impl StatusSection for ConnectionsSection {
             },
         ];
 
-        // 2. Backstage (conditionally displayed)
+        // 2. MCP (always shown). Status reflects HTTP mount + stdio advertise + session count.
+        rows.push(TreeRow {
+            section_id: SectionId::Connections,
+            depth: 1,
+            label: "MCP".into(),
+            description: match (
+                &snapshot.mcp_http_status,
+                snapshot.mcp_stdio_advertised,
+                snapshot.mcp_active_sessions,
+            ) {
+                (McpHttpStatus::Mounted { port }, true, n) if n > 0 => {
+                    format!(":{port} + stdio · {n} sessions")
+                }
+                (McpHttpStatus::Mounted { port }, true, _) => format!(":{port} + stdio"),
+                (McpHttpStatus::Mounted { port }, false, n) if n > 0 => {
+                    format!(":{port} · {n} sessions")
+                }
+                (McpHttpStatus::Mounted { port }, false, _) => format!(":{port} (HTTP only)"),
+                (McpHttpStatus::NotMounted, true, _) => "stdio only".into(),
+                (McpHttpStatus::NotMounted, false, _) => "Disabled".into(),
+            },
+            icon: match (&snapshot.mcp_http_status, snapshot.mcp_stdio_advertised) {
+                (McpHttpStatus::Mounted { .. }, _) | (_, true) => StatusIcon::Check,
+                _ => StatusIcon::Cross,
+            },
+            is_header: false,
+            actions: ActionSet {
+                primary: StatusAction::WriteAndOpenMcpClientConfig {
+                    client: "claude-code".to_string(),
+                },
+                back: StatusAction::None,
+                special: StatusAction::ToggleMcpHttp,
+                special_meta: Some(ActionMeta {
+                    title: "HTTP",
+                    tooltip: "Toggle the MCP HTTP transport (restart required)",
+                }),
+                refresh: StatusAction::OpenMcpDocs,
+                refresh_meta: Some(ActionMeta {
+                    title: "Docs",
+                    tooltip: "Open MCP setup docs in browser",
+                }),
+            },
+            health: SectionHealth::Gray,
+        });
+
+        // 3. ACP (always shown). Status reflects whether operator
+        //    advertises itself as an ACP agent. Active session count is
+        //    always 0 in v1 (editor-spawned ACP runs out-of-process).
+        rows.push(TreeRow {
+            section_id: SectionId::Connections,
+            depth: 1,
+            label: "ACP".into(),
+            description: if snapshot.acp_stdio_advertised {
+                if snapshot.acp_active_sessions > 0 {
+                    format!("stdio · {} sessions", snapshot.acp_active_sessions)
+                } else {
+                    "stdio ready".into()
+                }
+            } else {
+                "Disabled".into()
+            },
+            icon: if snapshot.acp_stdio_advertised {
+                StatusIcon::Check
+            } else {
+                StatusIcon::Cross
+            },
+            is_header: false,
+            actions: ActionSet {
+                primary: StatusAction::WriteAndOpenAcpEditorConfig {
+                    editor: "zed".to_string(),
+                },
+                back: StatusAction::None,
+                special: StatusAction::WriteAndOpenAcpEditorConfig {
+                    editor: "jetbrains".to_string(),
+                },
+                special_meta: Some(ActionMeta {
+                    title: "JBrn",
+                    tooltip: "Write JetBrains ACP registry snippet",
+                }),
+                refresh: StatusAction::OpenAcpDocs,
+                refresh_meta: Some(ActionMeta {
+                    title: "Docs",
+                    tooltip: "Open ACP setup docs in browser",
+                }),
+            },
+            health: SectionHealth::Gray,
+        });
+
+        // 4. Backstage (conditionally displayed)
         if snapshot.backstage_display {
             rows.push(TreeRow {
                 section_id: SectionId::Connections,
@@ -173,6 +261,11 @@ mod tests {
             },
             env_editor: "vim".into(),
             env_visual: String::new(),
+            mcp_http_status: McpHttpStatus::Mounted { port: 7008 },
+            mcp_stdio_advertised: true,
+            mcp_active_sessions: 0,
+            acp_stdio_advertised: true,
+            acp_active_sessions: 0,
         }
     }
 
@@ -204,6 +297,37 @@ mod tests {
             version: None,
         };
         assert_eq!(section.health(&snap), SectionHealth::Red);
+    }
+
+    #[test]
+    fn test_connections_acp_row_present_when_advertised() {
+        let section = ConnectionsSection;
+        let snap = base_snapshot();
+        let children = section.children(&snap);
+        let acp_row = children
+            .iter()
+            .find(|r| r.label == "ACP")
+            .expect("ACP row must be in the connections section");
+        assert!(matches!(acp_row.icon, StatusIcon::Check));
+        assert_eq!(acp_row.description, "stdio ready");
+        assert_eq!(
+            acp_row.actions.primary,
+            StatusAction::WriteAndOpenAcpEditorConfig {
+                editor: "zed".to_string()
+            }
+        );
+        assert_eq!(acp_row.actions.refresh, StatusAction::OpenAcpDocs);
+    }
+
+    #[test]
+    fn test_connections_acp_row_disabled_when_flag_off() {
+        let section = ConnectionsSection;
+        let mut snap = base_snapshot();
+        snap.acp_stdio_advertised = false;
+        let children = section.children(&snap);
+        let acp_row = children.iter().find(|r| r.label == "ACP").unwrap();
+        assert!(matches!(acp_row.icon, StatusIcon::Cross));
+        assert_eq!(acp_row.description, "Disabled");
     }
 
     #[test]
@@ -249,5 +373,55 @@ mod tests {
             children.iter().any(|r| r.label == "Backstage"),
             "Backstage should be shown when backstage_display is true"
         );
+    }
+
+    #[test]
+    fn test_connections_mcp_row_always_present() {
+        let section = ConnectionsSection;
+        let snap = base_snapshot();
+        let children = section.children(&snap);
+        assert!(
+            children.iter().any(|r| r.label == "MCP"),
+            "MCP row should always be present"
+        );
+    }
+
+    #[test]
+    fn test_connections_mcp_row_disabled_description() {
+        let section = ConnectionsSection;
+        let mut snap = base_snapshot();
+        snap.mcp_http_status = McpHttpStatus::NotMounted;
+        snap.mcp_stdio_advertised = false;
+        let children = section.children(&snap);
+        let mcp_row = children.iter().find(|r| r.label == "MCP").unwrap();
+        assert_eq!(mcp_row.description, "Disabled");
+    }
+
+    #[test]
+    fn test_connections_mcp_row_stdio_only_description() {
+        let section = ConnectionsSection;
+        let mut snap = base_snapshot();
+        snap.mcp_http_status = McpHttpStatus::NotMounted;
+        snap.mcp_stdio_advertised = true;
+        let children = section.children(&snap);
+        let mcp_row = children.iter().find(|r| r.label == "MCP").unwrap();
+        assert_eq!(mcp_row.description, "stdio only");
+    }
+
+    #[test]
+    fn test_connections_mcp_row_actions() {
+        let section = ConnectionsSection;
+        let snap = base_snapshot();
+        let children = section.children(&snap);
+        let mcp_row = children.iter().find(|r| r.label == "MCP").unwrap();
+        // Primary writes the claude-code snippet by default.
+        assert_eq!(
+            mcp_row.actions.primary,
+            StatusAction::WriteAndOpenMcpClientConfig {
+                client: "claude-code".to_string()
+            }
+        );
+        assert_eq!(mcp_row.actions.special, StatusAction::ToggleMcpHttp);
+        assert_eq!(mcp_row.actions.refresh, StatusAction::OpenMcpDocs);
     }
 }

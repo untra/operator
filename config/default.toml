@@ -10,6 +10,9 @@ max_parallel = 5
 # Number of CPU cores to keep free (actual max = cores - reserved)
 cores_reserved = 1
 
+# Maximum concurrent agents per project/repo (requires use_worktrees when > 1)
+max_agents_per_repo = 1
+
 # Timeout for agent health checks (seconds)
 health_check_interval = 30
 

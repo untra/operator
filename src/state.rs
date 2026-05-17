@@ -391,10 +391,13 @@ impl State {
             .collect()
     }
 
-    pub fn is_project_busy(&self, project: &str) -> bool {
+    pub fn project_agent_count(&self, project: &str) -> usize {
         self.agents
             .iter()
-            .any(|a| a.project == project && a.status == "running")
+            .filter(|a| {
+                a.project == project && (a.status == "running" || a.status == "awaiting_input")
+            })
+            .count()
     }
 
     /// Update the terminal session name for an agent
@@ -1235,7 +1238,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_project_busy_running() {
+    fn test_project_agent_count_running() {
         let temp_dir = TempDir::new().unwrap();
         let config = test_config(&temp_dir);
         let mut state = State::load(&config).unwrap();
@@ -1249,13 +1252,12 @@ mod tests {
             )
             .unwrap();
 
-        // Agent starts with status "running"
-        assert!(state.is_project_busy("test-project"));
-        assert!(!state.is_project_busy("other-project"));
+        assert_eq!(state.project_agent_count("test-project"), 1);
+        assert_eq!(state.project_agent_count("other-project"), 0);
     }
 
     #[test]
-    fn test_is_project_busy_awaiting_input() {
+    fn test_project_agent_count_includes_awaiting_input() {
         let temp_dir = TempDir::new().unwrap();
         let config = test_config(&temp_dir);
         let mut state = State::load(&config).unwrap();
@@ -1273,8 +1275,63 @@ mod tests {
             .update_agent_status(&id, "awaiting_input", None)
             .unwrap();
 
-        // is_project_busy only checks for "running" status
-        assert!(!state.is_project_busy("test-project"));
+        assert_eq!(state.project_agent_count("test-project"), 1);
+    }
+
+    #[test]
+    fn test_project_agent_count_multiple() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        state
+            .add_agent(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .add_agent(
+                "FEAT-002".to_string(),
+                "FEAT".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .add_agent(
+                "FEAT-003".to_string(),
+                "FEAT".to_string(),
+                "other-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        assert_eq!(state.project_agent_count("test-project"), 2);
+        assert_eq!(state.project_agent_count("other-project"), 1);
+        assert_eq!(state.project_agent_count("nonexistent"), 0);
+    }
+
+    #[test]
+    fn test_project_agent_count_excludes_completed() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let id = state
+            .add_agent(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        state.update_agent_status(&id, "completed", None).unwrap();
+
+        assert_eq!(state.project_agent_count("test-project"), 0);
     }
 
     // ─── Step Completion Tests ───────────────────────────────────────────────────

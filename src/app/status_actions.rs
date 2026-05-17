@@ -181,6 +181,103 @@ impl App {
                         .set_status(&format!("Failed to reload config: {e}"));
                 }
             },
+            StatusAction::ToggleMcpHttp => {
+                self.config.mcp.http_enabled = !self.config.mcp.http_enabled;
+                self.dashboard.update_config(&self.config);
+                self.dashboard.set_status(if self.config.mcp.http_enabled {
+                    "MCP HTTP enabled — restart the API to mount routes"
+                } else {
+                    "MCP HTTP disabled — restart the API to unmount routes"
+                });
+            }
+            StatusAction::WriteAndOpenMcpClientConfig { client } => {
+                let cwd = std::env::current_dir().unwrap_or_default();
+                let Some(snippet) = crate::mcp::client_configs::snippet_for(&client, &cwd) else {
+                    self.dashboard
+                        .set_status(&format!("Unknown MCP client: {client}"));
+                    return Ok(());
+                };
+                let dir = self.config.tickets_path().join("operator/mcp");
+                if let Err(e) = std::fs::create_dir_all(&dir) {
+                    self.dashboard
+                        .set_status(&format!("Failed to create {}: {e}", dir.display()));
+                    return Ok(());
+                }
+                let path = dir.join(format!("{client}.json"));
+                let body = serde_json::to_string_pretty(&snippet).unwrap_or_default();
+                if let Err(e) = std::fs::write(&path, body) {
+                    self.dashboard
+                        .set_status(&format!("Failed to write {}: {e}", path.display()));
+                    return Ok(());
+                }
+                let cmd = self.dashboard.editor_config.file_editor().to_string();
+                with_suspended_tui(terminal, || {
+                    let (prog, args) = crate::editors::EditorConfig::split_command(&cmd);
+                    let result = std::process::Command::new(prog)
+                        .args(&args)
+                        .arg(&path)
+                        .status();
+                    if let Err(e) = result {
+                        tracing::warn!("Failed to open editor: {}", e);
+                    }
+                    Ok(())
+                })?;
+            }
+            StatusAction::OpenMcpDocs => {
+                if let Err(e) = open_in_browser("https://operator.untra.io/mcp/") {
+                    self.dashboard
+                        .set_status(&format!("Failed to open MCP docs: {e}"));
+                }
+            }
+            StatusAction::WriteAndOpenAcpEditorConfig { editor } => {
+                let Some(snippet) = crate::acp::client_configs::snippet_for(&editor) else {
+                    self.dashboard
+                        .set_status(&format!("Unknown ACP editor: {editor}"));
+                    return Ok(());
+                };
+                let dir = self.config.tickets_path().join("operator/acp");
+                if let Err(e) = std::fs::create_dir_all(&dir) {
+                    self.dashboard
+                        .set_status(&format!("Failed to create {}: {e}", dir.display()));
+                    return Ok(());
+                }
+                // Text-format editors (emacs elisp, kiro TOML) deserialise into
+                // a JSON string; everything else is a structured Value.
+                let (extension, body) = match snippet {
+                    serde_json::Value::String(s) => {
+                        let ext = if editor == "emacs" { "el" } else { "toml" };
+                        (ext, s)
+                    }
+                    other => (
+                        "json",
+                        serde_json::to_string_pretty(&other).unwrap_or_default(),
+                    ),
+                };
+                let path = dir.join(format!("{editor}.{extension}"));
+                if let Err(e) = std::fs::write(&path, body) {
+                    self.dashboard
+                        .set_status(&format!("Failed to write {}: {e}", path.display()));
+                    return Ok(());
+                }
+                let cmd = self.dashboard.editor_config.file_editor().to_string();
+                with_suspended_tui(terminal, || {
+                    let (prog, args) = crate::editors::EditorConfig::split_command(&cmd);
+                    let result = std::process::Command::new(prog)
+                        .args(&args)
+                        .arg(&path)
+                        .status();
+                    if let Err(e) = result {
+                        tracing::warn!("Failed to open editor: {}", e);
+                    }
+                    Ok(())
+                })?;
+            }
+            StatusAction::OpenAcpDocs => {
+                if let Err(e) = open_in_browser("https://operator.untra.io/acp/") {
+                    self.dashboard
+                        .set_status(&format!("Failed to open ACP docs: {e}"));
+                }
+            }
             StatusAction::None => {}
         }
         Ok(())

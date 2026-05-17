@@ -45,7 +45,7 @@ export class GitSection implements StatusSection {
     const useWorktrees = gitSection.use_worktrees as boolean | undefined;
 
     // Determine token status based on active provider
-    let tokenSet = false;
+    let tokenSet: boolean;
     if (provider === 'gitlab' || gitlabEnabled) {
       const tokenEnv = (gitlab?.token_env as string) || 'GITLAB_TOKEN';
       tokenSet = !!process.env[tokenEnv];

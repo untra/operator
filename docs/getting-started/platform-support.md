@@ -13,6 +13,7 @@ This page is the authoritative reference for what Operator supports on each oper
 | Feature | macOS | Linux | Windows |
 |---------|-------|-------|---------|
 | Session manager: VS Code Extension | ✅ | ✅ | ✅ Required |
+| Session manager: Cursor | ✅ | ✅ | ✅ |
 | Session manager: tmux | ✅ | ✅ | ❌ |
 | Session manager: cmux | ✅ | ❌ | ❌ |
 | Session manager: Zellij | ✅ | ✅ | ❌ |

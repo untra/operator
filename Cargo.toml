@@ -1,6 +1,6 @@
 [package]
 name = "operator"
-version = "0.1.31"
+version = "0.2.0"
 edition = "2021"
 description = "Multi-agent orchestration dashboard for gbqr.us"
 authors = ["gbqr.us"]
@@ -90,6 +90,9 @@ http-body-util = "0.1"
 # OpenAPI documentation
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
+
+# Agent Client Protocol (ACP) — JSON-RPC 2.0 over stdio for editor integration
+agent-client-protocol = "0.12"
 
 [dev-dependencies]
 operator-relay = { path = "crates/relay" }

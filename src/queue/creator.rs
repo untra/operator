@@ -26,6 +26,35 @@ impl TicketCreator {
         }
     }
 
+    /// Create a new ticket from template with pre-filled values, without
+    /// launching an editor. Used by MCP and other headless callers.
+    pub fn create_ticket_headless(
+        &self,
+        template_type: TemplateType,
+        values: &HashMap<String, String>,
+    ) -> Result<PathBuf> {
+        let now = Utc::now();
+        let timestamp = now.format("%Y%m%d-%H%M").to_string();
+        let type_str = template_type.as_str();
+
+        let project = values
+            .get("project")
+            .filter(|p| !p.is_empty())
+            .cloned()
+            .unwrap_or_else(|| "global".to_string());
+
+        let filename = format!("{timestamp}-{type_str}-{project}-new-ticket.md");
+        let filepath = self.queue_path.join(&filename);
+
+        let template = template_type.template_content();
+        let content = render_template(template, values)?;
+
+        fs::create_dir_all(&self.queue_path).context("Failed to create queue directory")?;
+        fs::write(&filepath, &content).context("Failed to write ticket file")?;
+
+        Ok(filepath)
+    }
+
     /// Create a new ticket from template with pre-filled values and open in editor.
     ///
     /// Returns the path to the created ticket file.
@@ -36,34 +65,8 @@ impl TicketCreator {
         values: &HashMap<String, String>,
         editor_cmd: &str,
     ) -> Result<PathBuf> {
-        // Generate filename with timestamp
-        let now = Utc::now();
-        let timestamp = now.format("%Y%m%d-%H%M").to_string();
-        let type_str = template_type.as_str();
-
-        // Get project from values or use "global"
-        let project = values
-            .get("project")
-            .filter(|p| !p.is_empty())
-            .cloned()
-            .unwrap_or_else(|| "global".to_string());
-
-        let filename = format!("{timestamp}-{type_str}-{project}-new-ticket.md");
-        let filepath = self.queue_path.join(&filename);
-
-        // Render template with handlebar values
-        let template = template_type.template_content();
-        let content = render_template(template, values)?;
-
-        // Ensure queue directory exists
-        fs::create_dir_all(&self.queue_path).context("Failed to create queue directory")?;
-
-        // Write to file
-        fs::write(&filepath, &content).context("Failed to write ticket file")?;
-
-        // Open in editor
+        let filepath = self.create_ticket_headless(template_type, values)?;
         self.open_in_editor(&filepath, editor_cmd)?;
-
         Ok(filepath)
     }
 

@@ -21,6 +21,7 @@ mod steps;
 mod templates;
 mod types;
 
+mod acp;
 mod agents;
 mod docs_gen;
 pub mod env_vars;
@@ -229,6 +230,19 @@ enum Commands {
         port: Option<u16>,
     },
 
+    /// Run as an MCP stdio server (for use by Claude Code, Cursor, Zed, `JetBrains`, etc.).
+    ///
+    /// Reads line-delimited JSON-RPC from stdin and writes responses to stdout.
+    /// Log output goes to stderr. Intended to be spawned by an MCP-capable client.
+    Mcp,
+
+    /// Run as an ACP agent over stdio (for use by Zed, `JetBrains`, Emacs `agent-shell`, etc.).
+    ///
+    /// Implements the Agent Client Protocol. Reads line-delimited JSON-RPC
+    /// from stdin and writes responses/notifications to stdout. Log output
+    /// goes to stderr. Intended to be spawned by an ACP-capable editor.
+    Acp,
+
     /// Initialize operator workspace (non-interactive by default)
     Setup {
         /// Launch TUI setup wizard instead of non-interactive setup
@@ -331,6 +345,12 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Api { port }) => {
             cmd_api(&config, port).await?;
+        }
+        Some(Commands::Mcp) => {
+            cmd_mcp(&config).await?;
+        }
+        Some(Commands::Acp) => {
+            cmd_acp(&config).await?;
         }
         Some(Commands::Setup {
             interactive,
@@ -793,6 +813,23 @@ async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
     let state = rest::ApiState::new(config.clone(), config.tickets_path());
     rest::serve(state, port).await?;
 
+    Ok(())
+}
+
+async fn cmd_mcp(config: &Config) -> Result<()> {
+    let state = rest::ApiState::new(config.clone(), config.tickets_path());
+    tracing::info!("Starting MCP stdio server");
+    mcp::stdio::run(state, tokio::io::stdin(), tokio::io::stdout()).await?;
+    tracing::info!("MCP stdio server stopped (stdin closed)");
+    Ok(())
+}
+
+async fn cmd_acp(config: &Config) -> Result<()> {
+    tracing::info!("Starting ACP stdio agent");
+    acp::run_stdio(config.clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("ACP transport error: {e:?}"))?;
+    tracing::info!("ACP agent stopped (stdin closed)");
     Ok(())
 }
 

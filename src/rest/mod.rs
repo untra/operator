@@ -38,7 +38,9 @@ pub fn build_router(state: ApiState) -> Router {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    Router::new()
+    let mcp_enabled = state.config.mcp.http_enabled;
+
+    let mut router = Router::new()
         // Health endpoints
         .route("/api/v1/health", get(routes::health::health))
         .route("/api/v1/status", get(routes::health::status))
@@ -169,17 +171,24 @@ pub fn build_router(state: ApiState) -> Router {
         .route(
             "/api/v1/model-servers/:name",
             delete(routes::model_servers::delete),
-        )
-        // MCP endpoints
-        .route(
-            "/api/v1/mcp/descriptor",
-            get(crate::mcp::descriptor::descriptor),
-        )
-        .route("/api/v1/mcp/sse", get(crate::mcp::transport::sse_handler))
-        .route(
-            "/api/v1/mcp/message",
-            post(crate::mcp::transport::message_handler),
-        )
+        );
+
+    // MCP endpoints — gated by [mcp].http_enabled. The descriptor stays mounted
+    // so non-HTTP MCP clients can still discover the stdio entrypoint.
+    router = router.route(
+        "/api/v1/mcp/descriptor",
+        get(crate::mcp::descriptor::descriptor),
+    );
+    if mcp_enabled {
+        router = router
+            .route("/api/v1/mcp/sse", get(crate::mcp::transport::sse_handler))
+            .route(
+                "/api/v1/mcp/message",
+                post(crate::mcp::transport::message_handler),
+            );
+    }
+
+    router
         .layer(
             TraceLayer::new_for_http()
                 .on_request(DefaultOnRequest::new().level(Level::INFO))

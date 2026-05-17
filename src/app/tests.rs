@@ -247,14 +247,16 @@ mod launch_validation {
         let dashboard_paused = state.paused;
         let running_count = state.running_agents().len();
         let max_agents = config.effective_max_agents();
-        let project_busy = state.is_project_busy("test-project");
+        let project_count = state.project_agent_count("test-project");
+        let max_per_repo = config.effective_max_agents_per_repo();
 
         // All conditions for launch should be met
-        let can_launch = !dashboard_paused && running_count < max_agents && !project_busy;
+        let can_launch =
+            !dashboard_paused && running_count < max_agents && project_count < max_per_repo;
 
         assert!(
             can_launch,
-            "Should be allowed to launch when not paused, under max, and project not busy"
+            "Should be allowed to launch when not paused, under max, and project under cap"
         );
     }
 
@@ -303,7 +305,7 @@ mod launch_validation {
     }
 
     #[test]
-    fn test_try_launch_blocked_project_busy() {
+    fn test_try_launch_blocked_project_at_capacity() {
         let temp_dir = TempDir::new().unwrap();
         let config = make_test_config(&temp_dir);
 
@@ -318,22 +320,87 @@ mod launch_validation {
             )
             .unwrap();
 
-        // Check if project is busy
         let state = State::load(&config).unwrap();
-        let project_busy = state.is_project_busy("test-project");
+        let project_count = state.project_agent_count("test-project");
+        let max_per_repo = config.effective_max_agents_per_repo();
 
-        assert!(project_busy, "Project should be busy with running agent");
+        assert!(
+            project_count >= max_per_repo,
+            "Project should be at capacity with running agent"
+        );
     }
 
     #[test]
-    fn test_try_launch_project_not_busy_when_empty() {
+    fn test_try_launch_project_empty() {
         let temp_dir = TempDir::new().unwrap();
         let config = make_test_config(&temp_dir);
 
         let state = State::load(&config).unwrap();
-        let project_busy = state.is_project_busy("test-project");
+        let project_count = state.project_agent_count("test-project");
 
-        assert!(!project_busy, "Project should not be busy without agents");
+        assert_eq!(project_count, 0, "Project should have no agents");
+    }
+
+    #[test]
+    fn test_try_launch_allowed_when_under_per_repo_cap() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = make_test_config(&temp_dir);
+        config.agents.max_agents_per_repo = 2;
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent(
+                "TASK-001".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        let project_count = state.project_agent_count("test-project");
+        let max_per_repo = config.effective_max_agents_per_repo();
+
+        assert_eq!(project_count, 1);
+        assert_eq!(max_per_repo, 2);
+        assert!(
+            project_count < max_per_repo,
+            "Should allow second agent when cap is 2"
+        );
+    }
+
+    #[test]
+    fn test_try_launch_blocked_at_per_repo_cap() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = make_test_config(&temp_dir);
+        config.agents.max_agents_per_repo = 2;
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent(
+                "TASK-001".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .add_agent(
+                "TASK-002".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        let project_count = state.project_agent_count("test-project");
+        let max_per_repo = config.effective_max_agents_per_repo();
+
+        assert!(
+            project_count >= max_per_repo,
+            "Should block third agent when cap is 2"
+        );
     }
 
     #[test]

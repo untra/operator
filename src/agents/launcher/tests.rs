@@ -1475,6 +1475,7 @@ async fn test_launch_pending_sub_agents_launches_all_when_slots_allow() {
     let mut config = make_test_config(&temp_dir);
     config.agents.max_parallel = 10;
     config.agents.cores_reserved = 0;
+    config.agents.max_agents_per_repo = 10;
     add_delegators(&mut config, &["claude-opus", "gemini-pro"]);
 
     let mock = Arc::new(MockTmuxClient::new());
@@ -1547,9 +1548,10 @@ async fn test_launch_pending_sub_agents_launches_all_when_slots_allow() {
 async fn test_launch_pending_sub_agents_respects_slot_budget() {
     let temp_dir = TempDir::new().unwrap();
     let mut config = make_test_config(&temp_dir);
-    // Budget of exactly 1 slot
+    // Budget of exactly 1 global slot (per-repo cap is high so only max_parallel constrains)
     config.agents.max_parallel = 1;
     config.agents.cores_reserved = 0;
+    config.agents.max_agents_per_repo = 10;
     add_delegators(&mut config, &["claude-opus", "gemini-pro"]);
 
     let mock = Arc::new(MockTmuxClient::new());

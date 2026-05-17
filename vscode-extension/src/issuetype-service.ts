@@ -159,7 +159,7 @@ export class IssueTypeService {
       this.outputChannel.appendLine(
         `[IssueTypeService] Loaded ${data.length} issue types from API`
       );
-    } catch (error) {
+    } catch {
       // API not available - keep using defaults
       this.outputChannel.appendLine(
         `[IssueTypeService] API unavailable, using ${this.types.size} default types`

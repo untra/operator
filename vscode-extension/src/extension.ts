@@ -247,7 +247,7 @@ async function launchTicketFromEditorWithOptionsCommand(
 
   const ticketType = ctx.issueTypeService.extractTypeFromId(metadata.id);
   const ticketStatus = (metadata.status === 'in-progress' || metadata.status === 'completed')
-    ? metadata.status as 'in-progress' | 'completed'
+    ? metadata.status
     : 'queue' as const;
   const ticketInfo: TicketInfo = {
     id: metadata.id,

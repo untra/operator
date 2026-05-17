@@ -396,6 +396,14 @@ impl App {
             // Update dashboard with server statuses and exit confirmation mode
             self.dashboard
                 .update_rest_api_status(self.rest_api_server.status());
+            // MCP session count — try_lock so we never block the UI tick;
+            // a contended lock falls back to the previous frame's count.
+            let mcp_sessions = self
+                .rest_api_server
+                .api_state()
+                .and_then(|s| s.mcp_sessions.try_lock().ok().map(|m| m.len()))
+                .unwrap_or(0);
+            self.dashboard.update_mcp_active_sessions(mcp_sessions);
             self.dashboard
                 .update_exit_confirmation_mode(self.exit_confirmation_mode);
 

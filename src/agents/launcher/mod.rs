@@ -7,9 +7,9 @@
 
 mod cmux_session;
 pub mod interpolation;
-mod llm_command;
+pub(crate) mod llm_command;
 mod options;
-mod prompt;
+pub(crate) mod prompt;
 mod step_config;
 mod tmux_session;
 pub mod worktree_setup;
@@ -499,6 +499,13 @@ impl Launcher {
         Ok(cap.saturating_sub(running))
     }
 
+    fn project_available_slots(&self, project: &str) -> Result<usize> {
+        let state = State::load(&self.config)?;
+        let count = state.project_agent_count(project);
+        let cap = self.config.effective_max_agents_per_repo();
+        Ok(cap.saturating_sub(count))
+    }
+
     /// Fan out a `multi_model` step: N delegators, same prompt for all.
     ///
     /// Launches up to `available_slots()` sub-agents immediately; any that
@@ -685,7 +692,9 @@ impl Launcher {
         base_options: &LaunchOptions,
     ) -> Result<()> {
         loop {
-            let budget = self.available_slots()?;
+            let budget = self
+                .available_slots()?
+                .min(self.project_available_slots(&ticket.project)?);
             if budget == 0 {
                 break;
             }

@@ -57,6 +57,11 @@ pub struct Dashboard {
     config: Config,
     /// Resolved editor environment variables
     pub editor_config: EditorConfig,
+    /// Active MCP SSE sessions, updated by the app each tick via `update_mcp_active_sessions`.
+    pub mcp_active_sessions: usize,
+    /// ACP agent advertisement + active-session count. Updated by `App` on
+    /// construction; refreshed by `update_acp_status` if it changes later.
+    pub acp_status: crate::acp::AcpAgentStatus,
 }
 
 impl Dashboard {
@@ -79,6 +84,8 @@ impl Dashboard {
             wrapper_connection_status: Self::initial_wrapper_status(config),
             config: config.clone(),
             editor_config: EditorConfig::detect(config.sessions.wrapper),
+            mcp_active_sessions: 0,
+            acp_status: crate::acp::AcpAgentServer::from_config(config).status(),
         };
         dashboard.compute_initial_focus();
         dashboard
@@ -109,6 +116,12 @@ impl Dashboard {
 
     pub fn update_rest_api_status(&mut self, status: RestApiStatus) {
         self.rest_api_status = status;
+    }
+
+    /// Update the active MCP SSE session count. Called each tick by the app
+    /// from `rest_api_server.api_state().map(|s| s.mcp_sessions.try_lock()...)`.
+    pub fn update_mcp_active_sessions(&mut self, count: usize) {
+        self.mcp_active_sessions = count;
     }
 
     pub fn update_exit_confirmation_mode(&mut self, mode: bool) {
@@ -313,6 +326,20 @@ impl Dashboard {
             wrapper_connection_status: self.wrapper_connection_status.clone(),
             env_editor: self.editor_config.editor.clone(),
             env_visual: self.editor_config.visual.clone(),
+            mcp_http_status: if config.mcp.http_enabled {
+                match &self.rest_api_status {
+                    RestApiStatus::Running { port } => {
+                        crate::ui::status_panel::McpHttpStatus::Mounted { port: *port }
+                    }
+                    _ => crate::ui::status_panel::McpHttpStatus::NotMounted,
+                }
+            } else {
+                crate::ui::status_panel::McpHttpStatus::NotMounted
+            },
+            mcp_stdio_advertised: config.mcp.stdio_advertised,
+            mcp_active_sessions: self.mcp_active_sessions,
+            acp_stdio_advertised: self.acp_status.is_advertised(),
+            acp_active_sessions: self.acp_status.active_sessions(),
         }
     }
 

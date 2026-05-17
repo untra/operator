@@ -80,6 +80,9 @@ pub struct RestApiServer {
     shutdown_tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
     #[allow(dead_code)]
     task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
+    /// Live `ApiState` once `start()` has been called. Exposed so the
+    /// dashboard can read runtime info (e.g. active MCP SSE sessions).
+    api_state: Arc<Mutex<Option<ApiState>>>,
 }
 
 impl RestApiServer {
@@ -93,7 +96,15 @@ impl RestApiServer {
             status: Arc::new(Mutex::new(RestApiStatus::Stopped)),
             shutdown_tx: Arc::new(Mutex::new(None)),
             task_handle: Arc::new(Mutex::new(None)),
+            api_state: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Returns a clone of the live `ApiState` if the server has been started.
+    /// `ApiState` is `Clone` with internal `Arc`s, so the clone shares the
+    /// same `mcp_sessions` map as the running server.
+    pub fn api_state(&self) -> Option<ApiState> {
+        self.api_state.lock().unwrap().clone()
     }
 
     /// Get current server status
@@ -131,10 +142,13 @@ impl RestApiServer {
         *self.shutdown_tx.lock().unwrap() = Some(shutdown_tx);
 
         let state = ApiState::new(self.config.clone(), self.config.tickets_path());
+        // Expose the live state to the dashboard before handing it to the router.
+        *self.api_state.lock().unwrap() = Some(state.clone());
         let router = build_router(state);
         let port = self.port;
         let status = self.status.clone();
         let tickets_path = self.tickets_path.clone();
+        let api_state_handle = self.api_state.clone();
 
         *status.lock().unwrap() = RestApiStatus::Starting;
 
@@ -168,6 +182,9 @@ impl RestApiServer {
             }
 
             *status.lock().unwrap() = RestApiStatus::Stopped;
+            // Drop the api_state once the server task exits so the dashboard
+            // reflects "no server" rather than a stale snapshot.
+            *api_state_handle.lock().unwrap() = None;
         });
 
         *self.task_handle.lock().unwrap() = Some(handle);
@@ -236,6 +253,25 @@ mod tests {
         let server = RestApiServer::new(config, 7008);
         assert_eq!(server.status(), RestApiStatus::Stopped);
         assert!(!server.is_running());
+        assert!(
+            server.api_state().is_none(),
+            "api_state should be unset before start()"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_start_exposes_api_state() {
+        // Use port 0 to let the OS pick a free port (avoids collisions).
+        let config = Config::default();
+        let server = RestApiServer::new(config, 0);
+        server.start().expect("start should succeed");
+        // Give the spawned task a brief moment to set status to Running and
+        // populate api_state. (start() already sleeps 50ms internally.)
+        assert!(
+            server.api_state().is_some(),
+            "api_state should be populated after start()"
+        );
+        server.stop();
     }
 
     #[test]

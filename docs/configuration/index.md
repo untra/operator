@@ -330,6 +330,16 @@ timeout_secs = 3
 [relay]
 auto_inject_mcp = false
 
+[mcp]
+http_enabled = true
+stdio_advertised = true
+expose_ticket_write_tools = false
+external_servers = []
+
+[acp]
+stdio_advertised = true
+max_concurrent_sessions = 8
+
 ```
 
 ## Configuration Files

@@ -181,11 +181,11 @@ export class ConfigPanel {
         const apiUrl = await discoverApiUrl(ticketsDir);
         const client = new OperatorApiClient(apiUrl);
 
-        let valid = false;
         let displayName = '';
         let accountId = '';
         let errorMsg: string | undefined;
         let projects: Array<{ key: string; name: string }> = [];
+        let valid: boolean;
 
         try {
           const result = await client.validateKanbanCredentials({
@@ -242,12 +242,12 @@ export class ConfigPanel {
         const apiUrl = await discoverApiUrl(ticketsDir);
         const client = new OperatorApiClient(apiUrl);
 
-        let valid = false;
         let userName = '';
         let orgName = '';
         let userId = '';
         let teams: Array<{ id: string; name: string; key: string }> = [];
         let errorMsg: string | undefined;
+        let valid: boolean;
 
         try {
           const result = await client.validateKanbanCredentials({
@@ -618,14 +618,14 @@ async function readConfig(): Promise<WebviewConfig> {
   let parsed: TomlConfig = {};
   if (raw.trim()) {
     const { parse } = await importSmolToml();
-    parsed = parse(raw) as TomlConfig;
+    parsed = parse(raw);
   }
 
   // Return the parsed TOML directly — field names already match generated types
   return {
     config_path: configPath || '',
     working_directory: workDir,
-    config: parsed as Record<string, unknown>,
+    config: parsed,
   };
 }
 
@@ -653,7 +653,7 @@ async function writeConfigField(
   const { parse, stringify } = await importSmolToml();
   let parsed: TomlConfig = {};
   if (raw.trim()) {
-    parsed = parse(raw) as TomlConfig;
+    parsed = parse(raw);
   }
 
   // Apply the update based on section
@@ -663,7 +663,7 @@ async function writeConfigField(
         // Update VS Code setting, not the TOML file
         await vscode.workspace
           .getConfiguration('operator')
-          .update('workingDirectory', value as string, vscode.ConfigurationTarget.Global);
+          .update('workingDirectory', value, vscode.ConfigurationTarget.Global);
         return; // Don't write to TOML
       }
       parsed[key] = value;
@@ -792,7 +792,7 @@ async function writeConfigField(
       break;
   }
 
-  const output = stringify(parsed as Record<string, unknown>);
+  const output = stringify(parsed);
   await fs.writeFile(configPath, output, 'utf-8');
 }
 

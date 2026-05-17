@@ -169,8 +169,32 @@ pub enum StatusAction {
     ResetConfig,
     /// Reload config from disk and restart operator experience
     ReloadConfig,
+    /// Toggle `[mcp].http_enabled` (requires API restart to take effect).
+    ToggleMcpHttp,
+    /// Generate a client config snippet, write it to
+    /// `<tickets>/operator/mcp/<client>.json`, and open it in `$EDITOR`.
+    /// `client` is one of: "claude-code", "claude-desktop", "cursor", "vscode", "zed".
+    WriteAndOpenMcpClientConfig { client: String },
+    /// Open the operator MCP docs page in the default browser.
+    OpenMcpDocs,
+    /// Generate an ACP editor registration snippet, write it to
+    /// `<tickets>/operator/acp/<editor>.{json,el,toml}`, and open it in
+    /// `$EDITOR`. `editor` is one of: "zed", "jetbrains", "emacs", "kiro".
+    WriteAndOpenAcpEditorConfig { editor: String },
+    /// Open the operator ACP docs page in the default browser.
+    OpenAcpDocs,
     /// No action available for this row
     None,
+}
+
+/// MCP HTTP transport status reflected on the dashboard's MCP row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum McpHttpStatus {
+    /// MCP HTTP routes mounted on the REST API server on the given port.
+    Mounted { port: u16 },
+    /// MCP HTTP routes disabled by `[mcp].http_enabled = false`, or the
+    /// API server itself is not running.
+    NotMounted,
 }
 
 /// Which button was pressed — maps to ABXY gamepad layout.
@@ -428,6 +452,18 @@ pub struct StatusSnapshot {
     pub env_editor: String,
     /// Resolved `$VISUAL` value
     pub env_visual: String,
+    /// MCP HTTP transport status (mounted on API server, or disabled).
+    pub mcp_http_status: McpHttpStatus,
+    /// Whether the descriptor advertises the stdio entrypoint.
+    pub mcp_stdio_advertised: bool,
+    /// Currently active MCP SSE sessions on the HTTP transport.
+    pub mcp_active_sessions: usize,
+    /// Whether `[acp].stdio_advertised` is true (operator advertises itself
+    /// as an ACP agent for editor integration).
+    pub acp_stdio_advertised: bool,
+    /// Currently active ACP sessions visible to the TUI. v1: always 0
+    /// because editor-spawned `operator acp` runs out-of-process.
+    pub acp_active_sessions: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -885,6 +921,11 @@ mod tests {
             env_editor: "vim".into(),
             env_visual: String::new(),
             backstage_display: false,
+            mcp_http_status: McpHttpStatus::Mounted { port: 3100 },
+            mcp_stdio_advertised: true,
+            mcp_active_sessions: 0,
+            acp_stdio_advertised: true,
+            acp_active_sessions: 0,
         }
     }
 

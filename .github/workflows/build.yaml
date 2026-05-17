@@ -36,7 +36,7 @@ jobs:
   lint-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@1.88.0
@@ -74,7 +74,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@1.88.0
@@ -135,7 +135,7 @@ jobs:
     needs: lint-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@1.88.0
@@ -171,7 +171,7 @@ jobs:
     needs: lint-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@1.88.0
@@ -219,7 +219,7 @@ jobs:
             artifact_name: operator-windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@1.88.0
@@ -360,7 +360,7 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@1.88.0
@@ -438,7 +438,7 @@ jobs:
     needs: [build, build-opr8r, sign-windows]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

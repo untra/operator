@@ -174,6 +174,31 @@
         "$ref": "#/$defs/ModelServer"
       },
       "default": []
+    },
+    "relay": {
+      "description": "Relay MCP injection configuration",
+      "$ref": "#/$defs/RelayConfig",
+      "default": {
+        "auto_inject_mcp": false
+      }
+    },
+    "mcp": {
+      "description": "Model Context Protocol (MCP) server configuration",
+      "$ref": "#/$defs/McpConfig",
+      "default": {
+        "http_enabled": true,
+        "stdio_advertised": true,
+        "expose_ticket_write_tools": false
+      }
+    },
+    "acp": {
+      "description": "Agent Client Protocol (ACP) agent configuration",
+      "$ref": "#/$defs/AcpConfig",
+      "default": {
+        "stdio_advertised": true,
+        "default_delegator": null,
+        "max_concurrent_sessions": 8
+      }
     }
   },
   "required": [
@@ -1405,6 +1430,11 @@
             "type": "string"
           },
           "default": {}
+        },
+        "bidirectional": {
+          "description": "When true, operator pushes status changes and activity logs back to this kanban project.\nTicket state changes (todo→doing, doing→done) and step completions with delegator info\nare reflected upstream. Default: false.",
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -1605,6 +1635,14 @@
             "null"
           ],
           "default": null
+        },
+        "operator_relay": {
+          "description": "Override global relay auto-inject MCP setting per-delegator (None = use global setting)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
         }
       }
     },
@@ -1657,6 +1695,66 @@
         "name",
         "kind"
       ]
+    },
+    "RelayConfig": {
+      "description": "Relay MCP injection configuration",
+      "type": "object",
+      "properties": {
+        "auto_inject_mcp": {
+          "description": "When true, automatically inject the relay MCP server for all delegators.\nWhen false (default), relay injection is opt-in per delegator.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "McpConfig": {
+      "description": "Model Context Protocol (MCP) server configuration",
+      "type": "object",
+      "properties": {
+        "http_enabled": {
+          "description": "Whether to mount MCP HTTP/SSE endpoints on the REST API server.\nToggling requires an API restart (no hot-swap of the axum router).",
+          "type": "boolean",
+          "default": true
+        },
+        "stdio_advertised": {
+          "description": "Whether the descriptor endpoint advertises the `operator mcp` stdio\ncommand. Set to false on multi-tenant/remote deployments where clients\nshouldn't spawn local subprocesses.",
+          "type": "boolean",
+          "default": true
+        },
+        "expose_ticket_write_tools": {
+          "description": "Whether to expose ticket-mutating tools (claim, complete, return-to-queue,\ncreate) over MCP. Defaults to `false` because any MCP client can call them.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "AcpConfig": {
+      "description": "Agent Client Protocol (ACP) agent configuration.\n\nOperator runs as an ACP agent over stdio when editors (Zed, JetBrains,\nEmacs `agent-shell`, Kiro, etc.) spawn `operator acp`. Each ACP session\nmaps to an in-progress ACP ticket and a delegator subprocess.",
+      "type": "object",
+      "properties": {
+        "stdio_advertised": {
+          "description": "Whether the dashboard advertises the `operator acp` stdio entrypoint\n(and editor-config snippet actions). Set to false on machines that\nshouldn't be used as ACP agents.",
+          "type": "boolean",
+          "default": true
+        },
+        "default_delegator": {
+          "description": "Name of the delegator (from `[[delegators]]`) to use for ACP prompts.\nIf unset or not found, falls back to the operator's default delegator\nresolution.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "max_concurrent_sessions": {
+          "description": "Maximum number of concurrent ACP sessions. New `session/new` requests\nbeyond this limit are rejected with a JSON-RPC error.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 8
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

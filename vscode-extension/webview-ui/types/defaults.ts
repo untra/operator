@@ -145,6 +145,11 @@ const DEFAULT_CONFIG: Config = {
   delegators: [],
   model_servers: [],
   relay: { auto_inject_mcp: false },
+  mcp: {
+    http_enabled: true,
+    stdio_advertised: true,
+    expose_ticket_write_tools: false,
+  },
 };
 
 export const DEFAULT_WEBVIEW_CONFIG: WebviewConfig = {

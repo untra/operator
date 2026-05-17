@@ -86,7 +86,7 @@ pub(crate) fn apply_delegator_launch_config(
 /// 1. Single configured delegator -> use it
 /// 2. Delegator matching the user's preferred LLM tool -> use it
 /// 3. None -> caller falls back to first detected tool + first model alias
-fn resolve_default_delegator(config: &Config) -> Option<&Delegator> {
+pub(crate) fn resolve_default_delegator(config: &Config) -> Option<&Delegator> {
     match config.delegators.len() {
         0 => None,
         1 => Some(&config.delegators[0]),

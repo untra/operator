@@ -228,6 +228,27 @@ fn generate_config_flags(
             }
         }
 
+        // Inject external MCP servers (skip reserved names and duplicates)
+        let mut seen_names = std::collections::HashSet::new();
+        for server in &config.mcp.external_servers {
+            if !server.enabled {
+                continue;
+            }
+            if server.name == "relay" {
+                tracing::warn!("external MCP server name \"relay\" is reserved; skipping");
+                continue;
+            }
+            if !seen_names.insert(&server.name) {
+                tracing::warn!(name = %server.name, "duplicate external MCP server name; skipping");
+                continue;
+            }
+            if let Some(config_path) = external_mcp_config_flag(&session_dir, server, project_path)
+            {
+                cli_flags.push("--mcp-config".to_string());
+                cli_flags.push(config_path);
+            }
+        }
+
         // Add JSON schema flag for structured output (when enabled)
         // Write schema to a file to avoid shell escaping issues with inline JSON
         // Inline jsonSchema takes precedence over jsonSchemaFile
@@ -279,6 +300,108 @@ fn generate_config_flags(
     }
 }
 
+/// Write a per-session MCP server config JSON and return the file path.
+///
+/// Produces `{ "mcpServers": { "<server_name>": <entry> } }` at
+/// `<session_dir>/<server_name>-mcp.json`.
+fn write_mcp_server_config(
+    session_dir: &std::path::Path,
+    server_name: &str,
+    entry: serde_json::Value,
+) -> Option<String> {
+    let filename = format!("{server_name}-mcp.json");
+    let config_path = session_dir.join(&filename);
+    let config = serde_json::json!({ "mcpServers": { (server_name): entry } });
+    let content = serde_json::to_string_pretty(&config).ok()?;
+    fs::write(&config_path, content).ok()?;
+    Some(config_path.display().to_string())
+}
+
+/// Expand `${VAR}` patterns using the process environment.
+/// Unknown variables expand to the empty string. Single-pass scan so
+/// self-referencing values (e.g. `VAR=${VAR}`) don't cause infinite loops.
+fn expand_env_vars(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut chars = input.char_indices().peekable();
+    while let Some((i, ch)) = chars.next() {
+        if ch == '$' {
+            if let Some(&(_, '{')) = chars.peek() {
+                chars.next(); // consume '{'
+                if let Some(close) = input[i + 2..].find('}') {
+                    let var_name = &input[i + 2..i + 2 + close];
+                    let value = std::env::var(var_name).unwrap_or_default();
+                    result.push_str(&value);
+                    // skip chars until after the closing '}'
+                    let end_pos = i + 2 + close;
+                    while let Some(&(j, _)) = chars.peek() {
+                        if j > end_pos {
+                            break;
+                        }
+                        chars.next();
+                    }
+                    continue;
+                }
+                result.push('$');
+                result.push('{');
+                continue;
+            }
+        }
+        result.push(ch);
+    }
+    result
+}
+
+/// Resolve an external MCP server config and write it to the session dir.
+/// Returns `None` if the server cannot be resolved (missing sidecar, empty command).
+fn external_mcp_config_flag(
+    session_dir: &std::path::Path,
+    server: &crate::config::ExternalMcpServer,
+    project_path: &str,
+) -> Option<String> {
+    if let Some(ref discover_path) = server.discover_from {
+        let resolved = if discover_path.starts_with('/') {
+            PathBuf::from(discover_path)
+        } else {
+            PathBuf::from(project_path).join(discover_path)
+        };
+        if resolved.exists() {
+            let contents = fs::read_to_string(&resolved).ok()?;
+            let sidecar: serde_json::Value = serde_json::from_str(&contents).ok()?;
+            if let Some(mcp_server) = sidecar.get("mcpServer") {
+                return write_mcp_server_config(session_dir, &server.name, mcp_server.clone());
+            }
+        }
+        if server.command.is_empty() {
+            return None;
+        }
+    }
+
+    let command = expand_env_vars(&server.command);
+    if command.is_empty() {
+        return None;
+    }
+
+    let args: Vec<String> = server.args.iter().map(|a| expand_env_vars(a)).collect();
+    let env: std::collections::HashMap<String, String> = server
+        .env
+        .iter()
+        .map(|(k, v)| (k.clone(), expand_env_vars(v)))
+        .collect();
+
+    let mut entry = serde_json::json!({
+        "command": command,
+        "type": "stdio",
+    });
+    if !args.is_empty() {
+        entry["args"] = serde_json::json!(args);
+    }
+    if !env.is_empty() {
+        entry["env"] = serde_json::json!(env);
+    }
+
+    write_mcp_server_config(session_dir, &server.name, entry)
+}
+
 /// Write a per-session relay MCP config and return the path for `--mcp-config`.
 /// Returns `None` if the relay command cannot be located.
 fn relay_mcp_config_flag(session_dir: &std::path::Path) -> Option<String> {
@@ -291,16 +414,12 @@ fn relay_mcp_config_flag_with_command(
     binary: PathBuf,
     args: Vec<String>,
 ) -> Option<String> {
-    let config_path = session_dir.join("relay-mcp.json");
     let relay_entry = if args.is_empty() {
         serde_json::json!({ "command": binary.display().to_string(), "type": "stdio" })
     } else {
         serde_json::json!({ "command": binary.display().to_string(), "args": args, "type": "stdio" })
     };
-    let config = serde_json::json!({ "mcpServers": { "relay": relay_entry } });
-    let content = serde_json::to_string_pretty(&config).ok()?;
-    fs::write(&config_path, content).ok()?;
-    Some(config_path.display().to_string())
+    write_mcp_server_config(session_dir, "relay", relay_entry)
 }
 
 /// Locate the relay command, returning `(binary_path, extra_args)`.
@@ -1261,5 +1380,268 @@ mod tests {
     fn test_relay_injection_none_uses_global_default_true() {
         let result = resolve_relay_injection(None, true, true);
         assert!(result);
+    }
+
+    // ========================================
+    // expand_env_vars() tests
+    // ========================================
+
+    #[test]
+    fn test_expand_env_vars_known_var() {
+        std::env::set_var("_TEST_EXPAND_VAR", "hello");
+        let result = expand_env_vars("prefix-${_TEST_EXPAND_VAR}-suffix");
+        assert_eq!(result, "prefix-hello-suffix");
+        std::env::remove_var("_TEST_EXPAND_VAR");
+    }
+
+    #[test]
+    fn test_expand_env_vars_unknown_var_expands_to_empty() {
+        std::env::remove_var("_TEST_NONEXISTENT_VAR");
+        let result = expand_env_vars("before-${_TEST_NONEXISTENT_VAR}-after");
+        assert_eq!(result, "before--after");
+    }
+
+    #[test]
+    fn test_expand_env_vars_no_vars_unchanged() {
+        let result = expand_env_vars("plain string without vars");
+        assert_eq!(result, "plain string without vars");
+    }
+
+    #[test]
+    fn test_expand_env_vars_multiple_vars() {
+        std::env::set_var("_TEST_A", "alpha");
+        std::env::set_var("_TEST_B", "beta");
+        let result = expand_env_vars("${_TEST_A}/${_TEST_B}");
+        assert_eq!(result, "alpha/beta");
+        std::env::remove_var("_TEST_A");
+        std::env::remove_var("_TEST_B");
+    }
+
+    #[test]
+    fn test_expand_env_vars_empty_string() {
+        let result = expand_env_vars("");
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_expand_env_vars_self_referencing_does_not_loop() {
+        std::env::set_var("_TEST_SELF_REF", "${_TEST_SELF_REF}");
+        let result = expand_env_vars("${_TEST_SELF_REF}");
+        assert_eq!(
+            result, "${_TEST_SELF_REF}",
+            "Should expand once, not infinitely"
+        );
+        std::env::remove_var("_TEST_SELF_REF");
+    }
+
+    #[test]
+    fn test_expand_env_vars_unclosed_brace() {
+        let result = expand_env_vars("prefix-${UNCLOSED");
+        assert_eq!(result, "prefix-${UNCLOSED");
+    }
+
+    // ========================================
+    // write_mcp_server_config() tests
+    // ========================================
+
+    #[test]
+    fn test_write_mcp_server_config_creates_named_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let entry = serde_json::json!({
+            "command": "/usr/bin/test",
+            "type": "stdio"
+        });
+        let result = write_mcp_server_config(dir.path(), "myserver", entry);
+        assert!(result.is_some());
+        let path = result.unwrap();
+        assert!(path.contains("myserver-mcp.json"));
+        assert!(std::path::Path::new(&path).exists());
+    }
+
+    #[test]
+    fn test_write_mcp_server_config_json_structure() {
+        let dir = tempfile::tempdir().unwrap();
+        let entry = serde_json::json!({
+            "command": "/bin/foo",
+            "args": ["--bar"],
+            "env": { "KEY": "val" },
+            "type": "stdio"
+        });
+        let path = write_mcp_server_config(dir.path(), "testsvr", entry).unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(
+            json["mcpServers"]["testsvr"]["command"].as_str(),
+            Some("/bin/foo")
+        );
+        assert_eq!(
+            json["mcpServers"]["testsvr"]["args"][0].as_str(),
+            Some("--bar")
+        );
+        assert_eq!(
+            json["mcpServers"]["testsvr"]["env"]["KEY"].as_str(),
+            Some("val")
+        );
+    }
+
+    // ========================================
+    // external_mcp_config_flag() tests
+    // ========================================
+
+    #[test]
+    fn test_external_mcp_config_flag_static_config() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("_TEST_EXT_KEY", "secret123");
+        let server = crate::config::ExternalMcpServer {
+            name: "mytools".to_string(),
+            command: "/usr/bin/my-mcp".to_string(),
+            args: vec!["--port".to_string(), "9090".to_string()],
+            env: std::collections::HashMap::from([(
+                "API_KEY".to_string(),
+                "${_TEST_EXT_KEY}".to_string(),
+            )]),
+            enabled: true,
+            discover_from: None,
+        };
+        let result = external_mcp_config_flag(dir.path(), &server, "/project");
+        assert!(result.is_some());
+        let path = result.unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(
+            json["mcpServers"]["mytools"]["command"].as_str(),
+            Some("/usr/bin/my-mcp")
+        );
+        assert_eq!(
+            json["mcpServers"]["mytools"]["args"][0].as_str(),
+            Some("--port")
+        );
+        assert_eq!(
+            json["mcpServers"]["mytools"]["args"][1].as_str(),
+            Some("9090")
+        );
+        assert_eq!(
+            json["mcpServers"]["mytools"]["env"]["API_KEY"].as_str(),
+            Some("secret123")
+        );
+        std::env::remove_var("_TEST_EXT_KEY");
+    }
+
+    #[test]
+    fn test_external_mcp_config_flag_sidecar_discovery() {
+        let session_dir = tempfile::tempdir().unwrap();
+        let project_dir = tempfile::tempdir().unwrap();
+        let sidecar_path = project_dir.path().join(".kanbots");
+        std::fs::create_dir_all(&sidecar_path).unwrap();
+        let sidecar_file = sidecar_path.join("active-session.json");
+        let sidecar_content = serde_json::json!({
+            "mcpServer": {
+                "command": "/usr/bin/node",
+                "args": ["/path/to/server.js"],
+                "env": {
+                    "BRIDGE_URL": "http://127.0.0.1:54321",
+                    "BRIDGE_TOKEN": "abc123"
+                }
+            },
+            "pid": 12345
+        });
+        std::fs::write(
+            &sidecar_file,
+            serde_json::to_string_pretty(&sidecar_content).unwrap(),
+        )
+        .unwrap();
+
+        let server = crate::config::ExternalMcpServer {
+            name: "kanbots".to_string(),
+            command: String::new(),
+            args: vec![],
+            env: std::collections::HashMap::new(),
+            enabled: true,
+            discover_from: Some(".kanbots/active-session.json".to_string()),
+        };
+        let result = external_mcp_config_flag(
+            session_dir.path(),
+            &server,
+            &project_dir.path().to_string_lossy(),
+        );
+        assert!(result.is_some());
+        let path = result.unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(
+            json["mcpServers"]["kanbots"]["command"].as_str(),
+            Some("/usr/bin/node")
+        );
+        assert_eq!(
+            json["mcpServers"]["kanbots"]["args"][0].as_str(),
+            Some("/path/to/server.js")
+        );
+        assert_eq!(
+            json["mcpServers"]["kanbots"]["env"]["BRIDGE_TOKEN"].as_str(),
+            Some("abc123")
+        );
+    }
+
+    #[test]
+    fn test_external_mcp_config_flag_missing_sidecar_empty_command_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = crate::config::ExternalMcpServer {
+            name: "kanbots".to_string(),
+            command: String::new(),
+            args: vec![],
+            env: std::collections::HashMap::new(),
+            enabled: true,
+            discover_from: Some(".kanbots/active-session.json".to_string()),
+        };
+        let result = external_mcp_config_flag(dir.path(), &server, "/nonexistent/project");
+        assert!(
+            result.is_none(),
+            "Should return None when sidecar missing and command empty"
+        );
+    }
+
+    #[test]
+    fn test_external_mcp_config_flag_missing_sidecar_static_fallback() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = crate::config::ExternalMcpServer {
+            name: "kanbots".to_string(),
+            command: "kanbots-mcp-server".to_string(),
+            args: vec![],
+            env: std::collections::HashMap::new(),
+            enabled: true,
+            discover_from: Some(".kanbots/active-session.json".to_string()),
+        };
+        let result = external_mcp_config_flag(dir.path(), &server, "/nonexistent/project");
+        assert!(
+            result.is_some(),
+            "Should fall back to static command when sidecar missing"
+        );
+        let path = result.unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(
+            json["mcpServers"]["kanbots"]["command"].as_str(),
+            Some("kanbots-mcp-server")
+        );
+    }
+
+    #[test]
+    fn test_external_mcp_config_flag_disabled_server_not_called() {
+        // This is tested at the generate_config_flags level, but we verify
+        // the function itself handles empty command correctly
+        let dir = tempfile::tempdir().unwrap();
+        let server = crate::config::ExternalMcpServer {
+            name: "disabled".to_string(),
+            command: String::new(),
+            args: vec![],
+            env: std::collections::HashMap::new(),
+            enabled: true,
+            discover_from: None,
+        };
+        let result = external_mcp_config_flag(dir.path(), &server, "/project");
+        assert!(
+            result.is_none(),
+            "Empty command without discover_from should return None"
+        );
     }
 }

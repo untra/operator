@@ -130,6 +130,11 @@ mod tests {
             },
             env_editor: "vim".into(),
             env_visual: String::new(),
+            mcp_http_status: crate::ui::status_panel::McpHttpStatus::Mounted { port: 7008 },
+            mcp_stdio_advertised: true,
+            mcp_active_sessions: 0,
+            acp_stdio_advertised: true,
+            acp_active_sessions: 0,
         }
     }
 

@@ -95,7 +95,85 @@ pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
                 "required": []
             }),
         },
+        McpToolDefinition {
+            name: "operator_list_tickets".to_string(),
+            description: "List tickets in the operator queue. Filter by status: queue, in-progress, completed. Returns id, project, type, summary, priority, branch, and external links — not body content.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["queue", "in-progress", "completed"],
+                        "default": "queue",
+                        "description": "Which directory to list (defaults to queue)"
+                    }
+                },
+                "required": []
+            }),
+        },
+        McpToolDefinition {
+            name: "operator_claim_ticket".to_string(),
+            description: "Move a ticket from queue to in-progress. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "description": "Ticket id (e.g. FEAT-1234)" }
+                },
+                "required": ["id"]
+            }),
+        },
+        McpToolDefinition {
+            name: "operator_complete_ticket".to_string(),
+            description: "Move a ticket from in-progress to completed. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "description": "Ticket id" }
+                },
+                "required": ["id"]
+            }),
+        },
+        McpToolDefinition {
+            name: "operator_return_to_queue".to_string(),
+            description: "Move a ticket from in-progress back to queue (un-claim). Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "description": "Ticket id" }
+                },
+                "required": ["id"]
+            }),
+        },
+        McpToolDefinition {
+            name: "operator_create_ticket".to_string(),
+            description: "Create a new ticket from a template (feature, fix, spike, investigation, task) and write it to the queue. Returns the filename. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "template": {
+                        "type": "string",
+                        "description": "Template type key (feature, fix, spike, investigation, task)"
+                    },
+                    "values": {
+                        "type": "object",
+                        "description": "Handlebars values for the template (project, summary, id, etc.)"
+                    }
+                },
+                "required": ["template"]
+            }),
+        },
     ]
+}
+
+fn require_write_tools(state: &ApiState) -> Result<(), String> {
+    if state.config.mcp.expose_ticket_write_tools {
+        Ok(())
+    } else {
+        Err(
+            "Ticket write tools disabled in config ([mcp].expose_ticket_write_tools = true to enable)"
+                .to_string(),
+        )
+    }
 }
 
 /// Execute an MCP tool by name with the given arguments
@@ -146,6 +224,23 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
             let resp = routes::skills::list(State(state.clone())).await;
             serde_json::to_value(&*resp).map_err(|e| e.to_string())
         }
+        "operator_list_tickets" => crate::mcp::tickets::list_tickets(args, state).await,
+        "operator_claim_ticket" => {
+            require_write_tools(state)?;
+            crate::mcp::tickets::claim_ticket(args, state).await
+        }
+        "operator_complete_ticket" => {
+            require_write_tools(state)?;
+            crate::mcp::tickets::complete_ticket(args, state).await
+        }
+        "operator_return_to_queue" => {
+            require_write_tools(state)?;
+            crate::mcp::tickets::return_to_queue(args, state).await
+        }
+        "operator_create_ticket" => {
+            require_write_tools(state)?;
+            crate::mcp::tickets::create_ticket(args, state).await
+        }
         _ => Err(format!("Unknown tool: {name}")),
     }
 }
@@ -159,7 +254,7 @@ mod tests {
     #[test]
     fn test_all_tool_definitions_count() {
         let tools = all_tool_definitions();
-        assert_eq!(tools.len(), 7);
+        assert_eq!(tools.len(), 12);
     }
 
     #[test]
@@ -174,6 +269,7 @@ mod tests {
         assert!(names.contains(&"operator_list_collections"));
         assert!(names.contains(&"operator_get_collection"));
         assert!(names.contains(&"operator_list_skills"));
+        assert!(names.contains(&"operator_list_tickets"));
     }
 
     #[test]

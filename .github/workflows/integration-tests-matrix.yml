@@ -74,7 +74,7 @@ jobs:
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.88.0
@@ -119,7 +119,7 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.88.0
@@ -167,7 +167,7 @@ jobs:
             opr8r_artifact: opr8r-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install tmux (Linux)
         if: runner.os == 'Linux'
@@ -234,7 +234,7 @@ jobs:
             opr8r_artifact: opr8r-linux-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.88.0
@@ -303,7 +303,7 @@ jobs:
             opr8r_artifact: opr8r-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.88.0
@@ -356,7 +356,7 @@ jobs:
             artifact: operator-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.88.0
@@ -408,7 +408,7 @@ jobs:
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.88.0
@@ -465,7 +465,7 @@ jobs:
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download operator binary
         uses: actions/download-artifact@v4
@@ -530,7 +530,7 @@ jobs:
       run:
         working-directory: vscode-extension
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

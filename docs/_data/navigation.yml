@@ -24,6 +24,9 @@ docs:
           - title: VS Code Extension
             url: /getting-started/sessions/vscode/
             icon: vscode
+          - title: Cursor
+            url: /getting-started/sessions/cursor/
+            icon: cursor
       - title: Supported Kanban Providers
         url: /getting-started/kanban/
         children:

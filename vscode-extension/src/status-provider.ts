@@ -138,7 +138,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       const raw = await fs.readFile(configPath, 'utf-8');
       if (raw.trim()) {
         const { parse } = await importSmolToml();
-        this.parsedConfig = parse(raw) as Record<string, unknown>;
+        this.parsedConfig = parse(raw);
       } else {
         this.parsedConfig = {};
       }

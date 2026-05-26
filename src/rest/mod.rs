@@ -22,6 +22,8 @@ pub mod openapi;
 pub mod routes;
 pub mod server;
 pub mod state;
+#[cfg(feature = "embed-ui")]
+pub mod web_ui;
 
 pub use openapi::ApiDoc;
 pub use server::{ApiSessionInfo, RestApiServer, RestApiStatus};
@@ -102,6 +104,12 @@ pub fn build_router(state: ApiState) -> Router {
         .route(
             "/api/v1/projects/:name/assess",
             post(routes::projects::assess),
+        )
+        // Ticket endpoints
+        .route("/api/v1/tickets/:id", get(routes::tickets::get_one))
+        .route(
+            "/api/v1/tickets/:id/status",
+            put(routes::tickets::update_status),
         )
         // Launch endpoints
         .route(
@@ -188,7 +196,7 @@ pub fn build_router(state: ApiState) -> Router {
             );
     }
 
-    router
+    let router = router
         .layer(
             TraceLayer::new_for_http()
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
@@ -196,7 +204,12 @@ pub fn build_router(state: ApiState) -> Router {
         )
         .layer(cors)
         .with_state(state)
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
+
+    #[cfg(feature = "embed-ui")]
+    let router = router.fallback(web_ui::spa_handler);
+
+    router
 }
 
 /// Start the REST API server (standalone mode with session file and logging)

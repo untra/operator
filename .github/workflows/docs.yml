@@ -23,6 +23,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  BUNDLE_FROZEN: 'true'
 
 jobs:
   build-and-deploy:
@@ -33,7 +34,7 @@ jobs:
 
       # Install Rust toolchain for docs generation
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.95
 
       # Cache cargo for faster builds
       - name: Cache cargo
@@ -48,7 +49,7 @@ jobs:
 
       # Generate reference documentation from source-of-truth files
       - name: Generate reference docs
-        run: cargo run -- docs
+        run: cargo run --locked -- docs
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -56,6 +57,10 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
           working-directory: docs
+
+      - name: Audit gems
+        run: gem install bundler-audit && bundle-audit check --update
+        working-directory: docs
 
       - name: Build Jekyll site
         run: bundle exec jekyll build

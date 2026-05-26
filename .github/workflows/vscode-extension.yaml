@@ -99,7 +99,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -113,7 +113,7 @@ jobs:
             opr8r-${{ matrix.artifact }}-cargo-
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --locked --release
 
       - name: Strip binary (Linux/macOS)
         if: runner.os != 'Windows'

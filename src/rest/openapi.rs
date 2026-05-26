@@ -9,7 +9,8 @@ use crate::rest::dto::{
     DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse, FieldResponse, HealthResponse,
     IssueTypeResponse, IssueTypeSummary, LaunchTicketRequest, LaunchTicketResponse,
     ModelServerResponse, ModelServersResponse, SetDefaultLlmRequest, SkillEntry, SkillsResponse,
-    StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    StatusResponse, StepResponse, TicketDetailResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    UpdateTicketStatusRequest, UpdateTicketStatusResponse,
 };
 use crate::rest::error::ErrorResponse;
 
@@ -45,6 +46,9 @@ use crate::rest::error::ErrorResponse;
         crate::rest::routes::collections::get_active,
         crate::rest::routes::collections::get_one,
         crate::rest::routes::collections::activate,
+        // Ticket endpoints
+        crate::rest::routes::tickets::get_one,
+        crate::rest::routes::tickets::update_status,
         // Launch endpoints
         crate::rest::routes::launch::launch_ticket,
         // Skills endpoints
@@ -103,6 +107,10 @@ use crate::rest::error::ErrorResponse;
             // LLM tools types
             SetDefaultLlmRequest,
             DefaultLlmResponse,
+            // Ticket types
+            TicketDetailResponse,
+            UpdateTicketStatusRequest,
+            UpdateTicketStatusResponse,
             // MCP types
             McpDescriptorResponse,
         )
@@ -112,6 +120,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Issue Types", description = "Issue type CRUD operations"),
         (name = "Steps", description = "Step management within issue types"),
         (name = "Collections", description = "Issue type collection management"),
+        (name = "Tickets", description = "Ticket CRUD and status management"),
         (name = "Launch", description = "Ticket launch operations"),
         (name = "Skills", description = "Skill discovery across LLM tools"),
         (name = "Delegators", description = "Agent delegator CRUD operations"),

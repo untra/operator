@@ -1,2 +1,5 @@
+[install]
+minimumReleaseAge = "7d"
+
 [test]
 preload = ["./packages/app/src/test/setup.ts"]

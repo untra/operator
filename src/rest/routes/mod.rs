@@ -14,3 +14,4 @@ pub mod projects;
 pub mod queue;
 pub mod skills;
 pub mod steps;
+pub mod tickets;

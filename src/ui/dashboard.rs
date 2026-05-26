@@ -340,6 +340,7 @@ impl Dashboard {
             mcp_active_sessions: self.mcp_active_sessions,
             acp_stdio_advertised: self.acp_status.is_advertised(),
             acp_active_sessions: self.acp_status.active_sessions(),
+            embed_ui_available: cfg!(feature = "embed-ui"),
         }
     }
 

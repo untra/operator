@@ -1,12 +1,15 @@
 //! MCP tool definitions and execution.
 //!
-//! Defines read-only tools that wrap existing REST API route handlers.
+//! Defines read-only and write tools that wrap existing REST API route handlers.
 //! Each tool calls the handler directly (no internal HTTP round-trip).
+//! Write tools are gated behind `[mcp].expose_ticket_write_tools`.
 
 use axum::extract::{Path, State};
+use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::rest::dto::{LaunchTicketRequest, RejectReviewRequest};
 use crate::rest::routes;
 use crate::rest::state::ApiState;
 
@@ -162,6 +165,89 @@ pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
                 "required": ["template"]
             }),
         },
+        McpToolDefinition {
+            name: "operator_launch_ticket".to_string(),
+            description: "Launch/start a ticket by claiming it and preparing an agent. Returns agent details and launch command. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Ticket ID to launch (e.g. FEAT-1234)"
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "Model to use (default: sonnet)",
+                        "default": "sonnet"
+                    },
+                    "wrapper": {
+                        "type": "string",
+                        "description": "Session wrapper type: vscode, tmux, cmux, terminal (default: terminal)",
+                        "default": "terminal"
+                    }
+                },
+                "required": ["id"]
+            }),
+        },
+        McpToolDefinition {
+            name: "operator_pause_queue".to_string(),
+            description: "Pause queue processing, stopping automatic ticket launches. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }),
+        },
+        McpToolDefinition {
+            name: "operator_resume_queue".to_string(),
+            description: "Resume queue processing, re-enabling automatic ticket launches. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }),
+        },
+        McpToolDefinition {
+            name: "operator_sync_kanban".to_string(),
+            description: "Sync kanban collections from external providers (Jira, Linear, etc.) and create local tickets. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }),
+        },
+        McpToolDefinition {
+            name: "operator_approve_agent".to_string(),
+            description: "Approve an agent's pending review, signaling it to continue. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Agent ID to approve"
+                    }
+                },
+                "required": ["id"]
+            }),
+        },
+        McpToolDefinition {
+            name: "operator_reject_agent".to_string(),
+            description: "Reject an agent's pending review with a reason. The agent will re-do the work based on the feedback. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Agent ID to reject"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Reason for rejection (feedback for the agent)"
+                    }
+                },
+                "required": ["id", "reason"]
+            }),
+        },
     ]
 }
 
@@ -241,6 +327,101 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
             require_write_tools(state)?;
             crate::mcp::tickets::create_ticket(args, state).await
         }
+        "operator_launch_ticket" => {
+            require_write_tools(state)?;
+            let id = args
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing required parameter: id".to_string())?;
+            let model = args
+                .get("model")
+                .and_then(|v| v.as_str())
+                .unwrap_or("sonnet");
+            let wrapper = args
+                .get("wrapper")
+                .and_then(|v| v.as_str())
+                .unwrap_or("terminal");
+            let request = LaunchTicketRequest {
+                delegator: None,
+                provider: None,
+                model: Some(model.to_string()),
+                yolo_mode: false,
+                wrapper: Some(wrapper.to_string()),
+                retry_reason: None,
+                resume_session_id: None,
+            };
+            let result = routes::launch::launch_ticket(
+                State(state.clone()),
+                Path(id.to_string()),
+                Json(request),
+            )
+            .await;
+            match result {
+                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
+                Err(e) => Err(format!("{e:?}")),
+            }
+        }
+        "operator_pause_queue" => {
+            require_write_tools(state)?;
+            let result = routes::queue::pause(State(state.clone())).await;
+            match result {
+                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
+                Err(e) => Err(format!("{e:?}")),
+            }
+        }
+        "operator_resume_queue" => {
+            require_write_tools(state)?;
+            let result = routes::queue::resume(State(state.clone())).await;
+            match result {
+                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
+                Err(e) => Err(format!("{e:?}")),
+            }
+        }
+        "operator_sync_kanban" => {
+            require_write_tools(state)?;
+            let result = routes::queue::sync(State(state.clone())).await;
+            match result {
+                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
+                Err(e) => Err(format!("{e:?}")),
+            }
+        }
+        "operator_approve_agent" => {
+            require_write_tools(state)?;
+            let id = args
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing required parameter: id".to_string())?;
+            let result =
+                routes::agents::approve_review(State(state.clone()), Path(id.to_string())).await;
+            match result {
+                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
+                Err(e) => Err(format!("{e:?}")),
+            }
+        }
+        "operator_reject_agent" => {
+            require_write_tools(state)?;
+            let id = args
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing required parameter: id".to_string())?;
+            let reason = args
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing required parameter: reason".to_string())?;
+            let request = RejectReviewRequest {
+                reason: reason.to_string(),
+            };
+            let result = routes::agents::reject_review(
+                State(state.clone()),
+                Path(id.to_string()),
+                Json(request),
+            )
+            .await;
+            match result {
+                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
+                Err(e) => Err(format!("{e:?}")),
+            }
+        }
         _ => Err(format!("Unknown tool: {name}")),
     }
 }
@@ -254,7 +435,7 @@ mod tests {
     #[test]
     fn test_all_tool_definitions_count() {
         let tools = all_tool_definitions();
-        assert_eq!(tools.len(), 12);
+        assert_eq!(tools.len(), 18);
     }
 
     #[test]
@@ -270,6 +451,12 @@ mod tests {
         assert!(names.contains(&"operator_get_collection"));
         assert!(names.contains(&"operator_list_skills"));
         assert!(names.contains(&"operator_list_tickets"));
+        assert!(names.contains(&"operator_launch_ticket"));
+        assert!(names.contains(&"operator_pause_queue"));
+        assert!(names.contains(&"operator_resume_queue"));
+        assert!(names.contains(&"operator_sync_kanban"));
+        assert!(names.contains(&"operator_approve_agent"));
+        assert!(names.contains(&"operator_reject_agent"));
     }
 
     #[test]
@@ -364,5 +551,85 @@ mod tests {
         let result = execute_tool("nonexistent_tool", json!({}), &state).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Unknown tool"));
+    }
+
+    // --- Write tool gate tests (write tools disabled by default) ---
+
+    #[tokio::test]
+    async fn test_execute_launch_ticket_disabled() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let result = execute_tool("operator_launch_ticket", json!({"id": "FEAT-1"}), &state).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Ticket write tools disabled"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_pause_queue_disabled() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let result = execute_tool("operator_pause_queue", json!({}), &state).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Ticket write tools disabled"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_resume_queue_disabled() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let result = execute_tool("operator_resume_queue", json!({}), &state).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Ticket write tools disabled"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_sync_kanban_disabled() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let result = execute_tool("operator_sync_kanban", json!({}), &state).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Ticket write tools disabled"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_approve_agent_disabled() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let result = execute_tool("operator_approve_agent", json!({"id": "agent-1"}), &state).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Ticket write tools disabled"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_reject_agent_disabled() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let result = execute_tool(
+            "operator_reject_agent",
+            json!({"id": "agent-1", "reason": "bad"}),
+            &state,
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Ticket write tools disabled"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_launch_ticket_requires_id() {
+        let mut config = Config::default();
+        config.mcp.expose_ticket_write_tools = true;
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let result = execute_tool("operator_launch_ticket", json!({}), &state).await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Missing required parameter: id"));
     }
 }

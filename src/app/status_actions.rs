@@ -83,8 +83,22 @@ impl App {
             StatusAction::RestartWrapperConnection => {
                 self.restart_wrapper_connection();
             }
-            StatusAction::ToggleWebServers => {
-                self.toggle_web_servers(terminal)?;
+            StatusAction::ToggleBackstage => {
+                self.toggle_backstage(terminal)?;
+            }
+            StatusAction::OpenWebUi { port } => {
+                let url = format!("http://localhost:{port}/");
+                if let Err(e) = open_in_browser(&url) {
+                    self.dashboard
+                        .set_status(&format!("Failed to open web UI: {e}"));
+                }
+            }
+            StatusAction::OpenWebUiAt { port, route } => {
+                let url = format!("http://localhost:{port}/#{route}");
+                if let Err(e) = open_in_browser(&url) {
+                    self.dashboard
+                        .set_status(&format!("Failed to open web UI: {e}"));
+                }
             }
             StatusAction::SetDefaultLlm { tool_name, model } => {
                 self.set_default_llm(&tool_name, &model);
@@ -342,8 +356,27 @@ impl App {
             .set_status(&format!("Default LLM set to {tool_name}:{model}"));
     }
 
-    /// Toggle both REST API and Backstage servers together.
-    pub(super) fn toggle_web_servers(&mut self, terminal: &mut AppTerminal) -> Result<()> {
+    /// Open the embedded web UI in the default browser.
+    pub(super) fn open_web_ui(&mut self) -> Result<()> {
+        if self.rest_api_server.is_running() {
+            let port = self.config.rest_api.port;
+            let url = format!("http://localhost:{port}/");
+            if let Err(e) = open_in_browser(&url) {
+                self.dashboard
+                    .set_status(&format!("Failed to open browser: {e}"));
+            } else {
+                self.dashboard
+                    .set_status(&format!("Opened web UI at {url}"));
+            }
+        } else {
+            self.dashboard
+                .set_status("API not running — web UI unavailable");
+        }
+        Ok(())
+    }
+
+    /// Toggle the Backstage server.
+    pub(super) fn toggle_backstage(&mut self, terminal: &mut AppTerminal) -> Result<()> {
         let backstage_running = self.backstage_server.is_running();
         let rest_running = self.rest_api_server.is_running();
 

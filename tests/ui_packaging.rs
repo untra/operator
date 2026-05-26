@@ -8,12 +8,13 @@ use std::path::Path;
 const ALLOWED_RUNTIME_DEPS: &[&str] = &[
     "react",
     "react-dom",
+    "react-router-dom",
     "@dnd-kit/core",
     "@dnd-kit/sortable",
     "@dnd-kit/utilities",
 ];
 
-const UNCOMPRESSED_BUDGET_BYTES: u64 = 5_242_880; // 5MB
+const UNCOMPRESSED_BUDGET_BYTES: u64 = 10_485_760; // 10MB
 
 #[test]
 fn test_ui_package_json_dep_allowlist() {

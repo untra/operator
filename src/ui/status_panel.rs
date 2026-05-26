@@ -155,8 +155,12 @@ pub enum StatusAction {
     OpenSwagger { port: u16 },
     /// Restart the session wrapper connection
     RestartWrapperConnection,
-    /// Toggle the web servers (backstage + REST API)
-    ToggleWebServers,
+    /// Toggle the Backstage server
+    ToggleBackstage,
+    /// Open the embedded web UI in the default browser
+    OpenWebUi { port: u16 },
+    /// Open the embedded web UI at a specific hash route (e.g. "/config", "/issuetypes")
+    OpenWebUiAt { port: u16, route: String },
     /// Set the global default LLM tool and model
     SetDefaultLlm { tool_name: String, model: String },
     /// Open onboarding for a kanban provider (e.g. "jira", "linear")
@@ -464,6 +468,18 @@ pub struct StatusSnapshot {
     /// Currently active ACP sessions visible to the TUI. v1: always 0
     /// because editor-spawned `operator acp` runs out-of-process.
     pub acp_active_sessions: usize,
+    /// Whether the embedded SPA (ui/) was compiled into the binary via the `embed-ui` feature.
+    pub embed_ui_available: bool,
+}
+
+impl StatusSnapshot {
+    /// Returns the API port if the REST server is running.
+    pub fn api_port(&self) -> Option<u16> {
+        match &self.api_status {
+            RestApiStatus::Running { port } => Some(*port),
+            _ => None,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -604,6 +620,15 @@ impl StatusPanel {
             let health = section.health(snapshot);
 
             // Header row
+            let web_route = web_ui_route_for(section.section_id());
+            let special = if let (Some(route), Some(port)) = (web_route, snapshot.api_port()) {
+                StatusAction::OpenWebUiAt {
+                    port,
+                    route: route.to_string(),
+                }
+            } else {
+                StatusAction::None
+            };
             rows.push(TreeRow {
                 section_id: section.section_id(),
                 depth: 0,
@@ -611,7 +636,17 @@ impl StatusPanel {
                 description: section.description(snapshot),
                 icon: StatusIcon::None,
                 is_header: true,
-                actions: ActionSet::primary(StatusAction::ToggleSection(section.section_id())),
+                actions: ActionSet {
+                    primary: StatusAction::ToggleSection(section.section_id()),
+                    back: StatusAction::None,
+                    special,
+                    special_meta: web_route.map(|_| ActionMeta {
+                        title: "Web",
+                        tooltip: "Open this section in the web UI",
+                    }),
+                    refresh: StatusAction::None,
+                    refresh_meta: None,
+                },
                 health,
             });
 
@@ -867,6 +902,20 @@ impl StatusPanel {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Deep-link routing: maps section IDs to hash routes in the embedded web UI.
+// ---------------------------------------------------------------------------
+
+fn web_ui_route_for(section: SectionId) -> Option<&'static str> {
+    match section {
+        SectionId::Configuration => Some("/config"),
+        SectionId::Kanban => Some("/config"),
+        SectionId::IssueTypes => Some("/issuetypes"),
+        SectionId::ManagedProjects => Some("/config"),
+        _ => None,
+    }
+}
+
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -926,6 +975,7 @@ mod tests {
             mcp_active_sessions: 0,
             acp_stdio_advertised: true,
             acp_active_sessions: 0,
+            embed_ui_available: true,
         }
     }
 

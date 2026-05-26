@@ -15,6 +15,7 @@ use agent_client_protocol::schema::{
 use agent_client_protocol::{Agent, Client, ConnectionTo, Dispatch, Stdio};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+use tokio::sync::oneshot;
 
 use crate::acp::session::SessionRegistry;
 use crate::acp::translator;
@@ -47,6 +48,7 @@ pub async fn run_stdio(config: Config) -> agent_client_protocol::Result<()> {
     let new_session_config = Arc::clone(&config);
     let prompt_registry = Arc::clone(&registry);
     let prompt_config = Arc::clone(&config);
+    let cancel_registry = Arc::clone(&registry);
 
     Agent
         .builder()
@@ -75,22 +77,30 @@ pub async fn run_stdio(config: Config) -> agent_client_protocol::Result<()> {
         )
         .on_receive_request(
             async move |request: PromptRequest, responder, connection| {
-                let response = handle_prompt(&prompt_registry, &prompt_config, request, &connection).await;
-                match response {
-                    Ok(resp) => responder.respond(resp),
-                    Err(message) => responder.respond_with_error(
-                        agent_client_protocol::util::internal_error(message),
-                    ),
-                }
+                let reg = Arc::clone(&prompt_registry);
+                let cfg = Arc::clone(&prompt_config);
+                let cx = connection.clone();
+                connection.spawn(async move {
+                    let response = handle_prompt(&reg, &cfg, request, &cx).await;
+                    match response {
+                        Ok(resp) => responder.respond(resp)?,
+                        Err(message) => responder.respond_with_error(
+                            agent_client_protocol::util::internal_error(message),
+                        )?,
+                    }
+                    Ok(())
+                })?;
+                Ok(())
             },
             agent_client_protocol::on_receive_request!(),
         )
         .on_receive_notification(
             async move |notif: CancelNotification, _connection| {
-                // v1: acknowledge silently. Editors send this on Esc; surfacing
-                // an error here is user-visible noise. Killing the in-flight
-                // delegator subprocess is a follow-up.
                 tracing::info!(session_id = ?notif.session_id, "ACP cancel received");
+                if let Some(tx) = cancel_registry.take_cancel_sender(&notif.session_id) {
+                    let _ = tx.send(());
+                    tracing::info!(session_id = ?notif.session_id, "ACP cancel signal sent to delegator");
+                }
                 Ok(())
             },
             agent_client_protocol::on_receive_notification!(),
@@ -167,7 +177,7 @@ async fn handle_prompt(
         crate::agents::launcher::prompt::write_prompt_file(config, &session_id_str, &prompt_text)
             .map_err(|e| format!("write_prompt_file: {e}"))?;
 
-    let command_string =
+    let mut command_string =
         crate::agents::launcher::llm_command::build_llm_command_with_permissions_for_tool(
             config,
             &delegator.llm_tool,
@@ -180,6 +190,10 @@ async fn handle_prompt(
         )
         .map_err(|e| format!("build_llm_command: {e}"))?;
 
+    if delegator.llm_tool == "claude" {
+        command_string.push_str(" --output-format stream-json");
+    }
+
     tracing::info!(
         ?session_id,
         delegator = %delegator.name,
@@ -187,26 +201,34 @@ async fn handle_prompt(
         "ACP prompt: spawning delegator"
     );
 
+    let (cancel_tx, cancel_rx) = oneshot::channel();
+    registry.register_cancel_sender(&session_id, cancel_tx);
+
     let stop_reason = stream_delegator(
         &command_string,
         &session.working_directory,
         &session_id,
         connection,
+        cancel_rx,
     )
     .await
     .map_err(|e| format!("delegator subprocess: {e}"))?;
+
+    registry.take_cancel_sender(&session_id);
 
     Ok(PromptResponse::new(stop_reason))
 }
 
 /// Spawn the delegator via `bash -lc <cmd>` in `cwd`, stream stdout
 /// line-by-line as ACP `AgentMessageChunk` notifications, and return the
-/// final `StopReason` based on exit status.
+/// final `StopReason` based on exit status. If `cancel_rx` fires, the
+/// child process is killed and `StopReason::Cancelled` is returned.
 async fn stream_delegator(
     command_string: &str,
     cwd: &std::path::Path,
     session_id: &SessionId,
     connection: &ConnectionTo<Client>,
+    mut cancel_rx: oneshot::Receiver<()>,
 ) -> std::io::Result<StopReason> {
     let mut child = Command::new("bash")
         .arg("-lc")
@@ -223,12 +245,26 @@ async fn stream_delegator(
         .ok_or_else(|| std::io::Error::other("failed to capture delegator stdout"))?;
 
     let mut lines = BufReader::new(stdout).lines();
-    while let Some(line) = lines.next_line().await? {
-        if let Some(update) = translator::line_to_update(&line) {
-            let notif = SessionNotification::new(session_id.clone(), update);
-            if let Err(e) = connection.send_notification(notif) {
-                tracing::warn!(error = %e, "ACP send_notification failed");
-                break;
+    loop {
+        tokio::select! {
+            line_result = lines.next_line() => {
+                match line_result? {
+                    Some(line) => {
+                        if let Some(update) = translator::line_to_update(&line) {
+                            let notif = SessionNotification::new(session_id.clone(), update);
+                            if let Err(e) = connection.send_notification(notif) {
+                                tracing::warn!(error = %e, "ACP send_notification failed");
+                                break;
+                            }
+                        }
+                    }
+                    None => break,
+                }
+            }
+            _ = &mut cancel_rx => {
+                tracing::info!(?session_id, "ACP cancel: killing delegator subprocess");
+                child.kill().await.ok();
+                return Ok(StopReason::Cancelled);
             }
         }
     }

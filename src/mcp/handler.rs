@@ -227,7 +227,7 @@ mod tests {
         assert!(response.error.is_none());
         let result = response.result.unwrap();
         let tools_arr = result["tools"].as_array().unwrap();
-        assert_eq!(tools_arr.len(), 12);
+        assert_eq!(tools_arr.len(), 18);
 
         let first = &tools_arr[0];
         assert!(first.get("name").is_some());

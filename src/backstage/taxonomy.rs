@@ -294,7 +294,7 @@ impl Taxonomy {
             .filter_map(|(key, count)| self.kind_by_key(key).map(|k| (k, count)))
             .collect();
 
-        results.sort_by(|a, b| b.1.cmp(&a.1)); // Sort by count descending
+        results.sort_by_key(|b| std::cmp::Reverse(b.1)); // Sort by count descending
         results
     }
 

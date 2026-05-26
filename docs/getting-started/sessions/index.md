@@ -17,6 +17,7 @@ Operator supports multiple session management backends for running AI coding age
 | [tmux](/getting-started/sessions/tmux/) | Supported | Terminal multiplexer, ideal for headless/server environments |
 | [cmux](/getting-started/sessions/cmux/) | Supported | macOS terminal multiplexer, manages workspaces within cmux |
 | [Zellij](/getting-started/sessions/zellij/) | Supported | Terminal workspace manager, tab-per-agent model (macOS/Linux) |
+| [Zed](/getting-started/sessions/zed/) | Supported | Zed editor extension; MCP context server, ACP agent, slash commands |
 
 ## How It Works
 

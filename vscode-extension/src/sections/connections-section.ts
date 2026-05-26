@@ -18,6 +18,7 @@ export class ConnectionsSection implements StatusSection {
   private operatorVersion: string | undefined;
   private mcpRegistered: boolean = false;
   private wrapperType: string = 'vscode';
+  private webUiAvailable: boolean = false;
 
   get isApiConnected(): boolean {
     return this.apiStatus.connected;
@@ -139,13 +140,24 @@ export class ConnectionsSection implements StatusSection {
           port: port ? parseInt(port, 10) : 7008,
           url: apiUrl,
         };
+        await this.checkWebUi(apiUrl);
         return true;
       }
     } catch {
       // Health check failed
     }
     this.apiStatus = { connected: false };
+    this.webUiAvailable = false;
     return false;
+  }
+
+  private async checkWebUi(apiUrl: string): Promise<void> {
+    try {
+      const res = await fetch(apiUrl);
+      this.webUiAvailable = res.ok && (res.headers.get('content-type') || '').includes('text/html');
+    } catch {
+      this.webUiAvailable = false;
+    }
   }
 
   getTopLevelItem(ctx: SectionContext): StatusItem {
@@ -234,7 +246,31 @@ export class ConnectionsSection implements StatusSection {
           sectionId: this.sectionId,
         });
 
-    // 4. Webhook Connection
+    // 4. Web UI
+    const webUiItem = this.webUiAvailable
+      ? new StatusItem({
+          label: 'Web UI',
+          description: `http://localhost:${this.apiStatus.port || 7008}`,
+          icon: 'pass',
+          tooltip: 'Click to open the embedded web UI in browser',
+          command: {
+            command: 'vscode.open',
+            title: 'Open Web UI',
+            arguments: [vscode.Uri.parse(`http://localhost:${this.apiStatus.port || 7008}`)],
+          },
+          sectionId: this.sectionId,
+        })
+      : new StatusItem({
+          label: 'Web UI',
+          description: this.apiStatus.connected ? 'Not available' : 'API required',
+          icon: 'circle-slash',
+          tooltip: this.apiStatus.connected
+            ? 'The embedded web UI requires the binary to be built with --features embed-ui'
+            : 'Start the Operator API to enable the web UI',
+          sectionId: this.sectionId,
+        });
+
+    // 5. Webhook Connection
     const webhookItem = this.webhookStatus.running
       ? new StatusItem({
           label: 'Webhook',
@@ -293,7 +329,7 @@ export class ConnectionsSection implements StatusSection {
       });
     }
 
-    return [wrapperItem, versionItem, apiItem, webhookItem, mcpItem];
+    return [wrapperItem, versionItem, apiItem, webUiItem, webhookItem, mcpItem];
   }
 
   private getConnectionsSummary(): string {

@@ -1,37 +1,67 @@
 //! Zed Extension for Operator
 //!
-//! Provides slash commands for interacting with the Operator multi-agent
-//! orchestration system from Zed's AI assistant.
-//!
-//! Since Zed extensions run in a WASM sandbox, we communicate with the
-//! Operator REST API via curl subprocess calls.
+//! Provides three integration layers:
+//! 1. MCP context server — registers `operator mcp` so Zed's agent panel
+//!    has native access to all operator tools and ticket resources.
+//! 2. ACP agent setup — `/op-setup-agent` generates the config snippet
+//!    for Zed's `agent_servers` settings.
+//! 3. Slash commands — thin AI/human inference layer for quick operations
+//!    with tab completion.
 
 use serde::Deserialize;
-use std::process::Command;
+use std::process::Command as StdCommand;
 use zed_extension_api::{
-    self as zed, SlashCommand, SlashCommandArgumentCompletion, SlashCommandOutput,
-    SlashCommandOutputSection,
+    self as zed, Command, ContextServerId, ContextServerConfiguration, Project, SlashCommand,
+    SlashCommandArgumentCompletion, SlashCommandOutput, SlashCommandOutputSection, Worktree,
 };
 
-/// Default Operator API URL
 const DEFAULT_API_URL: &str = "http://localhost:7008";
 
-/// Operator Zed Extension
+const KNOWN_BINARY_LOCATIONS: &[&str] = &[
+    "/usr/local/bin/operator",
+    "/opt/homebrew/bin/operator",
+];
+
 struct OperatorExtension {
     api_url: String,
+    cached_binary_path: Option<String>,
 }
 
 impl OperatorExtension {
-    fn new() -> Self {
-        Self {
-            api_url: DEFAULT_API_URL.to_string(),
+    fn find_operator_binary(&mut self, worktree: Option<&Worktree>) -> Option<String> {
+        if let Some(ref path) = self.cached_binary_path {
+            return Some(path.clone());
         }
+
+        if let Some(wt) = worktree {
+            if let Some(path) = wt.which("operator") {
+                self.cached_binary_path = Some(path.clone());
+                return Some(path);
+            }
+        }
+
+        for location in KNOWN_BINARY_LOCATIONS {
+            if std::fs::metadata(location).is_ok() {
+                self.cached_binary_path = Some((*location).to_string());
+                return Some((*location).to_string());
+            }
+        }
+
+        // Try home directory cargo bin
+        if let Ok(home) = std::env::var("HOME") {
+            let cargo_bin = format!("{home}/.cargo/bin/operator");
+            if std::fs::metadata(&cargo_bin).is_ok() {
+                self.cached_binary_path = Some(cargo_bin.clone());
+                return Some(cargo_bin);
+            }
+        }
+
+        None
     }
 
-    /// Execute a curl command and return the output
     fn curl_get(&self, endpoint: &str) -> Result<String, String> {
         let url = format!("{}{}", self.api_url, endpoint);
-        let output = Command::new("curl")
+        let output = StdCommand::new("curl")
             .args(["-s", "-f", &url])
             .output()
             .map_err(|e| format!("Failed to execute curl: {}", e))?;
@@ -44,10 +74,9 @@ impl OperatorExtension {
         }
     }
 
-    /// Execute a curl POST command
     fn curl_post(&self, endpoint: &str, body: Option<&str>) -> Result<String, String> {
         let url = format!("{}{}", self.api_url, endpoint);
-        let mut cmd = Command::new("curl");
+        let mut cmd = StdCommand::new("curl");
         cmd.args(["-s", "-f", "-X", "POST"]);
 
         if let Some(json_body) = body {
@@ -68,7 +97,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-status command
     fn handle_status(&self) -> SlashCommandOutput {
         match self.curl_get("/api/v1/health") {
             Ok(json) => {
@@ -110,7 +138,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-queue command
     fn handle_queue(&self) -> SlashCommandOutput {
         match self.curl_get("/api/v1/tickets/queue") {
             Ok(json) => {
@@ -144,7 +171,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-launch command
     fn handle_launch(&self, ticket_id: &str) -> SlashCommandOutput {
         let body = r#"{"provider":null,"wrapper":"terminal","model":"sonnet","yolo_mode":false,"retry_reason":null,"resume_session_id":null}"#;
         match self.curl_post(&format!("/api/v1/tickets/{}/launch", ticket_id), Some(body)) {
@@ -176,7 +202,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-active command
     fn handle_active(&self) -> SlashCommandOutput {
         match self.curl_get("/api/v1/agents/active") {
             Ok(json) => {
@@ -207,7 +232,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-completed command
     fn handle_completed(&self) -> SlashCommandOutput {
         match self.curl_get("/api/v1/tickets/completed") {
             Ok(json) => {
@@ -245,7 +269,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-ticket command
     fn handle_ticket(&self, ticket_id: &str) -> SlashCommandOutput {
         match self.curl_get(&format!("/api/v1/tickets/{}", ticket_id)) {
             Ok(json) => {
@@ -275,7 +298,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-pause command
     fn handle_pause(&self) -> SlashCommandOutput {
         match self.curl_post("/api/v1/queue/pause", None) {
             Ok(json) => {
@@ -295,7 +317,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-resume command
     fn handle_resume(&self) -> SlashCommandOutput {
         match self.curl_post("/api/v1/queue/resume", None) {
             Ok(json) => {
@@ -315,7 +336,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-sync command
     fn handle_sync(&self) -> SlashCommandOutput {
         match self.curl_post("/api/v1/kanban/sync", None) {
             Ok(json) => {
@@ -338,7 +358,6 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-approve command
     fn handle_approve(&self, agent_id: &str) -> SlashCommandOutput {
         match self.curl_post(&format!("/api/v1/agents/{}/approve", agent_id), None) {
             Ok(json) => {
@@ -358,9 +377,7 @@ impl OperatorExtension {
         }
     }
 
-    /// Handle /op-reject command
     fn handle_reject(&self, args: &str) -> SlashCommandOutput {
-        // Parse: AGENT-ID REASON
         let parts: Vec<&str> = args.splitn(2, ' ').collect();
         if parts.len() < 2 {
             return make_error(
@@ -393,7 +410,48 @@ impl OperatorExtension {
         }
     }
 
-    /// Get ticket IDs for completion
+    fn handle_setup_agent(&self, worktree: Option<&Worktree>) -> SlashCommandOutput {
+        let binary_path = match find_operator_binary_oneshot(worktree) {
+            Some(path) => path,
+            None => {
+                return make_error(
+                    "Could not find `operator` binary.\n\n\
+                    Install operator first, then re-run this command.\n\n\
+                    ```bash\n\
+                    cargo install --path /path/to/operator\n\
+                    ```",
+                );
+            }
+        };
+
+        let snippet = format!(
+            r#"{{
+  "agent_servers": {{
+    "operator": {{
+      "command": "{}",
+      "args": ["acp"],
+      "env": {{}}
+    }}
+  }}
+}}"#,
+            binary_path.replace('\\', "\\\\").replace('"', "\\\"")
+        );
+
+        let text = format!(
+            "## ACP Agent Server Setup\n\n\
+            Add the following to your Zed settings (`~/.config/zed/settings.json`):\n\n\
+            ```json\n{}\n```\n\n\
+            **Binary**: `{}`\n\n\
+            After adding this config, restart Zed. Operator will appear as an agent \
+            in the Agent Panel. You can send prompts to it and it will delegate to \
+            Claude Code via the ACP protocol.\n\n\
+            This is a one-time setup step.",
+            snippet, binary_path
+        );
+
+        make_output(&text, "ACP Agent Setup")
+    }
+
     fn get_queue_ticket_ids(&self) -> Vec<String> {
         if let Ok(json) = self.curl_get("/api/v1/tickets/queue") {
             if let Ok(response) = serde_json::from_str::<TicketsResponse>(&json) {
@@ -403,7 +461,6 @@ impl OperatorExtension {
         Vec::new()
     }
 
-    /// Get agent IDs awaiting input for completion
     fn get_awaiting_agent_ids(&self) -> Vec<(String, String)> {
         if let Ok(json) = self.curl_get("/api/v1/agents/active") {
             if let Ok(response) = serde_json::from_str::<AgentsResponse>(&json) {
@@ -424,14 +481,78 @@ impl zed::Extension for OperatorExtension {
     where
         Self: Sized,
     {
-        OperatorExtension::new()
+        OperatorExtension {
+            api_url: DEFAULT_API_URL.to_string(),
+            cached_binary_path: None,
+        }
+    }
+
+    fn context_server_command(
+        &mut self,
+        _context_server_id: &ContextServerId,
+        _project: &Project,
+    ) -> Result<Command, String> {
+        // Try known locations first; fall back to bare "operator" so Zed's
+        // process spawn does its own PATH resolution.
+        let binary_path = self
+            .find_operator_binary(None)
+            .unwrap_or_else(|| "operator".to_string());
+
+        Ok(Command {
+            command: binary_path,
+            args: vec!["mcp".to_string()],
+            env: vec![],
+        })
+    }
+
+    fn context_server_configuration(
+        &mut self,
+        _context_server_id: &ContextServerId,
+        _project: &Project,
+    ) -> Result<Option<ContextServerConfiguration>, String> {
+        Ok(Some(ContextServerConfiguration {
+            installation_instructions: "\
+## Install Operator
+
+Operator provides multi-agent orchestration for Claude Code.
+
+### From source (Rust)
+```bash
+cd /path/to/operator
+cargo install --path .
+```
+
+### Verify installation
+```bash
+operator --version
+operator mcp  # should start MCP server on stdio
+```
+
+After installing, reload the Zed extension to pick up the binary."
+                .to_string(),
+            settings_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "api_url": {
+                        "type": "string",
+                        "default": "http://localhost:7008",
+                        "description": "Operator REST API URL (used by slash commands)"
+                    }
+                }
+            })
+            .to_string(),
+            default_settings: serde_json::json!({
+                "api_url": "http://localhost:7008"
+            })
+            .to_string(),
+        }))
     }
 
     fn run_slash_command(
         &self,
         command: SlashCommand,
         args: Vec<String>,
-        _worktree: Option<&zed::Worktree>,
+        worktree: Option<&Worktree>,
     ) -> Result<SlashCommandOutput, String> {
         let arg = args.join(" ");
 
@@ -471,6 +592,7 @@ impl zed::Extension for OperatorExtension {
                     Ok(self.handle_reject(&arg))
                 }
             }
+            "op-setup-agent" => Ok(self.handle_setup_agent(worktree)),
             _ => Err(format!("Unknown command: {}", command.name)),
         }
     }
@@ -509,8 +631,8 @@ impl zed::Extension for OperatorExtension {
                     .into_iter()
                     .map(|(id, ticket_id)| SlashCommandArgumentCompletion {
                         label: format!("{} ({})", &id[..8.min(id.len())], ticket_id),
-                        new_text: format!("{} ", id), // Space for reason
-                        run_command: false,           // Don't run yet, need reason
+                        new_text: format!("{} ", id),
+                        run_command: false,
                     })
                     .collect())
             }
@@ -519,7 +641,29 @@ impl zed::Extension for OperatorExtension {
     }
 }
 
-// Helper function to create output
+fn find_operator_binary_oneshot(worktree: Option<&Worktree>) -> Option<String> {
+    if let Some(wt) = worktree {
+        if let Some(path) = wt.which("operator") {
+            return Some(path);
+        }
+    }
+
+    for location in KNOWN_BINARY_LOCATIONS {
+        if std::fs::metadata(location).is_ok() {
+            return Some((*location).to_string());
+        }
+    }
+
+    if let Ok(home) = std::env::var("HOME") {
+        let cargo_bin = format!("{home}/.cargo/bin/operator");
+        if std::fs::metadata(&cargo_bin).is_ok() {
+            return Some(cargo_bin);
+        }
+    }
+
+    None
+}
+
 fn make_output(text: &str, label: &str) -> SlashCommandOutput {
     SlashCommandOutput {
         text: text.to_string(),
@@ -530,7 +674,6 @@ fn make_output(text: &str, label: &str) -> SlashCommandOutput {
     }
 }
 
-// Helper function to create error output
 fn make_error(message: &str) -> SlashCommandOutput {
     let text = format!("## Error\n\n{}", message);
     SlashCommandOutput {
@@ -542,7 +685,6 @@ fn make_error(message: &str) -> SlashCommandOutput {
     }
 }
 
-// API Response types
 #[derive(Deserialize)]
 struct HealthResponse {
     status: String,

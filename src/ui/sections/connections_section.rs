@@ -116,7 +116,40 @@ impl StatusSection for ConnectionsSection {
             },
         ];
 
-        // 2. MCP (always shown). Status reflects HTTP mount + stdio advertise + session count.
+        // 2. Web UI (when embed-ui feature is compiled in)
+        if snapshot.embed_ui_available {
+            rows.push(TreeRow {
+                section_id: SectionId::Connections,
+                depth: 1,
+                label: "Web UI".into(),
+                description: match &snapshot.api_status {
+                    RestApiStatus::Running { port } => format!(":{port}"),
+                    RestApiStatus::Starting => "Starting...".into(),
+                    _ => "API stopped".into(),
+                },
+                icon: match &snapshot.api_status {
+                    RestApiStatus::Running { .. } => StatusIcon::Check,
+                    RestApiStatus::Starting => StatusIcon::Warning,
+                    _ => StatusIcon::Cross,
+                },
+                is_header: false,
+                actions: ActionSet {
+                    primary: match &snapshot.api_status {
+                        RestApiStatus::Running { port } => StatusAction::OpenWebUi { port: *port },
+                        RestApiStatus::Stopped | RestApiStatus::Error(_) => StatusAction::StartApi,
+                        _ => StatusAction::None,
+                    },
+                    back: StatusAction::None,
+                    special: StatusAction::None,
+                    special_meta: None,
+                    refresh: StatusAction::None,
+                    refresh_meta: None,
+                },
+                health: SectionHealth::Gray,
+            });
+        }
+
+        // 3. MCP (always shown). Status reflects HTTP mount + stdio advertise + session count.
         rows.push(TreeRow {
             section_id: SectionId::Connections,
             depth: 1,
@@ -217,7 +250,7 @@ impl StatusSection for ConnectionsSection {
                     StatusIcon::Cross
                 },
                 is_header: false,
-                actions: ActionSet::primary(StatusAction::ToggleWebServers),
+                actions: ActionSet::primary(StatusAction::ToggleBackstage),
                 health: SectionHealth::Gray,
             });
         }
@@ -266,6 +299,7 @@ mod tests {
             mcp_active_sessions: 0,
             acp_stdio_advertised: true,
             acp_active_sessions: 0,
+            embed_ui_available: true,
         }
     }
 
@@ -350,6 +384,47 @@ mod tests {
         let children = section.children(&snap);
         let api_row = children.iter().find(|r| r.label == "Operator API").unwrap();
         assert_eq!(api_row.actions.primary, StatusAction::StartApi);
+    }
+
+    #[test]
+    fn test_connections_web_ui_row_present_when_embed_ui_available() {
+        let section = ConnectionsSection;
+        let snap = base_snapshot();
+        let children = section.children(&snap);
+        let web_ui_row = children
+            .iter()
+            .find(|r| r.label == "Web UI")
+            .expect("Web UI row must be present when embed_ui_available is true");
+        assert!(matches!(web_ui_row.icon, StatusIcon::Check));
+        assert_eq!(web_ui_row.description, ":7008");
+        assert_eq!(
+            web_ui_row.actions.primary,
+            StatusAction::OpenWebUi { port: 7008 }
+        );
+    }
+
+    #[test]
+    fn test_connections_web_ui_row_absent_when_embed_ui_unavailable() {
+        let section = ConnectionsSection;
+        let mut snap = base_snapshot();
+        snap.embed_ui_available = false;
+        let children = section.children(&snap);
+        assert!(
+            !children.iter().any(|r| r.label == "Web UI"),
+            "Web UI row should be hidden when embed_ui_available is false"
+        );
+    }
+
+    #[test]
+    fn test_connections_web_ui_row_starts_api_when_stopped() {
+        let section = ConnectionsSection;
+        let mut snap = base_snapshot();
+        snap.api_status = RestApiStatus::Stopped;
+        let children = section.children(&snap);
+        let web_ui_row = children.iter().find(|r| r.label == "Web UI").unwrap();
+        assert!(matches!(web_ui_row.icon, StatusIcon::Cross));
+        assert_eq!(web_ui_row.description, "API stopped");
+        assert_eq!(web_ui_row.actions.primary, StatusAction::StartApi);
     }
 
     #[test]

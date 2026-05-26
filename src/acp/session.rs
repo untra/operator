@@ -11,6 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use agent_client_protocol::schema::SessionId;
 use anyhow::{anyhow, Context, Result};
+use tokio::sync::oneshot;
 
 use crate::config::Config;
 
@@ -33,6 +34,7 @@ pub struct AcpSession {
 #[derive(Debug, Default, Clone)]
 pub struct SessionRegistry {
     sessions: Arc<Mutex<HashMap<SessionId, AcpSession>>>,
+    cancel_senders: Arc<Mutex<HashMap<SessionId, oneshot::Sender<()>>>>,
 }
 
 impl SessionRegistry {
@@ -96,6 +98,19 @@ impl SessionRegistry {
     /// Return a clone of the session matching `id`, if any.
     pub fn get(&self, id: &SessionId) -> Option<AcpSession> {
         self.sessions.lock().unwrap().get(id).cloned()
+    }
+
+    /// Store a cancel sender for an in-flight prompt. The cancel notification
+    /// handler calls [`take_cancel_sender`] to fire it.
+    pub fn register_cancel_sender(&self, id: &SessionId, tx: oneshot::Sender<()>) {
+        self.cancel_senders.lock().unwrap().insert(id.clone(), tx);
+    }
+
+    /// Remove and return the cancel sender for `id`, if one is registered.
+    /// Returns `None` if the prompt already completed (sender was cleaned up)
+    /// or if no prompt is in flight for this session.
+    pub fn take_cancel_sender(&self, id: &SessionId) -> Option<oneshot::Sender<()>> {
+        self.cancel_senders.lock().unwrap().remove(id)
     }
 }
 
@@ -296,5 +311,37 @@ mod tests {
         let short = session_short(&id);
         assert_eq!(short.len(), 8);
         assert!(short.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_register_and_take_cancel_sender() {
+        let registry = SessionRegistry::new();
+        let id = SessionId::from("test-session-1".to_string());
+        let (tx, _rx) = oneshot::channel();
+        registry.register_cancel_sender(&id, tx);
+        assert!(
+            registry.take_cancel_sender(&id).is_some(),
+            "first take should return the sender"
+        );
+    }
+
+    #[test]
+    fn test_double_take_cancel_sender_returns_none() {
+        let registry = SessionRegistry::new();
+        let id = SessionId::from("test-session-2".to_string());
+        let (tx, _rx) = oneshot::channel();
+        registry.register_cancel_sender(&id, tx);
+        registry.take_cancel_sender(&id);
+        assert!(
+            registry.take_cancel_sender(&id).is_none(),
+            "second take should return None"
+        );
+    }
+
+    #[test]
+    fn test_take_cancel_sender_unknown_session_returns_none() {
+        let registry = SessionRegistry::new();
+        let id = SessionId::from("nonexistent".to_string());
+        assert!(registry.take_cancel_sender(&id).is_none());
     }
 }

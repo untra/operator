@@ -1,0 +1,150 @@
+.page {
+  max-width: 1100px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.loading {
+  color: #a0a0c0;
+  padding: 2rem;
+}
+
+.error {
+  background: #3a1a1a;
+  color: #f08080;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  color: #e0e0e0;
+  font: inherit;
+  transition: background 0.15s;
+}
+
+.item:hover {
+  background: #1a2744;
+}
+
+.selectedItem {
+  background: #1a2744;
+  border-color: #7ec8e3;
+}
+
+.glyph {
+  font-size: 1.25rem;
+  width: 2rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.itemName {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.itemMeta {
+  font-size: 0.7rem;
+  color: #a0a0c0;
+}
+
+.detail {
+  background: #16213e;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.placeholder {
+  color: #a0a0c0;
+  font-size: 0.875rem;
+}
+
+.detailTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detailGlyph {
+  font-size: 1.5rem;
+}
+
+.detailDesc {
+  color: #a0a0c0;
+  font-size: 0.875rem;
+  margin: 0 0 1rem;
+}
+
+.kvGrid {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 0.3rem 1rem;
+  font-size: 0.825rem;
+  margin-bottom: 1.25rem;
+}
+
+.label {
+  color: #a0a0c0;
+}
+
+.steps {
+  border-top: 1px solid #2a2a4a;
+  padding-top: 1rem;
+}
+
+.stepsTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.stepList {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.step {
+  margin-bottom: 0.4rem;
+  font-size: 0.825rem;
+}
+
+.stepName {
+  font-weight: 500;
+}
+
+.stepMeta {
+  color: #a0a0c0;
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+}

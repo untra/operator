@@ -51,11 +51,11 @@ mod tests {
     use flate2::Compression;
     use std::io::Write;
 
-    const FIVE_MB: usize = 5_242_880;
+    const TEN_MB: usize = 10_485_760;
     const FIFTEEN_MB: usize = 15_728_640;
 
     #[test]
-    fn test_embedded_assets_under_5mb_gzipped() {
+    fn test_embedded_assets_under_10mb_gzipped() {
         let mut compressed_total: usize = 0;
         let mut uncompressed_total: usize = 0;
 
@@ -71,8 +71,8 @@ mod tests {
         }
 
         assert!(
-            compressed_total < FIVE_MB,
-            "Embedded UI assets: {compressed_total}B ({:.1}MB) gzipped — exceeds 5MB budget \
+            compressed_total < TEN_MB,
+            "Embedded UI assets: {compressed_total}B ({:.1}MB) gzipped — exceeds 10MB budget \
              (uncompressed: {uncompressed_total}B / {:.1}MB)",
             compressed_total as f64 / 1_048_576.0,
             uncompressed_total as f64 / 1_048_576.0,

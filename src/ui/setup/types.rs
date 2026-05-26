@@ -123,9 +123,10 @@ impl StartupTicketOption {
 }
 
 /// Tmux availability detection status
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum TmuxDetectionStatus {
     /// Not yet checked
+    #[default]
     NotChecked,
     /// Tmux is available with the given version
     Available { version: String },
@@ -135,17 +136,12 @@ pub enum TmuxDetectionStatus {
     VersionTooOld { current: String, required: String },
 }
 
-impl Default for TmuxDetectionStatus {
-    fn default() -> Self {
-        Self::NotChecked
-    }
-}
-
 /// VS Code extension detection status
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[allow(dead_code)] // Variants will be used when VS Code extension support is implemented
 pub enum VSCodeDetectionStatus {
     /// Not yet checked
+    #[default]
     NotChecked,
     /// Currently checking connection
     Checking,
@@ -153,12 +149,6 @@ pub enum VSCodeDetectionStatus {
     Connected { version: String },
     /// Extension not reachable
     NotReachable,
-}
-
-impl Default for VSCodeDetectionStatus {
-    fn default() -> Self {
-        Self::NotChecked
-    }
 }
 
 /// Session wrapper options shown in setup

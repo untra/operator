@@ -1,0 +1,140 @@
+.page {
+  max-width: 960px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.loading {
+  color: #a0a0c0;
+  padding: 2rem;
+}
+
+.error {
+  background: #3a1a1a;
+  color: #f08080;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.section {
+  margin-bottom: 2rem;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.kvGrid {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0.4rem 1rem;
+  font-size: 0.875rem;
+}
+
+.label {
+  color: #a0a0c0;
+}
+
+.empty {
+  color: #a0a0c0;
+  font-size: 0.875rem;
+}
+
+.collectionList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.collectionCard {
+  background: #16213e;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.activeCollection {
+  border-color: #7ec8e3;
+}
+
+.collectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.collectionName {
+  font-weight: 600;
+}
+
+.activeBadge {
+  font-size: 0.75rem;
+  color: #80e0a0;
+  background: #1a3a2a;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.activateBtn {
+  font-size: 0.75rem;
+  color: #7ec8e3;
+  background: transparent;
+  border: 1px solid #7ec8e3;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.activateBtn:hover {
+  background: #1a2744;
+}
+
+.collectionDesc {
+  font-size: 0.825rem;
+  color: #a0a0c0;
+  margin: 0 0 0.5rem;
+}
+
+.collectionTypes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.typeTag {
+  font-size: 0.7rem;
+  background: #1a2744;
+  color: #a0a0c0;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.825rem;
+}
+
+.table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #2a2a4a;
+  color: #a0a0c0;
+  font-weight: 500;
+}
+
+.table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #1e1e3a;
+}

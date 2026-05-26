@@ -31,6 +31,9 @@ mod steps;
 mod templates;
 pub mod version;
 
+// Integration surface inventory (capability parity across surfaces)
+pub mod integrations;
+
 // MCP server bridge
 pub mod mcp;
 

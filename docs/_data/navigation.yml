@@ -27,6 +27,9 @@ docs:
           - title: Cursor
             url: /getting-started/sessions/cursor/
             icon: cursor
+          - title: Zed
+            url: /getting-started/sessions/zed/
+            icon: zed
       - title: Supported Kanban Providers
         url: /getting-started/kanban/
         children:
@@ -66,6 +69,12 @@ docs:
           - title: Operating System
             url: /getting-started/notifications/os/
             icon: notification
+      - title: Supported Workspace Platforms
+        url: /getting-started/platforms/
+        children:
+          - title: Coder
+            url: /getting-started/platforms/coder/
+            icon: coder
   - title: Core
     children:
       - title: Kanban

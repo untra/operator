@@ -16,7 +16,7 @@ use crate::api::{GitHubService, PrService};
 use crate::types::pr::{GitProvider, PrState, RepoInfo};
 
 /// Default poll interval (60 seconds, matching vibe-kanban)
-const DEFAULT_POLL_INTERVAL: Duration = Duration::from_secs(60);
+const DEFAULT_POLL_INTERVAL: Duration = Duration::from_mins(1);
 
 /// Tracked PR information
 #[derive(Debug, Clone)]

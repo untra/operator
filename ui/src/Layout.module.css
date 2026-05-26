@@ -1,0 +1,57 @@
+.layout {
+  display: flex;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #e0e0e0;
+  background: #1a1a2e;
+}
+
+.nav {
+  width: 220px;
+  flex-shrink: 0;
+  background: #16213e;
+  border-right: 1px solid #2a2a4a;
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 0.5rem 1rem 1.5rem;
+  color: #7ec8e3;
+  letter-spacing: 0.05em;
+}
+
+.navList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.navLink {
+  display: block;
+  padding: 0.6rem 1rem;
+  color: #a0a0c0;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.navLink:hover {
+  background: #1a2744;
+  color: #e0e0e0;
+}
+
+.active {
+  color: #7ec8e3;
+  background: #1a2744;
+  border-left: 3px solid #7ec8e3;
+}
+
+.main {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+}

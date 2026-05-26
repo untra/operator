@@ -169,6 +169,11 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/delegators/:name",
             delete(routes::delegators::delete),
         )
+        // Configuration endpoints
+        .route(
+            "/api/v1/configuration",
+            get(routes::configuration::get_config).put(routes::configuration::update_config),
+        )
         // Model server endpoints
         .route("/api/v1/model-servers", get(routes::model_servers::list))
         .route("/api/v1/model-servers", post(routes::model_servers::create))

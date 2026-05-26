@@ -127,6 +127,10 @@ pub struct Cli {
     /// Start with web view enabled
     #[arg(short = 'w', long)]
     web: bool,
+
+    /// Open the embedded web UI in a browser on launch
+    #[arg(long)]
+    ui: bool,
 }
 
 #[derive(Subcommand)]
@@ -228,6 +232,10 @@ enum Commands {
         /// Port to listen on (default: 7008)
         #[arg(short, long)]
         port: Option<u16>,
+
+        /// Open the web UI in browser after server starts
+        #[arg(long)]
+        open: bool,
     },
 
     /// Run as an MCP stdio server (for use by Claude Code, Cursor, Zed, `JetBrains`, etc.).
@@ -343,8 +351,8 @@ async fn main() -> Result<()> {
         Some(Commands::Docs { output, only }) => {
             cmd_docs(&config, output, only)?;
         }
-        Some(Commands::Api { port }) => {
-            cmd_api(&config, port).await?;
+        Some(Commands::Api { port, open }) => {
+            cmd_api(&config, port, open).await?;
         }
         Some(Commands::Mcp) => {
             cmd_mcp(&config).await?;
@@ -377,21 +385,26 @@ async fn main() -> Result<()> {
         None => {
             // No subcommand = launch TUI dashboard
             #[allow(clippy::large_futures)] // TUI state is inherently large
-            run_tui(config, logging_handle.log_file_path, cli.web).await?;
+            run_tui(config, logging_handle.log_file_path, cli.web, cli.ui).await?;
         }
     }
 
     Ok(())
 }
 
-async fn run_tui(config: Config, log_file_path: Option<PathBuf>, start_web: bool) -> Result<()> {
+async fn run_tui(
+    config: Config,
+    log_file_path: Option<PathBuf>,
+    start_web: bool,
+    open_ui: bool,
+) -> Result<()> {
     // Install panic hook before any terminal operations
     // This ensures terminal is restored even on panic
     crate::ui::install_panic_hook();
 
     // Note: tmux availability is now checked in the setup wizard (TmuxOnboarding step)
     // when the user selects tmux as their session wrapper
-    let mut app = App::new(config, start_web).await?;
+    let mut app = App::new(config, start_web, open_ui).await?;
     let result = app.run().await;
 
     // Print log file path on exit if logs were written
@@ -795,7 +808,7 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
     Ok(())
 }
 
-async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
+async fn cmd_api(config: &Config, port: Option<u16>, open: bool) -> Result<()> {
     let port = port.unwrap_or(config.rest_api.port);
 
     println!("Starting REST API server...");
@@ -809,6 +822,27 @@ async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
     println!("    PUT  /api/v1/issuetypes/:key  Update issue type");
     println!("    GET  /api/v1/collections      List collections");
     println!();
+
+    if open {
+        let url = format!("http://localhost:{port}/");
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            let opener = if cfg!(target_os = "macos") {
+                "open"
+            } else if cfg!(target_os = "windows") {
+                "cmd"
+            } else {
+                "xdg-open"
+            };
+            if cfg!(target_os = "windows") {
+                let _ = std::process::Command::new(opener)
+                    .args(["/C", "start", &url])
+                    .spawn();
+            } else {
+                let _ = std::process::Command::new(opener).arg(&url).spawn();
+            }
+        });
+    }
 
     let state = rest::ApiState::new(config.clone(), config.tickets_path());
     rest::serve(state, port).await?;

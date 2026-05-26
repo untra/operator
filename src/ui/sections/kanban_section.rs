@@ -135,6 +135,7 @@ mod tests {
             mcp_active_sessions: 0,
             acp_stdio_advertised: true,
             acp_active_sessions: 0,
+            embed_ui_available: true,
         }
     }
 

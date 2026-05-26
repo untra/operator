@@ -221,23 +221,19 @@ impl CreateDialog {
         let requires_project = !self.selected_template.is_none_or(|t| t.project_optional());
 
         match key {
-            KeyCode::Up | KeyCode::Char('k') => {
-                if !list.is_empty() {
-                    let i = match self.project_state.selected() {
-                        Some(i) if i > 0 => i - 1,
-                        _ => list.len().saturating_sub(1),
-                    };
-                    self.project_state.select(Some(i));
-                }
+            KeyCode::Up | KeyCode::Char('k') if !list.is_empty() => {
+                let i = match self.project_state.selected() {
+                    Some(i) if i > 0 => i - 1,
+                    _ => list.len().saturating_sub(1),
+                };
+                self.project_state.select(Some(i));
             }
-            KeyCode::Down | KeyCode::Char('j') => {
-                if !list.is_empty() {
-                    let i = match self.project_state.selected() {
-                        Some(i) if i < list.len() - 1 => i + 1,
-                        _ => 0,
-                    };
-                    self.project_state.select(Some(i));
-                }
+            KeyCode::Down | KeyCode::Char('j') if !list.is_empty() => {
+                let i = match self.project_state.selected() {
+                    Some(i) if i < list.len() - 1 => i + 1,
+                    _ => 0,
+                };
+                self.project_state.select(Some(i));
             }
             KeyCode::Enter => {
                 // Block proceeding if projects are required but none found

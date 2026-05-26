@@ -63,7 +63,7 @@ pub async fn sse_handler(
 
     // Clean up session after 1 hour or when stream ends
     tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(3600)).await;
+        tokio::time::sleep(Duration::from_hours(1)).await;
         sessions_cleanup.lock().await.remove(&session_id_cleanup);
     });
 

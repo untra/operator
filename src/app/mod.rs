@@ -76,6 +76,8 @@ pub struct App {
     pub(crate) exit_confirmation_time: Option<std::time::Instant>,
     /// Start web servers on launch (--web flag)
     pub(crate) start_web_on_launch: bool,
+    /// Open the embedded web UI in browser on launch (--ui flag)
+    pub(crate) open_ui_on_launch: bool,
     /// Session recovery dialog for handling dead tmux sessions
     pub(crate) session_recovery_dialog: SessionRecoveryDialog,
     /// Collection switch dialog for changing active issue type collection
@@ -118,7 +120,7 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new(mut config: Config, start_web: bool) -> Result<Self> {
+    pub async fn new(mut config: Config, start_web: bool, open_ui: bool) -> Result<Self> {
         // Run LLM tool detection on first startup
         if !config.llm_tools.detection_complete {
             tracing::info!("Detecting LLM CLI tools...");
@@ -308,6 +310,7 @@ impl App {
             exit_confirmation_mode: false,
             exit_confirmation_time: None,
             start_web_on_launch: start_web,
+            open_ui_on_launch: open_ui,
             session_recovery_dialog: SessionRecoveryDialog::new(),
             collection_dialog: CollectionSwitchDialog::new(),
             kanban_view: KanbanView::new(),
@@ -377,6 +380,15 @@ impl App {
                         tracing::error!("Server not ready: {}", e);
                     }
                 }
+            }
+        }
+
+        // Open embedded web UI in browser if --ui flag was passed
+        if self.open_ui_on_launch && self.rest_api_server.is_running() {
+            let port = self.config.rest_api.port;
+            let url = format!("http://localhost:{port}/");
+            if let Err(e) = status_actions::open_in_browser(&url) {
+                tracing::warn!("Failed to open web UI: {}", e);
             }
         }
 

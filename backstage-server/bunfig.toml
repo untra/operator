@@ -1,5 +1,5 @@
 [install]
-minimumReleaseAge = "7d"
+minimumReleaseAge = 604800
 
 [test]
 preload = ["./packages/app/src/test/setup.ts"]

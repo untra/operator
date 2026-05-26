@@ -711,6 +711,9 @@ registry = "https://registry.npmjs.org/"
 
 # Save dependencies to package.json
 save = true
+
+# Require packages to be published for at least 7 days (supply chain security)
+minimumReleaseAge = 604800
 "#
         .to_string())
     }

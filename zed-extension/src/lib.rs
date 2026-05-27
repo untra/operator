@@ -129,7 +129,8 @@ impl OperatorExtension {
             Err(e) => make_error(&format!(
                 "Failed to get Operator status.\n\n\
                 **Error**: {}\n\n\
-                Make sure Operator is running: `operator api`",
+                Make sure Operator is running: `operator api`\n\n\
+                Run `/op-setup` to diagnose your installation.",
                 e
             )),
         }
@@ -164,7 +165,10 @@ impl OperatorExtension {
                     make_output(&format!("```json\n{}\n```", json), "Queue (raw)")
                 }
             }
-            Err(e) => make_error(&format!("Failed to fetch queue: {}", e)),
+            Err(e) => make_error(&format!(
+                "Failed to fetch queue: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                e
+            )),
         }
     }
 
@@ -195,7 +199,10 @@ impl OperatorExtension {
                     make_output(&format!("```json\n{}\n```", json), "Launch Response")
                 }
             }
-            Err(e) => make_error(&format!("Failed to launch ticket {}: {}", ticket_id, e)),
+            Err(e) => make_error(&format!(
+                "Failed to launch ticket {}: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                ticket_id, e
+            )),
         }
     }
 
@@ -225,7 +232,10 @@ impl OperatorExtension {
                     make_output(&format!("```json\n{}\n```", json), "Active Agents (raw)")
                 }
             }
-            Err(e) => make_error(&format!("Failed to fetch active agents: {}", e)),
+            Err(e) => make_error(&format!(
+                "Failed to fetch active agents: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                e
+            )),
         }
     }
 
@@ -262,7 +272,10 @@ impl OperatorExtension {
                     make_output(&format!("```json\n{}\n```", json), "Completed (raw)")
                 }
             }
-            Err(e) => make_error(&format!("Failed to fetch completed tickets: {}", e)),
+            Err(e) => make_error(&format!(
+                "Failed to fetch completed tickets: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                e
+            )),
         }
     }
 
@@ -291,7 +304,10 @@ impl OperatorExtension {
                     make_output(&format!("```json\n{}\n```", json), "Ticket (raw)")
                 }
             }
-            Err(e) => make_error(&format!("Failed to fetch ticket {}: {}", ticket_id, e)),
+            Err(e) => make_error(&format!(
+                "Failed to fetch ticket {}: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                ticket_id, e
+            )),
         }
     }
 
@@ -310,7 +326,10 @@ impl OperatorExtension {
                     )
                 }
             }
-            Err(e) => make_error(&format!("Failed to pause queue: {}", e)),
+            Err(e) => make_error(&format!(
+                "Failed to pause queue: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                e
+            )),
         }
     }
 
@@ -329,7 +348,10 @@ impl OperatorExtension {
                     )
                 }
             }
-            Err(e) => make_error(&format!("Failed to resume queue: {}", e)),
+            Err(e) => make_error(&format!(
+                "Failed to resume queue: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                e
+            )),
         }
     }
 
@@ -351,7 +373,10 @@ impl OperatorExtension {
                     make_output(&format!("```json\n{}\n```", json), "Kanban Sync (raw)")
                 }
             }
-            Err(e) => make_error(&format!("Failed to sync kanban: {}", e)),
+            Err(e) => make_error(&format!(
+                "Failed to sync kanban: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                e
+            )),
         }
     }
 
@@ -370,7 +395,10 @@ impl OperatorExtension {
                     )
                 }
             }
-            Err(e) => make_error(&format!("Failed to approve agent {}: {}", agent_id, e)),
+            Err(e) => make_error(&format!(
+                "Failed to approve agent {}: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                agent_id, e
+            )),
         }
     }
 
@@ -403,8 +431,117 @@ impl OperatorExtension {
                     )
                 }
             }
-            Err(e) => make_error(&format!("Failed to reject agent {}: {}", agent_id, e)),
+            Err(e) => make_error(&format!(
+                "Failed to reject agent {}: {}\n\nIs the Operator server running? Try `operator api` or run `/op-setup`.",
+                agent_id, e
+            )),
         }
+    }
+
+    fn handle_setup(&self, worktree: Option<&Worktree>) -> SlashCommandOutput {
+        let mut lines = Vec::new();
+        let mut next_steps = Vec::new();
+
+        lines.push("## Operator Setup Status\n".to_string());
+
+        // 1. Extension installed (always true if we're running)
+        lines.push("- [x] **Extension installed** — Operator Zed extension v0.2.0".to_string());
+
+        // 2. Binary found?
+        match find_operator_binary_oneshot(worktree) {
+            Some(path) => {
+                lines.push(format!("- [x] **Binary found** — `{}`", path));
+            }
+            None => {
+                lines.push(
+                    "- [ ] **Binary not found** — `operator` is not on PATH".to_string(),
+                );
+                next_steps.push(
+                    "Install operator: download from https://github.com/untra/operator/releases/latest"
+                        .to_string(),
+                );
+            }
+        }
+
+        // 3. API reachable?
+        match self.curl_get("/api/v1/health") {
+            Ok(json) => {
+                if let Ok(health) = serde_json::from_str::<HealthResponse>(&json) {
+                    lines.push(format!(
+                        "- [x] **API server running** — v{}, {} queued, {} active",
+                        health.version, health.queue_count, health.active_agents
+                    ));
+                } else {
+                    lines.push("- [x] **API server running** — connected".to_string());
+                }
+            }
+            Err(_) => {
+                lines.push(format!(
+                    "- [ ] **API server not running** — could not reach `{}`",
+                    self.api_url
+                ));
+                next_steps
+                    .push("Start the Operator server: `operator api`".to_string());
+            }
+        }
+
+        // 4. MCP context server (always active if extension is loaded)
+        lines.push(
+            "- [x] **MCP context server** — active (tools available in Agent Panel)".to_string(),
+        );
+
+        if !next_steps.is_empty() {
+            lines.push("\n### Next Steps\n".to_string());
+            for (i, step) in next_steps.iter().enumerate() {
+                lines.push(format!("{}. {}", i + 1, step));
+            }
+        } else {
+            lines.push(
+                "\nAll prerequisites met. Use `/op-help` to see available commands.".to_string(),
+            );
+        }
+
+        // ACP is optional — show as a tip, not a checkbox
+        lines.push(
+            "\n> **Tip — ACP agent (optional):** Run `/op-setup-agent` to enable AI-to-Operator prompt delegation via `~/.config/zed/settings.json`."
+                .to_string(),
+        );
+
+        let text = lines.join("\n");
+        make_output(&text, "Operator Setup")
+    }
+
+    fn handle_help() -> SlashCommandOutput {
+        let text = "\
+## Operator Commands
+
+| Command | Description |
+|---------|-------------|
+| `/op-setup` | Check installation and connection status |
+| `/op-status` | Show Operator health and queue metrics |
+| `/op-queue` | List tickets waiting in queue |
+| `/op-launch TICKET-ID` | Launch a ticket (tab-complete available) |
+| `/op-active` | List active agents |
+| `/op-completed` | List recently completed tickets |
+| `/op-ticket TICKET-ID` | Show full ticket details |
+| `/op-pause` | Pause queue processing |
+| `/op-resume` | Resume queue processing |
+| `/op-sync` | Sync kanban collections |
+| `/op-approve AGENT-ID` | Approve an agent's review (tab-complete available) |
+| `/op-reject AGENT-ID REASON` | Reject an agent's review with reason |
+| `/op-setup-agent` | Generate ACP agent server config for Zed settings |
+| `/op-help` | Show this command reference |
+
+### Getting Started
+
+1. Run `/op-setup` to verify your installation
+2. Run `/op-setup-agent` to enable AI-to-Operator prompt delegation
+3. Use `/op-status` to check the system is healthy
+4. Use `/op-queue` to see available work
+
+Documentation: https://operator.untra.io";
+
+        make_output(text, "Operator Help")
     }
 
     fn handle_setup_agent(&self, worktree: Option<&Worktree>) -> SlashCommandOutput {
@@ -414,9 +551,9 @@ impl OperatorExtension {
                 return make_error(
                     "Could not find `operator` binary.\n\n\
                     Install operator first, then re-run this command.\n\n\
-                    ```bash\n\
-                    cargo install --path /path/to/operator\n\
-                    ```",
+                    Download from: https://github.com/untra/operator/releases/latest\n\n\
+                    Or build from source: `cargo install --git https://github.com/untra/operator`\n\n\
+                    Run `/op-setup` to check your installation status.",
                 );
             }
         };
@@ -511,21 +648,43 @@ impl zed::Extension for OperatorExtension {
             installation_instructions: "\
 ## Install Operator
 
-Operator provides multi-agent orchestration for Claude Code.
+Operator provides multi-agent orchestration for Claude Code and other LLM coding agents.
+
+### Download (recommended)
+
+Download the latest binary for your platform:
+https://github.com/untra/operator/releases/latest
+
+**macOS (Apple Silicon):**
+```bash
+curl -L https://github.com/untra/operator/releases/latest/download/operator-macos-arm64 -o /usr/local/bin/operator && chmod +x /usr/local/bin/operator
+```
+
+**Linux (x86_64):**
+```bash
+curl -L https://github.com/untra/operator/releases/latest/download/operator-linux-x86_64 -o /usr/local/bin/operator && chmod +x /usr/local/bin/operator
+```
+
+**Linux (arm64):**
+```bash
+curl -L https://github.com/untra/operator/releases/latest/download/operator-linux-arm64 -o /usr/local/bin/operator && chmod +x /usr/local/bin/operator
+```
 
 ### From source (Rust)
 ```bash
-cd /path/to/operator
-cargo install --path .
+cargo install --git https://github.com/untra/operator
 ```
 
-### Verify installation
+### After installing
+
 ```bash
-operator --version
-operator mcp  # should start MCP server on stdio
+operator --version    # verify the binary
+operator api          # start the REST API server on localhost:7008
 ```
 
-After installing, reload the Zed extension to pick up the binary."
+Run `/op-setup` in the assistant to check your connection status.
+
+Documentation: https://operator.untra.io"
                 .to_string(),
             settings_schema: serde_json::json!({
                 "type": "object",
@@ -590,6 +749,8 @@ After installing, reload the Zed extension to pick up the binary."
                 }
             }
             "op-setup-agent" => Ok(self.handle_setup_agent(worktree)),
+            "op-setup" => Ok(self.handle_setup(worktree)),
+            "op-help" => Ok(Self::handle_help()),
             _ => Err(format!("Unknown command: {}", command.name)),
         }
     }

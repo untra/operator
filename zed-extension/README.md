@@ -12,7 +12,27 @@ Zed extension for [Operator](https://operator.untra.io), a multi-agent orchestra
 - Operator API server running (`operator api`)
 - Zed editor
 
-## Installation (Development)
+## Installation
+
+### Download Operator binary
+
+Download the latest binary for your platform from [GitHub releases](https://github.com/untra/operator/releases/latest):
+
+**macOS (Apple Silicon):**
+```bash
+curl -L https://github.com/untra/operator/releases/latest/download/operator-macos-arm64 -o /usr/local/bin/operator && chmod +x /usr/local/bin/operator
+```
+
+**Linux (x86_64):**
+```bash
+curl -L https://github.com/untra/operator/releases/latest/download/operator-linux-x86_64 -o /usr/local/bin/operator && chmod +x /usr/local/bin/operator
+```
+
+Or build from source: `cargo install --git https://github.com/untra/operator`
+
+### Install the Zed extension
+
+Install from the Zed extension marketplace, or for development:
 
 ```bash
 # Install WASM target
@@ -29,6 +49,16 @@ cp target/wasm32-wasip1/release/operator_zed.wasm ~/.local/share/zed/extensions/
 
 # Restart Zed or use Extensions: Reload
 ```
+
+### Verify setup
+
+Start the Operator server and check your connection:
+
+```bash
+operator api    # start the REST API server
+```
+
+Then run `/op-setup` in the Zed assistant to verify everything is connected.
 
 ## Setup
 
@@ -54,6 +84,8 @@ Run `/op-setup-agent` in the AI assistant to generate the config snippet, then p
 
 | Command | Description |
 |---------|-------------|
+| `/op-setup` | Check installation and connection status |
+| `/op-help` | List all available commands |
 | `/op-status` | Show Operator health and status |
 | `/op-queue` | List tickets in queue |
 | `/op-launch TICKET-ID` | Launch a ticket |

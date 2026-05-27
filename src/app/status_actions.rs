@@ -84,7 +84,11 @@ impl App {
                 self.restart_wrapper_connection();
             }
             StatusAction::ToggleBackstage => {
-                self.toggle_backstage(terminal)?;
+                if self.config.backstage.display {
+                    self.toggle_backstage(terminal)?;
+                } else {
+                    self.toggle_web_ui()?;
+                }
             }
             StatusAction::OpenWebUi { port } => {
                 let url = format!("http://localhost:{port}/");
@@ -416,6 +420,26 @@ impl App {
                         tracing::error!("Server not ready: {}", e);
                     }
                 }
+            }
+        }
+        Ok(())
+    }
+
+    /// Toggle the embedded web UI (REST API server) without Backstage.
+    pub(super) fn toggle_web_ui(&mut self) -> Result<()> {
+        if self.rest_api_server.is_running() {
+            self.rest_api_server.stop();
+        } else {
+            if let Err(e) = self.rest_api_server.start() {
+                self.dashboard
+                    .set_status(&format!("Failed to start API: {e}"));
+                return Ok(());
+            }
+            let port = self.config.rest_api.port;
+            let url = format!("http://localhost:{port}/");
+            if let Err(e) = open_in_browser(&url) {
+                self.dashboard
+                    .set_status(&format!("Failed to open browser: {e}"));
             }
         }
         Ok(())

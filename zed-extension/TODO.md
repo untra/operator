@@ -8,7 +8,9 @@ Feature comparison and implementation status vs VS Code extension.
 |-------|--------|-------|
 | **MCP Context Server** | ✅ Implemented | `operator mcp` registered via `context_server_command()` |
 | **ACP Agent Server** | ✅ Setup command | `/op-setup-agent` generates config for `~/.config/zed/settings.json` |
-| **Slash Commands** | ✅ 12 commands | All original commands + `/op-setup-agent` |
+| **Slash Commands** | ✅ 14 commands | All original commands + `/op-setup`, `/op-help`, `/op-setup-agent` |
+| **Guided Onboarding** | ✅ `/op-setup` | Health check checklist with next-step guidance |
+| **Install Instructions** | ✅ Updated | Pre-built binary downloads from GitHub releases |
 
 ## VS Code Features → Zed Status
 
@@ -22,6 +24,7 @@ Feature comparison and implementation status vs VS Code extension.
 | **Webhook Server** | ✅ Port 7009 | ❌ N/A | MCP polling instead |
 | **Terminal Management** | ✅ Create/style/track | ❌ N/A | ACP agent replaces terminal sessions |
 | **File Watching** | ✅ .tickets/ watcher | ❌ N/A | Manual refresh via commands/tools |
+| **Guided Onboarding** | ✅ 4-step walkthrough | ✅ `/op-setup` | Health check checklist with next steps |
 | **Launch Options Dialog** | ✅ Multi-select | ❌ N/A | `/op-launch` with tab completion |
 | **Color-coded Terminals** | ✅ By issue type | ❌ N/A | Use Zed Tasks as workaround |
 | **Binary Download** | ✅ Command | ❌ PATH discovery | Extension finds binary on PATH |

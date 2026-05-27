@@ -405,16 +405,25 @@ impl Dashboard {
             self.focused == FocusedPanel::Completed,
         );
 
-        // Status bar
+        // Status bar — show dynamic hints when status panel is focused
+        let row_hints = if self.focused == FocusedPanel::Status {
+            let snapshot = self.build_status_snapshot();
+            self.status_panel.current_row_hints(&snapshot)
+        } else {
+            None
+        };
         let status = StatusBar {
             paused: self.paused,
             agent_count: self.in_progress_panel.agents.len(),
             max_agents: self.max_agents,
             backstage_status: self.backstage_status.clone(),
             rest_api_status: self.rest_api_status.clone(),
+            backstage_display: self.config.backstage.display,
+            embed_ui_available: cfg!(feature = "embed-ui"),
             exit_confirmation_mode: self.exit_confirmation_mode,
             update_available_version: self.update_available_version.clone(),
             status_message: self.status_message.clone(),
+            row_hints,
         };
         status.render(frame, chunks[2]);
     }

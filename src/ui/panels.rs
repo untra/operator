@@ -11,6 +11,7 @@ use crate::queue::Ticket;
 use crate::rest::RestApiStatus;
 use crate::state::CompletedTicket;
 use crate::templates::{color_for_key, glyph_for_key};
+use crate::ui::status_panel::RowHints;
 
 /// Format the ticket ID for display.
 /// The `ticket_id` field already contains the full ID (e.g., "FEAT-1234"),
@@ -154,9 +155,12 @@ pub struct StatusBar {
     pub max_agents: usize,
     pub backstage_status: ServerStatus,
     pub rest_api_status: RestApiStatus,
+    pub backstage_display: bool,
+    pub embed_ui_available: bool,
     pub exit_confirmation_mode: bool,
     pub update_available_version: Option<String>,
     pub status_message: Option<String>,
+    pub row_hints: Option<RowHints>,
 }
 
 impl StatusBar {
@@ -185,6 +189,38 @@ impl StatusBar {
             format!("  {hint_text}"),
             Style::default().fg(Color::DarkGray),
         )
+    }
+
+    /// Build context-sensitive hints from the selected status panel row.
+    fn build_dynamic_hints(hints: &RowHints, width: u16) -> Span<'static> {
+        let mut parts: Vec<String> = Vec::new();
+
+        if let Some(verb) = hints.primary_verb {
+            parts.push(format!("[Enter] {verb}"));
+        }
+        if let Some(title) = hints.special_title {
+            parts.push(format!("[⇧Enter] {title}"));
+        }
+        if let Some(title) = hints.refresh_title {
+            parts.push(format!("[^Enter] {title}"));
+        }
+
+        if parts.is_empty() {
+            return Self::build_hints(width);
+        }
+
+        let full = parts.join("  ");
+        let hint_text = if (full.len() + 2) <= width as usize {
+            full
+        } else if parts.len() > 2 {
+            parts[..2].join("  ")
+        } else if parts.len() > 1 {
+            parts[0].clone()
+        } else {
+            parts.first().cloned().unwrap_or_default()
+        };
+
+        Span::styled(format!("  {hint_text}"), Style::default().fg(Color::Cyan))
     }
 
     pub fn render(&self, frame: &mut Frame, area: Rect) {
@@ -234,30 +270,18 @@ impl StatusBar {
             Style::default().fg(Color::Gray),
         );
 
-        // Web server indicator - shows combined status of both servers
-        // ● green = both running, ● yellow = starting/stopping, ● red = error, ○ white = stopped
-        let web_indicator = match (&self.backstage_status, &self.rest_api_status) {
-            // Both running - green filled circle with port
-            (ServerStatus::Running { port, .. }, RestApiStatus::Running { .. }) => Span::styled(
-                format!("  [W]eb ●:{port}"),
-                Style::default().fg(Color::Green),
-            ),
-            // Either starting or stopping - yellow filled circle
-            (ServerStatus::Starting | ServerStatus::Stopping, _)
-            | (_, RestApiStatus::Starting | RestApiStatus::Stopping) => {
-                Span::styled("  [W]eb ●", Style::default().fg(Color::Yellow))
-            }
-            // Either errored - red filled circle
-            (ServerStatus::Error(_), _) | (_, RestApiStatus::Error(_)) => {
-                Span::styled("  [W]eb ●", Style::default().fg(Color::Red))
-            }
-            // Both stopped - white hollow circle
-            _ => Span::styled("  [W]eb ○", Style::default().fg(Color::White)),
+        let web_ind = web_indicator(&self.rest_api_status, self.embed_ui_available);
+
+        let help = match &self.row_hints {
+            Some(hints) => Self::build_dynamic_hints(hints, area.width),
+            None => Self::build_hints(area.width),
         };
 
-        let help = Self::build_hints(area.width);
+        let mut spans = vec![status, agents, web_ind];
 
-        let mut spans = vec![status, agents, web_indicator];
+        if self.backstage_display {
+            spans.push(backstage_indicator(&self.backstage_status));
+        }
 
         // Show transient status message if present
         if let Some(ref msg) = self.status_message {
@@ -305,6 +329,41 @@ impl HeaderBar {
         let bar = Paragraph::new(content).block(Block::default().borders(Borders::BOTTOM));
 
         frame.render_widget(bar, area);
+    }
+}
+
+/// Build a status indicator span for the REST API / embedded web UI.
+fn web_indicator(status: &RestApiStatus, embed_ui: bool) -> Span<'static> {
+    let label = if embed_ui { "[W]eb" } else { "[A]PI" };
+    match status {
+        RestApiStatus::Running { port } => Span::styled(
+            format!("  {label} ●:{port}"),
+            Style::default().fg(Color::Green),
+        ),
+        RestApiStatus::Starting | RestApiStatus::Stopping => {
+            Span::styled(format!("  {label} ●"), Style::default().fg(Color::Yellow))
+        }
+        RestApiStatus::Error(_) => {
+            Span::styled(format!("  {label} ●"), Style::default().fg(Color::Red))
+        }
+        RestApiStatus::Stopped => {
+            Span::styled(format!("  {label} ○"), Style::default().fg(Color::White))
+        }
+    }
+}
+
+/// Build a status indicator span for the Backstage server.
+fn backstage_indicator(status: &ServerStatus) -> Span<'static> {
+    match status {
+        ServerStatus::Running { port, .. } => Span::styled(
+            format!("  [B]ack ●:{port}"),
+            Style::default().fg(Color::Green),
+        ),
+        ServerStatus::Starting | ServerStatus::Stopping => {
+            Span::styled("  [B]ack ●", Style::default().fg(Color::Yellow))
+        }
+        ServerStatus::Error(_) => Span::styled("  [B]ack ●", Style::default().fg(Color::Red)),
+        ServerStatus::Stopped => Span::styled("  [B]ack ○", Style::default().fg(Color::White)),
     }
 }
 
@@ -418,6 +477,161 @@ mod tests {
         assert!(
             !content.contains("[S]ync"),
             "Minimal width should NOT include [S]ync"
+        );
+    }
+
+    #[test]
+    fn test_web_indicator_running() {
+        let span = web_indicator(&RestApiStatus::Running { port: 7008 }, true);
+        let text: &str = &span.content;
+        assert!(text.contains("●:7008"), "should show port: {text}");
+        assert_eq!(span.style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn test_web_indicator_starting() {
+        let span = web_indicator(&RestApiStatus::Starting, true);
+        assert_eq!(span.style.fg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn test_web_indicator_stopping() {
+        let span = web_indicator(&RestApiStatus::Stopping, true);
+        assert_eq!(span.style.fg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn test_web_indicator_error() {
+        let span = web_indicator(&RestApiStatus::Error("bind failed".into()), true);
+        assert_eq!(span.style.fg, Some(Color::Red));
+    }
+
+    #[test]
+    fn test_web_indicator_stopped() {
+        let span = web_indicator(&RestApiStatus::Stopped, true);
+        let text: &str = &span.content;
+        assert!(text.contains('○'), "should show hollow circle: {text}");
+        assert_eq!(span.style.fg, Some(Color::White));
+    }
+
+    #[test]
+    fn test_web_indicator_label_with_embed_ui() {
+        let span = web_indicator(&RestApiStatus::Stopped, true);
+        let text: &str = &span.content;
+        assert!(
+            text.contains("[W]eb"),
+            "embed_ui=true should show [W]eb: {text}"
+        );
+    }
+
+    #[test]
+    fn test_web_indicator_label_without_embed_ui() {
+        let span = web_indicator(&RestApiStatus::Stopped, false);
+        let text: &str = &span.content;
+        assert!(
+            text.contains("[A]PI"),
+            "embed_ui=false should show [A]PI: {text}"
+        );
+    }
+
+    #[test]
+    fn test_backstage_indicator_running() {
+        let span = backstage_indicator(&ServerStatus::Running {
+            port: 7007,
+            pid: 1234,
+        });
+        let text: &str = &span.content;
+        assert!(text.contains("●:7007"), "should show port: {text}");
+        assert_eq!(span.style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn test_backstage_indicator_stopped() {
+        let span = backstage_indicator(&ServerStatus::Stopped);
+        let text: &str = &span.content;
+        assert!(text.contains('○'), "should show hollow circle: {text}");
+        assert_eq!(span.style.fg, Some(Color::White));
+    }
+
+    #[test]
+    fn test_web_green_without_backstage() {
+        let span = web_indicator(&RestApiStatus::Running { port: 7008 }, true);
+        assert_eq!(
+            span.style.fg,
+            Some(Color::Green),
+            "Web indicator must be green when REST API is running, regardless of Backstage"
+        );
+    }
+
+    #[test]
+    fn test_build_dynamic_hints_all_actions() {
+        let hints = RowHints {
+            primary_verb: Some("Edit"),
+            special_title: Some("Reset"),
+            refresh_title: Some("Reload"),
+        };
+        let span = StatusBar::build_dynamic_hints(&hints, 120);
+        let text: &str = &span.content;
+        assert!(text.contains("[Enter] Edit"), "should show primary: {text}");
+        assert!(
+            text.contains("[⇧Enter] Reset"),
+            "should show special: {text}"
+        );
+        assert!(
+            text.contains("[^Enter] Reload"),
+            "should show refresh: {text}"
+        );
+        assert_eq!(span.style.fg, Some(Color::Cyan));
+    }
+
+    #[test]
+    fn test_build_dynamic_hints_primary_only() {
+        let hints = RowHints {
+            primary_verb: Some("Open"),
+            special_title: None,
+            refresh_title: None,
+        };
+        let span = StatusBar::build_dynamic_hints(&hints, 120);
+        let text: &str = &span.content;
+        assert!(text.contains("[Enter] Open"), "should show primary: {text}");
+        assert!(
+            !text.contains("[⇧Enter]"),
+            "should not show special: {text}"
+        );
+        assert!(
+            !text.contains("[^Enter]"),
+            "should not show refresh: {text}"
+        );
+    }
+
+    #[test]
+    fn test_build_dynamic_hints_no_actions_falls_back() {
+        let hints = RowHints {
+            primary_verb: None,
+            special_title: None,
+            refresh_title: None,
+        };
+        let span = StatusBar::build_dynamic_hints(&hints, 120);
+        let text: &str = &span.content;
+        assert!(
+            text.contains("[Q]ueue") || text.contains("[?]Help"),
+            "should fall back to static hints: {text}"
+        );
+        assert_eq!(span.style.fg, Some(Color::DarkGray));
+    }
+
+    #[test]
+    fn test_build_dynamic_hints_truncates_at_narrow_width() {
+        let hints = RowHints {
+            primary_verb: Some("Edit"),
+            special_title: Some("Reset"),
+            refresh_title: Some("Reload"),
+        };
+        let span = StatusBar::build_dynamic_hints(&hints, 40);
+        let text: &str = &span.content;
+        assert!(
+            !text.contains("[^Enter] Reload"),
+            "narrow width should drop refresh: {text}"
         );
     }
 }

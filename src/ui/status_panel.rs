@@ -191,6 +191,45 @@ pub enum StatusAction {
     None,
 }
 
+#[allow(dead_code)]
+impl StatusAction {
+    pub fn display_verb(&self) -> Option<&'static str> {
+        match self {
+            Self::None => None,
+            Self::ToggleSection(_) => Some("Toggle"),
+            Self::OpenDirectory(_) => Some("Open"),
+            Self::EditFile(_) => Some("Edit"),
+            Self::OpenUrl(_) => Some("Open"),
+            Self::StartApi => Some("Start API"),
+            Self::OpenSwagger { .. } => Some("Swagger"),
+            Self::RestartWrapperConnection => Some("Restart"),
+            Self::ToggleBackstage => Some("Backstage"),
+            Self::OpenWebUi { .. } => Some("Web UI"),
+            Self::OpenWebUiAt { .. } => Some("Web UI"),
+            Self::SetDefaultLlm { .. } => Some("Set LLM"),
+            Self::ConfigureKanbanProvider { .. } => Some("Setup"),
+            Self::ConfigureGitProvider { .. } => Some("Setup"),
+            Self::RefreshSection(_) => Some("Refresh"),
+            Self::ResetConfig => Some("Reset"),
+            Self::ReloadConfig => Some("Reload"),
+            Self::ToggleMcpHttp => Some("Toggle"),
+            Self::WriteAndOpenMcpClientConfig { .. } => Some("Generate"),
+            Self::OpenMcpDocs => Some("Docs"),
+            Self::WriteAndOpenAcpEditorConfig { .. } => Some("Generate"),
+            Self::OpenAcpDocs => Some("Docs"),
+        }
+    }
+}
+
+/// Hint data for the currently selected status panel row.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct RowHints {
+    pub primary_verb: Option<&'static str>,
+    pub special_title: Option<&'static str>,
+    pub refresh_title: Option<&'static str>,
+}
+
 /// MCP HTTP transport status reflected on the dashboard's MCP row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum McpHttpStatus {
@@ -754,6 +793,38 @@ impl StatusPanel {
     #[allow(dead_code)]
     pub fn visible_count(&self, snapshot: &StatusSnapshot) -> usize {
         self.flatten(snapshot).len()
+    }
+
+    /// Get hint data for the currently selected row, if any.
+    #[allow(dead_code)]
+    pub fn current_row_hints(&self, snapshot: &StatusSnapshot) -> Option<RowHints> {
+        let rows = self.flatten(snapshot);
+        let row = rows.get(self.tree_state.selected)?;
+        Some(RowHints {
+            primary_verb: row.actions.primary.display_verb(),
+            special_title: if row.actions.special == StatusAction::None {
+                None
+            } else {
+                Some(
+                    row.actions
+                        .special_meta
+                        .as_ref()
+                        .map(|m| m.title)
+                        .unwrap_or("Special"),
+                )
+            },
+            refresh_title: if row.actions.refresh == StatusAction::None {
+                None
+            } else {
+                Some(
+                    row.actions
+                        .refresh_meta
+                        .as_ref()
+                        .map(|m| m.title)
+                        .unwrap_or("Refresh"),
+                )
+            },
+        })
     }
 
     /// Render the status panel into the given area.
@@ -1410,6 +1481,130 @@ mod tests {
         // Config row SHOULD have refresh action (ReloadConfig)
         let config = rows.iter().find(|r| r.label == "Config").unwrap();
         assert_ne!(config.actions.refresh, StatusAction::None);
+    }
+
+    #[test]
+    fn test_display_verb_returns_none_for_none() {
+        assert_eq!(StatusAction::None.display_verb(), None);
+    }
+
+    #[test]
+    fn test_display_verb_returns_verb_for_each_variant() {
+        let cases: Vec<(StatusAction, &str)> = vec![
+            (
+                StatusAction::ToggleSection(SectionId::Configuration),
+                "Toggle",
+            ),
+            (StatusAction::OpenDirectory("/tmp".into()), "Open"),
+            (StatusAction::EditFile("config.toml".into()), "Edit"),
+            (StatusAction::OpenUrl("https://example.com".into()), "Open"),
+            (StatusAction::StartApi, "Start API"),
+            (StatusAction::OpenSwagger { port: 3100 }, "Swagger"),
+            (StatusAction::RestartWrapperConnection, "Restart"),
+            (StatusAction::ToggleBackstage, "Backstage"),
+            (StatusAction::OpenWebUi { port: 7007 }, "Web UI"),
+            (
+                StatusAction::OpenWebUiAt {
+                    port: 7007,
+                    route: "/config".into(),
+                },
+                "Web UI",
+            ),
+            (
+                StatusAction::SetDefaultLlm {
+                    tool_name: "claude".into(),
+                    model: "opus".into(),
+                },
+                "Set LLM",
+            ),
+            (
+                StatusAction::ConfigureKanbanProvider {
+                    provider: "jira".into(),
+                },
+                "Setup",
+            ),
+            (
+                StatusAction::ConfigureGitProvider {
+                    provider: "github".into(),
+                },
+                "Setup",
+            ),
+            (
+                StatusAction::RefreshSection(SectionId::Connections),
+                "Refresh",
+            ),
+            (StatusAction::ResetConfig, "Reset"),
+            (StatusAction::ReloadConfig, "Reload"),
+            (StatusAction::ToggleMcpHttp, "Toggle"),
+            (
+                StatusAction::WriteAndOpenMcpClientConfig {
+                    client: "claude-code".into(),
+                },
+                "Generate",
+            ),
+            (StatusAction::OpenMcpDocs, "Docs"),
+            (
+                StatusAction::WriteAndOpenAcpEditorConfig {
+                    editor: "zed".into(),
+                },
+                "Generate",
+            ),
+            (StatusAction::OpenAcpDocs, "Docs"),
+        ];
+
+        for (action, expected) in cases {
+            assert_eq!(
+                action.display_verb(),
+                Some(expected),
+                "display_verb() for {action:?} should be {expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_current_row_hints_returns_none_for_empty_panel() {
+        let mut snap = test_snapshot();
+        snap.config_file_found = false;
+        let mut panel = StatusPanel::new("Status".into());
+        panel.tree_state.selected = 9999;
+        let hints = panel.current_row_hints(&snap);
+        assert!(hints.is_none());
+    }
+
+    #[test]
+    fn test_current_row_hints_primary_only_row() {
+        let snap = test_snapshot();
+
+        let mut panel = StatusPanel::new("Status".into());
+        panel.tree_state.selected = 1;
+        let hints = panel.current_row_hints(&snap).unwrap();
+        assert_eq!(hints.primary_verb, Some("Open"));
+        assert!(hints.special_title.is_none());
+        assert!(hints.refresh_title.is_none());
+    }
+
+    #[test]
+    fn test_current_row_hints_with_special_and_refresh() {
+        let mut panel = StatusPanel::new("Status".into());
+        let snap = test_snapshot();
+
+        // Config row (index 2) has special=ResetConfig and refresh=ReloadConfig
+        panel.tree_state.selected = 2;
+        let hints = panel.current_row_hints(&snap).unwrap();
+        assert_eq!(hints.primary_verb, Some("Edit"));
+        assert!(hints.special_title.is_some());
+        assert!(hints.refresh_title.is_some());
+    }
+
+    #[test]
+    fn test_current_row_hints_header_row() {
+        let mut panel = StatusPanel::new("Status".into());
+        let snap = test_snapshot();
+
+        // Header row (index 0) has primary=ToggleSection
+        panel.tree_state.selected = 0;
+        let hints = panel.current_row_hints(&snap).unwrap();
+        assert_eq!(hints.primary_verb, Some("Toggle"));
     }
 
     #[test]

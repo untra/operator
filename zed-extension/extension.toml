@@ -1,6 +1,6 @@
 id = "operator"
 name = "Operator"
-description = "Multi-agent orchestration for Claude Code — MCP tools, ACP agent, and slash commands"
+description = "Multi-agent orchestration for Coding Agents — MCP tools, ACP agent, and slash commands"
 version = "0.2.0"
 schema_version = 1
 authors = ["Samuel Volin <sam@untra.io>"]
@@ -21,3 +21,5 @@ op-sync = { description = "Sync kanban collections", requires_argument = false }
 op-approve = { description = "Approve agent review by agent ID", requires_argument = true }
 op-reject = { description = "Reject agent review with reason", requires_argument = true }
 op-setup-agent = { description = "Generate ACP agent server config for Zed settings", requires_argument = false }
+op-setup = { description = "Check Operator installation and connection status", requires_argument = false }
+op-help = { description = "List all available Operator commands", requires_argument = false }

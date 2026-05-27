@@ -334,6 +334,7 @@ impl App {
         })
     }
 
+    #[allow(clippy::cognitive_complexity)]
     pub async fn run(&mut self) -> Result<()> {
         // Reconcile state with actual tmux sessions on startup
         self.reconcile_sessions()?;
@@ -363,22 +364,31 @@ impl App {
             }
         }
 
-        // Start Backstage web server if --web flag was passed
+        // Start web servers if --web flag was passed
         if self.start_web_on_launch {
-            if let Err(e) = self.backstage_server.start() {
-                tracing::error!("Backstage start failed: {}", e);
-            }
-            // Wait for server to be ready then open browser
-            if self.backstage_server.is_running() {
-                match self.backstage_server.wait_for_ready(25000) {
-                    Ok(()) => {
-                        if let Err(e) = self.backstage_server.open_browser() {
-                            tracing::warn!("Failed to open browser: {}", e);
+            if self.config.backstage.display {
+                // Backstage mode: start Backstage server and open its URL
+                if let Err(e) = self.backstage_server.start() {
+                    tracing::error!("Backstage start failed: {}", e);
+                }
+                if self.backstage_server.is_running() {
+                    match self.backstage_server.wait_for_ready(25000) {
+                        Ok(()) => {
+                            if let Err(e) = self.backstage_server.open_browser() {
+                                tracing::warn!("Failed to open browser: {}", e);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Server not ready: {}", e);
                         }
                     }
-                    Err(e) => {
-                        tracing::error!("Server not ready: {}", e);
-                    }
+                }
+            } else if self.rest_api_server.is_running() {
+                // Embedded UI mode: REST API already started, open the web UI
+                let port = self.config.rest_api.port;
+                let url = format!("http://localhost:{port}/");
+                if let Err(e) = status_actions::open_in_browser(&url) {
+                    tracing::warn!("Failed to open web UI: {}", e);
                 }
             }
         }

@@ -178,8 +178,8 @@ mod tests {
     }
 
     /// Write a fake ticket file into `<tickets>/queue/` and create the
-    /// `in-progress` and `completed` sibling dirs (Queue::{claim,complete,return}
-    /// use fs::rename which requires the target dir to exist). Returns the id.
+    /// `in-progress` and `completed` sibling dirs (`Queue::{claim,complete,return}`
+    /// use `fs::rename` which requires the target dir to exist). Returns the id.
     fn seed_queue_ticket(tickets_path: &std::path::Path, id: &str) -> String {
         let queue_dir = tickets_path.join("queue");
         std::fs::create_dir_all(&queue_dir).unwrap();

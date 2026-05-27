@@ -49,6 +49,9 @@ JSON Schema for the Operator configuration file (`config.toml`).
 | `version_check` | → `VersionCheckConfig` | No | Version check configuration for automatic update notifications |
 | `delegators` | `array` | No | Agent delegator configurations for autonomous ticket launching |
 | `model_servers` | `array` | No | User-declared model servers (ollama, lmstudio, any OpenAI-compat host). Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration. |
+| `relay` | → `RelayConfig` | No | Relay MCP injection configuration |
+| `mcp` | → `McpConfig` | No | Model Context Protocol (MCP) server configuration |
+| `acp` | → `AcpConfig` | No | Agent Client Protocol (ACP) agent configuration |
 
 ## Type Definitions
 
@@ -479,6 +482,7 @@ Per-project/team sync configuration for a kanban provider
 | `sync_statuses` | `array` | No | Workflow statuses to sync (empty = default/first status only) |
 | `collection_name` | `string` \| `null` | No | Optional `IssueTypeCollection` name this project maps to. Not required for kanban onboarding or sync. |
 | `type_mappings` | `object` | No | Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX). Multiple kanban types can map to the same operator template. |
+| `bidirectional` | `boolean` | No | When true, operator pushes status changes and activity logs back to this kanban project. Ticket state changes (todo→doing, doing→done) and step completions with delegator info are reflected upstream. Default: false. |
 
 ### LinearConfig
 
@@ -557,6 +561,7 @@ semantics: `None` = inherit from global config, `Some(true/false)` = override.
 | `docker` | `boolean` \| `null` | No | Run in docker container (None = use global `launch.docker.enabled`) |
 | `prompt_prefix` | `string` \| `null` | No | Prompt text to prepend before the generated step prompt |
 | `prompt_suffix` | `string` \| `null` | No | Prompt text to append after the generated step prompt |
+| `operator_relay` | `boolean` \| `null` | No | Override global relay auto-inject MCP setting per-delegator (None = use global setting) |
 
 ### ModelServer
 
@@ -578,4 +583,36 @@ in config.
 | `api_key_env` | `string` \| `null` | No | Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`) |
 | `extra_env` | `object` | No | Additional environment variables set when spawning agents that use this server |
 | `display_name` | `string` \| `null` | No | Optional display name for UI |
+
+### RelayConfig
+
+Relay MCP injection configuration
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `auto_inject_mcp` | `boolean` | No | When true, automatically inject the relay MCP server for all delegators. When false (default), relay injection is opt-in per delegator. |
+
+### McpConfig
+
+Model Context Protocol (MCP) server configuration
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `http_enabled` | `boolean` | No | Whether to mount MCP HTTP/SSE endpoints on the REST API server. Toggling requires an API restart (no hot-swap of the axum router). |
+| `stdio_advertised` | `boolean` | No | Whether the descriptor endpoint advertises the `operator mcp` stdio command. Set to false on multi-tenant/remote deployments where clients shouldn't spawn local subprocesses. |
+| `expose_ticket_write_tools` | `boolean` | No | Whether to expose ticket-mutating tools (claim, complete, return-to-queue, create) over MCP. Defaults to `false` because any MCP client can call them. |
+
+### AcpConfig
+
+Agent Client Protocol (ACP) agent configuration.
+
+Operator runs as an ACP agent over stdio when editors (Zed, JetBrains,
+Emacs `agent-shell`, Kiro, etc.) spawn `operator acp`. Each ACP session
+maps to an in-progress ACP ticket and a delegator subprocess.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `stdio_advertised` | `boolean` | No | Whether the dashboard advertises the `operator acp` stdio entrypoint (and editor-config snippet actions). Set to false on machines that shouldn't be used as ACP agents. |
+| `default_delegator` | `string` \| `null` | No | Name of the delegator (from `[[delegators]]`) to use for ACP prompts. If unset or not found, falls back to the operator's default delegator resolution. |
+| `max_concurrent_sessions` | `integer` | No | Maximum number of concurrent ACP sessions. New `session/new` requests beyond this limit are rejected with a JSON-RPC error. |
 

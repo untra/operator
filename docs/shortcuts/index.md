@@ -32,7 +32,7 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `S` | Sync kanban collections | Dashboard |
 | `Y/y` | Approve review (agents panel) | Dashboard |
 | `X/x` | Reject review (agents panel) | Dashboard |
-| `W/w` | Toggle Backstage server | Dashboard |
+| `W/w` | Open web UI in browser | Dashboard |
 | `V/v` | Show session preview | Dashboard |
 | `F` | Focus cmux window | Dashboard |
 | `C` | Create new ticket | Dashboard |
@@ -92,7 +92,7 @@ These shortcuts are available in the main dashboard view.
 | `S` | Sync kanban collections |
 | `Y/y` | Approve review (agents panel) |
 | `X/x` | Reject review (agents panel) |
-| `W/w` | Toggle Backstage server |
+| `W/w` | Open web UI in browser |
 | `V/v` | Show session preview |
 | `F` | Focus cmux window |
 

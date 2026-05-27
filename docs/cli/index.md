@@ -17,6 +17,7 @@ Operator provides both a TUI dashboard and CLI commands for queue management.
 | `-c, --config` | Config file path |
 | `-d, --debug` | Enable debug logging |
 | `-w, --web` | Start with web view enabled |
+| `--ui` | Open the embedded web UI in a browser on launch |
 
 ## Commands
 
@@ -105,6 +106,19 @@ Start the REST API server for issue type management
 | Argument/Option | Description |
 | --- | --- |
 | `-p, --port` | Port to listen on (default: 7008) |
+| `--open` | Open the web UI in browser after server starts |
+
+### `mcp`
+
+Run as an MCP stdio server (for use by Claude Code, Cursor, Zed, `JetBrains`, etc.)
+
+No additional arguments.
+
+### `acp`
+
+Run as an ACP agent over stdio (for use by Zed, `JetBrains`, Emacs `agent-shell`, etc.)
+
+No additional arguments.
 
 ### `setup`
 

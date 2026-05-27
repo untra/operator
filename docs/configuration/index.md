@@ -35,6 +35,7 @@ Agent lifecycle, parallelism, and health monitoring
 | --- | --- | --- | --- |
 | `max_parallel` * | `integer` | 5 |  |
 | `cores_reserved` * | `integer` | 1 |  |
+| `max_agents_per_repo` | `integer` | - | Maximum concurrent agents per project/repo (default: 1). Requires `git.use_worktrees` = true when > 1 to avoid conflicts. |
 | `health_check_interval` * | `integer` | 30 |  |
 | `generation_timeout_secs` | `integer` | 300 | Timeout in seconds for each agent generation (default: 300 = 5 min) |
 | `sync_interval` | `integer` | 60 | Interval in seconds between ticket-session syncs (default: 60) |
@@ -172,6 +173,7 @@ model_servers = []
 [agents]
 max_parallel = 5
 cores_reserved = 1
+max_agents_per_repo = 1
 health_check_interval = 30
 generation_timeout_secs = 300
 sync_interval = 60

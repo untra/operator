@@ -564,11 +564,11 @@ fn test_mcp_external_servers_defaults_to_empty() {
 
 #[test]
 fn test_mcp_config_without_external_servers_still_parses() {
-    let toml_str = r#"
+    let toml_str = r"
         http_enabled = true
         stdio_advertised = false
         expose_ticket_write_tools = true
-    "#;
+    ";
     let config: McpConfig = toml::from_str(toml_str).unwrap();
     assert!(config.http_enabled);
     assert!(!config.stdio_advertised);

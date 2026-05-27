@@ -11,16 +11,13 @@
 use serde::Deserialize;
 use std::process::Command as StdCommand;
 use zed_extension_api::{
-    self as zed, Command, ContextServerId, ContextServerConfiguration, Project, SlashCommand,
+    self as zed, Command, ContextServerConfiguration, ContextServerId, Project, SlashCommand,
     SlashCommandArgumentCompletion, SlashCommandOutput, SlashCommandOutputSection, Worktree,
 };
 
 const DEFAULT_API_URL: &str = "http://localhost:7008";
 
-const KNOWN_BINARY_LOCATIONS: &[&str] = &[
-    "/usr/local/bin/operator",
-    "/opt/homebrew/bin/operator",
-];
+const KNOWN_BINARY_LOCATIONS: &[&str] = &["/usr/local/bin/operator", "/opt/homebrew/bin/operator"];
 
 struct OperatorExtension {
     api_url: String,

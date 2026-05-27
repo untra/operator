@@ -3,7 +3,7 @@
 //! Validates that operator capabilities stay aligned across all integration
 //! surfaces: slash commands (Zed), MCP tools, REST routes, and TUI keybindings.
 //!
-//! Uses `include_str!` to scan source files (same pattern as feature_parity_test.rs)
+//! Uses `include_str!` to scan source files (same pattern as `feature_parity_test.rs`)
 //! and the capability inventory from `src/integrations/inventory.rs`.
 
 use operator::integrations::all_capabilities;
@@ -46,7 +46,7 @@ fn rest_path(endpoint: &str) -> &str {
 // Per-surface validation
 // ============================================================================
 
-/// Every capability with a slash_command must appear in extension.toml
+/// Every capability with a `slash_command` must appear in extension.toml
 #[test]
 fn test_slash_commands_present_in_extension_toml() {
     for cap in all_capabilities() {
@@ -61,7 +61,7 @@ fn test_slash_commands_present_in_extension_toml() {
     }
 }
 
-/// Every capability with an mcp_tool must appear in tools.rs
+/// Every capability with an `mcp_tool` must appear in tools.rs
 #[test]
 fn test_mcp_tools_present_in_tools_rs() {
     for cap in all_capabilities() {
@@ -76,7 +76,7 @@ fn test_mcp_tools_present_in_tools_rs() {
     }
 }
 
-/// Every capability with a rest_endpoint must have its path in src/rest/mod.rs
+/// Every capability with a `rest_endpoint` must have its path in src/rest/mod.rs
 #[test]
 fn test_rest_endpoints_present_in_rest_mod() {
     for cap in all_capabilities() {
@@ -92,7 +92,7 @@ fn test_rest_endpoints_present_in_rest_mod() {
     }
 }
 
-/// Every capability with a tui_action must match a keybinding description
+/// Every capability with a `tui_action` must match a keybinding description
 #[test]
 fn test_tui_actions_present_in_keybindings() {
     let descriptions = get_keybinding_descriptions();
@@ -129,8 +129,7 @@ fn test_no_orphan_slash_commands() {
                 let key = key.trim();
                 assert!(
                     known_commands.contains(&key),
-                    "Slash command '{}' in extension.toml has no matching capability in inventory",
-                    key
+                    "Slash command '{key}' in extension.toml has no matching capability in inventory"
                 );
             }
         }
@@ -144,7 +143,7 @@ fn test_inventory_mcp_tools_are_real() {
     for cap in all_capabilities() {
         if let Some(tool) = cap.mcp_tool {
             // Check that the tool name appears as a string literal in tools.rs
-            let quoted = format!("\"{}\"", tool);
+            let quoted = format!("\"{tool}\"");
             assert!(
                 MCP_TOOLS_RS.contains(&quoted),
                 "Capability '{}': MCP tool '{}' does not appear as a quoted string in tools.rs (possible typo)",
@@ -193,8 +192,7 @@ fn test_extension_toml_schema_valid() {
     for (name, entry) in &parsed.slash_commands {
         assert!(
             !entry.description.is_empty(),
-            "Slash command '{}' has empty description",
-            name
+            "Slash command '{name}' has empty description"
         );
     }
 }
@@ -221,14 +219,12 @@ fn test_surface_parity_summary() {
     for cap in all_capabilities() {
         let has_slash = cap
             .slash_command
-            .map_or(false, |cmd| EXTENSION_TOML.contains(cmd));
-        let has_mcp = cap
-            .mcp_tool
-            .map_or(false, |tool| MCP_TOOLS_RS.contains(tool));
+            .is_some_and(|cmd| EXTENSION_TOML.contains(cmd));
+        let has_mcp = cap.mcp_tool.is_some_and(|tool| MCP_TOOLS_RS.contains(tool));
         let has_rest = cap
             .rest_endpoint
-            .map_or(false, |ep| REST_MOD_RS.contains(rest_path(ep)));
-        let has_tui = cap.tui_action.map_or(false, |action| {
+            .is_some_and(|ep| REST_MOD_RS.contains(rest_path(ep)));
+        let has_tui = cap.tui_action.is_some_and(|action| {
             descriptions
                 .iter()
                 .any(|d| d.to_lowercase().contains(&action.to_lowercase()))

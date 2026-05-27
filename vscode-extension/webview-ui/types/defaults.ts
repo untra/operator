@@ -7,6 +7,7 @@ const DEFAULT_CONFIG: Config = {
   agents: {
     max_parallel: 2,
     cores_reserved: 1,
+    max_agents_per_repo: 1,
     health_check_interval: BigInt(30),
     generation_timeout_secs: BigInt(300),
     sync_interval: BigInt(60),
@@ -149,6 +150,12 @@ const DEFAULT_CONFIG: Config = {
     http_enabled: true,
     stdio_advertised: true,
     expose_ticket_write_tools: false,
+    external_servers: [],
+  },
+  acp: {
+    stdio_advertised: true,
+    default_delegator: null,
+    max_concurrent_sessions: 4,
   },
 };
 

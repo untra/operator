@@ -10,7 +10,7 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.1.30"
+    "version": "0.2.0"
   },
   "paths": {
     "/api/v1/collections": {
@@ -858,7 +858,7 @@
           "MCP"
         ],
         "summary": "MCP descriptor endpoint",
-        "description": "Returns metadata for building a VS Code MCP deep link.\nThe transport URL is derived from the request Host header\nso it reflects the actual running port.",
+        "description": "Returns metadata for registering operator with an MCP-capable client.\nThe transport URL is derived from the request Host header so it reflects\nthe actual running port; the stdio entrypoint reflects this binary's path.",
         "operationId": "descriptor",
         "responses": {
           "200": {
@@ -1041,6 +1041,42 @@
         }
       }
     },
+    "/api/v1/tickets/{id}": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Get full ticket details by ID",
+        "description": "Returns complete ticket data including content, metadata, step history,\nand session information. Searches queue, in-progress, and completed directories.",
+        "operationId": "get_one",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Ticket ID (e.g., FEAT-7598)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
     "/api/v1/tickets/{id}/launch": {
       "post": {
         "tags": [
@@ -1089,6 +1125,55 @@
           },
           "409": {
             "description": "Ticket already in progress"
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{id}/status": {
+      "put": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Update a ticket's status",
+        "description": "Moves a ticket between queue directories based on the target status.\nValid transitions: queued, running, awaiting, done.",
+        "operationId": "update_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Ticket ID to update",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTicketStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Ticket status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateTicketStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status value"
+          },
+          "404": {
+            "description": "Ticket not found"
           }
         }
       }
@@ -2013,6 +2098,17 @@
             "type": "string",
             "description": "Server name used in MCP registration (e.g. \"operator\")"
           },
+          "stdio": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StdioCommand",
+                "description": "Stdio transport entrypoint. Present when `[mcp].stdio_advertised = true`.\nClients may spawn this as a subprocess instead of using `transport_url`."
+              }
+            ]
+          },
           "transport_url": {
             "type": "string",
             "description": "Full URL of the MCP SSE transport endpoint"
@@ -2198,6 +2294,32 @@
           }
         }
       },
+      "StdioCommand": {
+        "type": "object",
+        "description": "Stdio entrypoint advertised in the descriptor when\n`[mcp].stdio_advertised = true`. Clients use this to spawn operator\nas an MCP subprocess instead of (or alongside) the SSE transport.",
+        "required": [
+          "command",
+          "args",
+          "cwd"
+        ],
+        "properties": {
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Args to pass: typically `[\"mcp\"]`"
+          },
+          "command": {
+            "type": "string",
+            "description": "Absolute path to the operator binary (the same binary serving this descriptor)"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Working directory the client should set when spawning. Defaults to the\noperator process's current working directory."
+          }
+        }
+      },
       "StepResponse": {
         "type": "object",
         "description": "Response for a step",
@@ -2246,6 +2368,133 @@
           "review_type": {
             "type": "string",
             "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
+          }
+        }
+      },
+      "TicketDetailResponse": {
+        "type": "object",
+        "description": "Full ticket details including content and metadata",
+        "required": [
+          "id",
+          "summary",
+          "ticket_type",
+          "project",
+          "status",
+          "step",
+          "priority",
+          "timestamp",
+          "content",
+          "filename",
+          "filepath",
+          "sessions",
+          "step_delegators"
+        ],
+        "properties": {
+          "branch": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Git branch name"
+          },
+          "content": {
+            "type": "string",
+            "description": "Full markdown content of the ticket"
+          },
+          "external_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "External issue ID from kanban provider"
+          },
+          "external_provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Provider name (e.g., \"jira\", \"linear\")"
+          },
+          "external_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL to the issue in the external provider"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Ticket filename"
+          },
+          "filepath": {
+            "type": "string",
+            "description": "Full filesystem path"
+          },
+          "id": {
+            "type": "string",
+            "description": "Ticket ID (e.g., \"FEAT-7598\")"
+          },
+          "priority": {
+            "type": "string",
+            "description": "Priority: P0-critical, P1-high, P2-medium, P3-low"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project name"
+          },
+          "sessions": {
+            "type": "object",
+            "description": "Session IDs per step (`step_name` -> `session_uuid`)",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status: queued, running, awaiting, completed"
+          },
+          "step": {
+            "type": "string",
+            "description": "Current step name"
+          },
+          "step_delegators": {
+            "type": "object",
+            "description": "Delegator used per step (`step_name` -> `delegator_name`)",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "step_display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Human-readable step name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Ticket summary/title"
+          },
+          "ticket_type": {
+            "type": "string",
+            "description": "Ticket type: FEAT, FIX, INV, SPIKE"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp (YYYYMMDD-HHMM format)"
+          },
+          "worktree_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Path to git worktree (if created)"
           }
         }
       },
@@ -2377,6 +2626,47 @@
             "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
           }
         }
+      },
+      "UpdateTicketStatusRequest": {
+        "type": "object",
+        "description": "Request to update a ticket's status",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Target status: queued, running, awaiting, done"
+          }
+        }
+      },
+      "UpdateTicketStatusResponse": {
+        "type": "object",
+        "description": "Response from updating a ticket's status",
+        "required": [
+          "id",
+          "previous_status",
+          "status",
+          "message"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Ticket ID"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message"
+          },
+          "previous_status": {
+            "type": "string",
+            "description": "Previous status before the update"
+          },
+          "status": {
+            "type": "string",
+            "description": "New status after the update"
+          }
+        }
       }
     }
   },
@@ -2396,6 +2686,10 @@
     {
       "name": "Collections",
       "description": "Issue type collection management"
+    },
+    {
+      "name": "Tickets",
+      "description": "Ticket CRUD and status management"
     },
     {
       "name": "Launch",

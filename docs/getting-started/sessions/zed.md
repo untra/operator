@@ -6,7 +6,11 @@ layout: doc
 
 # Zed
 
-<span class="badge supported">Supported</span>
+<span class="badge alpha">Alpha</span>
+
+<div class="alpha-banner">
+This integration is in alpha and may have limited functionality or incomplete support.
+</div>
 
 The [Zed](https://zed.dev) extension for Operator provides three integration layers: an MCP context server for tools and resources, an ACP agent server for delegated prompts, and slash commands for quick operations.
 

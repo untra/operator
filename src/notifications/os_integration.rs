@@ -12,13 +12,14 @@ use crate::config::OsNotificationConfig;
 /// Sends notifications using the platform's native notification system:
 /// - macOS: Uses `mac-notification-sys`
 /// - Linux: Uses `notify-rust` (freedesktop notifications)
-#[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
+#[allow(dead_code)] // Used via binary, not reachable from lib.rs
 pub struct OsIntegration {
     enabled: bool,
     sound: bool,
     subscribed_events: Vec<String>,
 }
 
+#[allow(dead_code)]
 impl OsIntegration {
     /// Create a new OS integration from config.
     pub fn new(config: &OsNotificationConfig) -> Self {
@@ -30,7 +31,6 @@ impl OsIntegration {
     }
 
     /// Create a disabled OS integration.
-    #[allow(dead_code)]
     pub fn disabled() -> Self {
         Self {
             enabled: false,

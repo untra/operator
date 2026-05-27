@@ -138,7 +138,7 @@ pub enum TmuxDetectionStatus {
 
 /// VS Code extension detection status
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-#[allow(dead_code)] // Variants will be used when VS Code extension support is implemented
+#[allow(dead_code)] // Placeholder for VS Code extension detection (Phase 2)
 pub enum VSCodeDetectionStatus {
     /// Not yet checked
     #[default]

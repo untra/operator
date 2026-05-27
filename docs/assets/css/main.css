@@ -455,6 +455,40 @@ blockquote p:last-child {
   margin-bottom: 0;
 }
 
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.badge.supported {
+  background-color: var(--color-green-l1);
+  color: var(--color-green-l4);
+}
+
+.badge.recommended {
+  background-color: var(--color-green-l2);
+  color: var(--color-cream);
+}
+
+.badge.alpha {
+  background-color: var(--color-salmon);
+  color: var(--color-cream);
+}
+
+/* Alpha integration banner */
+.alpha-banner {
+  margin: 0.5em 0 1.5em;
+  padding: 12px 20px;
+  border-left: 4px solid var(--color-salmon);
+  background-color: var(--color-cream);
+  color: var(--color-salmon-dark);
+  font-style: italic;
+}
+
 /* Tables */
 table {
   width: 100%;

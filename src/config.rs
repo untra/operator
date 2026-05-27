@@ -749,7 +749,6 @@ impl Config {
     }
 
     /// Get absolute path to worktrees directory
-    #[allow(dead_code)] // Will be used when WorktreeManager is wired into launcher
     pub fn worktrees_path(&self) -> PathBuf {
         let path = PathBuf::from(&self.paths.worktrees);
         if path.is_absolute() {
@@ -779,12 +778,6 @@ impl Config {
         self.state_path().join(&self.backstage.subpath)
     }
 
-    /// Get absolute path to Backstage branding directory
-    #[allow(dead_code)] // For future branding customization support
-    pub fn backstage_branding_path(&self) -> PathBuf {
-        self.backstage_path().join(&self.backstage.branding_subpath)
-    }
-
     /// Get priority index for a ticket type (lower = higher priority)
     pub fn priority_index(&self, ticket_type: &str) -> usize {
         self.queue
@@ -804,7 +797,6 @@ impl Config {
     /// Returns projects found by scanning for .git directories and LLM marker files.
     /// Each project includes git repo info (remote URL, default branch, GitHub info)
     /// and a list of available LLM tools.
-    #[allow(dead_code)] // For future integration
     pub fn discover_projects_full(&self) -> Vec<crate::projects::DiscoveredProject> {
         crate::projects::discover_projects_with_git(&self.projects_path())
     }

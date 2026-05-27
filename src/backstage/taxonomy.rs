@@ -6,8 +6,9 @@
 //! - Compile-time validation of taxonomy structure
 //! - Zero runtime I/O for taxonomy access
 //!
-//! Note: Types are marked #[`allow(dead_code)`] during Milestone 1 as they will
-//! be used in subsequent milestones (ASSESS issue type, project analysis, etc.)
+//! Types are used by the scaffold generator, docs generator, and project analyzer.
+//! Backstage module is not re-exported from lib.rs, so items appear unused to the
+//! lib crate lint pass — they are reachable via the binary.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -91,7 +91,6 @@ impl StatusSection for DelegatorSection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backstage::ServerStatus;
     use crate::rest::RestApiStatus;
     use crate::ui::status_panel::{DelegatorInfo, WrapperConnectionStatus};
 
@@ -105,8 +104,6 @@ mod tests {
             wrapper_type: "tmux".into(),
             operator_version: "0.1.30".into(),
             api_status: RestApiStatus::Stopped,
-            backstage_status: ServerStatus::Stopped,
-            backstage_display: false,
             kanban_providers: vec![],
             llm_tools: vec![],
             default_llm_tool: None,

@@ -33,11 +33,6 @@ impl App {
             .collect();
         self.dashboard.update_completed(completed);
 
-        // Update Backstage server status
-        self.backstage_server.refresh_status();
-        self.dashboard
-            .update_backstage_status(self.backstage_server.status());
-
         // Update wrapper connection status
         let wrapper_status = self.check_wrapper_connection();
         self.dashboard

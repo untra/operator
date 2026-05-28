@@ -3,6 +3,9 @@
 use std::fs;
 use std::path::PathBuf;
 
+/// Embedded operator status line script, deployed per-session for Claude Code.
+const STATUSLINE_SCRIPT: &str = include_str!("../../../scripts/operator-statusline.sh");
+
 /// TEMPORARILY DISABLED: JSON schema support causes command line length issues.
 /// Even when writing schemas to files (rather than inline), the --json-schema flag
 /// with large schema file paths can exceed OS command line limits.
@@ -91,6 +94,7 @@ pub fn build_docker_command(
     config: &Config,
     inner_cmd: &str,
     project_path: &str,
+    operator_env: Option<&std::collections::HashMap<String, String>>,
 ) -> Result<String> {
     let docker_config = &config.launch.docker;
 
@@ -121,6 +125,14 @@ pub fn build_docker_command(
     // Add extra args from config
     for arg in &docker_config.extra_args {
         docker_args.push(arg.clone());
+    }
+
+    // Add operator environment variables (if provided)
+    if let Some(env) = operator_env {
+        for (key, value) in env {
+            docker_args.push("-e".to_string());
+            docker_args.push(format!("{key}={value}"));
+        }
     }
 
     // Add the image
@@ -218,6 +230,12 @@ fn generate_config_flags(
         // Claude Code checks if the CWD is trusted, not just parent directories
         cli_flags.push("--add-dir".to_string());
         cli_flags.push(project_path.to_string());
+
+        // Inject operator status line settings
+        if let Some(settings_path) = statusline_settings_flag(&session_dir) {
+            cli_flags.push("--settings".to_string());
+            cli_flags.push(settings_path);
+        }
 
         // Inject relay MCP server based on effective relay setting
         let hub_available = std::env::var("RELAY_HUB_SOCKET").is_ok();
@@ -400,6 +418,37 @@ fn external_mcp_config_flag(
     }
 
     write_mcp_server_config(session_dir, &server.name, entry)
+}
+
+/// Ensure the operator status line script is deployed in the session directory.
+/// Returns the absolute path to the script, or `None` on failure.
+fn ensure_statusline_script(session_dir: &std::path::Path) -> Option<PathBuf> {
+    let script_path = session_dir.join("operator-statusline.sh");
+    if !script_path.exists() {
+        fs::write(&script_path, STATUSLINE_SCRIPT).ok()?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755));
+        }
+    }
+    Some(script_path)
+}
+
+/// Write a per-session `operator-settings.json` that configures Claude Code's
+/// status line to use the operator script, and return the file path.
+fn statusline_settings_flag(session_dir: &std::path::Path) -> Option<String> {
+    let script_path = ensure_statusline_script(session_dir)?;
+    let settings = serde_json::json!({
+        "statusLine": {
+            "type": "command",
+            "command": script_path.display().to_string()
+        }
+    });
+    let settings_file = session_dir.join("operator-settings.json");
+    let content = serde_json::to_string_pretty(&settings).ok()?;
+    fs::write(&settings_file, &content).ok()?;
+    Some(settings_file.display().to_string())
 }
 
 /// Write a per-session relay MCP config and return the path for `--mcp-config`.
@@ -618,7 +667,8 @@ mod tests {
         config.launch.docker.image = "my-claude:latest".to_string();
         config.launch.docker.mount_path = "/workspace".to_string();
 
-        let result = build_docker_command(&config, "claude --model sonnet", "/home/user/project");
+        let result =
+            build_docker_command(&config, "claude --model sonnet", "/home/user/project", None);
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
@@ -631,7 +681,7 @@ mod tests {
         config.launch.docker.image = "my-claude:latest".to_string();
         config.launch.docker.mount_path = "/workspace".to_string();
 
-        let result = build_docker_command(&config, "claude", "/home/user/project");
+        let result = build_docker_command(&config, "claude", "/home/user/project", None);
 
         let cmd = result.unwrap();
         assert!(
@@ -646,7 +696,7 @@ mod tests {
         config.launch.docker.image = "my-claude:latest".to_string();
         config.launch.docker.mount_path = "/workspace".to_string();
 
-        let result = build_docker_command(&config, "claude", "/home/user/project");
+        let result = build_docker_command(&config, "claude", "/home/user/project", None);
 
         let cmd = result.unwrap();
         assert!(
@@ -663,7 +713,7 @@ mod tests {
         config.launch.docker.env_vars =
             vec!["ANTHROPIC_API_KEY".to_string(), "HOME=/root".to_string()];
 
-        let result = build_docker_command(&config, "claude", "/project");
+        let result = build_docker_command(&config, "claude", "/project", None);
 
         let cmd = result.unwrap();
         assert!(
@@ -684,7 +734,7 @@ mod tests {
         config.launch.docker.extra_args =
             vec!["--network=host".to_string(), "--privileged".to_string()];
 
-        let result = build_docker_command(&config, "claude", "/project");
+        let result = build_docker_command(&config, "claude", "/project", None);
 
         let cmd = result.unwrap();
         assert!(cmd.contains("--network=host"), "Should include extra arg 1");
@@ -695,7 +745,7 @@ mod tests {
     fn test_build_docker_command_no_image_errors() {
         let config = Config::default(); // image is empty by default
 
-        let result = build_docker_command(&config, "claude", "/project");
+        let result = build_docker_command(&config, "claude", "/project", None);
 
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
@@ -711,7 +761,7 @@ mod tests {
         config.launch.docker.image = "my-claude:latest".to_string();
         config.launch.docker.mount_path = "/workspace".to_string();
 
-        let result = build_docker_command(&config, "claude --model sonnet", "/project");
+        let result = build_docker_command(&config, "claude --model sonnet", "/project", None);
 
         let cmd = result.unwrap();
         assert!(
@@ -1643,5 +1693,60 @@ mod tests {
             result.is_none(),
             "Empty command without discover_from should return None"
         );
+    }
+
+    // ========================================
+    // statusline script + settings tests
+    // ========================================
+
+    #[test]
+    fn test_ensure_statusline_script_creates_executable_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = ensure_statusline_script(dir.path());
+        assert!(result.is_some());
+        let path = result.unwrap();
+        assert!(path.exists());
+        assert!(path.to_string_lossy().contains("operator-statusline.sh"));
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("#!/usr/bin/env bash"));
+        assert!(content.contains("OPERATOR_"));
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::metadata(&path).unwrap().permissions();
+            assert_eq!(perms.mode() & 0o111, 0o111, "Script should be executable");
+        }
+    }
+
+    #[test]
+    fn test_ensure_statusline_script_is_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path1 = ensure_statusline_script(dir.path()).unwrap();
+        let content1 = std::fs::read_to_string(&path1).unwrap();
+
+        let path2 = ensure_statusline_script(dir.path()).unwrap();
+        let content2 = std::fs::read_to_string(&path2).unwrap();
+
+        assert_eq!(path1, path2);
+        assert_eq!(content1, content2);
+    }
+
+    #[test]
+    fn test_statusline_settings_flag_creates_valid_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = statusline_settings_flag(dir.path());
+        assert!(result.is_some());
+        let settings_path = result.unwrap();
+        assert!(settings_path.contains("operator-settings.json"));
+
+        let content = std::fs::read_to_string(&settings_path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(json["statusLine"]["type"].as_str(), Some("command"));
+        assert!(json["statusLine"]["command"]
+            .as_str()
+            .unwrap()
+            .contains("operator-statusline.sh"));
     }
 }

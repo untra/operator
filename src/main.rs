@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 mod api;
 mod app;
-mod backstage;
 mod collections;
 mod config;
 mod editors;
@@ -18,6 +17,8 @@ mod projects;
 mod services;
 mod state;
 mod steps;
+#[allow(dead_code)]
+mod taxonomy;
 mod templates;
 mod types;
 
@@ -261,10 +262,6 @@ enum Commands {
         #[arg(short = 'C', long, default_value = "simple")]
         collection: String,
 
-        /// Enable backstage configuration
-        #[arg(long)]
-        backstage: bool,
-
         /// Overwrite existing files
         #[arg(short, long)]
         force: bool,
@@ -363,7 +360,6 @@ async fn main() -> Result<()> {
         Some(Commands::Setup {
             interactive,
             collection,
-            backstage,
             force,
             working_dir,
             kanban_provider,
@@ -374,7 +370,6 @@ async fn main() -> Result<()> {
                 config,
                 interactive,
                 collection,
-                backstage,
                 force,
                 working_dir,
                 kanban_provider,
@@ -872,7 +867,6 @@ fn cmd_setup(
     mut config: Config,
     interactive: bool,
     collection: String,
-    backstage: bool,
     force: bool,
     working_dir: Option<PathBuf>,
     kanban_provider: Option<String>,
@@ -921,7 +915,6 @@ fn cmd_setup(
 
     let options = SetupOptions {
         preset,
-        backstage_enabled: backstage,
         force,
         working_dir,
         kanban_provider,
@@ -943,14 +936,6 @@ fn cmd_setup(
 
     println!("Initializing operator workspace...");
     println!("  Collection: {:?}", options.preset);
-    println!(
-        "  Backstage:  {}",
-        if options.backstage_enabled {
-            "enabled"
-        } else {
-            "disabled"
-        }
-    );
     println!("  Force:      {}", options.force);
     if let Some(ref dir) = options.working_dir {
         println!("  Working Dir: {}", dir.display());

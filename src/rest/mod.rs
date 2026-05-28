@@ -91,6 +91,7 @@ pub fn build_router(state: ApiState) -> Router {
         )
         // Agent endpoints
         .route("/api/v1/agents/active", get(routes::agents::active))
+        .route("/api/v1/agents/:agent_id", get(routes::agents::get_detail))
         .route(
             "/api/v1/agents/:agent_id/approve",
             post(routes::agents::approve_review),

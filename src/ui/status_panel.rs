@@ -10,7 +10,6 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::backstage::ServerStatus;
 use crate::rest::RestApiStatus;
 
 use super::sections::{
@@ -149,14 +148,12 @@ pub enum StatusAction {
     EditFile(String),
     /// Open a URL in the default browser
     OpenUrl(String),
-    /// Start the REST API server (without backstage)
+    /// Start the REST API server
     StartApi,
     /// Open Swagger UI for the running API
     OpenSwagger { port: u16 },
     /// Restart the session wrapper connection
     RestartWrapperConnection,
-    /// Toggle the Backstage server
-    ToggleBackstage,
     /// Open the embedded web UI in the default browser
     OpenWebUi { port: u16 },
     /// Open the embedded web UI at a specific hash route (e.g. "/config", "/issuetypes")
@@ -203,7 +200,6 @@ impl StatusAction {
             Self::StartApi => Some("Start API"),
             Self::OpenSwagger { .. } => Some("Swagger"),
             Self::RestartWrapperConnection => Some("Restart"),
-            Self::ToggleBackstage => Some("Backstage"),
             Self::OpenWebUi { .. } => Some("Web UI"),
             Self::OpenWebUiAt { .. } => Some("Web UI"),
             Self::SetDefaultLlm { .. } => Some("Set LLM"),
@@ -477,8 +473,6 @@ pub struct StatusSnapshot {
     pub wrapper_type: String,
     pub operator_version: String,
     pub api_status: RestApiStatus,
-    pub backstage_status: ServerStatus,
-    pub backstage_display: bool,
     pub kanban_providers: Vec<KanbanProviderInfo>,
     pub llm_tools: Vec<LlmToolInfo>,
     pub default_llm_tool: Option<String>,
@@ -1004,10 +998,6 @@ mod tests {
             wrapper_type: "tmux".into(),
             operator_version: "0.1.28".into(),
             api_status: RestApiStatus::Running { port: 3100 },
-            backstage_status: ServerStatus::Running {
-                port: 7007,
-                pid: 1234,
-            },
             kanban_providers: vec![KanbanProviderInfo {
                 provider_type: "Linear".into(),
                 domain: "myteam.linear.app".into(),
@@ -1040,7 +1030,6 @@ mod tests {
             },
             env_editor: "vim".into(),
             env_visual: String::new(),
-            backstage_display: false,
             mcp_http_status: McpHttpStatus::Mounted { port: 3100 },
             mcp_stdio_advertised: true,
             mcp_active_sessions: 0,
@@ -1501,7 +1490,6 @@ mod tests {
             (StatusAction::StartApi, "Start API"),
             (StatusAction::OpenSwagger { port: 3100 }, "Swagger"),
             (StatusAction::RestartWrapperConnection, "Restart"),
-            (StatusAction::ToggleBackstage, "Backstage"),
             (StatusAction::OpenWebUi { port: 7007 }, "Web UI"),
             (
                 StatusAction::OpenWebUiAt {

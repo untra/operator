@@ -385,9 +385,8 @@ impl App {
         match code {
             KeyCode::Char('q') => {
                 // Stop servers if running before exiting
-                if self.rest_api_server.is_running() || self.backstage_server.is_running() {
+                if self.rest_api_server.is_running() {
                     self.rest_api_server.stop();
-                    let _ = self.backstage_server.stop();
                 }
                 // Shut down PR monitor
                 if let Some(tx) = self.pr_shutdown_tx.take() {
@@ -526,7 +525,6 @@ impl App {
         } else {
             // First Ctrl+C - stop servers and enter confirmation mode
             self.rest_api_server.stop();
-            let _ = self.backstage_server.stop();
 
             self.exit_confirmation_mode = true;
             self.exit_confirmation_time = Some(std::time::Instant::now());

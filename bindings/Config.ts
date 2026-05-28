@@ -2,7 +2,6 @@
 import type { AcpConfig } from "./AcpConfig";
 import type { AgentsConfig } from "./AgentsConfig";
 import type { ApiConfig } from "./ApiConfig";
-import type { BackstageConfig } from "./BackstageConfig";
 import type { Delegator } from "./Delegator";
 import type { GitConfig } from "./GitConfig";
 import type { KanbanConfig } from "./KanbanConfig";
@@ -30,7 +29,7 @@ projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfi
 /**
  * Session wrapper configuration (tmux, vscode, or cmux)
  */
-sessions: SessionsConfig, llm_tools: LlmToolsConfig, backstage: BackstageConfig, rest_api: RestApiConfig, git: GitConfig, 
+sessions: SessionsConfig, llm_tools: LlmToolsConfig, rest_api: RestApiConfig, git: GitConfig, 
 /**
  * Kanban provider configuration for syncing issues from Jira, Linear, etc.
  */

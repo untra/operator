@@ -98,10 +98,10 @@ docs:
         url: /configuration/
       - title: Shortcuts
         url: /shortcuts/
-      - title: Backstage
+      - title: Taxonomy
         children:
           - title: Project Taxonomy
-            url: /backstage/taxonomy/
+            url: /taxonomy/
       - title: Schemas
         children:
           - title: Overview

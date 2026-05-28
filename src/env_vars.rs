@@ -44,8 +44,6 @@ pub enum EnvVarCategory {
     Launch,
     /// Tmux integration
     Tmux,
-    /// Backstage server settings
-    Backstage,
     /// LLM tool allowlist/denylist
     LlmTools,
     /// Logging configuration
@@ -64,7 +62,6 @@ impl EnvVarCategory {
             EnvVarCategory::Ui => "UI",
             EnvVarCategory::Launch => "Launch",
             EnvVarCategory::Tmux => "Tmux",
-            EnvVarCategory::Backstage => "Backstage",
             EnvVarCategory::LlmTools => "LLM Tools",
             EnvVarCategory::Logging => "Logging",
         }
@@ -81,7 +78,6 @@ impl EnvVarCategory {
             EnvVarCategory::Ui,
             EnvVarCategory::Launch,
             EnvVarCategory::Tmux,
-            EnvVarCategory::Backstage,
             EnvVarCategory::LlmTools,
             EnvVarCategory::Logging,
         ]
@@ -306,23 +302,6 @@ pub static ENV_VARS: &[EnvVar] = &[
         default: Some("operator"),
         example: Some("agent"),
     },
-    // === Backstage ===
-    EnvVar {
-        name: "OPERATOR_BACKSTAGE__PORT",
-        description: "Port for the Backstage web server",
-        category: EnvVarCategory::Backstage,
-        required: false,
-        default: Some("3000"),
-        example: Some("8080"),
-    },
-    EnvVar {
-        name: "OPERATOR_BACKSTAGE__AUTO_START",
-        description: "Automatically start Backstage server with TUI",
-        category: EnvVarCategory::Backstage,
-        required: false,
-        default: Some("false"),
-        example: Some("true"),
-    },
     // === LLM Tools ===
     EnvVar {
         name: "OPERATOR_LLM_TOOLS__ENABLED",
@@ -442,7 +421,6 @@ mod tests {
         assert_eq!(EnvVarCategory::Ui.display_name(), "UI");
         assert_eq!(EnvVarCategory::Launch.display_name(), "Launch");
         assert_eq!(EnvVarCategory::Tmux.display_name(), "Tmux");
-        assert_eq!(EnvVarCategory::Backstage.display_name(), "Backstage");
         assert_eq!(EnvVarCategory::LlmTools.display_name(), "LLM Tools");
         assert_eq!(EnvVarCategory::Logging.display_name(), "Logging");
     }
@@ -450,8 +428,8 @@ mod tests {
     #[test]
     fn test_all_categories_in_order() {
         let all = EnvVarCategory::all();
-        assert_eq!(all.len(), 11);
+        assert_eq!(all.len(), 10);
         assert_eq!(all[0], EnvVarCategory::Authentication);
-        assert_eq!(all[10], EnvVarCategory::Logging);
+        assert_eq!(all[9], EnvVarCategory::Logging);
     }
 }

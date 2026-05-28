@@ -44,7 +44,7 @@ impl ProjectAction {
     pub fn label(&self) -> &'static str {
         match self {
             ProjectAction::AddOperatorAgents => "Add Operator agents",
-            ProjectAction::AssessProject => "Assess for Backstage",
+            ProjectAction::AssessProject => "Assess Project",
         }
     }
 
@@ -616,7 +616,7 @@ mod tests {
             ProjectAction::AddOperatorAgents.label(),
             "Add Operator agents"
         );
-        assert_eq!(ProjectAction::AssessProject.label(), "Assess for Backstage");
+        assert_eq!(ProjectAction::AssessProject.label(), "Assess Project");
     }
 
     #[test]

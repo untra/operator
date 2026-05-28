@@ -8,6 +8,7 @@ import { DashboardPage } from './routes/DashboardPage';
 import { ConfigPage } from './routes/ConfigPage';
 import { IssueTypesPage } from './routes/IssueTypesPage';
 import { QueuePage } from './routes/QueuePage';
+import { AgentDetailPage } from './routes/AgentDetailPage';
 
 const host = createBrowserHost();
 
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="config" element={<ConfigPage />} />
             <Route path="issuetypes" element={<IssueTypesPage />} />
             <Route path="queue" element={<QueuePage />} />
+            <Route path="agent/:id" element={<AgentDetailPage />} />
           </Route>
         </Routes>
       </HashRouter>

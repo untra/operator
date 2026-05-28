@@ -34,7 +34,7 @@ default_branch: string | null,
  */
 ai_context_path: string | null, 
 /**
- * Backstage taxonomy kind (tier 1-5)
+ * Project taxonomy kind (tier 1-5)
  */
 kind: string | null, 
 /**

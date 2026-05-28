@@ -4,7 +4,7 @@
 //! via schemars, making Rust the single source of truth for structured output.
 
 use super::DocGenerator;
-use crate::backstage::analyzer::ProjectAnalysis;
+use crate::taxonomy::analyzer::ProjectAnalysis;
 use anyhow::Result;
 use schemars::schema_for;
 
@@ -17,7 +17,7 @@ impl DocGenerator for ProjectAnalysisSchemaDocGenerator {
     }
 
     fn source(&self) -> &'static str {
-        "src/backstage/analyzer.rs (ProjectAnalysis)"
+        "src/taxonomy/analyzer.rs (ProjectAnalysis)"
     }
 
     fn output_path(&self) -> &'static str {
@@ -43,7 +43,7 @@ impl DocGenerator for ProjectAnalysisSchemaDocGenerator {
             obj.insert(
                 "$comment".to_string(),
                 serde_json::Value::String(
-                    "AUTO-GENERATED FROM src/backstage/analyzer.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only project-analysis-schema".to_string(),
+                    "AUTO-GENERATED FROM src/taxonomy/analyzer.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only project-analysis-schema".to_string(),
                 ),
             );
         }

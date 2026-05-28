@@ -3,6 +3,8 @@
 # Operator!
 [![GitHub Tag](https://img.shields.io/github/v/tag/untra/operator)](https://github.com/untra/operator/releases) [![codecov](https://codecov.io/gh/untra/operator/branch/main/graph/badge.svg)](https://codecov.io/gh/untra/operator)
 
+**_This Project is currently in alpha, is free to use, and officially promises nothing yet!_**
+
 * **Session** [![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=white)](https://operator.untra.io/getting-started/sessions/tmux/) [![cmux](https://img.shields.io/badge/cmux-333333)](https://operator.untra.io/getting-started/sessions/cmux/) [![Zellij](https://img.shields.io/badge/Zellij-E8590C)](https://operator.untra.io/getting-started/sessions/zellij/)
 
 * **Editor** [![VS Code](https://img.shields.io/badge/VS_Code-007ACC)](https://operator.untra.io/getting-started/sessions/vscode/) [![Zed](https://img.shields.io/badge/Zed-084CCF?logo=zedindustries&logoColor=white)](https://operator.untra.io/getting-started/sessions/zed/)
@@ -311,7 +313,7 @@ Reference documentation is auto-generated from source-of-truth files to minimize
 
 | Generator | Source | Output |
 |-----------|--------|--------|
-| taxonomy | `src/backstage/taxonomy.toml` | `docs/backstage/taxonomy.md` |
+| taxonomy | `src/taxonomy/taxonomy.toml` | `docs/taxonomy/index.md` |
 | issuetype-schema | `src/schemas/issuetype_schema.json` | `docs/schemas/issuetype.md` |
 | metadata-schema | `src/schemas/ticket_metadata.schema.json` | `docs/schemas/metadata.md` |
 | shortcuts | `src/ui/keybindings.rs` | `docs/shortcuts/index.md` |

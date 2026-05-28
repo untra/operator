@@ -34,7 +34,7 @@ default_branch: string | null,
  */
 ai_context_path: string | null, 
 /**
- * Backstage taxonomy kind (tier 1-5)
+ * Project taxonomy kind (tier 1-5)
  */
 kind: string | null, 
 /**
@@ -272,7 +272,7 @@ projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfi
 /**
  * Session wrapper configuration (tmux, vscode, or cmux)
  */
-sessions: SessionsConfig, llm_tools: LlmToolsConfig, backstage: BackstageConfig, rest_api: RestApiConfig, git: GitConfig, 
+sessions: SessionsConfig, llm_tools: LlmToolsConfig, rest_api: RestApiConfig, git: GitConfig, 
 /**
  * Kanban provider configuration for syncing issues from Jira, Linear, etc.
  */
@@ -303,7 +303,12 @@ mcp: McpConfig,
  */
 acp: AcpConfig, };
 
-export type AgentsConfig = { max_parallel: number, cores_reserved: number, health_check_interval: bigint, 
+export type AgentsConfig = { max_parallel: number, cores_reserved: number, 
+/**
+ * Maximum concurrent agents per project/repo (default: 1).
+ * Requires `git.use_worktrees` = true when > 1 to avoid conflicts.
+ */
+max_agents_per_repo: number, health_check_interval: bigint, 
 /**
  * Timeout in seconds for each agent generation (default: 300 = 5 min)
  */
@@ -394,85 +399,6 @@ export type TmuxConfig = {
  * Whether custom tmux config has been generated
  */
 config_generated: boolean, };
-
-export type BackstageConfig = { 
-/**
- * Whether Backstage integration is enabled
- */
-enabled: boolean, 
-/**
- * Whether to show Backstage in the Connections status section
- */
-display: boolean, 
-/**
- * Port for the Backstage server
- */
-port: number, 
-/**
- * Auto-start Backstage server when TUI launches
- */
-auto_start: boolean, 
-/**
- * Subdirectory within `state_path` for Backstage installation
- */
-subpath: string, 
-/**
- * Subdirectory within backstage path for branding customization
- */
-branding_subpath: string, 
-/**
- * Base URL for downloading backstage-server binary
- */
-release_url: string, 
-/**
- * Optional local path to backstage-server binary
- * If set, this is used instead of downloading from `release_url`
- */
-local_binary_path: string | null, 
-/**
- * Branding and theming configuration
- */
-branding: BrandingConfig, };
-
-export type BrandingConfig = { 
-/**
- * App title shown in header
- */
-app_title: string, 
-/**
- * Organization name
- */
-org_name: string, 
-/**
- * Path to logo SVG (relative to branding path)
- */
-logo_path: string | null, 
-/**
- * Theme colors (uses Operator defaults if not set)
- */
-colors: ThemeColors, };
-
-export type ThemeColors = { 
-/**
- * Primary/accent color (default: salmon #cc6c55)
- */
-primary: string, 
-/**
- * Secondary color (default: dark teal #114145)
- */
-secondary: string, 
-/**
- * Accent/highlight color (default: cream #f4dbb7)
- */
-accent: string, 
-/**
- * Warning/error color (default: coral #d46048)
- */
-warning: string, 
-/**
- * Muted text color (default: darker salmon #8a4a3a)
- */
-muted: string, };
 
 export type RestApiConfig = { 
 /**

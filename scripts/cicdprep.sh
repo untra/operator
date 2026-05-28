@@ -143,10 +143,9 @@ needs_operator() {
 }
 
 needs_opr8r()      { has_changes '^opr8r/'; }
-needs_backstage()  { has_changes '^backstage-server/'; }
 needs_vscode()     { has_changes '^(vscode-extension/|icons/)'; }
 needs_zed()        { has_changes '^zed-extension/'; }
-needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/backstage/taxonomy\.toml|src/templates/.*\.json)'; }
+needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/taxonomy/taxonomy\.toml|src/templates/.*\.json)'; }
 
 # --- 1. Operator (main crate) ---
 
@@ -192,29 +191,7 @@ else
   skip "opr8r"
 fi
 
-# --- 3. backstage-server ---
-
-if needs_backstage; then
-  section "backstage-server"
-  require_tool bun "backstage-server"
-
-  step "Install dependencies"
-  (cd backstage-server && bun install --frozen-lockfile) && pass "backstage install" || fail "backstage install"
-
-  run_step "backstage lint:app" bash -c "cd backstage-server && bun run lint:app"
-  run_step "backstage lint:backend" bash -c "cd backstage-server && bun run lint:backend"
-  run_step "backstage lint:plugins" bash -c "cd backstage-server && bun run lint:plugins"
-  run_step "backstage test:app" bash -c "cd backstage-server && bun run test:app"
-  run_step "backstage test:backend" bash -c "cd backstage-server && bun run test:backend"
-  run_step "backstage test:plugins" bash -c "cd backstage-server && bun run test:plugins"
-  run_step "backstage build:embeds" bash -c "cd backstage-server && bun run build:embeds"
-  run_step "backstage typecheck" bash -c "cd backstage-server && bun run typecheck"
-  run_step "backstage knip" bash -c "cd backstage-server && bun run knip"
-else
-  skip "backstage-server"
-fi
-
-# --- 4. vscode-extension ---
+# --- 3. vscode-extension ---
 
 if needs_vscode; then
   section "vscode-extension"
@@ -233,7 +210,7 @@ else
   skip "vscode-extension"
 fi
 
-# --- 5. zed-extension ---
+# --- 4. zed-extension ---
 
 if needs_zed; then
   section "zed-extension"
@@ -253,7 +230,7 @@ else
   skip "zed-extension"
 fi
 
-# --- 6. docs ---
+# --- 5. docs ---
 
 if needs_docs; then
   section "docs"

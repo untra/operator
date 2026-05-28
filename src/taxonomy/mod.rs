@@ -6,21 +6,19 @@
 //! - Compile-time validation of taxonomy structure
 //! - Zero runtime I/O for taxonomy access
 //!
-//! Types are used by the scaffold generator, docs generator, and project analyzer.
-//! Backstage module is not re-exported from lib.rs, so items appear unused to the
-//! lib crate lint pass — they are reachable via the binary.
+//! Types are used by the docs generator, project analyzer, and Kind detection.
+
+pub mod analyzer;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// The complete project taxonomy, loaded from taxonomy.toml
-#[allow(dead_code)]
 static TAXONOMY: std::sync::LazyLock<Taxonomy> = std::sync::LazyLock::new(|| {
     toml::from_str(include_str!("taxonomy.toml")).expect("taxonomy.toml must be valid TOML")
 });
 
 /// Kind tier classification
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum KindTier {
@@ -31,7 +29,6 @@ pub enum KindTier {
     Noncurrent,
 }
 
-#[allow(dead_code)]
 impl KindTier {
     /// Returns all tiers in order
     pub fn all() -> &'static [KindTier] {
@@ -82,7 +79,6 @@ impl std::fmt::Display for KindTier {
 }
 
 /// Metadata about the taxonomy
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxonomyMeta {
     pub version: String,
@@ -90,7 +86,6 @@ pub struct TaxonomyMeta {
 }
 
 /// A tier grouping for Kinds
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tier {
     pub id: u8,
@@ -120,7 +115,6 @@ pub struct Tier {
     pub assess_testing: bool,
 }
 
-#[allow(dead_code)]
 impl Tier {
     /// Returns the tier enum variant
     pub fn tier(&self) -> Option<KindTier> {
@@ -167,7 +161,6 @@ impl Tier {
 }
 
 /// A project Kind definition
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Kind {
     pub id: u8,
@@ -178,7 +171,7 @@ pub struct Kind {
     pub stakeholder: String,
     pub output: String,
     pub file_patterns: Vec<String>,
-    pub backstage_type: String,
+    pub catalog_type: String,
     /// Icon identifier (optional, falls back to tier icon)
     #[serde(default)]
     pub icon: Option<String>,
@@ -187,7 +180,6 @@ pub struct Kind {
     pub display_order: Option<u8>,
 }
 
-#[allow(dead_code)]
 impl Kind {
     /// Returns the tier enum variant for this Kind
     pub fn tier_enum(&self) -> Option<KindTier> {
@@ -216,7 +208,6 @@ impl Kind {
 }
 
 /// The complete taxonomy structure
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Taxonomy {
     pub meta: TaxonomyMeta,
@@ -224,7 +215,6 @@ pub struct Taxonomy {
     pub kinds: Vec<Kind>,
 }
 
-#[allow(dead_code)]
 impl Taxonomy {
     /// Get the global taxonomy instance (loaded at first access)
     pub fn load() -> &'static Taxonomy {
@@ -391,7 +381,7 @@ mod tests {
     }
 
     #[test]
-    fn test_all_kinds_have_backstage_type() {
+    fn test_all_kinds_have_catalog_type() {
         let t = Taxonomy::load();
         let valid_types = [
             "service",
@@ -406,10 +396,10 @@ mod tests {
         ];
         for kind in &t.kinds {
             assert!(
-                valid_types.contains(&kind.backstage_type.as_str()),
-                "Kind {} has invalid backstage_type: {}. Valid types: {:?}",
+                valid_types.contains(&kind.catalog_type.as_str()),
+                "Kind {} has invalid catalog_type: {}. Valid types: {:?}",
                 kind.key,
-                kind.backstage_type,
+                kind.catalog_type,
                 valid_types
             );
         }
@@ -434,7 +424,6 @@ mod tests {
     #[test]
     fn test_kinds_by_tier() {
         let t = Taxonomy::load();
-        // Verify each tier returns kinds and they all reference the correct tier
         for tier_enum in KindTier::all() {
             let kinds = t.kinds_by_tier(*tier_enum);
             assert!(!kinds.is_empty(), "{tier_enum} tier should have kinds");
@@ -468,7 +457,6 @@ mod tests {
             detected.is_some(),
             "Should detect a kind for Rust service files"
         );
-        // microservice should match src/main.rs and Dockerfile
         let (kind, _) = detected.unwrap();
         assert_eq!(kind.key, "microservice");
     }
@@ -498,7 +486,6 @@ mod tests {
     fn test_tier_display_order_fallback() {
         let t = Taxonomy::load();
         for tier in &t.tiers {
-            // display_order should fall back to id if not set
             let order = tier.display_order();
             assert!(
                 order >= 1,
@@ -513,7 +500,6 @@ mod tests {
     fn test_tier_sidebar_label_fallback() {
         let t = Taxonomy::load();
         for tier in &t.tiers {
-            // sidebar_label should fall back to name if not set
             let label = tier.sidebar_label();
             assert!(
                 !label.is_empty(),
@@ -528,7 +514,6 @@ mod tests {
         let t = Taxonomy::load();
         let ordered = t.tiers_by_display_order();
         assert!(!ordered.is_empty(), "Should have tiers");
-        // Verify tiers are sorted by display_order
         for i in 1..ordered.len() {
             assert!(
                 ordered[i - 1].display_order() <= ordered[i].display_order(),
@@ -540,10 +525,8 @@ mod tests {
     #[test]
     fn test_kinds_by_tier_ordered() {
         let t = Taxonomy::load();
-        // Test ordering for each tier
         for tier_enum in KindTier::all() {
             let kinds = t.kinds_by_tier_ordered(*tier_enum);
-            // Kinds should be sorted by display_order (falls back to id)
             for i in 1..kinds.len() {
                 assert!(
                     kinds[i - 1].display_order() <= kinds[i].display_order(),
@@ -557,7 +540,6 @@ mod tests {
     fn test_kind_display_order_fallback() {
         let t = Taxonomy::load();
         for kind in &t.kinds {
-            // display_order should fall back to id if not set
             let order = kind.display_order();
             assert!(
                 order >= 1,
@@ -572,31 +554,26 @@ mod tests {
     fn test_tier_assessment_scope_flags() {
         let t = Taxonomy::load();
 
-        // Foundation: no assessments
         let foundation = t.tier_def(KindTier::Foundation).unwrap();
         assert!(!foundation.should_assess_frameworks());
         assert!(!foundation.should_assess_databases());
         assert!(!foundation.should_assess_testing());
 
-        // Standards: frameworks and testing only
         let standards = t.tier_def(KindTier::Standards).unwrap();
         assert!(standards.should_assess_frameworks());
         assert!(!standards.should_assess_databases());
         assert!(standards.should_assess_testing());
 
-        // Engines: all assessments
         let engines = t.tier_def(KindTier::Engines).unwrap();
         assert!(engines.should_assess_frameworks());
         assert!(engines.should_assess_databases());
         assert!(engines.should_assess_testing());
 
-        // Ecosystem: all assessments
         let ecosystem = t.tier_def(KindTier::Ecosystem).unwrap();
         assert!(ecosystem.should_assess_frameworks());
         assert!(ecosystem.should_assess_databases());
         assert!(ecosystem.should_assess_testing());
 
-        // Noncurrent: no assessments
         let noncurrent = t.tier_def(KindTier::Noncurrent).unwrap();
         assert!(!noncurrent.should_assess_frameworks());
         assert!(!noncurrent.should_assess_databases());
@@ -623,7 +600,7 @@ mod tests {
 
         let kind = kind.unwrap();
         assert_eq!(kind.tier, "noncurrent");
-        assert_eq!(kind.backstage_type, "resource");
+        assert_eq!(kind.catalog_type, "resource");
         assert!(kind.matches_pattern("fixtures/users.json"));
         assert!(kind.matches_pattern("testdata/sample.csv"));
         assert!(kind.matches_pattern("db/seeds/users.sql"));

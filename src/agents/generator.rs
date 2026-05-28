@@ -3,8 +3,8 @@
 //! Agent and project ticket creators for operator-managed projects
 //!
 //! Creates TASK tickets for generating Claude Code agent files in a project's
-//! `.claude/agents/` directory, and ASSESS tickets for Backstage catalog
-//! assessment. These tickets can then be launched via the normal operator workflow.
+//! `.claude/agents/` directory, and ASSESS tickets for project analysis.
+//! These tickets can then be launched via the normal operator workflow.
 
 use anyhow::{Context, Result};
 use chrono::Local;
@@ -158,7 +158,7 @@ pub struct AssessTicketResult {
     pub project: String,
 }
 
-/// Creates ASSESS tickets for Backstage catalog assessment
+/// Creates ASSESS tickets for project assessment
 pub struct AssessTicketCreator;
 
 impl AssessTicketCreator {
@@ -182,9 +182,13 @@ impl AssessTicketCreator {
         // Filename: YYYYMMDD-HHMM-ASSESS-project.md
         let filename = format!("{timestamp}-ASSESS-{project_name}.md");
 
-        // Check if catalog-info.yaml already exists
-        let catalog_exists = project_path.join("catalog-info.yaml").exists();
-        let action = if catalog_exists { "Update" } else { "Generate" };
+        // Check if project has been previously assessed
+        let previously_assessed = project_path.join("catalog-info.yaml").exists();
+        let action = if previously_assessed {
+            "Reassess"
+        } else {
+            "Assess"
+        };
 
         // Build ticket content using the ASSESS template format
         let content = format!(
@@ -196,7 +200,7 @@ status: queued
 created: {datetime}
 ---
 
-# Assessment: {action} catalog-info.yaml for {project_name}
+# Assessment: {action} {project_name}
 
 ## Project
 {project_name}

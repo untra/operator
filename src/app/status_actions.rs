@@ -83,13 +83,6 @@ impl App {
             StatusAction::RestartWrapperConnection => {
                 self.restart_wrapper_connection();
             }
-            StatusAction::ToggleBackstage => {
-                if self.config.backstage.display {
-                    self.toggle_backstage(terminal)?;
-                } else {
-                    self.toggle_web_ui()?;
-                }
-            }
             StatusAction::OpenWebUi { port } => {
                 let url = format!("http://localhost:{port}/");
                 if let Err(e) = open_in_browser(&url) {
@@ -375,72 +368,6 @@ impl App {
         } else {
             self.dashboard
                 .set_status("API not running — web UI unavailable");
-        }
-        Ok(())
-    }
-
-    /// Toggle the Backstage server.
-    pub(super) fn toggle_backstage(&mut self, terminal: &mut AppTerminal) -> Result<()> {
-        let backstage_running = self.backstage_server.is_running();
-        let rest_running = self.rest_api_server.is_running();
-
-        if backstage_running && rest_running {
-            // Both running - stop both
-            self.rest_api_server.stop();
-            if let Err(e) = self.backstage_server.stop() {
-                tracing::error!("Backstage stop failed: {}", e);
-            }
-        } else {
-            // Show yellow "Starting" indicator immediately for feedback
-            use crate::backstage::ServerStatus;
-            self.dashboard
-                .update_backstage_status(ServerStatus::Starting);
-            terminal.draw(|f| self.dashboard.render(f))?;
-
-            // Start both if not running
-            if !rest_running {
-                if let Err(e) = self.rest_api_server.start() {
-                    tracing::error!("REST API start failed: {}", e);
-                }
-            }
-            if !backstage_running {
-                if let Err(e) = self.backstage_server.start() {
-                    tracing::error!("Backstage start failed: {}", e);
-                }
-            }
-            // Wait for server to be ready before opening browser
-            if self.backstage_server.is_running() {
-                match self.backstage_server.wait_for_ready(25000) {
-                    Ok(()) => {
-                        if let Err(e) = self.backstage_server.open_browser() {
-                            tracing::warn!("Failed to open browser: {}", e);
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!("Server not ready: {}", e);
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Toggle the embedded web UI (REST API server) without Backstage.
-    pub(super) fn toggle_web_ui(&mut self) -> Result<()> {
-        if self.rest_api_server.is_running() {
-            self.rest_api_server.stop();
-        } else {
-            if let Err(e) = self.rest_api_server.start() {
-                self.dashboard
-                    .set_status(&format!("Failed to start API: {e}"));
-                return Ok(());
-            }
-            let port = self.config.rest_api.port;
-            let url = format!("http://localhost:{port}/");
-            if let Err(e) = open_in_browser(&url) {
-                self.dashboard
-                    .set_status(&format!("Failed to open browser: {e}"));
-            }
         }
         Ok(())
     }

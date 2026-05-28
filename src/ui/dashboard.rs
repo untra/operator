@@ -14,7 +14,6 @@ use super::status_panel::{
     DelegatorInfo, KanbanProviderInfo, LlmToolInfo, StatusPanel, StatusSnapshot,
     WrapperConnectionStatus,
 };
-use crate::backstage::ServerStatus;
 use crate::config::{Config, GitProviderConfig, SessionWrapperType};
 use crate::editors::EditorConfig;
 use crate::queue::Ticket;
@@ -37,8 +36,6 @@ pub struct Dashboard {
     pub focused: FocusedPanel,
     pub paused: bool,
     pub max_agents: usize,
-    /// Backstage server status
-    pub backstage_status: ServerStatus,
     /// REST API server status
     pub rest_api_status: RestApiStatus,
     /// Wrapper display name for header bar
@@ -75,7 +72,6 @@ impl Dashboard {
             paused: false,
             max_agents: config.effective_max_agents(),
             wrapper_name: config.sessions.wrapper.display_name(),
-            backstage_status: ServerStatus::Stopped,
             rest_api_status: RestApiStatus::Stopped,
             exit_confirmation_mode: false,
             update_available_version: None,
@@ -108,10 +104,6 @@ impl Dashboard {
         } else {
             self.focused = FocusedPanel::Queue;
         }
-    }
-
-    pub fn update_backstage_status(&mut self, status: ServerStatus) {
-        self.backstage_status = status;
     }
 
     pub fn update_rest_api_status(&mut self, status: RestApiStatus) {
@@ -310,8 +302,6 @@ impl Dashboard {
             wrapper_type: config.sessions.wrapper.display_name().to_string(),
             operator_version: env!("CARGO_PKG_VERSION").to_string(),
             api_status: self.rest_api_status.clone(),
-            backstage_status: self.backstage_status.clone(),
-            backstage_display: config.backstage.display,
             kanban_providers,
             llm_tools,
             default_llm_tool: config.llm_tools.default_tool.clone(),
@@ -416,9 +406,7 @@ impl Dashboard {
             paused: self.paused,
             agent_count: self.in_progress_panel.agents.len(),
             max_agents: self.max_agents,
-            backstage_status: self.backstage_status.clone(),
             rest_api_status: self.rest_api_status.clone(),
-            backstage_display: self.config.backstage.display,
             embed_ui_available: cfg!(feature = "embed-ui"),
             exit_confirmation_mode: self.exit_confirmation_mode,
             update_available_version: self.update_available_version.clone(),

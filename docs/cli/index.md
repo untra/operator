@@ -128,7 +128,6 @@ Initialize operator workspace (non-interactive by default)
 | --- | --- |
 | `-i, --interactive` | Launch TUI setup wizard instead of non-interactive setup |
 | `-C, --collection` | Collection preset: simple, dev-kanban, devops-kanban (default: simple) |
-| `--backstage` | Enable backstage configuration |
 | `-f, --force` | Overwrite existing files |
 | `-w, --working-dir` | Working directory (parent of .tickets/) |
 | `-k, --kanban-provider` | Kanban provider to configure: jira, linear |
@@ -169,8 +168,6 @@ All configuration can be overridden via environment variables using the `OPERATO
 | `OPERATOR_LAUNCH__MODE` | Agent launch mode (tmux or direct) | tmux |
 | `OPERATOR_LAUNCH__CONFIRM` | Require confirmation before launching agents | true |
 | `OPERATOR_TMUX__SESSION_PREFIX` | Prefix for tmux session names | operator |
-| `OPERATOR_BACKSTAGE__PORT` | Port for the Backstage web server | 3000 |
-| `OPERATOR_BACKSTAGE__AUTO_START` | Automatically start Backstage server with TUI | false |
 | `OPERATOR_LLM_TOOLS__ENABLED` | Enable LLM tool allowlist/denylist functionality | true |
 | `OPERATOR_LLM_TOOLS__ALLOWED` | Comma-separated list of allowed LLM tools (empty = all allowed) |  |
 | `OPERATOR_LLM_TOOLS__DENIED` | Comma-separated list of denied LLM tools |  |
@@ -242,13 +239,6 @@ All configuration can be overridden via environment variables using the `OPERATO
 | Variable | Description | Default |
 | --- | --- | --- |
 | `OPERATOR_TMUX__SESSION_PREFIX` | Prefix for tmux session names | operator |
-
-### Backstage
-
-| Variable | Description | Default |
-| --- | --- | --- |
-| `OPERATOR_BACKSTAGE__PORT` | Port for the Backstage web server | 3000 |
-| `OPERATOR_BACKSTAGE__AUTO_START` | Automatically start Backstage server with TUI | false |
 
 ### LLM Tools
 

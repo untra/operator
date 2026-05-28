@@ -7,7 +7,7 @@
   "glyph": "~",
   "color": "magenta",
   "project_required": true,
-  "agent_prompt": "Review this project to create an agent for project assessment. The agent analyzes project structure, detects the project Kind from file patterns (using the 25-Kind taxonomy), identifies commands/entry points/environment variables, and generates both project-context.json (for AI agents) and catalog-info.yaml (for Backstage). Output ONLY the agent system prompt.",
+  "agent_prompt": "Review this project to create an agent for project assessment. The agent analyzes project structure, detects the project Kind from file patterns (using the 25-Kind taxonomy), identifies commands/entry points/environment variables, and generates both project-context.json (for AI agents) and catalog-info.yaml (for project catalog). Output ONLY the agent system prompt.",
   "fields": [
     {
       "name": "id",
@@ -24,7 +24,7 @@
       "type": "string",
       "required": true,
       "default": "",
-      "placeholder": "Assess project for Backstage catalog",
+      "placeholder": "Assess project structure",
       "max_length": 120,
       "display_order": 1
     },
@@ -52,7 +52,7 @@
       "name": "generate",
       "display_name": "Generating",
       "outputs": ["code"],
-      "prompt": "Generate output files from the analysis JSON:\n\n1. **Write `project-context.json`** (for AI agents):\n   - Save the complete structured analysis JSON to project root\n   - This is the primary output for AI consumption\n\n2. **Write `catalog-info.yaml`** (for Backstage UI):\n   ```yaml\n   apiVersion: backstage.io/v1alpha1\n   kind: Component\n   metadata:\n     name: {{ project }}\n     description: <from CLAUDE.md or package.json>\n     annotations:\n       backstage.io/techdocs-ref: dir:.\n     tags:\n       - <primary-language>\n       - <primary-framework>\n   spec:\n     type: <detected-kind-backstage-type>\n     lifecycle: production\n     owner: <from config or 'platform-team'>\n   ```\n\n3. **Document assessment** in `.tickets/assessments/{{ id }}.md`:\n   - Kind detected with confidence score\n   - Key technologies found\n   - Commands available\n   - Entry points identified",
+      "prompt": "Generate output files from the analysis JSON:\n\n1. **Write `project-context.json`** (for AI agents):\n   - Save the complete structured analysis JSON to project root\n   - This is the primary output for AI consumption\n\n2. **Write `catalog-info.yaml`** (for project catalog):\n   ```yaml\n   apiVersion: backstage.io/v1alpha1\n   kind: Component\n   metadata:\n     name: {{ project }}\n     description: <from CLAUDE.md or package.json>\n     annotations:\n       backstage.io/techdocs-ref: dir:.\n     tags:\n       - <primary-language>\n       - <primary-framework>\n   spec:\n     type: <detected-kind-catalog-type>\n     lifecycle: production\n     owner: <from config or 'platform-team'>\n   ```\n\n3. **Document assessment** in `.tickets/assessments/{{ id }}.md`:\n   - Kind detected with confidence score\n   - Key technologies found\n   - Commands available\n   - Entry points identified",
       "allowed_tools": ["Read", "Write", "Edit"],
       "review_type": "plan",
       "on_reject": {

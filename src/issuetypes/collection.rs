@@ -98,10 +98,10 @@ pub enum BuiltinPreset {
     DevKanban,
     /// DevOps Kanban: TASK, SPIKE, INV, FEAT, FIX
     DevopsKanban,
-    /// Operator: ASSESS, SYNC, INIT (Backstage operations)
+    /// Operator: ASSESS, SYNC, INIT (automation operations)
     Operator,
-    /// Backstage Full: DevOps + Operator types
-    BackstageFull,
+    /// Full: DevOps + Operator types
+    Full,
 }
 
 impl BuiltinPreset {
@@ -112,7 +112,7 @@ impl BuiltinPreset {
             BuiltinPreset::DevKanban,
             BuiltinPreset::DevopsKanban,
             BuiltinPreset::Operator,
-            BuiltinPreset::BackstageFull,
+            BuiltinPreset::Full,
         ]
     }
 
@@ -123,7 +123,7 @@ impl BuiltinPreset {
             BuiltinPreset::DevKanban => "dev_kanban",
             BuiltinPreset::DevopsKanban => "devops_kanban",
             BuiltinPreset::Operator => "operator",
-            BuiltinPreset::BackstageFull => "backstage_full",
+            BuiltinPreset::Full => "full",
         }
     }
 
@@ -133,8 +133,8 @@ impl BuiltinPreset {
             BuiltinPreset::Simple => "Simple workflow with TASK only",
             BuiltinPreset::DevKanban => "Developer kanban with TASK, FEAT, FIX",
             BuiltinPreset::DevopsKanban => "DevOps kanban with TASK, SPIKE, INV, FEAT, FIX",
-            BuiltinPreset::Operator => "Operator Backstage tasks: ASSESS, SYNC, INIT",
-            BuiltinPreset::BackstageFull => "Full workflow plus Backstage: all types combined",
+            BuiltinPreset::Operator => "Operator automation tasks: ASSESS, SYNC, INIT",
+            BuiltinPreset::Full => "Full workflow: all types combined",
         }
     }
 
@@ -152,8 +152,8 @@ impl BuiltinPreset {
             }
             BuiltinPreset::Operator => IssueTypeCollection::new("operator", self.description())
                 .with_types(["ASSESS", "SYNC", "INIT"]),
-            BuiltinPreset::BackstageFull => {
-                IssueTypeCollection::new("backstage_full", self.description()).with_types([
+            BuiltinPreset::Full => {
+                IssueTypeCollection::new("full", self.description()).with_types([
                     "TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT",
                 ])
             }
@@ -167,7 +167,7 @@ impl BuiltinPreset {
             "dev_kanban" | "devkanban" => Some(BuiltinPreset::DevKanban),
             "devops_kanban" | "devopskanban" => Some(BuiltinPreset::DevopsKanban),
             "operator" => Some(BuiltinPreset::Operator),
-            "backstage_full" | "backstagefull" => Some(BuiltinPreset::BackstageFull),
+            "full" => Some(BuiltinPreset::Full),
             _ => None,
         }
     }
@@ -267,10 +267,7 @@ mod tests {
             BuiltinPreset::from_name("operator"),
             Some(BuiltinPreset::Operator)
         );
-        assert_eq!(
-            BuiltinPreset::from_name("backstage_full"),
-            Some(BuiltinPreset::BackstageFull)
-        );
+        assert_eq!(BuiltinPreset::from_name("full"), Some(BuiltinPreset::Full));
         assert_eq!(BuiltinPreset::from_name("unknown"), None);
     }
 
@@ -282,9 +279,9 @@ mod tests {
     }
 
     #[test]
-    fn test_builtin_backstage_full() {
-        let collection = BuiltinPreset::BackstageFull.into_collection();
-        assert_eq!(collection.name, "backstage_full");
+    fn test_builtin_full() {
+        let collection = BuiltinPreset::Full.into_collection();
+        assert_eq!(collection.name, "full");
         assert_eq!(
             collection.types,
             vec!["TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT"]

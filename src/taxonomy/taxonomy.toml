@@ -3,7 +3,7 @@
 # This file defines the 24-Kind project taxonomy used by:
 # - Rust code (parsed at compile time)
 # - Documentation generation
-# - Backstage catalog schema extension
+# - project classification schema extension
 # - Project assessment and Kind detection
 #
 # To add a new Kind:
@@ -14,7 +14,7 @@
 
 [meta]
 version = "1.0.0"
-description = "Operator project taxonomy for Backstage catalog"
+description = "Operator project taxonomy for project classification"
 
 # Tiers organize Kinds into logical groups
 # Each tier has an ID range for its Kinds
@@ -114,7 +114,7 @@ file_patterns = [
     "serverless.yml",
     "terraform.tfstate",
 ]
-backstage_type = "resource"
+catalog_type = "resource"
 
 [[kinds]]
 id = 2
@@ -135,7 +135,7 @@ file_patterns = [
     ".vault/*",
     "vault-*.hcl",
 ]
-backstage_type = "resource"
+catalog_type = "resource"
 
 [[kinds]]
 id = 3
@@ -156,7 +156,7 @@ file_patterns = [
     "feature-flags.json",
     "launchdarkly*.yaml",
 ]
-backstage_type = "resource"
+catalog_type = "resource"
 
 [[kinds]]
 id = 4
@@ -177,7 +177,7 @@ file_patterns = [
     "CLAUDE.md",
     "CONTRIBUTING.md",
 ]
-backstage_type = "system"
+catalog_type = "system"
 
 # =============================================================================
 # STANDARDS TIER (5-10)
@@ -202,7 +202,7 @@ file_patterns = [
     "figma-tokens.json",
     "style-dictionary.config.*",
 ]
-backstage_type = "library"
+catalog_type = "library"
 
 [[kinds]]
 id = 6
@@ -222,7 +222,7 @@ file_patterns = [
     "setup.py",
     "pyproject.toml",
 ]
-backstage_type = "library"
+catalog_type = "library"
 
 [[kinds]]
 id = 7
@@ -246,7 +246,7 @@ file_patterns = [
     "buf.yaml",
     "buf.gen.yaml",
 ]
-backstage_type = "api"
+catalog_type = "api"
 
 [[kinds]]
 id = 8
@@ -266,7 +266,7 @@ file_patterns = [
     "blueprint/*",
     ".scaffold/*",
 ]
-backstage_type = "template"
+catalog_type = "template"
 
 [[kinds]]
 id = 9
@@ -288,7 +288,7 @@ file_patterns = [
     "bandit.yaml",
     "safety/*",
 ]
-backstage_type = "tool"
+catalog_type = "tool"
 
 [[kinds]]
 id = 10
@@ -309,7 +309,7 @@ file_patterns = [
     "attestations/*",
     "controls/*.yaml",
 ]
-backstage_type = "documentation"
+catalog_type = "documentation"
 
 # =============================================================================
 # ENGINES TIER (11-16)
@@ -338,7 +338,7 @@ file_patterns = [
     "dvc.yaml",
     "dvc.lock",
 ]
-backstage_type = "service"
+catalog_type = "service"
 
 [[kinds]]
 id = 12
@@ -359,7 +359,7 @@ file_patterns = [
     "dagster.yaml",
     "fivetran/*",
 ]
-backstage_type = "service"
+catalog_type = "service"
 
 [[kinds]]
 id = 13
@@ -381,7 +381,7 @@ file_patterns = [
     "Dockerfile",
     "docker-compose.yml",
 ]
-backstage_type = "service"
+catalog_type = "service"
 
 [[kinds]]
 id = 14
@@ -403,7 +403,7 @@ file_patterns = [
     "routes/*",
     "api/*.yaml",
 ]
-backstage_type = "api"
+catalog_type = "api"
 
 [[kinds]]
 id = 15
@@ -426,7 +426,7 @@ file_patterns = [
     "angular.json",
     "expo/*",
 ]
-backstage_type = "website"
+catalog_type = "website"
 
 [[kinds]]
 id = 16
@@ -444,7 +444,7 @@ file_patterns = [
     "retool/*",
     "metabase/*",
 ]
-backstage_type = "service"
+catalog_type = "service"
 
 # =============================================================================
 # ECOSYSTEM TIER (17-21)
@@ -471,7 +471,7 @@ file_patterns = [
     "Makefile",
     "Taskfile.yml",
 ]
-backstage_type = "tool"
+catalog_type = "tool"
 
 [[kinds]]
 id = 18
@@ -493,7 +493,7 @@ file_patterns = [
     "k6/*",
     "locust/*",
 ]
-backstage_type = "tool"
+catalog_type = "tool"
 
 [[kinds]]
 id = 19
@@ -515,7 +515,7 @@ file_patterns = [
     "conf.py",  # Sphinx
     "book.toml",  # mdBook
 ]
-backstage_type = "website"
+catalog_type = "website"
 
 [[kinds]]
 id = 20
@@ -534,7 +534,7 @@ file_patterns = [
     "sops/*",
     "procedures/*",
 ]
-backstage_type = "documentation"
+catalog_type = "documentation"
 
 [[kinds]]
 id = 21
@@ -553,7 +553,7 @@ file_patterns = [
     "*.sh",
     "Justfile",
 ]
-backstage_type = "tool"
+catalog_type = "tool"
 
 # =============================================================================
 # NONCURRENT TIER (22-25)
@@ -576,7 +576,7 @@ file_patterns = [
     "quickstart/*",
     "getting-started/*",
 ]
-backstage_type = "documentation"
+catalog_type = "documentation"
 
 [[kinds]]
 id = 23
@@ -595,7 +595,7 @@ file_patterns = [
     "scratch/*",
     "playground/*",
 ]
-backstage_type = "service"
+catalog_type = "service"
 
 [[kinds]]
 id = 24
@@ -614,7 +614,7 @@ file_patterns = [
     "legacy/*",
     "deprecated/*",
 ]
-backstage_type = "library"
+catalog_type = "library"
 
 [[kinds]]
 id = 25
@@ -638,4 +638,4 @@ file_patterns = [
     "*.seed.sql",
     "db/seeds/*",
 ]
-backstage_type = "resource"
+catalog_type = "resource"

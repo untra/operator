@@ -7,7 +7,7 @@ on:
     paths:
       - 'docs/**'
       - 'src/docs_gen/**'
-      - 'src/backstage/taxonomy.toml'
+      - 'src/taxonomy/taxonomy.toml'
       - 'src/templates/*.json'
       - '.github/workflows/docs.yml'
   workflow_dispatch:

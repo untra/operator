@@ -1,4 +1,3 @@
-use crate::backstage::ServerStatus;
 use crate::rest::RestApiStatus;
 use crate::ui::status_panel::{
     ActionMeta, ActionSet, McpHttpStatus, SectionHealth, SectionId, StatusAction, StatusIcon,
@@ -25,28 +24,11 @@ impl StatusSection for ConnectionsSection {
         let api_starting = matches!(snapshot.api_status, RestApiStatus::Starting);
         let wrapper_ok = snapshot.wrapper_connection_status.is_connected();
 
-        // When backstage is hidden, health is based on API + wrapper only
-        if !snapshot.backstage_display {
-            return match (api_ok, wrapper_ok) {
-                (true, true) => SectionHealth::Green,
-                _ if api_starting => SectionHealth::Yellow,
-                (true, false) | (false, true) => SectionHealth::Yellow,
-                (false, false) => SectionHealth::Red,
-            };
-        }
-
-        // When backstage is displayed, include it in health
-        let bs_ok = matches!(snapshot.backstage_status, ServerStatus::Running { .. });
-        let bs_starting = matches!(snapshot.backstage_status, ServerStatus::Starting);
-        let all_ok = api_ok && bs_ok && wrapper_ok;
-        let any_starting = api_starting || bs_starting;
-
-        if all_ok {
-            SectionHealth::Green
-        } else if any_starting || api_ok || bs_ok || wrapper_ok {
-            SectionHealth::Yellow
-        } else {
-            SectionHealth::Red
+        match (api_ok, wrapper_ok) {
+            (true, true) => SectionHealth::Green,
+            _ if api_starting => SectionHealth::Yellow,
+            (true, false) | (false, true) => SectionHealth::Yellow,
+            (false, false) => SectionHealth::Red,
         }
     }
 
@@ -237,24 +219,6 @@ impl StatusSection for ConnectionsSection {
             health: SectionHealth::Gray,
         });
 
-        // 4. Backstage (conditionally displayed)
-        if snapshot.backstage_display {
-            rows.push(TreeRow {
-                section_id: SectionId::Connections,
-                depth: 1,
-                label: "Backstage".into(),
-                description: format!("{:?}", snapshot.backstage_status),
-                icon: if matches!(snapshot.backstage_status, ServerStatus::Running { .. }) {
-                    StatusIcon::Check
-                } else {
-                    StatusIcon::Cross
-                },
-                is_header: false,
-                actions: ActionSet::primary(StatusAction::ToggleBackstage),
-                health: SectionHealth::Gray,
-            });
-        }
-
         rows
     }
 }
@@ -274,8 +238,6 @@ mod tests {
             wrapper_type: "tmux".into(),
             operator_version: "0.1.28".into(),
             api_status: RestApiStatus::Running { port: 7008 },
-            backstage_status: ServerStatus::Stopped,
-            backstage_display: false,
             kanban_providers: vec![],
             llm_tools: vec![],
             default_llm_tool: None,
@@ -425,29 +387,6 @@ mod tests {
         assert!(matches!(web_ui_row.icon, StatusIcon::Cross));
         assert_eq!(web_ui_row.description, "API stopped");
         assert_eq!(web_ui_row.actions.primary, StatusAction::StartApi);
-    }
-
-    #[test]
-    fn test_connections_backstage_hidden_by_default() {
-        let section = ConnectionsSection;
-        let snap = base_snapshot();
-        let children = section.children(&snap);
-        assert!(
-            !children.iter().any(|r| r.label == "Backstage"),
-            "Backstage should be hidden when backstage_display is false"
-        );
-    }
-
-    #[test]
-    fn test_connections_backstage_shown_when_display_true() {
-        let section = ConnectionsSection;
-        let mut snap = base_snapshot();
-        snap.backstage_display = true;
-        let children = section.children(&snap);
-        assert!(
-            children.iter().any(|r| r.label == "Backstage"),
-            "Backstage should be shown when backstage_display is true"
-        );
     }
 
     #[test]

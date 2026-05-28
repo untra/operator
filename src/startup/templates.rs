@@ -215,16 +215,16 @@ mod tests {
         assert!(templates_path.join("dev_kanban").exists());
         assert!(templates_path.join("devops_kanban").exists());
         assert!(templates_path.join("operator").exists());
-        assert!(templates_path.join("backstage_full").exists());
+        assert!(templates_path.join("full").exists());
 
-        // backstage_full should have all 8 issuetypes
-        assert!(templates_path.join("backstage_full/TASK.json").exists());
-        assert!(templates_path.join("backstage_full/FEAT.json").exists());
-        assert!(templates_path.join("backstage_full/FIX.json").exists());
-        assert!(templates_path.join("backstage_full/SPIKE.json").exists());
-        assert!(templates_path.join("backstage_full/INV.json").exists());
-        assert!(templates_path.join("backstage_full/ASSESS.json").exists());
-        assert!(templates_path.join("backstage_full/SYNC.json").exists());
-        assert!(templates_path.join("backstage_full/INIT.json").exists());
+        // full should have all 8 issuetypes
+        assert!(templates_path.join("full/TASK.json").exists());
+        assert!(templates_path.join("full/FEAT.json").exists());
+        assert!(templates_path.join("full/FIX.json").exists());
+        assert!(templates_path.join("full/SPIKE.json").exists());
+        assert!(templates_path.join("full/INV.json").exists());
+        assert!(templates_path.join("full/ASSESS.json").exists());
+        assert!(templates_path.join("full/SYNC.json").exists());
+        assert!(templates_path.join("full/INIT.json").exists());
     }
 }

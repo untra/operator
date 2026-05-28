@@ -41,11 +41,6 @@ cargo run
 cd vscode-extension && npm run lint && npm run compile
 ```
 
-**backstage-server** (TypeScript/Bun):
-```bash
-cd backstage-server && bun run lint && bun run typecheck && bun test
-```
-
 ### Test-Driven Development (TDD)
 
 This project follows TDD practices:
@@ -206,7 +201,7 @@ Operator uses a schema-driven, code-derived documentation strategy to reduce mai
 
 | File | Generates | Purpose |
 |------|-----------|---------|
-| `src/backstage/taxonomy.toml` | `docs/backstage/taxonomy.md` | 25 project Kinds across 5 tiers |
+| `src/taxonomy/taxonomy.toml` | `docs/taxonomy/index.md` | 25 project Kinds across 5 tiers |
 | `src/schemas/issuetype_schema.json` | `docs/schemas/issuetype.md` | Issue type structure (key, mode, fields, steps) |
 | `src/schemas/ticket_metadata.schema.json` | `docs/schemas/metadata.md` | Ticket YAML frontmatter format |
 | `src/ui/keybindings.rs` | `docs/shortcuts/index.md` | Keyboard shortcuts by context |

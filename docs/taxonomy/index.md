@@ -3,25 +3,25 @@ title: "Project Taxonomy"
 layout: doc
 ---
 
-<!-- AUTO-GENERATED FROM src/backstage/taxonomy.toml - DO NOT EDIT MANUALLY -->
+<!-- AUTO-GENERATED FROM src/taxonomy/taxonomy.toml - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
 # Project Taxonomy
 
 This document defines the **25 project Kinds** organized into **5 tiers**.
 
-Each Kind represents a category of project that can be cataloged in Backstage. The taxonomy is used by the `ASSESS` issue type to classify projects and generate `catalog-info.yaml` files.
+Each Kind represents a category of project that can be classified by Operator. The taxonomy is used by the `ASSESS` issue type to classify projects and generate `catalog-info.yaml` files.
 
 ## Version
 
 - **Version**: `1.0.0`
-- **Description**: Operator project taxonomy for Backstage catalog
+- **Description**: Operator project taxonomy for project classification
 
 ## Quick Reference
 
 All 24 Kinds at a glance:
 
-| ID | Key | Name | Tier | Backstage Type |
+| ID | Key | Name | Tier | Catalog Type |
 | --- | --- | --- | --- | --- |
 | 1 | `infrastructure` | Infrastructure (IaC) | foundation | `resource` |
 | 2 | `identity-access` | Identity & Access (IAM) | foundation | `resource` |
@@ -67,7 +67,7 @@ Cloud resources and network (Terraform/CDK)
 - **Key**: `infrastructure`
 - **Stakeholder**: Platform/DevOps
 - **Primary Output**: Cloud Environment
-- **Backstage Type**: `resource`
+- **Catalog Type**: `resource`
 
 **Detection** File Patterns:
 - `*.tf`
@@ -88,7 +88,7 @@ Service accounts, secrets, and RBAC policies
 - **Key**: `identity-access`
 - **Stakeholder**: SDET/SecOps
 - **Primary Output**: Permissions/Tokens
-- **Backstage Type**: `resource`
+- **Catalog Type**: `resource`
 
 **Detection** File Patterns:
 - `iam-*.yaml`
@@ -108,7 +108,7 @@ Global feature flags and environment manifests
 - **Key**: `config-policy`
 - **Stakeholder**: Platform/DevOps
 - **Primary Output**: Runtime Behavior
-- **Backstage Type**: `resource`
+- **Catalog Type**: `resource`
 
 **Detection** File Patterns:
 - `config/*.yaml`
@@ -128,7 +128,7 @@ Orchestration for projects and root standards
 - **Key**: `monorepo-meta`
 - **Stakeholder**: Architect/Lead
 - **Primary Output**: Project Standards
-- **Backstage Type**: `system`
+- **Catalog Type**: `system`
 
 **Detection** File Patterns:
 - `nx.json`
@@ -161,7 +161,7 @@ Reusable UI components and brand tokens
 - **Key**: `design-system`
 - **Stakeholder**: Product/UX
 - **Primary Output**: Component Libraries
-- **Backstage Type**: `library`
+- **Catalog Type**: `library`
 
 **Detection** File Patterns:
 - `tokens/*.json`
@@ -180,7 +180,7 @@ Reusable internal logic packages (Shared Utils)
 - **Key**: `software-library`
 - **Stakeholder**: Engineering
 - **Primary Output**: Versioned Packages
-- **Backstage Type**: `library`
+- **Catalog Type**: `library`
 
 **Detection** File Patterns:
 - `lib/*`
@@ -199,7 +199,7 @@ API contracts and generated client libraries
 - **Key**: `proto-sdk`
 - **Stakeholder**: Engineering
 - **Primary Output**: Contract Libraries
-- **Backstage Type**: `api`
+- **Catalog Type**: `api`
 
 **Detection** File Patterns:
 - `*.proto`
@@ -222,7 +222,7 @@ Scaffolding templates for bootstrapping repos
 - **Key**: `blueprint`
 - **Stakeholder**: Architect/Lead
 - **Primary Output**: Project Templates
-- **Backstage Type**: `template`
+- **Catalog Type**: `template`
 
 **Detection** File Patterns:
 - `template.yaml`
@@ -241,7 +241,7 @@ Custom scanners, audit scripts, and honeytokens
 - **Key**: `security-tooling`
 - **Stakeholder**: SDET/SecOps
 - **Primary Output**: Security Reports
-- **Backstage Type**: `tool`
+- **Catalog Type**: `tool`
 
 **Detection** File Patterns:
 - `security/*`
@@ -262,7 +262,7 @@ Evidence, snapshots, and regulatory reports
 - **Key**: `compliance-audit`
 - **Stakeholder**: SDET/SecOps
 - **Primary Output**: Compliance Proofs
-- **Backstage Type**: `documentation`
+- **Catalog Type**: `documentation`
 
 **Detection** File Patterns:
 - `compliance/*`
@@ -295,7 +295,7 @@ Training scripts and model weight artifacts
 - **Key**: `ml-model`
 - **Stakeholder**: Data/ML
 - **Primary Output**: Model Artifacts
-- **Backstage Type**: `service`
+- **Catalog Type**: `service`
 
 **Detection** File Patterns:
 - `model/*`
@@ -318,7 +318,7 @@ Data transformation logic and SQL models
 - **Key**: `data-etl`
 - **Stakeholder**: Data/ML
 - **Primary Output**: Clean Datasets
-- **Backstage Type**: `service`
+- **Catalog Type**: `service`
 
 **Detection** File Patterns:
 - `dbt_project.yml`
@@ -338,7 +338,7 @@ Backend business logic and domain units
 - **Key**: `microservice`
 - **Stakeholder**: Engineering
 - **Primary Output**: Running Binaries
-- **Backstage Type**: `service`
+- **Catalog Type**: `service`
 
 **Detection** File Patterns:
 - `src/main.rs`
@@ -359,7 +359,7 @@ Entry points that route and protect traffic
 - **Key**: `api-gateway`
 - **Stakeholder**: Engineering
 - **Primary Output**: Network Endpoints
-- **Backstage Type**: `api`
+- **Catalog Type**: `api`
 
 **Detection** File Patterns:
 - `gateway/*`
@@ -380,7 +380,7 @@ Web or mobile apps for end-user interaction
 - **Key**: `ui-frontend`
 - **Stakeholder**: Engineering
 - **Primary Output**: Web/Mobile Assets
-- **Backstage Type**: `website`
+- **Catalog Type**: `website`
 
 **Detection** File Patterns:
 - `src/App.tsx`
@@ -402,7 +402,7 @@ Private apps for internal business operations
 - **Key**: `internal-tool`
 - **Stakeholder**: Engineering
 - **Primary Output**: Operational Apps
-- **Backstage Type**: `service`
+- **Catalog Type**: `service`
 
 **Detection** File Patterns:
 - `admin/*`
@@ -431,7 +431,7 @@ CI/CD actions and custom build logic
 - **Key**: `build-tool`
 - **Stakeholder**: Platform/DevOps
 - **Primary Output**: Automated Pipelines
-- **Backstage Type**: `tool`
+- **Catalog Type**: `tool`
 
 **Detection** File Patterns:
 - `.github/workflows/*`
@@ -452,7 +452,7 @@ Integration tests and smoke test runners
 - **Key**: `e2e-test`
 - **Stakeholder**: SDET/SecOps
 - **Primary Output**: Quality Reports
-- **Backstage Type**: `tool`
+- **Catalog Type**: `tool`
 
 **Detection** File Patterns:
 - `e2e/*`
@@ -473,7 +473,7 @@ Documentation, tutorials, and references
 - **Key**: `docs-site`
 - **Stakeholder**: Product/UX
 - **Primary Output**: Static Support Sites
-- **Backstage Type**: `website`
+- **Catalog Type**: `website`
 
 **Detection** File Patterns:
 - `docs/*`
@@ -494,7 +494,7 @@ Incident response and on-call runbooks
 - **Key**: `playbook`
 - **Stakeholder**: Platform/DevOps
 - **Primary Output**: Operational Guides
-- **Backstage Type**: `documentation`
+- **Catalog Type**: `documentation`
 
 **Detection** File Patterns:
 - `playbooks/*`
@@ -512,7 +512,7 @@ Productivity scripts and developer utilities
 - **Key**: `cli-devtool`
 - **Stakeholder**: Platform/DevOps
 - **Primary Output**: Developer UX Tools
-- **Backstage Type**: `tool`
+- **Catalog Type**: `tool`
 
 **Detection** File Patterns:
 - `cli/*`
@@ -541,7 +541,7 @@ Best-practice implementation examples
 - **Key**: `reference-example`
 - **Stakeholder**: Architect/Lead
 - **Primary Output**: Educational Code
-- **Backstage Type**: `documentation`
+- **Catalog Type**: `documentation`
 
 **Detection** File Patterns:
 - `examples/*`
@@ -558,7 +558,7 @@ Proof-of-concepts and R&D "spikes"
 - **Key**: `experiment-sandbox`
 - **Stakeholder**: Engineering
 - **Primary Output**: Discardable Code
-- **Backstage Type**: `service`
+- **Catalog Type**: `service`
 
 **Detection** File Patterns:
 - `experiments/*`
@@ -576,7 +576,7 @@ Legacy code and forks of 3rd party repos
 - **Key**: `archival-fork`
 - **Stakeholder**: SDET/SecOps
 - **Primary Output**: Historical/Vendor Code
-- **Backstage Type**: `library`
+- **Catalog Type**: `library`
 
 **Detection** File Patterns:
 - `vendor/*`
@@ -594,7 +594,7 @@ Repositories containing test data, fixtures, seed data, and mock datasets
 - **Key**: `test-data-fixtures`
 - **Stakeholder**: SDET/SecOps
 - **Primary Output**: Test Data Assets
-- **Backstage Type**: `resource`
+- **Catalog Type**: `resource`
 
 **Detection** File Patterns:
 - `fixtures/*`
@@ -901,11 +901,11 @@ Patterns use glob syntax:
 - `*.seed.sql`
 - `db/seeds/*`
 
-## Backstage Type Mapping
+## Catalog Type Mapping
 
-Each Kind maps to a Backstage catalog type:
+Each Kind maps to a catalog type:
 
-| Backstage Type | Kinds |
+| Catalog Type | Kinds |
 | --- | --- |
 | `api` | `proto-sdk`, `api-gateway` |
 | `documentation` | `compliance-audit`, `playbook`, `reference-example` |

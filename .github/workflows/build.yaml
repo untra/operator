@@ -14,7 +14,6 @@ on:
       - 'Cargo.lock'
       - 'docs/**'
       - '.github/workflows/docs.yml'
-      - 'backstage-server/package.json'
       - 'vscode-extension/package.json'
       - 'vscode-extension/src/webhook-server.ts'
   pull_request:
@@ -220,19 +219,15 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            bun_target: bun-linux-x64
             artifact_name: operator-linux-x86_64
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
-            bun_target: bun-linux-arm64
             artifact_name: operator-linux-arm64
           - os: macos-14
             target: aarch64-apple-darwin
-            bun_target: bun-darwin-arm64
             artifact_name: operator-macos-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            bun_target: bun-windows-x64
             artifact_name: operator-windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     steps:
@@ -253,18 +248,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
 
-      # Check if backstage-server exists (Milestone 6)
-      - name: Check for backstage-server
-        id: backstage
-        shell: bash
-        run: |
-          if [ -d "backstage-server" ] && [ -f "backstage-server/package.json" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      # Install Bun (for embedded UI build + optional backstage-server)
+      # Install Bun (for embedded UI build)
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -277,31 +261,9 @@ jobs:
           bun install --frozen-lockfile
           bun run build
 
-      # Install backstage-server dependencies
-      - name: Install backstage dependencies
-        if: steps.backstage.outputs.exists == 'true'
-        run: |
-          cd backstage-server
-          bun install --frozen-lockfile
-
       # Build release with embedded UI
       - name: Build release
         run: cargo build --locked --release --features embed-ui --target ${{ matrix.target }}
-
-      # Build backstage frontend and compile binary (after cargo build creates target/)
-      # This builds the React frontend, generates embedded assets, then compiles
-      - name: Build backstage binary
-        if: steps.backstage.outputs.exists == 'true'
-        shell: bash
-        run: |
-          cd backstage-server
-          # Build frontend, generate embeds, compile binary
-          bun run build
-          # Ensure target directory exists (belt-and-suspenders)
-          mkdir -p ../target
-          # Move binary to target directory with platform suffix
-          mv dist/backstage-server ../target/backstage-server-${{ matrix.bun_target }}
-          ls -la ../target/backstage-server-*
 
       - name: Rename binary
         shell: bash
@@ -328,36 +290,11 @@ jobs:
           APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
         run: scripts/notarize.sh "${{ matrix.artifact_name }}"
 
-      # PAUSED: codesign/notarize of macOS backstage-server binary is temporarily disabled.
-      # Re-enable by uncommenting the two steps below.
-      # - name: Codesign backstage-server binary
-      #   if: matrix.os == 'macos-14' && steps.backstage.outputs.exists == 'true'
-      #   env:
-      #     APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
-      #     APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      #   run: scripts/codesign.sh "target/backstage-server-${{ matrix.bun_target }}"
-      #
-      # - name: Notarize backstage-server binary
-      #   if: matrix.os == 'macos-14' && steps.backstage.outputs.exists == 'true'
-      #   env:
-      #     APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
-      #     APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
-      #     APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-      #   run: scripts/notarize.sh "target/backstage-server-${{ matrix.bun_target }}"
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}
-
-      # Upload backstage binary artifact
-      - name: Upload backstage artifact
-        if: steps.backstage.outputs.exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: backstage-server-${{ matrix.bun_target }}
-          path: target/backstage-server-${{ matrix.bun_target }}
 
   build-opr8r:
     needs: lint-test
@@ -493,7 +430,6 @@ jobs:
 
       - name: Update package.json versions
         run: |
-          jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' backstage-server/package.json > tmp.json && mv tmp.json backstage-server/package.json
           jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' vscode-extension/package.json > tmp.json && mv tmp.json vscode-extension/package.json
 
       - name: Update opr8r Cargo.toml version
@@ -510,7 +446,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION Cargo.toml Cargo.lock docs/_config.yml \
-            backstage-server/package.json \
             vscode-extension/package.json \
             vscode-extension/src/webhook-server.ts \
             opr8r/Cargo.toml opr8r/Cargo.lock
@@ -527,8 +462,6 @@ jobs:
           mkdir -p release-assets
           # Copy operator binaries
           find artifacts -type f -name 'operator-*' -exec cp {} release-assets/ \;
-          # Copy backstage-server binaries (if built)
-          find artifacts -type f -name 'backstage-server-*' -exec cp {} release-assets/ \; 2>/dev/null || true
           # Copy opr8r binaries
           find artifacts -type f -name 'opr8r-*' -exec cp {} release-assets/ \;
           chmod +x release-assets/*
@@ -549,10 +482,6 @@ jobs:
           OP_LINUX_ARM=$(sha256sum release-assets/operator-linux-arm64 | cut -d' ' -f1)
           OP_LINUX_X86=$(sha256sum release-assets/operator-linux-x86_64 | cut -d' ' -f1)
           OP_WIN=$(sha256sum release-assets/operator-windows-x86_64.exe | cut -d' ' -f1)
-          BS_DARWIN=$(sha256sum release-assets/backstage-server-bun-darwin-arm64 | cut -d' ' -f1)
-          BS_LINUX_ARM=$(sha256sum release-assets/backstage-server-bun-linux-arm64 | cut -d' ' -f1)
-          BS_LINUX_X64=$(sha256sum release-assets/backstage-server-bun-linux-x64 | cut -d' ' -f1)
-          BS_WIN=$(sha256sum release-assets/backstage-server-bun-windows-x64 | cut -d' ' -f1)
 
           cat > docs/_data/checksums.yml << EOF
           # SHA256 checksums - AUTO-GENERATED BY CI
@@ -563,12 +492,6 @@ jobs:
             linux_arm64: "${OP_LINUX_ARM}"
             linux_x86_64: "${OP_LINUX_X86}"
             windows_x86_64: "${OP_WIN}"
-
-          backstage:
-            darwin_arm64: "${BS_DARWIN}"
-            linux_arm64: "${BS_LINUX_ARM}"
-            linux_x64: "${BS_LINUX_X64}"
-            windows_x64: "${BS_WIN}"
           EOF
 
       - name: Commit checksums

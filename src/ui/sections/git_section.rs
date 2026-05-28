@@ -150,7 +150,6 @@ impl StatusSection for GitSection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backstage::ServerStatus;
     use crate::rest::RestApiStatus;
     use crate::ui::status_panel::{
         DelegatorInfo, KanbanProviderInfo, LlmToolInfo, WrapperConnectionStatus,
@@ -166,8 +165,6 @@ mod tests {
             wrapper_type: "tmux".into(),
             operator_version: "0.1.28".into(),
             api_status: RestApiStatus::Running { port: 7008 },
-            backstage_status: ServerStatus::Stopped,
-            backstage_display: false,
             kanban_providers: vec![],
             llm_tools: vec![],
             delegators: vec![],

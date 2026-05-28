@@ -8,7 +8,8 @@ use axum::{
 };
 
 use crate::rest::dto::{
-    ActiveAgentResponse, ActiveAgentsResponse, RejectReviewRequest, ReviewResponse,
+    ActiveAgentResponse, ActiveAgentsResponse, AgentDetailResponse, RejectReviewRequest,
+    ReviewResponse,
 };
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
@@ -60,6 +61,56 @@ pub async fn active(State(state): State<ApiState>) -> Result<Json<ActiveAgentsRe
     let count = agents.len();
 
     Ok(Json(ActiveAgentsResponse { agents, count }))
+}
+
+/// Get details for a single agent by ID
+///
+/// Returns full details for a specific agent, including all tracked state.
+#[utoipa::path(
+    get,
+    path = "/api/v1/agents/{agent_id}",
+    tag = "Agents",
+    params(
+        ("agent_id" = String, Path, description = "The agent ID to look up")
+    ),
+    responses(
+        (status = 200, description = "Agent details", body = AgentDetailResponse),
+        (status = 404, description = "Agent not found")
+    )
+)]
+pub async fn get_detail(
+    State(state): State<ApiState>,
+    Path(agent_id): Path<String>,
+) -> Result<Json<AgentDetailResponse>, ApiError> {
+    let operator_state = OperatorState::load(&state.config)
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
+
+    let agent = operator_state
+        .agents
+        .iter()
+        .find(|a| a.id == agent_id)
+        .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
+
+    Ok(Json(AgentDetailResponse {
+        id: agent.id.clone(),
+        ticket_id: agent.ticket_id.clone(),
+        ticket_type: agent.ticket_type.clone(),
+        project: agent.project.clone(),
+        status: agent.status.clone(),
+        started_at: agent.started_at.to_rfc3339(),
+        last_activity: agent.last_activity.to_rfc3339(),
+        current_step: agent.current_step.clone(),
+        llm_tool: agent.llm_tool.clone(),
+        llm_model: agent.llm_model.clone(),
+        launch_mode: agent.launch_mode.clone(),
+        pr_url: agent.pr_url.clone(),
+        pr_status: agent.pr_status.clone(),
+        session_wrapper: agent.session_wrapper.clone(),
+        review_state: agent.review_state.clone(),
+        completed_steps: agent.completed_steps.clone(),
+        worktree_path: agent.worktree_path.clone(),
+        paired: agent.paired,
+    }))
 }
 
 /// Approve an agent's pending review

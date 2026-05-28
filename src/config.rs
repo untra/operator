@@ -1,5 +1,3 @@
-#[path = "config/backstage_config.rs"]
-pub mod backstage_config;
 #[path = "config/git_config.rs"]
 pub mod git_config;
 #[path = "config/kanban.rs"]
@@ -11,7 +9,6 @@ pub mod notifications_config;
 #[path = "config/sessions.rs"]
 pub mod sessions;
 
-pub use backstage_config::*;
 pub use git_config::*;
 pub use kanban::*;
 pub use llm_tools::*;
@@ -49,8 +46,6 @@ pub struct Config {
     pub sessions: SessionsConfig,
     #[serde(default)]
     pub llm_tools: LlmToolsConfig,
-    #[serde(default)]
-    pub backstage: BackstageConfig,
     #[serde(default)]
     pub rest_api: RestApiConfig,
     #[serde(default)]
@@ -773,11 +768,6 @@ impl Config {
         self.tickets_path().join("operator").join("tmux-status.sh")
     }
 
-    /// Get absolute path to Backstage installation directory
-    pub fn backstage_path(&self) -> PathBuf {
-        self.state_path().join(&self.backstage.subpath)
-    }
-
     /// Get priority index for a ticket type (lower = higher priority)
     pub fn priority_index(&self, ticket_type: &str) -> usize {
         self.queue
@@ -853,7 +843,6 @@ impl Default for Config {
             tmux: TmuxConfig::default(),
             sessions: SessionsConfig::default(),
             llm_tools: LlmToolsConfig::default(),
-            backstage: BackstageConfig::default(),
             rest_api: RestApiConfig::default(),
             git: GitConfig::default(),
             kanban: KanbanConfig::default(),

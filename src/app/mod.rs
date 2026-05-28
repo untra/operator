@@ -8,7 +8,6 @@ use tokio::sync::{mpsc, RwLock};
 
 use crate::agents::tmux::SystemTmuxClient;
 use crate::agents::{SessionMonitor, TicketSessionSync};
-use crate::backstage::BackstageServer;
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
 use crate::notifications::NotificationService;
@@ -66,8 +65,6 @@ pub struct App {
     pub(crate) ticket_sync: TicketSessionSync,
     /// Last sync status message for display
     pub(crate) sync_status_message: Option<String>,
-    /// Backstage server lifecycle manager
-    pub(crate) backstage_server: BackstageServer,
     /// REST API server lifecycle manager
     pub(crate) rest_api_server: RestApiServer,
     /// Exit confirmation mode (first Ctrl+C pressed)
@@ -214,15 +211,6 @@ impl App {
         };
         let ticket_sync = TicketSessionSync::new(&config, Arc::clone(&tmux_client));
 
-        // Initialize Backstage server lifecycle manager using compiled binary mode
-        let backstage_server = BackstageServer::with_compiled_binary(
-            config.state_path(),
-            config.backstage.release_url.clone(),
-            config.backstage.local_binary_path.clone(),
-            config.backstage.port,
-        )
-        .map_err(|e| anyhow::anyhow!("Failed to initialize backstage server: {e}"))?;
-
         // Initialize REST API server lifecycle manager
         let rest_api_server = RestApiServer::new(config.clone(), config.rest_api.port);
 
@@ -305,7 +293,6 @@ impl App {
             session_preview: SessionPreview::new(),
             ticket_sync,
             sync_status_message: None,
-            backstage_server,
             rest_api_server,
             exit_confirmation_mode: false,
             exit_confirmation_time: None,
@@ -365,31 +352,11 @@ impl App {
         }
 
         // Start web servers if --web flag was passed
-        if self.start_web_on_launch {
-            if self.config.backstage.display {
-                // Backstage mode: start Backstage server and open its URL
-                if let Err(e) = self.backstage_server.start() {
-                    tracing::error!("Backstage start failed: {}", e);
-                }
-                if self.backstage_server.is_running() {
-                    match self.backstage_server.wait_for_ready(25000) {
-                        Ok(()) => {
-                            if let Err(e) = self.backstage_server.open_browser() {
-                                tracing::warn!("Failed to open browser: {}", e);
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!("Server not ready: {}", e);
-                        }
-                    }
-                }
-            } else if self.rest_api_server.is_running() {
-                // Embedded UI mode: REST API already started, open the web UI
-                let port = self.config.rest_api.port;
-                let url = format!("http://localhost:{port}/");
-                if let Err(e) = status_actions::open_in_browser(&url) {
-                    tracing::warn!("Failed to open web UI: {}", e);
-                }
+        if self.start_web_on_launch && self.rest_api_server.is_running() {
+            let port = self.config.rest_api.port;
+            let url = format!("http://localhost:{port}/");
+            if let Err(e) = status_actions::open_in_browser(&url) {
+                tracing::warn!("Failed to open web UI: {}", e);
             }
         }
 

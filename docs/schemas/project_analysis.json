@@ -915,5 +915,5 @@
     }
   },
   "$id": "https://gbqr.us/operator/project-analysis.schema.json",
-  "$comment": "AUTO-GENERATED FROM src/backstage/analyzer.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only project-analysis-schema"
+  "$comment": "AUTO-GENERATED FROM src/taxonomy/analyzer.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only project-analysis-schema"
 }

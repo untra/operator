@@ -10,6 +10,42 @@ use crate::config::Config;
 use crate::queue::Ticket;
 use crate::templates::{schema::TemplateSchema, TemplateType};
 
+/// Environment variables injected into operator-spawned agent command scripts
+/// for branding (status line, pane title, UI deep-links).
+#[derive(Debug, Clone, Default)]
+pub struct OperatorEnvVars {
+    pub agent_id: String,
+    pub ticket_id: String,
+    pub project: String,
+    pub step: String,
+    pub ui_url: String,
+    pub ui_port: u16,
+}
+
+impl OperatorEnvVars {
+    /// Render shell `export` lines for all operator env vars.
+    pub fn to_export_block(&self) -> String {
+        format!(
+            "export OPERATOR_AGENT_ID={}\nexport OPERATOR_TICKET_ID={}\nexport OPERATOR_PROJECT={}\nexport OPERATOR_STEP={}\nexport OPERATOR_UI_URL={}\nexport OPERATOR_UI_PORT={}\n",
+            shell_escape(&self.agent_id),
+            shell_escape(&self.ticket_id),
+            shell_escape(&self.project),
+            shell_escape(&self.step),
+            shell_escape(&self.ui_url),
+            self.ui_port,
+        )
+    }
+
+    /// Render an OSC 2 escape sequence to set the terminal pane title.
+    pub fn to_pane_title_line(&self) -> String {
+        format!(
+            "printf '\\033]2;[OPR8R] %s | %s\\033\\\\' {} {}\n",
+            shell_escape(&self.ticket_id),
+            shell_escape(&self.project),
+        )
+    }
+}
+
 /// Generate the initial prompt for a ticket based on its type
 pub fn generate_prompt(config: &Config, ticket: &Ticket) -> String {
     let ticket_path = config
@@ -156,15 +192,24 @@ pub fn write_command_file(
     session_uuid: &str,
     project_path: &str,
     llm_command: &str,
+    operator_env: Option<&OperatorEnvVars>,
 ) -> Result<PathBuf> {
     let commands_dir = config.tickets_path().join("operator/commands");
     fs::create_dir_all(&commands_dir).context("Failed to create commands directory")?;
 
     let command_file = commands_dir.join(format!("{session_uuid}.sh"));
 
-    // Build script content with shebang, cd, and exec
+    // Build script content with shebang, optional env vars, cd, and exec
+    let env_block = operator_env
+        .map(OperatorEnvVars::to_export_block)
+        .unwrap_or_default();
+
+    let pane_title = operator_env
+        .map(OperatorEnvVars::to_pane_title_line)
+        .unwrap_or_default();
+
     let script_content = format!(
-        "#!/bin/bash\ncd {}\nexec {}\n",
+        "#!/bin/bash\n{env_block}{pane_title}cd {}\nexec {}\n",
         shell_escape(project_path),
         llm_command
     );
@@ -267,7 +312,7 @@ mod tests {
         let project_path = "/path/to/project";
         let llm_command = "claude --session-id abc123 --print-prompt-path /tmp/prompt.txt";
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
         assert!(result.is_ok());
 
         let command_file = result.unwrap();
@@ -291,7 +336,7 @@ mod tests {
         let project_path = "/path/with spaces/to/project";
         let llm_command = "claude --arg value";
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(result.unwrap()).unwrap();
@@ -310,7 +355,7 @@ mod tests {
         let project_path = "/path/with'quotes/and$dollar";
         let llm_command = "claude --arg value";
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(result.unwrap()).unwrap();
@@ -329,7 +374,7 @@ mod tests {
         let project_path = "/project";
         let llm_command = r#"claude --session-id abc --print-prompt-path /tmp/file.txt --add-dir "/dir with spaces" --model sonnet"#;
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(result.unwrap()).unwrap();
@@ -350,7 +395,7 @@ mod tests {
         let project_path = "/project";
         let llm_command = "claude --arg value";
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command);
+        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
         assert!(result.is_ok());
 
         let command_file = result.unwrap();
@@ -359,5 +404,96 @@ mod tests {
 
         // Check that the file is executable (0o755 = rwxr-xr-x)
         assert_eq!(permissions.mode() & 0o777, 0o755);
+    }
+
+    #[test]
+    fn test_operator_env_vars_to_export_block() {
+        let env = OperatorEnvVars {
+            agent_id: "abc-123".to_string(),
+            ticket_id: "FEAT-042".to_string(),
+            project: "gamesvc".to_string(),
+            step: "implement".to_string(),
+            ui_url: "http://localhost:7007/#/agent/abc-123".to_string(),
+            ui_port: 7007,
+        };
+        let block = env.to_export_block();
+        assert!(block.contains("export OPERATOR_AGENT_ID='abc-123'"));
+        assert!(block.contains("export OPERATOR_TICKET_ID='FEAT-042'"));
+        assert!(block.contains("export OPERATOR_PROJECT='gamesvc'"));
+        assert!(block.contains("export OPERATOR_STEP='implement'"));
+        assert!(block.contains("export OPERATOR_UI_URL='http://localhost:7007/#/agent/abc-123'"));
+        assert!(block.contains("export OPERATOR_UI_PORT=7007"));
+    }
+
+    #[test]
+    fn test_operator_env_vars_to_pane_title_line() {
+        let env = OperatorEnvVars {
+            agent_id: "abc-123".to_string(),
+            ticket_id: "FEAT-042".to_string(),
+            project: "gamesvc".to_string(),
+            step: "implement".to_string(),
+            ui_url: "http://localhost:7007/#/agent/abc-123".to_string(),
+            ui_port: 7007,
+        };
+        let line = env.to_pane_title_line();
+        assert!(line.contains("\\033]2;"));
+        assert!(line.contains("FEAT-042"));
+        assert!(line.contains("gamesvc"));
+    }
+
+    #[test]
+    fn test_write_command_file_with_operator_env() {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp_dir.path());
+
+        let env = OperatorEnvVars {
+            agent_id: "test-agent-id".to_string(),
+            ticket_id: "FEAT-001".to_string(),
+            project: "myproject".to_string(),
+            step: "plan".to_string(),
+            ui_url: "http://localhost:7007/#/agent/test-agent-id".to_string(),
+            ui_port: 7007,
+        };
+
+        let result = write_command_file(
+            &config,
+            "test-uuid-env",
+            "/path/to/project",
+            "claude --session-id abc123",
+            Some(&env),
+        );
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(result.unwrap()).unwrap();
+        assert!(content.contains("export OPERATOR_AGENT_ID='test-agent-id'"));
+        assert!(content.contains("export OPERATOR_TICKET_ID='FEAT-001'"));
+        assert!(content.contains("export OPERATOR_PROJECT='myproject'"));
+        assert!(content.contains("\\033]2;"));
+        assert!(content.contains("cd '/path/to/project'"));
+        assert!(content.contains("exec claude --session-id abc123"));
+    }
+
+    #[test]
+    fn test_write_command_file_without_operator_env_unchanged() {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp_dir.path());
+
+        let result = write_command_file(
+            &config,
+            "test-uuid-noenv",
+            "/path/to/project",
+            "claude --session-id abc123",
+            None,
+        );
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(result.unwrap()).unwrap();
+        assert!(!content.contains("OPERATOR_"));
+        assert!(!content.contains("\\033]2;"));
+        assert!(content.starts_with("#!/bin/bash\ncd"));
     }
 }

@@ -29,11 +29,10 @@ use operator::api::providers::kanban::{
     JiraProjectStatus, JiraSearchResponse, JiraStatus, JiraStatusRef, JiraUser,
 };
 use operator::config::{
-    AgentsConfig, ApiConfig, BackstageConfig, BrandingConfig, CollectionPreset, Config, Delegator,
-    DelegatorLaunchConfig, DetectedTool, DockerConfig, LaunchConfig, LlmProvider, LlmToolsConfig,
-    LoggingConfig, NotificationsConfig, PanelNamesConfig, PathsConfig, QueueConfig, RestApiConfig,
-    SkillDirectoriesOverride, TemplatesConfig, ThemeColors, TmuxConfig, ToolCapabilities, UiConfig,
-    YoloConfig,
+    AgentsConfig, ApiConfig, CollectionPreset, Config, Delegator, DelegatorLaunchConfig,
+    DetectedTool, DockerConfig, LaunchConfig, LlmProvider, LlmToolsConfig, LoggingConfig,
+    NotificationsConfig, PanelNamesConfig, PathsConfig, QueueConfig, RestApiConfig,
+    SkillDirectoriesOverride, TemplatesConfig, TmuxConfig, ToolCapabilities, UiConfig, YoloConfig,
 };
 use operator::queue::LlmTask;
 use operator::rest::dto::{
@@ -105,9 +104,6 @@ fn generate_typescript() -> String {
         DockerConfig::decl(),
         YoloConfig::decl(),
         TmuxConfig::decl(),
-        BackstageConfig::decl(),
-        BrandingConfig::decl(),
-        ThemeColors::decl(),
         RestApiConfig::decl(),
         LlmToolsConfig::decl(),
         DetectedTool::decl(),

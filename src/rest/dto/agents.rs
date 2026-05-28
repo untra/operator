@@ -153,6 +153,61 @@ pub struct ActiveAgentsResponse {
 }
 
 // =============================================================================
+// Agent Detail DTOs
+// =============================================================================
+
+/// Full details for a single agent
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct AgentDetailResponse {
+    /// Agent ID (UUID)
+    pub id: String,
+    /// Associated ticket ID (e.g., "FEAT-042")
+    pub ticket_id: String,
+    /// Ticket type: FEAT, FIX, INV, SPIKE
+    pub ticket_type: String,
+    /// Project being worked on
+    pub project: String,
+    /// Agent status: running, `awaiting_input`, completing, orphaned
+    pub status: String,
+    /// When the agent started (ISO 8601)
+    pub started_at: String,
+    /// Last activity timestamp (ISO 8601)
+    pub last_activity: String,
+    /// Current workflow step
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_step: Option<String>,
+    /// LLM tool used (e.g., "claude", "gemini", "codex")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_tool: Option<String>,
+    /// LLM model alias (e.g., "opus", "sonnet", "gpt-4o")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_model: Option<String>,
+    /// Launch mode: "default", "yolo", "docker", "docker-yolo"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub launch_mode: Option<String>,
+    /// PR URL if created during "pr" step
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pr_url: Option<String>,
+    /// Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pr_status: Option<String>,
+    /// Which session wrapper is in use: "tmux", "vscode", "cmux", or "zellij"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_wrapper: Option<String>,
+    /// Review state for `awaiting_input` agents
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub review_state: Option<String>,
+    /// Completed steps for this ticket
+    pub completed_steps: Vec<String>,
+    /// Path to the git worktree for this ticket
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worktree_path: Option<String>,
+    /// Whether this is a paired (interactive) agent
+    pub paired: bool,
+}
+
+// =============================================================================
 // Ticket Launch DTOs
 // =============================================================================
 

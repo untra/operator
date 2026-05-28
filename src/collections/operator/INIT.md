@@ -7,7 +7,7 @@ id: {{ id }}
 created: {{ created_datetime }}
 ---
 
-# Backstage Init: {{ summary }}
+# Workspace Init: {{ summary }}
 
 ## Workspace
 {{ workspace }}

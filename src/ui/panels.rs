@@ -6,7 +6,6 @@ use ratatui::{
     Frame,
 };
 
-use crate::backstage::ServerStatus;
 use crate::queue::Ticket;
 use crate::rest::RestApiStatus;
 use crate::state::CompletedTicket;
@@ -153,9 +152,7 @@ pub struct StatusBar {
     pub paused: bool,
     pub agent_count: usize,
     pub max_agents: usize,
-    pub backstage_status: ServerStatus,
     pub rest_api_status: RestApiStatus,
-    pub backstage_display: bool,
     pub embed_ui_available: bool,
     pub exit_confirmation_mode: bool,
     pub update_available_version: Option<String>,
@@ -279,10 +276,6 @@ impl StatusBar {
 
         let mut spans = vec![status, agents, web_ind];
 
-        if self.backstage_display {
-            spans.push(backstage_indicator(&self.backstage_status));
-        }
-
         // Show transient status message if present
         if let Some(ref msg) = self.status_message {
             spans.push(Span::styled(
@@ -349,21 +342,6 @@ fn web_indicator(status: &RestApiStatus, embed_ui: bool) -> Span<'static> {
         RestApiStatus::Stopped => {
             Span::styled(format!("  {label} ○"), Style::default().fg(Color::White))
         }
-    }
-}
-
-/// Build a status indicator span for the Backstage server.
-fn backstage_indicator(status: &ServerStatus) -> Span<'static> {
-    match status {
-        ServerStatus::Running { port, .. } => Span::styled(
-            format!("  [B]ack ●:{port}"),
-            Style::default().fg(Color::Green),
-        ),
-        ServerStatus::Starting | ServerStatus::Stopping => {
-            Span::styled("  [B]ack ●", Style::default().fg(Color::Yellow))
-        }
-        ServerStatus::Error(_) => Span::styled("  [B]ack ●", Style::default().fg(Color::Red)),
-        ServerStatus::Stopped => Span::styled("  [B]ack ○", Style::default().fg(Color::White)),
     }
 }
 
@@ -531,35 +509,6 @@ mod tests {
         assert!(
             text.contains("[A]PI"),
             "embed_ui=false should show [A]PI: {text}"
-        );
-    }
-
-    #[test]
-    fn test_backstage_indicator_running() {
-        let span = backstage_indicator(&ServerStatus::Running {
-            port: 7007,
-            pid: 1234,
-        });
-        let text: &str = &span.content;
-        assert!(text.contains("●:7007"), "should show port: {text}");
-        assert_eq!(span.style.fg, Some(Color::Green));
-    }
-
-    #[test]
-    fn test_backstage_indicator_stopped() {
-        let span = backstage_indicator(&ServerStatus::Stopped);
-        let text: &str = &span.content;
-        assert!(text.contains('○'), "should show hollow circle: {text}");
-        assert_eq!(span.style.fg, Some(Color::White));
-    }
-
-    #[test]
-    fn test_web_green_without_backstage() {
-        let span = web_indicator(&RestApiStatus::Running { port: 7008 }, true);
-        assert_eq!(
-            span.style.fg,
-            Some(Color::Green),
-            "Web indicator must be green when REST API is running, regardless of Backstage"
         );
     }
 

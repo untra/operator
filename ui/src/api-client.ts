@@ -14,6 +14,7 @@ import type { LaunchTicketRequest } from '@operator/bindings/LaunchTicketRequest
 import type { LaunchTicketResponse } from '@operator/bindings/LaunchTicketResponse';
 import type { QueueControlResponse } from '@operator/bindings/QueueControlResponse';
 import type { Config } from '@operator/bindings/Config';
+import type { AgentDetailResponse } from '@operator/bindings/AgentDetailResponse';
 
 export type {
   HealthResponse,
@@ -31,6 +32,7 @@ export type {
   LaunchTicketResponse,
   QueueControlResponse,
   Config,
+  AgentDetailResponse,
 };
 
 export class ApiError extends Error {
@@ -97,6 +99,10 @@ export class OperatorApi {
 
   activeAgents(): Promise<ActiveAgentsResponse> {
     return request(this.base, '/api/v1/agents/active');
+  }
+
+  getAgent(agentId: string): Promise<AgentDetailResponse> {
+    return request(this.base, `/api/v1/agents/${encodeURIComponent(agentId)}`);
   }
 
   approveReview(agentId: string): Promise<void> {

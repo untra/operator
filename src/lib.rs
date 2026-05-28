@@ -17,7 +17,6 @@ pub mod state;
 pub mod types;
 
 // Internal modules required by public modules
-mod backstage;
 mod collections;
 mod issuetypes;
 mod llm;
@@ -28,6 +27,8 @@ mod projects;
 mod services;
 mod startup;
 mod steps;
+#[allow(dead_code)]
+pub mod taxonomy;
 mod templates;
 pub mod version;
 

@@ -46,3 +46,8 @@ pub mod env_vars;
 
 // Relay hub and channel client
 pub mod relay;
+
+// Workflow export (ticket + issuetype -> Claude dynamic workflow .js).
+// Declared here (in addition to the bin) so the REST layer, which compiles in
+// both the lib and bin crates, can reach it.
+pub mod workflow_gen;

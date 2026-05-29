@@ -7,6 +7,7 @@ use crate::rest::state::ApiState;
 
 /// Health check endpoint
 #[utoipa::path(
+    operation_id = "health_check",
     get,
     path = "/api/v1/health",
     tag = "Health",
@@ -23,6 +24,7 @@ pub async fn health() -> Json<HealthResponse> {
 
 /// Get service status with registry info
 #[utoipa::path(
+    operation_id = "health_status",
     get,
     path = "/api/v1/status",
     tag = "Health",

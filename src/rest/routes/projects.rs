@@ -14,6 +14,7 @@ use crate::templates::TemplateType;
 
 /// List all configured projects with analysis data
 #[utoipa::path(
+    operation_id = "projects_list",
     get,
     path = "/api/v1/projects",
     tag = "Projects",
@@ -124,6 +125,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<Vec<ProjectSummary>> {
 
 /// Create an ASSESS ticket for a project
 #[utoipa::path(
+    operation_id = "projects_assess",
     post,
     path = "/api/v1/projects/{name}/assess",
     tag = "Projects",

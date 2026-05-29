@@ -39,6 +39,7 @@ impl StatusSection for KanbanSection {
             return vec![
                 TreeRow {
                     section_id: SectionId::Kanban,
+                    id: "configure-jira".into(),
                     depth: 1,
                     label: "Configure Jira".into(),
                     description: "Connect to Jira Cloud".into(),
@@ -51,6 +52,7 @@ impl StatusSection for KanbanSection {
                 },
                 TreeRow {
                     section_id: SectionId::Kanban,
+                    id: "configure-linear".into(),
                     depth: 1,
                     label: "Configure Linear".into(),
                     description: "Connect to Linear".into(),
@@ -69,6 +71,7 @@ impl StatusSection for KanbanSection {
             .iter()
             .map(|provider| TreeRow {
                 section_id: SectionId::Kanban,
+                id: provider.domain.clone(),
                 depth: 1,
                 label: provider.provider_type.clone(),
                 description: provider.domain.clone(),
@@ -115,6 +118,8 @@ mod tests {
             default_llm_model: None,
             delegators: vec![],
             model_servers: vec![],
+            issue_types: vec![],
+            managed_projects: vec![],
             git_provider: None,
             git_token_set: false,
             git_branch_format: None,

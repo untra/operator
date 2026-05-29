@@ -137,6 +137,7 @@ fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse
 /// Claims the ticket, sets up worktree if needed, generates the LLM command,
 /// and returns all details needed to execute in an external terminal (VS Code, etc.).
 #[utoipa::path(
+    operation_id = "launch_launch_ticket",
     post,
     path = "/api/v1/tickets/{id}/launch",
     tag = "Launch",
@@ -252,6 +253,7 @@ fn build_relaunch_options(
 /// Called by the opr8r wrapper when an LLM command completes.
 /// Returns next step info and whether to auto-proceed.
 #[utoipa::path(
+    operation_id = "launch_complete_step",
     post,
     path = "/api/v1/tickets/{id}/steps/{step}/complete",
     tag = "Launch",

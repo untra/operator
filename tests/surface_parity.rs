@@ -14,7 +14,6 @@ use operator::integrations::all_capabilities;
 
 const EXTENSION_TOML: &str = include_str!("../zed-extension/extension.toml");
 const MCP_TOOLS_RS: &str = include_str!("../src/mcp/tools.rs");
-const REST_MOD_RS: &str = include_str!("../src/rest/mod.rs");
 const KEYBINDINGS_RS: &str = include_str!("../src/ui/keybindings.rs");
 
 // ============================================================================
@@ -40,6 +39,24 @@ fn get_keybinding_descriptions() -> Vec<String> {
 /// Extract the path portion from a "METHOD /path" REST endpoint string.
 fn rest_path(endpoint: &str) -> &str {
     endpoint.split_whitespace().last().unwrap_or("")
+}
+
+/// Convert axum-style `:param` path segments to OpenAPI `{param}` syntax so
+/// inventory endpoints (written `:id`) match the generated spec (`{id}`).
+fn colon_to_curly(path: &str) -> String {
+    path.split('/')
+        .map(|seg| {
+            seg.strip_prefix(':')
+                .map_or_else(|| seg.to_string(), |name| format!("{{{name}}}"))
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// The generated OpenAPI spec — the authoritative list of mounted REST routes
+/// since the router was migrated to `utoipa_axum::OpenApiRouter`.
+fn rest_spec() -> String {
+    operator::rest::ApiDoc::json().expect("generate OpenAPI spec")
 }
 
 // ============================================================================
@@ -76,15 +93,17 @@ fn test_mcp_tools_present_in_tools_rs() {
     }
 }
 
-/// Every capability with a `rest_endpoint` must have its path in src/rest/mod.rs
+/// Every capability with a `rest_endpoint` must appear in the generated OpenAPI
+/// spec (the source of truth for mounted routes post-`OpenApiRouter` migration).
 #[test]
 fn test_rest_endpoints_present_in_rest_mod() {
+    let spec = rest_spec();
     for cap in all_capabilities() {
         if let Some(endpoint) = cap.rest_endpoint {
-            let path = rest_path(endpoint);
+            let path = colon_to_curly(rest_path(endpoint));
             assert!(
-                REST_MOD_RS.contains(path),
-                "Capability '{}': REST path '{}' not found in src/rest/mod.rs",
+                spec.contains(&path),
+                "Capability '{}': REST path '{}' not found in the OpenAPI spec",
                 cap.name,
                 path
             );
@@ -205,6 +224,7 @@ fn test_extension_toml_schema_valid() {
 #[test]
 fn test_surface_parity_summary() {
     let descriptions = get_keybinding_descriptions();
+    let spec = rest_spec();
 
     println!("\n=== Surface Parity Matrix ===\n");
     println!(
@@ -223,7 +243,7 @@ fn test_surface_parity_summary() {
         let has_mcp = cap.mcp_tool.is_some_and(|tool| MCP_TOOLS_RS.contains(tool));
         let has_rest = cap
             .rest_endpoint
-            .is_some_and(|ep| REST_MOD_RS.contains(rest_path(ep)));
+            .is_some_and(|ep| spec.contains(&colon_to_curly(rest_path(ep))));
         let has_tui = cap.tui_action.is_some_and(|action| {
             descriptions
                 .iter()

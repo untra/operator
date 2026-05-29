@@ -14,7 +14,7 @@ fn main() {
         std::fs::create_dir_all(ui_dist).expect("create ui/dist");
         std::fs::write(
             &index,
-            "<!doctype html><html><body><!-- placeholder: run cd ui && bun run build --></body></html>",
+            "<!doctype html><html><body><!-- operator:placeholder run `cd ui && bun run build` --></body></html>",
         )
         .expect("write placeholder index.html");
         println!(

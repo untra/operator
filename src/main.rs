@@ -35,6 +35,7 @@ mod setup;
 mod startup;
 mod ui;
 mod version;
+mod workflow_gen;
 
 use agents::tmux::{SystemTmuxClient, TmuxClient, TmuxError};
 use app::App;
@@ -282,6 +283,25 @@ enum Commands {
         #[arg(long)]
         skip_llm_detection: bool,
     },
+
+    /// Convert between operator issuetypes and other orchestration formats
+    Workflow {
+        #[command(subcommand)]
+        action: WorkflowAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkflowAction {
+    /// Export a ticket, rendered against its issuetype, to a Claude Code dynamic workflow (.js)
+    Export {
+        /// Ticket id (e.g. FEAT-1234) or path to a ticket markdown file
+        ticket: String,
+
+        /// Output path (default: <ticket-id>.workflow.js in the current directory; "-" for stdout)
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+    },
 }
 
 #[tokio::main]
@@ -296,6 +316,27 @@ async fn main() -> Result<()> {
 
     // Initialize logging (file-based for TUI, stderr for CLI)
     let logging_handle = logging::init_logging(&config, is_tui_mode, cli.debug)?;
+
+    // Inject the status-section provider into the REST layer. The section logic
+    // lives in `ui` (which `rest` can't depend on — see rest::dto::sections), so
+    // the binary registers it here, before any server starts. Covers all serving
+    // paths (TUI app, `operator rest`, embedded UI) since they share one process.
+    rest::dto::register_section_provider(std::sync::Arc::new(|config, registry| {
+        let issue_types = registry
+            .all_types()
+            .map(|it| ui::status_panel::IssueTypeInfo {
+                key: it.key.clone(),
+                name: it.name.clone(),
+                mode: if it.is_autonomous() {
+                    "autonomous".to_string()
+                } else {
+                    "paired".to_string()
+                },
+            })
+            .collect();
+        let snapshot = ui::status_panel::StatusSnapshot::from_config(config, issue_types);
+        ui::status_panel::build_section_dtos(&snapshot)
+    }));
 
     match cli.command {
         Some(Commands::Queue { all }) => {
@@ -376,6 +417,9 @@ async fn main() -> Result<()> {
                 llm_tool,
                 skip_llm_detection,
             )?;
+        }
+        Some(Commands::Workflow { action }) => {
+            cmd_workflow(&config, action)?;
         }
         None => {
             // No subcommand = launch TUI dashboard
@@ -694,6 +738,47 @@ async fn cmd_create(
 
     println!("Created ticket: {}", filepath.display());
 
+    Ok(())
+}
+
+fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {
+    match action {
+        WorkflowAction::Export { ticket, out } => {
+            // Resolve the ticket (by id via the queue, or as a direct file path).
+            // Resolution is the only edge-specific step; the registry build and
+            // the export itself go through the same shared path as the REST API.
+            let resolved = {
+                let path = std::path::Path::new(&ticket);
+                if path.is_file() {
+                    queue::Ticket::from_file(path)?
+                } else {
+                    let queue = queue::Queue::new(config)?;
+                    queue
+                        .find_ticket(&ticket)?
+                        .ok_or_else(|| anyhow::anyhow!("Ticket not found: {ticket}"))?
+                }
+            };
+
+            // Same registry loader the REST API (ApiState::new) uses.
+            let registry = startup::templates::load_registry(&config.tickets_path());
+            let exported = workflow_gen::export_workflow_for_ticket(&resolved, &registry, None)?;
+
+            match out.as_deref() {
+                Some(p) if p == std::path::Path::new("-") => {
+                    print!("{}", exported.contents);
+                }
+                Some(p) => {
+                    std::fs::write(p, &exported.contents)?;
+                    println!("Wrote workflow to {}", p.display());
+                }
+                None => {
+                    let default = PathBuf::from(&exported.suggested_filename);
+                    std::fs::write(&default, &exported.contents)?;
+                    println!("Wrote workflow to {}", default.display());
+                }
+            }
+        }
+    }
     Ok(())
 }
 

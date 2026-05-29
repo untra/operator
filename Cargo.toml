@@ -98,9 +98,10 @@ agent-client-protocol = "0.12"
 # Embedded web UI (behind embed-ui feature flag)
 rust-embed = { version = "8", optional = true }
 mime_guess = { version = "2", optional = true }
+utoipa-axum = "0.1"
 
 [features]
-default = []
+default = ["embed-ui"]
 embed-ui = ["dep:rust-embed", "dep:mime_guess"]
 
 [dev-dependencies]

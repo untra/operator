@@ -54,6 +54,7 @@ impl StatusSection for ConnectionsSection {
             // 1. Operator API
             TreeRow {
                 section_id: SectionId::Connections,
+                id: "operator-api".into(),
                 depth: 1,
                 label: "Operator API".into(),
                 description: match &snapshot.api_status {
@@ -102,6 +103,7 @@ impl StatusSection for ConnectionsSection {
         if snapshot.embed_ui_available {
             rows.push(TreeRow {
                 section_id: SectionId::Connections,
+                id: "web-ui".into(),
                 depth: 1,
                 label: "Web UI".into(),
                 description: match &snapshot.api_status {
@@ -134,6 +136,7 @@ impl StatusSection for ConnectionsSection {
         // 3. MCP (always shown). Status reflects HTTP mount + stdio advertise + session count.
         rows.push(TreeRow {
             section_id: SectionId::Connections,
+            id: "mcp".into(),
             depth: 1,
             label: "MCP".into(),
             description: match (
@@ -181,6 +184,7 @@ impl StatusSection for ConnectionsSection {
         //    always 0 in v1 (editor-spawned ACP runs out-of-process).
         rows.push(TreeRow {
             section_id: SectionId::Connections,
+            id: "acp".into(),
             depth: 1,
             label: "ACP".into(),
             description: if snapshot.acp_stdio_advertised {
@@ -244,6 +248,8 @@ mod tests {
             default_llm_model: None,
             delegators: vec![],
             model_servers: vec![],
+            issue_types: vec![],
+            managed_projects: vec![],
             git_provider: None,
             git_token_set: false,
             git_branch_format: None,

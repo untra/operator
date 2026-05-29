@@ -10,11 +10,14 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use std::path::Path;
+
+use crate::config::{Config, GitProviderConfig, SessionWrapperType};
 use crate::rest::RestApiStatus;
 
 use super::sections::{
-    ConfigSection, ConnectionsSection, DelegatorSection, GitSection, KanbanSection, LlmSection,
-    ModelServerSection,
+    ConfigSection, ConnectionsSection, DelegatorSection, GitSection, IssueTypeSection,
+    KanbanSection, LlmSection, ManagedProjectsSection, ModelServerSection,
 };
 
 // ---------------------------------------------------------------------------
@@ -70,6 +73,33 @@ impl SectionHealth {
             SectionHealth::Gray => Color::Gray,
         }
     }
+
+    /// Stable lowercase string for serialization (REST / web UI).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SectionHealth::Green => "green",
+            SectionHealth::Yellow => "yellow",
+            SectionHealth::Red => "red",
+            SectionHealth::Gray => "gray",
+        }
+    }
+}
+
+impl SectionId {
+    /// Stable string id matching the serde rename (REST / web UI / VS Code).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SectionId::Configuration => "config",
+            SectionId::Connections => "connections",
+            SectionId::Kanban => "kanban",
+            SectionId::LlmTools => "llm",
+            SectionId::ModelServers => "model-servers",
+            SectionId::Git => "git",
+            SectionId::IssueTypes => "issuetypes",
+            SectionId::Delegators => "delegators",
+            SectionId::ManagedProjects => "projects",
+        }
+    }
 }
 
 /// Declarative section metadata — shared between TUI and `VSCode`.
@@ -117,6 +147,22 @@ impl StatusIcon {
             StatusIcon::None => Span::raw("  "),
         }
     }
+
+    /// Stable lowercase icon name for serialization (REST / web UI).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            StatusIcon::Check => "check",
+            StatusIcon::Cross => "cross",
+            StatusIcon::Warning => "warning",
+            StatusIcon::Folder => "folder",
+            StatusIcon::File => "file",
+            StatusIcon::Plug => "plug",
+            StatusIcon::Key => "key",
+            StatusIcon::Branch => "branch",
+            StatusIcon::Tool => "tool",
+            StatusIcon::None => "none",
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +174,12 @@ impl StatusIcon {
 #[allow(dead_code)]
 pub struct TreeRow {
     pub section_id: SectionId,
+    /// Stable, section-scoped row identifier. Used by clients (web UI, VS Code
+    /// extension) as a tree key and to route row-specific commands without
+    /// matching on the (mutable) display label. For dynamic rows this is the
+    /// underlying entity key (issue-type key, project name, delegator name);
+    /// for static rows it is a fixed slug (e.g. "git-token").
+    pub id: String,
     pub depth: u16,
     pub label: String,
     pub description: String,
@@ -361,6 +413,23 @@ pub struct ModelServerInfo {
     pub user_declared: bool,
 }
 
+/// Information about an active issue type (mirrors `IssueTypeSummary` from the REST DTO).
+#[derive(Debug, Clone)]
+pub struct IssueTypeInfo {
+    pub key: String,
+    pub name: String,
+    /// "autonomous" or "paired".
+    pub mode: String,
+}
+
+/// Information about a configured managed project.
+#[derive(Debug, Clone)]
+pub struct ManagedProjectInfo {
+    pub name: String,
+    /// Whether the project directory exists on disk.
+    pub exists: bool,
+}
+
 /// Connection status for the active session wrapper.
 #[derive(Debug, Clone)]
 pub enum WrapperConnectionStatus {
@@ -479,6 +548,10 @@ pub struct StatusSnapshot {
     pub default_llm_model: Option<String>,
     pub delegators: Vec<DelegatorInfo>,
     pub model_servers: Vec<ModelServerInfo>,
+    /// Active issue types (drives the Issue Types section).
+    pub issue_types: Vec<IssueTypeInfo>,
+    /// Configured managed projects (drives the Managed Projects section).
+    pub managed_projects: Vec<ManagedProjectInfo>,
     pub git_provider: Option<String>,
     pub git_token_set: bool,
     pub git_branch_format: Option<String>,
@@ -511,6 +584,165 @@ impl StatusSnapshot {
         match &self.api_status {
             RestApiStatus::Running { port } => Some(*port),
             _ => None,
+        }
+    }
+
+    /// Build a snapshot from config alone, with default (non-live) runtime fields.
+    ///
+    /// Shared by the TUI dashboard — which overrides the runtime fields
+    /// (`api_status`, wrapper/mcp/acp liveness, editor env) with live state —
+    /// and the REST `/api/v1/sections` endpoint, which uses the config-derived
+    /// result as-is. `issue_types` is passed in because the TUI and REST source
+    /// it from different registries. Everything else here is derived purely from
+    /// config, so section *health* for the config-gated sections matches across
+    /// surfaces; only live runtime detail differs.
+    pub fn from_config(config: &Config, issue_types: Vec<IssueTypeInfo>) -> StatusSnapshot {
+        let working_dir = std::env::current_dir()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let config_path = Config::operator_config_path()
+            .to_string_lossy()
+            .into_owned();
+        let tickets_dir = config.paths.tickets.clone();
+        let tickets_dir_exists = Path::new(&tickets_dir).exists();
+
+        // Kanban providers from jira + linear configs.
+        let mut kanban_providers: Vec<KanbanProviderInfo> = Vec::new();
+        for domain in config.kanban.jira.keys() {
+            kanban_providers.push(KanbanProviderInfo {
+                provider_type: "jira".to_string(),
+                domain: domain.clone(),
+            });
+        }
+        for slug in config.kanban.linear.keys() {
+            kanban_providers.push(KanbanProviderInfo {
+                provider_type: "linear".to_string(),
+                domain: slug.clone(),
+            });
+        }
+
+        let llm_tools: Vec<LlmToolInfo> = config
+            .llm_tools
+            .detected
+            .iter()
+            .map(|t| LlmToolInfo {
+                name: t.name.clone(),
+                version: t.version.clone(),
+                model_aliases: t.model_aliases.clone(),
+            })
+            .collect();
+
+        let delegators: Vec<DelegatorInfo> = config
+            .delegators
+            .iter()
+            .map(|d| DelegatorInfo {
+                name: d.name.clone(),
+                display_name: d.display_name.clone(),
+                llm_tool: d.llm_tool.clone(),
+                model: d.model.clone(),
+                yolo: d.launch_config.as_ref().is_some_and(|lc| lc.yolo),
+                model_server: d.model_server.clone(),
+            })
+            .collect();
+
+        // Model servers — user-declared plus implicit vendor builtins.
+        let mut model_servers: Vec<ModelServerInfo> = config
+            .model_servers
+            .iter()
+            .map(|s| ModelServerInfo {
+                name: s.name.clone(),
+                kind: s.kind.clone(),
+                base_url: s.base_url.clone(),
+                display_name: s.display_name.clone(),
+                user_declared: true,
+            })
+            .collect();
+        for tool in ["claude", "codex", "gemini"] {
+            let implicit = crate::config::implicit_model_server_for_tool(tool);
+            if !model_servers.iter().any(|s| s.name == implicit.name) {
+                model_servers.push(ModelServerInfo {
+                    name: implicit.name,
+                    kind: implicit.kind,
+                    base_url: implicit.base_url,
+                    display_name: implicit.display_name,
+                    user_declared: false,
+                });
+            }
+        }
+
+        let git_provider = config.git.provider.as_ref().map(|p| format!("{p:?}"));
+        let git_token_set = match config.git.provider {
+            Some(GitProviderConfig::GitLab) => std::env::var(&config.git.gitlab.token_env).is_ok(),
+            // GitHub is the default for all other providers (including None).
+            _ => std::env::var(&config.git.github.token_env).is_ok(),
+        };
+
+        // Managed projects — names from config, resolved against the projects base dir.
+        let projects_base = Path::new(&config.paths.projects);
+        let managed_projects: Vec<ManagedProjectInfo> = config
+            .projects
+            .iter()
+            .map(|name| ManagedProjectInfo {
+                name: name.clone(),
+                exists: projects_base.join(name).exists(),
+            })
+            .collect();
+
+        // Wrapper connection: config-derived, liveness defaulted to "not yet checked".
+        let wrapper_connection_status = match config.sessions.wrapper {
+            SessionWrapperType::Tmux => WrapperConnectionStatus::Tmux {
+                available: false,
+                server_running: false,
+                version: None,
+            },
+            SessionWrapperType::Vscode => WrapperConnectionStatus::Vscode {
+                webhook_running: false,
+                port: Some(config.sessions.vscode.webhook_port),
+            },
+            SessionWrapperType::Cmux => WrapperConnectionStatus::Cmux {
+                binary_available: false,
+                in_cmux: std::env::var("CMUX_WORKSPACE_ID").is_ok(),
+            },
+            SessionWrapperType::Zellij => WrapperConnectionStatus::Zellij {
+                binary_available: false,
+                in_zellij: std::env::var("ZELLIJ").is_ok(),
+            },
+        };
+
+        let acp_status = crate::acp::AcpAgentServer::from_config(config).status();
+
+        StatusSnapshot {
+            working_dir,
+            config_file_found: true,
+            config_path,
+            tickets_dir,
+            tickets_dir_exists,
+            wrapper_type: config.sessions.wrapper.display_name().to_string(),
+            operator_version: env!("CARGO_PKG_VERSION").to_string(),
+            // Runtime field — callers with live state override this.
+            api_status: RestApiStatus::Stopped,
+            kanban_providers,
+            llm_tools,
+            default_llm_tool: config.llm_tools.default_tool.clone(),
+            default_llm_model: config.llm_tools.default_model.clone(),
+            delegators,
+            model_servers,
+            issue_types,
+            managed_projects,
+            git_provider,
+            git_token_set,
+            git_branch_format: Some(config.git.branch_format.clone()),
+            git_use_worktrees: config.git.use_worktrees,
+            update_available_version: None,
+            wrapper_connection_status,
+            env_editor: String::new(),
+            env_visual: String::new(),
+            mcp_http_status: McpHttpStatus::NotMounted,
+            mcp_stdio_advertised: config.mcp.stdio_advertised,
+            mcp_active_sessions: 0,
+            acp_stdio_advertised: acp_status.is_advertised(),
+            acp_active_sessions: acp_status.active_sessions(),
+            embed_ui_available: cfg!(feature = "embed-ui"),
         }
     }
 }
@@ -573,8 +805,10 @@ impl TreeState {
         expanded.insert(SectionId::Kanban, false);
         expanded.insert(SectionId::LlmTools, false);
         expanded.insert(SectionId::ModelServers, false);
-        expanded.insert(SectionId::Delegators, false);
         expanded.insert(SectionId::Git, false);
+        expanded.insert(SectionId::IssueTypes, false);
+        expanded.insert(SectionId::Delegators, false);
+        expanded.insert(SectionId::ManagedProjects, false);
         Self {
             expanded,
             selected: 0,
@@ -588,6 +822,78 @@ impl TreeState {
 // Status panel (orchestrator)
 // ---------------------------------------------------------------------------
 
+/// The canonical, ordered list of status sections.
+///
+/// This order is the single source of truth, matching the `SectionId` enum and
+/// the VS Code extension's `allSections`. Used by both the TUI status panel and
+/// the REST `/api/v1/sections` endpoint (via [`build_section_dtos`]).
+pub fn all_sections() -> Vec<Box<dyn StatusSection>> {
+    vec![
+        Box::new(ConfigSection),
+        Box::new(ConnectionsSection),
+        Box::new(KanbanSection),
+        Box::new(LlmSection),
+        Box::new(ModelServerSection),
+        Box::new(GitSection),
+        Box::new(IssueTypeSection),
+        Box::new(DelegatorSection),
+        Box::new(ManagedProjectsSection),
+    ]
+}
+
+/// Build the REST `SectionDto` list from a snapshot by running every canonical
+/// section. Lives here (not in `rest`) because the section logic is ui-layer;
+/// the binary injects this into `rest` via `register_section_provider` so the
+/// web UI's Status page renders the same sections the TUI and VS Code show.
+///
+/// Returns all sections with a `met` flag (computed from prerequisite health)
+/// rather than hiding unmet ones, so the web UI can render every section.
+pub fn build_section_dtos(snapshot: &StatusSnapshot) -> Vec<crate::rest::dto::SectionDto> {
+    use crate::rest::dto::{SectionDto, SectionRowDto};
+
+    let sections = all_sections();
+
+    // First pass: each section's health, for prerequisite checks.
+    let health_by_id: HashMap<SectionId, SectionHealth> = sections
+        .iter()
+        .map(|s| (s.section_id(), s.health(snapshot)))
+        .collect();
+
+    sections
+        .iter()
+        .map(|s| {
+            let met = s
+                .prerequisites()
+                .iter()
+                .all(|p| health_by_id.get(p) == Some(&SectionHealth::Green));
+            SectionDto {
+                id: s.section_id().as_str().to_string(),
+                label: s.label().to_string(),
+                health: s.health(snapshot).as_str().to_string(),
+                description: s.description(snapshot),
+                prerequisites: s
+                    .prerequisites()
+                    .iter()
+                    .map(|p| p.as_str().to_string())
+                    .collect(),
+                met,
+                children: s
+                    .children(snapshot)
+                    .into_iter()
+                    .map(|r| SectionRowDto {
+                        id: r.id,
+                        depth: r.depth,
+                        label: r.label,
+                        description: r.description,
+                        icon: r.icon.as_str().to_string(),
+                        health: r.health.as_str().to_string(),
+                    })
+                    .collect(),
+            }
+        })
+        .collect()
+}
+
 /// The status panel widget — a collapsible tree with progressive disclosure.
 pub struct StatusPanel {
     pub tree_state: TreeState,
@@ -597,19 +903,10 @@ pub struct StatusPanel {
 
 impl StatusPanel {
     pub fn new(title: String) -> Self {
-        let sections: Vec<Box<dyn StatusSection>> = vec![
-            Box::new(ConfigSection),
-            Box::new(ConnectionsSection),
-            Box::new(KanbanSection),
-            Box::new(LlmSection),
-            Box::new(ModelServerSection),
-            Box::new(DelegatorSection),
-            Box::new(GitSection),
-        ];
         Self {
             tree_state: TreeState::new(),
             title,
-            sections,
+            sections: all_sections(),
         }
     }
 
@@ -664,6 +961,7 @@ impl StatusPanel {
             };
             rows.push(TreeRow {
                 section_id: section.section_id(),
+                id: section.section_id().as_str().to_string(),
                 depth: 0,
                 label: section.label().to_string(),
                 description: section.description(snapshot),
@@ -988,6 +1286,42 @@ fn web_ui_route_for(section: SectionId) -> Option<&'static str> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn test_build_section_dtos_returns_all_nine_in_canonical_order() {
+        let snapshot = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        let dtos = build_section_dtos(&snapshot);
+        let ids: Vec<&str> = dtos.iter().map(|d| d.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec![
+                "config",
+                "connections",
+                "kanban",
+                "llm",
+                "model-servers",
+                "git",
+                "issuetypes",
+                "delegators",
+                "projects",
+            ]
+        );
+    }
+
+    #[test]
+    fn test_build_section_dtos_sets_met_from_prerequisites() {
+        let snapshot = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        let dtos = build_section_dtos(&snapshot);
+        // Configuration has no prerequisites, so it is always met.
+        let config = dtos.iter().find(|d| d.id == "config").unwrap();
+        assert!(config.met);
+        assert!(config.prerequisites.is_empty());
+        // Managed Projects requires Git; on a default config Git is not Green,
+        // so its prerequisites are not met.
+        let projects = dtos.iter().find(|d| d.id == "projects").unwrap();
+        assert_eq!(projects.prerequisites, vec!["git"]);
+        assert!(!projects.met);
+    }
+
     fn test_snapshot() -> StatusSnapshot {
         StatusSnapshot {
             working_dir: "/home/user/project".into(),
@@ -1018,6 +1352,8 @@ mod tests {
                 model_server: None,
             }],
             model_servers: Vec::new(),
+            issue_types: Vec::new(),
+            managed_projects: Vec::new(),
             git_provider: Some("GitHub".into()),
             git_token_set: true,
             git_branch_format: Some("feature/{ticket}".into()),

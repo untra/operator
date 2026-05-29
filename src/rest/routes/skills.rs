@@ -10,6 +10,7 @@ use crate::rest::state::ApiState;
 
 /// List all discovered skills across LLM tools
 #[utoipa::path(
+    operation_id = "skills_list",
     get,
     path = "/api/v1/skills",
     tag = "Skills",

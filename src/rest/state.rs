@@ -9,7 +9,7 @@ use tokio::sync::{Mutex, RwLock};
 use crate::api::kanban_sync::KanbanBidirectionalSync;
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
-use crate::startup::templates::{ensure_schemas, init_default_templates};
+use crate::startup::templates::load_registry;
 
 /// Shared state for the REST API
 #[derive(Clone)]
@@ -36,50 +36,9 @@ impl ApiState {
     /// 2. If empty, initialize default templates from embedded files
     /// 3. Fallback to embedded builtins if filesystem loading fails
     pub fn new(config: Config, tickets_path: PathBuf) -> Self {
-        let mut registry = IssueTypeRegistry::new();
-        let templates_path = tickets_path.join("templates");
-
-        // Ensure schema files exist (runs every time, even if templates exist)
-        if let Err(e) = ensure_schemas(&tickets_path) {
-            tracing::warn!("Failed to ensure schema files: {}", e);
-        }
-
-        // Try to load from templates directory first
-        match registry.load_from_templates_dir(&templates_path) {
-            Ok(()) if registry.type_count() > 0 => {
-                tracing::info!(
-                    "Loaded {} issue types from templates directory",
-                    registry.type_count()
-                );
-            }
-            Ok(()) => {
-                // Templates directory empty or doesn't exist - initialize defaults
-                tracing::info!("Templates directory empty, initializing defaults...");
-                if let Err(e) = init_default_templates(&templates_path) {
-                    tracing::warn!("Failed to initialize default templates: {}", e);
-                } else {
-                    // Try loading again after initialization
-                    if let Err(e) = registry.load_from_templates_dir(&templates_path) {
-                        tracing::warn!("Failed to load initialized templates: {}", e);
-                    }
-                }
-
-                // If still empty, fallback to embedded builtins
-                if registry.type_count() == 0 {
-                    tracing::info!("Falling back to embedded builtin types");
-                    if let Err(e) = registry.load_builtins() {
-                        tracing::warn!("Failed to load builtin issue types: {}", e);
-                    }
-                }
-            }
-            Err(e) => {
-                tracing::warn!("Failed to load from templates directory: {}", e);
-                // Fallback to embedded builtins
-                if let Err(e) = registry.load_builtins() {
-                    tracing::warn!("Failed to load builtin issue types: {}", e);
-                }
-            }
-        }
+        // Shared loader — keeps the API's issue-type resolution identical to the
+        // CLI/TUI so `workflow export` produces the same output on every surface.
+        let registry = load_registry(&tickets_path);
 
         let config_arc = Arc::new(config);
         let kanban_sync = {

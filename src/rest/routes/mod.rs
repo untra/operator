@@ -13,6 +13,8 @@ pub mod llm_tools;
 pub mod model_servers;
 pub mod projects;
 pub mod queue;
+pub mod sections;
 pub mod skills;
 pub mod steps;
 pub mod tickets;
+pub mod workflow;

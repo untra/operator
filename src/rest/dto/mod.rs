@@ -10,11 +10,15 @@ pub mod agents;
 pub mod configuration;
 pub mod issue_types;
 pub mod kanban;
+pub mod sections;
+pub mod workflow;
 
 pub use agents::*;
 pub use configuration::*;
 pub use issue_types::*;
 pub use kanban::*;
+pub use sections::*;
+pub use workflow::*;
 
 #[cfg(test)]
 mod tests {

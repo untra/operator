@@ -156,16 +156,17 @@ impl StepManager {
         self.render_prompt(&step.prompt, ticket, pr_config)
     }
 
-    /// Render a prompt template with ticket data
-    fn render_prompt(
-        &self,
-        template: &str,
+    /// Build the Handlebars interpolation context for a ticket.
+    ///
+    /// This is the single source of truth for the variable surface available
+    /// to step prompts (`id`, `ticket_type`, `project`, `summary`, `priority`,
+    /// `step`, optional PR vars, and `steps.<name>.*` step outputs). Other
+    /// renderers (e.g. workflow export) reuse this so prompts interpolate
+    /// identically to how they would at launch time.
+    pub fn build_ticket_context(
         ticket: &Ticket,
         pr_config: Option<&PrConfig>,
-    ) -> Result<String> {
-        let mut hbs = Handlebars::new();
-        hbs.set_strict_mode(false);
-
+    ) -> serde_json::Value {
         let mut data = serde_json::Map::new();
         data.insert("id".to_string(), serde_json::json!(ticket.id));
         data.insert(
@@ -199,7 +200,22 @@ impl StepManager {
             data.insert("steps".to_string(), serde_json::Value::Object(steps_data));
         }
 
-        hbs.render_template(template, &serde_json::Value::Object(data))
+        serde_json::Value::Object(data)
+    }
+
+    /// Render a prompt template with ticket data
+    fn render_prompt(
+        &self,
+        template: &str,
+        ticket: &Ticket,
+        pr_config: Option<&PrConfig>,
+    ) -> Result<String> {
+        let mut hbs = Handlebars::new();
+        hbs.set_strict_mode(false);
+
+        let data = Self::build_ticket_context(ticket, pr_config);
+
+        hbs.render_template(template, &data)
             .context("Failed to render step prompt")
     }
 

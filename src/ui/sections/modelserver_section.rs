@@ -85,6 +85,7 @@ impl StatusSection for ModelServerSection {
 
                 TreeRow {
                     section_id: SectionId::ModelServers,
+                    id: s.name.clone(),
                     depth: 1,
                     label,
                     description,
@@ -133,6 +134,8 @@ mod tests {
             default_llm_model: None,
             delegators: vec![],
             model_servers: servers,
+            issue_types: vec![],
+            managed_projects: vec![],
             git_provider: None,
             git_token_set: false,
             git_branch_format: None,

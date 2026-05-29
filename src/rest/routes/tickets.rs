@@ -16,7 +16,7 @@ use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 
 /// Find a ticket across all directories (queue, in-progress, completed)
-fn find_ticket_anywhere(queue: &Queue, ticket_id: &str) -> Result<Ticket, ApiError> {
+pub(crate) fn find_ticket_anywhere(queue: &Queue, ticket_id: &str) -> Result<Ticket, ApiError> {
     // find_ticket searches queue + in-progress
     if let Some(ticket) = queue
         .find_ticket(ticket_id)
@@ -40,6 +40,7 @@ fn find_ticket_anywhere(queue: &Queue, ticket_id: &str) -> Result<Ticket, ApiErr
 /// Returns complete ticket data including content, metadata, step history,
 /// and session information. Searches queue, in-progress, and completed directories.
 #[utoipa::path(
+    operation_id = "tickets_get_one",
     get,
     path = "/api/v1/tickets/{id}",
     tag = "Tickets",
@@ -92,6 +93,7 @@ pub async fn get_one(
 /// Moves a ticket between queue directories based on the target status.
 /// Valid transitions: queued, running, awaiting, done.
 #[utoipa::path(
+    operation_id = "tickets_update_status",
     put,
     path = "/api/v1/tickets/{id}/status",
     tag = "Tickets",

@@ -1,7 +1,11 @@
 import type { Host } from './host';
 import type { HealthResponse } from '@operator/bindings/HealthResponse';
 import type { StatusResponse } from '@operator/bindings/StatusResponse';
+import type { SectionDto } from '@operator/bindings/SectionDto';
+import type { SectionRowDto } from '@operator/bindings/SectionRowDto';
 import type { QueueStatusResponse } from '@operator/bindings/QueueStatusResponse';
+import type { KanbanBoardResponse } from '@operator/bindings/KanbanBoardResponse';
+import type { KanbanTicketCard } from '@operator/bindings/KanbanTicketCard';
 import type { ActiveAgentsResponse } from '@operator/bindings/ActiveAgentsResponse';
 import type { IssueTypeSummary } from '@operator/bindings/IssueTypeSummary';
 import type { IssueTypeResponse } from '@operator/bindings/IssueTypeResponse';
@@ -15,11 +19,16 @@ import type { LaunchTicketResponse } from '@operator/bindings/LaunchTicketRespon
 import type { QueueControlResponse } from '@operator/bindings/QueueControlResponse';
 import type { Config } from '@operator/bindings/Config';
 import type { AgentDetailResponse } from '@operator/bindings/AgentDetailResponse';
+import type { WorkflowExportResponse } from '@operator/bindings/WorkflowExportResponse';
 
 export type {
   HealthResponse,
   StatusResponse,
+  SectionDto,
+  SectionRowDto,
   QueueStatusResponse,
+  KanbanBoardResponse,
+  KanbanTicketCard,
   ActiveAgentsResponse,
   IssueTypeSummary,
   IssueTypeResponse,
@@ -33,6 +42,7 @@ export type {
   QueueControlResponse,
   Config,
   AgentDetailResponse,
+  WorkflowExportResponse,
 };
 
 export class ApiError extends Error {
@@ -77,10 +87,20 @@ export class OperatorApi {
     return request(this.base, '/api/v1/status');
   }
 
+  // --- Status sections (canonical, shared with TUI / VS Code) ---
+
+  sections(): Promise<SectionDto[]> {
+    return request(this.base, '/api/v1/sections');
+  }
+
   // --- Queue ---
 
   queueStatus(): Promise<QueueStatusResponse> {
     return request(this.base, '/api/v1/queue/status');
+  }
+
+  kanban(): Promise<KanbanBoardResponse> {
+    return request(this.base, '/api/v1/queue/kanban');
   }
 
   pauseQueue(): Promise<QueueControlResponse> {
@@ -191,5 +211,16 @@ export class OperatorApi {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     });
+  }
+
+  // --- Workflow export ---
+
+  /** Export a ticket (rendered against its issue type) to a Claude dynamic workflow (.js). */
+  exportWorkflow(ticketId: string): Promise<WorkflowExportResponse> {
+    return request(
+      this.base,
+      `/api/v1/tickets/${encodeURIComponent(ticketId)}/workflow-export`,
+      { method: 'POST' },
+    );
   }
 }

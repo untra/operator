@@ -21,6 +21,16 @@ use crate::services::kanban_onboarding;
 /// Validate credentials against the live provider API without persisting
 /// anything. Auth failures return `valid: false` with an `error` string
 /// rather than a 4xx/5xx status so clients can display errors inline.
+#[utoipa::path(
+    post,
+    path = "/api/v1/kanban/validate",
+    tag = "Kanban",
+    operation_id = "kanban_validate_credentials",
+    request_body = ValidateKanbanCredentialsRequest,
+    responses(
+        (status = 200, description = "Validation result (valid flag + optional error)", body = ValidateKanbanCredentialsResponse)
+    )
+)]
 pub async fn validate_credentials(
     State(_state): State<ApiState>,
     Json(req): Json<ValidateKanbanCredentialsRequest>,
@@ -33,6 +43,16 @@ pub async fn validate_credentials(
 ///
 /// List available projects/teams for the given provider using ephemeral
 /// credentials. No persistence side effects.
+#[utoipa::path(
+    post,
+    path = "/api/v1/kanban/projects",
+    tag = "Kanban",
+    operation_id = "kanban_list_projects",
+    request_body = ListKanbanProjectsRequest,
+    responses(
+        (status = 200, description = "Available projects/teams for the provider", body = ListKanbanProjectsResponse)
+    )
+)]
 pub async fn list_projects(
     State(_state): State<ApiState>,
     Json(req): Json<ListKanbanProjectsRequest>,
@@ -45,6 +65,16 @@ pub async fn list_projects(
 ///
 /// Write or upsert a kanban provider+project section into `config.toml`.
 /// Does NOT receive the actual secret — only the env var name (`api_key_env`).
+#[utoipa::path(
+    put,
+    path = "/api/v1/kanban/config",
+    tag = "Kanban",
+    operation_id = "kanban_write_config",
+    request_body = WriteKanbanConfigRequest,
+    responses(
+        (status = 200, description = "Config section written/upserted", body = WriteKanbanConfigResponse)
+    )
+)]
 pub async fn write_config(
     State(_state): State<ApiState>,
     Json(req): Json<WriteKanbanConfigRequest>,
@@ -59,6 +89,16 @@ pub async fn write_config(
 /// Set kanban env vars on the server process for the current session so
 /// subsequent `from_config()` calls find the API key. Returns a
 /// `shell_export_block` with placeholder values for the client to display.
+#[utoipa::path(
+    post,
+    path = "/api/v1/kanban/session-env",
+    tag = "Kanban",
+    operation_id = "kanban_set_session_env",
+    request_body = SetKanbanSessionEnvRequest,
+    responses(
+        (status = 200, description = "Session env vars set; returns a shell export block", body = SetKanbanSessionEnvResponse)
+    )
+)]
 pub async fn set_session_env(
     State(_state): State<ApiState>,
     Json(req): Json<SetKanbanSessionEnvRequest>,

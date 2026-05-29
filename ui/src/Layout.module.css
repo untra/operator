@@ -1,27 +1,67 @@
 .layout {
   display: flex;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, sans-serif;
-  color: #e0e0e0;
-  background: #1a1a2e;
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--color-bg);
 }
 
 .nav {
-  width: 220px;
+  width: var(--sidebar-width);
   flex-shrink: 0;
-  background: #16213e;
-  border-right: 1px solid #2a2a4a;
-  padding: 1rem 0;
+  background: var(--color-cream);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
 }
 
 .brand {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  padding: 0.5rem 1rem 1.5rem;
-  color: #7ec8e3;
-  letter-spacing: 0.05em;
+  color: var(--color-salmon);
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.themeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--color-green-l1);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.themeToggle:hover {
+  color: var(--color-green-l2);
+}
+
+.group {
+  margin-bottom: 20px;
+}
+
+.groupLabel {
+  margin: 0 0 8px;
+  padding: 0 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-salmon-dark);
 }
 
 .navList {
@@ -30,28 +70,33 @@
   padding: 0;
 }
 
+.navList li {
+  margin-bottom: 6px;
+}
+
 .navLink {
   display: block;
-  padding: 0.6rem 1rem;
-  color: #a0a0c0;
+  padding: 8px 12px;
+  background: var(--color-green-l1);
+  color: var(--color-cream);
   text-decoration: none;
   font-size: 0.875rem;
-  transition: background 0.15s, color 0.15s;
+  border-radius: var(--radius);
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .navLink:hover {
-  background: #1a2744;
-  color: #e0e0e0;
+  background: var(--color-green-l2);
+  color: var(--color-cream);
 }
 
 .active {
-  color: #7ec8e3;
-  background: #1a2744;
-  border-left: 3px solid #7ec8e3;
+  background: var(--color-green-l3);
+  color: var(--color-cream);
 }
 
 .main {
   flex: 1;
-  padding: 1.5rem 2rem;
+  padding: 48px;
   overflow-y: auto;
 }

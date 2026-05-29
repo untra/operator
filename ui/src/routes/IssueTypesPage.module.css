@@ -9,13 +9,13 @@
 }
 
 .loading {
-  color: #a0a0c0;
+  color: var(--text-muted);
   padding: 2rem;
 }
 
 .error {
-  background: #3a1a1a;
-  color: #f08080;
+  background: var(--danger-bg);
+  color: var(--danger);
   padding: 0.75rem 1rem;
   border-radius: 6px;
   margin-bottom: 1rem;
@@ -44,18 +44,18 @@
   border-radius: 6px;
   cursor: pointer;
   text-align: left;
-  color: #e0e0e0;
+  color: var(--text);
   font: inherit;
   transition: background 0.15s;
 }
 
 .item:hover {
-  background: #1a2744;
+  background: var(--surface-alt);
 }
 
 .selectedItem {
-  background: #1a2744;
-  border-color: #7ec8e3;
+  background: var(--surface-alt);
+  border-color: var(--color-salmon);
 }
 
 .glyph {
@@ -72,18 +72,18 @@
 
 .itemMeta {
   font-size: 0.7rem;
-  color: #a0a0c0;
+  color: var(--text-muted);
 }
 
 .detail {
-  background: #16213e;
-  border: 1px solid #2a2a4a;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1.25rem;
 }
 
 .placeholder {
-  color: #a0a0c0;
+  color: var(--text-muted);
   font-size: 0.875rem;
 }
 
@@ -101,7 +101,7 @@
 }
 
 .detailDesc {
-  color: #a0a0c0;
+  color: var(--text-muted);
   font-size: 0.875rem;
   margin: 0 0 1rem;
 }
@@ -115,11 +115,11 @@
 }
 
 .label {
-  color: #a0a0c0;
+  color: var(--text-muted);
 }
 
 .steps {
-  border-top: 1px solid #2a2a4a;
+  border-top: 1px solid var(--border);
   padding-top: 1rem;
 }
 
@@ -144,7 +144,7 @@
 }
 
 .stepMeta {
-  color: #a0a0c0;
+  color: var(--text-muted);
   margin-left: 0.5rem;
   font-size: 0.75rem;
 }

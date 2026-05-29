@@ -19,6 +19,7 @@ use crate::state::State as OperatorState;
 ///
 /// Returns a list of all currently running agents with their status and details.
 #[utoipa::path(
+    operation_id = "agents_active",
     get,
     path = "/api/v1/agents/active",
     tag = "Agents",
@@ -67,6 +68,7 @@ pub async fn active(State(state): State<ApiState>) -> Result<Json<ActiveAgentsRe
 ///
 /// Returns full details for a specific agent, including all tracked state.
 #[utoipa::path(
+    operation_id = "agents_get_detail",
     get,
     path = "/api/v1/agents/{agent_id}",
     tag = "Agents",
@@ -118,6 +120,7 @@ pub async fn get_detail(
 /// Clears the review state and signals the agent to continue.
 /// The agent must be in `awaiting_input` status with a pending review.
 #[utoipa::path(
+    operation_id = "agents_approve_review",
     post,
     path = "/api/v1/agents/{agent_id}/approve",
     tag = "Agents",
@@ -175,6 +178,7 @@ pub async fn approve_review(
 /// Signals the agent that the review was rejected with feedback.
 /// The agent should re-do the work based on the rejection reason.
 #[utoipa::path(
+    operation_id = "agents_reject_review",
     post,
     path = "/api/v1/agents/{agent_id}/reject",
     tag = "Agents",

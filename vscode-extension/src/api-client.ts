@@ -30,6 +30,7 @@ import type {
   WriteKanbanConfigResponse,
   SetKanbanSessionEnvRequest,
   SetKanbanSessionEnvResponse,
+  WorkflowExportResponse,
 } from './generated';
 
 // Re-export generated types for consumers
@@ -218,6 +219,27 @@ export class OperatorApiClient {
     }
 
     return (await response.json()) as LaunchTicketResponse;
+  }
+
+  /**
+   * Export a ticket (rendered against its issue type) to a Claude dynamic
+   * workflow (.js). Goes through the same shared code path as the CLI and TUI.
+   */
+  async exportWorkflow(ticketId: string): Promise<WorkflowExportResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/tickets/${encodeURIComponent(ticketId)}/workflow-export`,
+      { method: 'POST' }
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as WorkflowExportResponse;
   }
 
   /**

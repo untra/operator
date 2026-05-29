@@ -16,6 +16,21 @@ use crate::services::kanban_issuetype_service::KanbanIssueTypeService;
 ///
 /// Returns kanban issue types from the persisted catalog for a given provider/project.
 /// Falls back to fetching live from the provider if no catalog exists.
+#[utoipa::path(
+    get,
+    path = "/api/v1/kanban/{provider}/{project_key}/issuetypes",
+    tag = "Kanban",
+    operation_id = "kanban_external_issue_types",
+    params(
+        ("provider" = String, Path, description = "Kanban provider name (e.g. jira, linear, github)"),
+        ("project_key" = String, Path, description = "Provider project/team key")
+    ),
+    responses(
+        (status = 200, description = "External issue types", body = Vec<ExternalIssueTypeSummary>),
+        (status = 400, description = "Unknown provider/project"),
+        (status = 500, description = "Failed to read catalog or fetch from provider")
+    )
+)]
 pub async fn external_issue_types(
     State(state): State<ApiState>,
     Path((provider_name, project_key)): Path<(String, String)>,
@@ -68,6 +83,21 @@ pub async fn external_issue_types(
 /// POST /`api/v1/kanban/:provider/:project_key/issuetypes/sync`
 ///
 /// Refreshes the local kanban issue type catalog from the provider.
+#[utoipa::path(
+    post,
+    path = "/api/v1/kanban/{provider}/{project_key}/issuetypes/sync",
+    tag = "Kanban",
+    operation_id = "kanban_sync_issue_types",
+    params(
+        ("provider" = String, Path, description = "Kanban provider name (e.g. jira, linear, github)"),
+        ("project_key" = String, Path, description = "Provider project/team key")
+    ),
+    responses(
+        (status = 200, description = "Synced issue types", body = SyncKanbanIssueTypesResponse),
+        (status = 400, description = "Unknown provider/project"),
+        (status = 500, description = "Failed to sync from provider")
+    )
+)]
 pub async fn sync_issue_types(
     State(state): State<ApiState>,
     Path((provider_name, project_key)): Path<(String, String)>,

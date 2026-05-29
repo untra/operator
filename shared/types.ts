@@ -785,6 +785,65 @@ export type HealthResponse = { status: string, version: string, };
 
 export type StatusResponse = { status: string, version: string, issuetype_count: number, collection_count: number, active_collection: string, };
 
+export type SectionDto = { 
+/**
+ * Stable section id (e.g. "config", "connections", "kanban").
+ */
+id: string, label: string, 
+/**
+ * Health: "green" | "yellow" | "red" | "gray".
+ */
+health: string, description: string, 
+/**
+ * Section ids that must be Green before this section is usable.
+ */
+prerequisites: Array<string>, 
+/**
+ * Whether all prerequisites are met. Sections are always returned (the web
+ * UI styles unmet ones as locked) rather than hidden by progressive disclosure.
+ */
+met: boolean, children: Array<SectionRowDto>, };
+
+export type SectionRowDto = { 
+/**
+ * Stable, section-scoped row id. Clients use it as a tree key and to route
+ * row-specific commands without matching on the (mutable) display label.
+ * Dynamic rows carry their entity key (issue-type key, project name);
+ * static rows carry a fixed slug (e.g. "git-token").
+ */
+id: string, 
+/**
+ * Nesting depth within the section (1 = direct child, 2 = grandchild).
+ * Lets clients rebuild the tree (e.g. LLM tools → model aliases).
+ */
+depth: number, label: string, description: string, 
+/**
+ * Icon hint (e.g. "check", "warning", "tool", "folder").
+ */
+icon: string, 
+/**
+ * Health: "green" | "yellow" | "red" | "gray".
+ */
+health: string, };
+
+export type WorkflowExportResponse = { 
+/**
+ * The ticket the workflow was generated from.
+ */
+ticket_id: string, 
+/**
+ * The issue type key that supplied the step structure.
+ */
+issuetype_key: string, 
+/**
+ * Suggested filename for saving the workflow (`<ticket-id>.workflow.js`).
+ */
+suggested_filename: string, 
+/**
+ * The generated `.js` workflow source.
+ */
+contents: string, };
+
 export type SkillEntry = { 
 /**
  * Tool this skill belongs to (e.g., "claude", "codex")

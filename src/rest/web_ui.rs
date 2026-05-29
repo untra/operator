@@ -10,6 +10,37 @@ use rust_embed::Embed;
 #[folder = "ui/dist"]
 struct UiAssets;
 
+/// Sentinel substring written into `ui/dist/index.html` by `build.rs` when the
+/// SPA hasn't been built. The runtime detector uses this to distinguish a real
+/// Vite build from a placeholder so the TUI can give the user an actionable
+/// message instead of opening a blank page.
+pub const PLACEHOLDER_MARKER: &str = "operator:placeholder";
+
+/// Whether the embedded SPA is usable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmbeddedUiState {
+    /// A real built SPA is embedded.
+    Ready,
+    /// The build.rs placeholder is embedded — `ui/dist` wasn't built before
+    /// the cargo build.
+    Placeholder,
+    /// No SPA assets at all (should be unreachable when this module compiles).
+    Missing,
+}
+
+/// Inspect the embedded assets and report whether a real SPA is available.
+pub fn embedded_ui_state() -> EmbeddedUiState {
+    let Some(file) = UiAssets::get("index.html") else {
+        return EmbeddedUiState::Missing;
+    };
+    let body = std::str::from_utf8(&file.data).unwrap_or("");
+    if body.contains(PLACEHOLDER_MARKER) {
+        EmbeddedUiState::Placeholder
+    } else {
+        EmbeddedUiState::Ready
+    }
+}
+
 /// Axum fallback handler that serves embedded SPA assets.
 ///
 /// Priority: exact file match → index.html (SPA client-side routing).
@@ -111,5 +142,28 @@ mod tests {
                 || index_str.contains("<html"),
             "index.html should contain valid HTML"
         );
+    }
+
+    #[test]
+    fn test_embedded_ui_state_detects_real_build() {
+        let index = UiAssets::get("index.html").expect("index.html must exist");
+        let body = std::str::from_utf8(&index.data).unwrap_or("");
+        let expected = if body.contains(PLACEHOLDER_MARKER) {
+            EmbeddedUiState::Placeholder
+        } else {
+            EmbeddedUiState::Ready
+        };
+        assert_eq!(
+            embedded_ui_state(),
+            expected,
+            "embedded_ui_state() must agree with the contents of the embedded index.html"
+        );
+    }
+
+    #[test]
+    fn test_placeholder_marker_constant_is_stable() {
+        // build.rs writes this exact substring; if either side drifts, the
+        // runtime detector silently breaks. Pin the value here.
+        assert_eq!(PLACEHOLDER_MARKER, "operator:placeholder");
     }
 }

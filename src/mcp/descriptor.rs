@@ -58,6 +58,7 @@ pub struct McpDescriptorResponse {
 /// The transport URL is derived from the request Host header so it reflects
 /// the actual running port; the stdio entrypoint reflects this binary's path.
 #[utoipa::path(
+    operation_id = "mcp_descriptor",
     get,
     path = "/api/v1/mcp/descriptor",
     tag = "MCP",

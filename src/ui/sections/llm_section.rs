@@ -45,6 +45,7 @@ impl StatusSection for LlmSection {
             // Depth 1: tool name + version
             rows.push(TreeRow {
                 section_id: SectionId::LlmTools,
+                id: tool.name.clone(),
                 depth: 1,
                 label: tool.name.clone(),
                 description: tool.version.clone(),
@@ -81,6 +82,7 @@ impl StatusSection for LlmSection {
 
                 rows.push(TreeRow {
                     section_id: SectionId::LlmTools,
+                    id: format!("{}:{}", tool.name, model),
                     depth: 2,
                     label,
                     description: format!("{}:{}", tool.name, model),

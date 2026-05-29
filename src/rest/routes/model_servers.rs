@@ -31,6 +31,7 @@ fn server_to_response(s: &ModelServer, user_declared: bool) -> ModelServerRespon
 
 /// List all model servers (user-declared + implicit builtins)
 #[utoipa::path(
+    operation_id = "model_servers_list",
     get,
     path = "/api/v1/model-servers",
     tag = "ModelServers",
@@ -59,6 +60,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<ModelServersResponse> {
 
 /// Get a single model server by name
 #[utoipa::path(
+    operation_id = "model_servers_get_one",
     get,
     path = "/api/v1/model-servers/{name}",
     tag = "ModelServers",
@@ -90,6 +92,7 @@ pub async fn get_one(
 
 /// Create a new model server
 #[utoipa::path(
+    operation_id = "model_servers_create",
     post,
     path = "/api/v1/model-servers",
     tag = "ModelServers",
@@ -146,6 +149,7 @@ pub async fn create(
 ///
 /// Implicit builtin servers cannot be deleted.
 #[utoipa::path(
+    operation_id = "model_servers_delete",
     delete,
     path = "/api/v1/model-servers/{name}",
     tag = "ModelServers",

@@ -13,6 +13,7 @@ use crate::rest::state::ApiState;
 
 /// List detected LLM tools with model aliases
 #[utoipa::path(
+    operation_id = "llm_tools_list",
     get,
     path = "/api/v1/llm-tools",
     tag = "LLM Tools",
@@ -28,6 +29,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<LlmToolsResponse> {
 
 /// Get the current default LLM tool and model
 #[utoipa::path(
+    operation_id = "llm_tools_get_default",
     get,
     path = "/api/v1/llm-tools/default",
     tag = "LLM Tools",
@@ -54,6 +56,7 @@ pub async fn get_default(State(state): State<ApiState>) -> Json<DefaultLlmRespon
 
 /// Set the global default LLM tool and model
 #[utoipa::path(
+    operation_id = "llm_tools_set_default",
     put,
     path = "/api/v1/llm-tools/default",
     tag = "LLM Tools",

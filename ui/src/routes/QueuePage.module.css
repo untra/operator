@@ -9,13 +9,13 @@
 }
 
 .loading {
-  color: #a0a0c0;
+  color: var(--text-muted);
   padding: 2rem;
 }
 
 .error {
-  background: #3a1a1a;
-  color: #f08080;
+  background: var(--danger-bg);
+  color: var(--danger);
   padding: 0.75rem 1rem;
   border-radius: 6px;
   margin-bottom: 1rem;
@@ -23,7 +23,7 @@
 }
 
 .meta {
-  color: #a0a0c0;
+  color: var(--text-muted);
   font-size: 0.825rem;
   margin-bottom: 1.25rem;
 }
@@ -35,8 +35,8 @@
 }
 
 .column {
-  background: #16213e;
-  border: 1px solid #2a2a4a;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -45,11 +45,11 @@
   padding: 0.6rem 0.75rem;
   font-weight: 600;
   font-size: 0.875rem;
-  border-bottom: 1px solid #2a2a4a;
+  border-bottom: 1px solid var(--border);
 }
 
 .count {
-  color: #a0a0c0;
+  color: var(--text-muted);
   font-weight: 400;
 }
 
@@ -62,7 +62,7 @@
 }
 
 .card {
-  background: #1a2744;
+  background: var(--surface-alt);
   border-radius: 6px;
   padding: 0.6rem 0.75rem;
 }
@@ -77,13 +77,13 @@
 .ticketType {
   font-size: 0.65rem;
   font-weight: 600;
-  color: #7ec8e3;
+  color: var(--color-salmon);
   text-transform: uppercase;
 }
 
 .ticketId {
   font-size: 0.75rem;
-  color: #a0a0c0;
+  color: var(--text-muted);
 }
 
 .cardSummary {
@@ -94,11 +94,11 @@
 
 .cardMeta {
   font-size: 0.7rem;
-  color: #a0a0c0;
+  color: var(--text-muted);
 }
 
 .empty {
-  color: #606080;
+  color: var(--text-muted);
   font-size: 0.8rem;
   text-align: center;
   padding: 1.5rem 0;

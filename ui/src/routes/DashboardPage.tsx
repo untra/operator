@@ -1,34 +1,58 @@
 import { useEffect, useState } from 'react';
 import { OperatorApi } from '../api-client';
-import type { HealthResponse, QueueStatusResponse, ActiveAgentsResponse } from '../api-client';
+import type { HealthResponse, QueueStatusResponse, KanbanBoardResponse } from '../api-client';
 import { useHost } from '../host';
+import { KanbanBoard } from '../components/KanbanBoard';
 import styles from './DashboardPage.module.css';
+
+const POLL_INTERVAL_MS = 3000;
 
 export function DashboardPage() {
   const host = useHost();
   const [api] = useState(() => new OperatorApi(host));
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [queue, setQueue] = useState<QueueStatusResponse | null>(null);
-  const [agents, setAgents] = useState<ActiveAgentsResponse | null>(null);
+  const [board, setBoard] = useState<KanbanBoardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.health().then(setHealth).catch((e) => setError(e.message));
-    api.queueStatus().then(setQueue).catch(() => {});
-    api.activeAgents().then(setAgents).catch(() => {});
+    let cancelled = false;
+
+    const refresh = () => {
+      api
+        .kanban()
+        .then((b) => {
+          if (cancelled) return;
+          setBoard(b);
+          setError(null);
+        })
+        .catch((e) => {
+          if (!cancelled) setError(e.message);
+        });
+      api.queueStatus().then((q) => !cancelled && setQueue(q)).catch(() => {});
+      api.health().then((h) => !cancelled && setHealth(h)).catch(() => {});
+    };
+
+    refresh();
+    const timer = setInterval(refresh, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [api]);
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Dashboard</h1>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Dashboard</h1>
+        {health && (
+          <span className={styles.statusBanner}>
+            API: {health.status} &middot; v{health.version}
+          </span>
+        )}
+      </div>
 
       {error && <div className={styles.error}>API: {error}</div>}
-
-      {health && (
-        <div className={styles.statusBanner}>
-          API: {health.status} &middot; v{health.version}
-        </div>
-      )}
 
       <div className={styles.cards}>
         <Card label="Queued" value={queue?.queued} />
@@ -37,32 +61,14 @@ export function DashboardPage() {
         <Card label="Completed" value={queue?.completed} />
       </div>
 
-      {agents && agents.count > 0 && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Active Agents ({agents.count})</h2>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Ticket</th>
-                <th>Project</th>
-                <th>Status</th>
-                <th>Step</th>
-              </tr>
-            </thead>
-            <tbody>
-              {agents.agents.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.id}</td>
-                  <td>{a.ticket_id}</td>
-                  <td>{a.project}</td>
-                  <td>{a.status}</td>
-                  <td>{a.current_step ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+      {board && (
+        <>
+          <div className={styles.meta}>
+            {board.total_count} tickets &middot; updated{' '}
+            {new Date(board.last_updated).toLocaleTimeString()}
+          </div>
+          <KanbanBoard board={board} />
+        </>
       )}
     </div>
   );

@@ -39,6 +39,7 @@ impl StatusSection for DelegatorSection {
         if snapshot.delegators.is_empty() {
             return vec![TreeRow {
                 section_id: SectionId::Delegators,
+                id: "add-delegator".into(),
                 depth: 1,
                 label: "Add delegator".into(),
                 description: "Edit config to configure a delegator".into(),
@@ -65,6 +66,7 @@ impl StatusSection for DelegatorSection {
 
                 TreeRow {
                     section_id: SectionId::Delegators,
+                    id: d.name.clone(),
                     depth: 1,
                     label,
                     description,
@@ -110,6 +112,8 @@ mod tests {
             default_llm_model: None,
             delegators,
             model_servers: vec![],
+            issue_types: vec![],
+            managed_projects: vec![],
             git_provider: None,
             git_token_set: false,
             git_branch_format: None,

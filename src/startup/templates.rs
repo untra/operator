@@ -11,6 +11,57 @@ use tracing::info;
 use crate::collections::{
     get_embedded_collection, EmbeddedCollection, EMBEDDED_COLLECTIONS, EMBEDDED_SCHEMAS,
 };
+use crate::issuetypes::IssueTypeRegistry;
+
+/// Build an `IssueTypeRegistry` for a workspace using the canonical loading
+/// priority, so every surface (REST API, CLI, TUI) resolves the same issue
+/// types from the same place:
+///
+/// 1. Load from `.tickets/templates/` (collection-scoped structure).
+/// 2. If empty, initialize default templates from embedded files, then reload.
+/// 3. Fall back to embedded builtins if filesystem loading fails or yields none.
+pub fn load_registry(tickets_path: &Path) -> IssueTypeRegistry {
+    let mut registry = IssueTypeRegistry::new();
+    let templates_path = tickets_path.join("templates");
+
+    // Ensure schema files exist (runs every time, even if templates exist).
+    if let Err(e) = ensure_schemas(tickets_path) {
+        tracing::warn!("Failed to ensure schema files: {}", e);
+    }
+
+    match registry.load_from_templates_dir(&templates_path) {
+        Ok(()) if registry.type_count() > 0 => {
+            info!(
+                "Loaded {} issue types from templates directory",
+                registry.type_count()
+            );
+        }
+        Ok(()) => {
+            // Templates directory empty or absent — initialize defaults.
+            info!("Templates directory empty, initializing defaults...");
+            if let Err(e) = init_default_templates(&templates_path) {
+                tracing::warn!("Failed to initialize default templates: {}", e);
+            } else if let Err(e) = registry.load_from_templates_dir(&templates_path) {
+                tracing::warn!("Failed to load initialized templates: {}", e);
+            }
+
+            if registry.type_count() == 0 {
+                info!("Falling back to embedded builtin types");
+                if let Err(e) = registry.load_builtins() {
+                    tracing::warn!("Failed to load builtin issue types: {}", e);
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to load from templates directory: {}", e);
+            if let Err(e) = registry.load_builtins() {
+                tracing::warn!("Failed to load builtin issue types: {}", e);
+            }
+        }
+    }
+
+    registry
+}
 
 /// Initialize the templates directory with default collections
 ///

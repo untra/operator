@@ -11,6 +11,7 @@ use crate::rest::state::ApiState;
 
 /// List all collections
 #[utoipa::path(
+    operation_id = "collections_list",
     get,
     path = "/api/v1/collections",
     tag = "Collections",
@@ -32,6 +33,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<Vec<CollectionResponse>
 
 /// Get the currently active collection
 #[utoipa::path(
+    operation_id = "collections_get_active",
     get,
     path = "/api/v1/collections/active",
     tag = "Collections",
@@ -54,6 +56,7 @@ pub async fn get_active(
 
 /// Get a single collection by name
 #[utoipa::path(
+    operation_id = "collections_get_one",
     get,
     path = "/api/v1/collections/{name}",
     tag = "Collections",
@@ -84,6 +87,7 @@ pub async fn get_one(
 
 /// Activate a collection
 #[utoipa::path(
+    operation_id = "collections_activate",
     put,
     path = "/api/v1/collections/{name}/activate",
     tag = "Collections",

@@ -1,11 +1,48 @@
 use anyhow::Result;
 
 use crate::config::SessionWrapperType;
+use crate::rest::web_ui::EmbeddedUiState;
 use crate::ui::status_panel::StatusAction;
 use crate::ui::with_suspended_tui;
 
 use super::git_onboarding;
 use super::{App, AppTerminal};
+
+/// Decision from `decide_open_web_ui`: either open a URL or surface a status
+/// message explaining why we can't.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum WebUiOutcome {
+    Open(String),
+    StatusOnly(String),
+}
+
+/// Pure decision logic for "user pressed `w` / clicked Open Web UI".
+///
+/// Kept free of `&self` so it can be unit-tested without spinning up an `App`.
+/// Callers resolve the inputs from runtime state and act on the returned
+/// outcome (open the URL or just show the status message).
+pub(super) fn decide_open_web_ui(
+    api_running: bool,
+    url: &str,
+    state: EmbeddedUiState,
+) -> WebUiOutcome {
+    if !api_running {
+        return WebUiOutcome::StatusOnly(
+            "API not running — press Enter on the Operator API row to start it.".into(),
+        );
+    }
+    match state {
+        EmbeddedUiState::Ready => WebUiOutcome::Open(url.to_string()),
+        EmbeddedUiState::Placeholder => WebUiOutcome::StatusOnly(
+            "Web UI placeholder detected — run `cd ui && bun run build` and rebuild operator."
+                .into(),
+        ),
+        EmbeddedUiState::Missing => WebUiOutcome::StatusOnly(
+            "Binary built without `embed-ui` feature — rebuild with `cargo build` (default) or `--features embed-ui`."
+                .into(),
+        ),
+    }
+}
 
 /// Open a URL in the default browser.
 pub(super) fn open_in_browser(url: &str) -> std::io::Result<()> {
@@ -85,17 +122,11 @@ impl App {
             }
             StatusAction::OpenWebUi { port } => {
                 let url = format!("http://localhost:{port}/");
-                if let Err(e) = open_in_browser(&url) {
-                    self.dashboard
-                        .set_status(&format!("Failed to open web UI: {e}"));
-                }
+                self.try_open_web_ui(&url);
             }
             StatusAction::OpenWebUiAt { port, route } => {
                 let url = format!("http://localhost:{port}/#{route}");
-                if let Err(e) = open_in_browser(&url) {
-                    self.dashboard
-                        .set_status(&format!("Failed to open web UI: {e}"));
-                }
+                self.try_open_web_ui(&url);
             }
             StatusAction::SetDefaultLlm { tool_name, model } => {
                 self.set_default_llm(&tool_name, &model);
@@ -355,20 +386,90 @@ impl App {
 
     /// Open the embedded web UI in the default browser.
     pub(super) fn open_web_ui(&mut self) -> Result<()> {
-        if self.rest_api_server.is_running() {
-            let port = self.config.rest_api.port;
-            let url = format!("http://localhost:{port}/");
-            if let Err(e) = open_in_browser(&url) {
-                self.dashboard
-                    .set_status(&format!("Failed to open browser: {e}"));
-            } else {
-                self.dashboard
-                    .set_status(&format!("Opened web UI at {url}"));
-            }
-        } else {
-            self.dashboard
-                .set_status("API not running — web UI unavailable");
-        }
+        let port = self.config.rest_api.port;
+        let url = format!("http://localhost:{port}/");
+        self.try_open_web_ui(&url);
         Ok(())
+    }
+
+    /// Shared implementation: consult `decide_open_web_ui`, either spawn the
+    /// browser or surface a status message explaining the failure.
+    fn try_open_web_ui(&mut self, url: &str) {
+        let outcome = decide_open_web_ui(
+            self.rest_api_server.is_running(),
+            url,
+            crate::rest::web_ui::embedded_ui_state(),
+        );
+        match outcome {
+            WebUiOutcome::Open(url) => match open_in_browser(&url) {
+                Ok(()) => self
+                    .dashboard
+                    .set_status(&format!("Opened web UI at {url}")),
+                Err(e) => self
+                    .dashboard
+                    .set_status(&format!("Failed to open browser: {e}")),
+            },
+            WebUiOutcome::StatusOnly(msg) => self.dashboard.set_status(&msg),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const URL: &str = "http://localhost:7008/";
+
+    #[test]
+    fn test_decide_open_web_ui_api_stopped_returns_status_message() {
+        let outcome = decide_open_web_ui(false, URL, EmbeddedUiState::Ready);
+        match outcome {
+            WebUiOutcome::StatusOnly(msg) => {
+                assert!(msg.contains("API not running"), "got: {msg}");
+            }
+            other => panic!("expected StatusOnly, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_decide_open_web_ui_ready_returns_url() {
+        let outcome = decide_open_web_ui(true, URL, EmbeddedUiState::Ready);
+        assert_eq!(outcome, WebUiOutcome::Open(URL.to_string()));
+    }
+
+    #[test]
+    fn test_decide_open_web_ui_placeholder_warns_user() {
+        let outcome = decide_open_web_ui(true, URL, EmbeddedUiState::Placeholder);
+        match outcome {
+            WebUiOutcome::StatusOnly(msg) => {
+                assert!(msg.contains("placeholder"), "got: {msg}");
+                assert!(msg.contains("bun run build"), "got: {msg}");
+            }
+            other => panic!("expected StatusOnly, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_decide_open_web_ui_missing_warns_user() {
+        let outcome = decide_open_web_ui(true, URL, EmbeddedUiState::Missing);
+        match outcome {
+            WebUiOutcome::StatusOnly(msg) => {
+                assert!(msg.contains("embed-ui"), "got: {msg}");
+            }
+            other => panic!("expected StatusOnly, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_decide_open_web_ui_api_stopped_takes_precedence_over_missing() {
+        // Even if the UI is missing, the user's first problem to solve is
+        // starting the API — surface that message, not the embed-ui one.
+        let outcome = decide_open_web_ui(false, URL, EmbeddedUiState::Missing);
+        match outcome {
+            WebUiOutcome::StatusOnly(msg) => {
+                assert!(msg.contains("API not running"), "got: {msg}");
+            }
+            other => panic!("expected StatusOnly, got {other:?}"),
+        }
     }
 }

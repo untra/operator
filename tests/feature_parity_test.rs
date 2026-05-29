@@ -96,33 +96,28 @@ fn test_vscode_extension_has_all_core_operations() {
     }
 }
 
-/// Test that REST API routes are registered for all Core Operations
+/// Test that REST API routes are registered for all Core Operations.
+///
+/// Asserts against the generated OpenAPI spec rather than grepping the router
+/// source: since the router was migrated to `utoipa_axum::OpenApiRouter`,
+/// mounting a route *is* registering it in the spec, so the spec is the
+/// authoritative list of live routes. Path params use OpenAPI `{param}` syntax.
 #[test]
 fn test_api_routes_are_registered() {
-    // Read mod.rs to verify routes are registered
-    let mod_rs = include_str!("../src/rest/mod.rs");
+    let spec = operator::rest::ApiDoc::json().expect("generate OpenAPI spec");
 
-    // Check that pause/resume/sync endpoints are registered
-    assert!(
-        mod_rs.contains("/api/v1/queue/pause"),
-        "REST API should have /api/v1/queue/pause route"
-    );
-    assert!(
-        mod_rs.contains("/api/v1/queue/resume"),
-        "REST API should have /api/v1/queue/resume route"
-    );
-    assert!(
-        mod_rs.contains("/api/v1/queue/sync"),
-        "REST API should have /api/v1/queue/sync route"
-    );
-    assert!(
-        mod_rs.contains("/api/v1/agents/:agent_id/approve"),
-        "REST API should have /api/v1/agents/:agent_id/approve route"
-    );
-    assert!(
-        mod_rs.contains("/api/v1/agents/:agent_id/reject"),
-        "REST API should have /api/v1/agents/:agent_id/reject route"
-    );
+    for route in [
+        "/api/v1/queue/pause",
+        "/api/v1/queue/resume",
+        "/api/v1/queue/sync",
+        "/api/v1/agents/{agent_id}/approve",
+        "/api/v1/agents/{agent_id}/reject",
+    ] {
+        assert!(
+            spec.contains(route),
+            "REST API OpenAPI spec should document the {route} route"
+        );
+    }
 }
 
 /// Test that all Core Operations are documented in session management docs

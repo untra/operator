@@ -7,13 +7,15 @@ use std::net::SocketAddr;
 
 use anyhow::Result;
 use axum::{
-    routing::{delete, get, post, put},
+    routing::{get, post},
     Router,
 };
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 use utoipa::OpenApi;
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_axum::routes;
 use utoipa_swagger_ui::SwaggerUi;
 
 pub mod dto;
@@ -25,6 +27,28 @@ pub mod state;
 #[cfg(feature = "embed-ui")]
 pub mod web_ui;
 
+/// Shim exposing the same `EmbeddedUiState` API when the SPA isn't compiled
+/// in. Callers can treat the two modules identically without `#[cfg]` blocks.
+///
+/// `Ready` and `Placeholder` are never constructed in this configuration —
+/// `embedded_ui_state()` always returns `Missing` when `embed-ui` is off —
+/// but they must exist so call-site `match` arms remain exhaustive across
+/// both feature configurations.
+#[cfg(not(feature = "embed-ui"))]
+pub mod web_ui {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[allow(dead_code)]
+    pub enum EmbeddedUiState {
+        Ready,
+        Placeholder,
+        Missing,
+    }
+
+    pub fn embedded_ui_state() -> EmbeddedUiState {
+        EmbeddedUiState::Missing
+    }
+}
+
 pub use openapi::ApiDoc;
 pub use server::{ApiSessionInfo, RestApiServer, RestApiStatus};
 pub use state::ApiState;
@@ -32,6 +56,123 @@ pub use state::ApiState;
 /// Default port for the REST API server
 #[allow(dead_code)]
 pub const DEFAULT_PORT: u16 = 7008;
+
+/// Build the documented API surface as a `utoipa_axum::OpenApiRouter`.
+///
+/// Every always-on route is mounted here via `routes!`, so mounting a route
+/// *is* registering it in the OpenAPI spec — the router and the spec cannot
+/// drift. Handlers sharing a path (different HTTP methods) are grouped in a
+/// single `routes!` call. Config-gated routes (MCP `sse`/`message`) are NOT
+/// documented and are added separately in [`build_router`].
+///
+/// The base `OpenApi` (info, components/schemas, tags) comes from the
+/// [`ApiDoc`] derive; paths and their referenced schemas are collected from the
+/// mounted handlers.
+fn documented_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::with_openapi(ApiDoc::openapi())
+        // Health endpoints
+        .routes(routes!(routes::health::health))
+        .routes(routes!(routes::health::status))
+        // Canonical status sections (shared with the TUI / VS Code extension)
+        .routes(routes!(routes::sections::list))
+        // Issue type endpoints
+        .routes(routes!(
+            routes::issuetypes::list,
+            routes::issuetypes::create
+        ))
+        .routes(routes!(
+            routes::issuetypes::get_one,
+            routes::issuetypes::update,
+            routes::issuetypes::delete
+        ))
+        // Step endpoints
+        .routes(routes!(routes::steps::list))
+        .routes(routes!(routes::steps::get_one, routes::steps::update))
+        // Collection endpoints
+        .routes(routes!(routes::collections::list))
+        .routes(routes!(routes::collections::get_active))
+        .routes(routes!(routes::collections::get_one))
+        .routes(routes!(routes::collections::activate))
+        // Queue endpoints
+        .routes(routes!(routes::queue::kanban))
+        .routes(routes!(routes::queue::status))
+        .routes(routes!(routes::queue::pause))
+        .routes(routes!(routes::queue::resume))
+        .routes(routes!(routes::queue::sync))
+        .routes(routes!(routes::queue::sync_collection))
+        // Agent endpoints
+        .routes(routes!(routes::agents::active))
+        .routes(routes!(routes::agents::get_detail))
+        .routes(routes!(routes::agents::approve_review))
+        .routes(routes!(routes::agents::reject_review))
+        // Project endpoints
+        .routes(routes!(routes::projects::list))
+        .routes(routes!(routes::projects::assess))
+        // Ticket endpoints
+        .routes(routes!(routes::tickets::get_one))
+        .routes(routes!(routes::tickets::update_status))
+        // Launch endpoints
+        .routes(routes!(routes::launch::launch_ticket))
+        // Workflow export endpoint
+        .routes(routes!(routes::workflow::export))
+        // Step completion endpoint (for opr8r wrapper)
+        .routes(routes!(routes::launch::complete_step))
+        // Kanban provider endpoints
+        .routes(routes!(routes::kanban::external_issue_types))
+        .routes(routes!(routes::kanban::sync_issue_types))
+        // Kanban onboarding endpoints (validate, list projects, write config, set env)
+        .routes(routes!(routes::kanban_onboarding::validate_credentials))
+        .routes(routes!(routes::kanban_onboarding::list_projects))
+        .routes(routes!(routes::kanban_onboarding::write_config))
+        .routes(routes!(routes::kanban_onboarding::set_session_env))
+        // Skills endpoint
+        .routes(routes!(routes::skills::list))
+        // LLM tools endpoints
+        .routes(routes!(routes::llm_tools::list))
+        .routes(routes!(
+            routes::llm_tools::get_default,
+            routes::llm_tools::set_default
+        ))
+        // Delegator endpoints. `from-tool` is a distinct static path; axum 0.7
+        // prefers static segments over `{name}`, so ordering is not required for
+        // correctness, but the routes stay grouped by path for clarity.
+        .routes(routes!(
+            routes::delegators::list,
+            routes::delegators::create
+        ))
+        .routes(routes!(routes::delegators::create_from_tool))
+        .routes(routes!(
+            routes::delegators::get_one,
+            routes::delegators::update,
+            routes::delegators::delete
+        ))
+        // Configuration endpoints
+        .routes(routes!(
+            routes::configuration::get_config,
+            routes::configuration::update_config
+        ))
+        // Model server endpoints
+        .routes(routes!(
+            routes::model_servers::list,
+            routes::model_servers::create
+        ))
+        .routes(routes!(
+            routes::model_servers::get_one,
+            routes::model_servers::delete
+        ))
+        // MCP descriptor — always mounted so non-HTTP MCP clients can still
+        // discover the stdio entrypoint.
+        .routes(routes!(crate::mcp::descriptor::descriptor))
+}
+
+/// The canonical OpenAPI spec for the documented API surface.
+///
+/// Built from [`documented_router`] so it always reflects the mounted routes.
+/// Config-gated MCP transport routes are omitted (they carry no
+/// `#[utoipa::path]` and only ever exist when `[mcp].http_enabled`).
+pub fn openapi_spec() -> utoipa::openapi::OpenApi {
+    documented_router().split_for_parts().1
+}
 
 /// Build the API router with all routes
 pub fn build_router(state: ApiState) -> Router {
@@ -42,157 +183,10 @@ pub fn build_router(state: ApiState) -> Router {
 
     let mcp_enabled = state.config.mcp.http_enabled;
 
-    let mut router = Router::new()
-        // Health endpoints
-        .route("/api/v1/health", get(routes::health::health))
-        .route("/api/v1/status", get(routes::health::status))
-        // Issue type endpoints
-        .route("/api/v1/issuetypes", get(routes::issuetypes::list))
-        .route("/api/v1/issuetypes", post(routes::issuetypes::create))
-        .route("/api/v1/issuetypes/:key", get(routes::issuetypes::get_one))
-        .route("/api/v1/issuetypes/:key", put(routes::issuetypes::update))
-        .route(
-            "/api/v1/issuetypes/:key",
-            delete(routes::issuetypes::delete),
-        )
-        // Step endpoints
-        .route("/api/v1/issuetypes/:key/steps", get(routes::steps::list))
-        .route(
-            "/api/v1/issuetypes/:key/steps/:step_name",
-            get(routes::steps::get_one),
-        )
-        .route(
-            "/api/v1/issuetypes/:key/steps/:step_name",
-            put(routes::steps::update),
-        )
-        // Collection endpoints
-        .route("/api/v1/collections", get(routes::collections::list))
-        .route(
-            "/api/v1/collections/active",
-            get(routes::collections::get_active),
-        )
-        .route(
-            "/api/v1/collections/:name",
-            get(routes::collections::get_one),
-        )
-        .route(
-            "/api/v1/collections/:name/activate",
-            put(routes::collections::activate),
-        )
-        // Queue endpoints
-        .route("/api/v1/queue/kanban", get(routes::queue::kanban))
-        .route("/api/v1/queue/status", get(routes::queue::status))
-        .route("/api/v1/queue/pause", post(routes::queue::pause))
-        .route("/api/v1/queue/resume", post(routes::queue::resume))
-        .route("/api/v1/queue/sync", post(routes::queue::sync))
-        .route(
-            "/api/v1/queue/sync/:provider/:project_key",
-            post(routes::queue::sync_collection),
-        )
-        // Agent endpoints
-        .route("/api/v1/agents/active", get(routes::agents::active))
-        .route("/api/v1/agents/:agent_id", get(routes::agents::get_detail))
-        .route(
-            "/api/v1/agents/:agent_id/approve",
-            post(routes::agents::approve_review),
-        )
-        .route(
-            "/api/v1/agents/:agent_id/reject",
-            post(routes::agents::reject_review),
-        )
-        // Project endpoints
-        .route("/api/v1/projects", get(routes::projects::list))
-        .route(
-            "/api/v1/projects/:name/assess",
-            post(routes::projects::assess),
-        )
-        // Ticket endpoints
-        .route("/api/v1/tickets/:id", get(routes::tickets::get_one))
-        .route(
-            "/api/v1/tickets/:id/status",
-            put(routes::tickets::update_status),
-        )
-        // Launch endpoints
-        .route(
-            "/api/v1/tickets/:id/launch",
-            post(routes::launch::launch_ticket),
-        )
-        // Step completion endpoint (for opr8r wrapper)
-        .route(
-            "/api/v1/tickets/:id/steps/:step/complete",
-            post(routes::launch::complete_step),
-        )
-        // Kanban provider endpoints
-        .route(
-            "/api/v1/kanban/:provider/:project_key/issuetypes",
-            get(routes::kanban::external_issue_types),
-        )
-        .route(
-            "/api/v1/kanban/:provider/:project_key/issuetypes/sync",
-            post(routes::kanban::sync_issue_types),
-        )
-        // Kanban onboarding endpoints (validate, list projects, write config, set env)
-        .route(
-            "/api/v1/kanban/validate",
-            post(routes::kanban_onboarding::validate_credentials),
-        )
-        .route(
-            "/api/v1/kanban/projects",
-            post(routes::kanban_onboarding::list_projects),
-        )
-        .route(
-            "/api/v1/kanban/config",
-            put(routes::kanban_onboarding::write_config),
-        )
-        .route(
-            "/api/v1/kanban/session-env",
-            post(routes::kanban_onboarding::set_session_env),
-        )
-        // Skills endpoint
-        .route("/api/v1/skills", get(routes::skills::list))
-        // LLM tools endpoints
-        .route("/api/v1/llm-tools", get(routes::llm_tools::list))
-        .route(
-            "/api/v1/llm-tools/default",
-            get(routes::llm_tools::get_default).put(routes::llm_tools::set_default),
-        )
-        // Delegator endpoints
-        .route("/api/v1/delegators", get(routes::delegators::list))
-        .route("/api/v1/delegators", post(routes::delegators::create))
-        // from-tool must be registered before :name to avoid path capture
-        .route(
-            "/api/v1/delegators/from-tool",
-            post(routes::delegators::create_from_tool),
-        )
-        .route("/api/v1/delegators/:name", get(routes::delegators::get_one))
-        .route("/api/v1/delegators/:name", put(routes::delegators::update))
-        .route(
-            "/api/v1/delegators/:name",
-            delete(routes::delegators::delete),
-        )
-        // Configuration endpoints
-        .route(
-            "/api/v1/configuration",
-            get(routes::configuration::get_config).put(routes::configuration::update_config),
-        )
-        // Model server endpoints
-        .route("/api/v1/model-servers", get(routes::model_servers::list))
-        .route("/api/v1/model-servers", post(routes::model_servers::create))
-        .route(
-            "/api/v1/model-servers/:name",
-            get(routes::model_servers::get_one),
-        )
-        .route(
-            "/api/v1/model-servers/:name",
-            delete(routes::model_servers::delete),
-        );
+    let (mut router, api) = documented_router().split_for_parts();
 
-    // MCP endpoints — gated by [mcp].http_enabled. The descriptor stays mounted
-    // so non-HTTP MCP clients can still discover the stdio entrypoint.
-    router = router.route(
-        "/api/v1/mcp/descriptor",
-        get(crate::mcp::descriptor::descriptor),
-    );
+    // MCP transport endpoints — gated by [mcp].http_enabled and intentionally
+    // undocumented (no OpenAPI schema for the SSE/JSON-RPC transport).
     if mcp_enabled {
         router = router
             .route("/api/v1/mcp/sse", get(crate::mcp::transport::sse_handler))
@@ -210,7 +204,7 @@ pub fn build_router(state: ApiState) -> Router {
         )
         .layer(cors)
         .with_state(state)
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api));
 
     #[cfg(feature = "embed-ui")]
     let router = router.fallback(web_ui::spa_handler);

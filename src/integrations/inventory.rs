@@ -108,6 +108,20 @@ pub fn all_capabilities() -> Vec<Capability> {
             rest_endpoint: None,
             tui_action: None, // Zed-only capability
         },
+        Capability {
+            name: "Setup",
+            slash_command: Some("op-setup"),
+            mcp_tool: None,
+            rest_endpoint: None,
+            tui_action: None, // Zed-only diagnostic command
+        },
+        Capability {
+            name: "Help",
+            slash_command: Some("op-help"),
+            mcp_tool: None,
+            rest_endpoint: None,
+            tui_action: None, // Zed-only help listing
+        },
     ]
 }
 
@@ -146,6 +160,6 @@ mod tests {
     #[test]
     fn test_capability_count() {
         let caps = all_capabilities();
-        assert_eq!(caps.len(), 12, "Expected 12 capabilities in the inventory");
+        assert_eq!(caps.len(), 14, "Expected 14 capabilities in the inventory");
     }
 }

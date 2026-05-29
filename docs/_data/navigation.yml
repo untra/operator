@@ -98,6 +98,8 @@ docs:
         url: /configuration/
       - title: Shortcuts
         url: /shortcuts/
+      - title: Design System
+        url: /design-system/
       - title: Taxonomy
         children:
           - title: Project Taxonomy

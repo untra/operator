@@ -453,9 +453,7 @@ impl OperatorExtension {
                 lines.push(format!("- [x] **Binary found** — `{}`", path));
             }
             None => {
-                lines.push(
-                    "- [ ] **Binary not found** — `operator` is not on PATH".to_string(),
-                );
+                lines.push("- [ ] **Binary not found** — `operator` is not on PATH".to_string());
                 next_steps.push(
                     "Install operator: download from https://github.com/untra/operator/releases/latest"
                         .to_string(),
@@ -480,8 +478,7 @@ impl OperatorExtension {
                     "- [ ] **API server not running** — could not reach `{}`",
                     self.api_url
                 ));
-                next_steps
-                    .push("Start the Operator server: `operator api`".to_string());
+                next_steps.push("Start the Operator server: `operator api`".to_string());
             }
         }
 

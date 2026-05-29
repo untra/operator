@@ -80,7 +80,8 @@ impl InProgressPanel {
 
                 // Tool indicator (A=Anthropic/Claude, G=Gemini, O=OpenAI/Codex)
                 let tool_indicator = match a.llm_tool.as_deref() {
-                    Some("claude") => ("A", Color::Rgb(193, 95, 60)),
+                    // Brand salmon #E05D44 (matches tokens.css --color-salmon)
+                    Some("claude") => ("A", Color::Rgb(224, 93, 68)),
                     Some("gemini") => ("G", Color::Rgb(111, 66, 193)),
                     Some("codex") => ("O", Color::Green),
                     _ => (" ", Color::Reset),

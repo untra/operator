@@ -99,28 +99,6 @@ const DEFAULT_CONFIG: Config = {
     default_model: null,
     skill_directory_overrides: {},
   },
-  backstage: {
-    enabled: false,
-    display: false,
-    port: 7009,
-    auto_start: false,
-    subpath: '/backstage',
-    branding_subpath: '/branding',
-    release_url: '',
-    local_binary_path: null,
-    branding: {
-      app_title: 'Operator',
-      org_name: '',
-      logo_path: null,
-      colors: {
-        primary: '#4f46e5',
-        secondary: '#7c3aed',
-        accent: '#06b6d4',
-        warning: '#f59e0b',
-        muted: '#6b7280',
-      },
-    },
-  },
   rest_api: {
     enabled: false,
     port: 7008,

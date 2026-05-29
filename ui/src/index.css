@@ -1,32 +1,19 @@
 /* Operator UI theme
- * Palette ported from docs/assets/css/main.css (the brand source of truth):
- * warm tan/cream/salmon + a green scale, light default with a dark theme.
- * Semantic tokens (--surface, --border, --text, --danger, ...) layer the
- * app-specific surfaces the docs site doesn't need on top of that palette.
+ * The brand palette + green scale come from the shared single source of truth,
+ * docs/assets/css/tokens.css (imported below). This file adds only the
+ * app-specific semantic + layout tokens the docs site doesn't need
+ * (--surface, --border, --text, --danger, radii, fonts) on top of that palette.
  */
 
+@import "../../docs/assets/css/tokens.css";
+
 :root {
-  /* Brand palette (from docs main.css :root) */
-  --color-salmon: #e05d44;
-  --color-salmon-dark: #6688aa;
-  --color-cream: #f2eac9;
-  --color-coral: #e05d44;
-  --color-bg: #faf8f5;
-  --color-white: #ffffff;
-
-  /* Green scale */
-  --color-green-l1: #66aa99;
-  --color-green-l2: #448880;
-  --color-green-l3: #115566;
-  --color-green-l4: #082226;
-  --color-teal: #115566;
-
-  /* UI semantic tokens (light) */
+  /* UI semantic tokens (light) — built on the shared brand palette */
   --surface: var(--color-white);
   --surface-alt: var(--color-cream);
   --border: #e3dcc4;
   --text: var(--color-teal);
-  --text-muted: var(--color-salmon-dark);
+  --text-muted: var(--color-cornflower);
   --danger: var(--color-salmon);
   --danger-bg: #fbeae6;
   --warning: #b8860b;
@@ -35,7 +22,6 @@
   --success-bg: #e4f0ec;
 
   /* Layout tokens */
-  --sidebar-width: 260px;
   --radius-sm: 3px;
   --radius: 4px;
   --radius-lg: 8px;
@@ -47,25 +33,12 @@
 }
 
 [data-theme="dark"] {
-  --color-salmon: #e05d44;
-  --color-salmon-dark: #88aabb;
-  --color-cream: #1a1d1e;
-  --color-coral: #ff7a66;
-  --color-bg: #0d1011;
-  --color-white: #1a1d1e;
-
-  --color-green-l1: #3d8a7a;
-  --color-green-l2: #5aa896;
-  --color-green-l3: #88ccbb;
-  --color-green-l4: #aaddcc;
-  --color-teal: #b8d4cc;
-
-  /* UI semantic tokens (dark) */
+  /* UI semantic tokens (dark) — brand vars themselves are overridden in tokens.css */
   --surface: #1a2426;
   --surface-alt: #141b1c;
   --border: #2c3a3c;
   --text: var(--color-teal);
-  --text-muted: var(--color-salmon-dark);
+  --text-muted: var(--color-cornflower);
   --danger: var(--color-coral);
   --danger-bg: #2a1a18;
   --warning: #e0c060;

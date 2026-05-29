@@ -134,6 +134,12 @@ Initialize operator workspace (non-interactive by default)
 | `-l, --llm-tool` | Preferred LLM tool: claude, codex, gemini |
 | `--skip-llm-detection` | Skip LLM tool detection |
 
+### `workflow`
+
+Convert between operator issuetypes and other orchestration formats
+
+No additional arguments.
+
 ## Environment Variables
 
 All configuration can be overridden via environment variables using the `OPERATOR_` prefix with `__` as the separator for nested config paths.

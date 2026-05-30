@@ -1,43 +1,23 @@
-import { useEffect, useState } from 'react';
+// The "All sections" overview: every status section in one scrollable list.
+// Reachable from the Dashboard (not the sidebar, which now links each section to
+// its own page). Consumes the shared sections context — no polling of its own.
+// Keeps the legacy `?s=` deep-link scroll for backward compatibility.
+
+import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { OperatorApi } from '../api-client';
-import type { SectionDto } from '../api-client';
-import { useHost } from '../host';
+import { useSections } from '../sections-context';
+import { PageHeader } from '../components/PageHeader';
+import { SectionCard } from '../components/SectionCard';
 import styles from './StatusPage.module.css';
 
-const POLL_INTERVAL_MS = 3000;
+const DOCS_URL = 'https://operator.untra.io/getting-started/';
 
 export function StatusPage() {
-  const host = useHost();
   const [searchParams] = useSearchParams();
   const targetSection = searchParams.get('s');
-  const [api] = useState(() => new OperatorApi(host));
-  const [sections, setSections] = useState<SectionDto[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { sections, error } = useSections();
 
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = () => {
-      api
-        .sections()
-        .then((s) => {
-          if (cancelled) return;
-          setSections(s);
-          setError(null);
-        })
-        .catch((e) => {
-          if (!cancelled) setError(e.message);
-        });
-    };
-    refresh();
-    const timer = setInterval(refresh, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [api]);
-
-  // Scroll to the targeted section (e.g. /status?s=git) once sections load.
+  // Scroll to a deep-linked section (e.g. /status?s=git) once sections load.
   useEffect(() => {
     if (!sections || !targetSection) return;
     const el = document.getElementById(targetSection);
@@ -46,7 +26,11 @@ export function StatusPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Status</h1>
+      <PageHeader
+        title="All Sections"
+        summary="Every operator status section in one view, ordered by setup prerequisites."
+        docsUrl={DOCS_URL}
+      />
 
       {error && <div className={styles.error}>API: {error}</div>}
       {!sections && !error && <div className={styles.loading}>Loading sections…</div>}
@@ -60,46 +44,5 @@ export function StatusPage() {
         ))}
       </div>
     </div>
-  );
-}
-
-function SectionCard({ section }: { section: SectionDto }) {
-  return (
-    <section
-      id={section.id}
-      className={styles.card}
-      data-locked={!section.met ? 'true' : undefined}
-    >
-      <details open={section.met}>
-        <summary className={styles.header}>
-          <span className={styles.dot} data-health={section.health} />
-          <span className={styles.label}>{section.label}</span>
-          <span className={styles.description}>{section.description}</span>
-          {!section.met && <span className={styles.lock} title="Prerequisites not met">🔒</span>}
-        </summary>
-
-        {!section.met && section.prerequisites.length > 0 && (
-          <p className={styles.prereq}>Requires: {section.prerequisites.join(', ')}</p>
-        )}
-
-        {section.children.length > 0 ? (
-          <ul className={styles.rows}>
-            {section.children.map((row, i) => (
-              <li
-                key={`${row.id}-${i}`}
-                className={styles.row}
-                style={{ paddingLeft: `${Math.max(0, row.depth - 1) * 1.25}rem` }}
-              >
-                <span className={styles.dot} data-health={row.health} />
-                <span className={styles.rowLabel}>{row.label}</span>
-                {row.description && <span className={styles.rowDesc}>{row.description}</span>}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={styles.empty}>No details.</p>
-        )}
-      </details>
-    </section>
   );
 }

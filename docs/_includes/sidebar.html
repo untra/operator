@@ -42,7 +42,7 @@
             {% endfor %}
             <details {% if item_active or page.url == item.url %}open{% endif %}>
               <summary class="nav-item-row">
-                {% if item.url %}<a href="{{ item.url | relative_url }}" class="nav-parent-link {% if page.url == item.url %}active{% endif %}">{{ item.title }}</a>{% else %}<span class="nav-parent-text">{{ item.title }}</span>{% endif %}
+                {% if item.url %}<a href="{{ item.url | relative_url }}" class="nav-parent-link {% if page.url == item.url %}active{% endif %}">{% if item.codicon %}<i class="codicon codicon-{{ item.codicon }} nav-codicon"></i>{% endif %}{{ item.title }}</a>{% else %}<span class="nav-parent-text">{% if item.codicon %}<i class="codicon codicon-{{ item.codicon }} nav-codicon"></i>{% endif %}{{ item.title }}</span>{% endif %}
                 <span class="nav-toggle"></span>
               </summary>
               <ul class="nav-grandchildren">
@@ -55,7 +55,7 @@
               </ul>
             </details>
             {% else %}
-            <a href="{{ item.url | relative_url }}" {% if page.url == item.url %}class="active" {% endif %}>{{
+            <a href="{{ item.url | relative_url }}" {% if page.url == item.url %}class="active" {% endif %}>{% if item.codicon %}<i class="codicon codicon-{{ item.codicon }} nav-codicon"></i>{% endif %}{{
               item.title }}</a>
             {% endif %}
           </li>

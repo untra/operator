@@ -2,17 +2,22 @@
   max-width: 1200px;
 }
 
-.header {
+.subBar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
-.title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
+.allSections {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--color-coral);
+  text-decoration: none;
+}
+
+.allSections:hover {
+  text-decoration: underline;
 }
 
 .error {

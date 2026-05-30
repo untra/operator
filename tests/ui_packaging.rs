@@ -12,6 +12,10 @@ const ALLOWED_RUNTIME_DEPS: &[&str] = &[
     "@dnd-kit/core",
     "@dnd-kit/sortable",
     "@dnd-kit/utilities",
+    // Codicon webfont for the sidebar/page icon vocabulary. Zero-dependency,
+    // Microsoft-maintained; the concept→icon mapping lives in ui/src/concepts.ts
+    // and the canonical table at docs/design-system/.
+    "@vscode/codicons",
 ];
 
 const UNCOMPRESSED_BUDGET_BYTES: u64 = 10_485_760; // 10MB

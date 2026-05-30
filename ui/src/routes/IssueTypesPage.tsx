@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { OperatorApi } from '../api-client';
 import type { IssueTypeSummary, IssueTypeResponse } from '../api-client';
 import { useHost } from '../host';
+import { CONCEPTS } from '../concepts';
+import { PageHeader } from '../components/PageHeader';
 import styles from './IssueTypesPage.module.css';
+
+const ISSUE_TYPES = CONCEPTS.issuetypes;
 
 export function IssueTypesPage() {
   const host = useHost();
@@ -33,7 +37,12 @@ export function IssueTypesPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Issue Types</h1>
+      <PageHeader
+        title={ISSUE_TYPES.label}
+        summary={ISSUE_TYPES.summary}
+        docsUrl={ISSUE_TYPES.docsUrl}
+        icon={ISSUE_TYPES.icon}
+      />
 
       {error && <div className={styles.error}>{error}</div>}
 

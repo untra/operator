@@ -1,0 +1,34 @@
+.header {
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.titleIcon {
+  font-size: 1.35rem;
+  color: var(--text-muted);
+}
+
+.rule {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0 0 0.5rem;
+}
+
+.tag {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.docsLink {
+  color: var(--color-coral);
+  white-space: nowrap;
+}

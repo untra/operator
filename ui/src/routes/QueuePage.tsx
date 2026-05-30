@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react';
 import { OperatorApi } from '../api-client';
 import type { KanbanBoardResponse } from '../api-client';
 import { useHost } from '../host';
+import { CONCEPTS } from '../concepts';
+import { PageHeader } from '../components/PageHeader';
 import { KanbanBoard } from '../components/KanbanBoard';
 import styles from './QueuePage.module.css';
+
+const QUEUE = CONCEPTS.queue;
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -45,7 +49,12 @@ export function QueuePage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Queue</h1>
+      <PageHeader
+        title={QUEUE.label}
+        summary={QUEUE.summary}
+        docsUrl={QUEUE.docsUrl}
+        icon={QUEUE.icon}
+      />
 
       {error && <div className={styles.error}>{error}</div>}
 

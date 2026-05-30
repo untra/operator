@@ -293,6 +293,15 @@ summary.nav-item-row::-webkit-details-marker {
   filter: invert(1) brightness(1.1) sepia(0.3);
 }
 
+/* Concept codicons on second-level nav items. Unlike the brand SVG <img>s above,
+ * the codicon webfont inherits currentColor, so it needs no dark-mode filter. */
+.nav-codicon {
+  font-size: 14px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  color: inherit;
+}
+
 /* Downloads nav link - highlighted */
 .sidebar-nav .downloads-link {
   margin-top: 16px;

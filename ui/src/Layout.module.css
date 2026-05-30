@@ -75,7 +75,9 @@
 }
 
 .navLink {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 12px;
   background: var(--color-green-l1);
   color: var(--color-cream);
@@ -93,6 +95,58 @@
 .active {
   background: var(--color-green-l3);
   color: var(--color-cream);
+}
+
+.navIcon {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.navLabel {
+  flex: 1;
+}
+
+/* Health badge for a status section. A cream ring keeps every health color
+ * legible against the green nav pill. Maps a semantic role to a token. */
+.navDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-cream);
+  box-shadow: 0 0 0 1px var(--color-cream);
+}
+
+.navDot[data-health='green'] {
+  background: var(--color-green-l3);
+}
+
+/* On the active pill (bg green-l3) a green-l3 dot would vanish — lighten it so
+ * the healthy dot stays a filled mark, not just the cream ring. */
+.active .navDot[data-health='green'] {
+  background: var(--color-green-l1);
+}
+.navDot[data-health='yellow'] {
+  background: var(--warning);
+}
+.navDot[data-health='red'] {
+  background: var(--danger);
+}
+.navDot[data-health='gray'] {
+  background: var(--text-muted);
+}
+
+/* Section whose prerequisites aren't met: shown but not navigable. */
+.navDisabled,
+.navDisabled:hover {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.navDisabled .navDot {
+  box-shadow: 0 0 0 1px var(--surface-alt);
 }
 
 .main {

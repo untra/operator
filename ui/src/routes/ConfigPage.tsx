@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { OperatorApi } from '../api-client';
 import type { StatusResponse, CollectionResponse, ProjectSummary } from '../api-client';
 import { useHost } from '../host';
+import { CONCEPTS } from '../concepts';
+import { PageHeader } from '../components/PageHeader';
 import styles from './ConfigPage.module.css';
+
+const CONFIG = CONCEPTS.config;
 
 export function ConfigPage() {
   const host = useHost();
@@ -37,7 +41,12 @@ export function ConfigPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Configuration</h1>
+      <PageHeader
+        title={CONFIG.label}
+        summary={CONFIG.summary}
+        docsUrl={CONFIG.docsUrl}
+        icon={CONFIG.icon}
+      />
 
       {error && <div className={styles.error}>{error}</div>}
 

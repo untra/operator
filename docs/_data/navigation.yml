@@ -82,12 +82,16 @@ docs:
     children:
       - title: Kanban
         url: /kanban/
+        codicon: layout
       - title: Issue Types
         url: /issue-types/
+        codicon: issues
       - title: Tickets
         url: /tickets/
+        codicon: note
       - title: Agents
         url: /agents/
+        codicon: robot
         children:
           - title: Artifact Detection
             url: /agents/artifact-detection/
@@ -95,19 +99,26 @@ docs:
     children:
       - title: CLI
         url: /cli/
+        codicon: terminal
       - title: LLM Tools
         url: /llm-tools/
+        codicon: sparkle
       - title: Configuration
         url: /configuration/
+        codicon: settings-gear
       - title: Shortcuts
         url: /shortcuts/
+        codicon: keyboard
       - title: Design System
         url: /design-system/
+        codicon: symbol-color
       - title: Taxonomy
+        codicon: type-hierarchy
         children:
           - title: Project Taxonomy
             url: /taxonomy/
       - title: Schemas
+        codicon: bracket
         children:
           - title: Overview
             url: /schemas/

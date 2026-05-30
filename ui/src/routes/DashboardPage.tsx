@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { OperatorApi } from '../api-client';
 import type { HealthResponse, QueueStatusResponse, KanbanBoardResponse } from '../api-client';
 import { useHost } from '../host';
+import { CONCEPTS } from '../concepts';
+import { PageHeader } from '../components/PageHeader';
 import { KanbanBoard } from '../components/KanbanBoard';
 import styles from './DashboardPage.module.css';
+
+const DASHBOARD = CONCEPTS.dashboard;
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -43,13 +48,22 @@ export function DashboardPage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Dashboard</h1>
+      <PageHeader
+        title={DASHBOARD.label}
+        summary={DASHBOARD.summary}
+        docsUrl={DASHBOARD.docsUrl}
+        icon={DASHBOARD.icon}
+      />
+
+      <div className={styles.subBar}>
         {health && (
           <span className={styles.statusBanner}>
             API: {health.status} &middot; v{health.version}
           </span>
         )}
+        <Link to="/status" className={styles.allSections}>
+          View all sections →
+        </Link>
       </div>
 
       {error && <div className={styles.error}>API: {error}</div>}

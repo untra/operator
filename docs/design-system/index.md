@@ -67,6 +67,57 @@ identically.
 | **Ratatui TUI** | `src/ui/*.rs` | Terminal can't render hex — map a semantic **role to ANSI** (danger→Red, success→Green, warning→Yellow, focus→Cyan). |
 | **VS Code webview** (MUI) | `vscode-extension/webview-ui/` | Defers to the VS Code host theme; brand only as accents via `OPERATOR_BRAND`. Never overrides the editor theme. |
 
+## Concept icons (codicons)
+
+Each high-level Operator concept gets **one icon** so the same idea reads the same
+across surfaces. The vocabulary is [codicons](https://github.com/microsoft/vscode-codicons)
+— the icon set VS Code uses — chosen because the VS Code extension already renders
+its tree with codicon `ThemeIcon`s. This table is the **single source of truth**:
+consult it (and update it) whenever you give a concept an icon.
+
+Each surface follows it by convention — there is no shared runtime registry:
+
+- **Embedded SPA** reads it via `ui/src/concepts.ts` (`CONCEPTS[key].icon`), rendered
+  by `ui/src/components/ConceptIcon.tsx`. The font is imported once in `main.tsx`.
+- **Docs site** reads it via the `codicon:` field on items in
+  `_data/navigation.yml`, emitted by `_includes/sidebar.html`. The vendored webfont
+  is linked from `_includes/head.html` (`assets/css/codicon.css` + `assets/fonts/codicon.ttf`).
+- **VS Code extension** already uses codicon `ThemeIcon`s directly.
+
+This is **additive** — distinct from the issue-type `glyph`→icon map in
+`vscode-extension/src/issuetype-service.ts` and the `glyph_for_key`/`color_for_key`
+helpers in `src/templates/mod.rs` (documented below). It follows the same
+"central key → presentation" pattern, keyed by section concept.
+
+| Concept (key) | Icon | codicon | SPA | Docs |
+|---------------|:----:|---------|:---:|:----:|
+| dashboard | <i class="codicon codicon-dashboard"></i> | `dashboard` | ✓ | |
+| queue | <i class="codicon codicon-list-ordered"></i> | `list-ordered` | ✓ | |
+| config (Configuration) | <i class="codicon codicon-settings-gear"></i> | `settings-gear` | ✓ | ✓ |
+| connections | <i class="codicon codicon-plug"></i> | `plug` | ✓ | |
+| kanban | <i class="codicon codicon-layout"></i> | `layout` | ✓ | ✓ |
+| llm (LLM Tools) | <i class="codicon codicon-sparkle"></i> | `sparkle` | ✓ | ✓ |
+| model-servers | <i class="codicon codicon-server"></i> | `server` | ✓ | |
+| git | <i class="codicon codicon-git-branch"></i> | `git-branch` | ✓ | |
+| issuetypes (Issue Types) | <i class="codicon codicon-issues"></i> | `issues` | ✓ | ✓ |
+| delegators | <i class="codicon codicon-rocket"></i> | `rocket` | ✓ | |
+| projects (Managed Projects) | <i class="codicon codicon-project"></i> | `project` | ✓ | |
+| agents | <i class="codicon codicon-robot"></i> | `robot` | | ✓ |
+| tickets | <i class="codicon codicon-note"></i> | `note` | | ✓ |
+| taxonomy | <i class="codicon codicon-type-hierarchy"></i> | `type-hierarchy` | | ✓ |
+| schemas | <i class="codicon codicon-bracket"></i> | `bracket` | | ✓ |
+| shortcuts | <i class="codicon codicon-keyboard"></i> | `keyboard` | | ✓ |
+| cli | <i class="codicon codicon-terminal"></i> | `terminal` | | ✓ |
+| design-system | <i class="codicon codicon-symbol-color"></i> | `symbol-color` | | ✓ |
+
+Keys match the `SectionId` serde renames in `src/ui/status_panel.rs` (and the SPA's
+section ids). Every codicon name is unique — the Kanban-vs-Managed-Projects collision
+was resolved as kanban→`layout`, projects→`project`.
+
+> **Attribution:** codicon **icons** are licensed [CC-BY-4.0](https://github.com/microsoft/vscode-codicons/blob/main/LICENSE);
+> the font/CSS **code** is MIT, © Microsoft. The webfont is vendored under
+> `docs/assets/` and bundled into the SPA via `@vscode/codicons`.
+
 ## Issue type glyphs & colors
 
 Issue type color + glyph are defined once in the collection JSON schemas and

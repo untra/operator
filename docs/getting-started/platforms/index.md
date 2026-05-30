@@ -13,3 +13,4 @@ Operator can run as a background service in remote workspace platforms, providin
 | Option | Status | Notes |
 |--------|--------|-------|
 | [Coder](/getting-started/platforms/coder/) | Supported | Terraform module, runs Operator as background API server with dashboard |
+| [Docker](/getting-started/platforms/docker/) | Supported | Official multi-arch image (`untra/operator`); container is the workspace, mount your projects root at `/op` |

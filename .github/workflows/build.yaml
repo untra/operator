@@ -85,6 +85,25 @@ jobs:
           arguments: --all-features
           command: check
 
+  # Compute the next version once, before anything is built, so the compiled
+  # binaries embed the same version that the release tag + Docker tag will use.
+  # The actual file edits + commit + tag still happen in the release job.
+  version:
+    needs: lint-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calc.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: calc
+        run: |
+          V=$(cat VERSION)
+          IFS='.' read -r major minor patch <<< "$V"
+          NEW_VERSION="$major.$minor.$((patch + 1))"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Next version: $V -> $NEW_VERSION"
+
   coverage:
     needs: lint-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -211,7 +230,7 @@ jobs:
         run: cargo test --locked --test relay_integration -- --nocapture --test-threads=1
 
   build:
-    needs: lint-test
+    needs: [lint-test, version]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
@@ -261,6 +280,16 @@ jobs:
           bun install --frozen-lockfile
           bun run build
 
+      # Embed the release version so the binary's --version matches its tag.
+      # Portable across the linux/macos/windows matrix (sed-to-tempfile, no -i).
+      - name: Set release version
+        shell: bash
+        run: |
+          V="${{ needs.version.outputs.version }}"
+          echo "$V" > VERSION
+          sed 's/^version = ".*"/version = "'"$V"'"/' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
+          cargo update --workspace
+
       # Build release with embedded UI
       - name: Build release
         run: cargo build --locked --release --features embed-ui --target ${{ matrix.target }}
@@ -297,7 +326,7 @@ jobs:
           path: ${{ matrix.artifact_name }}
 
   build-opr8r:
-    needs: lint-test
+    needs: [lint-test, version]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
@@ -335,6 +364,15 @@ jobs:
           key: opr8r-${{ matrix.artifact_name }}-cargo-${{ hashFiles('opr8r/Cargo.lock') }}
           restore-keys: |
             opr8r-${{ matrix.artifact_name }}-cargo-
+
+      # Embed the release version (working-directory is opr8r/, so this edits
+      # opr8r/Cargo.toml). Portable across the build matrix.
+      - name: Set release version
+        shell: bash
+        run: |
+          V="${{ needs.version.outputs.version }}"
+          sed 's/^version = ".*"/version = "'"$V"'"/' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
+          cargo update --workspace
 
       - name: Build release binary
         run: cargo build --locked --release
@@ -395,8 +433,10 @@ jobs:
       AZ_PIPELINE_DEFINITION_ID: ${{ secrets.AZ_PIPELINE_DEFINITION_ID }}
 
   release:
-    needs: [build, build-opr8r, sign-windows]
+    needs: [version, build, build-opr8r, sign-windows]
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -407,39 +447,34 @@ jobs:
         with:
           path: artifacts
 
-      - name: Bump version
-        id: version
-        run: |
-          VERSION=$(cat VERSION)
-          IFS='.' read -r major minor patch <<< "$VERSION"
-          NEW_VERSION="$major.$minor.$((patch + 1))"
-          echo "$NEW_VERSION" > VERSION
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "Bumped version: $VERSION -> $NEW_VERSION"
+      # Version was computed in the `version` job and already baked into the
+      # built binaries; persist it into the tracked manifests for the commit/tag.
+      - name: Write VERSION file
+        run: echo "${{ needs.version.outputs.version }}" > VERSION
 
       - name: Update Cargo.toml version
         run: |
-          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.version }}"/' Cargo.toml
+          sed -i 's/^version = ".*"/version = "${{ needs.version.outputs.version }}"/' Cargo.toml
 
       - name: Update Cargo.lock
         run: cargo update --workspace
 
       - name: Update docs/_config.yml version
         run: |
-          sed -i 's/^version: .*/version: ${{ steps.version.outputs.version }}/' docs/_config.yml
+          sed -i 's/^version: .*/version: ${{ needs.version.outputs.version }}/' docs/_config.yml
 
       - name: Update package.json versions
         run: |
-          jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' vscode-extension/package.json > tmp.json && mv tmp.json vscode-extension/package.json
+          jq --arg v "${{ needs.version.outputs.version }}" '.version = $v' vscode-extension/package.json > tmp.json && mv tmp.json vscode-extension/package.json
 
       - name: Update opr8r Cargo.toml version
         run: |
-          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.version }}"/' opr8r/Cargo.toml
+          sed -i 's/^version = ".*"/version = "${{ needs.version.outputs.version }}"/' opr8r/Cargo.toml
           cd opr8r && cargo update --workspace
 
       - name: Update TypeScript VERSION constant
         run: |
-          sed -i "s/const VERSION = '[^']*'/const VERSION = '${{ steps.version.outputs.version }}'/" vscode-extension/src/webhook-server.ts
+          sed -i "s/const VERSION = '[^']*'/const VERSION = '${{ needs.version.outputs.version }}'/" vscode-extension/src/webhook-server.ts
 
       - name: Commit version bump
         run: |
@@ -449,13 +484,13 @@ jobs:
             vscode-extension/package.json \
             vscode-extension/src/webhook-server.ts \
             opr8r/Cargo.toml opr8r/Cargo.lock
-          git commit -m "chore: bump version to v${{ steps.version.outputs.version }} [skip ci]"
+          git commit -m "chore: bump version to v${{ needs.version.outputs.version }} [skip ci]"
           git push
 
       - name: Create tag
         run: |
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin "v${{ steps.version.outputs.version }}"
+          git tag "v${{ needs.version.outputs.version }}"
+          git push origin "v${{ needs.version.outputs.version }}"
 
       - name: Prepare release assets
         run: |
@@ -471,8 +506,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.version.outputs.version }}" \
-            --title "v${{ steps.version.outputs.version }}" \
+          gh release create "v${{ needs.version.outputs.version }}" \
+            --title "v${{ needs.version.outputs.version }}" \
             --generate-notes \
             release-assets/*
 
@@ -497,8 +532,47 @@ jobs:
       - name: Commit checksums
         run: |
           git add docs/_data/checksums.yml
-          git commit -m "chore: update checksums for v${{ steps.version.outputs.version }} [skip ci]" || true
+          git commit -m "chore: update checksums for v${{ needs.version.outputs.version }} [skip ci]" || true
           git push
+
+  docker:
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download linux binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: operator-linux-*
+          path: bins
+          merge-multiple: true
+
+      # buildx exposes TARGETARCH as amd64/arm64; map the x86_64 artifact name.
+      - name: Stage binaries for build context
+        run: |
+          cp bins/operator-linux-x86_64 ./operator-linux-amd64
+          cp bins/operator-linux-arm64  ./operator-linux-arm64
+          chmod +x operator-linux-amd64 operator-linux-arm64
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            untra/operator:${{ needs.release.outputs.version }}
+            untra/operator:latest
 
   deploy-docs:
     needs: release

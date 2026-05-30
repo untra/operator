@@ -75,6 +75,9 @@ docs:
           - title: Coder
             url: /getting-started/platforms/coder/
             icon: coder
+          - title: Docker
+            url: /getting-started/platforms/docker/
+            icon: docker
   - title: Core
     children:
       - title: Kanban

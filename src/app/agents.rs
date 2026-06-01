@@ -247,6 +247,7 @@ impl App {
             None, // no explicit delegator — let the chain resolve
             None, // no explicit provider
             None, // no explicit model
+            None, // no explicit model_server
             false,
             agent_context.as_ref(),
         ) {

@@ -159,8 +159,11 @@ fn documented_router() -> OpenApiRouter<ApiState> {
             routes::model_servers::list,
             routes::model_servers::create
         ))
+        .routes(routes!(routes::model_servers::kinds))
+        .routes(routes!(routes::model_servers::models))
         .routes(routes!(
             routes::model_servers::get_one,
+            routes::model_servers::update,
             routes::model_servers::delete
         ))
         // MCP descriptor — always mounted so non-HTTP MCP clients can still

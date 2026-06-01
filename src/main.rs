@@ -493,7 +493,8 @@ async fn cmd_queue(config: &Config, all: bool) -> Result<()> {
 
 /// Ad-hoc launch overrides parsed from CLI flags.
 ///
-/// v1: flags parse and validate; env-var injection for `model_server` ships in v2.
+/// Flags are validated up front, then resolved through `resolve_launch_options`,
+/// which injects the chosen `model_server`'s env vars into the spawned agent.
 #[derive(Debug, Default)]
 struct LaunchOverrides {
     delegator: Option<String>,
@@ -531,10 +532,20 @@ async fn cmd_launch(
         );
     }
 
-    // TODO(model-servers-v2): thread `overrides` through resolve_launch_options() so the chosen
-    // model_server's env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, etc.) are exported before the
-    // agent CLI spawns. v1 parses and validates; resolution path is unchanged.
-    let _ = &overrides;
+    // Resolve launch options from the CLI overrides (a named delegator, or the
+    // ad-hoc --llm-tool/--model/--model-server trio). The chosen model server's
+    // env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, …) are threaded into
+    // LaunchOptions.provider.env and exported before the agent CLI spawns.
+    let launch_options = crate::agents::delegator_resolution::resolve_launch_options(
+        config,
+        overrides.delegator.as_deref(),
+        overrides.llm_tool.as_deref(),
+        overrides.model.as_deref(),
+        overrides.model_server.as_deref(),
+        false,
+        None,
+    )
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // Check tmux availability before launching
     if let Err(err) = check_tmux_available() {
@@ -591,7 +602,9 @@ async fn cmd_launch(
 
     // Launch agent
     let launcher = agents::Launcher::new(config)?;
-    launcher.launch(&ticket).await?;
+    launcher
+        .launch_with_options(&ticket, launch_options)
+        .await?;
 
     println!("Launched agent for {}-{}", ticket.ticket_type, ticket.id);
 

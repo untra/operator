@@ -345,6 +345,7 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
                 delegator: None,
                 provider: None,
                 model: Some(model.to_string()),
+                model_server: None,
                 yolo_mode: false,
                 wrapper: Some(wrapper.to_string()),
                 retry_reason: None,

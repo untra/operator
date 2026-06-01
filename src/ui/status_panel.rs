@@ -216,6 +216,8 @@ pub enum StatusAction {
     ConfigureKanbanProvider { provider: String },
     /// Open setup page for a git provider (e.g. "github", "gitlab")
     ConfigureGitProvider { provider: String },
+    /// Open the setup page for a model-server kind (e.g. "ollama", "openai-compat")
+    ConfigureModelServer { kind: String },
     /// Re-check a specific section's health status
     RefreshSection(SectionId),
     /// Reset config to factory defaults (TUI: double-confirm dialog)
@@ -257,6 +259,7 @@ impl StatusAction {
             Self::SetDefaultLlm { .. } => Some("Set LLM"),
             Self::ConfigureKanbanProvider { .. } => Some("Setup"),
             Self::ConfigureGitProvider { .. } => Some("Setup"),
+            Self::ConfigureModelServer { .. } => Some("Setup"),
             Self::RefreshSection(_) => Some("Refresh"),
             Self::ResetConfig => Some("Reset"),
             Self::ReloadConfig => Some("Reload"),
@@ -287,6 +290,12 @@ impl StatusAction {
             Self::ConfigureKanbanProvider { provider } => {
                 crate::api::providers::kanban::KanbanProviderType::from_slug(provider)
                     .map(|p| p.setup_url().to_string())
+            }
+            // The web `/#/model-servers` "Add <kind>" rows link to the kind's
+            // setup/credential page.
+            Self::ConfigureModelServer { kind } => {
+                crate::api::providers::model_server::ModelServerKind::from_slug(kind)
+                    .map(|k| k.setup_url().to_string())
             }
             _ => None,
         }

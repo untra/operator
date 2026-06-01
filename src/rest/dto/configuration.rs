@@ -275,6 +275,72 @@ pub struct CreateModelServerRequest {
     pub display_name: Option<String>,
 }
 
+/// Request to update an existing user-declared model server.
+///
+/// All fields except `kind` are replaced; `name` is taken from the path.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct UpdateModelServerRequest {
+    /// Kind: "ollama", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio"
+    pub kind: String,
+    /// Base URL of the inference endpoint
+    #[serde(default)]
+    pub base_url: Option<String>,
+    /// Name of an env var providing the API key
+    #[serde(default)]
+    pub api_key_env: Option<String>,
+    /// Additional environment variables
+    #[serde(default)]
+    pub extra_env: std::collections::HashMap<String, String>,
+    /// Optional display name for UI
+    #[serde(default)]
+    pub display_name: Option<String>,
+}
+
+/// A model-server kind from the shared catalog (single source of truth).
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ModelServerKindEntry {
+    /// Stable slug stored as `ModelServer.kind` (e.g. "ollama")
+    pub slug: String,
+    /// Human-friendly display name
+    pub display_name: String,
+    /// One-line connect blurb
+    pub description: String,
+    /// Help/credential setup page
+    pub setup_url: String,
+    /// Codicon hint
+    pub icon: String,
+    /// Whether this is an implicit vendor builtin (always present, not deletable)
+    pub is_builtin: bool,
+}
+
+/// A single model offered by a server (from a live probe).
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ModelEntry {
+    /// Model id passed to `--model`
+    pub id: String,
+    /// Display name when the server provides one
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+}
+
+/// Response listing the models a server offers, plus reachability.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ModelServerModelsResponse {
+    /// Server name probed
+    pub server: String,
+    /// Whether the endpoint was reachable
+    pub reachable: bool,
+    /// Models offered (empty when unreachable)
+    pub models: Vec<ModelEntry>,
+    /// Error message when unreachable
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 // =============================================================================
 // LLM Tools DTOs
 // =============================================================================

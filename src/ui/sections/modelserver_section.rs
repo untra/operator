@@ -1,3 +1,4 @@
+use crate::api::providers::model_server::ModelServerKind;
 use crate::ui::status_panel::{
     ActionMeta, ActionSet, SectionHealth, SectionId, StatusAction, StatusIcon, StatusSection,
     StatusSnapshot, TreeRow,
@@ -40,7 +41,7 @@ impl StatusSection for ModelServerSection {
     }
 
     fn children(&self, snapshot: &StatusSnapshot) -> Vec<TreeRow> {
-        snapshot
+        let mut rows: Vec<TreeRow> = snapshot
             .model_servers
             .iter()
             .map(|s| {
@@ -99,7 +100,32 @@ impl StatusSection for ModelServerSection {
                     },
                 }
             })
-            .collect()
+            .collect();
+
+        // Catalog "Add <kind>" rows for the addable (non-builtin) kinds, derived
+        // from ModelServerKind::ALL so the options can't drift from the other
+        // surfaces. The vendor builtins always exist, so they aren't offered here.
+        // Multiple servers of the same kind are allowed, so these are always shown.
+        for kind in ModelServerKind::ALL {
+            if kind.is_builtin() {
+                continue;
+            }
+            rows.push(TreeRow {
+                section_id: SectionId::ModelServers,
+                id: format!("add-{}", kind.slug()),
+                depth: 1,
+                label: format!("Add {}", kind.display_name()),
+                description: kind.connect_blurb().to_string(),
+                icon: StatusIcon::Tool,
+                is_header: false,
+                actions: ActionSet::primary(StatusAction::ConfigureModelServer {
+                    kind: kind.slug().to_string(),
+                }),
+                health: SectionHealth::Gray,
+            });
+        }
+
+        rows
     }
 }
 
@@ -208,16 +234,42 @@ mod tests {
             "http://localhost:11434",
         )]);
         let rows = ModelServerSection.children(&snapshot);
-        assert_eq!(rows.len(), 1);
-        assert!(rows[0].description.contains("ollama"));
-        assert!(rows[0].description.contains("localhost:11434"));
+        // First row is the declared server; catalog "Add <kind>" rows follow.
+        let server_row = &rows[0];
+        assert_eq!(server_row.id, "ollama-local");
+        assert!(server_row.description.contains("ollama"));
+        assert!(server_row.description.contains("localhost:11434"));
     }
 
     #[test]
     fn test_children_mark_builtin_as_such() {
         let snapshot = snapshot_with_servers(vec![builtin("anthropic-api", "anthropic-api")]);
         let rows = ModelServerSection.children(&snapshot);
-        assert_eq!(rows.len(), 1);
+        // 1 server row + the addable-kind catalog rows.
         assert!(rows[0].description.contains("builtin"));
+    }
+
+    #[test]
+    fn test_children_offer_add_rows_for_non_builtin_kinds() {
+        let snapshot = snapshot_with_servers(vec![builtin("anthropic-api", "anthropic-api")]);
+        let rows = ModelServerSection.children(&snapshot);
+
+        let add_rows: Vec<&TreeRow> = rows.iter().filter(|r| r.id.starts_with("add-")).collect();
+        // ollama, openai-compat, lmstudio — the addable kinds.
+        assert_eq!(add_rows.len(), 3);
+        assert!(add_rows
+            .iter()
+            .any(|r| matches!(&r.actions.primary, StatusAction::ConfigureModelServer { kind } if kind == "ollama")));
+        // No add-row for vendor builtins.
+        assert!(!add_rows.iter().any(|r| r.id == "add-anthropic-api"));
+    }
+
+    #[test]
+    fn test_configure_model_server_web_url_points_at_setup_page() {
+        let action = StatusAction::ConfigureModelServer {
+            kind: "ollama".to_string(),
+        };
+        let url = action.web_url().expect("ollama kind has a setup url");
+        assert!(url.starts_with("http"));
     }
 }

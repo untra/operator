@@ -138,6 +138,7 @@ export class LaunchManager {
         delegator: options.delegator ?? null,
         provider: null,
         model: options.delegator ? null : options.model,
+        model_server: null,
         yolo_mode: options.yoloMode,
         wrapper: 'vscode',
         retry_reason: null,

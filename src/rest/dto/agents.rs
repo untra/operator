@@ -224,6 +224,10 @@ pub struct LaunchTicketRequest {
     /// Model to use (e.g., "sonnet", "opus") — legacy fallback when no delegator
     #[serde(default)]
     pub model: Option<String>,
+    /// Ad-hoc model server to target (e.g. "ollama-local") — legacy fallback when
+    /// no delegator. Injects the server's base URL / API key env at spawn.
+    #[serde(default)]
+    pub model_server: Option<String>,
     /// Run in YOLO mode (auto-accept all prompts)
     #[serde(default)]
     pub yolo_mode: bool,

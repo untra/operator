@@ -966,6 +966,49 @@
         }
       }
     },
+    "/api/v1/issuetypes/{key}/workflow-preview": {
+      "get": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Preview the workflow for an issue type (no ticket required).",
+        "description": "Renders the issue type's step structure into a Claude dynamic workflow using\nplaceholder field values. Used by the UI to visualize an issue type's\nworkflow shape.",
+        "operationId": "workflow_preview",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key (e.g., FEAT, FIX)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generated preview workflow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPreviewResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/kanban/config": {
       "put": {
         "tags": [
@@ -1023,6 +1066,31 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListKanbanProjectsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kanban/providers": {
+      "get": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "GET /`api/v1/kanban/providers`",
+        "description": "Returns the catalog of supported kanban providers (Jira, Linear, GitHub),\neach flagged with whether it is already configured. This is the shared\nsource of truth for the web `/#/kanban` list view and the VS Code\nonboarding picker.",
+        "operationId": "kanban_provider_catalog",
+        "responses": {
+          "200": {
+            "description": "Supported kanban providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KanbanProviderCatalogEntry"
+                  }
                 }
               }
             }
@@ -1342,6 +1410,30 @@
         }
       }
     },
+    "/api/v1/model-servers/kinds": {
+      "get": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "The catalog of supported model-server kinds (single source of truth).",
+        "operationId": "model_servers_kinds",
+        "responses": {
+          "200": {
+            "description": "Supported model-server kinds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModelServerKindEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/model-servers/{name}": {
       "get": {
         "tags": [
@@ -1373,6 +1465,52 @@
           },
           "404": {
             "description": "Model server not found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "Update an existing user-declared model server",
+        "operationId": "model_servers_update",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Model server name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModelServerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Model server updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelServerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Model server not found"
+          },
+          "409": {
+            "description": "Cannot update implicit builtin server"
           }
         }
       },
@@ -1410,6 +1548,42 @@
           },
           "409": {
             "description": "Cannot delete implicit builtin server"
+          }
+        }
+      }
+    },
+    "/api/v1/model-servers/{name}/models": {
+      "get": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "List the models a server offers, via a live probe of its inference endpoint.",
+        "description": "The probe doubles as a reachability check — `reachable: false` with an `error`\nwhen the endpoint is unreachable or rejects the request.",
+        "operationId": "model_servers_models",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Model server name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Models offered by the server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelServerModelsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Model server not found"
           }
         }
       }
@@ -3226,6 +3400,44 @@
           }
         }
       },
+      "KanbanProviderCatalogEntry": {
+        "type": "object",
+        "description": "One supported kanban provider, as advertised by\n`GET /api/v1/kanban/providers`.\n\nThis is the single source of truth (derived from\n`KanbanProviderType::ALL`) that the web `/#/kanban` list view and the VS\nCode onboarding picker both render against, so the available options can't\ndrift between surfaces.",
+        "required": [
+          "slug",
+          "display_name",
+          "description",
+          "setup_url",
+          "icon",
+          "configured"
+        ],
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "description": "Whether at least one instance of this provider is already configured."
+          },
+          "description": {
+            "type": "string",
+            "description": "One-line connect description shown next to the provider."
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Human-readable name (e.g. \"Jira Cloud\", \"GitHub Projects\")."
+          },
+          "icon": {
+            "type": "string",
+            "description": "VS Code codicon hint (rendered as `$(icon)` in the picker)."
+          },
+          "setup_url": {
+            "type": "string",
+            "description": "Credential/token page opened when the user chooses to configure it."
+          },
+          "slug": {
+            "type": "string",
+            "description": "Stable lowercase slug (\"jira\" | \"linear\" | \"github\")."
+          }
+        }
+      },
       "KanbanProviderKind": {
         "type": "string",
         "description": "Which kanban provider an onboarding request targets.",
@@ -3345,6 +3557,13 @@
               "null"
             ],
             "description": "Model to use (e.g., \"sonnet\", \"opus\") — legacy fallback when no delegator"
+          },
+          "model_server": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Ad-hoc model server to target (e.g. \"ollama-local\") — legacy fallback when\nno delegator. Injects the server's base URL / API key env at spawn."
           },
           "provider": {
             "type": [
@@ -3660,6 +3879,97 @@
           "version": {
             "type": "string",
             "description": "Server version from Cargo.toml"
+          }
+        }
+      },
+      "ModelEntry": {
+        "type": "object",
+        "description": "A single model offered by a server (from a live probe).",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Display name when the server provides one"
+          },
+          "id": {
+            "type": "string",
+            "description": "Model id passed to `--model`"
+          }
+        }
+      },
+      "ModelServerKindEntry": {
+        "type": "object",
+        "description": "A model-server kind from the shared catalog (single source of truth).",
+        "required": [
+          "slug",
+          "display_name",
+          "description",
+          "setup_url",
+          "icon",
+          "is_builtin"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "One-line connect blurb"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Human-friendly display name"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Codicon hint"
+          },
+          "is_builtin": {
+            "type": "boolean",
+            "description": "Whether this is an implicit vendor builtin (always present, not deletable)"
+          },
+          "setup_url": {
+            "type": "string",
+            "description": "Help/credential setup page"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Stable slug stored as `ModelServer.kind` (e.g. \"ollama\")"
+          }
+        }
+      },
+      "ModelServerModelsResponse": {
+        "type": "object",
+        "description": "Response listing the models a server offers, plus reachability.",
+        "required": [
+          "server",
+          "reachable",
+          "models"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Error message when unreachable"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelEntry"
+            },
+            "description": "Models offered (empty when unreachable)"
+          },
+          "reachable": {
+            "type": "boolean",
+            "description": "Whether the endpoint was reachable"
+          },
+          "server": {
+            "type": "string",
+            "description": "Server name probed"
           }
         }
       },
@@ -4106,6 +4416,24 @@
           }
         }
       },
+      "RowActionDto": {
+        "type": "object",
+        "description": "A browser-openable action on a status section row (e.g. \"Open Web UI\",\n\"Swagger\"). Only URL-style actions surface to the web UI; TUI-only actions\n(toggles, env edits) are omitted.",
+        "required": [
+          "label",
+          "url"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Display label for the action button/link."
+          },
+          "url": {
+            "type": "string",
+            "description": "Browser URL the action opens."
+          }
+        }
+      },
       "SectionDto": {
         "type": "object",
         "description": "A status section with its health and child rows.",
@@ -4161,9 +4489,17 @@
           "label",
           "description",
           "icon",
-          "health"
+          "health",
+          "actions"
         ],
         "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RowActionDto"
+            },
+            "description": "Browser-openable actions for this row (links shown in the web UI)."
+          },
           "depth": {
             "type": "integer",
             "format": "int32",
@@ -4791,6 +5127,50 @@
           }
         }
       },
+      "UpdateModelServerRequest": {
+        "type": "object",
+        "description": "Request to update an existing user-declared model server.\n\nAll fields except `kind` are replaced; `name` is taken from the path.",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of an env var providing the API key"
+          },
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Base URL of the inference endpoint"
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional display name for UI"
+          },
+          "extra_env": {
+            "type": "object",
+            "description": "Additional environment variables",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "Kind: \"ollama\", \"openai-compat\", \"anthropic-api\", \"openai-api\", \"google-api\", \"lmstudio\""
+          }
+        }
+      },
       "UpdateStepRequest": {
         "type": "object",
         "description": "Request to update a step",
@@ -5002,6 +5382,29 @@
           "ticket_id": {
             "type": "string",
             "description": "The ticket the workflow was generated from."
+          }
+        }
+      },
+      "WorkflowPreviewResponse": {
+        "type": "object",
+        "description": "Response for a *preview* workflow generated from an issue type alone (no\nconcrete ticket). Used by the UI to visualize an issue type's workflow shape.",
+        "required": [
+          "issuetype_key",
+          "suggested_filename",
+          "contents"
+        ],
+        "properties": {
+          "contents": {
+            "type": "string",
+            "description": "The generated `.js` workflow source (placeholder ticket values)."
+          },
+          "issuetype_key": {
+            "type": "string",
+            "description": "The issue type key the preview was generated from."
+          },
+          "suggested_filename": {
+            "type": "string",
+            "description": "Suggested filename for saving the preview (`<KEY>.preview.workflow.js`)."
           }
         }
       },

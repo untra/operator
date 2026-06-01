@@ -147,6 +147,22 @@ impl App {
                     ));
                 }
             }
+            StatusAction::ConfigureModelServer { kind } => {
+                let Some(url) =
+                    crate::api::providers::model_server::ModelServerKind::from_slug(&kind)
+                        .map(|k| k.setup_url())
+                else {
+                    return Ok(());
+                };
+                if let Err(e) = open_in_browser(url) {
+                    self.dashboard
+                        .set_status(&format!("Failed to open {kind} setup: {e}"));
+                } else {
+                    self.dashboard.set_status(&format!(
+                        "Opened {kind} setup page — add a [[model_servers]] entry to your config"
+                    ));
+                }
+            }
             StatusAction::ConfigureGitProvider { provider } => {
                 match git_onboarding::resolve_onboarding(&provider) {
                     Some(git_onboarding::OnboardingStep::InstallCli {

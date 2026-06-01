@@ -193,6 +193,7 @@ pub fn write_command_file(
     project_path: &str,
     llm_command: &str,
     operator_env: Option<&OperatorEnvVars>,
+    provider_env: Option<&std::collections::HashMap<String, String>>,
 ) -> Result<PathBuf> {
     let commands_dir = config.tickets_path().join("operator/commands");
     fs::create_dir_all(&commands_dir).context("Failed to create commands directory")?;
@@ -204,12 +205,16 @@ pub fn write_command_file(
         .map(OperatorEnvVars::to_export_block)
         .unwrap_or_default();
 
+    // Model-server env (base URL / API key / extra env) so the agent CLI targets
+    // the resolved server. Exported after the operator branding vars.
+    let provider_block = provider_env.map(render_env_exports).unwrap_or_default();
+
     let pane_title = operator_env
         .map(OperatorEnvVars::to_pane_title_line)
         .unwrap_or_default();
 
     let script_content = format!(
-        "#!/bin/bash\n{env_block}{pane_title}cd {}\nexec {}\n",
+        "#!/bin/bash\n{env_block}{provider_block}{pane_title}cd {}\nexec {}\n",
         shell_escape(project_path),
         llm_command
     );
@@ -226,6 +231,43 @@ pub fn write_command_file(
     }
 
     Ok(command_file)
+}
+
+/// Render a map of environment variables as shell `export` lines.
+///
+/// Keys are sorted for deterministic output. Values are shell-escaped, *except*
+/// a pure shell-variable reference like `${OLLAMA_API_KEY}` is emitted unquoted
+/// so the shell expands it at run time — this lets an API key be passed by
+/// reference (inherited from operator's env) without writing the secret value
+/// into the on-disk command script.
+fn render_env_exports(env: &std::collections::HashMap<String, String>) -> String {
+    let mut keys: Vec<&String> = env.keys().collect();
+    keys.sort();
+    let mut out = String::new();
+    for key in keys {
+        let value = &env[key];
+        let rendered = if is_shell_var_reference(value) {
+            value.clone()
+        } else {
+            shell_escape(value)
+        };
+        out.push_str(&format!("export {key}={rendered}\n"));
+    }
+    out
+}
+
+/// Whether a value is exactly a single shell-variable reference like `${FOO}`
+/// (a valid env-var name in braces). Such values are emitted unquoted so the
+/// shell expands them; anything else is shell-escaped.
+fn is_shell_var_reference(value: &str) -> bool {
+    let Some(inner) = value.strip_prefix("${").and_then(|s| s.strip_suffix('}')) else {
+        return false;
+    };
+    !inner.is_empty()
+        && inner
+            .chars()
+            .enumerate()
+            .all(|(i, c)| c == '_' || c.is_ascii_alphabetic() || (i > 0 && c.is_ascii_digit()))
 }
 
 /// Escape a string for safe use in shell command
@@ -312,7 +354,8 @@ mod tests {
         let project_path = "/path/to/project";
         let llm_command = "claude --session-id abc123 --print-prompt-path /tmp/prompt.txt";
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
+        let result =
+            write_command_file(&config, session_uuid, project_path, llm_command, None, None);
         assert!(result.is_ok());
 
         let command_file = result.unwrap();
@@ -336,7 +379,8 @@ mod tests {
         let project_path = "/path/with spaces/to/project";
         let llm_command = "claude --arg value";
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
+        let result =
+            write_command_file(&config, session_uuid, project_path, llm_command, None, None);
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(result.unwrap()).unwrap();
@@ -355,7 +399,8 @@ mod tests {
         let project_path = "/path/with'quotes/and$dollar";
         let llm_command = "claude --arg value";
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
+        let result =
+            write_command_file(&config, session_uuid, project_path, llm_command, None, None);
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(result.unwrap()).unwrap();
@@ -374,7 +419,8 @@ mod tests {
         let project_path = "/project";
         let llm_command = r#"claude --session-id abc --print-prompt-path /tmp/file.txt --add-dir "/dir with spaces" --model sonnet"#;
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
+        let result =
+            write_command_file(&config, session_uuid, project_path, llm_command, None, None);
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(result.unwrap()).unwrap();
@@ -395,7 +441,8 @@ mod tests {
         let project_path = "/project";
         let llm_command = "claude --arg value";
 
-        let result = write_command_file(&config, session_uuid, project_path, llm_command, None);
+        let result =
+            write_command_file(&config, session_uuid, project_path, llm_command, None, None);
         assert!(result.is_ok());
 
         let command_file = result.unwrap();
@@ -463,6 +510,7 @@ mod tests {
             "/path/to/project",
             "claude --session-id abc123",
             Some(&env),
+            None,
         );
         assert!(result.is_ok());
 
@@ -473,6 +521,74 @@ mod tests {
         assert!(content.contains("\\033]2;"));
         assert!(content.contains("cd '/path/to/project'"));
         assert!(content.contains("exec claude --session-id abc123"));
+    }
+
+    #[test]
+    fn test_write_command_file_exports_provider_env() {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp_dir.path());
+
+        let mut provider_env = std::collections::HashMap::new();
+        provider_env.insert(
+            "OPENAI_BASE_URL".to_string(),
+            "http://localhost:11434".to_string(),
+        );
+
+        let result = write_command_file(
+            &config,
+            "test-uuid-provider-env",
+            "/path/to/project",
+            "codex --model qwen2.5-coder",
+            None,
+            Some(&provider_env),
+        );
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(result.unwrap()).unwrap();
+        // Model-server env is exported before the agent command.
+        assert!(content.contains("export OPENAI_BASE_URL='http://localhost:11434'"));
+        let export_pos = content.find("export OPENAI_BASE_URL").unwrap();
+        let exec_pos = content.find("exec codex").unwrap();
+        assert!(export_pos < exec_pos, "env must be exported before exec");
+    }
+
+    #[test]
+    fn test_write_command_file_api_key_reference_is_unquoted_not_baked() {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp_dir.path());
+
+        let mut provider_env = std::collections::HashMap::new();
+        provider_env.insert("OPENAI_BASE_URL".to_string(), "http://gpu:8000".to_string());
+        // API key passed by reference — must NOT be written as a literal secret.
+        provider_env.insert("OPENAI_API_KEY".to_string(), "${MY_SECRET_KEY}".to_string());
+
+        let result = write_command_file(
+            &config,
+            "test-uuid-apikey",
+            "/project",
+            "codex",
+            None,
+            Some(&provider_env),
+        );
+        let content = std::fs::read_to_string(result.unwrap()).unwrap();
+        // Reference emitted unquoted so the shell expands it at run time.
+        assert!(content.contains("export OPENAI_API_KEY=${MY_SECRET_KEY}"));
+        // Plain values are still escaped.
+        assert!(content.contains("export OPENAI_BASE_URL='http://gpu:8000'"));
+    }
+
+    #[test]
+    fn test_is_shell_var_reference() {
+        assert!(is_shell_var_reference("${FOO}"));
+        assert!(is_shell_var_reference("${MY_KEY_2}"));
+        assert!(!is_shell_var_reference("${}"));
+        assert!(!is_shell_var_reference("plain"));
+        assert!(!is_shell_var_reference("${FOO} bar")); // not a pure reference
+        assert!(!is_shell_var_reference("http://localhost"));
     }
 
     #[test]
@@ -487,6 +603,7 @@ mod tests {
             "test-uuid-noenv",
             "/path/to/project",
             "claude --session-id abc123",
+            None,
             None,
         );
         assert!(result.is_ok());

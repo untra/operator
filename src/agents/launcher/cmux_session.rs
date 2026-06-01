@@ -165,7 +165,12 @@ pub fn launch_in_cmux_with_options(
     }
 
     if options.docker_mode {
-        llm_cmd = build_docker_command(config, &llm_cmd, project_path, None)?;
+        llm_cmd = build_docker_command(
+            config,
+            &llm_cmd,
+            project_path,
+            options.provider.as_ref().map(|p| &p.env),
+        )?;
     }
 
     // Write the command to a shell script file
@@ -175,6 +180,7 @@ pub fn launch_in_cmux_with_options(
         project_path,
         &llm_cmd,
         Some(operator_env),
+        options.provider.as_ref().map(|p| &p.env),
     )?;
 
     // Inject relay env vars so agents can find the hub and register with their ticket ID
@@ -328,7 +334,12 @@ pub fn launch_in_cmux_with_relaunch_options(
     }
 
     if options.launch_options.docker_mode {
-        llm_cmd = build_docker_command(config, &llm_cmd, project_path, None)?;
+        llm_cmd = build_docker_command(
+            config,
+            &llm_cmd,
+            project_path,
+            options.launch_options.provider.as_ref().map(|p| &p.env),
+        )?;
     }
 
     // Write and send command
@@ -338,6 +349,7 @@ pub fn launch_in_cmux_with_relaunch_options(
         project_path,
         &llm_cmd,
         Some(operator_env),
+        options.launch_options.provider.as_ref().map(|p| &p.env),
     )?;
     if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
         let export_cmd = format!(

@@ -17,6 +17,11 @@ provider: string | null,
  */
 model: string | null, 
 /**
+ * Ad-hoc model server to target (e.g. "ollama-local") — legacy fallback when
+ * no delegator. Injects the server's base URL / API key env at spawn.
+ */
+model_server: string | null, 
+/**
  * Run in YOLO mode (auto-accept all prompts)
  */
 yolo_mode: boolean, 

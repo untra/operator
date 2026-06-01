@@ -496,9 +496,10 @@ impl Launcher {
             })?;
 
         let mut opts = base.clone();
-        opts.provider = Some(crate::agents::delegator_resolution::delegator_to_provider(
-            delegator,
-        ));
+        opts.provider = Some(
+            crate::agents::delegator_resolution::delegator_to_provider(&self.config, delegator)
+                .map_err(|e| anyhow::anyhow!("{e}"))?,
+        );
         opts.delegator_name = Some(delegator.name.clone());
         crate::agents::delegator_resolution::apply_delegator_launch_config(
             &mut opts,

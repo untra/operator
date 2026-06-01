@@ -3,14 +3,64 @@
 use axum::extract::{Path, State};
 use axum::Json;
 
-use crate::api::providers::kanban::get_provider_from_config;
+use crate::api::providers::kanban::{get_provider_from_config, KanbanProviderType};
+use crate::config::kanban::KanbanConfig;
 use crate::config::Config;
 use crate::rest::dto::{
-    ExternalIssueTypeSummary, KanbanIssueTypeResponse, SyncKanbanIssueTypesResponse,
+    ExternalIssueTypeSummary, KanbanIssueTypeResponse, KanbanProviderCatalogEntry,
+    SyncKanbanIssueTypesResponse,
 };
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 use crate::services::kanban_issuetype_service::KanbanIssueTypeService;
+
+/// Build the provider catalog from the canonical `KanbanProviderType::ALL`
+/// list, flagging each provider as `configured` when the kanban config already
+/// holds at least one instance of it.
+fn build_provider_catalog(kanban: &KanbanConfig) -> Vec<KanbanProviderCatalogEntry> {
+    KanbanProviderType::ALL
+        .into_iter()
+        .map(|p| {
+            let configured = match p {
+                KanbanProviderType::Jira => !kanban.jira.is_empty(),
+                KanbanProviderType::Linear => !kanban.linear.is_empty(),
+                KanbanProviderType::Github => !kanban.github.is_empty(),
+            };
+            KanbanProviderCatalogEntry {
+                slug: p.slug().to_string(),
+                display_name: p.display_name().to_string(),
+                description: p.connect_blurb().to_string(),
+                setup_url: p.setup_url().to_string(),
+                icon: p.icon().to_string(),
+                configured,
+            }
+        })
+        .collect()
+}
+
+/// GET /`api/v1/kanban/providers`
+///
+/// Returns the catalog of supported kanban providers (Jira, Linear, GitHub),
+/// each flagged with whether it is already configured. This is the shared
+/// source of truth for the web `/#/kanban` list view and the VS Code
+/// onboarding picker.
+#[utoipa::path(
+    get,
+    path = "/api/v1/kanban/providers",
+    tag = "Kanban",
+    operation_id = "kanban_provider_catalog",
+    responses(
+        (status = 200, description = "Supported kanban providers", body = Vec<KanbanProviderCatalogEntry>)
+    )
+)]
+pub async fn provider_catalog(
+    State(state): State<ApiState>,
+) -> Result<Json<Vec<KanbanProviderCatalogEntry>>, ApiError> {
+    // Reload config from disk so freshly onboarded providers are reflected in
+    // the `configured` flags without requiring a server restart.
+    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    Ok(Json(build_provider_catalog(&fresh_config.kanban)))
+}
 
 /// GET /`api/v1/kanban/:provider/:project_key/issuetypes`
 ///
@@ -170,6 +220,32 @@ mod tests {
         assert!(json.contains("\"provider\":\"jira\""));
         assert!(json.contains("\"source_kind\":\"issuetype\""));
         assert!(!json.contains("icon_url")); // None skipped
+    }
+
+    #[test]
+    fn test_build_provider_catalog_lists_all_three_with_configured_flags() {
+        let mut kanban = crate::config::kanban::KanbanConfig::default();
+        kanban.github.insert(
+            "my-org".into(),
+            crate::config::kanban::GithubProjectsConfig::default(),
+        );
+
+        let catalog = build_provider_catalog(&kanban);
+
+        let slugs: Vec<&str> = catalog.iter().map(|e| e.slug.as_str()).collect();
+        assert_eq!(slugs, vec!["jira", "linear", "github"]);
+
+        let github = catalog.iter().find(|e| e.slug == "github").unwrap();
+        assert!(github.configured);
+        assert_eq!(github.display_name, "GitHub Projects");
+        assert_eq!(github.icon, "github");
+        assert_eq!(
+            github.setup_url,
+            "https://github.com/settings/personal-access-tokens"
+        );
+
+        let jira = catalog.iter().find(|e| e.slug == "jira").unwrap();
+        assert!(!jira.configured);
     }
 
     #[test]

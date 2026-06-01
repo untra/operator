@@ -824,7 +824,37 @@ icon: string,
 /**
  * Health: "green" | "yellow" | "red" | "gray".
  */
-health: string, };
+health: string, 
+/**
+ * Browser-openable actions for this row (links shown in the web UI).
+ */
+actions: Array<RowActionDto>, };
+
+export type KanbanProviderCatalogEntry = { 
+/**
+ * Stable lowercase slug ("jira" | "linear" | "github").
+ */
+slug: string, 
+/**
+ * Human-readable name (e.g. "Jira Cloud", "GitHub Projects").
+ */
+display_name: string, 
+/**
+ * One-line connect description shown next to the provider.
+ */
+description: string, 
+/**
+ * Credential/token page opened when the user chooses to configure it.
+ */
+setup_url: string, 
+/**
+ * VS Code codicon hint (rendered as `$(icon)` in the picker).
+ */
+icon: string, 
+/**
+ * Whether at least one instance of this provider is already configured.
+ */
+configured: boolean, };
 
 export type WorkflowExportResponse = { 
 /**

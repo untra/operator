@@ -299,8 +299,47 @@ mod tests {
     fn test_connections_tmux_connected_green_health() {
         let section = ConnectionsSection;
         let snap = base_snapshot();
-        // API running + tmux connected = Green
+        // API running + a protocol exposed = Green
         assert_eq!(section.health(&snap), SectionHealth::Green);
+    }
+
+    #[test]
+    fn test_connections_health_ignores_wrapper() {
+        // A disconnected session-wrapper must NOT downgrade the section when the
+        // API and at least one protocol are up — health follows the shown rows.
+        let section = ConnectionsSection;
+        let mut snap = base_snapshot();
+        snap.wrapper_connection_status = WrapperConnectionStatus::Tmux {
+            available: false,
+            server_running: false,
+            version: None,
+        };
+        assert_eq!(section.health(&snap), SectionHealth::Green);
+        assert_eq!(section.description(&snap), "Connected");
+    }
+
+    #[test]
+    fn test_connections_health_partial_when_api_up_but_no_protocol() {
+        let section = ConnectionsSection;
+        let mut snap = base_snapshot();
+        snap.mcp_http_status = McpHttpStatus::NotMounted;
+        snap.mcp_stdio_advertised = false;
+        snap.acp_stdio_advertised = false;
+        assert_eq!(section.health(&snap), SectionHealth::Yellow);
+        assert_eq!(section.description(&snap), "Partial");
+    }
+
+    #[test]
+    fn test_connections_operator_version_row_present() {
+        let section = ConnectionsSection;
+        let snap = base_snapshot();
+        let children = section.children(&snap);
+        let row = children
+            .iter()
+            .find(|r| r.id == "operator-version")
+            .expect("operator-version row must be present");
+        assert_eq!(row.label, "Operator");
+        assert!(row.description.contains(&snap.operator_version));
     }
 
     #[test]

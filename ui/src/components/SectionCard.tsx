@@ -55,6 +55,21 @@ export function SectionCard({ section }: { section: SectionDto }) {
                 <span className={styles.dot} data-health={row.health} />
                 <span className={styles.rowLabel}>{row.label}</span>
                 {row.description && <span className={styles.rowDesc}>{row.description}</span>}
+                {row.actions.length > 0 && (
+                  <span className={styles.rowActions}>
+                    {row.actions.map((action) => (
+                      <a
+                        key={action.url}
+                        className={styles.rowAction}
+                        href={action.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {action.label}
+                      </a>
+                    ))}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

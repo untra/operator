@@ -38,9 +38,9 @@ use operator::queue::LlmTask;
 use operator::rest::dto::{
     CollectionResponse, CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest,
     CreateStepRequest, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
-    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, SectionDto, SectionRowDto,
-    SkillEntry, SkillsResponse, StatusResponse, StepResponse, UpdateIssueTypeRequest,
-    UpdateStepRequest, WorkflowExportResponse,
+    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, KanbanProviderCatalogEntry,
+    SectionDto, SectionRowDto, SkillEntry, SkillsResponse, StatusResponse, StepResponse,
+    UpdateIssueTypeRequest, UpdateStepRequest, WorkflowExportResponse,
 };
 use operator::state::{AgentState, CompletedTicket, State};
 use operator::types::{
@@ -136,6 +136,8 @@ fn generate_typescript() -> String {
         StatusResponse::decl(),
         SectionDto::decl(),
         SectionRowDto::decl(),
+        // Kanban provider catalog DTO
+        KanbanProviderCatalogEntry::decl(),
         // Workflow export DTO
         WorkflowExportResponse::decl(),
         // Skills DTOs

@@ -132,10 +132,11 @@ impl App {
                 self.set_default_llm(&tool_name, &model);
             }
             StatusAction::ConfigureKanbanProvider { provider } => {
-                let url = match provider.as_str() {
-                    "jira" => "https://id.atlassian.com/manage-profile/security/api-tokens",
-                    "linear" => "https://linear.app/settings/api",
-                    _ => return Ok(()),
+                let Some(url) =
+                    crate::api::providers::kanban::KanbanProviderType::from_slug(&provider)
+                        .map(|p| p.setup_url())
+                else {
+                    return Ok(());
                 };
                 if let Err(e) = open_in_browser(url) {
                     self.dashboard

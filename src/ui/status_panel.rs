@@ -282,6 +282,12 @@ impl StatusAction {
             Self::OpenUrl(url) => Some(url.clone()),
             Self::OpenMcpDocs => Some("https://untra.io/operator/docs/mcp/".to_string()),
             Self::OpenAcpDocs => Some("https://untra.io/operator/docs/acp/".to_string()),
+            // The web `/#/kanban` "Configure" rows link to the provider's token
+            // page (there is no in-browser onboarding wizard).
+            Self::ConfigureKanbanProvider { provider } => {
+                crate::api::providers::kanban::KanbanProviderType::from_slug(provider)
+                    .map(|p| p.setup_url().to_string())
+            }
             _ => None,
         }
     }
@@ -624,18 +630,27 @@ impl StatusSnapshot {
         let tickets_dir = config.paths.tickets.clone();
         let tickets_dir_exists = Path::new(&tickets_dir).exists();
 
-        // Kanban providers from jira + linear configs.
+        // Kanban providers from jira + linear + github configs. Provider type
+        // strings use the canonical `KanbanProviderType` slugs so they match the
+        // catalog the Kanban section renders against.
+        use crate::api::providers::kanban::KanbanProviderType;
         let mut kanban_providers: Vec<KanbanProviderInfo> = Vec::new();
         for domain in config.kanban.jira.keys() {
             kanban_providers.push(KanbanProviderInfo {
-                provider_type: "jira".to_string(),
+                provider_type: KanbanProviderType::Jira.slug().to_string(),
                 domain: domain.clone(),
             });
         }
         for slug in config.kanban.linear.keys() {
             kanban_providers.push(KanbanProviderInfo {
-                provider_type: "linear".to_string(),
+                provider_type: KanbanProviderType::Linear.slug().to_string(),
                 domain: slug.clone(),
+            });
+        }
+        for owner in config.kanban.github.keys() {
+            kanban_providers.push(KanbanProviderInfo {
+                provider_type: KanbanProviderType::Github.slug().to_string(),
+                domain: owner.clone(),
             });
         }
 
@@ -902,7 +917,9 @@ fn web_actions(actions: &ActionSet) -> Vec<crate::rest::dto::RowActionDto> {
 
     let mut out: Vec<RowActionDto> = Vec::new();
     for (action, meta) in slots {
-        let Some(url) = action.web_url() else { continue };
+        let Some(url) = action.web_url() else {
+            continue;
+        };
         if out.iter().any(|a| a.url == url) {
             continue;
         }
@@ -1390,6 +1407,153 @@ mod tests {
         let projects = dtos.iter().find(|d| d.id == "projects").unwrap();
         assert_eq!(projects.prerequisites, vec!["git"]);
         assert!(!projects.met);
+    }
+
+    #[test]
+    fn test_apply_api_connection_overrides_stopped_defaults() {
+        let mut snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        assert_eq!(snap.api_status, RestApiStatus::Stopped);
+        snap.apply_api_connection(&crate::rest::dto::LiveConnectionStatus {
+            api_running: true,
+            port: 7008,
+            mcp_http_enabled: true,
+            mcp_active_sessions: 3,
+        });
+        assert_eq!(snap.api_status, RestApiStatus::Running { port: 7008 });
+        assert_eq!(snap.mcp_http_status, McpHttpStatus::Mounted { port: 7008 });
+        assert_eq!(snap.mcp_active_sessions, 3);
+    }
+
+    #[test]
+    fn test_apply_api_connection_http_disabled_keeps_mcp_unmounted() {
+        let mut snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        snap.apply_api_connection(&crate::rest::dto::LiveConnectionStatus {
+            api_running: true,
+            port: 7008,
+            mcp_http_enabled: false,
+            mcp_active_sessions: 0,
+        });
+        assert_eq!(snap.mcp_http_status, McpHttpStatus::NotMounted);
+    }
+
+    #[test]
+    fn test_configure_kanban_provider_web_url_resolves_per_provider() {
+        // The web `/#/kanban` rows are only clickable when the action yields a URL.
+        assert_eq!(
+            StatusAction::ConfigureKanbanProvider {
+                provider: "jira".into()
+            }
+            .web_url()
+            .as_deref(),
+            Some("https://id.atlassian.com/manage-profile/security/api-tokens")
+        );
+        assert_eq!(
+            StatusAction::ConfigureKanbanProvider {
+                provider: "github".into()
+            }
+            .web_url()
+            .as_deref(),
+            Some("https://github.com/settings/personal-access-tokens")
+        );
+        // Unknown slugs don't produce a link.
+        assert_eq!(
+            StatusAction::ConfigureKanbanProvider {
+                provider: "bogus".into()
+            }
+            .web_url(),
+            None
+        );
+    }
+
+    #[test]
+    fn test_from_config_includes_github_kanban_providers() {
+        let mut config = crate::config::Config::default();
+        config.kanban.github.insert(
+            "my-org".into(),
+            crate::config::kanban::GithubProjectsConfig::default(),
+        );
+        let snap = StatusSnapshot::from_config(&config, vec![]);
+        let github = snap
+            .kanban_providers
+            .iter()
+            .find(|p| p.provider_type == "github")
+            .expect("github provider should be populated from config");
+        assert_eq!(github.domain, "my-org");
+    }
+
+    #[test]
+    fn test_build_section_dtos_connections_has_link_actions() {
+        let mut snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        snap.apply_api_connection(&crate::rest::dto::LiveConnectionStatus {
+            api_running: true,
+            port: 7008,
+            mcp_http_enabled: true,
+            mcp_active_sessions: 0,
+        });
+        let dtos = build_section_dtos(&snap);
+        let conn = dtos
+            .iter()
+            .find(|d| d.id == "connections")
+            .expect("connections section present");
+        let api_row = conn
+            .children
+            .iter()
+            .find(|r| r.id == "operator-api")
+            .expect("operator-api row");
+        assert!(
+            api_row
+                .actions
+                .iter()
+                .any(|a| a.url.contains("/swagger-ui")),
+            "API row should carry a Swagger link"
+        );
+        let mcp_row = conn
+            .children
+            .iter()
+            .find(|r| r.id == "mcp")
+            .expect("mcp row");
+        assert!(
+            mcp_row.actions.iter().any(|a| a.url.contains("/docs/mcp")),
+            "MCP row should carry a docs link"
+        );
+    }
+
+    #[test]
+    fn test_build_section_dtos_kanban_configure_rows_have_link_actions() {
+        // End-to-end projection: the Kanban section's TreeRows must survive
+        // `web_actions` with populated, clickable links so the web `/#/kanban`
+        // view shows all three providers as actionable options. This guards the
+        // `children() -> web_actions -> SectionRowDto` composition, not just the
+        // pieces in isolation.
+        let snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        let dtos = build_section_dtos(&snap);
+        let kanban = dtos
+            .iter()
+            .find(|d| d.id == "kanban")
+            .expect("kanban section present");
+
+        // All three providers are offered when none are connected.
+        assert_eq!(kanban.children.len(), 3);
+
+        for (id, expected_url) in [
+            ("configure-jira", "id.atlassian.com"),
+            ("configure-linear", "linear.app"),
+            (
+                "configure-github",
+                "github.com/settings/personal-access-tokens",
+            ),
+        ] {
+            let row = kanban
+                .children
+                .iter()
+                .find(|r| r.id == id)
+                .unwrap_or_else(|| panic!("{id} row present"));
+            assert!(
+                row.actions.iter().any(|a| a.url.contains(expected_url)),
+                "{id} row should carry a clickable {expected_url} link, got {:?}",
+                row.actions
+            );
+        }
     }
 
     fn test_snapshot() -> StatusSnapshot {

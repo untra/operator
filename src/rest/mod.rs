@@ -120,6 +120,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // Step completion endpoint (for opr8r wrapper)
         .routes(routes!(routes::launch::complete_step))
         // Kanban provider endpoints
+        .routes(routes!(routes::kanban::provider_catalog))
         .routes(routes!(routes::kanban::external_issue_types))
         .routes(routes!(routes::kanban::sync_issue_types))
         // Kanban onboarding endpoints (validate, list projects, write config, set env)

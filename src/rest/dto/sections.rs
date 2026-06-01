@@ -20,6 +20,18 @@ use utoipa::ToSchema;
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
 
+/// A browser-openable action on a status section row (e.g. "Open Web UI",
+/// "Swagger"). Only URL-style actions surface to the web UI; TUI-only actions
+/// (toggles, env edits) are omitted.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct RowActionDto {
+    /// Display label for the action button/link.
+    pub label: String,
+    /// Browser URL the action opens.
+    pub url: String,
+}
+
 /// A child row within a status section.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -38,6 +50,8 @@ pub struct SectionRowDto {
     pub icon: String,
     /// Health: "green" | "yellow" | "red" | "gray".
     pub health: String,
+    /// Browser-openable actions for this row (links shown in the web UI).
+    pub actions: Vec<RowActionDto>,
 }
 
 /// A status section with its health and child rows.
@@ -58,11 +72,30 @@ pub struct SectionDto {
     pub children: Vec<SectionRowDto>,
 }
 
+/// Live connection facts the config-only snapshot can't know on its own.
+///
+/// The `/api/v1/sections` handler is, by definition, proof the API (and embedded
+/// Web UI) are up; it passes these runtime facts to the provider so the
+/// connections section reflects reality rather than the config defaults. Internal
+/// provider input only — never serialized over the wire.
+#[derive(Debug, Clone)]
+pub struct LiveConnectionStatus {
+    /// Whether the REST API is currently serving.
+    pub api_running: bool,
+    /// Port the API is bound to.
+    pub port: u16,
+    /// Whether the MCP HTTP transport is mounted.
+    pub mcp_http_enabled: bool,
+    /// Count of active MCP sessions.
+    pub mcp_active_sessions: usize,
+}
+
 /// Builds the canonical status sections from config + the live issue-type
-/// registry. Defined in the binary (the section logic is ui-layer); see module
-/// docs for why this is injected rather than called directly.
-pub type SectionProvider =
-    Arc<dyn Fn(&Config, &IssueTypeRegistry) -> Vec<SectionDto> + Send + Sync>;
+/// registry + live connection facts. Defined in the binary (the section logic is
+/// ui-layer); see module docs for why this is injected rather than called directly.
+pub type SectionProvider = Arc<
+    dyn Fn(&Config, &IssueTypeRegistry, &LiveConnectionStatus) -> Vec<SectionDto> + Send + Sync,
+>;
 
 static SECTION_PROVIDER: OnceLock<SectionProvider> = OnceLock::new();
 

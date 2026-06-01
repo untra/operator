@@ -3,22 +3,18 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
 import { SectionHeader } from '../SectionHeader';
+import { LinkOutCard } from '../LinkOutCard';
 import { ProviderCard } from '../kanban/ProviderCard';
-import { CollectionsSubSection } from '../kanban/CollectionsSubSection';
-import { IssueTypeDrawer } from '../kanban/IssueTypeDrawer';
 import type {
   JiraValidationInfo,
   LinearValidationInfo,
   IssueTypeSummary,
-  IssueTypeResponse,
   CollectionResponse,
   ExternalIssueTypeSummary,
 } from '../../types/messages';
 import type { KanbanConfig } from '../../../src/generated/KanbanConfig';
 import type { JiraConfig } from '../../../src/generated/JiraConfig';
 import type { LinearConfig } from '../../../src/generated/LinearConfig';
-import type { CreateIssueTypeRequest } from '../../../src/generated/CreateIssueTypeRequest';
-import type { UpdateIssueTypeRequest } from '../../../src/generated/UpdateIssueTypeRequest';
 
 interface KanbanProvidersSectionProps {
   kanban: KanbanConfig;
@@ -31,25 +27,10 @@ interface KanbanProvidersSectionProps {
   validatingLinear: boolean;
   apiReachable: boolean;
   issueTypes: IssueTypeSummary[];
-  issueTypesLoading: boolean;
-  issueTypeError: string | null;
   collections: CollectionResponse[];
-  collectionsLoading: boolean;
-  collectionsError: string | null;
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
-  selectedIssueType: IssueTypeResponse | null;
-  drawerOpen: boolean;
-  drawerMode: 'view' | 'edit' | 'create';
-  onGetIssueTypes: () => void;
-  onGetIssueType: (key: string) => void;
-  onGetCollections: () => void;
-  onActivateCollection: (name: string) => void;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
-  onCreateIssueType: (request: CreateIssueTypeRequest) => void;
-  onUpdateIssueType: (key: string, request: UpdateIssueTypeRequest) => void;
-  onDeleteIssueType: (key: string) => void;
-  onOpenDrawer: (mode: 'view' | 'edit' | 'create', issueType?: IssueTypeResponse) => void;
-  onCloseDrawer: () => void;
+  onOpenOperatorUi: (route: 'issuetypes' | 'projects') => void;
 }
 
 const DEFAULT_JIRA: JiraConfig = { enabled: false, api_key_env: 'OPERATOR_JIRA_API_KEY', email: '', projects: {} };
@@ -66,25 +47,10 @@ export function KanbanProvidersSection({
   validatingLinear,
   apiReachable,
   issueTypes,
-  issueTypesLoading: _issueTypesLoading,
-  issueTypeError: _issueTypeError,
   collections,
-  collectionsLoading,
-  collectionsError,
   externalIssueTypes,
-  selectedIssueType,
-  drawerOpen,
-  drawerMode,
-  onGetIssueTypes: _onGetIssueTypes,
-  onGetIssueType,
-  onGetCollections,
-  onActivateCollection,
   onGetExternalIssueTypes,
-  onCreateIssueType,
-  onUpdateIssueType,
-  onDeleteIssueType,
-  onOpenDrawer,
-  onCloseDrawer,
+  onOpenOperatorUi,
 }: KanbanProvidersSectionProps) {
   // Iterate all Jira domains
   const jiraEntries = Object.entries(kanban.jira ?? {});
@@ -96,11 +62,9 @@ export function KanbanProvidersSection({
   const hasLinear = linearEntries.length > 0;
   const defaultLinearTeam = 'default-team';
 
-  const handleViewIssueType = (key: string) => {
-    onGetIssueType(key);
-    // The selectedIssueType will be set via message handler
-    // We need to find it in the current list for immediate open
-    onOpenDrawer('view');
+  // Viewing an issue type now links out to the hosted Operator UI.
+  const handleViewIssueType = () => {
+    onOpenOperatorUi('issuetypes');
   };
 
   return (
@@ -127,9 +91,7 @@ export function KanbanProvidersSection({
               collections={collections}
               issueTypes={issueTypes}
               externalIssueTypes={externalIssueTypes}
-              selectedIssueType={selectedIssueType}
               onGetExternalIssueTypes={onGetExternalIssueTypes}
-
               onViewIssueType={handleViewIssueType}
             />
           ))
@@ -145,9 +107,7 @@ export function KanbanProvidersSection({
             collections={collections}
             issueTypes={issueTypes}
             externalIssueTypes={externalIssueTypes}
-            selectedIssueType={selectedIssueType}
             onGetExternalIssueTypes={onGetExternalIssueTypes}
-
             onViewIssueType={handleViewIssueType}
           />
         )}
@@ -167,9 +127,7 @@ export function KanbanProvidersSection({
               collections={collections}
               issueTypes={issueTypes}
               externalIssueTypes={externalIssueTypes}
-              selectedIssueType={selectedIssueType}
               onGetExternalIssueTypes={onGetExternalIssueTypes}
-
               onViewIssueType={handleViewIssueType}
             />
           ))
@@ -185,38 +143,23 @@ export function KanbanProvidersSection({
             collections={collections}
             issueTypes={issueTypes}
             externalIssueTypes={externalIssueTypes}
-            selectedIssueType={selectedIssueType}
             onGetExternalIssueTypes={onGetExternalIssueTypes}
-
             onViewIssueType={handleViewIssueType}
           />
         )}
       </Box>
 
-      {/* Collections & Issue Types (shown when API is reachable) */}
+      {/* Issue types & collections now live in the hosted Operator UI */}
       {apiReachable && (
-        <CollectionsSubSection
-          collections={collections}
-          collectionsLoading={collectionsLoading}
-          collectionsError={collectionsError}
-          issueTypes={issueTypes}
-          onActivateCollection={onActivateCollection}
-          onGetCollections={onGetCollections}
-          onViewIssueType={handleViewIssueType}
-          onCreateIssueType={() => onOpenDrawer('create')}
-        />
+        <Box sx={{ mt: 3 }}>
+          <LinkOutCard
+            id="section-issuetypes"
+            title="Issue Types & Collections"
+            description="Create and manage issue types and collections in the Operator UI."
+            onOpen={() => onOpenOperatorUi('issuetypes')}
+          />
+        </Box>
       )}
-
-      {/* Issue Type Drawer */}
-      <IssueTypeDrawer
-        open={drawerOpen}
-        mode={drawerMode}
-        issueType={selectedIssueType}
-        onClose={onCloseDrawer}
-        onCreate={onCreateIssueType}
-        onUpdate={onUpdateIssueType}
-        onDelete={onDeleteIssueType}
-      />
     </Box>
   );
 }

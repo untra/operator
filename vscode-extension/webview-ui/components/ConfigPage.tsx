@@ -4,23 +4,19 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { SidebarNav, type NavItem } from './SidebarNav';
 import { OperatorBrand } from './OperatorBrand';
+import { LinkOutCard } from './LinkOutCard';
 import { PrimaryConfigSection } from './sections/PrimaryConfigSection';
 import { CodingAgentsSection } from './sections/CodingAgentsSection';
 import { KanbanProvidersSection } from './sections/KanbanProvidersSection';
 import { GitRepositoriesSection } from './sections/GitRepositoriesSection';
-import { ProjectsSection } from './sections/ProjectsSection';
 import type {
   WebviewConfig,
   JiraValidationInfo,
   LinearValidationInfo,
-  ProjectSummary,
   IssueTypeSummary,
-  IssueTypeResponse,
   CollectionResponse,
   ExternalIssueTypeSummary,
 } from '../types/messages';
-import type { CreateIssueTypeRequest } from '../../src/generated/CreateIssueTypeRequest';
-import type { UpdateIssueTypeRequest } from '../../src/generated/UpdateIssueTypeRequest';
 
 interface ConfigPageProps {
   config: WebviewConfig;
@@ -35,32 +31,11 @@ interface ConfigPageProps {
   validatingJira: boolean;
   validatingLinear: boolean;
   apiReachable: boolean;
-  projects: ProjectSummary[];
-  projectsLoading: boolean;
-  projectsError: string | null;
-  onAssessProject: (name: string) => void;
-  onRefreshProjects: () => void;
-  onOpenProject: (path: string) => void;
   issueTypes: IssueTypeSummary[];
-  issueTypesLoading: boolean;
-  issueTypeError: string | null;
   collections: CollectionResponse[];
-  collectionsLoading: boolean;
-  collectionsError: string | null;
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
-  selectedIssueType: IssueTypeResponse | null;
-  drawerOpen: boolean;
-  drawerMode: 'view' | 'edit' | 'create';
-  onGetIssueTypes: () => void;
-  onGetIssueType: (key: string) => void;
-  onGetCollections: () => void;
-  onActivateCollection: (name: string) => void;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
-  onCreateIssueType: (request: CreateIssueTypeRequest) => void;
-  onUpdateIssueType: (key: string, request: UpdateIssueTypeRequest) => void;
-  onDeleteIssueType: (key: string) => void;
-  onOpenDrawer: (mode: 'view' | 'edit' | 'create', issueType?: IssueTypeResponse) => void;
-  onCloseDrawer: () => void;
+  onOpenOperatorUi: (route: 'issuetypes' | 'projects') => void;
 }
 
 export function ConfigPage({
@@ -76,32 +51,11 @@ export function ConfigPage({
   validatingJira,
   validatingLinear,
   apiReachable,
-  projects,
-  projectsLoading,
-  projectsError,
-  onAssessProject,
-  onRefreshProjects,
-  onOpenProject,
   issueTypes,
-  issueTypesLoading,
-  issueTypeError,
   collections,
-  collectionsLoading,
-  collectionsError,
   externalIssueTypes,
-  selectedIssueType,
-  drawerOpen,
-  drawerMode,
-  onGetIssueTypes,
-  onGetIssueType,
-  onGetCollections,
-  onActivateCollection,
   onGetExternalIssueTypes,
-  onCreateIssueType,
-  onUpdateIssueType,
-  onDeleteIssueType,
-  onOpenDrawer,
-  onCloseDrawer,
+  onOpenOperatorUi,
 }: ConfigPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasWorkDir = Boolean(config.working_directory);
@@ -164,25 +118,10 @@ export function ConfigPage({
           validatingLinear={validatingLinear}
           apiReachable={apiReachable}
           issueTypes={issueTypes}
-          issueTypesLoading={issueTypesLoading}
-          issueTypeError={issueTypeError}
           collections={collections}
-          collectionsLoading={collectionsLoading}
-          collectionsError={collectionsError}
           externalIssueTypes={externalIssueTypes}
-          selectedIssueType={selectedIssueType}
-          drawerOpen={drawerOpen}
-          drawerMode={drawerMode}
-          onGetIssueTypes={onGetIssueTypes}
-          onGetIssueType={onGetIssueType}
-          onGetCollections={onGetCollections}
-          onActivateCollection={onActivateCollection}
           onGetExternalIssueTypes={onGetExternalIssueTypes}
-          onCreateIssueType={onCreateIssueType}
-          onUpdateIssueType={onUpdateIssueType}
-          onDeleteIssueType={onDeleteIssueType}
-          onOpenDrawer={onOpenDrawer}
-          onCloseDrawer={onCloseDrawer}
+          onOpenOperatorUi={onOpenOperatorUi}
         />
         <CodingAgentsSection
           agents={config.config.agents}
@@ -194,13 +133,11 @@ export function ConfigPage({
           git={config.config.git}
           onUpdate={onUpdate}
         />
-        <ProjectsSection
-          projects={projects}
-          loading={projectsLoading}
-          error={projectsError}
-          onAssess={onAssessProject}
-          onOpenProject={onOpenProject}
-          onRefresh={onRefreshProjects}
+        <LinkOutCard
+          id="section-projects"
+          title="Operator Managed Projects"
+          description="Browse, assess, and open managed projects in the Operator UI."
+          onOpen={() => onOpenOperatorUi('projects')}
         />
       </Box>
     </Box>

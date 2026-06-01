@@ -11,7 +11,7 @@ import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
 import { MappingPanel } from './MappingPanel';
 import type { ProjectSyncConfig } from '../../../src/generated/ProjectSyncConfig';
-import type { IssueTypeSummary, CollectionResponse, ExternalIssueTypeSummary, IssueTypeResponse } from '../../types/messages';
+import type { IssueTypeSummary, CollectionResponse, ExternalIssueTypeSummary } from '../../types/messages';
 
 interface ProjectRowProps {
   provider: string;
@@ -21,10 +21,9 @@ interface ProjectRowProps {
   collections: CollectionResponse[];
   issueTypes: IssueTypeSummary[];
   externalTypes: ExternalIssueTypeSummary[] | undefined;
-  selectedIssueType: IssueTypeResponse | null;
   onUpdate: (section: string, key: string, value: unknown) => void;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
-  onViewIssueType: (key: string) => void;
+  onViewIssueType: () => void;
   sectionKey: string;
 }
 
@@ -36,7 +35,6 @@ export function ProjectRow({
   collections,
   issueTypes,
   externalTypes,
-  selectedIssueType,
   onUpdate,
   onGetExternalIssueTypes,
   onViewIssueType,
@@ -133,7 +131,6 @@ export function ProjectRow({
             onGetExternalIssueTypes={onGetExternalIssueTypes}
             onMappingChange={handleMappingChange}
             onViewIssueType={onViewIssueType}
-            selectedIssueType={selectedIssueType}
           />
         </Box>
       </Collapse>

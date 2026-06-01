@@ -107,6 +107,38 @@
         }
       }
     },
+    "/api/v1/agents/{agent_id}/focus": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Focus the terminal session of a running agent in its session wrapper.",
+        "description": "The web UI's launch panel calls this for **cmux** launches: cmux exposes no\nbrowser URL scheme, so the operator control plane (which runs inside cmux)\nshells out to `cmux focus-workspace` for the agent's saved workspace ref to\nbring its pane to the foreground. Other wrappers are unsupported here — VS\nCode focuses through its extension's URI handler, and tmux/zellij are\ndisplay-only in the UI, so it never calls this for them.",
+        "operationId": "agents_focus_session",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "description": "The agent ID whose session to focus",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session focused"
+          },
+          "400": {
+            "description": "Wrapper unsupported, or no session refs to focus"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
     "/api/v1/agents/{agent_id}/reject": {
       "post": {
         "tags": [

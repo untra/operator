@@ -12,17 +12,13 @@ import type {
   ExtensionToWebviewMessage,
   JiraValidationInfo,
   LinearValidationInfo,
-  ProjectSummary,
   IssueTypeSummary,
-  IssueTypeResponse,
   CollectionResponse,
   ExternalIssueTypeSummary,
 } from './types/messages';
 import type { JiraConfig } from '../src/generated/JiraConfig';
 import type { LinearConfig } from '../src/generated/LinearConfig';
 import type { ProjectSyncConfig } from '../src/generated/ProjectSyncConfig';
-import type { CreateIssueTypeRequest } from '../src/generated/CreateIssueTypeRequest';
-import type { UpdateIssueTypeRequest } from '../src/generated/UpdateIssueTypeRequest';
 
 export function App() {
   const [config, setConfig] = useState<WebviewConfig | null>(null);
@@ -32,19 +28,9 @@ export function App() {
   const [validatingJira, setValidatingJira] = useState(false);
   const [validatingLinear, setValidatingLinear] = useState(false);
   const [apiReachable, setApiReachable] = useState(false);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(false);
-  const [projectsError, setProjectsError] = useState<string | null>(null);
   const [issueTypes, setIssueTypes] = useState<IssueTypeSummary[]>([]);
-  const [issueTypesLoading, setIssueTypesLoading] = useState(false);
-  const [selectedIssueType, setSelectedIssueType] = useState<IssueTypeResponse | null>(null);
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
-  const [collectionsLoading, setCollectionsLoading] = useState(false);
   const [externalIssueTypes, setExternalIssueTypes] = useState<Map<string, ExternalIssueTypeSummary[]>>(new Map());
-  const [issueTypeError, setIssueTypeError] = useState<string | null>(null);
-  const [collectionsError, setCollectionsError] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerMode, setDrawerMode] = useState<'view' | 'edit' | 'create'>('view');
 
   useEffect(() => {
     const cleanup = onMessage((msg: ExtensionToWebviewMessage) => {
@@ -80,54 +66,15 @@ export function App() {
         case 'apiHealthResult':
           setApiReachable(msg.reachable);
           if (msg.reachable) {
-            setProjectsLoading(true);
-            postMessage({ type: 'getProjects' });
-            setIssueTypesLoading(true);
             postMessage({ type: 'getIssueTypes' });
-            setCollectionsLoading(true);
             postMessage({ type: 'getCollections' });
           }
           break;
-        case 'projectsLoaded':
-          setProjects(msg.projects);
-          setProjectsLoading(false);
-          setProjectsError(null);
-          break;
-        case 'projectsError':
-          setProjectsError(msg.error);
-          setProjectsLoading(false);
-          break;
-        case 'assessTicketCreated':
-          // Refresh projects after successful assess ticket creation
-          postMessage({ type: 'getProjects' });
-          break;
-        case 'assessTicketError':
-          setProjectsError(`Failed to assess ${msg.projectName}: ${msg.error}`);
-          break;
         case 'issueTypesLoaded':
           setIssueTypes(msg.issueTypes);
-          setIssueTypesLoading(false);
-          setIssueTypeError(null);
-          break;
-        case 'issueTypeLoaded':
-          setSelectedIssueType(msg.issueType);
-          break;
-        case 'issueTypeError':
-          setIssueTypeError(msg.error);
-          setIssueTypesLoading(false);
           break;
         case 'collectionsLoaded':
           setCollections(msg.collections);
-          setCollectionsLoading(false);
-          setCollectionsError(null);
-          break;
-        case 'collectionActivated':
-          // Refresh issue types after collection change
-          postMessage({ type: 'getIssueTypes' });
-          break;
-        case 'collectionsError':
-          setCollectionsError(msg.error);
-          setCollectionsLoading(false);
           break;
         case 'externalIssueTypesLoaded':
           setExternalIssueTypes(prev => {
@@ -137,42 +84,8 @@ export function App() {
           });
           break;
         case 'externalIssueTypesError':
-          setIssueTypeError(msg.error);
-          break;
-        case 'issueTypeCreated':
-          setIssueTypes(prev => [...prev, {
-            key: msg.issueType.key,
-            name: msg.issueType.name,
-            description: msg.issueType.description,
-            mode: msg.issueType.mode,
-            glyph: msg.issueType.glyph,
-            color: msg.issueType.color ?? undefined,
-            source: msg.issueType.source,
-            stepCount: msg.issueType.steps.length,
-          }]);
-          setSelectedIssueType(msg.issueType);
-          break;
-        case 'issueTypeUpdated':
-          setIssueTypes(prev => prev.map(it =>
-            it.key === msg.issueType.key ? {
-              key: msg.issueType.key,
-              name: msg.issueType.name,
-              description: msg.issueType.description,
-              mode: msg.issueType.mode,
-              glyph: msg.issueType.glyph,
-              color: msg.issueType.color ?? undefined,
-              source: msg.issueType.source,
-              stepCount: msg.issueType.steps.length,
-            } : it
-          ));
-          setSelectedIssueType(msg.issueType);
-          break;
-        case 'issueTypeDeleted':
-          setIssueTypes(prev => prev.filter(it => it.key !== msg.key));
-          if (selectedIssueType?.key === msg.key) {
-            setSelectedIssueType(null);
-            setDrawerOpen(false);
-          }
+          // External issue type lookup failed; the mapping panel renders an
+          // empty/unmapped state, so no extra handling is required here.
           break;
       }
     });
@@ -225,62 +138,12 @@ export function App() {
     postMessage({ type: 'detectLlmTools' });
   }, []);
 
-  const handleAssessProject = useCallback((projectName: string) => {
-    postMessage({ type: 'assessProject', projectName });
-  }, []);
-
-  const handleRefreshProjects = useCallback(() => {
-    setProjectsLoading(true);
-    setProjectsError(null);
-    postMessage({ type: 'getProjects' });
-  }, []);
-
-  const handleOpenProject = useCallback((projectPath: string) => {
-    postMessage({ type: 'openProjectFolder', projectPath });
-  }, []);
-
-  const handleGetIssueTypes = useCallback(() => {
-    setIssueTypesLoading(true);
-    postMessage({ type: 'getIssueTypes' });
-  }, []);
-
-  const handleGetIssueType = useCallback((key: string) => {
-    postMessage({ type: 'getIssueType', key });
-  }, []);
-
-  const handleGetCollections = useCallback(() => {
-    setCollectionsLoading(true);
-    postMessage({ type: 'getCollections' });
-  }, []);
-
-  const handleActivateCollection = useCallback((name: string) => {
-    postMessage({ type: 'activateCollection', name });
-  }, []);
-
   const handleGetExternalIssueTypes = useCallback((provider: string, domain: string, projectKey: string) => {
     postMessage({ type: 'getExternalIssueTypes', provider, domain, projectKey });
   }, []);
 
-  const handleCreateIssueType = useCallback((request: CreateIssueTypeRequest) => {
-    postMessage({ type: 'createIssueType', request });
-  }, []);
-
-  const handleUpdateIssueType = useCallback((key: string, request: UpdateIssueTypeRequest) => {
-    postMessage({ type: 'updateIssueType', key, request });
-  }, []);
-
-  const handleDeleteIssueType = useCallback((key: string) => {
-    postMessage({ type: 'deleteIssueType', key });
-  }, []);
-
-  const handleOpenDrawer = useCallback((mode: 'view' | 'edit' | 'create', issueType?: IssueTypeResponse) => {
-    setDrawerMode(mode);
-    setSelectedIssueType(issueType ?? null);
-    setDrawerOpen(true);
-  }, []);
-
-  const handleCloseDrawer = useCallback(() => {
-    setDrawerOpen(false);
+  const handleOpenOperatorUi = useCallback((route: 'issuetypes' | 'projects') => {
+    postMessage({ type: 'openOperatorUi', route });
   }, []);
 
   return (
@@ -304,32 +167,11 @@ export function App() {
           validatingJira={validatingJira}
           validatingLinear={validatingLinear}
           apiReachable={apiReachable}
-          projects={projects}
-          projectsLoading={projectsLoading}
-          projectsError={projectsError}
-          onAssessProject={handleAssessProject}
-          onRefreshProjects={handleRefreshProjects}
-          onOpenProject={handleOpenProject}
           issueTypes={issueTypes}
-          issueTypesLoading={issueTypesLoading}
-          issueTypeError={issueTypeError}
           collections={collections}
-          collectionsLoading={collectionsLoading}
-          collectionsError={collectionsError}
           externalIssueTypes={externalIssueTypes}
-          selectedIssueType={selectedIssueType}
-          drawerOpen={drawerOpen}
-          drawerMode={drawerMode}
-          onGetIssueTypes={handleGetIssueTypes}
-          onGetIssueType={handleGetIssueType}
-          onGetCollections={handleGetCollections}
-          onActivateCollection={handleActivateCollection}
           onGetExternalIssueTypes={handleGetExternalIssueTypes}
-          onCreateIssueType={handleCreateIssueType}
-          onUpdateIssueType={handleUpdateIssueType}
-          onDeleteIssueType={handleDeleteIssueType}
-          onOpenDrawer={handleOpenDrawer}
-          onCloseDrawer={handleCloseDrawer}
+          onOpenOperatorUi={handleOpenOperatorUi}
         />
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 2 }}>

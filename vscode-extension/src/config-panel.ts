@@ -332,52 +332,17 @@ export class ConfigPanel {
         break;
       }
 
-      case 'getProjects': {
-        try {
-          const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
-          const apiUrl = await discoverApiUrl(ticketsDir);
-          const client = new OperatorApiClient(apiUrl);
-          const projects = await client.getProjects();
-          void this._panel.webview.postMessage({ type: 'projectsLoaded', projects });
-        } catch (err) {
-          void this._panel.webview.postMessage({
-            type: 'projectsError',
-            error: err instanceof Error ? err.message : 'Failed to load projects',
-          });
-        }
-        break;
-      }
-
-      case 'assessProject': {
-        const projectName = message.projectName as string;
-        try {
-          const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
-          const apiUrl = await discoverApiUrl(ticketsDir);
-          const client = new OperatorApiClient(apiUrl);
-          const result = await client.assessProject(projectName);
-          void this._panel.webview.postMessage({
-            type: 'assessTicketCreated',
-            ticketId: result.ticket_id,
-            projectName: result.project_name,
-          });
-        } catch (err) {
-          void this._panel.webview.postMessage({
-            type: 'assessTicketError',
-            error: err instanceof Error ? err.message : 'Failed to create ASSESS ticket',
-            projectName,
-          });
-        }
-        break;
-      }
-
-      case 'openProjectFolder': {
-        const projectPath = message.projectPath as string;
-        if (projectPath) {
-          const uri = vscode.Uri.file(projectPath);
-          await vscode.commands.executeCommand('vscode.openFolder', uri, { forceNewWindow: true });
-        }
+      case 'openOperatorUi': {
+        // The webview now links out to the daemon-hosted Operator UI for
+        // surfaces it no longer reimplements (issue types, projects, …).
+        const route = message.route as string;
+        const command =
+          route === 'projects'
+            ? 'operator.openProjects'
+            : route === 'issuetypes'
+              ? 'operator.openIssueTypes'
+              : 'operator.openUi';
+        await vscode.commands.executeCommand(command);
         break;
       }
 
@@ -411,23 +376,6 @@ export class ConfigPanel {
         break;
       }
 
-      case 'getIssueType': {
-        try {
-          const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
-          const apiUrl = await discoverApiUrl(ticketsDir);
-          const client = new OperatorApiClient(apiUrl);
-          const issueType = await client.getIssueType(message.key as string);
-          void this._panel.webview.postMessage({ type: 'issueTypeLoaded', issueType });
-        } catch (err) {
-          void this._panel.webview.postMessage({
-            type: 'issueTypeError',
-            error: err instanceof Error ? err.message : 'Failed to load issue type',
-          });
-        }
-        break;
-      }
-
       case 'getCollections': {
         try {
           const workDir = resolveWorkingDirectory();
@@ -440,26 +388,6 @@ export class ConfigPanel {
           void this._panel.webview.postMessage({
             type: 'collectionsError',
             error: err instanceof Error ? err.message : 'Failed to load collections',
-          });
-        }
-        break;
-      }
-
-      case 'activateCollection': {
-        try {
-          const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
-          const apiUrl = await discoverApiUrl(ticketsDir);
-          const client = new OperatorApiClient(apiUrl);
-          await client.activateCollection(message.name as string);
-          void this._panel.webview.postMessage({ type: 'collectionActivated', name: message.name as string });
-          // Refresh collections after activation
-          const collections = await client.listCollections();
-          void this._panel.webview.postMessage({ type: 'collectionsLoaded', collections });
-        } catch (err) {
-          void this._panel.webview.postMessage({
-            type: 'collectionsError',
-            error: err instanceof Error ? err.message : 'Failed to activate collection',
           });
         }
         break;
@@ -486,60 +414,6 @@ export class ConfigPanel {
             provider,
             projectKey,
             error: err instanceof Error ? err.message : 'Failed to load external issue types',
-          });
-        }
-        break;
-      }
-
-      case 'createIssueType': {
-        try {
-          const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
-          const apiUrl = await discoverApiUrl(ticketsDir);
-          const client = new OperatorApiClient(apiUrl);
-          const issueType = await client.createIssueType(message.request as Parameters<typeof client.createIssueType>[0]);
-          void this._panel.webview.postMessage({ type: 'issueTypeCreated', issueType });
-        } catch (err) {
-          void this._panel.webview.postMessage({
-            type: 'issueTypeError',
-            error: err instanceof Error ? err.message : 'Failed to create issue type',
-          });
-        }
-        break;
-      }
-
-      case 'updateIssueType': {
-        try {
-          const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
-          const apiUrl = await discoverApiUrl(ticketsDir);
-          const client = new OperatorApiClient(apiUrl);
-          const issueType = await client.updateIssueType(
-            message.key as string,
-            message.request as Parameters<typeof client.updateIssueType>[1]
-          );
-          void this._panel.webview.postMessage({ type: 'issueTypeUpdated', issueType });
-        } catch (err) {
-          void this._panel.webview.postMessage({
-            type: 'issueTypeError',
-            error: err instanceof Error ? err.message : 'Failed to update issue type',
-          });
-        }
-        break;
-      }
-
-      case 'deleteIssueType': {
-        try {
-          const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
-          const apiUrl = await discoverApiUrl(ticketsDir);
-          const client = new OperatorApiClient(apiUrl);
-          await client.deleteIssueType(message.key as string);
-          void this._panel.webview.postMessage({ type: 'issueTypeDeleted', key: message.key as string });
-        } catch (err) {
-          void this._panel.webview.postMessage({
-            type: 'issueTypeError',
-            error: err instanceof Error ? err.message : 'Failed to delete issue type',
           });
         }
         break;

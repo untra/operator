@@ -261,6 +261,28 @@
         "title": "Operator: Open Settings"
       },
       {
+        "command": "operator.openUi",
+        "title": "Operator: Open Operator UI",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "operator.openIssueTypes",
+        "title": "Operator: Open Issue Types in Operator UI"
+      },
+      {
+        "command": "operator.openProjects",
+        "title": "Operator: Open Projects in Operator UI"
+      },
+      {
+        "command": "operator.openKanban",
+        "title": "Operator: Open Kanban Board in Operator UI"
+      },
+      {
+        "command": "operator.openQueue",
+        "title": "Operator: Open Queue in Operator UI",
+        "icon": "$(globe)"
+      },
+      {
         "command": "operator.syncKanbanCollection",
         "title": "Operator: Sync Collection"
       },
@@ -317,6 +339,16 @@
         {
           "command": "operator.refreshTickets",
           "when": "view =~ /operator-/",
+          "group": "navigation"
+        },
+        {
+          "command": "operator.openUi",
+          "when": "view == operator-status",
+          "group": "navigation"
+        },
+        {
+          "command": "operator.openQueue",
+          "when": "view == operator-queue",
           "group": "navigation"
         }
       ],

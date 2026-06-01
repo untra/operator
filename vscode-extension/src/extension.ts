@@ -42,6 +42,7 @@ import {
 } from './walkthrough';
 import { startGitOnboarding, onboardGitHub, onboardGitLab } from './git-onboarding';
 import { ConfigPanel } from './config-panel';
+import { openOperatorUi } from './open-operator-ui';
 import { connectMcpServer } from './mcp-connect';
 import { configFileExists } from './config-paths';
 import { findParentTicketsDir, findTicketsDir, findOperatorServerDir } from './tickets-dir';
@@ -899,17 +900,18 @@ async function showCreateMenu(ctx: CommandContext): Promise<void> {
       openCreateDelegator(ctx);
       break;
     case 'issuetype':
-      ConfigPanel.createOrShow(ctx.extensionContext.extensionUri);
-      ConfigPanel.navigateTo('section-kanban', { action: 'createIssueType' });
+      // Issue types are managed in the hosted Operator UI.
+      await openOperatorUi(ctx.getCurrentTicketsDir(), 'issuetypes');
       break;
     case 'project':
-      ConfigPanel.createOrShow(ctx.extensionContext.extensionUri);
-      ConfigPanel.navigateTo('section-projects');
+      // Projects are browsed/assessed in the hosted Operator UI.
+      await openOperatorUi(ctx.getCurrentTicketsDir(), 'projects');
       break;
   }
 }
 
 function openCreateDelegator(ctx: CommandContext, tool?: string, model?: string): void {
+  // Delegators are agent config — kept in the extension webview's agents section.
   ConfigPanel.createOrShow(ctx.extensionContext.extensionUri);
   ConfigPanel.navigateTo('section-agents', {
     action: 'createDelegator',
@@ -1121,6 +1123,18 @@ export async function activate(
     vscode.commands.registerCommand('operator.openWalkthrough', openWalkthrough),
     vscode.commands.registerCommand('operator.openSettings',
       () => ConfigPanel.createOrShow(ctx.extensionContext.extensionUri)),
+    // Link out to the daemon-hosted Operator UI (Simple Browser) for the
+    // operational surfaces the extension webview no longer reimplements.
+    vscode.commands.registerCommand('operator.openUi',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'dashboard')),
+    vscode.commands.registerCommand('operator.openIssueTypes',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'issuetypes')),
+    vscode.commands.registerCommand('operator.openProjects',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'projects')),
+    vscode.commands.registerCommand('operator.openKanban',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'kanban')),
+    vscode.commands.registerCommand('operator.openQueue',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'queue')),
     vscode.commands.registerCommand('operator.syncKanbanCollection',
       (item: StatusItem) => syncKanbanCollectionCommand(ctx, item)),
     vscode.commands.registerCommand('operator.addJiraProject',

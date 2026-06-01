@@ -9,9 +9,9 @@
 use anyhow::{anyhow, Result};
 
 use super::export_workflow;
-use crate::issuetypes::IssueTypeRegistry;
+use crate::issuetypes::{IssueType, IssueTypeRegistry};
 use crate::pr_config::PrConfig;
-use crate::queue::Ticket;
+use crate::queue::{LlmTask, Ticket};
 
 /// The result of exporting a ticket to a Claude dynamic workflow.
 #[derive(Debug, Clone)]
@@ -49,6 +49,52 @@ pub fn export_workflow_for_ticket(
         suggested_filename: format!("{}.workflow.js", ticket.id),
         contents,
     })
+}
+
+/// Render a *preview* workflow for an issue type, without a concrete ticket.
+///
+/// Used by the UI to visualize an issue type's workflow shape. A placeholder
+/// ticket is synthesized so the existing renderer can interpolate handlebars
+/// variables — values are illustrative, not real. This is filesystem-safe:
+/// `worktree_path: None` short-circuits any step-output loading, and the
+/// handlebars renderer runs with strict mode off, so missing variables render
+/// as empty strings rather than erroring.
+pub fn export_workflow_for_issuetype(issuetype: &IssueType) -> Result<ExportedWorkflow> {
+    let ticket = preview_ticket(issuetype);
+    let contents = export_workflow(&ticket, issuetype, None)?;
+
+    Ok(ExportedWorkflow {
+        ticket_id: ticket.id,
+        issuetype_key: issuetype.key.clone(),
+        suggested_filename: format!("{}.preview.workflow.js", issuetype.key),
+        contents,
+    })
+}
+
+/// Build an illustrative placeholder ticket for an issue type preview.
+fn preview_ticket(issuetype: &IssueType) -> Ticket {
+    let key = &issuetype.key;
+    Ticket {
+        filename: format!("{key}-PREVIEW.md"),
+        filepath: format!("preview/{key}-PREVIEW.md"),
+        timestamp: "preview".to_string(),
+        ticket_type: key.clone(),
+        project: "preview".to_string(),
+        id: format!("{key}-PREVIEW"),
+        summary: format!("Sample {}", issuetype.name),
+        priority: "P2-medium".to_string(),
+        status: "queued".to_string(),
+        step: String::new(),
+        content: String::new(),
+        sessions: std::collections::HashMap::new(),
+        step_delegators: std::collections::HashMap::new(),
+        llm_task: LlmTask::default(),
+        worktree_path: None,
+        branch: None,
+        external_id: None,
+        external_url: None,
+        external_provider: None,
+    }
 }
 
 #[cfg(test)]
@@ -106,5 +152,53 @@ mod tests {
     fn errors_when_issuetype_unknown() {
         let result = export_workflow_for_ticket(&ticket("NOPE"), &registry(), None);
         assert!(result.is_err(), "unknown issuetype should error");
+    }
+
+    #[test]
+    fn issuetype_preview_renders_without_a_ticket() {
+        let reg = registry();
+        let feat = reg.get("FEAT").expect("FEAT builtin");
+        let exported = export_workflow_for_issuetype(feat).unwrap();
+        assert_eq!(exported.issuetype_key, "FEAT");
+        assert_eq!(exported.suggested_filename, "FEAT.preview.workflow.js");
+        assert!(
+            exported.contents.contains("export const meta"),
+            "preview missing meta:\n{}",
+            exported.contents
+        );
+        assert!(
+            exported.contents.contains("await agent("),
+            "preview missing agent calls:\n{}",
+            exported.contents
+        );
+        // Compiler-native: no default-export wrapper (would hide the body).
+        assert!(
+            !exported.contents.contains("export default async function"),
+            "preview must not wrap body in a function:\n{}",
+            exported.contents
+        );
+    }
+
+    /// Regression gate: dump every builtin issue type's preview workflow to
+    /// `target/workflow-previews/` so the naiveworkflow compiler can be run
+    /// against them (see the verification step in the plan / docs). Also
+    /// asserts each preview is non-empty.
+    #[test]
+    fn dumps_all_builtin_previews_for_compiler_check() {
+        let reg = registry();
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("workflow-previews");
+        std::fs::create_dir_all(&dir).expect("create preview dir");
+        for it in reg.all_types() {
+            let exported = export_workflow_for_issuetype(it).unwrap();
+            assert!(
+                !exported.contents.trim().is_empty(),
+                "empty preview for {}",
+                it.key
+            );
+            std::fs::write(dir.join(&exported.suggested_filename), &exported.contents)
+                .expect("write preview");
+        }
     }
 }

@@ -19,7 +19,7 @@ mod export;
 pub mod js;
 mod step_map;
 
-pub use command::{export_workflow_for_ticket, ExportedWorkflow};
+pub use command::{export_workflow_for_issuetype, export_workflow_for_ticket, ExportedWorkflow};
 pub use export::export_workflow;
 
 /// Marker emitted into generated workflows wherever an operator concept could
@@ -118,7 +118,18 @@ mod tests {
                  "multi_model_config":{"delegators":["opus","sonnet"],"voting_strategy":"majority"}}]"#,
         );
         assert!(out.contains("parallel(["), "parallel missing:\n{out}");
-        assert!(out.contains(".then("), ".then missing:\n{out}");
+        // The naiveworkflow compiler only walks recognized statements; a
+        // `parallel(...).then(...)` chain is silently dropped. Capture the
+        // fan-out in an intermediate binding, then vote with a plain agent().
+        assert!(
+            !out.contains(".then("),
+            "must not emit a .then() chain (compiler drops it):\n{out}"
+        );
+        assert!(
+            out.contains("_answers = await parallel(["),
+            "fan-out result not captured in an intermediate binding:\n{out}"
+        );
+        assert!(out.contains("consensus-vote"), "vote agent missing:\n{out}");
     }
 
     #[test]
@@ -129,6 +140,14 @@ mod tests {
                  "multi_prompt_config":{"prompt_variations":["angle A","angle B"],"selection_strategy":"model_choice"}}]"#,
         );
         assert!(out.contains("parallel(["), "parallel missing:\n{out}");
+        assert!(
+            !out.contains(".then("),
+            "must not emit a .then() chain (compiler drops it):\n{out}"
+        );
+        assert!(
+            out.contains("_outputs = await parallel(["),
+            "fan-out result not captured in an intermediate binding:\n{out}"
+        );
         assert!(
             out.contains("angle A") && out.contains("angle B"),
             "variations missing:\n{out}"
@@ -196,9 +215,16 @@ mod tests {
             out.contains("export const meta"),
             "meta block missing:\n{out}"
         );
+        // Compiler-native format: steps are emitted as top-level statements
+        // (the naiveworkflow compiler only walks the program body), NOT wrapped
+        // in `export default async function`, which would hide the whole body.
         assert!(
-            out.contains("export default async function"),
-            "entrypoint missing:\n{out}"
+            !out.contains("export default async function"),
+            "must not wrap the body in a default-export function:\n{out}"
+        );
+        assert!(
+            out.contains("await phase("),
+            "top-level phase statement missing:\n{out}"
         );
     }
 

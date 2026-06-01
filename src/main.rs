@@ -321,7 +321,7 @@ async fn main() -> Result<()> {
     // lives in `ui` (which `rest` can't depend on — see rest::dto::sections), so
     // the binary registers it here, before any server starts. Covers all serving
     // paths (TUI app, `operator rest`, embedded UI) since they share one process.
-    rest::dto::register_section_provider(std::sync::Arc::new(|config, registry| {
+    rest::dto::register_section_provider(std::sync::Arc::new(|config, registry, live| {
         let issue_types = registry
             .all_types()
             .map(|it| ui::status_panel::IssueTypeInfo {
@@ -334,7 +334,8 @@ async fn main() -> Result<()> {
                 },
             })
             .collect();
-        let snapshot = ui::status_panel::StatusSnapshot::from_config(config, issue_types);
+        let mut snapshot = ui::status_panel::StatusSnapshot::from_config(config, issue_types);
+        snapshot.apply_api_connection(live);
         ui::status_panel::build_section_dtos(&snapshot)
     }));
 

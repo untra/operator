@@ -123,10 +123,41 @@
   padding-top: 1rem;
 }
 
+.stepsHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
 .stepsTitle {
   font-size: 0.9rem;
   font-weight: 600;
-  margin: 0 0 0.75rem;
+  margin: 0;
+}
+
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toggleBtn,
+.toggleActive {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.7rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.toggleActive {
+  background: var(--surface-alt);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .stepList {

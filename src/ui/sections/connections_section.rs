@@ -6,6 +6,18 @@ use crate::ui::status_panel::{
 
 pub struct ConnectionsSection;
 
+impl ConnectionsSection {
+    /// Whether the operator advertises at least one agent protocol — MCP (HTTP
+    /// mounted or stdio) or ACP (stdio). Drives the section header health so it
+    /// reflects the connectivity rows the section actually shows, rather than a
+    /// session-wrapper check that isn't attached in the web context.
+    fn any_protocol_exposed(&self, snapshot: &StatusSnapshot) -> bool {
+        let mcp = matches!(snapshot.mcp_http_status, McpHttpStatus::Mounted { .. })
+            || snapshot.mcp_stdio_advertised;
+        mcp || snapshot.acp_stdio_advertised
+    }
+}
+
 impl StatusSection for ConnectionsSection {
     fn section_id(&self) -> SectionId {
         SectionId::Connections
@@ -20,37 +32,49 @@ impl StatusSection for ConnectionsSection {
     }
 
     fn health(&self, snapshot: &StatusSnapshot) -> SectionHealth {
-        let api_ok = matches!(snapshot.api_status, RestApiStatus::Running { .. });
-        let api_starting = matches!(snapshot.api_status, RestApiStatus::Starting);
-        let wrapper_ok = snapshot.wrapper_connection_status.is_connected();
-
-        match (api_ok, wrapper_ok) {
-            (true, true) => SectionHealth::Green,
-            _ if api_starting => SectionHealth::Yellow,
-            (true, false) | (false, true) => SectionHealth::Yellow,
-            (false, false) => SectionHealth::Red,
+        if matches!(snapshot.api_status, RestApiStatus::Starting) {
+            return SectionHealth::Yellow;
+        }
+        if !matches!(snapshot.api_status, RestApiStatus::Running { .. }) {
+            return SectionHealth::Red;
+        }
+        // API is up: Green when at least one protocol (MCP or ACP) is exposed,
+        // Yellow when the API serves but advertises no agent protocol.
+        if self.any_protocol_exposed(snapshot) {
+            SectionHealth::Green
+        } else {
+            SectionHealth::Yellow
         }
     }
 
     fn description(&self, snapshot: &StatusSnapshot) -> String {
-        let api_ok = matches!(snapshot.api_status, RestApiStatus::Running { .. });
-        let api_starting = matches!(snapshot.api_status, RestApiStatus::Starting);
-        let wrapper_ok = snapshot.wrapper_connection_status.is_connected();
-
-        if api_starting {
+        if matches!(snapshot.api_status, RestApiStatus::Starting) {
             return "Starting...".into();
         }
-        if api_ok && wrapper_ok {
-            return "Connected".into();
-        }
-        if !api_ok && !wrapper_ok {
+        if !matches!(snapshot.api_status, RestApiStatus::Running { .. }) {
             return "Disconnected".into();
         }
-        "Partial".into()
+        if self.any_protocol_exposed(snapshot) {
+            "Connected".into()
+        } else {
+            "Partial".into()
+        }
     }
 
     fn children(&self, snapshot: &StatusSnapshot) -> Vec<TreeRow> {
         let mut rows = vec![
+            // 0. Operator version (informational), mirroring the VS Code section.
+            TreeRow {
+                section_id: SectionId::Connections,
+                id: "operator-version".into(),
+                depth: 1,
+                label: "Operator".into(),
+                description: format!("Version {}", snapshot.operator_version),
+                icon: StatusIcon::Check,
+                is_header: false,
+                actions: ActionSet::none(),
+                health: SectionHealth::Gray,
+            },
             // 1. Operator API
             TreeRow {
                 section_id: SectionId::Connections,

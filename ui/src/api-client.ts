@@ -20,6 +20,7 @@ import type { QueueControlResponse } from '@operator/bindings/QueueControlRespon
 import type { Config } from '@operator/bindings/Config';
 import type { AgentDetailResponse } from '@operator/bindings/AgentDetailResponse';
 import type { WorkflowExportResponse } from '@operator/bindings/WorkflowExportResponse';
+import type { WorkflowPreviewResponse } from '@operator/bindings/WorkflowPreviewResponse';
 
 export type {
   HealthResponse,
@@ -43,6 +44,7 @@ export type {
   Config,
   AgentDetailResponse,
   WorkflowExportResponse,
+  WorkflowPreviewResponse,
 };
 
 export class ApiError extends Error {
@@ -222,5 +224,10 @@ export class OperatorApi {
       `/api/v1/tickets/${encodeURIComponent(ticketId)}/workflow-export`,
       { method: 'POST' },
     );
+  }
+
+  /** Preview an issue type's workflow shape (.js, placeholder values) for visualization. */
+  previewWorkflow(key: string): Promise<WorkflowPreviewResponse> {
+    return request(this.base, `/api/v1/issuetypes/${encodeURIComponent(key)}/workflow-preview`);
   }
 }

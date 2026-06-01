@@ -33,14 +33,17 @@ pub fn export_workflow(
 
     let steps = ordered_steps(issuetype);
 
+    // The body is emitted as TOP-LEVEL statements (after `export const meta`),
+    // NOT wrapped in `export default async function () { ... }`. This is the
+    // form the `@untra/naiveworkflow-compiler` walks — a wrapped body compiles
+    // to an empty graph — and mirrors the top-level shape of the Claude
+    // Workflow-tool format.
     let mut out = String::new();
     out.push_str(&provenance_header(ticket, issuetype));
     out.push_str(&meta_block(ticket, issuetype, &steps));
-    out.push_str("export default async function () {\n");
     for step in &steps {
         out.push_str(&render_step(&hbs, &ctx, step)?);
     }
-    out.push_str("}\n");
     Ok(out)
 }
 
@@ -121,7 +124,7 @@ fn render_step(hbs: &Handlebars, ctx: &Value, step: &StepSchema) -> Result<Strin
 
     let mut s = String::new();
     s.push_str(&format!(
-        "  await phase({});\n",
+        "await phase({});\n",
         js::quote(step.display_name())
     ));
 
@@ -141,7 +144,7 @@ fn render_step(hbs: &Handlebars, ctx: &Value, step: &StepSchema) -> Result<Strin
             }
             if !step.allowed_tools.is_empty() {
                 s.push_str(&format!(
-                    "  // allowed tools: {}\n",
+                    "// allowed tools: {}\n",
                     step.allowed_tools.join(", ")
                 ));
             }
@@ -166,7 +169,7 @@ fn render_step(hbs: &Handlebars, ctx: &Value, step: &StepSchema) -> Result<Strin
             };
             let schema_str = serde_json::to_string(&schema).unwrap_or_else(|_| "{}".to_string());
             s.push_str(&format!(
-                "  const {var} = await agent({prompt}, {{ label: {label}, schema: {schema} }});\n",
+                "const {var} = await agent({prompt}, {{ label: {label}, schema: {schema} }});\n",
                 prompt = js::quote(&prompt),
                 label = js::quote(&step.name),
                 schema = schema_str,
@@ -186,19 +189,19 @@ fn render_step(hbs: &Handlebars, ctx: &Value, step: &StepSchema) -> Result<Strin
         }
         StepTypeTag::Rag => {
             s.push_str(&format!(
-                "  // {GAP_MARKER}: rag step — the workflow sandbox has no filesystem; context sources must be gathered by the agent.\n"
+                "// {GAP_MARKER}: rag step — the workflow sandbox has no filesystem; context sources must be gathered by the agent.\n"
             ));
             if let Some(cfg) = &step.rag_config {
                 let srcs: Vec<String> = cfg.sources.iter().map(describe_rag_source).collect();
                 if !srcs.is_empty() {
-                    s.push_str(&format!("  // context sources: {}\n", srcs.join(", ")));
+                    s.push_str(&format!("// context sources: {}\n", srcs.join(", ")));
                 }
             }
             s.push_str(&agent_call(&var, &prompt, &step.name, None));
         }
         StepTypeTag::Mcp => {
             s.push_str(&format!(
-                "  // {GAP_MARKER}: mcp step — the workflow sandbox cannot guarantee MCP tool availability.\n"
+                "// {GAP_MARKER}: mcp step — the workflow sandbox cannot guarantee MCP tool availability.\n"
             ));
             if let Some(cfg) = &step.mcp_config {
                 let tools: Vec<String> = cfg
@@ -210,7 +213,7 @@ fn render_step(hbs: &Handlebars, ctx: &Value, step: &StepSchema) -> Result<Strin
                     })
                     .collect();
                 if !tools.is_empty() {
-                    s.push_str(&format!("  // required tools: {}\n", tools.join(", ")));
+                    s.push_str(&format!("// required tools: {}\n", tools.join(", ")));
                 }
             }
             s.push_str(&agent_call(&var, &prompt, &step.name, None));
@@ -228,7 +231,7 @@ fn agent_call(var: &str, prompt: &str, label: &str, model: Option<&str>) -> Stri
         opts.push_str(&format!(", model: {}", js::quote(m)));
     }
     format!(
-        "  const {var} = await agent({prompt}, {{ {opts} }});\n",
+        "const {var} = await agent({prompt}, {{ {opts} }});\n",
         prompt = js::quote(prompt),
     )
 }
@@ -256,16 +259,21 @@ fn judge_loop(step: &StepSchema, var: &str, prompt: &str, model: Option<&str>) -
         opts.push_str(&format!(", model: {}", js::quote(m)));
     }
 
+    // The work call is a `const ..._work` declaration (not a bare reassignment)
+    // so the naiveworkflow compiler walks it and shows it inside the loop node.
+    // `var ..._verdict` is hoisted out of the `do` block so the `while`
+    // condition can read it.
     format!(
-        "  // {gap}: step {name} had human review_type={review}; a human gate cannot run mid-workflow.\n\
-         \x20 // Emitted as an autonomous judge loop (max 3 attempts); original on_reject -> goto {goto}.\n\
-         \x20 let {var};\n\
-         \x20 let {var}_attempt = 0;\n\
-         \x20 do {{\n\
-         \x20   {var} = await agent({prompt}, {{ {opts} }});\n\
-         \x20   var {var}_verdict = await agent({judge} + JSON.stringify({var}), {{ label: {jlabel} }});\n\
-         \x20 }} while (String({var}_verdict).includes(\"REVISE\") && ++{var}_attempt < 3);\n\
-         \x20 log({logmsg});\n",
+        "// {gap}: step {name} had human review_type={review}; a human gate cannot run mid-workflow.\n\
+         // Emitted as an autonomous judge loop (max 3 attempts); original on_reject -> goto {goto}.\n\
+         let {var};\n\
+         let {var}_attempt = 0;\n\
+         do {{\n\
+         \x20 const {var}_work = await agent({prompt}, {{ {opts} }});\n\
+         \x20 {var} = {var}_work;\n\
+         \x20 var {var}_verdict = await agent({judge} + JSON.stringify({var}), {{ label: {jlabel} }});\n\
+         }} while (String({var}_verdict).includes(\"REVISE\") && ++{var}_attempt < 3);\n\
+         log({logmsg});\n",
         gap = GAP_MARKER,
         name = js::quote(&step.name),
         review = js::quote(review),
@@ -286,7 +294,7 @@ fn judge_loop(step: &StepSchema, var: &str, prompt: &str, model: Option<&str>) -
 
 fn review_comment(step: &StepSchema) -> String {
     format!(
-        "  // {GAP_MARKER}: step '{}' carries review_type={}; verify its output before relying on it.\n",
+        "// {GAP_MARKER}: step '{}' carries review_type={}; verify its output before relying on it.\n",
         step.name,
         review_label(&step.review_type),
     )
@@ -317,10 +325,13 @@ fn render_multi_model(
         }
     };
     let strategy = serde_json::to_string(&cfg.voting_strategy).unwrap_or_default();
+    // Capture the fan-out in an intermediate `..._answers` binding, then vote
+    // with a plain `agent(...)`. A `parallel(...).then(...)` chain would be
+    // silently dropped by the naiveworkflow compiler.
     Ok(format!(
-        "  // multi-model fan-out + vote (voting_strategy: {strategy})\n\
-         \x20 const {var} = await parallel([\n{branches}  ]).then(answers =>\n\
-         \x20   agent({vote} + JSON.stringify(answers), {{ label: {label} }}));\n",
+        "// multi-model fan-out + vote (voting_strategy: {strategy})\n\
+         const {var}_answers = await parallel([\n{branches}]);\n\
+         const {var} = await agent({vote} + JSON.stringify({var}_answers), {{ label: {label} }});\n",
         var = var,
         branches = branches,
         vote = js::quote(&format!("{vote_prompt}\n\nCandidate answers:\n")),
@@ -348,10 +359,12 @@ fn render_multi_prompt(
         None => "Review the candidate outputs and select the single best one.".to_string(),
     };
     let strategy = serde_json::to_string(&cfg.selection_strategy).unwrap_or_default();
+    // Intermediate `..._outputs` binding + plain select `agent(...)` — see the
+    // note in `render_multi_model` on why `.then()` is avoided.
     Ok(format!(
-        "  // multi-prompt variations + select (selection_strategy: {strategy})\n\
-         \x20 const {var} = await parallel([\n{branches}  ]).then(outputs =>\n\
-         \x20   agent({select} + JSON.stringify(outputs), {{ label: {label} }}));\n",
+        "// multi-prompt variations + select (selection_strategy: {strategy})\n\
+         const {var}_outputs = await parallel([\n{branches}]);\n\
+         const {var} = await agent({select} + JSON.stringify({var}_outputs), {{ label: {label} }});\n",
         var = var,
         branches = branches,
         select = js::quote(&format!("{select_prompt}\n\nCandidate outputs:\n")),
@@ -384,8 +397,8 @@ fn render_matrixed(hbs: &Handlebars, ctx: &Value, step: &StepSchema, var: &str) 
         rows.push_str(&format!("    () => parallel([\n{cells}    ]),\n"));
     }
     Ok(format!(
-        "  // matrixed {n}x{m} (delegators x prompt variations, output_format: {format_str})\n\
-         \x20 const {var} = await parallel([\n{rows}  ]);\n",
+        "// matrixed {n}x{m} (delegators x prompt variations, output_format: {format_str})\n\
+         const {var} = await parallel([\n{rows}]);\n",
         n = cfg.delegators.len(),
         m = rendered_variations.len(),
         var = var,

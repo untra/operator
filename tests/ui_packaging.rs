@@ -16,6 +16,15 @@ const ALLOWED_RUNTIME_DEPS: &[&str] = &[
     // Microsoft-maintained; the concept→icon mapping lives in ui/src/concepts.ts
     // and the canonical table at docs/design-system/.
     "@vscode/codicons",
+    // Workflow-graph visualization. The two @untra packages are first-party
+    // (same author as operator); the compiler parses workflow .js via acorn
+    // (never executes it) and the react package renders the IR with React Flow.
+    // Used by ui/src/components/WorkflowGraphView.tsx.
+    "@untra/naiveworkflow-compiler",
+    "@untra/naiveworkflow-react",
+    // React Flow — peer dependency of @untra/naiveworkflow-react; the graph
+    // renderer/canvas. (dagre, its layout engine, comes in transitively.)
+    "@xyflow/react",
 ];
 
 const UNCOMPRESSED_BUDGET_BYTES: u64 = 10_485_760; // 10MB

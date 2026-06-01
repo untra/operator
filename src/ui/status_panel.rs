@@ -267,6 +267,24 @@ impl StatusAction {
             Self::OpenAcpDocs => Some("Docs"),
         }
     }
+
+    /// The browser URL this action opens, if it is a link-style action.
+    ///
+    /// Shared by the TUI action handler (`App::handle_status_action`) and the
+    /// web `/api/v1/sections` projection so both open the same destinations.
+    /// Returns `None` for command/file-writing actions that have no
+    /// web-openable URL.
+    pub fn web_url(&self) -> Option<String> {
+        match self {
+            Self::OpenSwagger { port } => Some(format!("http://localhost:{port}/swagger-ui")),
+            Self::OpenWebUi { port } => Some(format!("http://localhost:{port}/")),
+            Self::OpenWebUiAt { port, route } => Some(format!("http://localhost:{port}/#{route}")),
+            Self::OpenUrl(url) => Some(url.clone()),
+            Self::OpenMcpDocs => Some("https://untra.io/operator/docs/mcp/".to_string()),
+            Self::OpenAcpDocs => Some("https://untra.io/operator/docs/acp/".to_string()),
+            _ => None,
+        }
+    }
 }
 
 /// Hint data for the currently selected status panel row.
@@ -745,6 +763,27 @@ impl StatusSnapshot {
             embed_ui_available: cfg!(feature = "embed-ui"),
         }
     }
+
+    /// Overlay live connection facts onto a config-derived snapshot.
+    ///
+    /// `from_config` defaults the runtime fields to "stopped" because it has no
+    /// way to know the server state. Callers with live state (the TUI dashboard
+    /// and the REST `/api/v1/sections` handler) apply this so the connections
+    /// section reflects reality. Shared so both surfaces stay in lockstep.
+    pub fn apply_api_connection(&mut self, live: &crate::rest::dto::LiveConnectionStatus) {
+        if live.api_running {
+            self.api_status = RestApiStatus::Running { port: live.port };
+            self.mcp_http_status = if live.mcp_http_enabled {
+                McpHttpStatus::Mounted { port: live.port }
+            } else {
+                McpHttpStatus::NotMounted
+            };
+        } else {
+            self.api_status = RestApiStatus::Stopped;
+            self.mcp_http_status = McpHttpStatus::NotMounted;
+        }
+        self.mcp_active_sessions = live.mcp_active_sessions;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -846,6 +885,36 @@ pub fn all_sections() -> Vec<Box<dyn StatusSection>> {
 /// the binary injects this into `rest` via `register_section_provider` so the
 /// web UI's Status page renders the same sections the TUI and VS Code show.
 ///
+/// Collect the URL/link-style actions from a row's `ActionSet` for the web UI.
+///
+/// Walks the primary/special/refresh slots, keeping only actions that resolve
+/// to a browser URL (via [`StatusAction::web_url`]) and deduping by URL so the
+/// API row's primary+special Swagger pair doesn't render twice. Labels prefer
+/// the slot's `ActionMeta` title, falling back to the action's display verb.
+fn web_actions(actions: &ActionSet) -> Vec<crate::rest::dto::RowActionDto> {
+    use crate::rest::dto::RowActionDto;
+
+    let slots: [(&StatusAction, Option<&ActionMeta>); 3] = [
+        (&actions.primary, None),
+        (&actions.special, actions.special_meta.as_ref()),
+        (&actions.refresh, actions.refresh_meta.as_ref()),
+    ];
+
+    let mut out: Vec<RowActionDto> = Vec::new();
+    for (action, meta) in slots {
+        let Some(url) = action.web_url() else { continue };
+        if out.iter().any(|a| a.url == url) {
+            continue;
+        }
+        let label = meta
+            .map(|m| m.title.to_string())
+            .or_else(|| action.display_verb().map(str::to_string))
+            .unwrap_or_else(|| "Open".to_string());
+        out.push(RowActionDto { label, url });
+    }
+    out
+}
+
 /// Returns all sections with a `met` flag (computed from prerequisite health)
 /// rather than hiding unmet ones, so the web UI can render every section.
 pub fn build_section_dtos(snapshot: &StatusSnapshot) -> Vec<crate::rest::dto::SectionDto> {
@@ -887,6 +956,7 @@ pub fn build_section_dtos(snapshot: &StatusSnapshot) -> Vec<crate::rest::dto::Se
                         description: r.description,
                         icon: r.icon.as_str().to_string(),
                         health: r.health.as_str().to_string(),
+                        actions: web_actions(&r.actions),
                     })
                     .collect(),
             }

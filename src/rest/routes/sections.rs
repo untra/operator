@@ -3,7 +3,7 @@
 
 use axum::{extract::State, Json};
 
-use crate::rest::dto::{section_provider, SectionDto};
+use crate::rest::dto::{section_provider, LiveConnectionStatus, SectionDto};
 use crate::rest::state::ApiState;
 
 /// List the canonical status sections with health + child rows.
@@ -24,7 +24,15 @@ pub async fn list(State(state): State<ApiState>) -> Json<Vec<SectionDto>> {
     match section_provider() {
         Some(provider) => {
             let registry = state.registry.read().await;
-            Json(provider(&state.config, &registry))
+            // Serving this request proves the API (and embedded Web UI) are up,
+            // so report live connection facts the config-only snapshot can't know.
+            let live = LiveConnectionStatus {
+                api_running: true,
+                port: state.config.api.port,
+                mcp_http_enabled: state.config.mcp.http_enabled,
+                mcp_active_sessions: state.mcp_sessions.lock().await.len(),
+            };
+            Json(provider(&state.config, &registry, &live))
         }
         None => Json(Vec::new()),
     }

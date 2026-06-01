@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@untra/naiveworkflow-compiler": "0.0.3",
+    "@untra/naiveworkflow-react": "0.0.3",
     "@vscode/codicons": "^0.0.45",
+    "@xyflow/react": "^12.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.6.1"

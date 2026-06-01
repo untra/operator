@@ -115,6 +115,8 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::launch::launch_ticket))
         // Workflow export endpoint
         .routes(routes!(routes::workflow::export))
+        // Workflow preview endpoint (issue type -> graph, no ticket)
+        .routes(routes!(routes::workflow::preview))
         // Step completion endpoint (for opr8r wrapper)
         .routes(routes!(routes::launch::complete_step))
         // Kanban provider endpoints

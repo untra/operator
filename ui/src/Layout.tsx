@@ -5,6 +5,7 @@ import type { Concept } from './concepts';
 import { CONCEPTS, STATUS_KEYS, PAGE_KEYS } from './concepts';
 import { ConceptIcon } from './components/ConceptIcon';
 import { SectionsProvider, useSections } from './sections-context';
+import { RightPanelProvider, useRightPanel } from './right-panel';
 import type { SectionDto } from './api-client';
 
 // The "Status" group mirrors the canonical section order shared with the TUI and
@@ -71,32 +72,60 @@ function NavGroup({ label, keys }: { label: string; keys: readonly string[] }) {
   );
 }
 
+// The detail sidepanel. Renders nothing until a view opens it via
+// useRightPanel().open(...); when content is present it slides in on the right
+// with a header (title + close) above the caller-supplied node.
+function RightPanel() {
+  const { content, title, close } = useRightPanel();
+  if (!content) return null;
+  return (
+    <aside className={styles.rightPanel} aria-label={title ?? 'Detail panel'}>
+      <div className={styles.rightPanelHeader}>
+        <span className={styles.rightPanelTitle}>{title}</span>
+        <button
+          type="button"
+          className={styles.rightPanelClose}
+          onClick={close}
+          aria-label="Close panel"
+          title="Close panel"
+        >
+          ✕
+        </button>
+      </div>
+      <div className={styles.rightPanelBody}>{content}</div>
+    </aside>
+  );
+}
+
 export function Layout() {
   const { theme, toggleTheme } = useTheme();
 
   return (
     <SectionsProvider>
-      <div className={styles.layout}>
-        <nav className={styles.nav}>
-          <div className={styles.brandRow}>
-            <span className={styles.brand}>Operator</span>
-            <button
-              type="button"
-              className={styles.themeToggle}
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            >
-              {theme === 'dark' ? '☀' : '☾'}
-            </button>
-          </div>
-          <NavGroup label="Status" keys={STATUS_KEYS} />
-          <NavGroup label="Pages" keys={PAGE_KEYS} />
-        </nav>
-        <main className={styles.main}>
-          <Outlet />
-        </main>
-      </div>
+      <RightPanelProvider>
+        <div className={styles.layout}>
+          <nav className={styles.nav}>
+            <div className={styles.brandRow}>
+              <span className={styles.brand}>Operator</span>
+              <button
+                type="button"
+                className={styles.themeToggle}
+                onClick={toggleTheme}
+                aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+                title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              >
+                {theme === 'dark' ? '☀' : '☾'}
+              </button>
+            </div>
+            <NavGroup label="Status" keys={STATUS_KEYS} />
+            <NavGroup label="Pages" keys={PAGE_KEYS} />
+          </nav>
+          <main className={styles.main}>
+            <Outlet />
+          </main>
+          <RightPanel />
+        </div>
+      </RightPanelProvider>
     </SectionsProvider>
   );
 }

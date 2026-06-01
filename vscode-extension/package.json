@@ -30,6 +30,7 @@
   "icon": "images/operator-logo-128.png",
   "activationEvents": [
     "onStartupFinished",
+    "onUri",
     "onView:operator-status",
     "onView:operator-in-progress",
     "onView:operator-queue",

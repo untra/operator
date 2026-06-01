@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react';
 import type { KanbanBoardResponse } from '@operator/bindings/KanbanBoardResponse';
 import type { KanbanTicketCard } from '@operator/bindings/KanbanTicketCard';
-import { OperatorApi } from '../api-client';
-import { useHost } from '../host';
-import { WorkflowGraphView } from './WorkflowGraphView';
+import { useRightPanel } from '../right-panel';
+import { TicketDetailPanel } from './TicketDetailPanel';
 import styles from './KanbanBoard.module.css';
 
 /**
@@ -12,25 +10,22 @@ import styles from './KanbanBoard.module.css';
  * into IN PROGRESS (with a distinct paused indicator), matching the TUI which
  * keeps awaiting tickets in the in-progress panel.
  *
- * Cards in the TODO and IN PROGRESS columns are clickable: they open a modal
- * showing that ticket's Claude workflow as an interactive graph. DONE cards are
- * not interactive.
+ * Cards in the TODO and IN PROGRESS columns are clickable: they open the
+ * right-hand detail sidepanel with that ticket's detail, launch form, and
+ * issue-type workflow graph. DONE cards are not interactive.
  */
 export function KanbanBoard({ board }: { board: KanbanBoardResponse }) {
-  const host = useHost();
-  const [api] = useState(() => new OperatorApi(host));
-  const [open, setOpen] = useState<KanbanTicketCard | null>(null);
+  const { open } = useRightPanel();
+  const openTicket = (ticket: KanbanTicketCard) =>
+    open(<TicketDetailPanel ticket={ticket} />, ticket.id);
 
   const inProgress = [...board.running, ...board.awaiting];
   return (
-    <>
-      <div className={styles.columns}>
-        <Column title="TODO QUEUE" tickets={board.queue} onOpen={setOpen} />
-        <Column title="IN PROGRESS" tickets={inProgress} onOpen={setOpen} />
-        <Column title="DONE" tickets={board.done} />
-      </div>
-      {open && <WorkflowModal api={api} ticket={open} onClose={() => setOpen(null)} />}
-    </>
+    <div className={styles.columns}>
+      <Column title="TODO QUEUE" tickets={board.queue} onOpen={openTicket} />
+      <Column title="IN PROGRESS" tickets={inProgress} onOpen={openTicket} />
+      <Column title="DONE" tickets={board.done} />
+    </div>
   );
 }
 
@@ -92,56 +87,10 @@ function Card({
       className={`${styles.card} ${styles.cardClickable}`}
       data-priority={priorityKey(ticket.priority)}
       onClick={() => onOpen(ticket)}
-      title="View workflow graph"
+      title="Open ticket detail"
     >
       {inner}
     </button>
-  );
-}
-
-function WorkflowModal({
-  api,
-  ticket,
-  onClose,
-}: {
-  api: OperatorApi;
-  ticket: KanbanTicketCard;
-  onClose: () => void;
-}) {
-  const [contents, setContents] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .exportWorkflow(ticket.id)
-      .then((r) => {
-        if (!cancelled) setContents(r.contents);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load workflow');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, ticket.id]);
-
-  return (
-    <div className={styles.modalBackdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <span>
-            <strong>{ticket.id}</strong> · {ticket.summary}
-          </span>
-          <button className={styles.modalClose} onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </div>
-        {error && <div className={styles.modalError}>{error}</div>}
-        {!error && !contents && <div className={styles.modalLoading}>Loading workflow…</div>}
-        {contents && <WorkflowGraphView contents={contents} />}
-      </div>
-    </div>
   );
 }
 

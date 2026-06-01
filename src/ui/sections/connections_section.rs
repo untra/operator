@@ -75,7 +75,31 @@ impl StatusSection for ConnectionsSection {
                 actions: ActionSet::none(),
                 health: SectionHealth::Gray,
             },
-            // 1. Operator API
+            // 1. Control wrapper — which session wrapper the operator control
+            // plane is running inside, and therefore how launched tickets are
+            // coordinated (VS Code terminal / cmux window / tmux / zellij tab).
+            // Mirrors the VS Code extension's "Session Wrapper" row. Informational
+            // only: does not drive the section header health.
+            TreeRow {
+                section_id: SectionId::Connections,
+                id: "control-wrapper".into(),
+                depth: 1,
+                label: "Control Wrapper".into(),
+                description: if snapshot.operator_inside_wrapper {
+                    format!("{} · active", snapshot.wrapper_type)
+                } else {
+                    format!("{} · not attached", snapshot.wrapper_type)
+                },
+                icon: if snapshot.operator_inside_wrapper {
+                    StatusIcon::Check
+                } else {
+                    StatusIcon::Warning
+                },
+                is_header: false,
+                actions: ActionSet::none(),
+                health: SectionHealth::Gray,
+            },
+            // 2. Operator API
             TreeRow {
                 section_id: SectionId::Connections,
                 id: "operator-api".into(),
@@ -264,6 +288,7 @@ mod tests {
             tickets_dir: ".tickets".into(),
             tickets_dir_exists: true,
             wrapper_type: "tmux".into(),
+            operator_inside_wrapper: true,
             operator_version: "0.1.28".into(),
             api_status: RestApiStatus::Running { port: 7008 },
             kanban_providers: vec![],
@@ -340,6 +365,45 @@ mod tests {
             .expect("operator-version row must be present");
         assert_eq!(row.label, "Operator");
         assert!(row.description.contains(&snap.operator_version));
+    }
+
+    #[test]
+    fn test_connections_control_wrapper_row_active() {
+        let section = ConnectionsSection;
+        let snap = base_snapshot(); // operator_inside_wrapper: true, wrapper_type: "tmux"
+        let children = section.children(&snap);
+        let row = children
+            .iter()
+            .find(|r| r.id == "control-wrapper")
+            .expect("control-wrapper row must be present");
+        assert_eq!(row.label, "Control Wrapper");
+        assert_eq!(row.description, "tmux · active");
+        assert!(matches!(row.icon, StatusIcon::Check));
+    }
+
+    #[test]
+    fn test_connections_control_wrapper_row_not_attached() {
+        let section = ConnectionsSection;
+        let mut snap = base_snapshot();
+        snap.operator_inside_wrapper = false;
+        snap.wrapper_type = "cmux".into();
+        let children = section.children(&snap);
+        let row = children
+            .iter()
+            .find(|r| r.id == "control-wrapper")
+            .expect("control-wrapper row must be present");
+        assert_eq!(row.description, "cmux · not attached");
+        assert!(matches!(row.icon, StatusIcon::Warning));
+    }
+
+    #[test]
+    fn test_connections_control_wrapper_does_not_change_health() {
+        // The control-wrapper row is informational: a not-attached wrapper must
+        // not downgrade the section when API + a protocol are up.
+        let section = ConnectionsSection;
+        let mut snap = base_snapshot();
+        snap.operator_inside_wrapper = false;
+        assert_eq!(section.health(&snap), SectionHealth::Green);
     }
 
     #[test]

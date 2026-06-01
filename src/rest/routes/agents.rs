@@ -7,6 +7,7 @@ use axum::{
     Json,
 };
 
+use crate::agents::cmux::{CmuxClient, SystemCmuxClient};
 use crate::rest::dto::{
     ActiveAgentResponse, ActiveAgentsResponse, AgentDetailResponse, RejectReviewRequest,
     ReviewResponse,
@@ -229,6 +230,77 @@ pub async fn reject_review(
     }))
 }
 
+/// Focus the terminal session of a running agent in its session wrapper.
+///
+/// The web UI's launch panel calls this for **cmux** launches: cmux exposes no
+/// browser URL scheme, so the operator control plane (which runs inside cmux)
+/// shells out to `cmux focus-workspace` for the agent's saved workspace ref to
+/// bring its pane to the foreground. Other wrappers are unsupported here — VS
+/// Code focuses through its extension's URI handler, and tmux/zellij are
+/// display-only in the UI, so it never calls this for them.
+#[utoipa::path(
+    operation_id = "agents_focus_session",
+    post,
+    path = "/api/v1/agents/{agent_id}/focus",
+    tag = "Agents",
+    params(
+        ("agent_id" = String, Path, description = "The agent ID whose session to focus")
+    ),
+    responses(
+        (status = 200, description = "Session focused"),
+        (status = 400, description = "Wrapper unsupported, or no session refs to focus"),
+        (status = 404, description = "Agent not found")
+    )
+)]
+pub async fn focus_session(
+    State(state): State<ApiState>,
+    Path(agent_id): Path<String>,
+) -> Result<(), ApiError> {
+    let operator_state = OperatorState::load(&state.config)
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
+
+    let agent = operator_state
+        .agents
+        .iter()
+        .find(|a| a.id == agent_id)
+        .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
+
+    match agent.session_wrapper.as_deref() {
+        Some("cmux") => {
+            let workspace_ref = agent.session_context_ref.clone();
+            let window_ref = agent.session_window_ref.clone();
+            if workspace_ref.is_none() && window_ref.is_none() {
+                return Err(ApiError::BadRequest(format!(
+                    "Agent '{agent_id}' has no cmux session refs to focus"
+                )));
+            }
+            let cmux_config = state.config.sessions.cmux.clone();
+            // cmux focusing shells out to the cmux binary; run it off the async
+            // worker so a slow subprocess can't stall the runtime.
+            tokio::task::spawn_blocking(move || -> Result<(), crate::agents::cmux::CmuxError> {
+                let client = SystemCmuxClient::from_config(&cmux_config);
+                client.check_available()?;
+                // Prefer the workspace (the agent's pane); fall back to its window.
+                if let Some(ws) = workspace_ref.as_deref() {
+                    client.focus_workspace(ws)
+                } else if let Some(win) = window_ref.as_deref() {
+                    client.focus_window(win)
+                } else {
+                    unreachable!("at least one ref present (checked above)")
+                }
+            })
+            .await
+            .map_err(|e| ApiError::InternalError(format!("focus task failed: {e}")))?
+            .map_err(|e| ApiError::InternalError(format!("cmux focus failed: {e}")))?;
+            Ok(())
+        }
+        other => Err(ApiError::BadRequest(format!(
+            "Focus is not supported for session wrapper '{}'",
+            other.unwrap_or("none")
+        ))),
+    }
+}
+
 /// Write a review signal file for the agent to pick up
 fn write_review_signal(
     state: &ApiState,
@@ -279,5 +351,20 @@ mod tests {
         // or handle gracefully with error
         // In this case, State::load will create a new empty state if file doesn't exist
         assert!(result.is_ok() || result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_focus_session_unknown_agent_is_404() {
+        // Point state at a fresh temp dir so load() returns an empty agent list
+        // deterministically (not the repo's own state). An unknown id → NotFound.
+        // The cmux success path and the unsupported-wrapper 400 branch need a
+        // persisted agent / live cmux, so they're covered by manual e2e.
+        let tmp = tempfile::tempdir().unwrap();
+        let mut config = Config::default();
+        config.paths.state = tmp.path().to_string_lossy().into_owned();
+        let state = ApiState::new(config, tmp.path().to_path_buf());
+
+        let result = focus_session(State(state), Path("no-such-agent".to_string())).await;
+        assert!(matches!(result, Err(ApiError::NotFound(_))));
     }
 }

@@ -105,6 +105,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::agents::get_detail))
         .routes(routes!(routes::agents::approve_review))
         .routes(routes!(routes::agents::reject_review))
+        .routes(routes!(routes::agents::focus_session))
         // Project endpoints
         .routes(routes!(routes::projects::list))
         .routes(routes!(routes::projects::assess))

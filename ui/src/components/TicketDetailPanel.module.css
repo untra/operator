@@ -1,0 +1,182 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Detail header */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ticketType {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-salmon);
+  text-transform: uppercase;
+}
+
+.ticketId {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.summary {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.meta {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Launch form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.fieldLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.checkboxField {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.launchBtn {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-green-l1);
+  color: var(--color-cream);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.launchBtn:hover:not(:disabled) {
+  background: var(--color-green-l2);
+}
+
+.launchBtn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Launch result */
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--success-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.resultHeader {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.linkBtn {
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.linkBtn:hover {
+  background: var(--surface-alt);
+}
+
+.sessionRef {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+}
+
+.sessionRef code {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+/* Workflow graph */
+.graphSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.graphLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.loading {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 1rem 0;
+}
+
+.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+}

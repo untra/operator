@@ -154,3 +154,57 @@
   padding: 48px;
   overflow-y: auto;
 }
+
+/* Right-hand detail sidepanel (see right-panel.tsx). Fixed width, scrolls
+ * independently of the main view, divided from it by a left border. Minimal by
+ * design — content components own their own styling. */
+.rightPanel {
+  width: 380px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.rightPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+.rightPanelTitle {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.rightPanelClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.rightPanelClose:hover {
+  color: var(--text);
+  background: var(--surface-alt);
+}
+
+.rightPanelBody {
+  padding: 20px;
+}

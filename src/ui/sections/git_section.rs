@@ -169,6 +169,7 @@ mod tests {
             tickets_dir: ".tickets".into(),
             tickets_dir_exists: true,
             wrapper_type: "tmux".into(),
+            operator_inside_wrapper: false,
             operator_version: "0.1.28".into(),
             api_status: RestApiStatus::Running { port: 7008 },
             kanban_providers: vec![],

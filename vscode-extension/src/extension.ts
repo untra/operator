@@ -955,6 +955,35 @@ export async function activate(
   terminalManager.setIssueTypeService(issueTypeService);
   inProgressProvider.setTerminalManager(terminalManager);
 
+  // Handle deep-links from the Operator web UI / control plane:
+  //   vscode://untra.operator-terminals/focus-session?name=<terminal>
+  // focuses the agent's terminal tab by name. The web UI's launch panel emits
+  // this link after launching a ticket when the operator control wrapper is VS
+  // Code, so the user can jump straight to the running agent's terminal.
+  context.subscriptions.push(
+    vscode.window.registerUriHandler({
+      handleUri(uri: vscode.Uri) {
+        if (uri.path !== '/focus-session') {
+          return;
+        }
+        const name = new URLSearchParams(uri.query).get('name');
+        if (!name) {
+          void vscode.window.showWarningMessage(
+            'Operator: focus-session link is missing a terminal name'
+          );
+          return;
+        }
+        if (terminalManager.exists(name)) {
+          terminalManager.focus(name);
+        } else {
+          void vscode.window.showWarningMessage(
+            `Operator: no terminal named '${name}' to focus`
+          );
+        }
+      },
+    })
+  );
+
   const webhookServer = new WebhookServer(terminalManager);
   const launchManager = new LaunchManager(terminalManager);
 

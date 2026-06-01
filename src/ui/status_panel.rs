@@ -573,6 +573,10 @@ pub struct StatusSnapshot {
     pub tickets_dir: String,
     pub tickets_dir_exists: bool,
     pub wrapper_type: String,
+    /// Whether operator is running *inside* its configured control wrapper
+    /// (tmux/cmux/zellij/vscode), detected from env markers. Reports how launched
+    /// tickets will be coordinated from the operator control plane.
+    pub operator_inside_wrapper: bool,
     pub operator_version: String,
     pub api_status: RestApiStatus,
     pub kanban_providers: Vec<KanbanProviderInfo>,
@@ -760,6 +764,7 @@ impl StatusSnapshot {
             tickets_dir,
             tickets_dir_exists,
             wrapper_type: config.sessions.wrapper.display_name().to_string(),
+            operator_inside_wrapper: config.sessions.wrapper.is_active_context(),
             operator_version: env!("CARGO_PKG_VERSION").to_string(),
             // Runtime field — callers with live state override this.
             api_status: RestApiStatus::Stopped,
@@ -1573,6 +1578,7 @@ mod tests {
             tickets_dir: ".tickets".into(),
             tickets_dir_exists: true,
             wrapper_type: "tmux".into(),
+            operator_inside_wrapper: true,
             operator_version: "0.1.28".into(),
             api_status: RestApiStatus::Running { port: 3100 },
             kanban_providers: vec![KanbanProviderInfo {

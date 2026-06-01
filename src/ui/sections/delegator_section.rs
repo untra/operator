@@ -104,6 +104,7 @@ mod tests {
             tickets_dir: ".tickets".into(),
             tickets_dir_exists: true,
             wrapper_type: "tmux".into(),
+            operator_inside_wrapper: false,
             operator_version: "0.1.30".into(),
             api_status: RestApiStatus::Stopped,
             kanban_providers: vec![],

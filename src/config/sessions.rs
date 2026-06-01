@@ -28,6 +28,26 @@ impl SessionWrapperType {
             SessionWrapperType::Zellij => "zellij",
         }
     }
+
+    /// Whether the operator process is currently running *inside* this wrapper's
+    /// session context, detected from process-global environment markers.
+    ///
+    /// Reports the control wrapper of the API: launched tickets are coordinated
+    /// through this wrapper, so "active" means operator can actually drive it.
+    /// tmux sets `TMUX`, cmux sets `CMUX_WORKSPACE_ID`, zellij sets `ZELLIJ`, and
+    /// VS Code's integrated terminal sets `TERM_PROGRAM=vscode`. These are the
+    /// same env names checked by the wrapper detection in `status_panel` and
+    /// `agents::{cmux,zellij}` — reuse, don't invent new ones.
+    pub fn is_active_context(&self) -> bool {
+        match self {
+            SessionWrapperType::Tmux => std::env::var("TMUX").is_ok(),
+            SessionWrapperType::Vscode => {
+                std::env::var("TERM_PROGRAM").is_ok_and(|v| v == "vscode")
+            }
+            SessionWrapperType::Cmux => std::env::var("CMUX_WORKSPACE_ID").is_ok(),
+            SessionWrapperType::Zellij => std::env::var("ZELLIJ").is_ok(),
+        }
+    }
 }
 
 impl std::fmt::Display for SessionWrapperType {

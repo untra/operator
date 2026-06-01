@@ -141,6 +141,17 @@ export class OperatorApi {
     });
   }
 
+  /**
+   * Focus the agent's terminal session in its session wrapper. Used for cmux
+   * launches: operator (running inside cmux) shells out to `cmux focus-workspace`.
+   * cmux has no browser URL scheme, so the control plane is the bridge.
+   */
+  focusSession(agentId: string): Promise<void> {
+    return requestVoid(this.base, `/api/v1/agents/${encodeURIComponent(agentId)}/focus`, {
+      method: 'POST',
+    });
+  }
+
   // --- Tickets ---
 
   launchTicket(ticketId: string, options: LaunchTicketRequest): Promise<LaunchTicketResponse> {

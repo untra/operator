@@ -3,7 +3,6 @@ use std::fs;
 
 use crate::agents::{generate_status_script, generate_tmux_conf};
 use crate::agents::{AgentTicketCreator, AssessTicketCreator};
-use crate::backstage::scaffold::{BackstageScaffold, ScaffoldOptions};
 use crate::queue::TicketCreator;
 use crate::setup::filter_schema_fields;
 use crate::state::State;
@@ -171,26 +170,6 @@ impl App {
             }
         }
 
-        // Generate Backstage scaffold
-        let backstage_path = self.config.backstage_path();
-        if !BackstageScaffold::exists(&backstage_path) {
-            let options = ScaffoldOptions::from_config(&self.config);
-            let scaffold = BackstageScaffold::new(backstage_path, options);
-            match scaffold.generate() {
-                Ok(result) => {
-                    tracing::info!(
-                        created = result.created.len(),
-                        skipped = result.skipped.len(),
-                        "Generated Backstage scaffold: {}",
-                        result.summary()
-                    );
-                }
-                Err(e) => {
-                    tracing::warn!("Failed to generate Backstage scaffold: {}", e);
-                }
-            }
-        }
-
         Ok(())
     }
 
@@ -297,7 +276,7 @@ impl App {
                     return Ok(());
                 }
 
-                // Create ASSESS ticket for Backstage catalog assessment
+                // Create ASSESS ticket for catalog assessment
                 let ticket_result = AssessTicketCreator::create_assess_ticket(
                     &result.project_path,
                     &result.project,

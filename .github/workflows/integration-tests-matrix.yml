@@ -74,10 +74,10 @@ jobs:
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -90,7 +90,7 @@ jobs:
           restore-keys: ${{ matrix.artifact }}-cargo-
 
       - name: Build release
-        run: cargo build --release
+        run: cargo build --locked --release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -119,10 +119,10 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -135,7 +135,7 @@ jobs:
           restore-keys: opr8r-${{ matrix.artifact }}-cargo-
 
       - name: Build release
-        run: cargo build --release
+        run: cargo build --locked --release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -167,7 +167,7 @@ jobs:
             opr8r_artifact: opr8r-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install tmux (Linux)
         if: runner.os == 'Linux'
@@ -178,7 +178,7 @@ jobs:
         run: brew install tmux
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -208,7 +208,7 @@ jobs:
       - name: Run launch integration tests
         env:
           OPERATOR_LAUNCH_TEST_ENABLED: 'true'
-        run: cargo test --test launch_integration -- --nocapture --test-threads=1
+        run: cargo test --locked --test launch_integration -- --nocapture --test-threads=1
 
       - name: Cleanup tmux sessions
         if: always()
@@ -234,10 +234,10 @@ jobs:
             opr8r_artifact: opr8r-linux-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -303,10 +303,10 @@ jobs:
             opr8r_artifact: opr8r-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -336,7 +336,7 @@ jobs:
       - name: Run cmux integration tests (mock-based)
         env:
           OPERATOR_CMUX_TEST_ENABLED: 'true'
-        run: cargo test --test launch_integration_cmux -- --nocapture --test-threads=1
+        run: cargo test --locked --test launch_integration_cmux -- --nocapture --test-threads=1
 
   # ============================================================================
   # VSCODE WRAPPER LAUNCH TESTS (Rust library-level, all platforms)
@@ -356,10 +356,10 @@ jobs:
             artifact: operator-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -383,7 +383,7 @@ jobs:
       - name: Run VS Code wrapper launch tests
         env:
           OPERATOR_VSCODE_TEST_ENABLED: 'true'
-        run: cargo test --test launch_integration_vscode -- --nocapture --test-threads=1
+        run: cargo test --locked --test launch_integration_vscode -- --nocapture --test-threads=1
 
   # ============================================================================
   # REST API INTEGRATION TESTS (All platforms)
@@ -408,10 +408,10 @@ jobs:
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -436,7 +436,7 @@ jobs:
       - name: Run REST API integration tests
         env:
           OPERATOR_REST_API_TEST_ENABLED: 'true'
-        run: cargo test --test rest_api_integration -- --nocapture --test-threads=1
+        run: cargo test --locked --test rest_api_integration -- --nocapture --test-threads=1
 
   # ============================================================================
   # OPR8R CLI INTEGRATION TESTS (All platforms)
@@ -465,7 +465,7 @@ jobs:
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download operator binary
         uses: actions/download-artifact@v4
@@ -530,7 +530,7 @@ jobs:
       run:
         working-directory: vscode-extension
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

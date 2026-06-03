@@ -273,7 +273,6 @@ async fn detect_default_branch(repo_path: &Path) -> Option<String> {
 /// * `cleanup_script` - Optional cleanup script to run before removal
 /// * `prune_branch` - Whether to delete the branch
 /// * `delete_remote_branch` - Whether to delete the remote branch too
-#[allow(dead_code)] // Will be used in sync.rs for PR merge cleanup
 pub async fn cleanup_ticket_worktree(
     config: &Config,
     worktree_path: &Path,

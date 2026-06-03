@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 mod api;
 mod app;
-mod backstage;
 mod collections;
 mod config;
 mod editors;
@@ -18,9 +17,12 @@ mod projects;
 mod services;
 mod state;
 mod steps;
+#[allow(dead_code)]
+mod taxonomy;
 mod templates;
 mod types;
 
+mod acp;
 mod agents;
 mod docs_gen;
 pub mod env_vars;
@@ -33,6 +35,7 @@ mod setup;
 mod startup;
 mod ui;
 mod version;
+mod workflow_gen;
 
 use agents::tmux::{SystemTmuxClient, TmuxClient, TmuxError};
 use app::App;
@@ -126,6 +129,10 @@ pub struct Cli {
     /// Start with web view enabled
     #[arg(short = 'w', long)]
     web: bool,
+
+    /// Open the embedded web UI in a browser on launch
+    #[arg(long)]
+    ui: bool,
 }
 
 #[derive(Subcommand)]
@@ -227,7 +234,24 @@ enum Commands {
         /// Port to listen on (default: 7008)
         #[arg(short, long)]
         port: Option<u16>,
+
+        /// Open the web UI in browser after server starts
+        #[arg(long)]
+        open: bool,
     },
+
+    /// Run as an MCP stdio server (for use by Claude Code, Cursor, Zed, `JetBrains`, etc.).
+    ///
+    /// Reads line-delimited JSON-RPC from stdin and writes responses to stdout.
+    /// Log output goes to stderr. Intended to be spawned by an MCP-capable client.
+    Mcp,
+
+    /// Run as an ACP agent over stdio (for use by Zed, `JetBrains`, Emacs `agent-shell`, etc.).
+    ///
+    /// Implements the Agent Client Protocol. Reads line-delimited JSON-RPC
+    /// from stdin and writes responses/notifications to stdout. Log output
+    /// goes to stderr. Intended to be spawned by an ACP-capable editor.
+    Acp,
 
     /// Initialize operator workspace (non-interactive by default)
     Setup {
@@ -238,10 +262,6 @@ enum Commands {
         /// Collection preset: simple, dev-kanban, devops-kanban
         #[arg(short = 'C', long, default_value = "simple")]
         collection: String,
-
-        /// Enable backstage configuration
-        #[arg(long)]
-        backstage: bool,
 
         /// Overwrite existing files
         #[arg(short, long)]
@@ -263,6 +283,25 @@ enum Commands {
         #[arg(long)]
         skip_llm_detection: bool,
     },
+
+    /// Convert between operator issuetypes and other orchestration formats
+    Workflow {
+        #[command(subcommand)]
+        action: WorkflowAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkflowAction {
+    /// Export a ticket, rendered against its issuetype, to a Claude Code dynamic workflow (.js)
+    Export {
+        /// Ticket id (e.g. FEAT-1234) or path to a ticket markdown file
+        ticket: String,
+
+        /// Output path (default: <ticket-id>.workflow.js in the current directory; "-" for stdout)
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+    },
 }
 
 #[tokio::main]
@@ -277,6 +316,28 @@ async fn main() -> Result<()> {
 
     // Initialize logging (file-based for TUI, stderr for CLI)
     let logging_handle = logging::init_logging(&config, is_tui_mode, cli.debug)?;
+
+    // Inject the status-section provider into the REST layer. The section logic
+    // lives in `ui` (which `rest` can't depend on — see rest::dto::sections), so
+    // the binary registers it here, before any server starts. Covers all serving
+    // paths (TUI app, `operator rest`, embedded UI) since they share one process.
+    rest::dto::register_section_provider(std::sync::Arc::new(|config, registry, live| {
+        let issue_types = registry
+            .all_types()
+            .map(|it| ui::status_panel::IssueTypeInfo {
+                key: it.key.clone(),
+                name: it.name.clone(),
+                mode: if it.is_autonomous() {
+                    "autonomous".to_string()
+                } else {
+                    "paired".to_string()
+                },
+            })
+            .collect();
+        let mut snapshot = ui::status_panel::StatusSnapshot::from_config(config, issue_types);
+        snapshot.apply_api_connection(live);
+        ui::status_panel::build_section_dtos(&snapshot)
+    }));
 
     match cli.command {
         Some(Commands::Queue { all }) => {
@@ -329,13 +390,18 @@ async fn main() -> Result<()> {
         Some(Commands::Docs { output, only }) => {
             cmd_docs(&config, output, only)?;
         }
-        Some(Commands::Api { port }) => {
-            cmd_api(&config, port).await?;
+        Some(Commands::Api { port, open }) => {
+            cmd_api(&config, port, open).await?;
+        }
+        Some(Commands::Mcp) => {
+            cmd_mcp(&config).await?;
+        }
+        Some(Commands::Acp) => {
+            cmd_acp(&config).await?;
         }
         Some(Commands::Setup {
             interactive,
             collection,
-            backstage,
             force,
             working_dir,
             kanban_provider,
@@ -346,7 +412,6 @@ async fn main() -> Result<()> {
                 config,
                 interactive,
                 collection,
-                backstage,
                 force,
                 working_dir,
                 kanban_provider,
@@ -354,24 +419,32 @@ async fn main() -> Result<()> {
                 skip_llm_detection,
             )?;
         }
+        Some(Commands::Workflow { action }) => {
+            cmd_workflow(&config, action)?;
+        }
         None => {
             // No subcommand = launch TUI dashboard
             #[allow(clippy::large_futures)] // TUI state is inherently large
-            run_tui(config, logging_handle.log_file_path, cli.web).await?;
+            run_tui(config, logging_handle.log_file_path, cli.web, cli.ui).await?;
         }
     }
 
     Ok(())
 }
 
-async fn run_tui(config: Config, log_file_path: Option<PathBuf>, start_web: bool) -> Result<()> {
+async fn run_tui(
+    config: Config,
+    log_file_path: Option<PathBuf>,
+    start_web: bool,
+    open_ui: bool,
+) -> Result<()> {
     // Install panic hook before any terminal operations
     // This ensures terminal is restored even on panic
     crate::ui::install_panic_hook();
 
     // Note: tmux availability is now checked in the setup wizard (TmuxOnboarding step)
     // when the user selects tmux as their session wrapper
-    let mut app = App::new(config, start_web).await?;
+    let mut app = App::new(config, start_web, open_ui).await?;
     let result = app.run().await;
 
     // Print log file path on exit if logs were written
@@ -420,7 +493,8 @@ async fn cmd_queue(config: &Config, all: bool) -> Result<()> {
 
 /// Ad-hoc launch overrides parsed from CLI flags.
 ///
-/// v1: flags parse and validate; env-var injection for `model_server` ships in v2.
+/// Flags are validated up front, then resolved through `resolve_launch_options`,
+/// which injects the chosen `model_server`'s env vars into the spawned agent.
 #[derive(Debug, Default)]
 struct LaunchOverrides {
     delegator: Option<String>,
@@ -458,10 +532,20 @@ async fn cmd_launch(
         );
     }
 
-    // TODO(model-servers-v2): thread `overrides` through resolve_launch_options() so the chosen
-    // model_server's env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, etc.) are exported before the
-    // agent CLI spawns. v1 parses and validates; resolution path is unchanged.
-    let _ = &overrides;
+    // Resolve launch options from the CLI overrides (a named delegator, or the
+    // ad-hoc --llm-tool/--model/--model-server trio). The chosen model server's
+    // env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, …) are threaded into
+    // LaunchOptions.provider.env and exported before the agent CLI spawns.
+    let launch_options = crate::agents::delegator_resolution::resolve_launch_options(
+        config,
+        overrides.delegator.as_deref(),
+        overrides.llm_tool.as_deref(),
+        overrides.model.as_deref(),
+        overrides.model_server.as_deref(),
+        false,
+        None,
+    )
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // Check tmux availability before launching
     if let Err(err) = check_tmux_available() {
@@ -518,7 +602,9 @@ async fn cmd_launch(
 
     // Launch agent
     let launcher = agents::Launcher::new(config)?;
-    launcher.launch(&ticket).await?;
+    launcher
+        .launch_with_options(&ticket, launch_options)
+        .await?;
 
     println!("Launched agent for {}-{}", ticket.ticket_type, ticket.id);
 
@@ -669,6 +755,48 @@ async fn cmd_create(
     Ok(())
 }
 
+fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {
+    match action {
+        WorkflowAction::Export { ticket, out } => {
+            // Resolve the ticket (by id via the queue, or as a direct file path).
+            // Resolution is the only edge-specific step; the registry build and
+            // the export itself go through the same shared path as the REST API.
+            let resolved = {
+                let path = std::path::Path::new(&ticket);
+                if path.is_file() {
+                    queue::Ticket::from_file(path)?
+                } else {
+                    let queue = queue::Queue::new(config)?;
+                    queue
+                        .find_ticket(&ticket)?
+                        .ok_or_else(|| anyhow::anyhow!("Ticket not found: {ticket}"))?
+                }
+            };
+
+            // Same registry loader the REST API (ApiState::new) uses.
+            let registry = startup::templates::load_registry(&config.tickets_path());
+            let exported =
+                workflow_gen::export_workflow_for_ticket(&resolved, &registry, None, config)?;
+
+            match out.as_deref() {
+                Some(p) if p == std::path::Path::new("-") => {
+                    print!("{}", exported.contents);
+                }
+                Some(p) => {
+                    std::fs::write(p, &exported.contents)?;
+                    println!("Wrote workflow to {}", p.display());
+                }
+                None => {
+                    let default = PathBuf::from(&exported.suggested_filename);
+                    std::fs::write(&default, &exported.contents)?;
+                    println!("Wrote workflow to {}", default.display());
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
     use docs_gen::{
         cli, config, config_schema, issuetype, issuetype_json_schema, jira_api, metadata, openapi,
@@ -775,7 +903,7 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
     Ok(())
 }
 
-async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
+async fn cmd_api(config: &Config, port: Option<u16>, open: bool) -> Result<()> {
     let port = port.unwrap_or(config.rest_api.port);
 
     println!("Starting REST API server...");
@@ -790,9 +918,47 @@ async fn cmd_api(config: &Config, port: Option<u16>) -> Result<()> {
     println!("    GET  /api/v1/collections      List collections");
     println!();
 
+    if open {
+        let url = format!("http://localhost:{port}/");
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            let opener = if cfg!(target_os = "macos") {
+                "open"
+            } else if cfg!(target_os = "windows") {
+                "cmd"
+            } else {
+                "xdg-open"
+            };
+            if cfg!(target_os = "windows") {
+                let _ = std::process::Command::new(opener)
+                    .args(["/C", "start", &url])
+                    .spawn();
+            } else {
+                let _ = std::process::Command::new(opener).arg(&url).spawn();
+            }
+        });
+    }
+
     let state = rest::ApiState::new(config.clone(), config.tickets_path());
     rest::serve(state, port).await?;
 
+    Ok(())
+}
+
+async fn cmd_mcp(config: &Config) -> Result<()> {
+    let state = rest::ApiState::new(config.clone(), config.tickets_path());
+    tracing::info!("Starting MCP stdio server");
+    mcp::stdio::run(state, tokio::io::stdin(), tokio::io::stdout()).await?;
+    tracing::info!("MCP stdio server stopped (stdin closed)");
+    Ok(())
+}
+
+async fn cmd_acp(config: &Config) -> Result<()> {
+    tracing::info!("Starting ACP stdio agent");
+    acp::run_stdio(config.clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("ACP transport error: {e:?}"))?;
+    tracing::info!("ACP agent stopped (stdin closed)");
     Ok(())
 }
 
@@ -801,7 +967,6 @@ fn cmd_setup(
     mut config: Config,
     interactive: bool,
     collection: String,
-    backstage: bool,
     force: bool,
     working_dir: Option<PathBuf>,
     kanban_provider: Option<String>,
@@ -850,7 +1015,6 @@ fn cmd_setup(
 
     let options = SetupOptions {
         preset,
-        backstage_enabled: backstage,
         force,
         working_dir,
         kanban_provider,
@@ -872,14 +1036,6 @@ fn cmd_setup(
 
     println!("Initializing operator workspace...");
     println!("  Collection: {:?}", options.preset);
-    println!(
-        "  Backstage:  {}",
-        if options.backstage_enabled {
-            "enabled"
-        } else {
-            "disabled"
-        }
-    );
     println!("  Force:      {}", options.force);
     if let Some(ref dir) = options.working_dir {
         println!("  Working Dir: {}", dir.display());

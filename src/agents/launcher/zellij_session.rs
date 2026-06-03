@@ -20,7 +20,7 @@ use super::llm_command::{
 use super::options::{LaunchOptions, RelaunchOptions};
 use super::prompt::{
     generate_session_uuid, get_agent_prompt, get_template_prompt, write_command_file,
-    write_prompt_file,
+    write_prompt_file, OperatorEnvVars,
 };
 /// Result of launching in zellij — includes tab name for state tracking
 #[derive(Debug, Clone)]
@@ -38,6 +38,7 @@ pub fn launch_in_zellij_with_options(
     project_path: &str,
     initial_prompt: &str,
     options: &LaunchOptions,
+    operator_env: &OperatorEnvVars,
 ) -> Result<ZellijLaunchResult> {
     // Check zellij is available and we're inside zellij
     zellij
@@ -132,11 +133,23 @@ pub fn launch_in_zellij_with_options(
     }
 
     if options.docker_mode {
-        llm_cmd = build_docker_command(config, &llm_cmd, project_path)?;
+        llm_cmd = build_docker_command(
+            config,
+            &llm_cmd,
+            project_path,
+            options.provider.as_ref().map(|p| &p.env),
+        )?;
     }
 
     // Write the command to a shell script file
-    let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+    let command_file = write_command_file(
+        config,
+        &session_uuid,
+        project_path,
+        &llm_cmd,
+        Some(operator_env),
+        options.provider.as_ref().map(|p| &p.env),
+    )?;
 
     // Inject relay env vars so agents can find the hub and register with their ticket ID
     if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
@@ -183,6 +196,7 @@ pub fn launch_in_zellij_with_relaunch_options(
     project_path: &str,
     initial_prompt: &str,
     options: &RelaunchOptions,
+    operator_env: &OperatorEnvVars,
 ) -> Result<ZellijLaunchResult> {
     // Check zellij is available and we're inside zellij
     zellij
@@ -292,11 +306,23 @@ pub fn launch_in_zellij_with_relaunch_options(
     }
 
     if options.launch_options.docker_mode {
-        llm_cmd = build_docker_command(config, &llm_cmd, project_path)?;
+        llm_cmd = build_docker_command(
+            config,
+            &llm_cmd,
+            project_path,
+            options.launch_options.provider.as_ref().map(|p| &p.env),
+        )?;
     }
 
     // Write and send command
-    let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+    let command_file = write_command_file(
+        config,
+        &session_uuid,
+        project_path,
+        &llm_cmd,
+        Some(operator_env),
+        options.launch_options.provider.as_ref().map(|p| &p.env),
+    )?;
     if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
         let export_cmd = format!(
             "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}\n",

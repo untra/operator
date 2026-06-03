@@ -21,7 +21,6 @@ import type {
   IssueTypeSummary,
   CollectionResponse,
   ExternalIssueTypeSummary,
-  IssueTypeResponse,
 } from '../../types/messages';
 
 interface ProviderCardProps {
@@ -35,9 +34,8 @@ interface ProviderCardProps {
   collections: CollectionResponse[];
   issueTypes: IssueTypeSummary[];
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
-  selectedIssueType: IssueTypeResponse | null;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
-  onViewIssueType: (key: string) => void;
+  onViewIssueType: () => void;
 }
 
 export function ProviderCard({
@@ -51,7 +49,6 @@ export function ProviderCard({
   collections,
   issueTypes,
   externalIssueTypes,
-  selectedIssueType,
   onGetExternalIssueTypes,
   onViewIssueType,
 }: ProviderCardProps) {
@@ -230,7 +227,6 @@ export function ProviderCard({
                   collections={collections}
                   issueTypes={issueTypes}
                   externalTypes={externalIssueTypes.get(`${type}/${key}`)}
-                  selectedIssueType={selectedIssueType}
                   onUpdate={onUpdate}
                   onGetExternalIssueTypes={onGetExternalIssueTypes}
                   onViewIssueType={onViewIssueType}

@@ -34,7 +34,7 @@ default_branch: string | null,
  */
 ai_context_path: string | null, 
 /**
- * Backstage taxonomy kind (tier 1-5)
+ * Project taxonomy kind (tier 1-5)
  */
 kind: string | null, 
 /**
@@ -272,7 +272,7 @@ projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfi
 /**
  * Session wrapper configuration (tmux, vscode, or cmux)
  */
-sessions: SessionsConfig, llm_tools: LlmToolsConfig, backstage: BackstageConfig, rest_api: RestApiConfig, git: GitConfig, 
+sessions: SessionsConfig, llm_tools: LlmToolsConfig, rest_api: RestApiConfig, git: GitConfig, 
 /**
  * Kanban provider configuration for syncing issues from Jira, Linear, etc.
  */
@@ -289,9 +289,26 @@ delegators: Array<Delegator>,
  * User-declared model servers (ollama, lmstudio, any OpenAI-compat host).
  * Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.
  */
-model_servers: Array<ModelServer>, };
+model_servers: Array<ModelServer>, 
+/**
+ * Relay MCP injection configuration
+ */
+relay: RelayConfig, 
+/**
+ * Model Context Protocol (MCP) server configuration
+ */
+mcp: McpConfig, 
+/**
+ * Agent Client Protocol (ACP) agent configuration
+ */
+acp: AcpConfig, };
 
-export type AgentsConfig = { max_parallel: number, cores_reserved: number, health_check_interval: bigint, 
+export type AgentsConfig = { max_parallel: number, cores_reserved: number, 
+/**
+ * Maximum concurrent agents per project/repo (default: 1).
+ * Requires `git.use_worktrees` = true when > 1 to avoid conflicts.
+ */
+max_agents_per_repo: number, health_check_interval: bigint, 
 /**
  * Timeout in seconds for each agent generation (default: 300 = 5 min)
  */
@@ -382,85 +399,6 @@ export type TmuxConfig = {
  * Whether custom tmux config has been generated
  */
 config_generated: boolean, };
-
-export type BackstageConfig = { 
-/**
- * Whether Backstage integration is enabled
- */
-enabled: boolean, 
-/**
- * Whether to show Backstage in the Connections status section
- */
-display: boolean, 
-/**
- * Port for the Backstage server
- */
-port: number, 
-/**
- * Auto-start Backstage server when TUI launches
- */
-auto_start: boolean, 
-/**
- * Subdirectory within `state_path` for Backstage installation
- */
-subpath: string, 
-/**
- * Subdirectory within backstage path for branding customization
- */
-branding_subpath: string, 
-/**
- * Base URL for downloading backstage-server binary
- */
-release_url: string, 
-/**
- * Optional local path to backstage-server binary
- * If set, this is used instead of downloading from `release_url`
- */
-local_binary_path: string | null, 
-/**
- * Branding and theming configuration
- */
-branding: BrandingConfig, };
-
-export type BrandingConfig = { 
-/**
- * App title shown in header
- */
-app_title: string, 
-/**
- * Organization name
- */
-org_name: string, 
-/**
- * Path to logo SVG (relative to branding path)
- */
-logo_path: string | null, 
-/**
- * Theme colors (uses Operator defaults if not set)
- */
-colors: ThemeColors, };
-
-export type ThemeColors = { 
-/**
- * Primary/accent color (default: salmon #cc6c55)
- */
-primary: string, 
-/**
- * Secondary color (default: dark teal #114145)
- */
-secondary: string, 
-/**
- * Accent/highlight color (default: cream #f4dbb7)
- */
-accent: string, 
-/**
- * Warning/error color (default: coral #d46048)
- */
-warning: string, 
-/**
- * Muted text color (default: darker salmon #8a4a3a)
- */
-muted: string, };
 
 export type RestApiConfig = { 
 /**
@@ -663,7 +601,11 @@ prompt_prefix: string | null,
 /**
  * Prompt text to append after the generated step prompt
  */
-prompt_suffix: string | null, };
+prompt_suffix: string | null, 
+/**
+ * Override global relay auto-inject MCP setting per-delegator (None = use global setting)
+ */
+operator_relay: boolean | null, };
 
 export type CollectionPreset = "simple" | "dev_kanban" | "devops_kanban" | "custom";
 
@@ -843,6 +785,95 @@ export type HealthResponse = { status: string, version: string, };
 
 export type StatusResponse = { status: string, version: string, issuetype_count: number, collection_count: number, active_collection: string, };
 
+export type SectionDto = { 
+/**
+ * Stable section id (e.g. "config", "connections", "kanban").
+ */
+id: string, label: string, 
+/**
+ * Health: "green" | "yellow" | "red" | "gray".
+ */
+health: string, description: string, 
+/**
+ * Section ids that must be Green before this section is usable.
+ */
+prerequisites: Array<string>, 
+/**
+ * Whether all prerequisites are met. Sections are always returned (the web
+ * UI styles unmet ones as locked) rather than hidden by progressive disclosure.
+ */
+met: boolean, children: Array<SectionRowDto>, };
+
+export type SectionRowDto = { 
+/**
+ * Stable, section-scoped row id. Clients use it as a tree key and to route
+ * row-specific commands without matching on the (mutable) display label.
+ * Dynamic rows carry their entity key (issue-type key, project name);
+ * static rows carry a fixed slug (e.g. "git-token").
+ */
+id: string, 
+/**
+ * Nesting depth within the section (1 = direct child, 2 = grandchild).
+ * Lets clients rebuild the tree (e.g. LLM tools → model aliases).
+ */
+depth: number, label: string, description: string, 
+/**
+ * Icon hint (e.g. "check", "warning", "tool", "folder").
+ */
+icon: string, 
+/**
+ * Health: "green" | "yellow" | "red" | "gray".
+ */
+health: string, 
+/**
+ * Browser-openable actions for this row (links shown in the web UI).
+ */
+actions: Array<RowActionDto>, };
+
+export type KanbanProviderCatalogEntry = { 
+/**
+ * Stable lowercase slug ("jira" | "linear" | "github").
+ */
+slug: string, 
+/**
+ * Human-readable name (e.g. "Jira Cloud", "GitHub Projects").
+ */
+display_name: string, 
+/**
+ * One-line connect description shown next to the provider.
+ */
+description: string, 
+/**
+ * Credential/token page opened when the user chooses to configure it.
+ */
+setup_url: string, 
+/**
+ * VS Code codicon hint (rendered as `$(icon)` in the picker).
+ */
+icon: string, 
+/**
+ * Whether at least one instance of this provider is already configured.
+ */
+configured: boolean, };
+
+export type WorkflowExportResponse = { 
+/**
+ * The ticket the workflow was generated from.
+ */
+ticket_id: string, 
+/**
+ * The issue type key that supplied the step structure.
+ */
+issuetype_key: string, 
+/**
+ * Suggested filename for saving the workflow (`<ticket-id>.workflow.js`).
+ */
+suggested_filename: string, 
+/**
+ * The generated `.js` workflow source.
+ */
+contents: string, };
+
 export type SkillEntry = { 
 /**
  * Tool this skill belongs to (e.g., "claude", "codex")
@@ -973,7 +1004,11 @@ prompt_prefix: string | null,
 /**
  * Prompt text to append after the generated step prompt
  */
-prompt_suffix: string | null, };
+prompt_suffix: string | null, 
+/**
+ * Override global relay auto-inject MCP setting per-delegator (None = use global setting)
+ */
+operator_relay: boolean | null, };
 
 export type LlmTask = { 
 /**

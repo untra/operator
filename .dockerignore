@@ -1,0 +1,4 @@
+# Build context only needs the prebuilt binaries staged by CI.
+*
+!operator-linux-amd64
+!operator-linux-arm64

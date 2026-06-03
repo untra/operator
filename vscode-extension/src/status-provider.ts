@@ -78,6 +78,9 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     this.modelServerSection = new ModelServerSection();
     this.managedProjectsSection = new ManagedProjectsSection();
 
+    // Canonical section order — must match the `SectionId` enum in
+    // src/ui/status_panel.rs (the single source of truth) and the TUI's
+    // section registry, so all three surfaces stay in sync.
     this.allSections = [
       this.configSection,
       this.connectionsSection,
@@ -138,7 +141,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       const raw = await fs.readFile(configPath, 'utf-8');
       if (raw.trim()) {
         const { parse } = await importSmolToml();
-        this.parsedConfig = parse(raw) as Record<string, unknown>;
+        this.parsedConfig = parse(raw);
       } else {
         this.parsedConfig = {};
       }

@@ -13,12 +13,12 @@ This page is the authoritative reference for what Operator supports on each oper
 | Feature | macOS | Linux | Windows |
 |---------|-------|-------|---------|
 | Session manager: VS Code Extension | ✅ | ✅ | ✅ Required |
+| Session manager: Cursor | ✅ | ✅ | ✅ |
 | Session manager: tmux | ✅ | ✅ | ❌ |
 | Session manager: cmux | ✅ | ❌ | ❌ |
 | Session manager: Zellij | ✅ | ✅ | ❌ |
 | Relay hub (multi-agent) | ✅ | ✅ | ❌ |
 | `opr8r relay` subcommand | ✅ | ✅ | ❌ |
-| Backstage Server | ✅ | ✅ | ❌ |
 | Native OS notifications | ✅ | ✅ | ⚠️ |
 | Kanban: Jira Cloud | ✅ | ✅ | ✅ |
 | Kanban: Linear | ✅ | ✅ | ✅ |
@@ -40,7 +40,6 @@ Windows is a supported download target. The step-wrapper (`opr8r`), REST API, ka
 | Feature | Status | Reason | Workaround |
 |---------|--------|--------|------------|
 | Relay hub / `opr8r relay` | ❌ Blocked | Requires Unix domain sockets (`tokio::net::unix`), which are not available on Windows | None yet. Planned: named-pipe or TCP-loopback transport in a future release |
-| Backstage Server | ❌ Blocked | Not yet ported to Windows | None. No timeline committed |
 | tmux session manager | ❌ N/A | tmux does not run on Windows | Use the VS Code Extension |
 | cmux session manager | ❌ N/A | cmux is macOS-specific | Use the VS Code Extension |
 | Zellij session manager | ❌ N/A | Zellij does not run on Windows | Use the VS Code Extension |

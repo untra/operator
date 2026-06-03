@@ -28,10 +28,10 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.95
         with:
           components: rustfmt, clippy
 
@@ -50,10 +50,10 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
       - name: Run tests
-        run: cargo test --all-features
+        run: cargo test --locked --all-features
 
       - name: cargo-deny
         uses: EmbarkStudios/cargo-deny-action@v2
@@ -71,10 +71,10 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.95
         with:
           components: llvm-tools-preview
 
@@ -90,10 +90,10 @@ jobs:
             opr8r-${{ runner.os }}-cargo-coverage-
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+        uses: taiki-e/install-action@v2
 
       - name: Generate coverage
-        run: cargo llvm-cov --all-features --codecov --output-path codecov.json
+        run: cargo llvm-cov --locked --all-features --codecov --output-path codecov.json
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
@@ -128,10 +128,10 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -145,7 +145,7 @@ jobs:
             opr8r-${{ matrix.artifact }}-cargo-
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --locked --release
 
       - name: Strip binary (Linux/macOS)
         if: runner.os != 'Windows'

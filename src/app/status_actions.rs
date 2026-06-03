@@ -1,11 +1,48 @@
 use anyhow::Result;
 
 use crate::config::SessionWrapperType;
+use crate::rest::web_ui::EmbeddedUiState;
 use crate::ui::status_panel::StatusAction;
 use crate::ui::with_suspended_tui;
 
 use super::git_onboarding;
 use super::{App, AppTerminal};
+
+/// Decision from `decide_open_web_ui`: either open a URL or surface a status
+/// message explaining why we can't.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum WebUiOutcome {
+    Open(String),
+    StatusOnly(String),
+}
+
+/// Pure decision logic for "user pressed `w` / clicked Open Web UI".
+///
+/// Kept free of `&self` so it can be unit-tested without spinning up an `App`.
+/// Callers resolve the inputs from runtime state and act on the returned
+/// outcome (open the URL or just show the status message).
+pub(super) fn decide_open_web_ui(
+    api_running: bool,
+    url: &str,
+    state: EmbeddedUiState,
+) -> WebUiOutcome {
+    if !api_running {
+        return WebUiOutcome::StatusOnly(
+            "API not running — press Enter on the Operator API row to start it.".into(),
+        );
+    }
+    match state {
+        EmbeddedUiState::Ready => WebUiOutcome::Open(url.to_string()),
+        EmbeddedUiState::Placeholder => WebUiOutcome::StatusOnly(
+            "Web UI placeholder detected — run `cd ui && bun run build` and rebuild operator."
+                .into(),
+        ),
+        EmbeddedUiState::Missing => WebUiOutcome::StatusOnly(
+            "Binary built without `embed-ui` feature — rebuild with `cargo build` (default) or `--features embed-ui`."
+                .into(),
+        ),
+    }
+}
 
 /// Open a URL in the default browser.
 pub(super) fn open_in_browser(url: &str) -> std::io::Result<()> {
@@ -83,17 +120,23 @@ impl App {
             StatusAction::RestartWrapperConnection => {
                 self.restart_wrapper_connection();
             }
-            StatusAction::ToggleWebServers => {
-                self.toggle_web_servers(terminal)?;
+            StatusAction::OpenWebUi { port } => {
+                let url = format!("http://localhost:{port}/");
+                self.try_open_web_ui(&url);
+            }
+            StatusAction::OpenWebUiAt { port, route } => {
+                let url = format!("http://localhost:{port}/#{route}");
+                self.try_open_web_ui(&url);
             }
             StatusAction::SetDefaultLlm { tool_name, model } => {
                 self.set_default_llm(&tool_name, &model);
             }
             StatusAction::ConfigureKanbanProvider { provider } => {
-                let url = match provider.as_str() {
-                    "jira" => "https://id.atlassian.com/manage-profile/security/api-tokens",
-                    "linear" => "https://linear.app/settings/api",
-                    _ => return Ok(()),
+                let Some(url) =
+                    crate::api::providers::kanban::KanbanProviderType::from_slug(&provider)
+                        .map(|p| p.setup_url())
+                else {
+                    return Ok(());
                 };
                 if let Err(e) = open_in_browser(url) {
                     self.dashboard
@@ -101,6 +144,22 @@ impl App {
                 } else {
                     self.dashboard.set_status(&format!(
                         "Opened {provider} API key page — add credentials to config.toml"
+                    ));
+                }
+            }
+            StatusAction::ConfigureModelServer { kind } => {
+                let Some(url) =
+                    crate::api::providers::model_server::ModelServerKind::from_slug(&kind)
+                        .map(|k| k.setup_url())
+                else {
+                    return Ok(());
+                };
+                if let Err(e) = open_in_browser(url) {
+                    self.dashboard
+                        .set_status(&format!("Failed to open {kind} setup: {e}"));
+                } else {
+                    self.dashboard.set_status(&format!(
+                        "Opened {kind} setup page — add a [[model_servers]] entry to your config"
                     ));
                 }
             }
@@ -181,6 +240,103 @@ impl App {
                         .set_status(&format!("Failed to reload config: {e}"));
                 }
             },
+            StatusAction::ToggleMcpHttp => {
+                self.config.mcp.http_enabled = !self.config.mcp.http_enabled;
+                self.dashboard.update_config(&self.config);
+                self.dashboard.set_status(if self.config.mcp.http_enabled {
+                    "MCP HTTP enabled — restart the API to mount routes"
+                } else {
+                    "MCP HTTP disabled — restart the API to unmount routes"
+                });
+            }
+            StatusAction::WriteAndOpenMcpClientConfig { client } => {
+                let cwd = std::env::current_dir().unwrap_or_default();
+                let Some(snippet) = crate::mcp::client_configs::snippet_for(&client, &cwd) else {
+                    self.dashboard
+                        .set_status(&format!("Unknown MCP client: {client}"));
+                    return Ok(());
+                };
+                let dir = self.config.tickets_path().join("operator/mcp");
+                if let Err(e) = std::fs::create_dir_all(&dir) {
+                    self.dashboard
+                        .set_status(&format!("Failed to create {}: {e}", dir.display()));
+                    return Ok(());
+                }
+                let path = dir.join(format!("{client}.json"));
+                let body = serde_json::to_string_pretty(&snippet).unwrap_or_default();
+                if let Err(e) = std::fs::write(&path, body) {
+                    self.dashboard
+                        .set_status(&format!("Failed to write {}: {e}", path.display()));
+                    return Ok(());
+                }
+                let cmd = self.dashboard.editor_config.file_editor().to_string();
+                with_suspended_tui(terminal, || {
+                    let (prog, args) = crate::editors::EditorConfig::split_command(&cmd);
+                    let result = std::process::Command::new(prog)
+                        .args(&args)
+                        .arg(&path)
+                        .status();
+                    if let Err(e) = result {
+                        tracing::warn!("Failed to open editor: {}", e);
+                    }
+                    Ok(())
+                })?;
+            }
+            StatusAction::OpenMcpDocs => {
+                if let Err(e) = open_in_browser("https://operator.untra.io/mcp/") {
+                    self.dashboard
+                        .set_status(&format!("Failed to open MCP docs: {e}"));
+                }
+            }
+            StatusAction::WriteAndOpenAcpEditorConfig { editor } => {
+                let Some(snippet) = crate::acp::client_configs::snippet_for(&editor) else {
+                    self.dashboard
+                        .set_status(&format!("Unknown ACP editor: {editor}"));
+                    return Ok(());
+                };
+                let dir = self.config.tickets_path().join("operator/acp");
+                if let Err(e) = std::fs::create_dir_all(&dir) {
+                    self.dashboard
+                        .set_status(&format!("Failed to create {}: {e}", dir.display()));
+                    return Ok(());
+                }
+                // Text-format editors (emacs elisp, kiro TOML) deserialise into
+                // a JSON string; everything else is a structured Value.
+                let (extension, body) = match snippet {
+                    serde_json::Value::String(s) => {
+                        let ext = if editor == "emacs" { "el" } else { "toml" };
+                        (ext, s)
+                    }
+                    other => (
+                        "json",
+                        serde_json::to_string_pretty(&other).unwrap_or_default(),
+                    ),
+                };
+                let path = dir.join(format!("{editor}.{extension}"));
+                if let Err(e) = std::fs::write(&path, body) {
+                    self.dashboard
+                        .set_status(&format!("Failed to write {}: {e}", path.display()));
+                    return Ok(());
+                }
+                let cmd = self.dashboard.editor_config.file_editor().to_string();
+                with_suspended_tui(terminal, || {
+                    let (prog, args) = crate::editors::EditorConfig::split_command(&cmd);
+                    let result = std::process::Command::new(prog)
+                        .args(&args)
+                        .arg(&path)
+                        .status();
+                    if let Err(e) = result {
+                        tracing::warn!("Failed to open editor: {}", e);
+                    }
+                    Ok(())
+                })?;
+            }
+            StatusAction::OpenAcpDocs => {
+                if let Err(e) = open_in_browser("https://operator.untra.io/acp/") {
+                    self.dashboard
+                        .set_status(&format!("Failed to open ACP docs: {e}"));
+                }
+            }
             StatusAction::None => {}
         }
         Ok(())
@@ -245,49 +401,92 @@ impl App {
             .set_status(&format!("Default LLM set to {tool_name}:{model}"));
     }
 
-    /// Toggle both REST API and Backstage servers together.
-    pub(super) fn toggle_web_servers(&mut self, terminal: &mut AppTerminal) -> Result<()> {
-        let backstage_running = self.backstage_server.is_running();
-        let rest_running = self.rest_api_server.is_running();
-
-        if backstage_running && rest_running {
-            // Both running - stop both
-            self.rest_api_server.stop();
-            if let Err(e) = self.backstage_server.stop() {
-                tracing::error!("Backstage stop failed: {}", e);
-            }
-        } else {
-            // Show yellow "Starting" indicator immediately for feedback
-            use crate::backstage::ServerStatus;
-            self.dashboard
-                .update_backstage_status(ServerStatus::Starting);
-            terminal.draw(|f| self.dashboard.render(f))?;
-
-            // Start both if not running
-            if !rest_running {
-                if let Err(e) = self.rest_api_server.start() {
-                    tracing::error!("REST API start failed: {}", e);
-                }
-            }
-            if !backstage_running {
-                if let Err(e) = self.backstage_server.start() {
-                    tracing::error!("Backstage start failed: {}", e);
-                }
-            }
-            // Wait for server to be ready before opening browser
-            if self.backstage_server.is_running() {
-                match self.backstage_server.wait_for_ready(25000) {
-                    Ok(()) => {
-                        if let Err(e) = self.backstage_server.open_browser() {
-                            tracing::warn!("Failed to open browser: {}", e);
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!("Server not ready: {}", e);
-                    }
-                }
-            }
-        }
+    /// Open the embedded web UI in the default browser.
+    pub(super) fn open_web_ui(&mut self) -> Result<()> {
+        let port = self.config.rest_api.port;
+        let url = format!("http://localhost:{port}/");
+        self.try_open_web_ui(&url);
         Ok(())
+    }
+
+    /// Shared implementation: consult `decide_open_web_ui`, either spawn the
+    /// browser or surface a status message explaining the failure.
+    fn try_open_web_ui(&mut self, url: &str) {
+        let outcome = decide_open_web_ui(
+            self.rest_api_server.is_running(),
+            url,
+            crate::rest::web_ui::embedded_ui_state(),
+        );
+        match outcome {
+            WebUiOutcome::Open(url) => match open_in_browser(&url) {
+                Ok(()) => self
+                    .dashboard
+                    .set_status(&format!("Opened web UI at {url}")),
+                Err(e) => self
+                    .dashboard
+                    .set_status(&format!("Failed to open browser: {e}")),
+            },
+            WebUiOutcome::StatusOnly(msg) => self.dashboard.set_status(&msg),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const URL: &str = "http://localhost:7008/";
+
+    #[test]
+    fn test_decide_open_web_ui_api_stopped_returns_status_message() {
+        let outcome = decide_open_web_ui(false, URL, EmbeddedUiState::Ready);
+        match outcome {
+            WebUiOutcome::StatusOnly(msg) => {
+                assert!(msg.contains("API not running"), "got: {msg}");
+            }
+            other => panic!("expected StatusOnly, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_decide_open_web_ui_ready_returns_url() {
+        let outcome = decide_open_web_ui(true, URL, EmbeddedUiState::Ready);
+        assert_eq!(outcome, WebUiOutcome::Open(URL.to_string()));
+    }
+
+    #[test]
+    fn test_decide_open_web_ui_placeholder_warns_user() {
+        let outcome = decide_open_web_ui(true, URL, EmbeddedUiState::Placeholder);
+        match outcome {
+            WebUiOutcome::StatusOnly(msg) => {
+                assert!(msg.contains("placeholder"), "got: {msg}");
+                assert!(msg.contains("bun run build"), "got: {msg}");
+            }
+            other => panic!("expected StatusOnly, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_decide_open_web_ui_missing_warns_user() {
+        let outcome = decide_open_web_ui(true, URL, EmbeddedUiState::Missing);
+        match outcome {
+            WebUiOutcome::StatusOnly(msg) => {
+                assert!(msg.contains("embed-ui"), "got: {msg}");
+            }
+            other => panic!("expected StatusOnly, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_decide_open_web_ui_api_stopped_takes_precedence_over_missing() {
+        // Even if the UI is missing, the user's first problem to solve is
+        // starting the API — surface that message, not the embed-ui one.
+        let outcome = decide_open_web_ui(false, URL, EmbeddedUiState::Missing);
+        match outcome {
+            WebUiOutcome::StatusOnly(msg) => {
+                assert!(msg.contains("API not running"), "got: {msg}");
+            }
+            other => panic!("expected StatusOnly, got {other:?}"),
+        }
     }
 }

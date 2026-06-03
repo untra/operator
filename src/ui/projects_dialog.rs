@@ -44,7 +44,7 @@ impl ProjectAction {
     pub fn label(&self) -> &'static str {
         match self {
             ProjectAction::AddOperatorAgents => "Add Operator agents",
-            ProjectAction::AssessProject => "Assess for Backstage",
+            ProjectAction::AssessProject => "Assess Project",
         }
     }
 
@@ -188,23 +188,19 @@ impl ProjectsDialog {
 
     fn handle_project_key(&mut self, key: KeyCode) -> Option<ProjectsDialogResult> {
         match key {
-            KeyCode::Up | KeyCode::Char('k') => {
-                if !self.projects.is_empty() {
-                    let i = match self.project_state.selected() {
-                        Some(i) if i > 0 => i - 1,
-                        _ => self.projects.len().saturating_sub(1),
-                    };
-                    self.project_state.select(Some(i));
-                }
+            KeyCode::Up | KeyCode::Char('k') if !self.projects.is_empty() => {
+                let i = match self.project_state.selected() {
+                    Some(i) if i > 0 => i - 1,
+                    _ => self.projects.len().saturating_sub(1),
+                };
+                self.project_state.select(Some(i));
             }
-            KeyCode::Down | KeyCode::Char('j') => {
-                if !self.projects.is_empty() {
-                    let i = match self.project_state.selected() {
-                        Some(i) if i < self.projects.len() - 1 => i + 1,
-                        _ => 0,
-                    };
-                    self.project_state.select(Some(i));
-                }
+            KeyCode::Down | KeyCode::Char('j') if !self.projects.is_empty() => {
+                let i = match self.project_state.selected() {
+                    Some(i) if i < self.projects.len() - 1 => i + 1,
+                    _ => 0,
+                };
+                self.project_state.select(Some(i));
             }
             KeyCode::Enter => {
                 if let Some(i) = self.project_state.selected() {
@@ -224,23 +220,19 @@ impl ProjectsDialog {
     fn handle_action_key(&mut self, key: KeyCode) -> Option<ProjectsDialogResult> {
         let actions = ProjectAction::all();
         match key {
-            KeyCode::Up | KeyCode::Char('k') => {
-                if !actions.is_empty() {
-                    let i = match self.action_state.selected() {
-                        Some(i) if i > 0 => i - 1,
-                        _ => actions.len().saturating_sub(1),
-                    };
-                    self.action_state.select(Some(i));
-                }
+            KeyCode::Up | KeyCode::Char('k') if !actions.is_empty() => {
+                let i = match self.action_state.selected() {
+                    Some(i) if i > 0 => i - 1,
+                    _ => actions.len().saturating_sub(1),
+                };
+                self.action_state.select(Some(i));
             }
-            KeyCode::Down | KeyCode::Char('j') => {
-                if !actions.is_empty() {
-                    let i = match self.action_state.selected() {
-                        Some(i) if i < actions.len() - 1 => i + 1,
-                        _ => 0,
-                    };
-                    self.action_state.select(Some(i));
-                }
+            KeyCode::Down | KeyCode::Char('j') if !actions.is_empty() => {
+                let i = match self.action_state.selected() {
+                    Some(i) if i < actions.len() - 1 => i + 1,
+                    _ => 0,
+                };
+                self.action_state.select(Some(i));
             }
             KeyCode::Enter => {
                 if let Some(i) = self.action_state.selected() {
@@ -624,7 +616,7 @@ mod tests {
             ProjectAction::AddOperatorAgents.label(),
             "Add Operator agents"
         );
-        assert_eq!(ProjectAction::AssessProject.label(), "Assess for Backstage");
+        assert_eq!(ProjectAction::AssessProject.label(), "Assess Project");
     }
 
     #[test]

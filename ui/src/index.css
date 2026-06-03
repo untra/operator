@@ -1,0 +1,66 @@
+/* Operator UI theme
+ * The brand palette + green scale come from the shared single source of truth,
+ * docs/assets/css/tokens.css (imported below). This file adds only the
+ * app-specific semantic + layout tokens the docs site doesn't need
+ * (--surface, --border, --text, --danger, radii, fonts) on top of that palette.
+ */
+
+@import "../../docs/assets/css/tokens.css";
+
+:root {
+  /* UI semantic tokens (light) — built on the shared brand palette */
+  --surface: var(--color-white);
+  --surface-alt: var(--color-cream);
+  --border: #e3dcc4;
+  --text: var(--color-teal);
+  --text-muted: var(--color-cornflower);
+  --danger: var(--color-salmon);
+  --danger-bg: #fbeae6;
+  --warning: #b8860b;
+  --warning-bg: #f7f0d8;
+  --success: var(--color-green-l2);
+  --success-bg: #e4f0ec;
+
+  /* Layout tokens */
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-lg: 8px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
+    monospace;
+}
+
+[data-theme="dark"] {
+  /* UI semantic tokens (dark) — brand vars themselves are overridden in tokens.css */
+  --surface: #1a2426;
+  --surface-alt: #141b1c;
+  --border: #2c3a3c;
+  --text: var(--color-teal);
+  --text-muted: var(--color-cornflower);
+  --danger: var(--color-coral);
+  --danger-bg: #2a1a18;
+  --warning: #e0c060;
+  --warning-bg: #2a2818;
+  --success: var(--color-green-l3);
+  --success-bg: #16302a;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--color-coral);
+}

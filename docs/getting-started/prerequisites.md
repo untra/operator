@@ -80,7 +80,6 @@ dnf install tmux
 Windows support has some limitations:
 
 - **Session Manager**: VS Code Extension is required (tmux not available)
-- **Backstage Server**: Not supported on Windows
 - **Notifications**: Native notifications are planned; currently logs only
 
 See [Platform Support & Limitations](/getting-started/platform-support/) for a complete list of OS-specific gaps, their reasons, and planned resolutions.
@@ -94,10 +93,6 @@ At least one AI coding agent should be installed:
 - [Claude Code](/getting-started/agents/claude/) (recommended)
 - [Codex](/getting-started/agents/codex/)
 - [Gemini](/getting-started/agents/gemini/)
-
-### Backstage Server (macOS/Linux only)
-
-For centralized project management across multiple repositories, see [Backstage Server Setup](/getting-started/backstage-server/). Note: Not supported on Windows.
 
 ### Kanban Integration
 

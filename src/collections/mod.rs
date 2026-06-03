@@ -118,50 +118,50 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
             },
         ],
     },
-    // Backstage Full collection: All 8 issuetypes
+    // Full collection: All 8 issuetypes
     EmbeddedCollection {
-        name: "backstage_full",
-        manifest: include_str!("backstage_full/collection.toml"),
+        name: "full",
+        manifest: include_str!("full/collection.toml"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "TASK",
-                schema_json: include_str!("backstage_full/TASK.json"),
-                template_md: include_str!("backstage_full/TASK.md"),
+                schema_json: include_str!("full/TASK.json"),
+                template_md: include_str!("full/TASK.md"),
             },
             EmbeddedIssueType {
                 key: "FEAT",
-                schema_json: include_str!("backstage_full/FEAT.json"),
-                template_md: include_str!("backstage_full/FEAT.md"),
+                schema_json: include_str!("full/FEAT.json"),
+                template_md: include_str!("full/FEAT.md"),
             },
             EmbeddedIssueType {
                 key: "FIX",
-                schema_json: include_str!("backstage_full/FIX.json"),
-                template_md: include_str!("backstage_full/FIX.md"),
+                schema_json: include_str!("full/FIX.json"),
+                template_md: include_str!("full/FIX.md"),
             },
             EmbeddedIssueType {
                 key: "SPIKE",
-                schema_json: include_str!("backstage_full/SPIKE.json"),
-                template_md: include_str!("backstage_full/SPIKE.md"),
+                schema_json: include_str!("full/SPIKE.json"),
+                template_md: include_str!("full/SPIKE.md"),
             },
             EmbeddedIssueType {
                 key: "INV",
-                schema_json: include_str!("backstage_full/INV.json"),
-                template_md: include_str!("backstage_full/INV.md"),
+                schema_json: include_str!("full/INV.json"),
+                template_md: include_str!("full/INV.md"),
             },
             EmbeddedIssueType {
                 key: "ASSESS",
-                schema_json: include_str!("backstage_full/ASSESS.json"),
-                template_md: include_str!("backstage_full/ASSESS.md"),
+                schema_json: include_str!("full/ASSESS.json"),
+                template_md: include_str!("full/ASSESS.md"),
             },
             EmbeddedIssueType {
                 key: "SYNC",
-                schema_json: include_str!("backstage_full/SYNC.json"),
-                template_md: include_str!("backstage_full/SYNC.md"),
+                schema_json: include_str!("full/SYNC.json"),
+                template_md: include_str!("full/SYNC.md"),
             },
             EmbeddedIssueType {
                 key: "INIT",
-                schema_json: include_str!("backstage_full/INIT.json"),
-                template_md: include_str!("backstage_full/INIT.md"),
+                schema_json: include_str!("full/INIT.json"),
+                template_md: include_str!("full/INIT.md"),
             },
         ],
     },
@@ -238,8 +238,8 @@ mod tests {
         assert_eq!(operator.name, "operator");
         assert_eq!(operator.issuetypes.len(), 5);
 
-        let full = get_embedded_collection("backstage_full").unwrap();
-        assert_eq!(full.name, "backstage_full");
+        let full = get_embedded_collection("full").unwrap();
+        assert_eq!(full.name, "full");
         assert_eq!(full.issuetypes.len(), 8);
     }
 
@@ -255,7 +255,7 @@ mod tests {
         assert!(names.contains(&"dev_kanban"));
         assert!(names.contains(&"devops_kanban"));
         assert!(names.contains(&"operator"));
-        assert!(names.contains(&"backstage_full"));
+        assert!(names.contains(&"full"));
     }
 
     #[test]

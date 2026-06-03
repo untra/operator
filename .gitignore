@@ -39,8 +39,12 @@ docs/_site/
 # built vscode extension
 *.vsix
 
+# built zed extension
+*.wasm
+
 # vscode-extension generated types (copied from bindings/)
 vscode-extension/src/generated/
 vscode-extension/out/
 vscode-extension/.vscode-test/
 test-output.txt
+.tickets/

@@ -58,7 +58,8 @@ export type WebviewToExtensionMessage =
   | { type: 'getExternalIssueTypes'; provider: string; domain: string; projectKey: string }
   | { type: 'createIssueType'; request: import('../../src/generated/CreateIssueTypeRequest').CreateIssueTypeRequest }
   | { type: 'updateIssueType'; key: string; request: import('../../src/generated/UpdateIssueTypeRequest').UpdateIssueTypeRequest }
-  | { type: 'deleteIssueType'; key: string };
+  | { type: 'deleteIssueType'; key: string }
+  | { type: 'openOperatorUi'; route: 'issuetypes' | 'projects' };
 
 /** Messages from the extension host to the webview */
 export type ExtensionToWebviewMessage =

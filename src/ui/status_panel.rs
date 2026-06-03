@@ -10,12 +10,14 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::backstage::ServerStatus;
+use std::path::Path;
+
+use crate::config::{Config, GitProviderConfig, SessionWrapperType};
 use crate::rest::RestApiStatus;
 
 use super::sections::{
-    ConfigSection, ConnectionsSection, DelegatorSection, GitSection, KanbanSection, LlmSection,
-    ModelServerSection,
+    ConfigSection, ConnectionsSection, DelegatorSection, GitSection, IssueTypeSection,
+    KanbanSection, LlmSection, ManagedProjectsSection, ModelServerSection,
 };
 
 // ---------------------------------------------------------------------------
@@ -71,6 +73,33 @@ impl SectionHealth {
             SectionHealth::Gray => Color::Gray,
         }
     }
+
+    /// Stable lowercase string for serialization (REST / web UI).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SectionHealth::Green => "green",
+            SectionHealth::Yellow => "yellow",
+            SectionHealth::Red => "red",
+            SectionHealth::Gray => "gray",
+        }
+    }
+}
+
+impl SectionId {
+    /// Stable string id matching the serde rename (REST / web UI / VS Code).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SectionId::Configuration => "config",
+            SectionId::Connections => "connections",
+            SectionId::Kanban => "kanban",
+            SectionId::LlmTools => "llm",
+            SectionId::ModelServers => "model-servers",
+            SectionId::Git => "git",
+            SectionId::IssueTypes => "issuetypes",
+            SectionId::Delegators => "delegators",
+            SectionId::ManagedProjects => "projects",
+        }
+    }
 }
 
 /// Declarative section metadata — shared between TUI and `VSCode`.
@@ -118,6 +147,22 @@ impl StatusIcon {
             StatusIcon::None => Span::raw("  "),
         }
     }
+
+    /// Stable lowercase icon name for serialization (REST / web UI).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            StatusIcon::Check => "check",
+            StatusIcon::Cross => "cross",
+            StatusIcon::Warning => "warning",
+            StatusIcon::Folder => "folder",
+            StatusIcon::File => "file",
+            StatusIcon::Plug => "plug",
+            StatusIcon::Key => "key",
+            StatusIcon::Branch => "branch",
+            StatusIcon::Tool => "tool",
+            StatusIcon::None => "none",
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +174,12 @@ impl StatusIcon {
 #[allow(dead_code)]
 pub struct TreeRow {
     pub section_id: SectionId,
+    /// Stable, section-scoped row identifier. Used by clients (web UI, VS Code
+    /// extension) as a tree key and to route row-specific commands without
+    /// matching on the (mutable) display label. For dynamic rows this is the
+    /// underlying entity key (issue-type key, project name, delegator name);
+    /// for static rows it is a fixed slug (e.g. "git-token").
+    pub id: String,
     pub depth: u16,
     pub label: String,
     pub description: String,
@@ -149,28 +200,125 @@ pub enum StatusAction {
     EditFile(String),
     /// Open a URL in the default browser
     OpenUrl(String),
-    /// Start the REST API server (without backstage)
+    /// Start the REST API server
     StartApi,
     /// Open Swagger UI for the running API
     OpenSwagger { port: u16 },
     /// Restart the session wrapper connection
     RestartWrapperConnection,
-    /// Toggle the web servers (backstage + REST API)
-    ToggleWebServers,
+    /// Open the embedded web UI in the default browser
+    OpenWebUi { port: u16 },
+    /// Open the embedded web UI at a specific hash route (e.g. "/config", "/issuetypes")
+    OpenWebUiAt { port: u16, route: String },
     /// Set the global default LLM tool and model
     SetDefaultLlm { tool_name: String, model: String },
     /// Open onboarding for a kanban provider (e.g. "jira", "linear")
     ConfigureKanbanProvider { provider: String },
     /// Open setup page for a git provider (e.g. "github", "gitlab")
     ConfigureGitProvider { provider: String },
+    /// Open the setup page for a model-server kind (e.g. "ollama", "openai-compat")
+    ConfigureModelServer { kind: String },
     /// Re-check a specific section's health status
     RefreshSection(SectionId),
     /// Reset config to factory defaults (TUI: double-confirm dialog)
     ResetConfig,
     /// Reload config from disk and restart operator experience
     ReloadConfig,
+    /// Toggle `[mcp].http_enabled` (requires API restart to take effect).
+    ToggleMcpHttp,
+    /// Generate a client config snippet, write it to
+    /// `<tickets>/operator/mcp/<client>.json`, and open it in `$EDITOR`.
+    /// `client` is one of: "claude-code", "claude-desktop", "cursor", "vscode", "zed".
+    WriteAndOpenMcpClientConfig { client: String },
+    /// Open the operator MCP docs page in the default browser.
+    OpenMcpDocs,
+    /// Generate an ACP editor registration snippet, write it to
+    /// `<tickets>/operator/acp/<editor>.{json,el,toml}`, and open it in
+    /// `$EDITOR`. `editor` is one of: "zed", "jetbrains", "emacs", "kiro".
+    WriteAndOpenAcpEditorConfig { editor: String },
+    /// Open the operator ACP docs page in the default browser.
+    OpenAcpDocs,
     /// No action available for this row
     None,
+}
+
+#[allow(dead_code)]
+impl StatusAction {
+    pub fn display_verb(&self) -> Option<&'static str> {
+        match self {
+            Self::None => None,
+            Self::ToggleSection(_) => Some("Toggle"),
+            Self::OpenDirectory(_) => Some("Open"),
+            Self::EditFile(_) => Some("Edit"),
+            Self::OpenUrl(_) => Some("Open"),
+            Self::StartApi => Some("Start API"),
+            Self::OpenSwagger { .. } => Some("Swagger"),
+            Self::RestartWrapperConnection => Some("Restart"),
+            Self::OpenWebUi { .. } => Some("Web UI"),
+            Self::OpenWebUiAt { .. } => Some("Web UI"),
+            Self::SetDefaultLlm { .. } => Some("Set LLM"),
+            Self::ConfigureKanbanProvider { .. } => Some("Setup"),
+            Self::ConfigureGitProvider { .. } => Some("Setup"),
+            Self::ConfigureModelServer { .. } => Some("Setup"),
+            Self::RefreshSection(_) => Some("Refresh"),
+            Self::ResetConfig => Some("Reset"),
+            Self::ReloadConfig => Some("Reload"),
+            Self::ToggleMcpHttp => Some("Toggle"),
+            Self::WriteAndOpenMcpClientConfig { .. } => Some("Generate"),
+            Self::OpenMcpDocs => Some("Docs"),
+            Self::WriteAndOpenAcpEditorConfig { .. } => Some("Generate"),
+            Self::OpenAcpDocs => Some("Docs"),
+        }
+    }
+
+    /// The browser URL this action opens, if it is a link-style action.
+    ///
+    /// Shared by the TUI action handler (`App::handle_status_action`) and the
+    /// web `/api/v1/sections` projection so both open the same destinations.
+    /// Returns `None` for command/file-writing actions that have no
+    /// web-openable URL.
+    pub fn web_url(&self) -> Option<String> {
+        match self {
+            Self::OpenSwagger { port } => Some(format!("http://localhost:{port}/swagger-ui")),
+            Self::OpenWebUi { port } => Some(format!("http://localhost:{port}/")),
+            Self::OpenWebUiAt { port, route } => Some(format!("http://localhost:{port}/#{route}")),
+            Self::OpenUrl(url) => Some(url.clone()),
+            Self::OpenMcpDocs => Some("https://untra.io/operator/docs/mcp/".to_string()),
+            Self::OpenAcpDocs => Some("https://untra.io/operator/docs/acp/".to_string()),
+            // The web `/#/kanban` "Configure" rows link to the provider's token
+            // page (there is no in-browser onboarding wizard).
+            Self::ConfigureKanbanProvider { provider } => {
+                crate::api::providers::kanban::KanbanProviderType::from_slug(provider)
+                    .map(|p| p.setup_url().to_string())
+            }
+            // The web `/#/model-servers` "Add <kind>" rows link to the kind's
+            // setup/credential page.
+            Self::ConfigureModelServer { kind } => {
+                crate::api::providers::model_server::ModelServerKind::from_slug(kind)
+                    .map(|k| k.setup_url().to_string())
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Hint data for the currently selected status panel row.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct RowHints {
+    pub primary_verb: Option<&'static str>,
+    pub special_title: Option<&'static str>,
+    pub refresh_title: Option<&'static str>,
+}
+
+/// MCP HTTP transport status reflected on the dashboard's MCP row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum McpHttpStatus {
+    /// MCP HTTP routes mounted on the REST API server on the given port.
+    Mounted { port: u16 },
+    /// MCP HTTP routes disabled by `[mcp].http_enabled = false`, or the
+    /// API server itself is not running.
+    NotMounted,
 }
 
 /// Which button was pressed — maps to ABXY gamepad layout.
@@ -298,6 +446,23 @@ pub struct ModelServerInfo {
     pub user_declared: bool,
 }
 
+/// Information about an active issue type (mirrors `IssueTypeSummary` from the REST DTO).
+#[derive(Debug, Clone)]
+pub struct IssueTypeInfo {
+    pub key: String,
+    pub name: String,
+    /// "autonomous" or "paired".
+    pub mode: String,
+}
+
+/// Information about a configured managed project.
+#[derive(Debug, Clone)]
+pub struct ManagedProjectInfo {
+    pub name: String,
+    /// Whether the project directory exists on disk.
+    pub exists: bool,
+}
+
 /// Connection status for the active session wrapper.
 #[derive(Debug, Clone)]
 pub enum WrapperConnectionStatus {
@@ -408,16 +573,22 @@ pub struct StatusSnapshot {
     pub tickets_dir: String,
     pub tickets_dir_exists: bool,
     pub wrapper_type: String,
+    /// Whether operator is running *inside* its configured control wrapper
+    /// (tmux/cmux/zellij/vscode), detected from env markers. Reports how launched
+    /// tickets will be coordinated from the operator control plane.
+    pub operator_inside_wrapper: bool,
     pub operator_version: String,
     pub api_status: RestApiStatus,
-    pub backstage_status: ServerStatus,
-    pub backstage_display: bool,
     pub kanban_providers: Vec<KanbanProviderInfo>,
     pub llm_tools: Vec<LlmToolInfo>,
     pub default_llm_tool: Option<String>,
     pub default_llm_model: Option<String>,
     pub delegators: Vec<DelegatorInfo>,
     pub model_servers: Vec<ModelServerInfo>,
+    /// Active issue types (drives the Issue Types section).
+    pub issue_types: Vec<IssueTypeInfo>,
+    /// Configured managed projects (drives the Managed Projects section).
+    pub managed_projects: Vec<ManagedProjectInfo>,
     pub git_provider: Option<String>,
     pub git_token_set: bool,
     pub git_branch_format: Option<String>,
@@ -428,6 +599,220 @@ pub struct StatusSnapshot {
     pub env_editor: String,
     /// Resolved `$VISUAL` value
     pub env_visual: String,
+    /// MCP HTTP transport status (mounted on API server, or disabled).
+    pub mcp_http_status: McpHttpStatus,
+    /// Whether the descriptor advertises the stdio entrypoint.
+    pub mcp_stdio_advertised: bool,
+    /// Currently active MCP SSE sessions on the HTTP transport.
+    pub mcp_active_sessions: usize,
+    /// Whether `[acp].stdio_advertised` is true (operator advertises itself
+    /// as an ACP agent for editor integration).
+    pub acp_stdio_advertised: bool,
+    /// Currently active ACP sessions visible to the TUI. v1: always 0
+    /// because editor-spawned `operator acp` runs out-of-process.
+    pub acp_active_sessions: usize,
+    /// Whether the embedded SPA (ui/) was compiled into the binary via the `embed-ui` feature.
+    pub embed_ui_available: bool,
+}
+
+impl StatusSnapshot {
+    /// Returns the API port if the REST server is running.
+    pub fn api_port(&self) -> Option<u16> {
+        match &self.api_status {
+            RestApiStatus::Running { port } => Some(*port),
+            _ => None,
+        }
+    }
+
+    /// Build a snapshot from config alone, with default (non-live) runtime fields.
+    ///
+    /// Shared by the TUI dashboard — which overrides the runtime fields
+    /// (`api_status`, wrapper/mcp/acp liveness, editor env) with live state —
+    /// and the REST `/api/v1/sections` endpoint, which uses the config-derived
+    /// result as-is. `issue_types` is passed in because the TUI and REST source
+    /// it from different registries. Everything else here is derived purely from
+    /// config, so section *health* for the config-gated sections matches across
+    /// surfaces; only live runtime detail differs.
+    pub fn from_config(config: &Config, issue_types: Vec<IssueTypeInfo>) -> StatusSnapshot {
+        let working_dir = std::env::current_dir()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let config_path = Config::operator_config_path()
+            .to_string_lossy()
+            .into_owned();
+        let tickets_dir = config.paths.tickets.clone();
+        let tickets_dir_exists = Path::new(&tickets_dir).exists();
+
+        // Kanban providers from jira + linear + github configs. Provider type
+        // strings use the canonical `KanbanProviderType` slugs so they match the
+        // catalog the Kanban section renders against.
+        use crate::api::providers::kanban::KanbanProviderType;
+        let mut kanban_providers: Vec<KanbanProviderInfo> = Vec::new();
+        for domain in config.kanban.jira.keys() {
+            kanban_providers.push(KanbanProviderInfo {
+                provider_type: KanbanProviderType::Jira.slug().to_string(),
+                domain: domain.clone(),
+            });
+        }
+        for slug in config.kanban.linear.keys() {
+            kanban_providers.push(KanbanProviderInfo {
+                provider_type: KanbanProviderType::Linear.slug().to_string(),
+                domain: slug.clone(),
+            });
+        }
+        for owner in config.kanban.github.keys() {
+            kanban_providers.push(KanbanProviderInfo {
+                provider_type: KanbanProviderType::Github.slug().to_string(),
+                domain: owner.clone(),
+            });
+        }
+
+        let llm_tools: Vec<LlmToolInfo> = config
+            .llm_tools
+            .detected
+            .iter()
+            .map(|t| LlmToolInfo {
+                name: t.name.clone(),
+                version: t.version.clone(),
+                model_aliases: t.model_aliases.clone(),
+            })
+            .collect();
+
+        let delegators: Vec<DelegatorInfo> = config
+            .delegators
+            .iter()
+            .map(|d| DelegatorInfo {
+                name: d.name.clone(),
+                display_name: d.display_name.clone(),
+                llm_tool: d.llm_tool.clone(),
+                model: d.model.clone(),
+                yolo: d.launch_config.as_ref().is_some_and(|lc| lc.yolo),
+                model_server: d.model_server.clone(),
+            })
+            .collect();
+
+        // Model servers — user-declared plus implicit vendor builtins.
+        let mut model_servers: Vec<ModelServerInfo> = config
+            .model_servers
+            .iter()
+            .map(|s| ModelServerInfo {
+                name: s.name.clone(),
+                kind: s.kind.clone(),
+                base_url: s.base_url.clone(),
+                display_name: s.display_name.clone(),
+                user_declared: true,
+            })
+            .collect();
+        for tool in ["claude", "codex", "gemini"] {
+            let implicit = crate::config::implicit_model_server_for_tool(tool);
+            if !model_servers.iter().any(|s| s.name == implicit.name) {
+                model_servers.push(ModelServerInfo {
+                    name: implicit.name,
+                    kind: implicit.kind,
+                    base_url: implicit.base_url,
+                    display_name: implicit.display_name,
+                    user_declared: false,
+                });
+            }
+        }
+
+        let git_provider = config.git.provider.as_ref().map(|p| format!("{p:?}"));
+        let git_token_set = match config.git.provider {
+            Some(GitProviderConfig::GitLab) => std::env::var(&config.git.gitlab.token_env).is_ok(),
+            // GitHub is the default for all other providers (including None).
+            _ => std::env::var(&config.git.github.token_env).is_ok(),
+        };
+
+        // Managed projects — names from config, resolved against the projects base dir.
+        let projects_base = Path::new(&config.paths.projects);
+        let managed_projects: Vec<ManagedProjectInfo> = config
+            .projects
+            .iter()
+            .map(|name| ManagedProjectInfo {
+                name: name.clone(),
+                exists: projects_base.join(name).exists(),
+            })
+            .collect();
+
+        // Wrapper connection: config-derived, liveness defaulted to "not yet checked".
+        let wrapper_connection_status = match config.sessions.wrapper {
+            SessionWrapperType::Tmux => WrapperConnectionStatus::Tmux {
+                available: false,
+                server_running: false,
+                version: None,
+            },
+            SessionWrapperType::Vscode => WrapperConnectionStatus::Vscode {
+                webhook_running: false,
+                port: Some(config.sessions.vscode.webhook_port),
+            },
+            SessionWrapperType::Cmux => WrapperConnectionStatus::Cmux {
+                binary_available: false,
+                in_cmux: std::env::var("CMUX_WORKSPACE_ID").is_ok(),
+            },
+            SessionWrapperType::Zellij => WrapperConnectionStatus::Zellij {
+                binary_available: false,
+                in_zellij: std::env::var("ZELLIJ").is_ok(),
+            },
+        };
+
+        let acp_status = crate::acp::AcpAgentServer::from_config(config).status();
+
+        StatusSnapshot {
+            working_dir,
+            config_file_found: true,
+            config_path,
+            tickets_dir,
+            tickets_dir_exists,
+            wrapper_type: config.sessions.wrapper.display_name().to_string(),
+            operator_inside_wrapper: config.sessions.wrapper.is_active_context(),
+            operator_version: env!("CARGO_PKG_VERSION").to_string(),
+            // Runtime field — callers with live state override this.
+            api_status: RestApiStatus::Stopped,
+            kanban_providers,
+            llm_tools,
+            default_llm_tool: config.llm_tools.default_tool.clone(),
+            default_llm_model: config.llm_tools.default_model.clone(),
+            delegators,
+            model_servers,
+            issue_types,
+            managed_projects,
+            git_provider,
+            git_token_set,
+            git_branch_format: Some(config.git.branch_format.clone()),
+            git_use_worktrees: config.git.use_worktrees,
+            update_available_version: None,
+            wrapper_connection_status,
+            env_editor: String::new(),
+            env_visual: String::new(),
+            mcp_http_status: McpHttpStatus::NotMounted,
+            mcp_stdio_advertised: config.mcp.stdio_advertised,
+            mcp_active_sessions: 0,
+            acp_stdio_advertised: acp_status.is_advertised(),
+            acp_active_sessions: acp_status.active_sessions(),
+            embed_ui_available: cfg!(feature = "embed-ui"),
+        }
+    }
+
+    /// Overlay live connection facts onto a config-derived snapshot.
+    ///
+    /// `from_config` defaults the runtime fields to "stopped" because it has no
+    /// way to know the server state. Callers with live state (the TUI dashboard
+    /// and the REST `/api/v1/sections` handler) apply this so the connections
+    /// section reflects reality. Shared so both surfaces stay in lockstep.
+    pub fn apply_api_connection(&mut self, live: &crate::rest::dto::LiveConnectionStatus) {
+        if live.api_running {
+            self.api_status = RestApiStatus::Running { port: live.port };
+            self.mcp_http_status = if live.mcp_http_enabled {
+                McpHttpStatus::Mounted { port: live.port }
+            } else {
+                McpHttpStatus::NotMounted
+            };
+        } else {
+            self.api_status = RestApiStatus::Stopped;
+            self.mcp_http_status = McpHttpStatus::NotMounted;
+        }
+        self.mcp_active_sessions = live.mcp_active_sessions;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -488,8 +873,10 @@ impl TreeState {
         expanded.insert(SectionId::Kanban, false);
         expanded.insert(SectionId::LlmTools, false);
         expanded.insert(SectionId::ModelServers, false);
-        expanded.insert(SectionId::Delegators, false);
         expanded.insert(SectionId::Git, false);
+        expanded.insert(SectionId::IssueTypes, false);
+        expanded.insert(SectionId::Delegators, false);
+        expanded.insert(SectionId::ManagedProjects, false);
         Self {
             expanded,
             selected: 0,
@@ -503,6 +890,111 @@ impl TreeState {
 // Status panel (orchestrator)
 // ---------------------------------------------------------------------------
 
+/// The canonical, ordered list of status sections.
+///
+/// This order is the single source of truth, matching the `SectionId` enum and
+/// the VS Code extension's `allSections`. Used by both the TUI status panel and
+/// the REST `/api/v1/sections` endpoint (via [`build_section_dtos`]).
+pub fn all_sections() -> Vec<Box<dyn StatusSection>> {
+    vec![
+        Box::new(ConfigSection),
+        Box::new(ConnectionsSection),
+        Box::new(KanbanSection),
+        Box::new(LlmSection),
+        Box::new(ModelServerSection),
+        Box::new(GitSection),
+        Box::new(IssueTypeSection),
+        Box::new(DelegatorSection),
+        Box::new(ManagedProjectsSection),
+    ]
+}
+
+/// Build the REST `SectionDto` list from a snapshot by running every canonical
+/// section. Lives here (not in `rest`) because the section logic is ui-layer;
+/// the binary injects this into `rest` via `register_section_provider` so the
+/// web UI's Status page renders the same sections the TUI and VS Code show.
+///
+/// Collect the URL/link-style actions from a row's `ActionSet` for the web UI.
+///
+/// Walks the primary/special/refresh slots, keeping only actions that resolve
+/// to a browser URL (via [`StatusAction::web_url`]) and deduping by URL so the
+/// API row's primary+special Swagger pair doesn't render twice. Labels prefer
+/// the slot's `ActionMeta` title, falling back to the action's display verb.
+fn web_actions(actions: &ActionSet) -> Vec<crate::rest::dto::RowActionDto> {
+    use crate::rest::dto::RowActionDto;
+
+    let slots: [(&StatusAction, Option<&ActionMeta>); 3] = [
+        (&actions.primary, None),
+        (&actions.special, actions.special_meta.as_ref()),
+        (&actions.refresh, actions.refresh_meta.as_ref()),
+    ];
+
+    let mut out: Vec<RowActionDto> = Vec::new();
+    for (action, meta) in slots {
+        let Some(url) = action.web_url() else {
+            continue;
+        };
+        if out.iter().any(|a| a.url == url) {
+            continue;
+        }
+        let label = meta
+            .map(|m| m.title.to_string())
+            .or_else(|| action.display_verb().map(str::to_string))
+            .unwrap_or_else(|| "Open".to_string());
+        out.push(RowActionDto { label, url });
+    }
+    out
+}
+
+/// Returns all sections with a `met` flag (computed from prerequisite health)
+/// rather than hiding unmet ones, so the web UI can render every section.
+pub fn build_section_dtos(snapshot: &StatusSnapshot) -> Vec<crate::rest::dto::SectionDto> {
+    use crate::rest::dto::{SectionDto, SectionRowDto};
+
+    let sections = all_sections();
+
+    // First pass: each section's health, for prerequisite checks.
+    let health_by_id: HashMap<SectionId, SectionHealth> = sections
+        .iter()
+        .map(|s| (s.section_id(), s.health(snapshot)))
+        .collect();
+
+    sections
+        .iter()
+        .map(|s| {
+            let met = s
+                .prerequisites()
+                .iter()
+                .all(|p| health_by_id.get(p) == Some(&SectionHealth::Green));
+            SectionDto {
+                id: s.section_id().as_str().to_string(),
+                label: s.label().to_string(),
+                health: s.health(snapshot).as_str().to_string(),
+                description: s.description(snapshot),
+                prerequisites: s
+                    .prerequisites()
+                    .iter()
+                    .map(|p| p.as_str().to_string())
+                    .collect(),
+                met,
+                children: s
+                    .children(snapshot)
+                    .into_iter()
+                    .map(|r| SectionRowDto {
+                        id: r.id,
+                        depth: r.depth,
+                        label: r.label,
+                        description: r.description,
+                        icon: r.icon.as_str().to_string(),
+                        health: r.health.as_str().to_string(),
+                        actions: web_actions(&r.actions),
+                    })
+                    .collect(),
+            }
+        })
+        .collect()
+}
+
 /// The status panel widget — a collapsible tree with progressive disclosure.
 pub struct StatusPanel {
     pub tree_state: TreeState,
@@ -512,19 +1004,10 @@ pub struct StatusPanel {
 
 impl StatusPanel {
     pub fn new(title: String) -> Self {
-        let sections: Vec<Box<dyn StatusSection>> = vec![
-            Box::new(ConfigSection),
-            Box::new(ConnectionsSection),
-            Box::new(KanbanSection),
-            Box::new(LlmSection),
-            Box::new(ModelServerSection),
-            Box::new(DelegatorSection),
-            Box::new(GitSection),
-        ];
         Self {
             tree_state: TreeState::new(),
             title,
-            sections,
+            sections: all_sections(),
         }
     }
 
@@ -568,14 +1051,34 @@ impl StatusPanel {
             let health = section.health(snapshot);
 
             // Header row
+            let web_route = web_ui_route_for(section.section_id());
+            let special = if let (Some(route), Some(port)) = (web_route, snapshot.api_port()) {
+                StatusAction::OpenWebUiAt {
+                    port,
+                    route: route.to_string(),
+                }
+            } else {
+                StatusAction::None
+            };
             rows.push(TreeRow {
                 section_id: section.section_id(),
+                id: section.section_id().as_str().to_string(),
                 depth: 0,
                 label: section.label().to_string(),
                 description: section.description(snapshot),
                 icon: StatusIcon::None,
                 is_header: true,
-                actions: ActionSet::primary(StatusAction::ToggleSection(section.section_id())),
+                actions: ActionSet {
+                    primary: StatusAction::ToggleSection(section.section_id()),
+                    back: StatusAction::None,
+                    special,
+                    special_meta: web_route.map(|_| ActionMeta {
+                        title: "Web",
+                        tooltip: "Open this section in the web UI",
+                    }),
+                    refresh: StatusAction::None,
+                    refresh_meta: None,
+                },
                 health,
             });
 
@@ -683,6 +1186,38 @@ impl StatusPanel {
     #[allow(dead_code)]
     pub fn visible_count(&self, snapshot: &StatusSnapshot) -> usize {
         self.flatten(snapshot).len()
+    }
+
+    /// Get hint data for the currently selected row, if any.
+    #[allow(dead_code)]
+    pub fn current_row_hints(&self, snapshot: &StatusSnapshot) -> Option<RowHints> {
+        let rows = self.flatten(snapshot);
+        let row = rows.get(self.tree_state.selected)?;
+        Some(RowHints {
+            primary_verb: row.actions.primary.display_verb(),
+            special_title: if row.actions.special == StatusAction::None {
+                None
+            } else {
+                Some(
+                    row.actions
+                        .special_meta
+                        .as_ref()
+                        .map(|m| m.title)
+                        .unwrap_or("Special"),
+                )
+            },
+            refresh_title: if row.actions.refresh == StatusAction::None {
+                None
+            } else {
+                Some(
+                    row.actions
+                        .refresh_meta
+                        .as_ref()
+                        .map(|m| m.title)
+                        .unwrap_or("Refresh"),
+                )
+            },
+        })
     }
 
     /// Render the status panel into the given area.
@@ -831,12 +1366,209 @@ impl StatusPanel {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Deep-link routing: maps section IDs to hash routes in the embedded web UI.
+// ---------------------------------------------------------------------------
+
+fn web_ui_route_for(section: SectionId) -> Option<&'static str> {
+    match section {
+        SectionId::Configuration => Some("/config"),
+        SectionId::Kanban => Some("/config"),
+        SectionId::IssueTypes => Some("/issuetypes"),
+        SectionId::ManagedProjects => Some("/config"),
+        _ => None,
+    }
+}
+
 // Tests
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_build_section_dtos_returns_all_nine_in_canonical_order() {
+        let snapshot = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        let dtos = build_section_dtos(&snapshot);
+        let ids: Vec<&str> = dtos.iter().map(|d| d.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec![
+                "config",
+                "connections",
+                "kanban",
+                "llm",
+                "model-servers",
+                "git",
+                "issuetypes",
+                "delegators",
+                "projects",
+            ]
+        );
+    }
+
+    #[test]
+    fn test_build_section_dtos_sets_met_from_prerequisites() {
+        let snapshot = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        let dtos = build_section_dtos(&snapshot);
+        // Configuration has no prerequisites, so it is always met.
+        let config = dtos.iter().find(|d| d.id == "config").unwrap();
+        assert!(config.met);
+        assert!(config.prerequisites.is_empty());
+        // Managed Projects requires Git; on a default config Git is not Green,
+        // so its prerequisites are not met.
+        let projects = dtos.iter().find(|d| d.id == "projects").unwrap();
+        assert_eq!(projects.prerequisites, vec!["git"]);
+        assert!(!projects.met);
+    }
+
+    #[test]
+    fn test_apply_api_connection_overrides_stopped_defaults() {
+        let mut snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        assert_eq!(snap.api_status, RestApiStatus::Stopped);
+        snap.apply_api_connection(&crate::rest::dto::LiveConnectionStatus {
+            api_running: true,
+            port: 7008,
+            mcp_http_enabled: true,
+            mcp_active_sessions: 3,
+        });
+        assert_eq!(snap.api_status, RestApiStatus::Running { port: 7008 });
+        assert_eq!(snap.mcp_http_status, McpHttpStatus::Mounted { port: 7008 });
+        assert_eq!(snap.mcp_active_sessions, 3);
+    }
+
+    #[test]
+    fn test_apply_api_connection_http_disabled_keeps_mcp_unmounted() {
+        let mut snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        snap.apply_api_connection(&crate::rest::dto::LiveConnectionStatus {
+            api_running: true,
+            port: 7008,
+            mcp_http_enabled: false,
+            mcp_active_sessions: 0,
+        });
+        assert_eq!(snap.mcp_http_status, McpHttpStatus::NotMounted);
+    }
+
+    #[test]
+    fn test_configure_kanban_provider_web_url_resolves_per_provider() {
+        // The web `/#/kanban` rows are only clickable when the action yields a URL.
+        assert_eq!(
+            StatusAction::ConfigureKanbanProvider {
+                provider: "jira".into()
+            }
+            .web_url()
+            .as_deref(),
+            Some("https://id.atlassian.com/manage-profile/security/api-tokens")
+        );
+        assert_eq!(
+            StatusAction::ConfigureKanbanProvider {
+                provider: "github".into()
+            }
+            .web_url()
+            .as_deref(),
+            Some("https://github.com/settings/personal-access-tokens")
+        );
+        // Unknown slugs don't produce a link.
+        assert_eq!(
+            StatusAction::ConfigureKanbanProvider {
+                provider: "bogus".into()
+            }
+            .web_url(),
+            None
+        );
+    }
+
+    #[test]
+    fn test_from_config_includes_github_kanban_providers() {
+        let mut config = crate::config::Config::default();
+        config.kanban.github.insert(
+            "my-org".into(),
+            crate::config::kanban::GithubProjectsConfig::default(),
+        );
+        let snap = StatusSnapshot::from_config(&config, vec![]);
+        let github = snap
+            .kanban_providers
+            .iter()
+            .find(|p| p.provider_type == "github")
+            .expect("github provider should be populated from config");
+        assert_eq!(github.domain, "my-org");
+    }
+
+    #[test]
+    fn test_build_section_dtos_connections_has_link_actions() {
+        let mut snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        snap.apply_api_connection(&crate::rest::dto::LiveConnectionStatus {
+            api_running: true,
+            port: 7008,
+            mcp_http_enabled: true,
+            mcp_active_sessions: 0,
+        });
+        let dtos = build_section_dtos(&snap);
+        let conn = dtos
+            .iter()
+            .find(|d| d.id == "connections")
+            .expect("connections section present");
+        let api_row = conn
+            .children
+            .iter()
+            .find(|r| r.id == "operator-api")
+            .expect("operator-api row");
+        assert!(
+            api_row
+                .actions
+                .iter()
+                .any(|a| a.url.contains("/swagger-ui")),
+            "API row should carry a Swagger link"
+        );
+        let mcp_row = conn
+            .children
+            .iter()
+            .find(|r| r.id == "mcp")
+            .expect("mcp row");
+        assert!(
+            mcp_row.actions.iter().any(|a| a.url.contains("/docs/mcp")),
+            "MCP row should carry a docs link"
+        );
+    }
+
+    #[test]
+    fn test_build_section_dtos_kanban_configure_rows_have_link_actions() {
+        // End-to-end projection: the Kanban section's TreeRows must survive
+        // `web_actions` with populated, clickable links so the web `/#/kanban`
+        // view shows all three providers as actionable options. This guards the
+        // `children() -> web_actions -> SectionRowDto` composition, not just the
+        // pieces in isolation.
+        let snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
+        let dtos = build_section_dtos(&snap);
+        let kanban = dtos
+            .iter()
+            .find(|d| d.id == "kanban")
+            .expect("kanban section present");
+
+        // All three providers are offered when none are connected.
+        assert_eq!(kanban.children.len(), 3);
+
+        for (id, expected_url) in [
+            ("configure-jira", "id.atlassian.com"),
+            ("configure-linear", "linear.app"),
+            (
+                "configure-github",
+                "github.com/settings/personal-access-tokens",
+            ),
+        ] {
+            let row = kanban
+                .children
+                .iter()
+                .find(|r| r.id == id)
+                .unwrap_or_else(|| panic!("{id} row present"));
+            assert!(
+                row.actions.iter().any(|a| a.url.contains(expected_url)),
+                "{id} row should carry a clickable {expected_url} link, got {:?}",
+                row.actions
+            );
+        }
+    }
 
     fn test_snapshot() -> StatusSnapshot {
         StatusSnapshot {
@@ -846,12 +1578,9 @@ mod tests {
             tickets_dir: ".tickets".into(),
             tickets_dir_exists: true,
             wrapper_type: "tmux".into(),
+            operator_inside_wrapper: true,
             operator_version: "0.1.28".into(),
             api_status: RestApiStatus::Running { port: 3100 },
-            backstage_status: ServerStatus::Running {
-                port: 7007,
-                pid: 1234,
-            },
             kanban_providers: vec![KanbanProviderInfo {
                 provider_type: "Linear".into(),
                 domain: "myteam.linear.app".into(),
@@ -872,6 +1601,8 @@ mod tests {
                 model_server: None,
             }],
             model_servers: Vec::new(),
+            issue_types: Vec::new(),
+            managed_projects: Vec::new(),
             git_provider: Some("GitHub".into()),
             git_token_set: true,
             git_branch_format: Some("feature/{ticket}".into()),
@@ -884,7 +1615,12 @@ mod tests {
             },
             env_editor: "vim".into(),
             env_visual: String::new(),
-            backstage_display: false,
+            mcp_http_status: McpHttpStatus::Mounted { port: 3100 },
+            mcp_stdio_advertised: true,
+            mcp_active_sessions: 0,
+            acp_stdio_advertised: true,
+            acp_active_sessions: 0,
+            embed_ui_available: true,
         }
     }
 
@@ -1319,6 +2055,129 @@ mod tests {
         // Config row SHOULD have refresh action (ReloadConfig)
         let config = rows.iter().find(|r| r.label == "Config").unwrap();
         assert_ne!(config.actions.refresh, StatusAction::None);
+    }
+
+    #[test]
+    fn test_display_verb_returns_none_for_none() {
+        assert_eq!(StatusAction::None.display_verb(), None);
+    }
+
+    #[test]
+    fn test_display_verb_returns_verb_for_each_variant() {
+        let cases: Vec<(StatusAction, &str)> = vec![
+            (
+                StatusAction::ToggleSection(SectionId::Configuration),
+                "Toggle",
+            ),
+            (StatusAction::OpenDirectory("/tmp".into()), "Open"),
+            (StatusAction::EditFile("config.toml".into()), "Edit"),
+            (StatusAction::OpenUrl("https://example.com".into()), "Open"),
+            (StatusAction::StartApi, "Start API"),
+            (StatusAction::OpenSwagger { port: 3100 }, "Swagger"),
+            (StatusAction::RestartWrapperConnection, "Restart"),
+            (StatusAction::OpenWebUi { port: 7007 }, "Web UI"),
+            (
+                StatusAction::OpenWebUiAt {
+                    port: 7007,
+                    route: "/config".into(),
+                },
+                "Web UI",
+            ),
+            (
+                StatusAction::SetDefaultLlm {
+                    tool_name: "claude".into(),
+                    model: "opus".into(),
+                },
+                "Set LLM",
+            ),
+            (
+                StatusAction::ConfigureKanbanProvider {
+                    provider: "jira".into(),
+                },
+                "Setup",
+            ),
+            (
+                StatusAction::ConfigureGitProvider {
+                    provider: "github".into(),
+                },
+                "Setup",
+            ),
+            (
+                StatusAction::RefreshSection(SectionId::Connections),
+                "Refresh",
+            ),
+            (StatusAction::ResetConfig, "Reset"),
+            (StatusAction::ReloadConfig, "Reload"),
+            (StatusAction::ToggleMcpHttp, "Toggle"),
+            (
+                StatusAction::WriteAndOpenMcpClientConfig {
+                    client: "claude-code".into(),
+                },
+                "Generate",
+            ),
+            (StatusAction::OpenMcpDocs, "Docs"),
+            (
+                StatusAction::WriteAndOpenAcpEditorConfig {
+                    editor: "zed".into(),
+                },
+                "Generate",
+            ),
+            (StatusAction::OpenAcpDocs, "Docs"),
+        ];
+
+        for (action, expected) in cases {
+            assert_eq!(
+                action.display_verb(),
+                Some(expected),
+                "display_verb() for {action:?} should be {expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_current_row_hints_returns_none_for_empty_panel() {
+        let mut snap = test_snapshot();
+        snap.config_file_found = false;
+        let mut panel = StatusPanel::new("Status".into());
+        panel.tree_state.selected = 9999;
+        let hints = panel.current_row_hints(&snap);
+        assert!(hints.is_none());
+    }
+
+    #[test]
+    fn test_current_row_hints_primary_only_row() {
+        let snap = test_snapshot();
+
+        let mut panel = StatusPanel::new("Status".into());
+        panel.tree_state.selected = 1;
+        let hints = panel.current_row_hints(&snap).unwrap();
+        assert_eq!(hints.primary_verb, Some("Open"));
+        assert!(hints.special_title.is_none());
+        assert!(hints.refresh_title.is_none());
+    }
+
+    #[test]
+    fn test_current_row_hints_with_special_and_refresh() {
+        let mut panel = StatusPanel::new("Status".into());
+        let snap = test_snapshot();
+
+        // Config row (index 2) has special=ResetConfig and refresh=ReloadConfig
+        panel.tree_state.selected = 2;
+        let hints = panel.current_row_hints(&snap).unwrap();
+        assert_eq!(hints.primary_verb, Some("Edit"));
+        assert!(hints.special_title.is_some());
+        assert!(hints.refresh_title.is_some());
+    }
+
+    #[test]
+    fn test_current_row_hints_header_row() {
+        let mut panel = StatusPanel::new("Status".into());
+        let snap = test_snapshot();
+
+        // Header row (index 0) has primary=ToggleSection
+        panel.tree_state.selected = 0;
+        let hints = panel.current_row_hints(&snap).unwrap();
+        assert_eq!(hints.primary_verb, Some("Toggle"));
     }
 
     #[test]

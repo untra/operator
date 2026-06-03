@@ -13,6 +13,7 @@ use crate::templates::schema::{PermissionMode, ReviewType, StepOutput};
 
 /// List all steps for an issue type
 #[utoipa::path(
+    operation_id = "steps_list",
     get,
     path = "/api/v1/issuetypes/{key}/steps",
     tag = "Steps",
@@ -39,6 +40,7 @@ pub async fn list(
 
 /// Get a single step by name
 #[utoipa::path(
+    operation_id = "steps_get_one",
     get,
     path = "/api/v1/issuetypes/{key}/steps/{step_name}",
     tag = "Steps",
@@ -69,6 +71,7 @@ pub async fn get_one(
 
 /// Update a step
 #[utoipa::path(
+    operation_id = "steps_update",
     put,
     path = "/api/v1/issuetypes/{key}/steps/{step_name}",
     tag = "Steps",

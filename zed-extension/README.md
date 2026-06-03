@@ -1,13 +1,91 @@
 # Operator Zed Extension
 
-Zed extension providing slash commands for interacting with [Operator](https://operator.untra.io), a multi-agent orchestration system for Claude Code.
+Zed extension for [Operator](https://operator.untra.io), a multi-agent orchestration system for Claude Code. Provides three integration layers:
 
-## Features
+1. **MCP Context Server** — registers `operator mcp` natively so all operator tools and ticket resources appear in Zed's Agent Panel
+2. **ACP Agent Setup** — `/op-setup-agent` generates the config to register Operator as an ACP agent server
+3. **Slash Commands** — thin AI/human inference layer for quick operations with tab completion
 
-This extension adds 11 slash commands to Zed's AI assistant for managing Operator:
+## Prerequisites
+
+- [Operator](https://operator.untra.io) binary installed and on PATH
+- Operator API server running (`operator api`)
+- Zed editor
+
+## Installation
+
+### Download Operator binary
+
+Download the latest binary for your platform from [GitHub releases](https://github.com/untra/operator/releases/latest):
+
+**macOS (Apple Silicon):**
+```bash
+curl -L https://github.com/untra/operator/releases/latest/download/operator-macos-arm64 -o /usr/local/bin/operator && chmod +x /usr/local/bin/operator
+```
+
+**Linux (x86_64):**
+```bash
+curl -L https://github.com/untra/operator/releases/latest/download/operator-linux-x86_64 -o /usr/local/bin/operator && chmod +x /usr/local/bin/operator
+```
+
+Or build from source: `cargo install --git https://github.com/untra/operator`
+
+### Install the Zed extension
+
+Install from the Zed extension marketplace, or for development:
+
+```bash
+# Install WASM target
+rustup target add wasm32-wasip1
+
+# Build
+cd zed-extension
+cargo build --release --target wasm32-wasip1
+
+# Install as dev extension
+mkdir -p ~/.local/share/zed/extensions/installed/operator-dev
+cp extension.toml ~/.local/share/zed/extensions/installed/operator-dev/
+cp target/wasm32-wasip1/release/operator_zed.wasm ~/.local/share/zed/extensions/installed/operator-dev/extension.wasm
+
+# Restart Zed or use Extensions: Reload
+```
+
+### Verify setup
+
+Start the Operator server and check your connection:
+
+```bash
+operator api    # start the REST API server
+```
+
+Then run `/op-setup` in the Zed assistant to verify everything is connected.
+
+## Setup
+
+### MCP Context Server (automatic)
+
+After installing the extension, Zed automatically launches `operator mcp` as a context server. All MCP tools appear in the Agent Panel:
+
+- `operator_health` / `operator_status` — system health
+- `operator_list_tickets` — query queue, in-progress, completed tickets
+- `operator_claim_ticket` / `operator_complete_ticket` / `operator_return_to_queue` — ticket lifecycle
+- `operator_create_ticket` — create tickets from templates
+- `operator_list_issue_types` / `operator_list_collections` / `operator_list_skills` — registry queries
+- `operator_launch_ticket` / `operator_pause_queue` / `operator_resume_queue` — queue operations
+- `operator_approve_agent` / `operator_reject_agent` — review actions
+
+If the `operator` binary is not found, the extension shows installation instructions.
+
+### ACP Agent Server (one-time setup)
+
+Run `/op-setup-agent` in the AI assistant to generate the config snippet, then paste it into `~/.config/zed/settings.json`. After restarting Zed, Operator appears as an agent in the Agent Panel — you can send prompts that flow through ACP to a Claude Code delegator.
+
+## Slash Commands
 
 | Command | Description |
 |---------|-------------|
+| `/op-setup` | Check installation and connection status |
+| `/op-help` | List all available commands |
 | `/op-status` | Show Operator health and status |
 | `/op-queue` | List tickets in queue |
 | `/op-launch TICKET-ID` | Launch a ticket |
@@ -19,159 +97,47 @@ This extension adds 11 slash commands to Zed's AI assistant for managing Operato
 | `/op-sync` | Sync kanban collections |
 | `/op-approve AGENT-ID` | Approve agent review |
 | `/op-reject AGENT-ID REASON` | Reject agent review |
+| `/op-setup-agent` | Generate ACP agent server config |
 
-## Prerequisites
-
-- [Operator](https://operator.untra.io) installed and running (`operator api`)
-- Rust toolchain with `wasm32-wasip1` target
-- Zed editor
-
-### Installing Rust WASM Target
-
-```bash
-rustup target add wasm32-wasip1
-```
-
-## Building
-
-```bash
-cd zed-extension
-cargo build --release --target wasm32-wasip1
-```
-
-The compiled extension will be at `target/wasm32-wasip1/release/operator_zed.wasm`.
-
-## Installation (Development)
-
-1. Build the extension:
-   ```bash
-   cargo build --release --target wasm32-wasip1
-   ```
-
-2. Create a dev extension directory in Zed's extensions folder:
-   ```bash
-   mkdir -p ~/.local/share/zed/extensions/installed/operator-dev
-   ```
-
-3. Copy the extension files:
-   ```bash
-   cp extension.toml ~/.local/share/zed/extensions/installed/operator-dev/
-   cp target/wasm32-wasip1/release/operator_zed.wasm ~/.local/share/zed/extensions/installed/operator-dev/extension.wasm
-   ```
-
-4. Restart Zed or use **Extensions: Reload** command
-
-## Usage
-
-1. Start the Operator API server:
-   ```bash
-   operator api
-   ```
-
-2. Open Zed's AI assistant panel (Cmd+Shift+A or Ctrl+Shift+A)
-
-3. Type a slash command to interact with Operator:
-   ```
-   /op-status
-   ```
-
-4. Commands with arguments support autocompletion:
-   ```
-   /op-launch FIX-    # Tab to autocomplete ticket IDs
-   ```
-
-### Example Workflow
-
-```
-User: /op-status
-Assistant: [Shows Operator status with queue count, active agents, etc.]
-
-User: /op-queue
-Assistant: [Lists tickets in queue with ID, project, type, title]
-
-User: /op-launch FIX-123
-Assistant: [Launches the ticket and shows the command to run]
-
-User: /op-active
-Assistant: [Shows running agents with their status]
-```
+Commands with arguments support tab-completion from live API data.
 
 ## Architecture
 
-### WASM Sandbox Limitations
-
-Zed extensions run in a WebAssembly sandbox with limited capabilities:
-
-- **No native HTTP**: We use `curl` subprocess calls to communicate with the Operator REST API
-- **No sidebar views**: UI is limited to slash command output in the AI assistant
-- **No status bar**: Cannot show persistent status indicators
-- **No webhooks**: Cannot receive callbacks from Operator
-
-### Communication Flow
-
 ```
-Zed AI Assistant
+Zed Agent Panel
     │
-    ├──[slash command]──▶ Extension (WASM)
-    │                         │
-    │                         ├──[subprocess]──▶ curl
-    │                         │                    │
-    │                         │                    ▼
-    │                         │              Operator API
-    │                         │              (localhost:7008)
-    │                         │                    │
-    │                         ◀──[JSON response]───┘
-    │                         │
-    ◀──[markdown output]──────┘
-```
-
-## Alternative: Tasks
-
-For actions that require a terminal, you can configure Zed tasks in `.zed/tasks.json`:
-
-```json
-[
-  {
-    "label": "Operator: Start API",
-    "command": "operator api",
-    "use_new_terminal": true
-  },
-  {
-    "label": "Operator: Show Queue",
-    "command": "operator queue",
-    "use_new_terminal": false
-  },
-  {
-    "label": "Operator: Launch Next",
-    "command": "operator launch --next",
-    "use_new_terminal": true
-  }
-]
+    ├── MCP Context Server ──▶ operator mcp (stdio)
+    │   └── Tools + Resources available natively
+    │
+    ├── ACP Agent Server ──▶ operator acp (stdio)
+    │   └── Prompts → delegator (Claude Code) → streaming output
+    │
+    └── Slash Commands ──▶ Extension (WASM)
+        └── curl subprocess ──▶ Operator REST API (localhost:7008)
 ```
 
 ## Configuration
 
-The extension connects to `http://localhost:7008` by default. This matches Operator's default API port.
-
-To use a different API URL, you would need to modify the `DEFAULT_API_URL` constant in `src/lib.rs` and rebuild.
+The MCP context server finds the `operator` binary on PATH, in `~/.cargo/bin/`, or at common install locations. The REST API URL for slash commands defaults to `http://localhost:7008`.
 
 ## Troubleshooting
 
-### "Failed to execute curl"
+### MCP tools not appearing
 
-Ensure `curl` is available in your PATH. On most systems it's pre-installed.
+1. Verify `operator` is on PATH: `which operator`
+2. Test MCP server: `operator mcp` (should wait for JSON-RPC input)
+3. Check Zed's extension logs: **View > Output > Extensions**
 
-### "API request failed"
+### Slash commands failing
 
-1. Check that Operator is running: `operator api`
-2. Verify the API is accessible: `curl http://localhost:7008/api/v1/health`
-3. Check Operator logs for errors
+1. Check that Operator API is running: `operator api`
+2. Verify connectivity: `curl http://localhost:7008/api/v1/health`
+3. Ensure `curl` is available
 
 ### Extension not appearing
 
-1. Verify the extension files are in the correct location
-2. Check Zed's extension logs: **View > Output > Extensions**
-3. Try reloading extensions or restarting Zed
+1. Verify files are in `~/.local/share/zed/extensions/installed/operator-dev/`
+2. Reload extensions or restart Zed
 
 ## License
 

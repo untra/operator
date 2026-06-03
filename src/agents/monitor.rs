@@ -396,7 +396,7 @@ impl SessionMonitor {
         if elapsed >= self.check_interval {
             Duration::ZERO
         } else {
-            self.check_interval - elapsed
+            self.check_interval.saturating_sub(elapsed)
         }
     }
 }

@@ -24,7 +24,6 @@ Operator configuration is stored in `.tickets/operator/config.toml`.
 | `[api]` | External API integration settings |
 | `[logging]` | Log level and output configuration |
 | `[tmux]` | Tmux integration settings |
-| `[backstage]` | Backstage server integration |
 | `[llm_tools]` | LLM CLI tool detection and providers |
 
 ## `[agents]`
@@ -35,6 +34,7 @@ Agent lifecycle, parallelism, and health monitoring
 | --- | --- | --- | --- |
 | `max_parallel` * | `integer` | 5 |  |
 | `cores_reserved` * | `integer` | 1 |  |
+| `max_agents_per_repo` | `integer` | - | Maximum concurrent agents per project/repo (default: 1). Requires `git.use_worktrees` = true when > 1 to avoid conflicts. |
 | `health_check_interval` * | `integer` | 30 |  |
 | `generation_timeout_secs` | `integer` | 300 | Timeout in seconds for each agent generation (default: 300 = 5 min) |
 | `sync_interval` | `integer` | 60 | Interval in seconds between ticket-session syncs (default: 60) |
@@ -133,22 +133,6 @@ Tmux integration settings
 | --- | --- | --- | --- |
 | `config_generated` | `boolean` | - | Whether custom tmux config has been generated |
 
-## `[backstage]`
-
-Backstage server integration
-
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `enabled` | `boolean` | true | Whether Backstage integration is enabled |
-| `display` | `boolean` | - | Whether to show Backstage in the Connections status section |
-| `port` | `integer` | 7007 | Port for the Backstage server |
-| `auto_start` | `boolean` | false | Auto-start Backstage server when TUI launches |
-| `subpath` | `string` | backstage | Subdirectory within `state_path` for Backstage installation |
-| `branding_subpath` | `string` | branding | Subdirectory within backstage path for branding customization |
-| `release_url` | `string` | - | Base URL for downloading backstage-server binary |
-| `local_binary_path` | `string` \| `null` | - | Optional local path to backstage-server binary If set, this is used instead of downloading from `release_url` |
-| `branding` | → `BrandingConfig` | - | Branding and theming configuration |
-
 ## `[llm_tools]`
 
 LLM CLI tool detection and providers
@@ -172,6 +156,7 @@ model_servers = []
 [agents]
 max_parallel = 5
 cores_reserved = 1
+max_agents_per_repo = 1
 health_check_interval = 30
 generation_timeout_secs = 300
 sync_interval = 60
@@ -278,27 +263,6 @@ detection_complete = false
 
 [llm_tools.skill_directory_overrides]
 
-[backstage]
-enabled = true
-display = false
-port = 7007
-auto_start = false
-subpath = "backstage"
-branding_subpath = "branding"
-release_url = "https://github.com/untra/operator/releases/latest/download"
-
-[backstage.branding]
-app_title = "Operator Portal"
-org_name = "Operator"
-logo_path = "logo.svg"
-
-[backstage.branding.colors]
-primary = "#cc6c55"
-secondary = "#114145"
-accent = "#f4dbb7"
-warning = "#d46048"
-muted = "#8a4a3a"
-
 [rest_api]
 enabled = true
 port = 7008
@@ -330,6 +294,16 @@ timeout_secs = 3
 [relay]
 auto_inject_mcp = false
 
+[mcp]
+http_enabled = true
+stdio_advertised = true
+expose_ticket_write_tools = false
+external_servers = []
+
+[acp]
+stdio_advertised = true
+max_concurrent_sessions = 8
+
 ```
 
 ## Configuration Files
@@ -351,5 +325,5 @@ Any configuration option can be overridden via environment variables.
 **Examples**:
 - `OPERATOR_AGENTS__MAX_PARALLEL=2`
 - `OPERATOR_LOGGING__LEVEL=debug`
-- `OPERATOR_BACKSTAGE__PORT=8080`
+- `OPERATOR_TMUX__ENABLED=true`
 

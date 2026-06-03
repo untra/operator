@@ -10,12 +10,8 @@ use ratatui::{
 
 use super::in_progress_panel::InProgressPanel;
 use super::panels::{CompletedPanel, HeaderBar, QueuePanel, StatusBar};
-use super::status_panel::{
-    DelegatorInfo, KanbanProviderInfo, LlmToolInfo, StatusPanel, StatusSnapshot,
-    WrapperConnectionStatus,
-};
-use crate::backstage::ServerStatus;
-use crate::config::{Config, GitProviderConfig, SessionWrapperType};
+use super::status_panel::{IssueTypeInfo, StatusPanel, StatusSnapshot, WrapperConnectionStatus};
+use crate::config::{Config, SessionWrapperType};
 use crate::editors::EditorConfig;
 use crate::queue::Ticket;
 use crate::rest::RestApiStatus;
@@ -37,8 +33,6 @@ pub struct Dashboard {
     pub focused: FocusedPanel,
     pub paused: bool,
     pub max_agents: usize,
-    /// Backstage server status
-    pub backstage_status: ServerStatus,
     /// REST API server status
     pub rest_api_status: RestApiStatus,
     /// Wrapper display name for header bar
@@ -55,8 +49,16 @@ pub struct Dashboard {
     pub wrapper_connection_status: WrapperConnectionStatus,
     /// Config snapshot for status panel
     config: Config,
+    /// Active issue types, loaded once from the registry (refreshed on config reload).
+    /// Cached because loading the registry touches the filesystem.
+    issue_types: Vec<IssueTypeInfo>,
     /// Resolved editor environment variables
     pub editor_config: EditorConfig,
+    /// Active MCP SSE sessions, updated by the app each tick via `update_mcp_active_sessions`.
+    pub mcp_active_sessions: usize,
+    /// ACP agent advertisement + active-session count. Updated by `App` on
+    /// construction; refreshed by `update_acp_status` if it changes later.
+    pub acp_status: crate::acp::AcpAgentStatus,
 }
 
 impl Dashboard {
@@ -70,7 +72,6 @@ impl Dashboard {
             paused: false,
             max_agents: config.effective_max_agents(),
             wrapper_name: config.sessions.wrapper.display_name(),
-            backstage_status: ServerStatus::Stopped,
             rest_api_status: RestApiStatus::Stopped,
             exit_confirmation_mode: false,
             update_available_version: None,
@@ -78,7 +79,10 @@ impl Dashboard {
             status_message_at: None,
             wrapper_connection_status: Self::initial_wrapper_status(config),
             config: config.clone(),
+            issue_types: Self::load_issue_types(config),
             editor_config: EditorConfig::detect(config.sessions.wrapper),
+            mcp_active_sessions: 0,
+            acp_status: crate::acp::AcpAgentServer::from_config(config).status(),
         };
         dashboard.compute_initial_focus();
         dashboard
@@ -103,12 +107,14 @@ impl Dashboard {
         }
     }
 
-    pub fn update_backstage_status(&mut self, status: ServerStatus) {
-        self.backstage_status = status;
-    }
-
     pub fn update_rest_api_status(&mut self, status: RestApiStatus) {
         self.rest_api_status = status;
+    }
+
+    /// Update the active MCP SSE session count. Called each tick by the app
+    /// from `rest_api_server.api_state().map(|s| s.mcp_sessions.try_lock()...)`.
+    pub fn update_mcp_active_sessions(&mut self, count: usize) {
+        self.mcp_active_sessions = count;
     }
 
     pub fn update_exit_confirmation_mode(&mut self, mode: bool) {
@@ -137,6 +143,28 @@ impl Dashboard {
 
     pub fn update_config(&mut self, config: &Config) {
         self.config = config.clone();
+        self.issue_types = Self::load_issue_types(config);
+    }
+
+    /// Load active issue types from the registry. Touches the filesystem, so the
+    /// result is cached on the `Dashboard` rather than recomputed each render.
+    fn load_issue_types(config: &Config) -> Vec<IssueTypeInfo> {
+        let mut registry = crate::issuetypes::IssueTypeRegistry::new();
+        // `load_all` always loads builtins first, so the list is non-empty even
+        // when no user types or templates are present.
+        let _ = registry.load_all(Path::new(&config.paths.tickets));
+        registry
+            .all_types()
+            .map(|it| IssueTypeInfo {
+                key: it.key.clone(),
+                name: it.name.clone(),
+                mode: if it.is_autonomous() {
+                    "autonomous".to_string()
+                } else {
+                    "paired".to_string()
+                },
+            })
+            .collect()
     }
 
     pub fn expand_and_focus_section(&mut self, section_id: super::status_panel::SectionId) {
@@ -200,120 +228,34 @@ impl Dashboard {
         self.wrapper_connection_status = status;
     }
 
-    /// Build a status snapshot from current config and runtime state
+    /// Build a status snapshot from current config and runtime state.
+    ///
+    /// The config-derived fields come from [`StatusSnapshot::from_config`] (shared
+    /// with the REST `/api/v1/sections` endpoint); this method then overrides the
+    /// live runtime fields the TUI tracks (API/wrapper/mcp/acp liveness, editor env).
     fn build_status_snapshot(&self) -> StatusSnapshot {
-        let config = &self.config;
+        let mut snapshot = StatusSnapshot::from_config(&self.config, self.issue_types.clone());
 
-        // Working directory is where the operator process runs from
-        let working_dir = std::env::current_dir()
-            .map(|p| p.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        let config_path = Config::operator_config_path()
-            .to_string_lossy()
-            .into_owned();
-        let tickets_dir = config.paths.tickets.clone();
-        let tickets_dir_exists = Path::new(&tickets_dir).exists();
-
-        // Build kanban provider info from jira + linear configs
-        let mut kanban_providers: Vec<KanbanProviderInfo> = Vec::new();
-        for domain in config.kanban.jira.keys() {
-            kanban_providers.push(KanbanProviderInfo {
-                provider_type: "jira".to_string(),
-                domain: domain.clone(),
-            });
-        }
-        for slug in config.kanban.linear.keys() {
-            kanban_providers.push(KanbanProviderInfo {
-                provider_type: "linear".to_string(),
-                domain: slug.clone(),
-            });
-        }
-
-        // Build LLM tool info from detected tools
-        let llm_tools: Vec<LlmToolInfo> = config
-            .llm_tools
-            .detected
-            .iter()
-            .map(|t| LlmToolInfo {
-                name: t.name.clone(),
-                version: t.version.clone(),
-                model_aliases: t.model_aliases.clone(),
-            })
-            .collect();
-
-        // Build delegator info
-        let delegators: Vec<DelegatorInfo> = config
-            .delegators
-            .iter()
-            .map(|d| DelegatorInfo {
-                name: d.name.clone(),
-                display_name: d.display_name.clone(),
-                llm_tool: d.llm_tool.clone(),
-                model: d.model.clone(),
-                yolo: d.launch_config.as_ref().is_some_and(|lc| lc.yolo),
-                model_server: d.model_server.clone(),
-            })
-            .collect();
-
-        // Build model server info — implicit builtins plus any user-declared.
-        let mut model_servers: Vec<crate::ui::status_panel::ModelServerInfo> = config
-            .model_servers
-            .iter()
-            .map(|s| crate::ui::status_panel::ModelServerInfo {
-                name: s.name.clone(),
-                kind: s.kind.clone(),
-                base_url: s.base_url.clone(),
-                display_name: s.display_name.clone(),
-                user_declared: true,
-            })
-            .collect();
-        for tool in ["claude", "codex", "gemini"] {
-            let implicit = crate::config::implicit_model_server_for_tool(tool);
-            if !model_servers.iter().any(|s| s.name == implicit.name) {
-                model_servers.push(crate::ui::status_panel::ModelServerInfo {
-                    name: implicit.name,
-                    kind: implicit.kind,
-                    base_url: implicit.base_url,
-                    display_name: implicit.display_name,
-                    user_declared: false,
-                });
+        snapshot.api_status = self.rest_api_status.clone();
+        snapshot.update_available_version = self.update_available_version.clone();
+        snapshot.wrapper_connection_status = self.wrapper_connection_status.clone();
+        snapshot.env_editor = self.editor_config.editor.clone();
+        snapshot.env_visual = self.editor_config.visual.clone();
+        snapshot.mcp_http_status = if self.config.mcp.http_enabled {
+            match &self.rest_api_status {
+                RestApiStatus::Running { port } => {
+                    crate::ui::status_panel::McpHttpStatus::Mounted { port: *port }
+                }
+                _ => crate::ui::status_panel::McpHttpStatus::NotMounted,
             }
-        }
-
-        // Git config
-        let git_provider = config.git.provider.as_ref().map(|p| format!("{p:?}"));
-        let git_token_set = match config.git.provider {
-            Some(GitProviderConfig::GitLab) => std::env::var(&config.git.gitlab.token_env).is_ok(),
-            // GitHub is the default for all other providers (including None)
-            _ => std::env::var(&config.git.github.token_env).is_ok(),
+        } else {
+            crate::ui::status_panel::McpHttpStatus::NotMounted
         };
+        snapshot.mcp_active_sessions = self.mcp_active_sessions;
+        snapshot.acp_stdio_advertised = self.acp_status.is_advertised();
+        snapshot.acp_active_sessions = self.acp_status.active_sessions();
 
-        StatusSnapshot {
-            working_dir,
-            config_file_found: true, // We have a config if we're running
-            config_path,
-            tickets_dir,
-            tickets_dir_exists,
-            wrapper_type: config.sessions.wrapper.display_name().to_string(),
-            operator_version: env!("CARGO_PKG_VERSION").to_string(),
-            api_status: self.rest_api_status.clone(),
-            backstage_status: self.backstage_status.clone(),
-            backstage_display: config.backstage.display,
-            kanban_providers,
-            llm_tools,
-            default_llm_tool: config.llm_tools.default_tool.clone(),
-            default_llm_model: config.llm_tools.default_model.clone(),
-            delegators,
-            model_servers,
-            git_provider,
-            git_token_set,
-            git_branch_format: Some(config.git.branch_format.clone()),
-            git_use_worktrees: config.git.use_worktrees,
-            update_available_version: self.update_available_version.clone(),
-            wrapper_connection_status: self.wrapper_connection_status.clone(),
-            env_editor: self.editor_config.editor.clone(),
-            env_visual: self.editor_config.visual.clone(),
-        }
+        snapshot
     }
 
     pub fn render(&mut self, frame: &mut Frame) {
@@ -377,16 +319,23 @@ impl Dashboard {
             self.focused == FocusedPanel::Completed,
         );
 
-        // Status bar
+        // Status bar — show dynamic hints when status panel is focused
+        let row_hints = if self.focused == FocusedPanel::Status {
+            let snapshot = self.build_status_snapshot();
+            self.status_panel.current_row_hints(&snapshot)
+        } else {
+            None
+        };
         let status = StatusBar {
             paused: self.paused,
             agent_count: self.in_progress_panel.agents.len(),
             max_agents: self.max_agents,
-            backstage_status: self.backstage_status.clone(),
             rest_api_status: self.rest_api_status.clone(),
+            embed_ui_available: cfg!(feature = "embed-ui"),
             exit_confirmation_mode: self.exit_confirmation_mode,
             update_available_version: self.update_available_version.clone(),
             status_message: self.status_message.clone(),
+            row_hints,
         };
         status.render(frame, chunks[2]);
     }

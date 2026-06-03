@@ -29,18 +29,18 @@ use operator::api::providers::kanban::{
     JiraProjectStatus, JiraSearchResponse, JiraStatus, JiraStatusRef, JiraUser,
 };
 use operator::config::{
-    AgentsConfig, ApiConfig, BackstageConfig, BrandingConfig, CollectionPreset, Config, Delegator,
-    DelegatorLaunchConfig, DetectedTool, DockerConfig, LaunchConfig, LlmProvider, LlmToolsConfig,
-    LoggingConfig, NotificationsConfig, PanelNamesConfig, PathsConfig, QueueConfig, RestApiConfig,
-    SkillDirectoriesOverride, TemplatesConfig, ThemeColors, TmuxConfig, ToolCapabilities, UiConfig,
-    YoloConfig,
+    AgentsConfig, ApiConfig, CollectionPreset, Config, Delegator, DelegatorLaunchConfig,
+    DetectedTool, DockerConfig, LaunchConfig, LlmProvider, LlmToolsConfig, LoggingConfig,
+    NotificationsConfig, PanelNamesConfig, PathsConfig, QueueConfig, RestApiConfig,
+    SkillDirectoriesOverride, TemplatesConfig, TmuxConfig, ToolCapabilities, UiConfig, YoloConfig,
 };
 use operator::queue::LlmTask;
 use operator::rest::dto::{
     CollectionResponse, CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest,
     CreateStepRequest, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
-    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, SkillEntry, SkillsResponse,
-    StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, KanbanProviderCatalogEntry,
+    SectionDto, SectionRowDto, SkillEntry, SkillsResponse, StatusResponse, StepResponse,
+    UpdateIssueTypeRequest, UpdateStepRequest, WorkflowExportResponse,
 };
 use operator::state::{AgentState, CompletedTicket, State};
 use operator::types::{
@@ -105,9 +105,6 @@ fn generate_typescript() -> String {
         DockerConfig::decl(),
         YoloConfig::decl(),
         TmuxConfig::decl(),
-        BackstageConfig::decl(),
-        BrandingConfig::decl(),
-        ThemeColors::decl(),
         RestApiConfig::decl(),
         LlmToolsConfig::decl(),
         DetectedTool::decl(),
@@ -137,6 +134,12 @@ fn generate_typescript() -> String {
         CollectionResponse::decl(),
         HealthResponse::decl(),
         StatusResponse::decl(),
+        SectionDto::decl(),
+        SectionRowDto::decl(),
+        // Kanban provider catalog DTO
+        KanbanProviderCatalogEntry::decl(),
+        // Workflow export DTO
+        WorkflowExportResponse::decl(),
         // Skills DTOs
         SkillEntry::decl(),
         SkillsResponse::decl(),

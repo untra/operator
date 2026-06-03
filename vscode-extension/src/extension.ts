@@ -42,6 +42,7 @@ import {
 } from './walkthrough';
 import { startGitOnboarding, onboardGitHub, onboardGitLab } from './git-onboarding';
 import { ConfigPanel } from './config-panel';
+import { openOperatorUi } from './open-operator-ui';
 import { connectMcpServer } from './mcp-connect';
 import { configFileExists } from './config-paths';
 import { findParentTicketsDir, findTicketsDir, findOperatorServerDir } from './tickets-dir';
@@ -198,6 +199,7 @@ async function launchTicketFromEditorCommand(
       provider: null,
       wrapper: 'vscode',
       model: 'sonnet',
+      model_server: null,
       yolo_mode: false,
       retry_reason: null,
       resume_session_id: null,
@@ -247,7 +249,7 @@ async function launchTicketFromEditorWithOptionsCommand(
 
   const ticketType = ctx.issueTypeService.extractTypeFromId(metadata.id);
   const ticketStatus = (metadata.status === 'in-progress' || metadata.status === 'completed')
-    ? metadata.status as 'in-progress' | 'completed'
+    ? metadata.status
     : 'queue' as const;
   const ticketInfo: TicketInfo = {
     id: metadata.id,
@@ -280,6 +282,7 @@ async function launchTicketFromEditorWithOptionsCommand(
       provider: null,
       wrapper: 'vscode',
       model: options.model,
+      model_server: null,
       yolo_mode: options.yoloMode,
       retry_reason: null,
       resume_session_id: null,
@@ -897,17 +900,18 @@ async function showCreateMenu(ctx: CommandContext): Promise<void> {
       openCreateDelegator(ctx);
       break;
     case 'issuetype':
-      ConfigPanel.createOrShow(ctx.extensionContext.extensionUri);
-      ConfigPanel.navigateTo('section-kanban', { action: 'createIssueType' });
+      // Issue types are managed in the hosted Operator UI.
+      await openOperatorUi(ctx.getCurrentTicketsDir(), 'issuetypes');
       break;
     case 'project':
-      ConfigPanel.createOrShow(ctx.extensionContext.extensionUri);
-      ConfigPanel.navigateTo('section-projects');
+      // Projects are browsed/assessed in the hosted Operator UI.
+      await openOperatorUi(ctx.getCurrentTicketsDir(), 'projects');
       break;
   }
 }
 
 function openCreateDelegator(ctx: CommandContext, tool?: string, model?: string): void {
+  // Delegators are agent config — kept in the extension webview's agents section.
   ConfigPanel.createOrShow(ctx.extensionContext.extensionUri);
   ConfigPanel.navigateTo('section-agents', {
     action: 'createDelegator',
@@ -952,6 +956,35 @@ export async function activate(
   const terminalManager = new TerminalManager();
   terminalManager.setIssueTypeService(issueTypeService);
   inProgressProvider.setTerminalManager(terminalManager);
+
+  // Handle deep-links from the Operator web UI / control plane:
+  //   vscode://untra.operator-terminals/focus-session?name=<terminal>
+  // focuses the agent's terminal tab by name. The web UI's launch panel emits
+  // this link after launching a ticket when the operator control wrapper is VS
+  // Code, so the user can jump straight to the running agent's terminal.
+  context.subscriptions.push(
+    vscode.window.registerUriHandler({
+      handleUri(uri: vscode.Uri) {
+        if (uri.path !== '/focus-session') {
+          return;
+        }
+        const name = new URLSearchParams(uri.query).get('name');
+        if (!name) {
+          void vscode.window.showWarningMessage(
+            'Operator: focus-session link is missing a terminal name'
+          );
+          return;
+        }
+        if (terminalManager.exists(name)) {
+          terminalManager.focus(name);
+        } else {
+          void vscode.window.showWarningMessage(
+            `Operator: no terminal named '${name}' to focus`
+          );
+        }
+      },
+    })
+  );
 
   const webhookServer = new WebhookServer(terminalManager);
   const launchManager = new LaunchManager(terminalManager);
@@ -1090,6 +1123,18 @@ export async function activate(
     vscode.commands.registerCommand('operator.openWalkthrough', openWalkthrough),
     vscode.commands.registerCommand('operator.openSettings',
       () => ConfigPanel.createOrShow(ctx.extensionContext.extensionUri)),
+    // Link out to the daemon-hosted Operator UI (Simple Browser) for the
+    // operational surfaces the extension webview no longer reimplements.
+    vscode.commands.registerCommand('operator.openUi',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'dashboard')),
+    vscode.commands.registerCommand('operator.openIssueTypes',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'issuetypes')),
+    vscode.commands.registerCommand('operator.openProjects',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'projects')),
+    vscode.commands.registerCommand('operator.openKanban',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'kanban')),
+    vscode.commands.registerCommand('operator.openQueue',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'queue')),
     vscode.commands.registerCommand('operator.syncKanbanCollection',
       (item: StatusItem) => syncKanbanCollectionCommand(ctx, item)),
     vscode.commands.registerCommand('operator.addJiraProject',

@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Full history needed for git operations
 
@@ -61,7 +61,7 @@ jobs:
           git remote set-head origin --auto || true
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -82,7 +82,7 @@ jobs:
           OPERATOR_JIRA_EMAIL: ${{ secrets.OPERATOR_JIRA_EMAIL }}
           OPERATOR_JIRA_API_KEY: ${{ secrets.OPERATOR_JIRA_API_KEY }}
           OPERATOR_JIRA_TEST_PROJECT: ${{ secrets.OPERATOR_JIRA_TEST_PROJECT }}
-        run: cargo test --test kanban_integration jira_tests -- --nocapture --test-threads=1
+        run: cargo test --locked --test kanban_integration jira_tests -- --nocapture --test-threads=1
 
       - name: Run Linear integration tests
         if: >-
@@ -91,7 +91,7 @@ jobs:
         env:
           OPERATOR_LINEAR_API_KEY: ${{ secrets.OPERATOR_LINEAR_API_KEY }}
           OPERATOR_LINEAR_TEST_TEAM: ${{ secrets.OPERATOR_LINEAR_TEST_TEAM }}
-        run: cargo test --test kanban_integration linear_tests -- --nocapture --test-threads=1
+        run: cargo test --locked --test kanban_integration linear_tests -- --nocapture --test-threads=1
 
       - name: Run GitHub Projects integration tests
         if: >-
@@ -100,7 +100,7 @@ jobs:
         env:
           OPERATOR_GITHUB_TOKEN: ${{ secrets.OPERATOR_GITHUB_TOKEN }}
           OPERATOR_GITHUB_TEST_PROJECT: ${{ secrets.OPERATOR_GITHUB_TEST_PROJECT }}
-        run: cargo test --test kanban_integration github_tests -- --nocapture --test-threads=1
+        run: cargo test --locked --test kanban_integration github_tests -- --nocapture --test-threads=1
 
       - name: Run cross-provider tests
         env:
@@ -112,14 +112,14 @@ jobs:
           OPERATOR_LINEAR_TEST_TEAM: ${{ secrets.OPERATOR_LINEAR_TEST_TEAM }}
           OPERATOR_GITHUB_TOKEN: ${{ secrets.OPERATOR_GITHUB_TOKEN }}
           OPERATOR_GITHUB_TEST_PROJECT: ${{ secrets.OPERATOR_GITHUB_TEST_PROJECT }}
-        run: cargo test --test kanban_integration test_provider_interface_consistency -- --nocapture
+        run: cargo test --locked --test kanban_integration test_provider_interface_consistency -- --nocapture
 
       # Git Integration Tests
       - name: Run Git integration tests (read-only)
         if: github.event_name != 'workflow_dispatch' || inputs.run_git
         env:
           OPERATOR_GIT_TEST_ENABLED: 'true'
-        run: cargo test --test git_integration -- --nocapture --test-threads=1
+        run: cargo test --locked --test git_integration -- --nocapture --test-threads=1
 
       # NOTE: Git push tests disabled in CI - require authenticated push access
       # Run locally with OPERATOR_GIT_PUSH_ENABLED=true to test push operations

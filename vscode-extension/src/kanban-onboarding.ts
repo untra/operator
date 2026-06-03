@@ -845,35 +845,78 @@ export async function onboardGithub(
 }
 
 /**
+ * Provider pick item routed to the matching onboarding flow. `provider` is a
+ * bare string (not a closed union) because the list is driven by the server's
+ * catalog — a provider the server advertises but this extension can't yet
+ * onboard falls through to the `default` branch rather than being a type error.
+ */
+interface ProviderPickItem extends vscode.QuickPickItem {
+  provider: string;
+}
+
+/**
+ * Hardcoded fallback used only when the Operator API is unreachable (onboarding
+ * can run before the server is up). The live list comes from the shared
+ * `GET /api/v1/kanban/providers` catalog so the picker can't drift from the
+ * TUI / web `/#/kanban` provider list.
+ */
+const FALLBACK_PROVIDER_ITEMS: ProviderPickItem[] = [
+  {
+    label: '$(operator-atlassian) Jira Cloud',
+    description: 'Connect to Jira Cloud',
+    provider: 'jira',
+  },
+  {
+    label: '$(operator-linear) Linear',
+    description: 'Connect to Linear',
+    provider: 'linear',
+  },
+  {
+    label: '$(github) GitHub Projects',
+    description: 'Connect to GitHub Projects',
+    provider: 'github',
+  },
+];
+
+/**
+ * Build the provider pick list from the Operator catalog endpoint, degrading
+ * to {@link FALLBACK_PROVIDER_ITEMS} if the API is unreachable. Already-configured
+ * providers are annotated but still selectable (matches the "add another"
+ * affordance in the list view).
+ */
+async function loadProviderPickItems(): Promise<ProviderPickItem[]> {
+  try {
+    const client = await buildClient();
+    const catalog = await client.listKanbanProviderCatalog();
+    if (catalog.length > 0) {
+      return catalog.map((p) => ({
+        label: `$(${p.icon}) ${p.display_name}`,
+        description: p.configured ? `${p.description} (connected)` : p.description,
+        provider: p.slug,
+      }));
+    }
+  } catch {
+    // Non-fatal: the API may not be running yet during initial onboarding.
+  }
+  return FALLBACK_PROVIDER_ITEMS;
+}
+
+/**
  * Entry-point: let user pick Jira, Linear, or GitHub Projects, then route to
  * the right flow.
  */
 export async function startKanbanOnboarding(
   context: vscode.ExtensionContext
 ): Promise<void> {
-  const choice = await vscode.window.showQuickPick(
-    [
-      {
-        label: '$(operator-atlassian) Jira Cloud',
-        description: 'Connect to Jira Cloud with API token',
-        provider: 'jira' as const,
-      },
-      {
-        label: '$(operator-linear) Linear',
-        description: 'Connect to Linear with API key',
-        provider: 'linear' as const,
-      },
-      {
-        label: '$(github) GitHub Projects',
-        description: 'Connect to GitHub Projects v2 with a personal access token',
-        provider: 'github' as const,
-      },
-      {
-        label: '$(close) Skip for now',
-        description: 'You can configure this later',
-        provider: 'skip' as const,
-      },
-    ],
+  const providerItems = await loadProviderPickItems();
+  const skipItem: ProviderPickItem = {
+    label: '$(close) Skip for now',
+    description: 'You can configure this later',
+    provider: 'skip',
+  };
+
+  const choice = await vscode.window.showQuickPick<ProviderPickItem>(
+    [...providerItems, skipItem],
     {
       title: 'Connect Kanban Provider',
       placeHolder: 'Which kanban provider do you use?',
@@ -895,6 +938,13 @@ export async function startKanbanOnboarding(
     case 'github':
       await onboardGithub(context);
       break;
+    default:
+      // The picker list is catalog-driven; if the server advertises a provider
+      // this extension has no onboarding flow for yet, say so rather than
+      // silently no-op'ing.
+      void vscode.window.showWarningMessage(
+        `Onboarding for "${choice.provider}" is not supported in this version of the extension. Please update.`
+      );
   }
 }
 

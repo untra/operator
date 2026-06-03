@@ -31,6 +31,10 @@ VS Code terminal integration for [Operator](https://github.com/untra/operator) m
 3. Click the "..." menu
 4. Select "Install from VSIX..."
 
+### Cursor
+
+This extension also runs in [Cursor](https://www.cursor.com). Install it from the [OpenVSX registry](https://open-vsx.org/) (Cursor's default extension search) or via the `.vsix` from GitHub releases.
+
 ## Configuration
 
 | Setting | Default | Description |

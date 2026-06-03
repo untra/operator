@@ -91,31 +91,6 @@
         "skill_directory_overrides": {}
       }
     },
-    "backstage": {
-      "$ref": "#/$defs/BackstageConfig",
-      "default": {
-        "enabled": true,
-        "display": false,
-        "port": 7007,
-        "auto_start": false,
-        "subpath": "backstage",
-        "branding_subpath": "branding",
-        "release_url": "https://github.com/untra/operator/releases/latest/download",
-        "local_binary_path": null,
-        "branding": {
-          "app_title": "Operator Portal",
-          "org_name": "Operator",
-          "logo_path": "logo.svg",
-          "colors": {
-            "primary": "#cc6c55",
-            "secondary": "#114145",
-            "accent": "#f4dbb7",
-            "warning": "#d46048",
-            "muted": "#8a4a3a"
-          }
-        }
-      }
-    },
     "rest_api": {
       "$ref": "#/$defs/RestApiConfig",
       "default": {
@@ -174,6 +149,32 @@
         "$ref": "#/$defs/ModelServer"
       },
       "default": []
+    },
+    "relay": {
+      "description": "Relay MCP injection configuration",
+      "$ref": "#/$defs/RelayConfig",
+      "default": {
+        "auto_inject_mcp": false
+      }
+    },
+    "mcp": {
+      "description": "Model Context Protocol (MCP) server configuration",
+      "$ref": "#/$defs/McpConfig",
+      "default": {
+        "http_enabled": true,
+        "stdio_advertised": true,
+        "expose_ticket_write_tools": false,
+        "external_servers": []
+      }
+    },
+    "acp": {
+      "description": "Agent Client Protocol (ACP) agent configuration",
+      "$ref": "#/$defs/AcpConfig",
+      "default": {
+        "stdio_advertised": true,
+        "default_delegator": null,
+        "max_concurrent_sessions": 8
+      }
     }
   },
   "required": [
@@ -198,6 +199,13 @@
           "type": "integer",
           "format": "uint",
           "minimum": 0
+        },
+        "max_agents_per_repo": {
+          "description": "Maximum concurrent agents per project/repo (default: 1).\nRequires `git.use_worktrees` = true when > 1 to avoid conflicts.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 1
         },
         "health_check_interval": {
           "type": "integer",
@@ -1044,140 +1052,6 @@
         }
       }
     },
-    "BackstageConfig": {
-      "description": "Backstage integration configuration",
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether Backstage integration is enabled",
-          "type": "boolean",
-          "default": true
-        },
-        "display": {
-          "description": "Whether to show Backstage in the Connections status section",
-          "type": "boolean",
-          "default": false
-        },
-        "port": {
-          "description": "Port for the Backstage server",
-          "type": "integer",
-          "format": "uint16",
-          "minimum": 0,
-          "maximum": 65535,
-          "default": 7007
-        },
-        "auto_start": {
-          "description": "Auto-start Backstage server when TUI launches",
-          "type": "boolean",
-          "default": false
-        },
-        "subpath": {
-          "description": "Subdirectory within `state_path` for Backstage installation",
-          "type": "string",
-          "default": "backstage"
-        },
-        "branding_subpath": {
-          "description": "Subdirectory within backstage path for branding customization",
-          "type": "string",
-          "default": "branding"
-        },
-        "release_url": {
-          "description": "Base URL for downloading backstage-server binary",
-          "type": "string",
-          "default": "https://github.com/untra/operator/releases/latest/download"
-        },
-        "local_binary_path": {
-          "description": "Optional local path to backstage-server binary\nIf set, this is used instead of downloading from `release_url`",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "branding": {
-          "description": "Branding and theming configuration",
-          "$ref": "#/$defs/BrandingConfig",
-          "default": {
-            "app_title": "Operator Portal",
-            "org_name": "Operator",
-            "logo_path": "logo.svg",
-            "colors": {
-              "primary": "#cc6c55",
-              "secondary": "#114145",
-              "accent": "#f4dbb7",
-              "warning": "#d46048",
-              "muted": "#8a4a3a"
-            }
-          }
-        }
-      }
-    },
-    "BrandingConfig": {
-      "description": "Branding configuration for Backstage portal",
-      "type": "object",
-      "properties": {
-        "app_title": {
-          "description": "App title shown in header",
-          "type": "string",
-          "default": "Operator Portal"
-        },
-        "org_name": {
-          "description": "Organization name",
-          "type": "string",
-          "default": "Operator"
-        },
-        "logo_path": {
-          "description": "Path to logo SVG (relative to branding path)",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "colors": {
-          "description": "Theme colors (uses Operator defaults if not set)",
-          "$ref": "#/$defs/ThemeColors",
-          "default": {
-            "primary": "#cc6c55",
-            "secondary": "#114145",
-            "accent": "#f4dbb7",
-            "warning": "#d46048",
-            "muted": "#8a4a3a"
-          }
-        }
-      }
-    },
-    "ThemeColors": {
-      "description": "Theme color configuration for Backstage\nDefault colors match Operator's tmux theme",
-      "type": "object",
-      "properties": {
-        "primary": {
-          "description": "Primary/accent color (default: salmon #cc6c55)",
-          "type": "string",
-          "default": "#cc6c55"
-        },
-        "secondary": {
-          "description": "Secondary color (default: dark teal #114145)",
-          "type": "string",
-          "default": "#114145"
-        },
-        "accent": {
-          "description": "Accent/highlight color (default: cream #f4dbb7)",
-          "type": "string",
-          "default": "#f4dbb7"
-        },
-        "warning": {
-          "description": "Warning/error color (default: coral #d46048)",
-          "type": "string",
-          "default": "#d46048"
-        },
-        "muted": {
-          "description": "Muted text color (default: darker salmon #8a4a3a)",
-          "type": "string",
-          "default": "#8a4a3a"
-        }
-      }
-    },
     "RestApiConfig": {
       "description": "REST API server configuration",
       "type": "object",
@@ -1405,6 +1279,11 @@
             "type": "string"
           },
           "default": {}
+        },
+        "bidirectional": {
+          "description": "When true, operator pushes status changes and activity logs back to this kanban project.\nTicket state changes (todo→doing, doing→done) and step completions with delegator info\nare reflected upstream. Default: false.",
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -1605,6 +1484,14 @@
             "null"
           ],
           "default": null
+        },
+        "operator_relay": {
+          "description": "Override global relay auto-inject MCP setting per-delegator (None = use global setting)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
         }
       }
     },
@@ -1657,6 +1544,121 @@
         "name",
         "kind"
       ]
+    },
+    "RelayConfig": {
+      "description": "Relay MCP injection configuration",
+      "type": "object",
+      "properties": {
+        "auto_inject_mcp": {
+          "description": "When true, automatically inject the relay MCP server for all delegators.\nWhen false (default), relay injection is opt-in per delegator.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "McpConfig": {
+      "description": "Model Context Protocol (MCP) server configuration",
+      "type": "object",
+      "properties": {
+        "http_enabled": {
+          "description": "Whether to mount MCP HTTP/SSE endpoints on the REST API server.\nToggling requires an API restart (no hot-swap of the axum router).",
+          "type": "boolean",
+          "default": true
+        },
+        "stdio_advertised": {
+          "description": "Whether the descriptor endpoint advertises the `operator mcp` stdio\ncommand. Set to false on multi-tenant/remote deployments where clients\nshouldn't spawn local subprocesses.",
+          "type": "boolean",
+          "default": true
+        },
+        "expose_ticket_write_tools": {
+          "description": "Whether to expose ticket-mutating tools (claim, complete, return-to-queue,\ncreate) over MCP. Defaults to `false` because any MCP client can call them.",
+          "type": "boolean",
+          "default": false
+        },
+        "external_servers": {
+          "description": "External MCP servers to inject into spawned agent sessions.\nEach entry produces a separate `--mcp-config` file alongside the\nrelay config when launching Claude Code agents.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExternalMcpServer"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExternalMcpServer": {
+      "description": "An external MCP server to inject into spawned agent sessions.\n\nValues in `command`, `args`, and `env` support `${VAR}` interpolation,\nexpanded at spawn time from the operator process environment.\n\nWhen `discover_from` is set, operator reads an MCP server spec from that\nJSON sidecar file at spawn time. The sidecar must contain a top-level\n`mcpServer` object with `command`, `args`, and `env` fields. If the file\nis absent and `command` is empty, the server is silently skipped.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Server name used as the key in the `mcpServers` JSON object\n(e.g., \"kanbots\"). Must be unique across all external servers.",
+          "type": "string"
+        },
+        "command": {
+          "description": "Command to execute. Supports `${VAR}` interpolation.",
+          "type": "string",
+          "default": ""
+        },
+        "args": {
+          "description": "Command arguments. Each element supports `${VAR}` interpolation.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "env": {
+          "description": "Environment variables passed to the MCP server process.\nValues support `${VAR}` interpolation.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "enabled": {
+          "description": "Whether this server is enabled. Allows disabling without removing config.",
+          "type": "boolean",
+          "default": true
+        },
+        "discover_from": {
+          "description": "Path to a JSON sidecar discovery file. Relative paths resolve from\nthe project directory. The sidecar must contain `{ \"mcpServer\": { ... } }`.\nWhen the file exists, its `mcpServer` spec is used verbatim (overriding\n`command`/`args`/`env`). When absent and `command` is empty, the server\nis silently skipped.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "AcpConfig": {
+      "description": "Agent Client Protocol (ACP) agent configuration.\n\nOperator runs as an ACP agent over stdio when editors (Zed, `JetBrains`,\nEmacs `agent-shell`, Kiro, etc.) spawn `operator acp`. Each ACP session\nmaps to an in-progress ACP ticket and a delegator subprocess.",
+      "type": "object",
+      "properties": {
+        "stdio_advertised": {
+          "description": "Whether the dashboard advertises the `operator acp` stdio entrypoint\n(and editor-config snippet actions). Set to false on machines that\nshouldn't be used as ACP agents.",
+          "type": "boolean",
+          "default": true
+        },
+        "default_delegator": {
+          "description": "Name of the delegator (from `[[delegators]]`) to use for ACP prompts.\nIf unset or not found, falls back to the operator's default delegator\nresolution.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "max_concurrent_sessions": {
+          "description": "Maximum number of concurrent ACP sessions. New `session/new` requests\nbeyond this limit are rejected with a JSON-RPC error.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 8
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

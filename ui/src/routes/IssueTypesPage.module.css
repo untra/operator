@@ -1,0 +1,181 @@
+.page {
+  max-width: 1100px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.loading {
+  color: var(--text-muted);
+  padding: 2rem;
+}
+
+.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  transition: background 0.15s;
+}
+
+.item:hover {
+  background: var(--surface-alt);
+}
+
+.selectedItem {
+  background: var(--surface-alt);
+  border-color: var(--color-salmon);
+}
+
+.glyph {
+  font-size: 1.25rem;
+  width: 2rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.itemName {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.itemMeta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.placeholder {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.detailTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detailGlyph {
+  font-size: 1.5rem;
+}
+
+.detailDesc {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0 0 1rem;
+}
+
+.kvGrid {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 0.3rem 1rem;
+  font-size: 0.825rem;
+  margin-bottom: 1.25rem;
+}
+
+.label {
+  color: var(--text-muted);
+}
+
+.steps {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.stepsHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.stepsTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toggleBtn,
+.toggleActive {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.7rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.toggleActive {
+  background: var(--surface-alt);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.stepList {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.step {
+  margin-bottom: 0.4rem;
+  font-size: 0.825rem;
+}
+
+.stepName {
+  font-weight: 500;
+}
+
+.stepMeta {
+  color: var(--text-muted);
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+}

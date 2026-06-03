@@ -11,7 +11,7 @@ use crate::config::{DetectedTool, LlmProvider, LlmToolsConfig, ToolCapabilities}
 use super::tool_config::{load_all_tool_configs, ToolConfig};
 
 /// Detect all available LLM CLI tools and build the config
-#[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
+#[allow(dead_code)] // Used via binary, not reachable from lib.rs
 pub fn detect_all_tools() -> LlmToolsConfig {
     let tool_configs = load_all_tool_configs();
     let mut detected = Vec::new();

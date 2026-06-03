@@ -5,15 +5,16 @@ use axum::{
     Json,
 };
 
-use crate::backstage::analyzer::ProjectAnalysis;
 use crate::queue::creator::{render_template, TicketCreator};
 use crate::rest::dto::{AssessTicketResponse, ProjectSummary};
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
+use crate::taxonomy::analyzer::ProjectAnalysis;
 use crate::templates::TemplateType;
 
 /// List all configured projects with analysis data
 #[utoipa::path(
+    operation_id = "projects_list",
     get,
     path = "/api/v1/projects",
     tag = "Projects",
@@ -124,6 +125,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<Vec<ProjectSummary>> {
 
 /// Create an ASSESS ticket for a project
 #[utoipa::path(
+    operation_id = "projects_assess",
     post,
     path = "/api/v1/projects/{name}/assess",
     tag = "Projects",
@@ -155,7 +157,7 @@ pub async fn assess(
     let mut values = creator.generate_default_values(template_type, &name);
     values.insert(
         "summary".to_string(),
-        format!("Assess {name} for Backstage catalog"),
+        format!("Assess {name} project structure"),
     );
 
     // Render template content

@@ -7,6 +7,11 @@ updates:
     groups:
       rust-deps:
         patterns: ["*"]
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 3
 
   - package-ecosystem: cargo
     directory: "/opr8r"
@@ -15,6 +20,24 @@ updates:
     groups:
       opr8r-deps:
         patterns: ["*"]
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 3
+
+  - package-ecosystem: cargo
+    directory: "/zed-extension"
+    schedule:
+      interval: weekly
+    groups:
+      zed-deps:
+        patterns: ["*"]
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 3
 
   - package-ecosystem: npm
     directory: "/vscode-extension"
@@ -23,11 +46,21 @@ updates:
     groups:
       vscode-deps:
         patterns: ["*"]
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 3
 
   - package-ecosystem: bundler
     directory: "/docs"
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 3
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -36,3 +69,10 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "actions/*"
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 3

@@ -219,6 +219,7 @@ suite('API Client Test Suite', () => {
         delegator: null,
         provider: 'claude',
         model: 'sonnet',
+        model_server: null,
         yolo_mode: true,
         wrapper: 'vscode',
         retry_reason: null,
@@ -273,6 +274,7 @@ suite('API Client Test Suite', () => {
         delegator: null,
         provider: null,
         model: null,
+        model_server: null,
         yolo_mode: false,
         wrapper: null,
         retry_reason: null,
@@ -302,6 +304,7 @@ suite('API Client Test Suite', () => {
         delegator: null,
         provider: null,
         model: null,
+        model_server: null,
         yolo_mode: false,
         wrapper: null,
         retry_reason: null,
@@ -325,6 +328,7 @@ suite('API Client Test Suite', () => {
         delegator: null,
         provider: null,
         model: null,
+        model_server: null,
         yolo_mode: false,
         wrapper: null,
         retry_reason: null,
@@ -361,6 +365,7 @@ suite('API Client Test Suite', () => {
       const options: Partial<LaunchTicketRequest> = {
         provider: 'claude',
         model: 'sonnet',
+        model_server: null,
         wrapper: null,
       };
 

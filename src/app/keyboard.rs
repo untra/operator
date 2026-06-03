@@ -20,12 +20,10 @@ impl App {
         // Setup screen takes absolute priority
         if let Some(ref mut setup) = self.setup_screen {
             match code {
-                KeyCode::Char('i' | 'I') => {
-                    if setup.confirm_selected {
-                        self.initialize_tickets()?;
-                        self.setup_screen = None;
-                        self.refresh_data()?;
-                    }
+                KeyCode::Char('i' | 'I') if setup.confirm_selected => {
+                    self.initialize_tickets()?;
+                    self.setup_screen = None;
+                    self.refresh_data()?;
                 }
                 KeyCode::Enter => {
                     match setup.confirm() {
@@ -225,11 +223,9 @@ impl App {
         // Session recovery dialog handling
         if self.session_recovery_dialog.visible {
             match code {
-                KeyCode::Char('r' | 'R') => {
-                    if self.session_recovery_dialog.has_session_id() {
-                        self.handle_session_recovery(SessionRecoverySelection::ResumeSession)
-                            .await?;
-                    }
+                KeyCode::Char('r' | 'R') if self.session_recovery_dialog.has_session_id() => {
+                    self.handle_session_recovery(SessionRecoverySelection::ResumeSession)
+                        .await?;
                 }
                 KeyCode::Char('s' | 'S') => {
                     self.handle_session_recovery(SessionRecoverySelection::StartFresh)
@@ -389,9 +385,8 @@ impl App {
         match code {
             KeyCode::Char('q') => {
                 // Stop servers if running before exiting
-                if self.rest_api_server.is_running() || self.backstage_server.is_running() {
+                if self.rest_api_server.is_running() {
                     self.rest_api_server.stop();
-                    let _ = self.backstage_server.stop();
                 }
                 // Shut down PR monitor
                 if let Some(tx) = self.pr_shutdown_tx.take() {
@@ -491,7 +486,7 @@ impl App {
                 }
             }
             KeyCode::Char('W' | 'w') => {
-                self.toggle_web_servers(terminal)?;
+                self.open_web_ui()?;
             }
             KeyCode::Char('T' | 't') => {
                 // Open collection switch dialog
@@ -530,7 +525,6 @@ impl App {
         } else {
             // First Ctrl+C - stop servers and enter confirmation mode
             self.rest_api_server.stop();
-            let _ = self.backstage_server.stop();
 
             self.exit_confirmation_mode = true;
             self.exit_confirmation_time = Some(std::time::Instant::now());

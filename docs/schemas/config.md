@@ -42,13 +42,15 @@ JSON Schema for the Operator configuration file (`config.toml`).
 | `tmux` | → `TmuxConfig` | No |  |
 | `sessions` | → `SessionsConfig` | No | Session wrapper configuration (tmux, vscode, or cmux) |
 | `llm_tools` | → `LlmToolsConfig` | No |  |
-| `backstage` | → `BackstageConfig` | No |  |
 | `rest_api` | → `RestApiConfig` | No |  |
 | `git` | → `GitConfig` | No |  |
 | `kanban` | → `KanbanConfig` | No | Kanban provider configuration for syncing issues from Jira, Linear, etc. |
 | `version_check` | → `VersionCheckConfig` | No | Version check configuration for automatic update notifications |
 | `delegators` | `array` | No | Agent delegator configurations for autonomous ticket launching |
 | `model_servers` | `array` | No | User-declared model servers (ollama, lmstudio, any OpenAI-compat host). Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration. |
+| `relay` | → `RelayConfig` | No | Relay MCP injection configuration |
+| `mcp` | → `McpConfig` | No | Model Context Protocol (MCP) server configuration |
+| `acp` | → `AcpConfig` | No | Agent Client Protocol (ACP) agent configuration |
 
 ## Type Definitions
 
@@ -58,6 +60,7 @@ JSON Schema for the Operator configuration file (`config.toml`).
 | --- | --- | --- | --- |
 | `max_parallel` | `integer` | Yes |  |
 | `cores_reserved` | `integer` | Yes |  |
+| `max_agents_per_repo` | `integer` | No | Maximum concurrent agents per project/repo (default: 1). Requires `git.use_worktrees` = true when > 1 to avoid conflicts. |
 | `health_check_interval` | `integer` | Yes |  |
 | `generation_timeout_secs` | `integer` | No | Timeout in seconds for each agent generation (default: 300 = 5 min) |
 | `sync_interval` | `integer` | No | Interval in seconds between ticket-session syncs (default: 60) |
@@ -349,46 +352,6 @@ Per-tool skill directory overrides
 | `global` | `array` | No | Additional global skill directories |
 | `project` | `array` | No | Additional project-relative skill directories |
 
-### BackstageConfig
-
-Backstage integration configuration
-
-| Property | Type | Required | Description |
-| --- | --- | --- | --- |
-| `enabled` | `boolean` | No | Whether Backstage integration is enabled |
-| `display` | `boolean` | No | Whether to show Backstage in the Connections status section |
-| `port` | `integer` | No | Port for the Backstage server |
-| `auto_start` | `boolean` | No | Auto-start Backstage server when TUI launches |
-| `subpath` | `string` | No | Subdirectory within `state_path` for Backstage installation |
-| `branding_subpath` | `string` | No | Subdirectory within backstage path for branding customization |
-| `release_url` | `string` | No | Base URL for downloading backstage-server binary |
-| `local_binary_path` | `string` \| `null` | No | Optional local path to backstage-server binary If set, this is used instead of downloading from `release_url` |
-| `branding` | → `BrandingConfig` | No | Branding and theming configuration |
-
-### BrandingConfig
-
-Branding configuration for Backstage portal
-
-| Property | Type | Required | Description |
-| --- | --- | --- | --- |
-| `app_title` | `string` | No | App title shown in header |
-| `org_name` | `string` | No | Organization name |
-| `logo_path` | `string` \| `null` | No | Path to logo SVG (relative to branding path) |
-| `colors` | → `ThemeColors` | No | Theme colors (uses Operator defaults if not set) |
-
-### ThemeColors
-
-Theme color configuration for Backstage
-Default colors match Operator's tmux theme
-
-| Property | Type | Required | Description |
-| --- | --- | --- | --- |
-| `primary` | `string` | No | Primary/accent color (default: salmon #cc6c55) |
-| `secondary` | `string` | No | Secondary color (default: dark teal #114145) |
-| `accent` | `string` | No | Accent/highlight color (default: cream #f4dbb7) |
-| `warning` | `string` | No | Warning/error color (default: coral #d46048) |
-| `muted` | `string` | No | Muted text color (default: darker salmon #8a4a3a) |
-
 ### RestApiConfig
 
 REST API server configuration
@@ -479,6 +442,7 @@ Per-project/team sync configuration for a kanban provider
 | `sync_statuses` | `array` | No | Workflow statuses to sync (empty = default/first status only) |
 | `collection_name` | `string` \| `null` | No | Optional `IssueTypeCollection` name this project maps to. Not required for kanban onboarding or sync. |
 | `type_mappings` | `object` | No | Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX). Multiple kanban types can map to the same operator template. |
+| `bidirectional` | `boolean` | No | When true, operator pushes status changes and activity logs back to this kanban project. Ticket state changes (todo→doing, doing→done) and step completions with delegator info are reflected upstream. Default: false. |
 
 ### LinearConfig
 
@@ -557,6 +521,7 @@ semantics: `None` = inherit from global config, `Some(true/false)` = override.
 | `docker` | `boolean` \| `null` | No | Run in docker container (None = use global `launch.docker.enabled`) |
 | `prompt_prefix` | `string` \| `null` | No | Prompt text to prepend before the generated step prompt |
 | `prompt_suffix` | `string` \| `null` | No | Prompt text to append after the generated step prompt |
+| `operator_relay` | `boolean` \| `null` | No | Override global relay auto-inject MCP setting per-delegator (None = use global setting) |
 
 ### ModelServer
 
@@ -578,4 +543,58 @@ in config.
 | `api_key_env` | `string` \| `null` | No | Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`) |
 | `extra_env` | `object` | No | Additional environment variables set when spawning agents that use this server |
 | `display_name` | `string` \| `null` | No | Optional display name for UI |
+
+### RelayConfig
+
+Relay MCP injection configuration
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `auto_inject_mcp` | `boolean` | No | When true, automatically inject the relay MCP server for all delegators. When false (default), relay injection is opt-in per delegator. |
+
+### McpConfig
+
+Model Context Protocol (MCP) server configuration
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `http_enabled` | `boolean` | No | Whether to mount MCP HTTP/SSE endpoints on the REST API server. Toggling requires an API restart (no hot-swap of the axum router). |
+| `stdio_advertised` | `boolean` | No | Whether the descriptor endpoint advertises the `operator mcp` stdio command. Set to false on multi-tenant/remote deployments where clients shouldn't spawn local subprocesses. |
+| `expose_ticket_write_tools` | `boolean` | No | Whether to expose ticket-mutating tools (claim, complete, return-to-queue, create) over MCP. Defaults to `false` because any MCP client can call them. |
+| `external_servers` | `array` | No | External MCP servers to inject into spawned agent sessions. Each entry produces a separate `--mcp-config` file alongside the relay config when launching Claude Code agents. |
+
+### ExternalMcpServer
+
+An external MCP server to inject into spawned agent sessions.
+
+Values in `command`, `args`, and `env` support `${VAR}` interpolation,
+expanded at spawn time from the operator process environment.
+
+When `discover_from` is set, operator reads an MCP server spec from that
+JSON sidecar file at spawn time. The sidecar must contain a top-level
+`mcpServer` object with `command`, `args`, and `env` fields. If the file
+is absent and `command` is empty, the server is silently skipped.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Server name used as the key in the `mcpServers` JSON object (e.g., "kanbots"). Must be unique across all external servers. |
+| `command` | `string` | No | Command to execute. Supports `${VAR}` interpolation. |
+| `args` | `array` | No | Command arguments. Each element supports `${VAR}` interpolation. |
+| `env` | `object` | No | Environment variables passed to the MCP server process. Values support `${VAR}` interpolation. |
+| `enabled` | `boolean` | No | Whether this server is enabled. Allows disabling without removing config. |
+| `discover_from` | `string` \| `null` | No | Path to a JSON sidecar discovery file. Relative paths resolve from the project directory. The sidecar must contain `{ "mcpServer": { ... } }`. When the file exists, its `mcpServer` spec is used verbatim (overriding `command`/`args`/`env`). When absent and `command` is empty, the server is silently skipped. |
+
+### AcpConfig
+
+Agent Client Protocol (ACP) agent configuration.
+
+Operator runs as an ACP agent over stdio when editors (Zed, `JetBrains`,
+Emacs `agent-shell`, Kiro, etc.) spawn `operator acp`. Each ACP session
+maps to an in-progress ACP ticket and a delegator subprocess.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `stdio_advertised` | `boolean` | No | Whether the dashboard advertises the `operator acp` stdio entrypoint (and editor-config snippet actions). Set to false on machines that shouldn't be used as ACP agents. |
+| `default_delegator` | `string` \| `null` | No | Name of the delegator (from `[[delegators]]`) to use for ACP prompts. If unset or not found, falls back to the operator's default delegator resolution. |
+| `max_concurrent_sessions` | `integer` | No | Maximum number of concurrent ACP sessions. New `session/new` requests beyond this limit are rejected with a JSON-RPC error. |
 

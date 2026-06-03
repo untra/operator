@@ -1,0 +1,140 @@
+.page {
+  max-width: 960px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.loading {
+  color: var(--text-muted);
+  padding: 2rem;
+}
+
+.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.section {
+  margin-bottom: 2rem;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.kvGrid {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0.4rem 1rem;
+  font-size: 0.875rem;
+}
+
+.label {
+  color: var(--text-muted);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.collectionList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.collectionCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.activeCollection {
+  border-color: var(--color-salmon);
+}
+
+.collectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.collectionName {
+  font-weight: 600;
+}
+
+.activeBadge {
+  font-size: 0.75rem;
+  color: var(--success);
+  background: var(--success-bg);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.activateBtn {
+  font-size: 0.75rem;
+  color: var(--color-salmon);
+  background: transparent;
+  border: 1px solid var(--color-salmon);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.activateBtn:hover {
+  background: var(--surface-alt);
+}
+
+.collectionDesc {
+  font-size: 0.825rem;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.collectionTypes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.typeTag {
+  font-size: 0.7rem;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.825rem;
+}
+
+.table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}

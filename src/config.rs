@@ -1,5 +1,3 @@
-#[path = "config/backstage_config.rs"]
-pub mod backstage_config;
 #[path = "config/git_config.rs"]
 pub mod git_config;
 #[path = "config/kanban.rs"]
@@ -11,7 +9,6 @@ pub mod notifications_config;
 #[path = "config/sessions.rs"]
 pub mod sessions;
 
-pub use backstage_config::*;
 pub use git_config::*;
 pub use kanban::*;
 pub use llm_tools::*;
@@ -50,8 +47,6 @@ pub struct Config {
     #[serde(default)]
     pub llm_tools: LlmToolsConfig,
     #[serde(default)]
-    pub backstage: BackstageConfig,
-    #[serde(default)]
     pub rest_api: RestApiConfig,
     #[serde(default)]
     pub git: GitConfig,
@@ -71,6 +66,12 @@ pub struct Config {
     /// Relay MCP injection configuration
     #[serde(default)]
     pub relay: RelayConfig,
+    /// Model Context Protocol (MCP) server configuration
+    #[serde(default)]
+    pub mcp: McpConfig,
+    /// Agent Client Protocol (ACP) agent configuration
+    #[serde(default)]
+    pub acp: AcpConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -78,6 +79,10 @@ pub struct Config {
 pub struct AgentsConfig {
     pub max_parallel: usize,
     pub cores_reserved: usize,
+    /// Maximum concurrent agents per project/repo (default: 1).
+    /// Requires `git.use_worktrees` = true when > 1 to avoid conflicts.
+    #[serde(default = "default_max_agents_per_repo")]
+    pub max_agents_per_repo: usize,
     pub health_check_interval: u64,
     /// Timeout in seconds for each agent generation (default: 300 = 5 min)
     #[serde(default = "default_generation_timeout")]
@@ -91,6 +96,10 @@ pub struct AgentsConfig {
     /// Seconds of tmux silence before considering agent awaiting input (default: 30)
     #[serde(default = "default_silence_threshold")]
     pub silence_threshold: u64,
+}
+
+fn default_max_agents_per_repo() -> usize {
+    1
 }
 
 fn default_generation_timeout() -> u64 {
@@ -288,6 +297,118 @@ impl Default for RestApiConfig {
             cors_origins: Vec::new(),
         }
     }
+}
+
+/// Model Context Protocol (MCP) server configuration
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct McpConfig {
+    /// Whether to mount MCP HTTP/SSE endpoints on the REST API server.
+    /// Toggling requires an API restart (no hot-swap of the axum router).
+    #[serde(default = "default_true")]
+    pub http_enabled: bool,
+    /// Whether the descriptor endpoint advertises the `operator mcp` stdio
+    /// command. Set to false on multi-tenant/remote deployments where clients
+    /// shouldn't spawn local subprocesses.
+    #[serde(default = "default_true")]
+    pub stdio_advertised: bool,
+    /// Whether to expose ticket-mutating tools (claim, complete, return-to-queue,
+    /// create) over MCP. Defaults to `false` because any MCP client can call them.
+    #[serde(default)]
+    pub expose_ticket_write_tools: bool,
+    /// External MCP servers to inject into spawned agent sessions.
+    /// Each entry produces a separate `--mcp-config` file alongside the
+    /// relay config when launching Claude Code agents.
+    #[serde(default)]
+    pub external_servers: Vec<ExternalMcpServer>,
+}
+
+impl Default for McpConfig {
+    fn default() -> Self {
+        Self {
+            http_enabled: true,
+            stdio_advertised: true,
+            expose_ticket_write_tools: false,
+            external_servers: Vec::new(),
+        }
+    }
+}
+
+/// An external MCP server to inject into spawned agent sessions.
+///
+/// Values in `command`, `args`, and `env` support `${VAR}` interpolation,
+/// expanded at spawn time from the operator process environment.
+///
+/// When `discover_from` is set, operator reads an MCP server spec from that
+/// JSON sidecar file at spawn time. The sidecar must contain a top-level
+/// `mcpServer` object with `command`, `args`, and `env` fields. If the file
+/// is absent and `command` is empty, the server is silently skipped.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct ExternalMcpServer {
+    /// Server name used as the key in the `mcpServers` JSON object
+    /// (e.g., "kanbots"). Must be unique across all external servers.
+    pub name: String,
+    /// Command to execute. Supports `${VAR}` interpolation.
+    #[serde(default)]
+    pub command: String,
+    /// Command arguments. Each element supports `${VAR}` interpolation.
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Environment variables passed to the MCP server process.
+    /// Values support `${VAR}` interpolation.
+    #[serde(default)]
+    pub env: std::collections::HashMap<String, String>,
+    /// Whether this server is enabled. Allows disabling without removing config.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Path to a JSON sidecar discovery file. Relative paths resolve from
+    /// the project directory. The sidecar must contain `{ "mcpServer": { ... } }`.
+    /// When the file exists, its `mcpServer` spec is used verbatim (overriding
+    /// `command`/`args`/`env`). When absent and `command` is empty, the server
+    /// is silently skipped.
+    #[serde(default)]
+    pub discover_from: Option<String>,
+}
+
+/// Agent Client Protocol (ACP) agent configuration.
+///
+/// Operator runs as an ACP agent over stdio when editors (Zed, `JetBrains`,
+/// Emacs `agent-shell`, Kiro, etc.) spawn `operator acp`. Each ACP session
+/// maps to an in-progress ACP ticket and a delegator subprocess.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct AcpConfig {
+    /// Whether the dashboard advertises the `operator acp` stdio entrypoint
+    /// (and editor-config snippet actions). Set to false on machines that
+    /// shouldn't be used as ACP agents.
+    #[serde(default = "default_true")]
+    pub stdio_advertised: bool,
+    /// Name of the delegator (from `[[delegators]]`) to use for ACP prompts.
+    /// If unset or not found, falls back to the operator's default delegator
+    /// resolution.
+    #[serde(default)]
+    pub default_delegator: Option<String>,
+    /// Maximum number of concurrent ACP sessions. New `session/new` requests
+    /// beyond this limit are rejected with a JSON-RPC error.
+    #[serde(default = "default_acp_max_sessions")]
+    pub max_concurrent_sessions: usize,
+}
+
+impl Default for AcpConfig {
+    fn default() -> Self {
+        Self {
+            stdio_advertised: true,
+            default_delegator: None,
+            max_concurrent_sessions: default_acp_max_sessions(),
+        }
+    }
+}
+
+fn default_acp_max_sessions() -> usize {
+    8
 }
 
 /// Predefined issue type collections
@@ -527,7 +648,7 @@ impl Config {
         );
 
         let config = builder.build().context("Failed to load configuration")?;
-        config.try_deserialize().map_err(|e| {
+        let cfg: Self = config.try_deserialize().map_err(|e| {
             let mut sources = vec![];
             let operator_config = Self::operator_config_path();
             if operator_config.exists() {
@@ -550,7 +671,17 @@ impl Config {
             anyhow::anyhow!(
                 "Failed to deserialize configuration: {e}\n\nConfig files loaded:\n{sources_str}\n\nCheck these files for missing or invalid fields."
             )
-        })
+        })?;
+
+        if cfg.agents.max_agents_per_repo > 1 && !cfg.git.use_worktrees {
+            tracing::warn!(
+                max_agents_per_repo = cfg.agents.max_agents_per_repo,
+                "max_agents_per_repo > 1 without git.use_worktrees = true; \
+                 multiple agents on the same repo without worktrees will cause git conflicts"
+            );
+        }
+
+        Ok(cfg)
     }
 
     /// Save config to .tickets/operator/config.toml
@@ -576,6 +707,10 @@ impl Config {
         let cpu_count = System::new_all().cpus().len();
         let core_based_max = cpu_count.saturating_sub(self.agents.cores_reserved);
         self.agents.max_parallel.min(core_based_max).max(1)
+    }
+
+    pub fn effective_max_agents_per_repo(&self) -> usize {
+        self.agents.max_agents_per_repo.max(1)
     }
 
     /// Get absolute path to tickets directory
@@ -609,7 +744,6 @@ impl Config {
     }
 
     /// Get absolute path to worktrees directory
-    #[allow(dead_code)] // Will be used when WorktreeManager is wired into launcher
     pub fn worktrees_path(&self) -> PathBuf {
         let path = PathBuf::from(&self.paths.worktrees);
         if path.is_absolute() {
@@ -634,17 +768,6 @@ impl Config {
         self.tickets_path().join("operator").join("tmux-status.sh")
     }
 
-    /// Get absolute path to Backstage installation directory
-    pub fn backstage_path(&self) -> PathBuf {
-        self.state_path().join(&self.backstage.subpath)
-    }
-
-    /// Get absolute path to Backstage branding directory
-    #[allow(dead_code)] // For future branding customization support
-    pub fn backstage_branding_path(&self) -> PathBuf {
-        self.backstage_path().join(&self.backstage.branding_subpath)
-    }
-
     /// Get priority index for a ticket type (lower = higher priority)
     pub fn priority_index(&self, ticket_type: &str) -> usize {
         self.queue
@@ -664,7 +787,6 @@ impl Config {
     /// Returns projects found by scanning for .git directories and LLM marker files.
     /// Each project includes git repo info (remote URL, default branch, GitHub info)
     /// and a list of available LLM tools.
-    #[allow(dead_code)] // For future integration
     pub fn discover_projects_full(&self) -> Vec<crate::projects::DiscoveredProject> {
         crate::projects::discover_projects_with_git(&self.projects_path())
     }
@@ -677,6 +799,7 @@ impl Default for Config {
             agents: AgentsConfig {
                 max_parallel: 5,
                 cores_reserved: 1,
+                max_agents_per_repo: 1,
                 health_check_interval: 30,
                 generation_timeout_secs: 300, // 5 minutes
                 sync_interval: 60,            // 1 minute
@@ -720,7 +843,6 @@ impl Default for Config {
             tmux: TmuxConfig::default(),
             sessions: SessionsConfig::default(),
             llm_tools: LlmToolsConfig::default(),
-            backstage: BackstageConfig::default(),
             rest_api: RestApiConfig::default(),
             git: GitConfig::default(),
             kanban: KanbanConfig::default(),
@@ -728,6 +850,8 @@ impl Default for Config {
             delegators: Vec::new(),
             model_servers: Vec::new(),
             relay: RelayConfig::default(),
+            mcp: McpConfig::default(),
+            acp: AcpConfig::default(),
         }
     }
 }

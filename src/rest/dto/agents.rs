@@ -153,6 +153,61 @@ pub struct ActiveAgentsResponse {
 }
 
 // =============================================================================
+// Agent Detail DTOs
+// =============================================================================
+
+/// Full details for a single agent
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct AgentDetailResponse {
+    /// Agent ID (UUID)
+    pub id: String,
+    /// Associated ticket ID (e.g., "FEAT-042")
+    pub ticket_id: String,
+    /// Ticket type: FEAT, FIX, INV, SPIKE
+    pub ticket_type: String,
+    /// Project being worked on
+    pub project: String,
+    /// Agent status: running, `awaiting_input`, completing, orphaned
+    pub status: String,
+    /// When the agent started (ISO 8601)
+    pub started_at: String,
+    /// Last activity timestamp (ISO 8601)
+    pub last_activity: String,
+    /// Current workflow step
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_step: Option<String>,
+    /// LLM tool used (e.g., "claude", "gemini", "codex")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_tool: Option<String>,
+    /// LLM model alias (e.g., "opus", "sonnet", "gpt-4o")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_model: Option<String>,
+    /// Launch mode: "default", "yolo", "docker", "docker-yolo"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub launch_mode: Option<String>,
+    /// PR URL if created during "pr" step
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pr_url: Option<String>,
+    /// Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pr_status: Option<String>,
+    /// Which session wrapper is in use: "tmux", "vscode", "cmux", or "zellij"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_wrapper: Option<String>,
+    /// Review state for `awaiting_input` agents
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub review_state: Option<String>,
+    /// Completed steps for this ticket
+    pub completed_steps: Vec<String>,
+    /// Path to the git worktree for this ticket
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worktree_path: Option<String>,
+    /// Whether this is a paired (interactive) agent
+    pub paired: bool,
+}
+
+// =============================================================================
 // Ticket Launch DTOs
 // =============================================================================
 
@@ -169,6 +224,10 @@ pub struct LaunchTicketRequest {
     /// Model to use (e.g., "sonnet", "opus") — legacy fallback when no delegator
     #[serde(default)]
     pub model: Option<String>,
+    /// Ad-hoc model server to target (e.g. "ollama-local") — legacy fallback when
+    /// no delegator. Injects the server's base URL / API key env at spawn.
+    #[serde(default)]
+    pub model_server: Option<String>,
     /// Run in YOLO mode (auto-accept all prompts)
     #[serde(default)]
     pub yolo_mode: bool,
@@ -407,4 +466,80 @@ pub struct ReviewResponse {
 pub struct RejectReviewRequest {
     /// Reason for rejection (feedback for the agent)
     pub reason: String,
+}
+
+// =============================================================================
+// Ticket Detail DTOs
+// =============================================================================
+
+/// Full ticket details including content and metadata
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct TicketDetailResponse {
+    /// Ticket ID (e.g., "FEAT-7598")
+    pub id: String,
+    /// Ticket summary/title
+    pub summary: String,
+    /// Ticket type: FEAT, FIX, INV, SPIKE
+    pub ticket_type: String,
+    /// Project name
+    pub project: String,
+    /// Current status: queued, running, awaiting, completed
+    pub status: String,
+    /// Current step name
+    pub step: String,
+    /// Human-readable step name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step_display_name: Option<String>,
+    /// Priority: P0-critical, P1-high, P2-medium, P3-low
+    pub priority: String,
+    /// Timestamp (YYYYMMDD-HHMM format)
+    pub timestamp: String,
+    /// Full markdown content of the ticket
+    pub content: String,
+    /// Ticket filename
+    pub filename: String,
+    /// Full filesystem path
+    pub filepath: String,
+    /// Session IDs per step (`step_name` -> `session_uuid`)
+    pub sessions: std::collections::HashMap<String, String>,
+    /// Delegator used per step (`step_name` -> `delegator_name`)
+    pub step_delegators: std::collections::HashMap<String, String>,
+    /// Path to git worktree (if created)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worktree_path: Option<String>,
+    /// Git branch name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
+    /// External issue ID from kanban provider
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
+    /// URL to the issue in the external provider
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_url: Option<String>,
+    /// Provider name (e.g., "jira", "linear")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_provider: Option<String>,
+}
+
+/// Request to update a ticket's status
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct UpdateTicketStatusRequest {
+    /// Target status: queued, running, awaiting, done
+    pub status: String,
+}
+
+/// Response from updating a ticket's status
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct UpdateTicketStatusResponse {
+    /// Ticket ID
+    pub id: String,
+    /// Previous status before the update
+    pub previous_status: String,
+    /// New status after the update
+    pub status: String,
+    /// Human-readable message
+    pub message: String,
 }

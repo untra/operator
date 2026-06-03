@@ -9,7 +9,7 @@ pub mod delegator_resolution;
 mod generator;
 pub mod hooks;
 pub mod idle_detector;
-mod launcher;
+pub(crate) mod launcher;
 mod monitor;
 mod pr_workflow;
 mod session;

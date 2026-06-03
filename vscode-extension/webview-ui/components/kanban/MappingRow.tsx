@@ -1,21 +1,19 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import Link from '@mui/material/Link';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
-import { WorkflowPreview } from './WorkflowPreview';
 import type { ExternalIssueTypeSummary, IssueTypeSummary } from '../../types/messages';
-import type { IssueTypeResponse } from '../../../src/generated/IssueTypeResponse';
 
 interface MappingRowProps {
   external: ExternalIssueTypeSummary;
   operatorTypes: IssueTypeSummary[];
   selectedKey: string | null;
   autoMatchedKey: string | null;
-  selectedIssueTypeDetail: IssueTypeResponse | null;
   onSelect: (externalName: string, operatorKey: string | '') => void;
-  onViewIssueType: (key: string) => void;
+  onViewIssueType: () => void;
 }
 
 export function MappingRow({
@@ -23,13 +21,11 @@ export function MappingRow({
   operatorTypes,
   selectedKey,
   autoMatchedKey,
-  selectedIssueTypeDetail,
   onSelect,
   onViewIssueType,
 }: MappingRowProps) {
   const effectiveKey = selectedKey ?? autoMatchedKey;
   const isOverride = selectedKey !== null && selectedKey !== autoMatchedKey;
-  const matchedType = operatorTypes.find(t => t.key === effectiveKey);
 
   return (
     <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -93,13 +89,17 @@ export function MappingRow({
         </Box>
       </Box>
 
-      {/* Workflow preview for matched type */}
-      {matchedType && selectedIssueTypeDetail && selectedIssueTypeDetail.key === effectiveKey && (
-        <Box
-          sx={{ mt: 1, ml: 4, cursor: 'pointer' }}
-          onClick={() => onViewIssueType(effectiveKey!)}
-        >
-          <WorkflowPreview steps={selectedIssueTypeDetail.steps} compact />
+      {/* View the mapped issue type in the hosted Operator UI */}
+      {effectiveKey && (
+        <Box sx={{ mt: 0.5, ml: 4 }}>
+          <Link
+            component="button"
+            variant="caption"
+            onClick={onViewIssueType}
+            sx={{ textAlign: 'left' }}
+          >
+            view issue type →
+          </Link>
         </Box>
       )}
     </Box>

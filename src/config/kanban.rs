@@ -232,7 +232,7 @@ impl KanbanConfig {
     ///
     /// Delegates to the provider-specific upsert method based on the
     /// `WorkspaceExtra` variant in the validated workspace.
-    #[allow(dead_code)] // Will be used by onboarding service in Phase 1b
+    #[allow(dead_code)] // Used in tests
     pub fn upsert_project(
         &mut self,
         workspace: &crate::api::providers::kanban::ValidatedWorkspace,

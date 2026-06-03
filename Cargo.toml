@@ -1,7 +1,8 @@
 [package]
 name = "operator"
-version = "0.1.31"
+version = "0.2.0"
 edition = "2021"
+rust-version = "1.95"
 description = "Multi-agent orchestration dashboard for gbqr.us"
 authors = ["gbqr.us"]
 license = "MIT"
@@ -91,9 +92,22 @@ http-body-util = "0.1"
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
+# Agent Client Protocol (ACP) — JSON-RPC 2.0 over stdio for editor integration
+agent-client-protocol = "0.12"
+
+# Embedded web UI (behind embed-ui feature flag)
+rust-embed = { version = "8", optional = true }
+mime_guess = { version = "2", optional = true }
+utoipa-axum = "0.1"
+
+[features]
+default = ["embed-ui"]
+embed-ui = ["dep:rust-embed", "dep:mime_guess"]
+
 [dev-dependencies]
 operator-relay = { path = "crates/relay" }
 tempfile = "3"
+flate2 = "1"
 
 [lints.rust]
 unsafe_code = "deny"

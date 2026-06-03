@@ -17,7 +17,6 @@ pub mod state;
 pub mod types;
 
 // Internal modules required by public modules
-mod backstage;
 mod collections;
 mod issuetypes;
 mod llm;
@@ -28,14 +27,27 @@ mod projects;
 mod services;
 mod startup;
 mod steps;
+#[allow(dead_code)]
+pub mod taxonomy;
 mod templates;
 pub mod version;
 
+// Integration surface inventory (capability parity across surfaces)
+pub mod integrations;
+
 // MCP server bridge
 pub mod mcp;
+
+// ACP agent bridge (Agent Client Protocol — editor-hosted sessions over stdio)
+pub mod acp;
 
 // Re-export env_vars for potential external use
 pub mod env_vars;
 
 // Relay hub and channel client
 pub mod relay;
+
+// Workflow export (ticket + issuetype -> Claude dynamic workflow .js).
+// Declared here (in addition to the bin) so the REST layer, which compiles in
+// both the lib and bin crates, can reach it.
+pub mod workflow_gen;

@@ -2,7 +2,7 @@
 
 use super::markdown::{bold, bullet_list, heading, inline_code, table};
 use super::{format_header, DocGenerator};
-use crate::backstage::taxonomy::{KindTier, Taxonomy};
+use crate::taxonomy::{KindTier, Taxonomy};
 use anyhow::Result;
 
 /// Generates taxonomy documentation from taxonomy.toml
@@ -14,11 +14,11 @@ impl DocGenerator for TaxonomyDocGenerator {
     }
 
     fn source(&self) -> &'static str {
-        "src/backstage/taxonomy.toml"
+        "src/taxonomy/taxonomy.toml"
     }
 
     fn output_path(&self) -> &'static str {
-        "backstage/taxonomy.md"
+        "taxonomy/index.md"
     }
 
     fn generate(&self) -> Result<String> {
@@ -33,7 +33,7 @@ impl DocGenerator for TaxonomyDocGenerator {
             taxonomy.tiers.len()
         ));
         output.push_str(
-            "Each Kind represents a category of project that can be cataloged in Backstage. ",
+            "Each Kind represents a category of project that can be classified by Operator. ",
         );
         output.push_str("The taxonomy is used by the `ASSESS` issue type to classify projects and generate `catalog-info.yaml` files.\n\n");
 
@@ -63,8 +63,8 @@ impl DocGenerator for TaxonomyDocGenerator {
         // File pattern reference
         output.push_str(&self.generate_pattern_reference(taxonomy));
 
-        // Backstage type mapping
-        output.push_str(&self.generate_backstage_mapping(taxonomy));
+        // Catalog type mapping
+        output.push_str(&self.generate_catalog_type_mapping(taxonomy));
 
         Ok(output)
     }
@@ -72,7 +72,7 @@ impl DocGenerator for TaxonomyDocGenerator {
 
 impl TaxonomyDocGenerator {
     fn generate_summary_table(&self, taxonomy: &Taxonomy) -> String {
-        let headers = &["ID", "Key", "Name", "Tier", "Backstage Type"];
+        let headers = &["ID", "Key", "Name", "Tier", "Catalog Type"];
         let rows: Vec<Vec<String>> = taxonomy
             .kinds
             .iter()
@@ -82,7 +82,7 @@ impl TaxonomyDocGenerator {
                     inline_code(&k.key),
                     k.name.clone(),
                     k.tier.clone(),
-                    inline_code(&k.backstage_type),
+                    inline_code(&k.catalog_type),
                 ]
             })
             .collect();
@@ -136,8 +136,8 @@ impl TaxonomyDocGenerator {
                 format!("{}: {}", bold("Primary Output"), &kind.output),
                 format!(
                     "{}: {}",
-                    bold("Backstage Type"),
-                    inline_code(&kind.backstage_type)
+                    bold("Catalog Type"),
+                    inline_code(&kind.catalog_type)
                 ),
             ];
             output.push_str(&bullet_list(&details));
@@ -181,17 +181,17 @@ impl TaxonomyDocGenerator {
         output
     }
 
-    fn generate_backstage_mapping(&self, taxonomy: &Taxonomy) -> String {
-        let mut output = heading(2, "Backstage Type Mapping");
-        output.push_str("Each Kind maps to a Backstage catalog type:\n\n");
+    fn generate_catalog_type_mapping(&self, taxonomy: &Taxonomy) -> String {
+        let mut output = heading(2, "Catalog Type Mapping");
+        output.push_str("Each Kind maps to a catalog type:\n\n");
 
-        let headers = &["Backstage Type", "Kinds"];
+        let headers = &["Catalog Type", "Kinds"];
         let mut type_map: std::collections::HashMap<&str, Vec<&str>> =
             std::collections::HashMap::new();
 
         for kind in &taxonomy.kinds {
             type_map
-                .entry(&kind.backstage_type)
+                .entry(&kind.catalog_type)
                 .or_default()
                 .push(&kind.key);
         }
@@ -210,7 +210,7 @@ impl TaxonomyDocGenerator {
             })
             .collect();
 
-        // Sort by backstage type
+        // Sort by catalog type
         rows.sort_by(|a, b| a[0].cmp(&b[0]));
 
         output.push_str(&table(headers, &rows));

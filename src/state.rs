@@ -334,6 +334,60 @@ impl State {
         Ok(id)
     }
 
+    /// Add an agent with a pre-allocated ID and full launch options.
+    ///
+    /// Use this when the agent ID must be known before state registration
+    /// (e.g., for injecting the ID into environment variables at launch time).
+    #[allow(clippy::too_many_arguments)] // mirrors add_agent_with_full_options + explicit id
+    pub fn add_agent_with_explicit_id(
+        &mut self,
+        id: String,
+        ticket_id: String,
+        ticket_type: String,
+        project: String,
+        paired: bool,
+        llm_tool: Option<String>,
+        launch_mode: Option<String>,
+        llm_model: Option<String>,
+    ) -> Result<String> {
+        let now = Utc::now();
+
+        self.agents.push(AgentState {
+            id: id.clone(),
+            ticket_id,
+            ticket_type,
+            project,
+            status: "running".to_string(),
+            started_at: now,
+            last_activity: now,
+            last_message: None,
+            paired,
+            session_name: None,
+            session_wrapper: None,
+            session_window_ref: None,
+            session_context_ref: None,
+            session_pane_ref: None,
+            content_hash: None,
+            current_step: None,
+            step_started_at: None,
+            last_content_change: Some(now),
+            pr_url: None,
+            pr_number: None,
+            github_repo: None,
+            pr_status: None,
+            completed_steps: Vec::new(),
+            llm_tool,
+            llm_model,
+            launch_mode,
+            review_state: None,
+            dev_server_pid: None,
+            worktree_path: None,
+        });
+
+        self.save()?;
+        Ok(id)
+    }
+
     pub fn update_agent_status(
         &mut self,
         agent_id: &str,
@@ -391,10 +445,13 @@ impl State {
             .collect()
     }
 
-    pub fn is_project_busy(&self, project: &str) -> bool {
+    pub fn project_agent_count(&self, project: &str) -> usize {
         self.agents
             .iter()
-            .any(|a| a.project == project && a.status == "running")
+            .filter(|a| {
+                a.project == project && (a.status == "running" || a.status == "awaiting_input")
+            })
+            .count()
     }
 
     /// Update the terminal session name for an agent
@@ -1235,7 +1292,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_project_busy_running() {
+    fn test_project_agent_count_running() {
         let temp_dir = TempDir::new().unwrap();
         let config = test_config(&temp_dir);
         let mut state = State::load(&config).unwrap();
@@ -1249,13 +1306,12 @@ mod tests {
             )
             .unwrap();
 
-        // Agent starts with status "running"
-        assert!(state.is_project_busy("test-project"));
-        assert!(!state.is_project_busy("other-project"));
+        assert_eq!(state.project_agent_count("test-project"), 1);
+        assert_eq!(state.project_agent_count("other-project"), 0);
     }
 
     #[test]
-    fn test_is_project_busy_awaiting_input() {
+    fn test_project_agent_count_includes_awaiting_input() {
         let temp_dir = TempDir::new().unwrap();
         let config = test_config(&temp_dir);
         let mut state = State::load(&config).unwrap();
@@ -1273,8 +1329,63 @@ mod tests {
             .update_agent_status(&id, "awaiting_input", None)
             .unwrap();
 
-        // is_project_busy only checks for "running" status
-        assert!(!state.is_project_busy("test-project"));
+        assert_eq!(state.project_agent_count("test-project"), 1);
+    }
+
+    #[test]
+    fn test_project_agent_count_multiple() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        state
+            .add_agent(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .add_agent(
+                "FEAT-002".to_string(),
+                "FEAT".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .add_agent(
+                "FEAT-003".to_string(),
+                "FEAT".to_string(),
+                "other-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        assert_eq!(state.project_agent_count("test-project"), 2);
+        assert_eq!(state.project_agent_count("other-project"), 1);
+        assert_eq!(state.project_agent_count("nonexistent"), 0);
+    }
+
+    #[test]
+    fn test_project_agent_count_excludes_completed() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let id = state
+            .add_agent(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        state.update_agent_status(&id, "completed", None).unwrap();
+
+        assert_eq!(state.project_agent_count("test-project"), 0);
     }
 
     // ─── Step Completion Tests ───────────────────────────────────────────────────
@@ -1714,5 +1825,37 @@ mod tests {
         assert_eq!(group.pending_launches.len(), 1);
         assert_eq!(group.pending_launches[0].variant_key, "1");
         assert_eq!(group.agent_variant_keys.get("agent-A").unwrap(), "0");
+    }
+
+    #[test]
+    fn test_add_agent_with_explicit_id_uses_provided_id() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let explicit_id = "my-custom-agent-id-12345".to_string();
+        let result = state.add_agent_with_explicit_id(
+            explicit_id.clone(),
+            "FEAT-001".to_string(),
+            "FEAT".to_string(),
+            "testproject".to_string(),
+            false,
+            Some("claude".to_string()),
+            Some("default".to_string()),
+            Some("sonnet".to_string()),
+        );
+
+        assert!(result.is_ok());
+        let returned_id = result.unwrap();
+        assert_eq!(returned_id, explicit_id);
+
+        let agent = state.agents.iter().find(|a| a.id == explicit_id);
+        assert!(agent.is_some());
+        let agent = agent.unwrap();
+        assert_eq!(agent.ticket_id, "FEAT-001");
+        assert_eq!(agent.project, "testproject");
+        assert_eq!(agent.llm_tool, Some("claude".to_string()));
+        assert_eq!(agent.llm_model, Some("sonnet".to_string()));
+        assert_eq!(agent.status, "running");
     }
 }

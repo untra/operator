@@ -466,6 +466,18 @@
             }
           ],
           "default": null
+        },
+        "pipeline_config": {
+          "description": "Configuration for pipeline steps (required when type=pipeline)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PipelineConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -516,6 +528,11 @@
           "description": "N x M delegators x prompt variations",
           "type": "string",
           "const": "matrixed"
+        },
+        {
+          "description": "Iterate a list of items through ordered stages with no barrier",
+          "type": "string",
+          "const": "pipeline"
         }
       ]
     },
@@ -1277,6 +1294,161 @@
           "type": "string",
           "const": "structured"
         }
+      ]
+    },
+    "PipelineConfig": {
+      "description": "Configuration for pipeline steps: iterate a list of items through ordered\nstages with no barrier (each item flows through all stages independently).\n\nThe step graph stays linear — a pipeline step still has exactly one\n`next_step`. The fan-out (N items x M stages) lives entirely inside this one\nstep; iteration is an intra-step concern, never a step-to-step edge.",
+      "type": "object",
+      "properties": {
+        "item_source": {
+          "description": "Where the iterated items come from.",
+          "$ref": "#/$defs/ItemSource"
+        },
+        "stages": {
+          "description": "Ordered mini-steps each item flows through. Must be non-empty.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PipelineStage"
+          }
+        }
+      },
+      "required": [
+        "item_source",
+        "stages"
+      ]
+    },
+    "ItemSource": {
+      "description": "Where a pipeline's iterated items come from. The variant determines *when*\nthe list resolves: export-time (a literal array → static fan-out width in\nthe compiled graph) vs runtime (an identifier → symbolic width).",
+      "oneOf": [
+        {
+          "description": "The configured/relevant projects (`config.discover_projects()`),\nresolved to a literal array at export time. The \"plan work across many\nprojects\" mechanism.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "projects"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "description": "An array produced by a prior step. Emits that step's result identifier\n(`r_<step>`) — a runtime value, so the graph width is symbolic.",
+          "type": "object",
+          "properties": {
+            "step": {
+              "description": "Name of the prior step whose (array) output is iterated.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "from_step"
+            }
+          },
+          "required": [
+            "type",
+            "step"
+          ]
+        },
+        {
+          "description": "A glob pattern, expanded to a literal array at export time against the\nproject root (`projects_path()/<ticket.project>`).",
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "description": "Glob pattern, relative to the project root.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "glob"
+            }
+          },
+          "required": [
+            "type",
+            "pattern"
+          ]
+        },
+        {
+          "description": "A literal, author-provided list, emitted verbatim as a literal array.",
+          "type": "object",
+          "properties": {
+            "items": {
+              "description": "The items to iterate.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "static"
+            }
+          },
+          "required": [
+            "type",
+            "items"
+          ]
+        },
+        {
+          "description": "A ticket field value split into a list. Resolution is deferred — there\nis no list `FieldType` and ticket field values are not captured at\nexport time yet — so this currently emits a symbolic placeholder.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "Name of the ticket field to read.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "field"
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ]
+        }
+      ]
+    },
+    "PipelineStage": {
+      "description": "A single stage in a pipeline — deliberately flat (not a recursive\n`StepSchema`): \"prompt + optional agent/model/schema\" only. It has no\n`next_step`/`review_type`/`on_reject`, so a stage cannot reopen the\nstep-graph linearity question.",
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "description": "Handlebars prompt. The per-item value is appended as a JS binding at\nexport time (see `workflow_gen::export`), not via a Handlebars variable.",
+          "type": "string"
+        },
+        "agent": {
+          "description": "Optional agent/delegator name (falls back to the step/issuetype agent).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "model": {
+          "description": "Optional model pin (emitted as `{ model: … }`).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "jsonSchema": {
+          "description": "Optional structured-output JSON schema (emitted as `{ schema: … }`).",
+          "default": null
+        },
+        "label": {
+          "description": "Optional display label override (defaults to `<step>:<stage-index>`).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "prompt"
       ]
     }
   },

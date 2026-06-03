@@ -41,7 +41,8 @@ These are tools that comparable and aspirational for Operator
 
 - [agtx](https://github.com/fynnfluegge/agtx)
 - [claude-relay](https://github.com/Innestic/claude-relay)
-- [gastown](https://github.com/gastownhall/gastown)
+- [kanbots](https://github.com/Innestic/claude-relay)
+- [agentic website](https://agenticmotherfucking.website/)
 
 ## Similar, but Worse:
 
@@ -49,3 +50,4 @@ These are tools that are almost as good, and are inspirational, but just don't q
 
 - [Ralph Code](https://github.com/frankbria/ralph-claude-code)
 - [Vibe Kanban](https://www.vibekanban.com/)
+- [gastown](https://github.com/gastownhall/gastown)

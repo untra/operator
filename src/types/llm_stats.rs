@@ -198,12 +198,8 @@ impl ProjectLlmStats {
     /// Get average time per ticket (in seconds)
     pub fn avg_time_per_ticket(&self) -> Option<u64> {
         let total_tickets = self.total_tickets();
-        if total_tickets > 0 {
-            let total_time: u64 = self.tool_usage.values().map(|u| u.total_time_secs).sum();
-            Some(total_time / total_tickets)
-        } else {
-            None
-        }
+        let total_time: u64 = self.tool_usage.values().map(|u| u.total_time_secs).sum();
+        total_time.checked_div(total_tickets)
     }
 }
 

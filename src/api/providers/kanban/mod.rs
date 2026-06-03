@@ -272,12 +272,72 @@ pub enum KanbanProviderType {
 }
 
 impl KanbanProviderType {
+    /// The canonical list of supported kanban providers, in display order.
+    ///
+    /// This is the single source of truth for "which providers exist". Every
+    /// surface (TUI status section, web `/#/kanban`, the REST provider catalog
+    /// endpoint, and the VS Code onboarding picker) derives its list from here
+    /// so the options can't drift apart.
+    pub const ALL: [KanbanProviderType; 3] = [
+        KanbanProviderType::Jira,
+        KanbanProviderType::Linear,
+        KanbanProviderType::Github,
+    ];
+
     /// Get the display name
     pub fn display_name(&self) -> &'static str {
         match self {
             KanbanProviderType::Jira => "Jira Cloud",
             KanbanProviderType::Linear => "Linear",
             KanbanProviderType::Github => "GitHub Projects",
+        }
+    }
+
+    /// Lowercase wire slug — the stable identifier used in config keys, the
+    /// `ConfigureKanbanProvider` action, and the REST catalog.
+    pub fn slug(&self) -> &'static str {
+        match self {
+            KanbanProviderType::Jira => "jira",
+            KanbanProviderType::Linear => "linear",
+            KanbanProviderType::Github => "github",
+        }
+    }
+
+    /// Parse a provider from its lowercase [`slug`](Self::slug).
+    pub fn from_slug(slug: &str) -> Option<KanbanProviderType> {
+        KanbanProviderType::ALL
+            .into_iter()
+            .find(|p| p.slug() == slug)
+    }
+
+    /// One-line "connect" description shown next to the provider in list views.
+    pub fn connect_blurb(&self) -> &'static str {
+        match self {
+            KanbanProviderType::Jira => "Connect to Jira Cloud",
+            KanbanProviderType::Linear => "Connect to Linear",
+            KanbanProviderType::Github => "Connect to GitHub Projects",
+        }
+    }
+
+    /// The provider's credential/token page. Opened by the TUI "Configure"
+    /// action and surfaced as the clickable link on the web `/#/kanban` rows
+    /// (there is no in-browser onboarding wizard — this opens the token page).
+    pub fn setup_url(&self) -> &'static str {
+        match self {
+            KanbanProviderType::Jira => {
+                "https://id.atlassian.com/manage-profile/security/api-tokens"
+            }
+            KanbanProviderType::Linear => "https://linear.app/settings/api",
+            KanbanProviderType::Github => "https://github.com/settings/personal-access-tokens",
+        }
+    }
+
+    /// Codicon hint for the VS Code onboarding picker (rendered as `$(icon)`).
+    pub fn icon(&self) -> &'static str {
+        match self {
+            KanbanProviderType::Jira => "operator-atlassian",
+            KanbanProviderType::Linear => "operator-linear",
+            KanbanProviderType::Github => "github",
         }
     }
 
@@ -831,5 +891,56 @@ mod tests {
         // Non-Jira vars should return None
         assert!(parse_custom_jira_env_var("OPERATOR_LINEAR_API_KEY").is_none());
         assert!(parse_custom_jira_env_var("SOME_OTHER_VAR").is_none());
+    }
+
+    #[test]
+    fn test_provider_type_all_covers_three_providers() {
+        assert_eq!(KanbanProviderType::ALL.len(), 3);
+        assert_eq!(
+            KanbanProviderType::ALL,
+            [
+                KanbanProviderType::Jira,
+                KanbanProviderType::Linear,
+                KanbanProviderType::Github,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_provider_type_slug_from_slug_round_trips() {
+        for provider in KanbanProviderType::ALL {
+            assert_eq!(
+                KanbanProviderType::from_slug(provider.slug()),
+                Some(provider)
+            );
+        }
+        assert_eq!(KanbanProviderType::Jira.slug(), "jira");
+        assert_eq!(KanbanProviderType::Linear.slug(), "linear");
+        assert_eq!(KanbanProviderType::Github.slug(), "github");
+        assert_eq!(KanbanProviderType::from_slug("nope"), None);
+    }
+
+    #[test]
+    fn test_provider_type_catalog_metadata() {
+        assert_eq!(
+            KanbanProviderType::Jira.connect_blurb(),
+            "Connect to Jira Cloud"
+        );
+        assert_eq!(
+            KanbanProviderType::Linear.connect_blurb(),
+            "Connect to Linear"
+        );
+        assert_eq!(
+            KanbanProviderType::Github.connect_blurb(),
+            "Connect to GitHub Projects"
+        );
+        // Setup URLs are absolute https token pages.
+        for provider in KanbanProviderType::ALL {
+            assert!(provider.setup_url().starts_with("https://"));
+        }
+        assert_eq!(
+            KanbanProviderType::Github.setup_url(),
+            "https://github.com/settings/personal-access-tokens"
+        );
     }
 }

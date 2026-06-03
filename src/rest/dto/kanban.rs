@@ -62,6 +62,34 @@ pub struct SyncKanbanIssueTypesResponse {
 }
 
 // =============================================================================
+// Kanban Provider Catalog DTO
+// =============================================================================
+
+/// One supported kanban provider, as advertised by
+/// `GET /api/v1/kanban/providers`.
+///
+/// This is the single source of truth (derived from
+/// `KanbanProviderType::ALL`) that the web `/#/kanban` list view and the VS
+/// Code onboarding picker both render against, so the available options can't
+/// drift between surfaces.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct KanbanProviderCatalogEntry {
+    /// Stable lowercase slug ("jira" | "linear" | "github").
+    pub slug: String,
+    /// Human-readable name (e.g. "Jira Cloud", "GitHub Projects").
+    pub display_name: String,
+    /// One-line connect description shown next to the provider.
+    pub description: String,
+    /// Credential/token page opened when the user chooses to configure it.
+    pub setup_url: String,
+    /// VS Code codicon hint (rendered as `$(icon)` in the picker).
+    pub icon: String,
+    /// Whether at least one instance of this provider is already configured.
+    pub configured: bool,
+}
+
+// =============================================================================
 // Kanban Onboarding DTOs
 // =============================================================================
 

@@ -1,0 +1,105 @@
+.page {
+  max-width: 1200px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.loading {
+  color: var(--text-muted);
+  padding: 2rem;
+}
+
+.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.meta {
+  color: var(--text-muted);
+  font-size: 0.825rem;
+  margin-bottom: 1.25rem;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.column {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.columnHeader {
+  padding: 0.6rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.count {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.cardList {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 100px;
+}
+
+.card {
+  background: var(--surface-alt);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.ticketType {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-salmon);
+  text-transform: uppercase;
+}
+
+.ticketId {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.cardSummary {
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
+}
+
+.cardMeta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 1.5rem 0;
+}

@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { MappingRow } from './MappingRow';
-import type { ExternalIssueTypeSummary, IssueTypeSummary, IssueTypeResponse } from '../../types/messages';
+import type { ExternalIssueTypeSummary, IssueTypeSummary } from '../../types/messages';
 
 interface MappingPanelProps {
   provider: string;
@@ -16,8 +16,7 @@ interface MappingPanelProps {
   externalTypes: ExternalIssueTypeSummary[] | undefined;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
   onMappingChange: (externalName: string, operatorKey: string | '') => void;
-  onViewIssueType: (key: string) => void;
-  selectedIssueType: IssueTypeResponse | null;
+  onViewIssueType: () => void;
 }
 
 function autoMap(externalName: string, operatorTypes: IssueTypeSummary[]): string | null {
@@ -48,7 +47,6 @@ export function MappingPanel({
   onGetExternalIssueTypes,
   onMappingChange,
   onViewIssueType,
-  selectedIssueType,
 }: MappingPanelProps) {
   const [loading, setLoading] = useState(false);
 
@@ -110,7 +108,6 @@ export function MappingPanel({
             operatorTypes={issueTypes}
             selectedKey={overrideKey}
             autoMatchedKey={autoKey}
-            selectedIssueTypeDetail={selectedIssueType}
             onSelect={onMappingChange}
             onViewIssueType={onViewIssueType}
           />

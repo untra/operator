@@ -247,14 +247,16 @@ mod launch_validation {
         let dashboard_paused = state.paused;
         let running_count = state.running_agents().len();
         let max_agents = config.effective_max_agents();
-        let project_busy = state.is_project_busy("test-project");
+        let project_count = state.project_agent_count("test-project");
+        let max_per_repo = config.effective_max_agents_per_repo();
 
         // All conditions for launch should be met
-        let can_launch = !dashboard_paused && running_count < max_agents && !project_busy;
+        let can_launch =
+            !dashboard_paused && running_count < max_agents && project_count < max_per_repo;
 
         assert!(
             can_launch,
-            "Should be allowed to launch when not paused, under max, and project not busy"
+            "Should be allowed to launch when not paused, under max, and project under cap"
         );
     }
 
@@ -303,7 +305,7 @@ mod launch_validation {
     }
 
     #[test]
-    fn test_try_launch_blocked_project_busy() {
+    fn test_try_launch_blocked_project_at_capacity() {
         let temp_dir = TempDir::new().unwrap();
         let config = make_test_config(&temp_dir);
 
@@ -318,22 +320,87 @@ mod launch_validation {
             )
             .unwrap();
 
-        // Check if project is busy
         let state = State::load(&config).unwrap();
-        let project_busy = state.is_project_busy("test-project");
+        let project_count = state.project_agent_count("test-project");
+        let max_per_repo = config.effective_max_agents_per_repo();
 
-        assert!(project_busy, "Project should be busy with running agent");
+        assert!(
+            project_count >= max_per_repo,
+            "Project should be at capacity with running agent"
+        );
     }
 
     #[test]
-    fn test_try_launch_project_not_busy_when_empty() {
+    fn test_try_launch_project_empty() {
         let temp_dir = TempDir::new().unwrap();
         let config = make_test_config(&temp_dir);
 
         let state = State::load(&config).unwrap();
-        let project_busy = state.is_project_busy("test-project");
+        let project_count = state.project_agent_count("test-project");
 
-        assert!(!project_busy, "Project should not be busy without agents");
+        assert_eq!(project_count, 0, "Project should have no agents");
+    }
+
+    #[test]
+    fn test_try_launch_allowed_when_under_per_repo_cap() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = make_test_config(&temp_dir);
+        config.agents.max_agents_per_repo = 2;
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent(
+                "TASK-001".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        let project_count = state.project_agent_count("test-project");
+        let max_per_repo = config.effective_max_agents_per_repo();
+
+        assert_eq!(project_count, 1);
+        assert_eq!(max_per_repo, 2);
+        assert!(
+            project_count < max_per_repo,
+            "Should allow second agent when cap is 2"
+        );
+    }
+
+    #[test]
+    fn test_try_launch_blocked_at_per_repo_cap() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = make_test_config(&temp_dir);
+        config.agents.max_agents_per_repo = 2;
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent(
+                "TASK-001".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .add_agent(
+                "TASK-002".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        let project_count = state.project_agent_count("test-project");
+        let max_per_repo = config.effective_max_agents_per_repo();
+
+        assert!(
+            project_count >= max_per_repo,
+            "Should block third agent when cap is 2"
+        );
     }
 
     #[test]
@@ -937,5 +1004,672 @@ mod agent_switches {
             vec!["delegator-x"],
             "Only the switch-marked agent should appear"
         );
+    }
+}
+
+// ============================================
+// Ticket Creation Tests
+// ============================================
+
+mod ticket_creation {
+    use super::*;
+    use crate::queue::TicketCreator;
+    use crate::templates::TemplateType;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_headless_ticket_creation_writes_file_to_queue() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let creator = TicketCreator::new(&config);
+        let mut values = HashMap::new();
+        values.insert("project".to_string(), "test-project".to_string());
+        values.insert("summary".to_string(), "Add user auth".to_string());
+
+        let result = creator.create_ticket_headless(TemplateType::Task, &values);
+        assert!(result.is_ok(), "Ticket creation should succeed");
+
+        let filepath = result.unwrap();
+        assert!(filepath.exists(), "Ticket file should exist on disk");
+        assert!(
+            filepath.to_string_lossy().contains("queue"),
+            "Ticket should be created in the queue directory"
+        );
+    }
+
+    #[test]
+    fn test_headless_ticket_filename_contains_type_and_project() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let creator = TicketCreator::new(&config);
+        let mut values = HashMap::new();
+        values.insert("project".to_string(), "test-project".to_string());
+
+        let filepath = creator
+            .create_ticket_headless(TemplateType::Feature, &values)
+            .unwrap();
+        let filename = filepath.file_name().unwrap().to_string_lossy();
+
+        assert!(
+            filename.contains("FEAT"),
+            "Filename should contain the ticket type: {filename}"
+        );
+        assert!(
+            filename.contains("test-project"),
+            "Filename should contain the project: {filename}"
+        );
+    }
+
+    #[test]
+    fn test_headless_ticket_defaults_project_to_global() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let creator = TicketCreator::new(&config);
+        let values = HashMap::new(); // No project specified
+
+        let filepath = creator
+            .create_ticket_headless(TemplateType::Task, &values)
+            .unwrap();
+        let filename = filepath.file_name().unwrap().to_string_lossy();
+
+        assert!(
+            filename.contains("global"),
+            "Filename should default to 'global' when no project specified: {filename}"
+        );
+    }
+
+    #[test]
+    fn test_headless_ticket_content_is_not_empty() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let creator = TicketCreator::new(&config);
+        let mut values = HashMap::new();
+        values.insert("project".to_string(), "test-project".to_string());
+
+        let filepath = creator
+            .create_ticket_headless(TemplateType::Task, &values)
+            .unwrap();
+        let content = std::fs::read_to_string(&filepath).unwrap();
+
+        assert!(!content.is_empty(), "Ticket file should have content");
+    }
+
+    #[test]
+    fn test_created_ticket_appears_in_queue_listing() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let creator = TicketCreator::new(&config);
+        let mut values = HashMap::new();
+        values.insert("project".to_string(), "test-project".to_string());
+        values.insert("summary".to_string(), "Test listing".to_string());
+
+        creator
+            .create_ticket_headless(TemplateType::Task, &values)
+            .unwrap();
+
+        let queue = Queue::new(&config).unwrap();
+        let tickets = queue.list_queue().unwrap();
+
+        assert_eq!(tickets.len(), 1, "Queue should have the created ticket");
+        assert_eq!(tickets[0].ticket_type, "TASK");
+    }
+
+    #[test]
+    fn test_multiple_ticket_types_created_and_sorted_by_priority() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        // Create tickets of different types
+        let types_and_projects = [
+            (TemplateType::Feature, "test-project"),
+            (TemplateType::Fix, "test-project"),
+            (TemplateType::Task, "test-project"),
+        ];
+
+        for (template_type, project) in &types_and_projects {
+            let creator = TicketCreator::new(&config);
+            let mut values = HashMap::new();
+            values.insert("project".to_string(), project.to_string());
+            creator
+                .create_ticket_headless(*template_type, &values)
+                .unwrap();
+        }
+
+        let queue = Queue::new(&config).unwrap();
+        let tickets = queue.list_by_priority().unwrap();
+
+        assert_eq!(tickets.len(), 3, "Queue should have 3 tickets");
+    }
+}
+
+// ============================================
+// Ticket Directory Initialization Tests
+// ============================================
+
+mod ticket_initialization {
+    use super::*;
+
+    #[test]
+    fn test_queue_directories_exist_after_config_setup() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let tickets_path = config.tickets_path();
+        assert!(
+            tickets_path.join("queue").exists(),
+            "queue directory should exist"
+        );
+        assert!(
+            tickets_path.join("in-progress").exists(),
+            "in-progress directory should exist"
+        );
+        assert!(
+            tickets_path.join("completed").exists(),
+            "completed directory should exist"
+        );
+        assert!(
+            tickets_path.join("operator").exists(),
+            "operator directory should exist"
+        );
+    }
+
+    #[test]
+    fn test_queue_starts_empty() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let queue = Queue::new(&config).unwrap();
+        assert!(queue.list_queue().unwrap().is_empty());
+        assert!(queue.list_in_progress().unwrap().is_empty());
+        assert!(queue.list_completed().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_claim_ticket_moves_to_in_progress() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        // Create a ticket file in the queue
+        let ticket_content = "---\npriority: P2-medium\n---\n# Test\n\nContent\n";
+        let ticket_filename = "20241225-1200-TASK-test-project-test.md";
+        let queue_path = config.tickets_path().join("queue").join(ticket_filename);
+        std::fs::write(&queue_path, ticket_content).unwrap();
+
+        // Verify it's in the queue
+        let queue = Queue::new(&config).unwrap();
+        let tickets = queue.list_queue().unwrap();
+        assert_eq!(tickets.len(), 1);
+
+        // Claim (move to in-progress)
+        queue.claim_ticket(&tickets[0]).unwrap();
+
+        // Verify moved
+        assert!(queue.list_queue().unwrap().is_empty());
+        assert_eq!(queue.list_in_progress().unwrap().len(), 1);
+    }
+}
+
+// ============================================
+// Auto-Launch Decision Logic Tests
+// ============================================
+
+mod auto_launch_logic {
+    use super::*;
+
+    fn can_auto_launch(config: &Config, state: &State, queue: &Queue) -> bool {
+        if state.paused {
+            return false;
+        }
+        let running = state.running_agents().len();
+        let max = config.effective_max_agents();
+        if running >= max {
+            return false;
+        }
+        let tickets = queue.list_by_priority().unwrap_or_default();
+        if tickets.is_empty() {
+            return false;
+        }
+        // Check per-repo cap for the top ticket's project
+        let top = &tickets[0];
+        let project_count = state.project_agent_count(&top.project);
+        let max_per_repo = config.effective_max_agents_per_repo();
+        project_count < max_per_repo
+    }
+
+    #[test]
+    fn test_auto_launch_blocked_when_paused() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        state.set_paused(true).unwrap();
+        let state = State::load(&config).unwrap();
+
+        // Add a ticket to queue
+        let ticket_content = "---\npriority: P2-medium\n---\n# Test\n\nContent\n";
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-1200-TASK-test-project-test.md"),
+            ticket_content,
+        )
+        .unwrap();
+        let queue = Queue::new(&config).unwrap();
+
+        assert!(
+            !can_auto_launch(&config, &state, &queue),
+            "Should not auto-launch when paused"
+        );
+    }
+
+    #[test]
+    fn test_auto_launch_blocked_when_queue_empty() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        let state = State::load(&config).unwrap();
+        let queue = Queue::new(&config).unwrap();
+
+        assert!(
+            !can_auto_launch(&config, &state, &queue),
+            "Should not auto-launch with empty queue"
+        );
+    }
+
+    #[test]
+    fn test_auto_launch_blocked_at_max_agents() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = make_test_config(&temp_dir);
+        config.agents.max_parallel = 1;
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent(
+                "TASK-001".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        let state = State::load(&config).unwrap();
+
+        let ticket_content = "---\npriority: P2-medium\n---\n# Test\n\nContent\n";
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-1200-TASK-test-project-launch.md"),
+            ticket_content,
+        )
+        .unwrap();
+        let queue = Queue::new(&config).unwrap();
+
+        assert!(
+            !can_auto_launch(&config, &state, &queue),
+            "Should not auto-launch when at max agents"
+        );
+    }
+
+    #[test]
+    fn test_auto_launch_allowed_when_conditions_met() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        let state = State::load(&config).unwrap();
+
+        let ticket_content = "---\npriority: P2-medium\n---\n# Test\n\nContent\n";
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-1200-TASK-test-project-go.md"),
+            ticket_content,
+        )
+        .unwrap();
+        let queue = Queue::new(&config).unwrap();
+
+        assert!(
+            can_auto_launch(&config, &state, &queue),
+            "Should auto-launch when not paused, under capacity, with tickets"
+        );
+    }
+
+    #[test]
+    fn test_auto_launch_blocked_when_project_at_per_repo_cap() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = make_test_config(&temp_dir);
+        config.agents.max_parallel = 5;
+        config.agents.max_agents_per_repo = 1;
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent(
+                "TASK-existing".to_string(),
+                "TASK".to_string(),
+                "testproject".to_string(),
+                false,
+            )
+            .unwrap();
+        let state = State::load(&config).unwrap();
+
+        // Project name in filename must be [a-z0-9]+ (no hyphens) to match parser regex
+        let ticket_content = "---\npriority: P2-medium\n---\n# Test\n\nContent\n";
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-1200-TASK-testproject-blocked.md"),
+            ticket_content,
+        )
+        .unwrap();
+        let queue = Queue::new(&config).unwrap();
+
+        assert!(
+            !can_auto_launch(&config, &state, &queue),
+            "Should not auto-launch when project is at per-repo capacity"
+        );
+    }
+}
+
+// ============================================
+// Status Action Tests
+// ============================================
+
+mod status_actions {
+    use crate::ui::status_panel::StatusAction;
+
+    #[test]
+    fn test_status_action_none_is_noop() {
+        let action = StatusAction::None;
+        assert!(matches!(action, StatusAction::None));
+    }
+
+    #[test]
+    fn test_status_action_toggle_section_carries_id() {
+        use crate::ui::status_panel::SectionId;
+        let action = StatusAction::ToggleSection(SectionId::Configuration);
+        if let StatusAction::ToggleSection(id) = action {
+            assert!(matches!(id, SectionId::Configuration));
+        } else {
+            panic!("Expected ToggleSection");
+        }
+    }
+
+    #[test]
+    fn test_open_in_browser_constructs_url() {
+        let port = 8080;
+        let url = format!("http://localhost:{port}/swagger-ui/");
+        assert_eq!(url, "http://localhost:8080/swagger-ui/");
+    }
+}
+
+// ============================================
+// Queue Priority Ordering Tests
+// ============================================
+
+mod queue_priority {
+    use super::*;
+
+    #[test]
+    fn test_priority_ordering_inv_before_feat() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        // Create tickets with different types
+        // INV should sort before FEAT per priority_order config
+        let feat_content = "---\npriority: P2-medium\n---\n# Feature\n\nContent\n";
+        let inv_content = "---\npriority: P0-critical\n---\n# Investigation\n\nContent\n";
+
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-1200-FEAT-test-project-feat.md"),
+            feat_content,
+        )
+        .unwrap();
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-1201-INV-test-project-inv.md"),
+            inv_content,
+        )
+        .unwrap();
+
+        let queue = Queue::new(&config).unwrap();
+        let tickets = queue.list_by_priority().unwrap();
+
+        assert_eq!(tickets.len(), 2);
+        // INV has higher priority (lower index) in default priority_order
+        let first_type = &tickets[0].ticket_type;
+        let second_type = &tickets[1].ticket_type;
+
+        let first_idx = config.priority_index(first_type);
+        let second_idx = config.priority_index(second_type);
+        assert!(
+            first_idx <= second_idx,
+            "First ticket type '{first_type}' (idx {first_idx}) should have equal or higher priority than '{second_type}' (idx {second_idx})"
+        );
+    }
+
+    #[test]
+    fn test_same_type_tickets_sorted_fifo_by_timestamp() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let content = "---\npriority: P2-medium\n---\n# Task\n\nContent\n";
+
+        // Earlier timestamp first
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-0800-TASK-test-project-early.md"),
+            content,
+        )
+        .unwrap();
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-1400-TASK-test-project-late.md"),
+            content,
+        )
+        .unwrap();
+
+        let queue = Queue::new(&config).unwrap();
+        let tickets = queue.list_by_priority().unwrap();
+
+        assert_eq!(tickets.len(), 2);
+        assert!(
+            tickets[0].timestamp < tickets[1].timestamp,
+            "Earlier timestamp should sort first: {} vs {}",
+            tickets[0].timestamp,
+            tickets[1].timestamp
+        );
+    }
+
+    #[test]
+    fn test_unknown_ticket_type_sorts_last() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let task_content = "---\npriority: P2-medium\n---\n# Task\n\nContent\n";
+        let unknown_content = "---\npriority: P2-medium\n---\n# Custom\n\nContent\n";
+
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-1200-TASK-test-project-task.md"),
+            task_content,
+        )
+        .unwrap();
+        std::fs::write(
+            config
+                .tickets_path()
+                .join("queue/20241225-1200-CUSTOM-test-project-custom.md"),
+            unknown_content,
+        )
+        .unwrap();
+
+        let queue = Queue::new(&config).unwrap();
+        let tickets = queue.list_by_priority().unwrap();
+
+        assert_eq!(tickets.len(), 2);
+        // TASK is in priority_order, CUSTOM is not (sorts to usize::MAX)
+        assert_eq!(
+            tickets[0].ticket_type, "TASK",
+            "Known type should sort before unknown"
+        );
+    }
+}
+
+// ============================================
+// Agent State Lifecycle Tests
+// ============================================
+
+mod agent_lifecycle {
+    use super::*;
+
+    #[test]
+    fn test_agent_added_with_correct_metadata() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "FEAT-042".to_string(),
+                "FEAT".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        let agent = state
+            .agents
+            .iter()
+            .find(|a| a.id == agent_id)
+            .expect("Agent should exist");
+
+        assert_eq!(agent.ticket_id, "FEAT-042");
+        assert_eq!(agent.ticket_type, "FEAT");
+        assert_eq!(agent.project, "test-project");
+    }
+
+    #[test]
+    fn test_multiple_agents_tracked_independently() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        let id1 = state
+            .add_agent(
+                "TASK-001".to_string(),
+                "TASK".to_string(),
+                "project-a".to_string(),
+                false,
+            )
+            .unwrap();
+        let id2 = state
+            .add_agent(
+                "FEAT-002".to_string(),
+                "FEAT".to_string(),
+                "project-b".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        assert_eq!(state.running_agents().len(), 2);
+        assert_ne!(id1, id2, "Agent IDs should be unique");
+    }
+
+    #[test]
+    fn test_project_agent_count_tracks_per_project() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent(
+                "TASK-001".to_string(),
+                "TASK".to_string(),
+                "project-a".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .add_agent(
+                "TASK-002".to_string(),
+                "TASK".to_string(),
+                "project-a".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .add_agent(
+                "TASK-003".to_string(),
+                "TASK".to_string(),
+                "project-b".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        assert_eq!(state.project_agent_count("project-a"), 2);
+        assert_eq!(state.project_agent_count("project-b"), 1);
+        assert_eq!(state.project_agent_count("project-c"), 0);
+    }
+
+    #[test]
+    fn test_agent_session_update_and_lookup() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "TASK-session".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+
+        state
+            .update_agent_session(&agent_id, "op-TASK-session")
+            .unwrap();
+
+        let state = State::load(&config).unwrap();
+        let agent = state.agent_by_session("op-TASK-session");
+        assert!(agent.is_some(), "Should find agent by session name");
+        assert_eq!(agent.unwrap().ticket_id, "TASK-session");
+    }
+
+    #[test]
+    fn test_remove_agent_by_session_cleans_state() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        let agent_id = state
+            .add_agent(
+                "TASK-remove".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_session(&agent_id, "op-TASK-remove")
+            .unwrap();
+
+        assert_eq!(state.running_agents().len(), 1);
+
+        let mut state = State::load(&config).unwrap();
+        state.remove_agent_by_session("op-TASK-remove").unwrap();
+
+        let state = State::load(&config).unwrap();
+        assert_eq!(state.running_agents().len(), 0);
+        assert!(state.agent_by_session("op-TASK-remove").is_none());
     }
 }

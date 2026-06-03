@@ -1,0 +1,115 @@
+.columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.column {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.columnHeader {
+  padding: 0.6rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+
+.count {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.cardList {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 100px;
+}
+
+.card {
+  background: var(--surface-alt);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  border-left: 3px solid var(--border);
+}
+
+/* Clickable cards (TODO / IN PROGRESS) reset the native button chrome. */
+.cardClickable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.cardClickable:hover {
+  background: var(--surface);
+}
+
+/* Priority colors mirror the TUI glyph coloring: P0 red, P1 yellow, P2 default, P3 muted. */
+.card[data-priority='p0'] {
+  border-left-color: var(--danger);
+}
+.card[data-priority='p1'] {
+  border-left-color: var(--warning);
+}
+.card[data-priority='p2'] {
+  border-left-color: var(--color-green-l1);
+}
+.card[data-priority='p3'] {
+  border-left-color: var(--border);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.statusIcon {
+  font-size: 0.7rem;
+  color: var(--color-salmon);
+}
+
+.ticketType {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-salmon);
+  text-transform: uppercase;
+}
+
+.ticketId {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.cardSummary {
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
+}
+
+.cardMeta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 1.5rem 0;
+}

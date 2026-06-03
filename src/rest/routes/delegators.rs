@@ -18,6 +18,7 @@ use crate::rest::state::ApiState;
 
 /// List all configured delegators
 #[utoipa::path(
+    operation_id = "delegators_list",
     get,
     path = "/api/v1/delegators",
     tag = "Delegators",
@@ -38,6 +39,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<DelegatorsResponse> {
 
 /// Get a single delegator by name
 #[utoipa::path(
+    operation_id = "delegators_get_one",
     get,
     path = "/api/v1/delegators/{name}",
     tag = "Delegators",
@@ -65,6 +67,7 @@ pub async fn get_one(
 
 /// Create a new delegator
 #[utoipa::path(
+    operation_id = "delegators_create",
     post,
     path = "/api/v1/delegators",
     tag = "Delegators",
@@ -108,6 +111,7 @@ pub async fn create(
 
 /// Delete a delegator by name
 #[utoipa::path(
+    operation_id = "delegators_delete",
     delete,
     path = "/api/v1/delegators/{name}",
     tag = "Delegators",
@@ -189,6 +193,7 @@ fn delegator_to_response(d: &Delegator) -> DelegatorResponse {
 ///
 /// Pre-populates delegator fields from the detected tool, requiring minimal input.
 #[utoipa::path(
+    operation_id = "delegators_create_from_tool",
     post,
     path = "/api/v1/delegators/from-tool",
     tag = "Delegators",
@@ -254,6 +259,7 @@ pub async fn create_from_tool(
 
 /// Update an existing delegator
 #[utoipa::path(
+    operation_id = "delegators_update",
     put,
     path = "/api/v1/delegators/{name}",
     tag = "Delegators",

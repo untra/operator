@@ -41,11 +41,6 @@ cargo run
 cd vscode-extension && npm run lint && npm run compile
 ```
 
-**backstage-server** (TypeScript/Bun):
-```bash
-cd backstage-server && bun run lint && bun run typecheck && bun test
-```
-
 ### Test-Driven Development (TDD)
 
 This project follows TDD practices:
@@ -206,7 +201,7 @@ Operator uses a schema-driven, code-derived documentation strategy to reduce mai
 
 | File | Generates | Purpose |
 |------|-----------|---------|
-| `src/backstage/taxonomy.toml` | `docs/backstage/taxonomy.md` | 25 project Kinds across 5 tiers |
+| `src/taxonomy/taxonomy.toml` | `docs/taxonomy/index.md` | 25 project Kinds across 5 tiers |
 | `src/schemas/issuetype_schema.json` | `docs/schemas/issuetype.md` | Issue type structure (key, mode, fields, steps) |
 | `src/schemas/ticket_metadata.schema.json` | `docs/schemas/metadata.md` | Ticket YAML frontmatter format |
 | `src/ui/keybindings.rs` | `docs/shortcuts/index.md` | Keyboard shortcuts by context |
@@ -243,3 +238,25 @@ All generated files include a header warning:
 2. Implement `name()`, `source()`, `output_path()`, and `generate()`
 3. Register in `src/docs_gen/mod.rs` `generate_all()` function
 4. Add to CLI match in `src/main.rs` `cmd_docs()`
+
+## Design & UI Consistency
+
+Operator presents one brand (terracotta + cornflower + cream over a green
+scale) across **four rendering surfaces**. Keep them consistent by following the
+rule that fits each surface — they are deliberately *not* all styled the same
+way. Full details and swatches live in `docs/design-system/` (`/design-system/`).
+
+**Brand source of truth:** `docs/assets/css/tokens.css` — the only place the
+brand hex values + dark-mode overrides are declared. Both web surfaces consume
+it; never re-declare a brand color elsewhere.
+
+| Surface | Where | Rule |
+|---------|-------|------|
+| Docs site (Jekyll) | `docs/assets/css/main.css` | Links `tokens.css` (via `_includes/head.html`); style components with `var(--...)`, never raw hex. |
+| Embedded SPA (Vite/React) | `ui/src/index.css` + `*.module.css` | Imports `tokens.css`; layers app-only semantic tokens (`--surface`, `--border`, `--danger`, …) on top. Components reference semantic tokens, not raw hex. |
+| Ratatui TUI | `src/ui/*.rs` | Terminal can't render hex — match a **semantic role to ANSI** (danger→Red, success→Green, warning→Yellow, focus→Cyan). Reuse `color_for_key`/`glyph_for_key` from `src/templates/mod.rs`; don't re-hardcode issuetype/priority colors. |
+| VS Code webview (MUI) | `vscode-extension/webview-ui/` | **Defer to the VS Code host theme** (`computeStyles.ts` → `createVSCodeTheme.ts`). Apply brand only as accents via `OPERATOR_BRAND`; never override the user's editor theme wholesale. |
+
+When adding or changing UI: change a brand color in `tokens.css` (web surfaces
+follow automatically); reference semantic tokens in new web CSS; map a role to
+ANSI in the TUI; and leave the webview deferring to the editor theme.

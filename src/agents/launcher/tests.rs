@@ -501,8 +501,20 @@ async fn test_launch_global_ticket_uses_root() {
 // ========================================
 
 use super::options::RelaunchOptions;
+use super::prompt::OperatorEnvVars;
 use super::tmux_session::{launch_in_tmux_with_options, launch_in_tmux_with_relaunch_options};
 use crate::agents::tmux::TmuxClient;
+
+fn make_test_operator_env() -> OperatorEnvVars {
+    OperatorEnvVars {
+        agent_id: Uuid::new_v4().to_string(),
+        ticket_id: "TEST-001".to_string(),
+        project: "test-project".to_string(),
+        step: "initial".to_string(),
+        ui_url: "http://localhost:7008/#/agent/test".to_string(),
+        ui_port: 7008,
+    }
+}
 
 fn make_test_config_with_docker(temp_dir: &TempDir, image: &str) -> Config {
     let mut config = make_test_config(temp_dir);
@@ -539,6 +551,7 @@ fn test_launch_in_tmux_session_uses_prefix() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok(), "Launch failed: {:?}", result.err());
@@ -575,6 +588,7 @@ fn test_launch_in_tmux_existing_session_returns_error() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_err());
@@ -607,6 +621,7 @@ fn test_launch_in_tmux_sends_cd_command() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -652,6 +667,7 @@ fn test_launch_in_tmux_sends_llm_command() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -697,6 +713,7 @@ fn test_launch_in_tmux_yolo_mode_applies_flags() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -738,6 +755,7 @@ fn test_launch_in_tmux_yolo_mode_disabled_no_flags() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -779,6 +797,7 @@ fn test_launch_in_tmux_docker_mode_wraps() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -821,6 +840,7 @@ fn test_launch_in_tmux_both_modes() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -884,6 +904,7 @@ fn test_launch_in_tmux_uses_provider_from_options() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -926,6 +947,7 @@ fn test_launch_in_tmux_writes_prompt_file() {
         &project_path,
         "Test prompt content",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -968,6 +990,7 @@ fn test_launch_in_tmux_tmux_not_installed() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_err());
@@ -1007,6 +1030,7 @@ fn test_relaunch_fresh_start_new_uuid() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -1043,6 +1067,7 @@ fn test_relaunch_inherits_yolo_mode() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -1088,6 +1113,7 @@ fn test_relaunch_inherits_docker_mode() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -1131,6 +1157,7 @@ fn test_relaunch_existing_session_errors() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_err());
@@ -1182,6 +1209,7 @@ fn test_relaunch_with_resume_adds_flag() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -1231,6 +1259,7 @@ fn test_relaunch_missing_prompt_fresh_start() {
         &project_path,
         "Fallback prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -1310,6 +1339,7 @@ fn test_launch_correct_project_directory_from_ticket() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -1389,6 +1419,7 @@ fn test_launch_provider_from_delegator_determines_tool() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -1434,6 +1465,7 @@ fn test_launch_yolo_flags_per_tool() {
         &project_path,
         "Test prompt",
         &options,
+        &make_test_operator_env(),
     );
 
     assert!(result.is_ok());
@@ -1475,6 +1507,7 @@ async fn test_launch_pending_sub_agents_launches_all_when_slots_allow() {
     let mut config = make_test_config(&temp_dir);
     config.agents.max_parallel = 10;
     config.agents.cores_reserved = 0;
+    config.agents.max_agents_per_repo = 10;
     add_delegators(&mut config, &["claude-opus", "gemini-pro"]);
 
     let mock = Arc::new(MockTmuxClient::new());
@@ -1547,9 +1580,10 @@ async fn test_launch_pending_sub_agents_launches_all_when_slots_allow() {
 async fn test_launch_pending_sub_agents_respects_slot_budget() {
     let temp_dir = TempDir::new().unwrap();
     let mut config = make_test_config(&temp_dir);
-    // Budget of exactly 1 slot
+    // Budget of exactly 1 global slot (per-repo cap is high so only max_parallel constrains)
     config.agents.max_parallel = 1;
     config.agents.cores_reserved = 0;
+    config.agents.max_agents_per_repo = 10;
     add_delegators(&mut config, &["claude-opus", "gemini-pro"]);
 
     let mock = Arc::new(MockTmuxClient::new());

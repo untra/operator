@@ -16,7 +16,7 @@ use crate::api::{GitHubService, PrService};
 use crate::types::pr::{GitProvider, PrState, RepoInfo};
 
 /// Default poll interval (60 seconds, matching vibe-kanban)
-const DEFAULT_POLL_INTERVAL: Duration = Duration::from_secs(60);
+const DEFAULT_POLL_INTERVAL: Duration = Duration::from_mins(1);
 
 /// Tracked PR information
 #[derive(Debug, Clone)]
@@ -46,11 +46,11 @@ pub enum PrStatusEvent {
     },
     /// PR was closed without merge
     Closed { ticket_id: String, pr_number: i64 },
-    /// PR received approval
-    #[allow(dead_code)] // Emitted when review detection is added
+    /// PR received approval (matched in `pr_workflow`, emitted when review detection is added)
+    #[allow(dead_code)]
     Approved { ticket_id: String, pr_number: i64 },
-    /// PR had changes requested
-    #[allow(dead_code)] // Emitted when review detection is added
+    /// PR had changes requested (matched in `pr_workflow`, emitted when review detection is added)
+    #[allow(dead_code)]
     ChangesRequested { ticket_id: String, pr_number: i64 },
     /// PR is ready to merge (approved + checks pass)
     ReadyToMerge { ticket_id: String, pr_number: i64 },
@@ -287,13 +287,13 @@ impl PrMonitorService {
     }
 
     /// Get current count of tracked PRs
-    #[allow(dead_code)] // Utility method for future use
+    #[allow(dead_code)] // Used in tests
     pub async fn tracked_count(&self) -> usize {
         self.tracked_prs.read().await.len()
     }
 
     /// Check if a specific PR is being tracked
-    #[allow(dead_code)] // Utility method for future use
+    #[allow(dead_code)]
     pub async fn is_tracking(&self, repo_info: &RepoInfo, pr_number: i64) -> bool {
         let key = Self::pr_key(repo_info, pr_number);
         self.tracked_prs.read().await.contains_key(&key)

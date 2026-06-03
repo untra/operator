@@ -26,10 +26,12 @@ import type {
   ListKanbanProjectsRequest,
   ListKanbanProjectsResponse,
   KanbanProjectInfo,
+  KanbanProviderCatalogEntry,
   WriteKanbanConfigRequest,
   WriteKanbanConfigResponse,
   SetKanbanSessionEnvRequest,
   SetKanbanSessionEnvResponse,
+  WorkflowExportResponse,
 } from './generated';
 
 // Re-export generated types for consumers
@@ -48,6 +50,7 @@ export type {
   ListKanbanProjectsRequest,
   ListKanbanProjectsResponse,
   KanbanProjectInfo,
+  KanbanProviderCatalogEntry,
   WriteKanbanConfigRequest,
   WriteKanbanConfigResponse,
   SetKanbanSessionEnvRequest,
@@ -218,6 +221,27 @@ export class OperatorApiClient {
     }
 
     return (await response.json()) as LaunchTicketResponse;
+  }
+
+  /**
+   * Export a ticket (rendered against its issue type) to a Claude dynamic
+   * workflow (.js). Goes through the same shared code path as the CLI and TUI.
+   */
+  async exportWorkflow(ticketId: string): Promise<WorkflowExportResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/tickets/${encodeURIComponent(ticketId)}/workflow-export`,
+      { method: 'POST' }
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as WorkflowExportResponse;
   }
 
   /**
@@ -529,6 +553,25 @@ export class OperatorApiClient {
       }))) as ApiError;
       throw new Error(error.message);
     }
+  }
+
+  /**
+   * Get the catalog of supported kanban providers (Jira, Linear, GitHub),
+   * each flagged with whether it is already configured. Single source of
+   * truth shared with the TUI / web `/#/kanban` list view.
+   */
+  async listKanbanProviderCatalog(): Promise<KanbanProviderCatalogEntry[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/kanban/providers`);
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    return (await response.json()) as KanbanProviderCatalogEntry[];
   }
 
   /**

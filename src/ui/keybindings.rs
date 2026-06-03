@@ -293,7 +293,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
         key: KeyCode::Char('W'),
         modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('w')),
-        description: "Toggle Backstage server",
+        description: "Open web UI in browser",
         category: ShortcutCategory::Actions,
         context: ShortcutContext::Global,
     },

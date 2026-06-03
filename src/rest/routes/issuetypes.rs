@@ -14,6 +14,7 @@ use crate::rest::state::ApiState;
 
 /// List all issue types
 #[utoipa::path(
+    operation_id = "issuetypes_list",
     get,
     path = "/api/v1/issuetypes",
     tag = "Issue Types",
@@ -29,6 +30,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<Vec<IssueTypeSummary>> 
 
 /// Get a single issue type by key
 #[utoipa::path(
+    operation_id = "issuetypes_get_one",
     get,
     path = "/api/v1/issuetypes/{key}",
     tag = "Issue Types",
@@ -54,6 +56,7 @@ pub async fn get_one(
 
 /// Create a new issue type
 #[utoipa::path(
+    operation_id = "issuetypes_create",
     post,
     path = "/api/v1/issuetypes",
     tag = "Issue Types",
@@ -109,6 +112,7 @@ pub async fn create(
 
 /// Update an existing issue type
 #[utoipa::path(
+    operation_id = "issuetypes_update",
     put,
     path = "/api/v1/issuetypes/{key}",
     tag = "Issue Types",
@@ -201,6 +205,7 @@ pub async fn update(
 
 /// Delete an issue type
 #[utoipa::path(
+    operation_id = "issuetypes_delete",
     delete,
     path = "/api/v1/issuetypes/{key}",
     tag = "Issue Types",

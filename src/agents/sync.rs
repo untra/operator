@@ -618,7 +618,7 @@ impl TicketSessionSync {
         if elapsed >= self.sync_interval {
             Duration::ZERO
         } else {
-            self.sync_interval - elapsed
+            self.sync_interval.saturating_sub(elapsed)
         }
     }
 

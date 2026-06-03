@@ -130,7 +130,7 @@ impl TemplateType {
             TemplateType::Investigation => "Investigation",
             TemplateType::Assess => "Project Assessment",
             TemplateType::Sync => "Catalog Sync",
-            TemplateType::Init => "Backstage Init",
+            TemplateType::Init => "Workspace Init",
         }
     }
 
@@ -143,38 +143,38 @@ impl TemplateType {
             TemplateType::Spike => "Research or exploration (paired mode)",
             TemplateType::Investigation => "Incident investigation (paired mode)",
             TemplateType::Assess => "Analyze project and generate catalog-info.yaml",
-            TemplateType::Sync => "Refresh Backstage catalog entries",
-            TemplateType::Init => "Initialize Backstage in workspace (paired mode)",
+            TemplateType::Sync => "Refresh catalog entries",
+            TemplateType::Init => "Initialize workspace (paired mode)",
         }
     }
 
     /// Returns the embedded markdown template content
-    /// Source of truth: `src/collections/backstage_full`/
+    /// Source of truth: `src/collections/full/`
     pub fn template_content(&self) -> &'static str {
         match self {
-            TemplateType::Feature => include_str!("../collections/backstage_full/FEAT.md"),
-            TemplateType::Fix => include_str!("../collections/backstage_full/FIX.md"),
-            TemplateType::Task => include_str!("../collections/backstage_full/TASK.md"),
-            TemplateType::Spike => include_str!("../collections/backstage_full/SPIKE.md"),
-            TemplateType::Investigation => include_str!("../collections/backstage_full/INV.md"),
-            TemplateType::Assess => include_str!("../collections/backstage_full/ASSESS.md"),
-            TemplateType::Sync => include_str!("../collections/backstage_full/SYNC.md"),
-            TemplateType::Init => include_str!("../collections/backstage_full/INIT.md"),
+            TemplateType::Feature => include_str!("../collections/full/FEAT.md"),
+            TemplateType::Fix => include_str!("../collections/full/FIX.md"),
+            TemplateType::Task => include_str!("../collections/full/TASK.md"),
+            TemplateType::Spike => include_str!("../collections/full/SPIKE.md"),
+            TemplateType::Investigation => include_str!("../collections/full/INV.md"),
+            TemplateType::Assess => include_str!("../collections/full/ASSESS.md"),
+            TemplateType::Sync => include_str!("../collections/full/SYNC.md"),
+            TemplateType::Init => include_str!("../collections/full/INIT.md"),
         }
     }
 
     /// Returns the embedded JSON schema content
-    /// Source of truth: `src/collections/backstage_full`/
+    /// Source of truth: `src/collections/full/`
     pub fn schema(&self) -> &'static str {
         match self {
-            TemplateType::Feature => include_str!("../collections/backstage_full/FEAT.json"),
-            TemplateType::Fix => include_str!("../collections/backstage_full/FIX.json"),
-            TemplateType::Task => include_str!("../collections/backstage_full/TASK.json"),
-            TemplateType::Spike => include_str!("../collections/backstage_full/SPIKE.json"),
-            TemplateType::Investigation => include_str!("../collections/backstage_full/INV.json"),
-            TemplateType::Assess => include_str!("../collections/backstage_full/ASSESS.json"),
-            TemplateType::Sync => include_str!("../collections/backstage_full/SYNC.json"),
-            TemplateType::Init => include_str!("../collections/backstage_full/INIT.json"),
+            TemplateType::Feature => include_str!("../collections/full/FEAT.json"),
+            TemplateType::Fix => include_str!("../collections/full/FIX.json"),
+            TemplateType::Task => include_str!("../collections/full/TASK.json"),
+            TemplateType::Spike => include_str!("../collections/full/SPIKE.json"),
+            TemplateType::Investigation => include_str!("../collections/full/INV.json"),
+            TemplateType::Assess => include_str!("../collections/full/ASSESS.json"),
+            TemplateType::Sync => include_str!("../collections/full/SYNC.json"),
+            TemplateType::Init => include_str!("../collections/full/INIT.json"),
         }
     }
 

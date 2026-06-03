@@ -7,6 +7,7 @@ const DEFAULT_CONFIG: Config = {
   agents: {
     max_parallel: 2,
     cores_reserved: 1,
+    max_agents_per_repo: 1,
     health_check_interval: BigInt(30),
     generation_timeout_secs: BigInt(300),
     sync_interval: BigInt(60),
@@ -98,28 +99,6 @@ const DEFAULT_CONFIG: Config = {
     default_model: null,
     skill_directory_overrides: {},
   },
-  backstage: {
-    enabled: false,
-    display: false,
-    port: 7009,
-    auto_start: false,
-    subpath: '/backstage',
-    branding_subpath: '/branding',
-    release_url: '',
-    local_binary_path: null,
-    branding: {
-      app_title: 'Operator',
-      org_name: '',
-      logo_path: null,
-      colors: {
-        primary: '#4f46e5',
-        secondary: '#7c3aed',
-        accent: '#06b6d4',
-        warning: '#f59e0b',
-        muted: '#6b7280',
-      },
-    },
-  },
   rest_api: {
     enabled: false,
     port: 7008,
@@ -145,6 +124,17 @@ const DEFAULT_CONFIG: Config = {
   delegators: [],
   model_servers: [],
   relay: { auto_inject_mcp: false },
+  mcp: {
+    http_enabled: true,
+    stdio_advertised: true,
+    expose_ticket_write_tools: false,
+    external_servers: [],
+  },
+  acp: {
+    stdio_advertised: true,
+    default_delegator: null,
+    max_concurrent_sessions: 4,
+  },
 };
 
 export const DEFAULT_WEBVIEW_CONFIG: WebviewConfig = {

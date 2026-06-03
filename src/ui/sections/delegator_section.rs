@@ -39,6 +39,7 @@ impl StatusSection for DelegatorSection {
         if snapshot.delegators.is_empty() {
             return vec![TreeRow {
                 section_id: SectionId::Delegators,
+                id: "add-delegator".into(),
                 depth: 1,
                 label: "Add delegator".into(),
                 description: "Edit config to configure a delegator".into(),
@@ -65,6 +66,7 @@ impl StatusSection for DelegatorSection {
 
                 TreeRow {
                     section_id: SectionId::Delegators,
+                    id: d.name.clone(),
                     depth: 1,
                     label,
                     description,
@@ -91,7 +93,6 @@ impl StatusSection for DelegatorSection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backstage::ServerStatus;
     use crate::rest::RestApiStatus;
     use crate::ui::status_panel::{DelegatorInfo, WrapperConnectionStatus};
 
@@ -103,16 +104,17 @@ mod tests {
             tickets_dir: ".tickets".into(),
             tickets_dir_exists: true,
             wrapper_type: "tmux".into(),
+            operator_inside_wrapper: false,
             operator_version: "0.1.30".into(),
             api_status: RestApiStatus::Stopped,
-            backstage_status: ServerStatus::Stopped,
-            backstage_display: false,
             kanban_providers: vec![],
             llm_tools: vec![],
             default_llm_tool: None,
             default_llm_model: None,
             delegators,
             model_servers: vec![],
+            issue_types: vec![],
+            managed_projects: vec![],
             git_provider: None,
             git_token_set: false,
             git_branch_format: None,
@@ -125,6 +127,12 @@ mod tests {
             },
             env_editor: String::new(),
             env_visual: String::new(),
+            mcp_http_status: crate::ui::status_panel::McpHttpStatus::NotMounted,
+            mcp_stdio_advertised: true,
+            mcp_active_sessions: 0,
+            acp_stdio_advertised: true,
+            acp_active_sessions: 0,
+            embed_ui_available: true,
         }
     }
 

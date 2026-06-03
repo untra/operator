@@ -39,6 +39,7 @@ impl StatusSection for GitSection {
                 vec![
                     TreeRow {
                         section_id: SectionId::Git,
+                        id: "configure-github".into(),
                         depth: 1,
                         label: "Configure GitHub".into(),
                         description: "Set up GitHub".into(),
@@ -51,6 +52,7 @@ impl StatusSection for GitSection {
                     },
                     TreeRow {
                         section_id: SectionId::Git,
+                        id: "configure-gitlab".into(),
                         depth: 1,
                         label: "Configure GitLab".into(),
                         description: "Set up GitLab".into(),
@@ -69,6 +71,7 @@ impl StatusSection for GitSection {
                 let mut rows = vec![
                     TreeRow {
                         section_id: SectionId::Git,
+                        id: "git-provider".into(),
                         depth: 1,
                         label: "Provider".into(),
                         description: provider.clone(),
@@ -89,6 +92,7 @@ impl StatusSection for GitSection {
                     },
                     TreeRow {
                         section_id: SectionId::Git,
+                        id: "git-token".into(),
                         depth: 1,
                         label: "Token".into(),
                         description: if snapshot.git_token_set {
@@ -116,6 +120,7 @@ impl StatusSection for GitSection {
                 if let Some(ref fmt) = snapshot.git_branch_format {
                     rows.push(TreeRow {
                         section_id: SectionId::Git,
+                        id: "git-branch-format".into(),
                         depth: 1,
                         label: "Branch Format".into(),
                         description: fmt.clone(),
@@ -128,6 +133,7 @@ impl StatusSection for GitSection {
 
                 rows.push(TreeRow {
                     section_id: SectionId::Git,
+                    id: "git-worktrees".into(),
                     depth: 1,
                     label: "Worktrees".into(),
                     description: if snapshot.git_use_worktrees {
@@ -150,7 +156,6 @@ impl StatusSection for GitSection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backstage::ServerStatus;
     use crate::rest::RestApiStatus;
     use crate::ui::status_panel::{
         DelegatorInfo, KanbanProviderInfo, LlmToolInfo, WrapperConnectionStatus,
@@ -164,14 +169,15 @@ mod tests {
             tickets_dir: ".tickets".into(),
             tickets_dir_exists: true,
             wrapper_type: "tmux".into(),
+            operator_inside_wrapper: false,
             operator_version: "0.1.28".into(),
             api_status: RestApiStatus::Running { port: 7008 },
-            backstage_status: ServerStatus::Stopped,
-            backstage_display: false,
             kanban_providers: vec![],
             llm_tools: vec![],
             delegators: vec![],
             model_servers: vec![],
+            issue_types: vec![],
+            managed_projects: vec![],
             git_provider: None,
             git_token_set: false,
             git_branch_format: None,
@@ -186,6 +192,12 @@ mod tests {
             },
             env_editor: "vim".into(),
             env_visual: String::new(),
+            mcp_http_status: crate::ui::status_panel::McpHttpStatus::Mounted { port: 7008 },
+            mcp_stdio_advertised: true,
+            mcp_active_sessions: 0,
+            acp_stdio_advertised: true,
+            acp_active_sessions: 0,
+            embed_ui_available: true,
         }
     }
 

@@ -10,16 +10,188 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.1.30"
+    "version": "0.2.0"
   },
   "paths": {
+    "/api/v1/agents/active": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Get all active agents",
+        "description": "Returns a list of all currently running agents with their status and details.",
+        "operationId": "agents_active",
+        "responses": {
+          "200": {
+            "description": "Active agents list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveAgentsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Get details for a single agent by ID",
+        "description": "Returns full details for a specific agent, including all tracked state.",
+        "operationId": "agents_get_detail",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "description": "The agent ID to look up",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}/approve": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Approve an agent's pending review",
+        "description": "Clears the review state and signals the agent to continue.\nThe agent must be in `awaiting_input` status with a pending review.",
+        "operationId": "agents_approve_review",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "description": "The agent ID to approve",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}/focus": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Focus the terminal session of a running agent in its session wrapper.",
+        "description": "The web UI's launch panel calls this for **cmux** launches: cmux exposes no\nbrowser URL scheme, so the operator control plane (which runs inside cmux)\nshells out to `cmux focus-workspace` for the agent's saved workspace ref to\nbring its pane to the foreground. Other wrappers are unsupported here — VS\nCode focuses through its extension's URI handler, and tmux/zellij are\ndisplay-only in the UI, so it never calls this for them.",
+        "operationId": "agents_focus_session",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "description": "The agent ID whose session to focus",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session focused"
+          },
+          "400": {
+            "description": "Wrapper unsupported, or no session refs to focus"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}/reject": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Reject an agent's pending review",
+        "description": "Signals the agent that the review was rejected with feedback.\nThe agent should re-do the work based on the rejection reason.",
+        "operationId": "agents_reject_review",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "description": "The agent ID to reject",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Review rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
     "/api/v1/collections": {
       "get": {
         "tags": [
           "Collections"
         ],
         "summary": "List all collections",
-        "operationId": "list",
+        "operationId": "collections_list",
         "responses": {
           "200": {
             "description": "List of all collections",
@@ -43,7 +215,7 @@
           "Collections"
         ],
         "summary": "Get the currently active collection",
-        "operationId": "get_active",
+        "operationId": "collections_get_active",
         "responses": {
           "200": {
             "description": "Active collection",
@@ -74,7 +246,7 @@
           "Collections"
         ],
         "summary": "Get a single collection by name",
-        "operationId": "get_one",
+        "operationId": "collections_get_one",
         "parameters": [
           {
             "name": "name",
@@ -116,7 +288,7 @@
           "Collections"
         ],
         "summary": "Activate a collection",
-        "operationId": "activate",
+        "operationId": "collections_activate",
         "parameters": [
           {
             "name": "name",
@@ -152,13 +324,61 @@
         }
       }
     },
+    "/api/v1/configuration": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "summary": "Get the current configuration",
+        "description": "Returns the full operator configuration as a JSON object. The body is left\nopaque in the OpenAPI spec because the `Config` tree is large and no client\nconsumes its OpenAPI schema (the TS `Config` type is generated separately by\nts-rs).",
+        "operationId": "configuration_get",
+        "responses": {
+          "200": {
+            "description": "Current configuration as a JSON object",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Configuration"
+        ],
+        "summary": "Update configuration and save to disk",
+        "operationId": "configuration_update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated configuration as a JSON object",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to save configuration"
+          }
+        }
+      }
+    },
     "/api/v1/delegators": {
       "get": {
         "tags": [
           "Delegators"
         ],
         "summary": "List all configured delegators",
-        "operationId": "list",
+        "operationId": "delegators_list",
         "responses": {
           "200": {
             "description": "List of delegators",
@@ -177,7 +397,7 @@
           "Delegators"
         ],
         "summary": "Create a new delegator",
-        "operationId": "create",
+        "operationId": "delegators_create",
         "requestBody": {
           "content": {
             "application/json": {
@@ -212,7 +432,7 @@
         ],
         "summary": "Create a delegator from a detected LLM tool",
         "description": "Pre-populates delegator fields from the detected tool, requiring minimal input.",
-        "operationId": "create_from_tool",
+        "operationId": "delegators_create_from_tool",
         "requestBody": {
           "content": {
             "application/json": {
@@ -249,7 +469,7 @@
           "Delegators"
         ],
         "summary": "Get a single delegator by name",
-        "operationId": "get_one",
+        "operationId": "delegators_get_one",
         "parameters": [
           {
             "name": "name",
@@ -282,7 +502,7 @@
           "Delegators"
         ],
         "summary": "Update an existing delegator",
-        "operationId": "update",
+        "operationId": "delegators_update",
         "parameters": [
           {
             "name": "name",
@@ -325,7 +545,7 @@
           "Delegators"
         ],
         "summary": "Delete a delegator by name",
-        "operationId": "delete",
+        "operationId": "delegators_delete",
         "parameters": [
           {
             "name": "name",
@@ -360,7 +580,7 @@
           "Health"
         ],
         "summary": "Health check endpoint",
-        "operationId": "health",
+        "operationId": "health_check",
         "responses": {
           "200": {
             "description": "Service is healthy",
@@ -381,7 +601,7 @@
           "Issue Types"
         ],
         "summary": "List all issue types",
-        "operationId": "list",
+        "operationId": "issuetypes_list",
         "responses": {
           "200": {
             "description": "List of all issue types",
@@ -403,7 +623,7 @@
           "Issue Types"
         ],
         "summary": "Create a new issue type",
-        "operationId": "create",
+        "operationId": "issuetypes_create",
         "requestBody": {
           "content": {
             "application/json": {
@@ -454,7 +674,7 @@
           "Issue Types"
         ],
         "summary": "Get a single issue type by key",
-        "operationId": "get_one",
+        "operationId": "issuetypes_get_one",
         "parameters": [
           {
             "name": "key",
@@ -494,7 +714,7 @@
           "Issue Types"
         ],
         "summary": "Update an existing issue type",
-        "operationId": "update",
+        "operationId": "issuetypes_update",
         "parameters": [
           {
             "name": "key",
@@ -564,7 +784,7 @@
           "Issue Types"
         ],
         "summary": "Delete an issue type",
-        "operationId": "delete",
+        "operationId": "issuetypes_delete",
         "parameters": [
           {
             "name": "key",
@@ -609,7 +829,7 @@
           "Steps"
         ],
         "summary": "List all steps for an issue type",
-        "operationId": "list",
+        "operationId": "steps_list",
         "parameters": [
           {
             "name": "key",
@@ -654,7 +874,7 @@
           "Steps"
         ],
         "summary": "Get a single step by name",
-        "operationId": "get_one",
+        "operationId": "steps_get_one",
         "parameters": [
           {
             "name": "key",
@@ -703,7 +923,7 @@
           "Steps"
         ],
         "summary": "Update a step",
-        "operationId": "update",
+        "operationId": "steps_update",
         "parameters": [
           {
             "name": "key",
@@ -778,13 +998,308 @@
         }
       }
     },
+    "/api/v1/issuetypes/{key}/workflow-preview": {
+      "get": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Preview the workflow for an issue type (no ticket required).",
+        "description": "Renders the issue type's step structure into a Claude dynamic workflow using\nplaceholder field values. Used by the UI to visualize an issue type's\nworkflow shape.",
+        "operationId": "workflow_preview",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key (e.g., FEAT, FIX)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generated preview workflow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPreviewResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kanban/config": {
+      "put": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "PUT /`api/v1/kanban/config`",
+        "description": "Write or upsert a kanban provider+project section into `config.toml`.\nDoes NOT receive the actual secret — only the env var name (`api_key_env`).",
+        "operationId": "kanban_write_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteKanbanConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Config section written/upserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriteKanbanConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kanban/projects": {
+      "post": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "POST /`api/v1/kanban/projects`",
+        "description": "List available projects/teams for the given provider using ephemeral\ncredentials. No persistence side effects.",
+        "operationId": "kanban_list_projects",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListKanbanProjectsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Available projects/teams for the provider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListKanbanProjectsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kanban/providers": {
+      "get": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "GET /`api/v1/kanban/providers`",
+        "description": "Returns the catalog of supported kanban providers (Jira, Linear, GitHub),\neach flagged with whether it is already configured. This is the shared\nsource of truth for the web `/#/kanban` list view and the VS Code\nonboarding picker.",
+        "operationId": "kanban_provider_catalog",
+        "responses": {
+          "200": {
+            "description": "Supported kanban providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KanbanProviderCatalogEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kanban/session-env": {
+      "post": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "POST /`api/v1/kanban/session-env`",
+        "description": "Set kanban env vars on the server process for the current session so\nsubsequent `from_config()` calls find the API key. Returns a\n`shell_export_block` with placeholder values for the client to display.",
+        "operationId": "kanban_set_session_env",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetKanbanSessionEnvRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Session env vars set; returns a shell export block",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetKanbanSessionEnvResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kanban/validate": {
+      "post": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "POST /`api/v1/kanban/validate`",
+        "description": "Validate credentials against the live provider API without persisting\nanything. Auth failures return `valid: false` with an `error` string\nrather than a 4xx/5xx status so clients can display errors inline.",
+        "operationId": "kanban_validate_credentials",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateKanbanCredentialsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Validation result (valid flag + optional error)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateKanbanCredentialsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kanban/{provider}/{project_key}/issuetypes": {
+      "get": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "GET /`api/v1/kanban/:provider/:project_key/issuetypes`",
+        "description": "Returns kanban issue types from the persisted catalog for a given provider/project.\nFalls back to fetching live from the provider if no catalog exists.",
+        "operationId": "kanban_external_issue_types",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "description": "Kanban provider name (e.g. jira, linear, github)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_key",
+            "in": "path",
+            "description": "Provider project/team key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "External issue types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalIssueTypeSummary"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown provider/project"
+          },
+          "500": {
+            "description": "Failed to read catalog or fetch from provider"
+          }
+        }
+      }
+    },
+    "/api/v1/kanban/{provider}/{project_key}/issuetypes/sync": {
+      "post": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "POST /`api/v1/kanban/:provider/:project_key/issuetypes/sync`",
+        "description": "Refreshes the local kanban issue type catalog from the provider.",
+        "operationId": "kanban_sync_issue_types",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "description": "Kanban provider name (e.g. jira, linear, github)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_key",
+            "in": "path",
+            "description": "Provider project/team key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Synced issue types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncKanbanIssueTypesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown provider/project"
+          },
+          "500": {
+            "description": "Failed to sync from provider"
+          }
+        }
+      }
+    },
     "/api/v1/llm-tools": {
       "get": {
         "tags": [
           "LLM Tools"
         ],
         "summary": "List detected LLM tools with model aliases",
-        "operationId": "list",
+        "operationId": "llm_tools_list",
         "responses": {
           "200": {
             "description": "List of detected LLM tools",
@@ -805,7 +1320,7 @@
           "LLM Tools"
         ],
         "summary": "Get the current default LLM tool and model",
-        "operationId": "get_default",
+        "operationId": "llm_tools_get_default",
         "responses": {
           "200": {
             "description": "Current default LLM",
@@ -824,7 +1339,7 @@
           "LLM Tools"
         ],
         "summary": "Set the global default LLM tool and model",
-        "operationId": "set_default",
+        "operationId": "llm_tools_set_default",
         "requestBody": {
           "content": {
             "application/json": {
@@ -858,8 +1373,8 @@
           "MCP"
         ],
         "summary": "MCP descriptor endpoint",
-        "description": "Returns metadata for building a VS Code MCP deep link.\nThe transport URL is derived from the request Host header\nso it reflects the actual running port.",
-        "operationId": "descriptor",
+        "description": "Returns metadata for registering operator with an MCP-capable client.\nThe transport URL is derived from the request Host header so it reflects\nthe actual running port; the stdio entrypoint reflects this binary's path.",
+        "operationId": "mcp_descriptor",
         "responses": {
           "200": {
             "description": "MCP server descriptor",
@@ -880,7 +1395,7 @@
           "ModelServers"
         ],
         "summary": "List all model servers (user-declared + implicit builtins)",
-        "operationId": "list",
+        "operationId": "model_servers_list",
         "responses": {
           "200": {
             "description": "List of model servers",
@@ -899,7 +1414,7 @@
           "ModelServers"
         ],
         "summary": "Create a new model server",
-        "operationId": "create",
+        "operationId": "model_servers_create",
         "requestBody": {
           "content": {
             "application/json": {
@@ -927,13 +1442,37 @@
         }
       }
     },
+    "/api/v1/model-servers/kinds": {
+      "get": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "The catalog of supported model-server kinds (single source of truth).",
+        "operationId": "model_servers_kinds",
+        "responses": {
+          "200": {
+            "description": "Supported model-server kinds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModelServerKindEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/model-servers/{name}": {
       "get": {
         "tags": [
           "ModelServers"
         ],
         "summary": "Get a single model server by name",
-        "operationId": "get_one",
+        "operationId": "model_servers_get_one",
         "parameters": [
           {
             "name": "name",
@@ -961,13 +1500,59 @@
           }
         }
       },
+      "put": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "Update an existing user-declared model server",
+        "operationId": "model_servers_update",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Model server name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModelServerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Model server updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelServerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Model server not found"
+          },
+          "409": {
+            "description": "Cannot update implicit builtin server"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "ModelServers"
         ],
         "summary": "Delete a user-declared model server by name",
         "description": "Implicit builtin servers cannot be deleted.",
-        "operationId": "delete",
+        "operationId": "model_servers_delete",
         "parameters": [
           {
             "name": "name",
@@ -999,13 +1584,285 @@
         }
       }
     },
+    "/api/v1/model-servers/{name}/models": {
+      "get": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "List the models a server offers, via a live probe of its inference endpoint.",
+        "description": "The probe doubles as a reachability check — `reachable: false` with an `error`\nwhen the endpoint is unreachable or rejects the request.",
+        "operationId": "model_servers_models",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Model server name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Models offered by the server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelServerModelsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Model server not found"
+          }
+        }
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "List all configured projects with analysis data",
+        "operationId": "projects_list",
+        "responses": {
+          "200": {
+            "description": "List of projects with analysis data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{name}/assess": {
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Create an ASSESS ticket for a project",
+        "operationId": "projects_assess",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Project name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ASSESS ticket created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessTicketResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    },
+    "/api/v1/queue/kanban": {
+      "get": {
+        "tags": [
+          "Queue"
+        ],
+        "summary": "Get kanban board data with tickets grouped by status column",
+        "description": "Returns tickets organized into four columns: queue, running, awaiting, done.\nTickets are sorted by priority within each column, then by timestamp (FIFO).",
+        "operationId": "queue_kanban",
+        "responses": {
+          "200": {
+            "description": "Kanban board data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KanbanBoardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/queue/pause": {
+      "post": {
+        "tags": [
+          "Queue"
+        ],
+        "summary": "Pause queue processing",
+        "description": "Sets the queue paused state to true, stopping automatic ticket launches.",
+        "operationId": "queue_pause",
+        "responses": {
+          "200": {
+            "description": "Queue paused successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueControlResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/queue/resume": {
+      "post": {
+        "tags": [
+          "Queue"
+        ],
+        "summary": "Resume queue processing",
+        "description": "Sets the queue paused state to false, resuming automatic ticket launches.",
+        "operationId": "queue_resume",
+        "responses": {
+          "200": {
+            "description": "Queue resumed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueControlResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/queue/status": {
+      "get": {
+        "tags": [
+          "Queue"
+        ],
+        "summary": "Get queue status with ticket counts",
+        "description": "Returns counts of tickets in each state plus breakdown by type.",
+        "operationId": "queue_status",
+        "responses": {
+          "200": {
+            "description": "Queue status with counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/queue/sync": {
+      "post": {
+        "tags": [
+          "Queue"
+        ],
+        "summary": "Sync kanban collections",
+        "description": "Fetches issues from configured external kanban providers (Jira, Linear, etc.)\nand creates local tickets in the queue.",
+        "operationId": "queue_sync",
+        "responses": {
+          "200": {
+            "description": "Kanban sync completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KanbanSyncResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/queue/sync/{provider}/{project_key}": {
+      "post": {
+        "tags": [
+          "Queue"
+        ],
+        "summary": "Sync a specific kanban collection",
+        "description": "Fetches issues from a single provider/project combination and creates\nlocal tickets in the queue.",
+        "operationId": "queue_sync_collection",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "description": "Provider name (jira or linear)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_key",
+            "in": "path",
+            "description": "Project/team key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection sync completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KanbanSyncResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sections": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "summary": "List the canonical status sections with health + child rows.",
+        "description": "Returns all sections (with a `met` flag) rather than hiding unmet ones, so\nthe web UI can render every section and style locked ones. The section logic\nis injected by the binary; without a provider (lib-only/test) this is empty.",
+        "operationId": "sections_list",
+        "responses": {
+          "200": {
+            "description": "Canonical status sections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SectionDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/skills": {
       "get": {
         "tags": [
           "Skills"
         ],
         "summary": "List all discovered skills across LLM tools",
-        "operationId": "list",
+        "operationId": "skills_list",
         "responses": {
           "200": {
             "description": "List of discovered skill files",
@@ -1026,7 +1883,7 @@
           "Health"
         ],
         "summary": "Get service status with registry info",
-        "operationId": "status",
+        "operationId": "health_status",
         "responses": {
           "200": {
             "description": "Service status with registry info",
@@ -1041,6 +1898,42 @@
         }
       }
     },
+    "/api/v1/tickets/{id}": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Get full ticket details by ID",
+        "description": "Returns complete ticket data including content, metadata, step history,\nand session information. Searches queue, in-progress, and completed directories.",
+        "operationId": "tickets_get_one",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Ticket ID (e.g., FEAT-7598)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
     "/api/v1/tickets/{id}/launch": {
       "post": {
         "tags": [
@@ -1048,7 +1941,7 @@
         ],
         "summary": "Launch a ticket from the queue",
         "description": "Claims the ticket, sets up worktree if needed, generates the LLM command,\nand returns all details needed to execute in an external terminal (VS Code, etc.).",
-        "operationId": "launch_ticket",
+        "operationId": "launch_launch_ticket",
         "parameters": [
           {
             "name": "id",
@@ -1092,10 +1985,402 @@
           }
         }
       }
+    },
+    "/api/v1/tickets/{id}/status": {
+      "put": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Update a ticket's status",
+        "description": "Moves a ticket between queue directories based on the target status.\nValid transitions: queued, running, awaiting, done.",
+        "operationId": "tickets_update_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Ticket ID to update",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTicketStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Ticket status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateTicketStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status value"
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{id}/steps/{step}/complete": {
+      "post": {
+        "tags": [
+          "Launch"
+        ],
+        "summary": "Report step completion from opr8r wrapper",
+        "description": "Called by the opr8r wrapper when an LLM command completes.\nReturns next step info and whether to auto-proceed.",
+        "operationId": "launch_complete_step",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Ticket ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "step",
+            "in": "path",
+            "description": "Step name that completed",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Step completion recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepCompleteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{id}/workflow-export": {
+      "post": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Export a ticket to a Claude dynamic workflow.",
+        "description": "Resolves the ticket (searching queue, in-progress, and completed), looks up\nits issue type in the registry, and returns the rendered `.js` plus a\nsuggested filename.",
+        "operationId": "workflow_export",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Ticket ID (e.g., FEAT-7598)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generated workflow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowExportResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ticket or issue type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ActiveAgentResponse": {
+        "type": "object",
+        "description": "A single active agent",
+        "required": [
+          "id",
+          "ticket_id",
+          "ticket_type",
+          "project",
+          "status",
+          "mode",
+          "started_at"
+        ],
+        "properties": {
+          "current_step": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Current workflow step"
+          },
+          "id": {
+            "type": "string",
+            "description": "Agent ID (e.g., \"op-gamesvc-001\")"
+          },
+          "mode": {
+            "type": "string",
+            "description": "Execution mode: autonomous, paired"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project being worked on"
+          },
+          "session_context_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session context reference (e.g. cmux workspace, zellij session)"
+          },
+          "session_pane_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session pane reference (e.g. cmux surface, zellij pane)"
+          },
+          "session_window_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session window reference ID (e.g. cmux window, tmux session)"
+          },
+          "session_wrapper": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Which session wrapper is in use: \"tmux\", \"vscode\", \"cmux\", or \"zellij\""
+          },
+          "started_at": {
+            "type": "string",
+            "description": "When the agent started (ISO 8601)"
+          },
+          "status": {
+            "type": "string",
+            "description": "Agent status: running, `awaiting_input`, completing"
+          },
+          "ticket_id": {
+            "type": "string",
+            "description": "Associated ticket ID (e.g., \"FEAT-042\")"
+          },
+          "ticket_type": {
+            "type": "string",
+            "description": "Ticket type: FEAT, FIX, INV, SPIKE"
+          }
+        }
+      },
+      "ActiveAgentsResponse": {
+        "type": "object",
+        "description": "Response for active agents list",
+        "required": [
+          "agents",
+          "count"
+        ],
+        "properties": {
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActiveAgentResponse"
+            },
+            "description": "List of active agents"
+          },
+          "count": {
+            "type": "integer",
+            "description": "Total count of active agents",
+            "minimum": 0
+          }
+        }
+      },
+      "AgentDetailResponse": {
+        "type": "object",
+        "description": "Full details for a single agent",
+        "required": [
+          "id",
+          "ticket_id",
+          "ticket_type",
+          "project",
+          "status",
+          "started_at",
+          "last_activity",
+          "completed_steps",
+          "paired"
+        ],
+        "properties": {
+          "completed_steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Completed steps for this ticket"
+          },
+          "current_step": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Current workflow step"
+          },
+          "id": {
+            "type": "string",
+            "description": "Agent ID (UUID)"
+          },
+          "last_activity": {
+            "type": "string",
+            "description": "Last activity timestamp (ISO 8601)"
+          },
+          "launch_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Launch mode: \"default\", \"yolo\", \"docker\", \"docker-yolo\""
+          },
+          "llm_model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "LLM model alias (e.g., \"opus\", \"sonnet\", \"gpt-4o\")"
+          },
+          "llm_tool": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "LLM tool used (e.g., \"claude\", \"gemini\", \"codex\")"
+          },
+          "paired": {
+            "type": "boolean",
+            "description": "Whether this is a paired (interactive) agent"
+          },
+          "pr_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Last known PR status (\"open\", \"approved\", \"`changes_requested`\", \"merged\", \"closed\")"
+          },
+          "pr_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "PR URL if created during \"pr\" step"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project being worked on"
+          },
+          "review_state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Review state for `awaiting_input` agents"
+          },
+          "session_wrapper": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Which session wrapper is in use: \"tmux\", \"vscode\", \"cmux\", or \"zellij\""
+          },
+          "started_at": {
+            "type": "string",
+            "description": "When the agent started (ISO 8601)"
+          },
+          "status": {
+            "type": "string",
+            "description": "Agent status: running, `awaiting_input`, completing, orphaned"
+          },
+          "ticket_id": {
+            "type": "string",
+            "description": "Associated ticket ID (e.g., \"FEAT-042\")"
+          },
+          "ticket_type": {
+            "type": "string",
+            "description": "Ticket type: FEAT, FIX, INV, SPIKE"
+          },
+          "worktree_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Path to the git worktree for this ticket"
+          }
+        }
+      },
+      "AssessTicketResponse": {
+        "type": "object",
+        "description": "Response from creating an ASSESS ticket",
+        "required": [
+          "ticket_id",
+          "ticket_path",
+          "project_name"
+        ],
+        "properties": {
+          "project_name": {
+            "type": "string",
+            "description": "Project name that was assessed"
+          },
+          "ticket_id": {
+            "type": "string",
+            "description": "Ticket ID (e.g., \"ASSESS-1234\")"
+          },
+          "ticket_path": {
+            "type": "string",
+            "description": "Path to the created ticket file"
+          }
+        }
+      },
       "CollectionResponse": {
         "type": "object",
         "description": "Response for a collection",
@@ -1665,6 +2950,38 @@
           }
         }
       },
+      "ExternalIssueTypeSummary": {
+        "type": "object",
+        "description": "Summary of an issue type from an external kanban provider (Jira, Linear)",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Description of the issue type"
+          },
+          "icon_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Icon/avatar URL from the provider"
+          },
+          "id": {
+            "type": "string",
+            "description": "Provider-specific unique identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Issue type name (e.g., \"Bug\", \"Story\", \"Task\")"
+          }
+        }
+      },
       "FieldResponse": {
         "type": "object",
         "description": "Response for a field",
@@ -1715,6 +3032,100 @@
           },
           "user_editable": {
             "type": "boolean"
+          }
+        }
+      },
+      "GithubCredentials": {
+        "type": "object",
+        "description": "Ephemeral GitHub Projects credentials supplied by a client during onboarding.\n\nThe token must have `project` (or `read:project`) scope. A repo-only token\n(the kind used for `GITHUB_TOKEN` and operator's git provider) will be\nrejected at validation time with a friendly \"lacks `project` scope\" error.",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "GitHub PAT, fine-grained PAT, or app installation token"
+          }
+        }
+      },
+      "GithubProjectInfoDto": {
+        "type": "object",
+        "description": "A GitHub Project v2 surfaced during onboarding for project picker UIs.",
+        "required": [
+          "node_id",
+          "number",
+          "title",
+          "owner_login",
+          "owner_kind"
+        ],
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "description": "`GraphQL` node ID (e.g., `PVT_kwDOABcdefg`) — used as the project key"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Project number (e.g., 42) within the owner"
+          },
+          "owner_kind": {
+            "type": "string",
+            "description": "\"Organization\" or \"User\""
+          },
+          "owner_login": {
+            "type": "string",
+            "description": "Owner login (org or user name)"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable project title"
+          }
+        }
+      },
+      "GithubSessionEnv": {
+        "type": "object",
+        "description": "GitHub Projects session env body — includes the actual secret to set in env.",
+        "required": [
+          "token",
+          "api_key_env"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "GithubValidationDetailsDto": {
+        "type": "object",
+        "description": "GitHub-specific validation details (returned on success).",
+        "required": [
+          "user_login",
+          "user_id",
+          "projects",
+          "resolved_env_var"
+        ],
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GithubProjectInfoDto"
+            },
+            "description": "All Projects v2 visible to the token (across viewer + organizations)"
+          },
+          "resolved_env_var": {
+            "type": "string",
+            "description": "The env var name the validated token came from. Used by clients to\ndisplay \"Connected via `OPERATOR_GITHUB_TOKEN`\" so users can rotate the\nright token. See Token Disambiguation in the kanban github docs."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Authenticated user's numeric `databaseId` as a string (used as `sync_user_id`)"
+          },
+          "user_login": {
+            "type": "string",
+            "description": "Authenticated user's login (e.g., \"octocat\")"
           }
         }
       },
@@ -1833,6 +3244,334 @@
           }
         }
       },
+      "JiraCredentials": {
+        "type": "object",
+        "description": "Ephemeral Jira credentials supplied by a client during onboarding.\n\nThese are never persisted to disk by the onboarding endpoints that take\nthis struct — the actual secret stays in the env var named in\n`api_key_env` once set via `/api/v1/kanban/session-env`.",
+        "required": [
+          "domain",
+          "email",
+          "api_token"
+        ],
+        "properties": {
+          "api_token": {
+            "type": "string",
+            "description": "API token / personal access token"
+          },
+          "domain": {
+            "type": "string",
+            "description": "Jira Cloud domain (e.g., \"acme.atlassian.net\")"
+          },
+          "email": {
+            "type": "string",
+            "description": "Atlassian account email for Basic Auth"
+          }
+        }
+      },
+      "JiraSessionEnv": {
+        "type": "object",
+        "description": "Jira session env body — includes the actual secret to set in env.",
+        "required": [
+          "domain",
+          "email",
+          "api_token",
+          "api_key_env"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "api_token": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        }
+      },
+      "JiraValidationDetailsDto": {
+        "type": "object",
+        "description": "Jira-specific validation details (returned on success).",
+        "required": [
+          "account_id",
+          "display_name"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "Atlassian accountId (used as `sync_user_id`)"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "User display name"
+          }
+        }
+      },
+      "KanbanBoardResponse": {
+        "type": "object",
+        "description": "Kanban board response with tickets grouped by column",
+        "required": [
+          "queue",
+          "running",
+          "awaiting",
+          "done",
+          "total_count",
+          "last_updated"
+        ],
+        "properties": {
+          "awaiting": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KanbanTicketCard"
+            },
+            "description": "Tickets awaiting review or input"
+          },
+          "done": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KanbanTicketCard"
+            },
+            "description": "Completed tickets"
+          },
+          "last_updated": {
+            "type": "string",
+            "description": "ISO 8601 timestamp of last data refresh"
+          },
+          "queue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KanbanTicketCard"
+            },
+            "description": "Tickets in queue (not yet started)"
+          },
+          "running": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KanbanTicketCard"
+            },
+            "description": "Tickets currently being worked on"
+          },
+          "total_count": {
+            "type": "integer",
+            "description": "Total ticket count across all columns",
+            "minimum": 0
+          }
+        }
+      },
+      "KanbanIssueTypeResponse": {
+        "type": "object",
+        "description": "A synced kanban issue type from the persisted catalog.",
+        "required": [
+          "id",
+          "name",
+          "provider",
+          "project",
+          "source_kind",
+          "synced_at"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Description from the provider"
+          },
+          "icon_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Icon/avatar URL from the provider"
+          },
+          "id": {
+            "type": "string",
+            "description": "Provider-specific ID (Jira type ID, Linear label ID)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name (e.g., \"Bug\", \"Story\", \"Task\")"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project/team key"
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider name (\"jira\", \"linear\", or \"github\")"
+          },
+          "source_kind": {
+            "type": "string",
+            "description": "What this type represents in the provider (\"issuetype\" or \"label\")"
+          },
+          "synced_at": {
+            "type": "string",
+            "description": "ISO 8601 timestamp of last sync"
+          }
+        }
+      },
+      "KanbanProjectInfo": {
+        "type": "object",
+        "description": "A project/team entry returned by `list_projects`.",
+        "required": [
+          "id",
+          "key",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "KanbanProviderCatalogEntry": {
+        "type": "object",
+        "description": "One supported kanban provider, as advertised by\n`GET /api/v1/kanban/providers`.\n\nThis is the single source of truth (derived from\n`KanbanProviderType::ALL`) that the web `/#/kanban` list view and the VS\nCode onboarding picker both render against, so the available options can't\ndrift between surfaces.",
+        "required": [
+          "slug",
+          "display_name",
+          "description",
+          "setup_url",
+          "icon",
+          "configured"
+        ],
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "description": "Whether at least one instance of this provider is already configured."
+          },
+          "description": {
+            "type": "string",
+            "description": "One-line connect description shown next to the provider."
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Human-readable name (e.g. \"Jira Cloud\", \"GitHub Projects\")."
+          },
+          "icon": {
+            "type": "string",
+            "description": "VS Code codicon hint (rendered as `$(icon)` in the picker)."
+          },
+          "setup_url": {
+            "type": "string",
+            "description": "Credential/token page opened when the user chooses to configure it."
+          },
+          "slug": {
+            "type": "string",
+            "description": "Stable lowercase slug (\"jira\" | \"linear\" | \"github\")."
+          }
+        }
+      },
+      "KanbanProviderKind": {
+        "type": "string",
+        "description": "Which kanban provider an onboarding request targets.",
+        "enum": [
+          "jira",
+          "linear",
+          "github"
+        ]
+      },
+      "KanbanSyncResponse": {
+        "type": "object",
+        "description": "Response for kanban sync operations",
+        "required": [
+          "created",
+          "skipped",
+          "errors",
+          "total_processed"
+        ],
+        "properties": {
+          "created": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ticket IDs that were created"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Error messages for failed syncs"
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ticket IDs that were skipped (already exist)"
+          },
+          "total_processed": {
+            "type": "integer",
+            "description": "Total count of issues processed",
+            "minimum": 0
+          }
+        }
+      },
+      "KanbanTicketCard": {
+        "type": "object",
+        "description": "A ticket card for the kanban board",
+        "required": [
+          "id",
+          "summary",
+          "ticket_type",
+          "project",
+          "status",
+          "step",
+          "priority",
+          "timestamp"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Ticket ID (e.g., \"FEAT-7598\")"
+          },
+          "priority": {
+            "type": "string",
+            "description": "Priority: P0-critical, P1-high, P2-medium, P3-low"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project name"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status: queued, running, awaiting, completed"
+          },
+          "step": {
+            "type": "string",
+            "description": "Current step name"
+          },
+          "step_display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Human-readable step name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Ticket summary/title"
+          },
+          "ticket_type": {
+            "type": "string",
+            "description": "Ticket type: FEAT, FIX, INV, SPIKE"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp for sorting (YYYYMMDD-HHMM format)"
+          }
+        }
+      },
       "LaunchTicketRequest": {
         "type": "object",
         "description": "Request to launch a ticket",
@@ -1850,6 +3589,13 @@
               "null"
             ],
             "description": "Model to use (e.g., \"sonnet\", \"opus\") — legacy fallback when no delegator"
+          },
+          "model_server": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Ad-hoc model server to target (e.g. \"ollama-local\") — legacy fallback when\nno delegator. Injects the server's base URL / API key env at spawn."
           },
           "provider": {
             "type": [
@@ -1961,6 +3707,140 @@
           }
         }
       },
+      "LinearCredentials": {
+        "type": "object",
+        "description": "Ephemeral Linear credentials supplied by a client during onboarding.",
+        "required": [
+          "api_key"
+        ],
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "description": "Linear API key (prefixed `lin_api_`)"
+          }
+        }
+      },
+      "LinearSessionEnv": {
+        "type": "object",
+        "description": "Linear session env body — includes the actual secret to set in env.",
+        "required": [
+          "api_key",
+          "api_key_env"
+        ],
+        "properties": {
+          "api_key": {
+            "type": "string"
+          },
+          "api_key_env": {
+            "type": "string"
+          }
+        }
+      },
+      "LinearTeamInfoDto": {
+        "type": "object",
+        "description": "A Linear team exposed to onboarding clients for project selection.",
+        "required": [
+          "id",
+          "key",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "LinearValidationDetailsDto": {
+        "type": "object",
+        "description": "Linear-specific validation details (returned on success).",
+        "required": [
+          "user_id",
+          "user_name",
+          "org_name",
+          "teams"
+        ],
+        "properties": {
+          "org_name": {
+            "type": "string"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinearTeamInfoDto"
+            }
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Linear viewer user ID (used as `sync_user_id`)"
+          },
+          "user_name": {
+            "type": "string"
+          }
+        }
+      },
+      "ListKanbanProjectsRequest": {
+        "type": "object",
+        "description": "Request to list projects/teams from a provider using ephemeral creds.",
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "github": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GithubCredentials"
+              }
+            ]
+          },
+          "jira": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JiraCredentials"
+              }
+            ]
+          },
+          "linear": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinearCredentials"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/KanbanProviderKind"
+          }
+        }
+      },
+      "ListKanbanProjectsResponse": {
+        "type": "object",
+        "description": "Response wrapper for list-projects (wrapped for utoipa compatibility).",
+        "required": [
+          "projects"
+        ],
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KanbanProjectInfo"
+            }
+          }
+        }
+      },
       "LlmToolsResponse": {
         "type": "object",
         "description": "Response listing detected LLM tools",
@@ -2013,6 +3893,17 @@
             "type": "string",
             "description": "Server name used in MCP registration (e.g. \"operator\")"
           },
+          "stdio": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StdioCommand",
+                "description": "Stdio transport entrypoint. Present when `[mcp].stdio_advertised = true`.\nClients may spawn this as a subprocess instead of using `transport_url`."
+              }
+            ]
+          },
           "transport_url": {
             "type": "string",
             "description": "Full URL of the MCP SSE transport endpoint"
@@ -2020,6 +3911,97 @@
           "version": {
             "type": "string",
             "description": "Server version from Cargo.toml"
+          }
+        }
+      },
+      "ModelEntry": {
+        "type": "object",
+        "description": "A single model offered by a server (from a live probe).",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Display name when the server provides one"
+          },
+          "id": {
+            "type": "string",
+            "description": "Model id passed to `--model`"
+          }
+        }
+      },
+      "ModelServerKindEntry": {
+        "type": "object",
+        "description": "A model-server kind from the shared catalog (single source of truth).",
+        "required": [
+          "slug",
+          "display_name",
+          "description",
+          "setup_url",
+          "icon",
+          "is_builtin"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "One-line connect blurb"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Human-friendly display name"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Codicon hint"
+          },
+          "is_builtin": {
+            "type": "boolean",
+            "description": "Whether this is an implicit vendor builtin (always present, not deletable)"
+          },
+          "setup_url": {
+            "type": "string",
+            "description": "Help/credential setup page"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Stable slug stored as `ModelServer.kind` (e.g. \"ollama\")"
+          }
+        }
+      },
+      "ModelServerModelsResponse": {
+        "type": "object",
+        "description": "Response listing the models a server offers, plus reachability.",
+        "required": [
+          "server",
+          "reachable",
+          "models"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Error message when unreachable"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelEntry"
+            },
+            "description": "Models offered (empty when unreachable)"
+          },
+          "reachable": {
+            "type": "boolean",
+            "description": "Whether the endpoint was reachable"
+          },
+          "server": {
+            "type": "string",
+            "description": "Server name probed"
           }
         }
       },
@@ -2100,6 +4082,482 @@
           }
         }
       },
+      "NextStepInfo": {
+        "type": "object",
+        "description": "Information about the next step in the workflow",
+        "required": [
+          "name",
+          "display_name",
+          "review_type"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "description": "Display name for the step"
+          },
+          "name": {
+            "type": "string",
+            "description": "Step name"
+          },
+          "prompt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Prompt template for the step"
+          },
+          "review_type": {
+            "type": "string",
+            "description": "Review type: \"none\", \"plan\", \"visual\", \"pr\""
+          }
+        }
+      },
+      "OperatorOutput": {
+        "type": "object",
+        "description": "Standardized agent output for progress tracking and step transitions.\n\nAgents output a status block in their response which is parsed into this structure.\nUsed for progress tracking, loop detection, and intelligent step transitions.",
+        "required": [
+          "status",
+          "exit_signal"
+        ],
+        "properties": {
+          "blockers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Issues preventing progress (signals intervention needed)"
+          },
+          "confidence": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Agent's confidence in completion (0-100%)",
+            "minimum": 0
+          },
+          "error_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Number of errors encountered",
+            "minimum": 0
+          },
+          "exit_signal": {
+            "type": "boolean",
+            "description": "Agent signals done with step (true) or more work remains (false)"
+          },
+          "files_modified": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Number of files changed this iteration",
+            "minimum": 0
+          },
+          "recommendation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Suggested next action (max 200 chars)"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current work status: `in_progress`, complete, blocked, failed"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Brief description of work done (max 500 chars)"
+          },
+          "tasks_completed": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Number of sub-tasks completed this iteration",
+            "minimum": 0
+          },
+          "tasks_remaining": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Estimated remaining sub-tasks",
+            "minimum": 0
+          },
+          "tests_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Test suite status: passing, failing, skipped, `not_run`"
+          }
+        }
+      },
+      "ProjectSummary": {
+        "type": "object",
+        "description": "Summary of a project with analysis data",
+        "required": [
+          "project_name",
+          "project_path",
+          "exists",
+          "has_catalog_info",
+          "has_project_context",
+          "languages",
+          "frameworks",
+          "databases",
+          "ports",
+          "env_var_count",
+          "entry_point_count",
+          "commands"
+        ],
+        "properties": {
+          "commands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Available command names (start, dev, test, etc.)"
+          },
+          "databases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Database display names"
+          },
+          "entry_point_count": {
+            "type": "integer",
+            "description": "Number of entry points",
+            "minimum": 0
+          },
+          "env_var_count": {
+            "type": "integer",
+            "description": "Number of environment variables",
+            "minimum": 0
+          },
+          "exists": {
+            "type": "boolean",
+            "description": "Whether the project directory exists on disk"
+          },
+          "frameworks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Framework display names"
+          },
+          "has_catalog_info": {
+            "type": "boolean",
+            "description": "Whether catalog-info.yaml exists"
+          },
+          "has_docker": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Has Dockerfile or docker-compose"
+          },
+          "has_project_context": {
+            "type": "boolean",
+            "description": "Whether project-context.json exists"
+          },
+          "has_tests": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Has test frameworks detected"
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Primary Kind from `kind_assessment` (e.g., \"microservice\")"
+          },
+          "kind_confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Kind confidence score 0.0-1.0"
+          },
+          "kind_tier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Taxonomy tier (e.g., \"engines\")"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Language display names"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "description": "Detected port numbers"
+          },
+          "project_name": {
+            "type": "string",
+            "description": "Project directory name"
+          },
+          "project_path": {
+            "type": "string",
+            "description": "Absolute path to project root"
+          }
+        }
+      },
+      "QueueByType": {
+        "type": "object",
+        "description": "Ticket counts by type for queue status",
+        "required": [
+          "inv",
+          "fix",
+          "feat",
+          "spike"
+        ],
+        "properties": {
+          "feat": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fix": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "inv": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "spike": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "QueueControlResponse": {
+        "type": "object",
+        "description": "Response for queue pause/resume operations",
+        "required": [
+          "paused",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Human-readable message about the operation"
+          },
+          "paused": {
+            "type": "boolean",
+            "description": "Whether the queue is currently paused"
+          }
+        }
+      },
+      "QueueStatusResponse": {
+        "type": "object",
+        "description": "Queue status response with ticket counts",
+        "required": [
+          "queued",
+          "in_progress",
+          "awaiting",
+          "completed",
+          "by_type"
+        ],
+        "properties": {
+          "awaiting": {
+            "type": "integer",
+            "description": "Tickets awaiting review or input",
+            "minimum": 0
+          },
+          "by_type": {
+            "$ref": "#/components/schemas/QueueByType",
+            "description": "Breakdown by ticket type"
+          },
+          "completed": {
+            "type": "integer",
+            "description": "Completed tickets (today)",
+            "minimum": 0
+          },
+          "in_progress": {
+            "type": "integer",
+            "description": "Tickets currently being worked on",
+            "minimum": 0
+          },
+          "queued": {
+            "type": "integer",
+            "description": "Tickets waiting in queue",
+            "minimum": 0
+          }
+        }
+      },
+      "RejectReviewRequest": {
+        "type": "object",
+        "description": "Request to reject an agent's review",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Reason for rejection (feedback for the agent)"
+          }
+        }
+      },
+      "ReviewResponse": {
+        "type": "object",
+        "description": "Response for agent review operations (approve/reject)",
+        "required": [
+          "agent_id",
+          "status",
+          "message"
+        ],
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "Agent ID that was reviewed"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message about the operation"
+          },
+          "status": {
+            "type": "string",
+            "description": "Review status: \"approved\" or \"rejected\""
+          }
+        }
+      },
+      "RowActionDto": {
+        "type": "object",
+        "description": "A browser-openable action on a status section row (e.g. \"Open Web UI\",\n\"Swagger\"). Only URL-style actions surface to the web UI; TUI-only actions\n(toggles, env edits) are omitted.",
+        "required": [
+          "label",
+          "url"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Display label for the action button/link."
+          },
+          "url": {
+            "type": "string",
+            "description": "Browser URL the action opens."
+          }
+        }
+      },
+      "SectionDto": {
+        "type": "object",
+        "description": "A status section with its health and child rows.",
+        "required": [
+          "id",
+          "label",
+          "health",
+          "description",
+          "prerequisites",
+          "met",
+          "children"
+        ],
+        "properties": {
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SectionRowDto"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "health": {
+            "type": "string",
+            "description": "Health: \"green\" | \"yellow\" | \"red\" | \"gray\"."
+          },
+          "id": {
+            "type": "string",
+            "description": "Stable section id (e.g. \"config\", \"connections\", \"kanban\")."
+          },
+          "label": {
+            "type": "string"
+          },
+          "met": {
+            "type": "boolean",
+            "description": "Whether all prerequisites are met. Sections are always returned (the web\nUI styles unmet ones as locked) rather than hidden by progressive disclosure."
+          },
+          "prerequisites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Section ids that must be Green before this section is usable."
+          }
+        }
+      },
+      "SectionRowDto": {
+        "type": "object",
+        "description": "A child row within a status section.",
+        "required": [
+          "id",
+          "depth",
+          "label",
+          "description",
+          "icon",
+          "health",
+          "actions"
+        ],
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RowActionDto"
+            },
+            "description": "Browser-openable actions for this row (links shown in the web UI)."
+          },
+          "depth": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Nesting depth within the section (1 = direct child, 2 = grandchild).\nLets clients rebuild the tree (e.g. LLM tools → model aliases).",
+            "minimum": 0
+          },
+          "description": {
+            "type": "string"
+          },
+          "health": {
+            "type": "string",
+            "description": "Health: \"green\" | \"yellow\" | \"red\" | \"gray\"."
+          },
+          "icon": {
+            "type": "string",
+            "description": "Icon hint (e.g. \"check\", \"warning\", \"tool\", \"folder\")."
+          },
+          "id": {
+            "type": "string",
+            "description": "Stable, section-scoped row id. Clients use it as a tree key and to route\nrow-specific commands without matching on the (mutable) display label.\nDynamic rows carry their entity key (issue-type key, project name);\nstatic rows carry a fixed slug (e.g. \"git-token\")."
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
       "SetDefaultLlmRequest": {
         "type": "object",
         "description": "Request to set the global default LLM tool and model",
@@ -2115,6 +4573,69 @@
           "tool": {
             "type": "string",
             "description": "Tool name (must match a detected tool, e.g., \"claude\")"
+          }
+        }
+      },
+      "SetKanbanSessionEnvRequest": {
+        "type": "object",
+        "description": "Request to set kanban-related env vars on the server for the current\nsession so subsequent `from_config` calls find the API key.",
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "github": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GithubSessionEnv"
+              }
+            ]
+          },
+          "jira": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JiraSessionEnv"
+              }
+            ]
+          },
+          "linear": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinearSessionEnv"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/KanbanProviderKind"
+          }
+        }
+      },
+      "SetKanbanSessionEnvResponse": {
+        "type": "object",
+        "description": "Response from setting session env vars.\n\n`shell_export_block` uses `<your-token>` placeholders, NOT the actual\nsecret — it is meant for the user to copy into their shell profile.",
+        "required": [
+          "env_vars_set",
+          "shell_export_block"
+        ],
+        "properties": {
+          "env_vars_set": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Names (not values) of env vars that were set in the server process."
+          },
+          "shell_export_block": {
+            "type": "string",
+            "description": "Multi-line `export FOO=\"<your-token>\"` block for the user to copy\ninto `~/.zshrc` / `~/.bashrc`."
           }
         }
       },
@@ -2198,6 +4719,172 @@
           }
         }
       },
+      "StdioCommand": {
+        "type": "object",
+        "description": "Stdio entrypoint advertised in the descriptor when\n`[mcp].stdio_advertised = true`. Clients use this to spawn operator\nas an MCP subprocess instead of (or alongside) the SSE transport.",
+        "required": [
+          "command",
+          "args",
+          "cwd"
+        ],
+        "properties": {
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Args to pass: typically `[\"mcp\"]`"
+          },
+          "command": {
+            "type": "string",
+            "description": "Absolute path to the operator binary (the same binary serving this descriptor)"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Working directory the client should set when spawning. Defaults to the\noperator process's current working directory."
+          }
+        }
+      },
+      "StepCompleteRequest": {
+        "type": "object",
+        "description": "Request to report step completion (from opr8r wrapper)",
+        "required": [
+          "exit_code",
+          "duration_secs"
+        ],
+        "properties": {
+          "duration_secs": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Duration of the step in seconds",
+            "minimum": 0
+          },
+          "exit_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Exit code from the LLM command"
+          },
+          "output": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OperatorOutput",
+                "description": "Structured output from agent (parsed `OPERATOR_STATUS` block)"
+              }
+            ]
+          },
+          "output_sample": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Sample of the output (first N chars for debugging)"
+          },
+          "output_schema_errors": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "List of validation errors (if `output_valid` is false)"
+          },
+          "output_valid": {
+            "type": "boolean",
+            "description": "Whether output validation passed (if schema was specified)"
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session ID from the LLM session"
+          }
+        }
+      },
+      "StepCompleteResponse": {
+        "type": "object",
+        "description": "Response from step completion endpoint",
+        "required": [
+          "status",
+          "auto_proceed"
+        ],
+        "properties": {
+          "auto_proceed": {
+            "type": "boolean",
+            "description": "Whether to automatically proceed to the next step"
+          },
+          "circuit_state": {
+            "type": "string",
+            "description": "Circuit breaker state: closed (normal), `half_open` (monitoring), open (halted)"
+          },
+          "cumulative_errors": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Cumulative errors across iterations",
+            "minimum": 0
+          },
+          "cumulative_files_modified": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Cumulative files modified across iterations",
+            "minimum": 0
+          },
+          "iteration_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many times this step has run (for circuit breaker)",
+            "minimum": 0
+          },
+          "next_command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Command to execute for the next step (opr8r wrapped)"
+          },
+          "next_step": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NextStepInfo",
+                "description": "Information about the next step (if any)"
+              }
+            ]
+          },
+          "output_valid": {
+            "type": "boolean",
+            "description": "Whether `OperatorOutput` was successfully parsed from agent output"
+          },
+          "previous_recommendation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Recommendation from previous step's `OperatorOutput`"
+          },
+          "previous_summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Summary from previous step's `OperatorOutput`"
+          },
+          "should_iterate": {
+            "type": "boolean",
+            "description": "Agent has more work (`exit_signal=false`) - indicates iteration needed"
+          },
+          "status": {
+            "type": "string",
+            "description": "Status of the step: \"completed\", \"`awaiting_review`\", \"failed\", \"iterate\""
+          }
+        }
+      },
       "StepResponse": {
         "type": "object",
         "description": "Response for a step",
@@ -2246,6 +4933,155 @@
           "review_type": {
             "type": "string",
             "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
+          }
+        }
+      },
+      "SyncKanbanIssueTypesResponse": {
+        "type": "object",
+        "description": "Response from syncing kanban issue types from a provider.",
+        "required": [
+          "synced",
+          "types"
+        ],
+        "properties": {
+          "synced": {
+            "type": "integer",
+            "description": "Number of issue types synced",
+            "minimum": 0
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KanbanIssueTypeResponse"
+            },
+            "description": "The synced issue types"
+          }
+        }
+      },
+      "TicketDetailResponse": {
+        "type": "object",
+        "description": "Full ticket details including content and metadata",
+        "required": [
+          "id",
+          "summary",
+          "ticket_type",
+          "project",
+          "status",
+          "step",
+          "priority",
+          "timestamp",
+          "content",
+          "filename",
+          "filepath",
+          "sessions",
+          "step_delegators"
+        ],
+        "properties": {
+          "branch": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Git branch name"
+          },
+          "content": {
+            "type": "string",
+            "description": "Full markdown content of the ticket"
+          },
+          "external_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "External issue ID from kanban provider"
+          },
+          "external_provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Provider name (e.g., \"jira\", \"linear\")"
+          },
+          "external_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL to the issue in the external provider"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Ticket filename"
+          },
+          "filepath": {
+            "type": "string",
+            "description": "Full filesystem path"
+          },
+          "id": {
+            "type": "string",
+            "description": "Ticket ID (e.g., \"FEAT-7598\")"
+          },
+          "priority": {
+            "type": "string",
+            "description": "Priority: P0-critical, P1-high, P2-medium, P3-low"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project name"
+          },
+          "sessions": {
+            "type": "object",
+            "description": "Session IDs per step (`step_name` -> `session_uuid`)",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status: queued, running, awaiting, completed"
+          },
+          "step": {
+            "type": "string",
+            "description": "Current step name"
+          },
+          "step_delegators": {
+            "type": "object",
+            "description": "Delegator used per step (`step_name` -> `delegator_name`)",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "step_display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Human-readable step name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Ticket summary/title"
+          },
+          "ticket_type": {
+            "type": "string",
+            "description": "Ticket type: FEAT, FIX, INV, SPIKE"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp (YYYYMMDD-HHMM format)"
+          },
+          "worktree_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Path to git worktree (if created)"
           }
         }
       },
@@ -2323,6 +5159,50 @@
           }
         }
       },
+      "UpdateModelServerRequest": {
+        "type": "object",
+        "description": "Request to update an existing user-declared model server.\n\nAll fields except `kind` are replaced; `name` is taken from the path.",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of an env var providing the API key"
+          },
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Base URL of the inference endpoint"
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional display name for UI"
+          },
+          "extra_env": {
+            "type": "object",
+            "description": "Additional environment variables",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "Kind: \"ollama\", \"openai-compat\", \"anthropic-api\", \"openai-api\", \"google-api\", \"lmstudio\""
+          }
+        }
+      },
       "UpdateStepRequest": {
         "type": "object",
         "description": "Request to update a step",
@@ -2377,6 +5257,328 @@
             "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
           }
         }
+      },
+      "UpdateTicketStatusRequest": {
+        "type": "object",
+        "description": "Request to update a ticket's status",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Target status: queued, running, awaiting, done"
+          }
+        }
+      },
+      "UpdateTicketStatusResponse": {
+        "type": "object",
+        "description": "Response from updating a ticket's status",
+        "required": [
+          "id",
+          "previous_status",
+          "status",
+          "message"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Ticket ID"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message"
+          },
+          "previous_status": {
+            "type": "string",
+            "description": "Previous status before the update"
+          },
+          "status": {
+            "type": "string",
+            "description": "New status after the update"
+          }
+        }
+      },
+      "ValidateKanbanCredentialsRequest": {
+        "type": "object",
+        "description": "Request to validate kanban credentials without persisting them.",
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "github": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GithubCredentials"
+              }
+            ]
+          },
+          "jira": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JiraCredentials"
+              }
+            ]
+          },
+          "linear": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinearCredentials"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/KanbanProviderKind"
+          }
+        }
+      },
+      "ValidateKanbanCredentialsResponse": {
+        "type": "object",
+        "description": "Response from validating kanban credentials.\n\n`valid: false` is returned for auth failures — never a 4xx/5xx HTTP\nstatus — so clients can display `error` inline without exception handling.",
+        "required": [
+          "valid"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "github": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GithubValidationDetailsDto"
+              }
+            ]
+          },
+          "jira": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JiraValidationDetailsDto"
+              }
+            ]
+          },
+          "linear": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinearValidationDetailsDto"
+              }
+            ]
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WorkflowExportResponse": {
+        "type": "object",
+        "description": "Response for exporting a ticket to a Claude dynamic workflow (`.js`).",
+        "required": [
+          "ticket_id",
+          "issuetype_key",
+          "suggested_filename",
+          "contents"
+        ],
+        "properties": {
+          "contents": {
+            "type": "string",
+            "description": "The generated `.js` workflow source."
+          },
+          "issuetype_key": {
+            "type": "string",
+            "description": "The issue type key that supplied the step structure."
+          },
+          "suggested_filename": {
+            "type": "string",
+            "description": "Suggested filename for saving the workflow (`<ticket-id>.workflow.js`)."
+          },
+          "ticket_id": {
+            "type": "string",
+            "description": "The ticket the workflow was generated from."
+          }
+        }
+      },
+      "WorkflowPreviewResponse": {
+        "type": "object",
+        "description": "Response for a *preview* workflow generated from an issue type alone (no\nconcrete ticket). Used by the UI to visualize an issue type's workflow shape.",
+        "required": [
+          "issuetype_key",
+          "suggested_filename",
+          "contents"
+        ],
+        "properties": {
+          "contents": {
+            "type": "string",
+            "description": "The generated `.js` workflow source (placeholder ticket values)."
+          },
+          "issuetype_key": {
+            "type": "string",
+            "description": "The issue type key the preview was generated from."
+          },
+          "suggested_filename": {
+            "type": "string",
+            "description": "Suggested filename for saving the preview (`<KEY>.preview.workflow.js`)."
+          }
+        }
+      },
+      "WriteGithubConfigBody": {
+        "type": "object",
+        "description": "Body for writing a GitHub Projects v2 config section.",
+        "required": [
+          "owner",
+          "api_key_env",
+          "project_key",
+          "sync_user_id"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string",
+            "description": "Env var name where the project-scoped token is set\n(default: `OPERATOR_GITHUB_TOKEN`). MUST be distinct from `GITHUB_TOKEN`\n— see Token Disambiguation in the kanban github docs."
+          },
+          "owner": {
+            "type": "string",
+            "description": "GitHub owner login (user or org), used as the workspace key"
+          },
+          "project_key": {
+            "type": "string",
+            "description": "`GraphQL` project node ID (e.g., `PVT_kwDOABcdefg`)"
+          },
+          "sync_user_id": {
+            "type": "string",
+            "description": "Numeric GitHub `databaseId` of the user whose items to sync"
+          }
+        }
+      },
+      "WriteJiraConfigBody": {
+        "type": "object",
+        "description": "Body for writing a Jira project config section.",
+        "required": [
+          "domain",
+          "email",
+          "api_key_env",
+          "project_key",
+          "sync_user_id"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "project_key": {
+            "type": "string"
+          },
+          "sync_user_id": {
+            "type": "string"
+          }
+        }
+      },
+      "WriteKanbanConfigRequest": {
+        "type": "object",
+        "description": "Request to write or upsert a kanban config section.\n\nThis endpoint does NOT take the secret — only the env var NAME\n(`api_key_env`). The secret is set via `/api/v1/kanban/session-env`.",
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "github": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WriteGithubConfigBody"
+              }
+            ]
+          },
+          "jira": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WriteJiraConfigBody"
+              }
+            ]
+          },
+          "linear": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WriteLinearConfigBody"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/KanbanProviderKind"
+          }
+        }
+      },
+      "WriteKanbanConfigResponse": {
+        "type": "object",
+        "description": "Response after writing a kanban config section.",
+        "required": [
+          "written_path",
+          "section_header"
+        ],
+        "properties": {
+          "section_header": {
+            "type": "string",
+            "description": "Header of the top-level section that was upserted\n(e.g., `[kanban.jira.\"acme.atlassian.net\"]`)"
+          },
+          "written_path": {
+            "type": "string",
+            "description": "Filesystem path that was written (e.g., \".tickets/operator/config.toml\")"
+          }
+        }
+      },
+      "WriteLinearConfigBody": {
+        "type": "object",
+        "description": "Body for writing a Linear project/team config section.",
+        "required": [
+          "workspace_key",
+          "api_key_env",
+          "project_key",
+          "sync_user_id"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "project_key": {
+            "type": "string"
+          },
+          "sync_user_id": {
+            "type": "string"
+          },
+          "workspace_key": {
+            "type": "string"
+          }
+        }
       }
     }
   },
@@ -2384,6 +5586,10 @@
     {
       "name": "Health",
       "description": "Health check and status endpoints"
+    },
+    {
+      "name": "Status",
+      "description": "Canonical status sections (TUI / VS Code parity)"
     },
     {
       "name": "Issue Types",
@@ -2398,8 +5604,16 @@
       "description": "Issue type collection management"
     },
     {
+      "name": "Tickets",
+      "description": "Ticket CRUD and status management"
+    },
+    {
       "name": "Launch",
       "description": "Ticket launch operations"
+    },
+    {
+      "name": "Workflow",
+      "description": "Export tickets to Claude dynamic workflows"
     },
     {
       "name": "Skills",
@@ -2416,6 +5630,26 @@
     {
       "name": "MCP",
       "description": "Model Context Protocol integration"
+    },
+    {
+      "name": "Queue",
+      "description": "Ticket queue board, status, and control"
+    },
+    {
+      "name": "Agents",
+      "description": "Active agent tracking and review actions"
+    },
+    {
+      "name": "Projects",
+      "description": "Project discovery and ticket assessment"
+    },
+    {
+      "name": "Configuration",
+      "description": "Operator configuration read/write"
+    },
+    {
+      "name": "Kanban",
+      "description": "Kanban provider issue types and onboarding"
     }
   ]
 }

@@ -47,18 +47,53 @@ pub(crate) fn resolve_model_server_for_delegator(
     }
 }
 
-/// Convert a `Delegator` into an `LlmProvider`.
+/// Convert a `Delegator` into an `LlmProvider`, resolving its `model_server` and
+/// threading the server's env vars (base URL, API key, extra env) into
+/// [`LlmProvider::env`] so they are exported when the agent spawns.
 ///
-/// v1: populates `tool` and `model` only. The delegator's `model_server` is
-/// resolved and env vars are expected to be injected into `LlmProvider.env`
-/// at spawn time — currently a no-op. TODO(model-servers-v2): thread the
-/// resolved `ModelServer` through to `LlmProvider.env` via a per-tool mapping.
-pub(crate) fn delegator_to_provider(d: &Delegator) -> LlmProvider {
-    LlmProvider {
+/// Errors if the delegator names a `model_server` that isn't declared. Builtins
+/// and servers without a `base_url` contribute no env vars (the vendor-default
+/// path is unchanged).
+pub(crate) fn delegator_to_provider(
+    config: &Config,
+    d: &Delegator,
+) -> Result<LlmProvider, ResolutionError> {
+    let server = resolve_model_server_for_delegator(config, d)?;
+    let env = crate::api::providers::model_server::env_for_server(&server);
+    Ok(LlmProvider {
         tool: d.llm_tool.clone(),
         model: d.model.clone(),
+        env,
         ..Default::default()
-    }
+    })
+}
+
+/// Resolve env vars for an ad-hoc launch (`--llm-tool`/`--model`/`--model-server`).
+///
+/// A named `model_server` is looked up among declared servers and the implicit
+/// builtins; absent a name, the tool's implicit vendor default is used (which
+/// contributes no env). Mirrors [`delegator_to_provider`] for the non-delegator path.
+fn adhoc_model_server_env(
+    config: &Config,
+    tool: &str,
+    model_server: Option<&str>,
+) -> Result<std::collections::HashMap<String, String>, ResolutionError> {
+    let server = match model_server {
+        Some(name) => config
+            .model_servers
+            .iter()
+            .find(|s| s.name == name)
+            .cloned()
+            .or_else(|| {
+                ["claude", "codex", "gemini"]
+                    .iter()
+                    .map(|t| implicit_model_server_for_tool(t))
+                    .find(|s| s.name == name)
+            })
+            .ok_or_else(|| ResolutionError::UnknownModelServer(name.to_string()))?,
+        None => implicit_model_server_for_tool(tool),
+    };
+    Ok(crate::api::providers::model_server::env_for_server(&server))
 }
 
 /// Apply a delegator's launch config to launch options
@@ -86,7 +121,7 @@ pub(crate) fn apply_delegator_launch_config(
 /// 1. Single configured delegator -> use it
 /// 2. Delegator matching the user's preferred LLM tool -> use it
 /// 3. None -> caller falls back to first detected tool + first model alias
-fn resolve_default_delegator(config: &Config) -> Option<&Delegator> {
+pub(crate) fn resolve_default_delegator(config: &Config) -> Option<&Delegator> {
     match config.delegators.len() {
         0 => None,
         1 => Some(&config.delegators[0]),
@@ -124,6 +159,7 @@ pub fn resolve_launch_options(
     explicit_delegator: Option<&str>,
     explicit_provider: Option<&str>,
     explicit_model: Option<&str>,
+    explicit_model_server: Option<&str>,
     yolo_mode: bool,
     agent_context: Option<&AgentContext>,
 ) -> Result<LaunchOptions, ResolutionError> {
@@ -140,7 +176,7 @@ pub fn resolve_launch_options(
             .find(|d| d.name == delegator_name)
             .ok_or_else(|| ResolutionError::UnknownDelegator(delegator_name.to_string()))?;
 
-        options.provider = Some(delegator_to_provider(delegator));
+        options.provider = Some(delegator_to_provider(config, delegator)?);
         options.delegator_name = Some(delegator.name.clone());
         apply_delegator_launch_config(&mut options, &delegator.launch_config);
         return Ok(options);
@@ -150,7 +186,7 @@ pub fn resolve_launch_options(
     if let Some(ctx) = agent_context {
         if let Some(ref step_agent) = ctx.step_agent {
             if let Some(delegator) = resolve_delegator_by_name(config, step_agent) {
-                options.provider = Some(delegator_to_provider(delegator));
+                options.provider = Some(delegator_to_provider(config, delegator)?);
                 options.delegator_name = Some(delegator.name.clone());
                 apply_delegator_launch_config(&mut options, &delegator.launch_config);
                 return Ok(options);
@@ -161,7 +197,7 @@ pub fn resolve_launch_options(
         // 3. Issuetype-level agent
         if let Some(ref it_agent) = ctx.issuetype_agent {
             if let Some(delegator) = resolve_delegator_by_name(config, it_agent) {
-                options.provider = Some(delegator_to_provider(delegator));
+                options.provider = Some(delegator_to_provider(config, delegator)?);
                 options.delegator_name = Some(delegator.name.clone());
                 apply_delegator_launch_config(&mut options, &delegator.launch_config);
                 return Ok(options);
@@ -182,9 +218,11 @@ pub fn resolve_launch_options(
             let model = explicit_model
                 .map(std::string::ToString::to_string)
                 .unwrap_or(p.model.clone());
+            let env = adhoc_model_server_env(config, &p.tool, explicit_model_server)?;
             options.provider = Some(LlmProvider {
                 tool: p.tool,
                 model,
+                env,
                 ..Default::default()
             });
         } else {
@@ -196,9 +234,11 @@ pub fn resolve_launch_options(
 
     if let Some(model) = explicit_model {
         if let Some(p) = config.llm_tools.providers.first().cloned() {
+            let env = adhoc_model_server_env(config, &p.tool, explicit_model_server)?;
             options.provider = Some(LlmProvider {
                 tool: p.tool,
                 model: model.to_string(),
+                env,
                 ..Default::default()
             });
         }
@@ -208,7 +248,7 @@ pub fn resolve_launch_options(
 
     // 5. No explicit selection — resolve default delegator
     if let Some(delegator) = resolve_default_delegator(config) {
-        options.provider = Some(delegator_to_provider(delegator));
+        options.provider = Some(delegator_to_provider(config, delegator)?);
         options.delegator_name = Some(delegator.name.clone());
         apply_delegator_launch_config(&mut options, &delegator.launch_config);
         return Ok(options);
@@ -259,7 +299,7 @@ mod tests {
     #[test]
     fn test_resolve_default_no_delegators() {
         let config = Config::default();
-        let options = resolve_launch_options(&config, None, None, None, false, None).unwrap();
+        let options = resolve_launch_options(&config, None, None, None, None, false, None).unwrap();
         assert!(options.provider.is_none());
         assert!(!options.yolo_mode);
     }
@@ -318,7 +358,7 @@ mod tests {
             .delegators
             .push(make_delegator("claude-opus", "claude", "opus"));
 
-        let options = resolve_launch_options(&config, None, None, None, false, None).unwrap();
+        let options = resolve_launch_options(&config, None, None, None, None, false, None).unwrap();
         let provider = options.provider.unwrap();
         assert_eq!(provider.tool, "claude");
         assert_eq!(provider.model, "opus");
@@ -336,7 +376,8 @@ mod tests {
             .push(make_delegator("gemini-pro", "gemini", "pro"));
 
         let options =
-            resolve_launch_options(&config, Some("gemini-pro"), None, None, false, None).unwrap();
+            resolve_launch_options(&config, Some("gemini-pro"), None, None, None, false, None)
+                .unwrap();
         let provider = options.provider.unwrap();
         assert_eq!(provider.tool, "gemini");
         assert_eq!(provider.model, "pro");
@@ -345,7 +386,8 @@ mod tests {
     #[test]
     fn test_resolve_unknown_delegator_errors() {
         let config = Config::default();
-        let result = resolve_launch_options(&config, Some("nonexistent"), None, None, false, None);
+        let result =
+            resolve_launch_options(&config, Some("nonexistent"), None, None, None, false, None);
         assert!(result.is_err());
     }
 
@@ -364,7 +406,8 @@ mod tests {
             issuetype_agent: Some("claude-sonnet".to_string()),
         };
 
-        let options = resolve_launch_options(&config, None, None, None, false, Some(&ctx)).unwrap();
+        let options =
+            resolve_launch_options(&config, None, None, None, None, false, Some(&ctx)).unwrap();
         let provider = options.provider.unwrap();
         assert_eq!(provider.model, "opus");
     }
@@ -381,7 +424,8 @@ mod tests {
             issuetype_agent: Some("claude-opus".to_string()),
         };
 
-        let options = resolve_launch_options(&config, None, None, None, false, Some(&ctx)).unwrap();
+        let options =
+            resolve_launch_options(&config, None, None, None, None, false, Some(&ctx)).unwrap();
         let provider = options.provider.unwrap();
         assert_eq!(provider.model, "opus");
     }
@@ -398,7 +442,8 @@ mod tests {
             issuetype_agent: Some("claude-opus".to_string()),
         };
 
-        let options = resolve_launch_options(&config, None, None, None, false, Some(&ctx)).unwrap();
+        let options =
+            resolve_launch_options(&config, None, None, None, None, false, Some(&ctx)).unwrap();
         let provider = options.provider.unwrap();
         assert_eq!(provider.model, "opus");
     }
@@ -427,7 +472,7 @@ mod tests {
         });
 
         let options =
-            resolve_launch_options(&config, Some("full"), None, None, false, None).unwrap();
+            resolve_launch_options(&config, Some("full"), None, None, None, false, None).unwrap();
         assert!(options.yolo_mode);
         assert!(options.docker_mode);
         assert_eq!(options.use_worktrees_override, Some(true));
@@ -440,7 +485,7 @@ mod tests {
     #[test]
     fn test_resolve_yolo_passthrough() {
         let config = Config::default();
-        let options = resolve_launch_options(&config, None, None, None, true, None).unwrap();
+        let options = resolve_launch_options(&config, None, None, None, None, true, None).unwrap();
         assert!(options.yolo_mode);
     }
 }

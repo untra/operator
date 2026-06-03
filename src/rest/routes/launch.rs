@@ -137,6 +137,7 @@ fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse
 /// Claims the ticket, sets up worktree if needed, generates the LLM command,
 /// and returns all details needed to execute in an external terminal (VS Code, etc.).
 #[utoipa::path(
+    operation_id = "launch_launch_ticket",
     post,
     path = "/api/v1/tickets/{id}/launch",
     tag = "Launch",
@@ -226,6 +227,7 @@ fn build_launch_options(
         request.delegator.as_deref(),
         request.provider.as_deref(),
         request.model.as_deref(),
+        request.model_server.as_deref(),
         request.yolo_mode,
         agent_context,
     )
@@ -252,6 +254,7 @@ fn build_relaunch_options(
 /// Called by the opr8r wrapper when an LLM command completes.
 /// Returns next step info and whether to auto-proceed.
 #[utoipa::path(
+    operation_id = "launch_complete_step",
     post,
     path = "/api/v1/tickets/{id}/steps/{step}/complete",
     tag = "Launch",
@@ -413,6 +416,7 @@ mod tests {
             delegator: None,
             provider: None,
             model: None,
+            model_server: None,
             yolo_mode: false,
             wrapper: None,
             retry_reason: None,
@@ -434,6 +438,7 @@ mod tests {
             delegator: None,
             provider: None,
             model: None,
+            model_server: None,
             yolo_mode: true,
             wrapper: Some("vscode".to_string()),
             retry_reason: None,
@@ -454,6 +459,7 @@ mod tests {
             delegator: None,
             provider: Some("unknown-provider".to_string()),
             model: None,
+            model_server: None,
             yolo_mode: false,
             wrapper: None,
             retry_reason: None,
@@ -471,6 +477,7 @@ mod tests {
             delegator: None,
             provider: None,
             model: None,
+            model_server: None,
             yolo_mode: false,
             wrapper: None,
             retry_reason: Some("Previous attempt timed out".to_string()),
@@ -517,6 +524,7 @@ mod tests {
             delegator: Some("full-delegator".to_string()),
             provider: None,
             model: None,
+            model_server: None,
             yolo_mode: false,
             wrapper: None,
             retry_reason: None,
@@ -555,6 +563,7 @@ mod tests {
             delegator: Some("minimal".to_string()),
             provider: None,
             model: None,
+            model_server: None,
             yolo_mode: false,
             wrapper: None,
             retry_reason: None,
@@ -600,6 +609,7 @@ mod tests {
             delegator: None,
             provider: None,
             model: None,
+            model_server: None,
             yolo_mode: false,
             wrapper: None,
             retry_reason: None,

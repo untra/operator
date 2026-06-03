@@ -1,0 +1,135 @@
+.page {
+  padding: 24px;
+  max-width: 800px;
+}
+
+.breadcrumb {
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+
+.breadcrumb a {
+  color: var(--color-salmon);
+  text-decoration: none;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.statusBadge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.statusBadge[data-status="running"] {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.statusBadge[data-status="awaiting_input"] {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.statusBadge[data-status="completing"] {
+  background: var(--surface-alt);
+  color: var(--color-green-l2);
+}
+
+.statusBadge[data-status="orphaned"] {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.field {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.fieldLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.fieldValue {
+  font-size: 0.95rem;
+}
+
+.prSection, .stepsSection, .meta {
+  margin-bottom: 16px;
+}
+
+.prSection h2, .stepsSection h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.prSection a {
+  color: var(--color-salmon);
+}
+
+.prStatus {
+  margin-left: 8px;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.stepsList {
+  padding-left: 20px;
+}
+
+.stepDone {
+  color: var(--success);
+}
+
+.stepActive {
+  color: var(--warning);
+  font-weight: bold;
+}
+
+.meta {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.meta code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.85rem;
+}
+
+.error {
+  padding: 24px;
+  color: var(--danger);
+}
+
+.loading {
+  padding: 24px;
+  color: var(--text-muted);
+}

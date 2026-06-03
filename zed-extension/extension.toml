@@ -1,23 +1,25 @@
-[extension]
 id = "operator"
 name = "Operator"
-description = "Integration with Operator multi-agent orchestration for Claude Code"
-version = "0.1.0"
+description = "Multi-agent orchestration for Coding Agents — MCP tools, ACP agent, and slash commands"
+version = "0.2.0"
 schema_version = 1
 authors = ["Samuel Volin <sam@untra.io>"]
 repository = "https://github.com/untra/operator"
 
-[language_servers]
+[context_servers.operator]
 
 [slash_commands]
-op-status = { description = "Show Operator health and status" }
-op-queue = { description = "List tickets in queue" }
+op-status = { description = "Show Operator health and status", requires_argument = false }
+op-queue = { description = "List tickets in queue", requires_argument = false }
 op-launch = { description = "Launch a ticket by ID", requires_argument = true }
-op-active = { description = "List active agents" }
-op-completed = { description = "List recently completed tickets" }
+op-active = { description = "List active agents", requires_argument = false }
+op-completed = { description = "List recently completed tickets", requires_argument = false }
 op-ticket = { description = "Show ticket details by ID", requires_argument = true }
-op-pause = { description = "Pause queue processing" }
-op-resume = { description = "Resume queue processing" }
-op-sync = { description = "Sync kanban collections" }
+op-pause = { description = "Pause queue processing", requires_argument = false }
+op-resume = { description = "Resume queue processing", requires_argument = false }
+op-sync = { description = "Sync kanban collections", requires_argument = false }
 op-approve = { description = "Approve agent review by agent ID", requires_argument = true }
 op-reject = { description = "Reject agent review with reason", requires_argument = true }
+op-setup-agent = { description = "Generate ACP agent server config for Zed settings", requires_argument = false }
+op-setup = { description = "Check Operator installation and connection status", requires_argument = false }
+op-help = { description = "List all available Operator commands", requires_argument = false }

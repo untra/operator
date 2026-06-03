@@ -39,6 +39,7 @@ fn ticket_to_card(ticket: &Ticket) -> KanbanTicketCard {
 /// Returns tickets organized into four columns: queue, running, awaiting, done.
 /// Tickets are sorted by priority within each column, then by timestamp (FIFO).
 #[utoipa::path(
+    operation_id = "queue_kanban",
     get,
     path = "/api/v1/queue/kanban",
     tag = "Queue",
@@ -140,6 +141,7 @@ pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardRes
 ///
 /// Returns counts of tickets in each state plus breakdown by type.
 #[utoipa::path(
+    operation_id = "queue_status",
     get,
     path = "/api/v1/queue/status",
     tag = "Queue",
@@ -237,6 +239,7 @@ pub async fn status(State(state): State<ApiState>) -> Result<Json<QueueStatusRes
 ///
 /// Sets the queue paused state to true, stopping automatic ticket launches.
 #[utoipa::path(
+    operation_id = "queue_pause",
     post,
     path = "/api/v1/queue/pause",
     tag = "Queue",
@@ -262,6 +265,7 @@ pub async fn pause(State(state): State<ApiState>) -> Result<Json<QueueControlRes
 ///
 /// Sets the queue paused state to false, resuming automatic ticket launches.
 #[utoipa::path(
+    operation_id = "queue_resume",
     post,
     path = "/api/v1/queue/resume",
     tag = "Queue",
@@ -288,6 +292,7 @@ pub async fn resume(State(state): State<ApiState>) -> Result<Json<QueueControlRe
 /// Fetches issues from configured external kanban providers (Jira, Linear, etc.)
 /// and creates local tickets in the queue.
 #[utoipa::path(
+    operation_id = "queue_sync",
     post,
     path = "/api/v1/queue/sync",
     tag = "Queue",
@@ -318,6 +323,7 @@ pub async fn sync(State(state): State<ApiState>) -> Result<Json<KanbanSyncRespon
 /// Fetches issues from a single provider/project combination and creates
 /// local tickets in the queue.
 #[utoipa::path(
+    operation_id = "queue_sync_collection",
     post,
     path = "/api/v1/queue/sync/{provider}/{project_key}",
     tag = "Queue",

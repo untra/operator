@@ -7,9 +7,9 @@
 
 mod cmux_session;
 pub mod interpolation;
-mod llm_command;
+pub(crate) mod llm_command;
 mod options;
-mod prompt;
+pub(crate) mod prompt;
 mod step_config;
 mod tmux_session;
 pub mod worktree_setup;
@@ -22,6 +22,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+
+use uuid::Uuid;
 
 use crate::agents::cmux::{CmuxClient, SystemCmuxClient};
 use crate::agents::tmux::{sanitize_session_name, SystemTmuxClient, TmuxClient, TmuxError};
@@ -89,6 +91,8 @@ pub struct PreparedLaunch {
     pub session_window_ref: Option<String>,
     /// Session context reference (e.g. cmux workspace, zellij session)
     pub session_context_ref: Option<String>,
+    /// Operator environment variables for the terminal session
+    pub env_vars: std::collections::HashMap<String, String>,
 }
 
 /// Minimum required tmux version
@@ -317,6 +321,26 @@ impl Launcher {
         initial_prompt: &str,
         options: &LaunchOptions,
     ) -> Result<(String, String)> {
+        // Pre-allocate agent ID so we can inject it into the environment
+        let agent_id = Uuid::new_v4().to_string();
+
+        // Build operator environment variables for the terminal session
+        let operator_env = prompt::OperatorEnvVars {
+            agent_id: agent_id.clone(),
+            ticket_id: ticket.id.clone(),
+            project: ticket.project.clone(),
+            step: if ticket.step.is_empty() {
+                "initial".to_string()
+            } else {
+                ticket.step.clone()
+            },
+            ui_url: format!(
+                "http://localhost:{}/#/agent/{}",
+                self.config.rest_api.port, agent_id
+            ),
+            ui_port: self.config.rest_api.port,
+        };
+
         // Dispatch based on session wrapper type
         let (session_name, wrapper_name, cmux_refs) =
             if self.config.sessions.wrapper == SessionWrapperType::Cmux {
@@ -330,6 +354,7 @@ impl Launcher {
                     working_dir_str,
                     initial_prompt,
                     options,
+                    &operator_env,
                 )?;
                 (
                     result.session_name,
@@ -347,6 +372,7 @@ impl Launcher {
                     working_dir_str,
                     initial_prompt,
                     options,
+                    &operator_env,
                 )?;
                 (result.session_name, "zellij", None)
             } else {
@@ -358,6 +384,7 @@ impl Launcher {
                     working_dir_str,
                     initial_prompt,
                     options,
+                    &operator_env,
                 )?;
                 (name, "tmux", None)
             };
@@ -375,15 +402,17 @@ impl Launcher {
                     .map(|t| t.name.clone())
             });
 
-        // Update state with launch options
+        // Update state with pre-allocated agent ID
         let mut state = State::load(&self.config)?;
-        let agent_id = state.add_agent_with_options(
+        let agent_id = state.add_agent_with_explicit_id(
+            agent_id,
             ticket.id.clone(),
             ticket.ticket_type.clone(),
             ticket.project.clone(),
             ticket.is_paired(),
             llm_tool,
             Some(options.launch_mode_string()),
+            None,
         )?;
 
         // Store session name in state for later recovery
@@ -467,9 +496,10 @@ impl Launcher {
             })?;
 
         let mut opts = base.clone();
-        opts.provider = Some(crate::agents::delegator_resolution::delegator_to_provider(
-            delegator,
-        ));
+        opts.provider = Some(
+            crate::agents::delegator_resolution::delegator_to_provider(&self.config, delegator)
+                .map_err(|e| anyhow::anyhow!("{e}"))?,
+        );
         opts.delegator_name = Some(delegator.name.clone());
         crate::agents::delegator_resolution::apply_delegator_launch_config(
             &mut opts,
@@ -497,6 +527,13 @@ impl Launcher {
         let running = state.running_agents().len();
         let cap = self.config.effective_max_agents();
         Ok(cap.saturating_sub(running))
+    }
+
+    fn project_available_slots(&self, project: &str) -> Result<usize> {
+        let state = State::load(&self.config)?;
+        let count = state.project_agent_count(project);
+        let cap = self.config.effective_max_agents_per_repo();
+        Ok(cap.saturating_sub(count))
     }
 
     /// Fan out a `multi_model` step: N delegators, same prompt for all.
@@ -685,7 +722,9 @@ impl Launcher {
         base_options: &LaunchOptions,
     ) -> Result<()> {
         loop {
-            let budget = self.available_slots()?;
+            let budget = self
+                .available_slots()?
+                .min(self.project_available_slots(&ticket.project)?);
             if budget == 0 {
                 break;
             }
@@ -771,12 +810,33 @@ impl Launcher {
         // Generate session UUID
         let session_uuid = generate_session_uuid();
 
+        // Pre-allocate agent ID so we can inject it into the environment
+        let agent_id = Uuid::new_v4().to_string();
+
         // Get the step name (use "initial" if not set)
         let step_name = if ticket.step.is_empty() {
             "initial".to_string()
         } else {
             ticket.step.clone()
         };
+
+        // Build operator environment variables HashMap for PreparedLaunch
+        let mut env_vars = std::collections::HashMap::new();
+        env_vars.insert("OPERATOR_AGENT_ID".to_string(), agent_id.clone());
+        env_vars.insert("OPERATOR_TICKET_ID".to_string(), ticket.id.clone());
+        env_vars.insert("OPERATOR_PROJECT".to_string(), ticket.project.clone());
+        env_vars.insert("OPERATOR_STEP".to_string(), step_name.clone());
+        env_vars.insert(
+            "OPERATOR_UI_URL".to_string(),
+            format!(
+                "http://localhost:{}/#/agent/{}",
+                self.config.rest_api.port, agent_id
+            ),
+        );
+        env_vars.insert(
+            "OPERATOR_UI_PORT".to_string(),
+            self.config.rest_api.port.to_string(),
+        );
 
         // Store the session UUID in the ticket file (now in in-progress)
         let ticket_in_progress_path = self
@@ -867,7 +927,7 @@ impl Launcher {
 
         // Wrap in docker command if docker mode is enabled
         if options.docker_mode {
-            llm_cmd = build_docker_command(&self.config, &llm_cmd, &working_dir_str)?;
+            llm_cmd = build_docker_command(&self.config, &llm_cmd, &working_dir_str, None)?;
         }
 
         // Determine tool name from options or default
@@ -883,15 +943,17 @@ impl Launcher {
                     .map(|t| t.name.clone())
             });
 
-        // Update state with launch
+        // Update state with pre-allocated agent ID
         let mut state = State::load(&self.config)?;
-        let agent_id = state.add_agent_with_options(
+        let agent_id = state.add_agent_with_explicit_id(
+            agent_id,
             ticket.id.clone(),
             ticket.ticket_type.clone(),
             ticket.project.clone(),
             ticket.is_paired(),
             llm_tool,
             Some(options.launch_mode_string()),
+            None,
         )?;
 
         // Store session name in state for later recovery
@@ -931,6 +993,7 @@ impl Launcher {
             session_wrapper: None,
             session_window_ref: None,
             session_context_ref: None,
+            env_vars,
         })
     }
 
@@ -1005,12 +1068,33 @@ impl Launcher {
             .clone()
             .unwrap_or_else(generate_session_uuid);
 
+        // Pre-allocate agent ID so we can inject it into the environment
+        let agent_id = Uuid::new_v4().to_string();
+
         // Get the step name (use "initial" if not set)
         let step_name = if ticket.step.is_empty() {
             "initial".to_string()
         } else {
             ticket.step.clone()
         };
+
+        // Build operator environment variables HashMap for PreparedLaunch
+        let mut env_vars = std::collections::HashMap::new();
+        env_vars.insert("OPERATOR_AGENT_ID".to_string(), agent_id.clone());
+        env_vars.insert("OPERATOR_TICKET_ID".to_string(), ticket.id.clone());
+        env_vars.insert("OPERATOR_PROJECT".to_string(), ticket.project.clone());
+        env_vars.insert("OPERATOR_STEP".to_string(), step_name.clone());
+        env_vars.insert(
+            "OPERATOR_UI_URL".to_string(),
+            format!(
+                "http://localhost:{}/#/agent/{}",
+                self.config.rest_api.port, agent_id
+            ),
+        );
+        env_vars.insert(
+            "OPERATOR_UI_PORT".to_string(),
+            self.config.rest_api.port.to_string(),
+        );
 
         // Store the session UUID in the ticket file
         let ticket_in_progress_path = self
@@ -1112,7 +1196,7 @@ impl Launcher {
 
         // Wrap in docker command if docker mode is enabled
         if options.launch_options.docker_mode {
-            llm_cmd = build_docker_command(&self.config, &llm_cmd, &working_dir_str)?;
+            llm_cmd = build_docker_command(&self.config, &llm_cmd, &working_dir_str, None)?;
         }
 
         // Determine tool name from options or default
@@ -1129,15 +1213,17 @@ impl Launcher {
                     .map(|t| t.name.clone())
             });
 
-        // Update state with launch
+        // Update state with pre-allocated agent ID
         let mut state = State::load(&self.config)?;
-        let agent_id = state.add_agent_with_options(
+        let agent_id = state.add_agent_with_explicit_id(
+            agent_id,
             ticket.id.clone(),
             ticket.ticket_type.clone(),
             ticket.project.clone(),
             ticket.is_paired(),
             llm_tool,
             Some(options.launch_options.launch_mode_string()),
+            None,
         )?;
 
         // Store session name in state for later recovery
@@ -1179,6 +1265,7 @@ impl Launcher {
             session_wrapper: None,
             session_window_ref: None,
             session_context_ref: None,
+            env_vars,
         })
     }
 
@@ -1234,6 +1321,26 @@ impl Launcher {
         let initial_prompt = generate_prompt(&self.config, &ticket);
         let initial_prompt = apply_prompt_wrapping(initial_prompt, &options.launch_options);
 
+        // Pre-allocate agent ID so we can inject it into the environment
+        let agent_id = Uuid::new_v4().to_string();
+
+        // Build operator environment variables for the terminal session
+        let operator_env = prompt::OperatorEnvVars {
+            agent_id: agent_id.clone(),
+            ticket_id: ticket.id.clone(),
+            project: ticket.project.clone(),
+            step: if ticket.step.is_empty() {
+                "initial".to_string()
+            } else {
+                ticket.step.clone()
+            },
+            ui_url: format!(
+                "http://localhost:{}/#/agent/{}",
+                self.config.rest_api.port, agent_id
+            ),
+            ui_port: self.config.rest_api.port,
+        };
+
         // Dispatch based on session wrapper type
         let (session_name, wrapper_name, cmux_refs) =
             if self.config.sessions.wrapper == SessionWrapperType::Cmux {
@@ -1247,6 +1354,7 @@ impl Launcher {
                     &working_dir_str,
                     &initial_prompt,
                     &options,
+                    &operator_env,
                 )?;
                 (
                     result.session_name,
@@ -1264,6 +1372,7 @@ impl Launcher {
                     &working_dir_str,
                     &initial_prompt,
                     &options,
+                    &operator_env,
                 )?;
                 (result.session_name, "zellij", None)
             } else {
@@ -1274,6 +1383,7 @@ impl Launcher {
                     &working_dir_str,
                     &initial_prompt,
                     &options,
+                    &operator_env,
                 )?;
                 (name, "tmux", None)
             };
@@ -1292,15 +1402,17 @@ impl Launcher {
                     .map(|t| t.name.clone())
             });
 
-        // Update state with new agent
+        // Update state with pre-allocated agent ID
         let mut state = State::load(&self.config)?;
-        let agent_id = state.add_agent_with_options(
+        let agent_id = state.add_agent_with_explicit_id(
+            agent_id,
             ticket.id.clone(),
             ticket.ticket_type.clone(),
             ticket.project.clone(),
             ticket.is_paired(),
             llm_tool,
             Some(options.launch_options.launch_mode_string()),
+            None,
         )?;
 
         // Store session name in state for later recovery

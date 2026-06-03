@@ -8,7 +8,6 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::agents::{generate_status_script, generate_tmux_conf};
-use crate::backstage::scaffold::{BackstageScaffold, ScaffoldOptions};
 use crate::config::{CollectionPreset, Config};
 use crate::templates::TemplateType;
 
@@ -20,8 +19,6 @@ pub const COMMON_OPTIONAL_FIELDS: &[&str] = &["priority", "points", "user_story"
 pub struct SetupOptions {
     /// Collection preset to use
     pub preset: CollectionPreset,
-    /// Whether to enable backstage
-    pub backstage_enabled: bool,
     /// Overwrite existing files
     pub force: bool,
     /// Optional fields to include (propagated to all types)
@@ -146,24 +143,11 @@ pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Resu
         config.templates.collection = issue_types;
     }
 
-    // Configure backstage if enabled
-    config.backstage.enabled = options.backstage_enabled;
-
     // Configure git worktree preference
     config.git.use_worktrees = options.use_worktrees;
 
     // Generate tmux config
     generate_tmux_config(config)?;
-
-    // Generate backstage scaffold if enabled
-    if options.backstage_enabled {
-        let backstage_path = config.backstage_path();
-        if !BackstageScaffold::exists(&backstage_path) || options.force {
-            let scaffold_options = ScaffoldOptions::from_config(config);
-            let scaffold = BackstageScaffold::new(backstage_path, scaffold_options);
-            scaffold.generate()?;
-        }
-    }
 
     // Discover projects (git repos and/or LLM marker files)
     let discovered = crate::projects::discover_projects_with_git(&config.projects_path());
@@ -338,7 +322,6 @@ mod tests {
         let options = SetupOptions::default();
         // CollectionPreset defaults to DevKanban via its #[default] attribute
         assert_eq!(options.preset, CollectionPreset::DevKanban);
-        assert!(!options.backstage_enabled);
         assert!(!options.force);
         assert!(options.working_dir.is_none());
         assert!(options.kanban_provider.is_none());
@@ -458,24 +441,6 @@ mod tests {
         // Content should be overwritten
         let content = fs::read_to_string(&existing_file).unwrap();
         assert_ne!(content, "existing content");
-    }
-
-    #[test]
-    fn test_initialize_workspace_with_backstage() {
-        let temp_dir = TempDir::new().unwrap();
-        let tickets_path = temp_dir.path().join(".tickets");
-
-        let mut config = Config::default();
-        config.paths.tickets = tickets_path.to_string_lossy().to_string();
-        config.paths.state = tickets_path.join("operator").to_string_lossy().to_string();
-
-        let options = SetupOptions {
-            backstage_enabled: true,
-            ..Default::default()
-        };
-        initialize_workspace(&mut config, &options).unwrap();
-
-        assert!(config.backstage.enabled);
     }
 
     #[test]

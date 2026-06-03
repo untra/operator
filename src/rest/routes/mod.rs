@@ -2,6 +2,7 @@
 
 pub mod agents;
 pub mod collections;
+pub mod configuration;
 pub mod delegators;
 pub mod health;
 pub mod issuetypes;
@@ -12,5 +13,8 @@ pub mod llm_tools;
 pub mod model_servers;
 pub mod projects;
 pub mod queue;
+pub mod sections;
 pub mod skills;
 pub mod steps;
+pub mod tickets;
+pub mod workflow;

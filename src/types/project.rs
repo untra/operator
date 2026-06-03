@@ -48,7 +48,7 @@ pub struct Project {
     #[ts(type = "string | null")]
     pub ai_context_path: Option<PathBuf>,
 
-    /// Backstage taxonomy kind (tier 1-5)
+    /// Project taxonomy kind (tier 1-5)
     #[serde(default)]
     pub kind: Option<String>,
 

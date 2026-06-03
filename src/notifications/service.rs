@@ -14,14 +14,15 @@ use crate::config::Config;
 ///
 /// Receives events and dispatches them to all enabled integrations
 /// that handle the given event type.
+#[allow(dead_code)] // Used via binary, not reachable from lib.rs
 pub struct NotificationService {
     integrations: Vec<Arc<dyn NotificationIntegration>>,
     enabled: bool,
 }
 
+#[allow(dead_code)]
 impl NotificationService {
     /// Create a new notification service from config.
-    #[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
     pub fn from_config(config: &Config) -> Result<Self> {
         let mut integrations: Vec<Arc<dyn NotificationIntegration>> = Vec::new();
 
@@ -64,7 +65,6 @@ impl NotificationService {
     }
 
     /// Create a disabled notification service (for testing).
-    #[allow(dead_code)]
     pub fn disabled() -> Self {
         Self {
             integrations: Vec::new(),
@@ -73,13 +73,11 @@ impl NotificationService {
     }
 
     /// Check if notifications are globally enabled.
-    #[allow(dead_code)]
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
 
     /// Get the number of registered integrations.
-    #[allow(dead_code)]
     pub fn integration_count(&self) -> usize {
         self.integrations.len()
     }
@@ -88,7 +86,6 @@ impl NotificationService {
     ///
     /// This is fire-and-forget - each integration is spawned as a separate task
     /// and errors are logged but not propagated.
-    #[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
     pub async fn notify(&self, event: NotificationEvent) {
         if !self.enabled {
             return;
@@ -118,7 +115,6 @@ impl NotificationService {
     ///
     /// This is useful for contexts where async is not available.
     /// Only dispatches to OS integration (webhooks require async).
-    #[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
     pub fn notify_sync(&self, event: NotificationEvent) {
         if !self.enabled {
             return;

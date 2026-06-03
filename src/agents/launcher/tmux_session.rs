@@ -16,7 +16,7 @@ use super::llm_command::{
 use super::options::{LaunchOptions, RelaunchOptions};
 use super::prompt::{
     generate_session_uuid, get_agent_prompt, get_template_prompt, write_command_file,
-    write_prompt_file,
+    write_prompt_file, OperatorEnvVars,
 };
 use super::SESSION_PREFIX;
 
@@ -28,6 +28,7 @@ pub fn launch_in_tmux_with_options(
     project_path: &str,
     initial_prompt: &str,
     options: &LaunchOptions,
+    operator_env: &OperatorEnvVars,
 ) -> Result<String> {
     // Create session name from ticket ID (sanitize for tmux).
     // For multi-agent fan-out, append the session_suffix to distinguish
@@ -180,12 +181,24 @@ pub fn launch_in_tmux_with_options(
 
     // Wrap in docker command if docker mode is enabled
     if options.docker_mode {
-        llm_cmd = build_docker_command(config, &llm_cmd, project_path)?;
+        llm_cmd = build_docker_command(
+            config,
+            &llm_cmd,
+            project_path,
+            options.provider.as_ref().map(|p| &p.env),
+        )?;
     }
 
     // Write the command to a shell script file to avoid issues with long commands
     // and special characters when using tmux send-keys
-    let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+    let command_file = write_command_file(
+        config,
+        &session_uuid,
+        project_path,
+        &llm_cmd,
+        Some(operator_env),
+        options.provider.as_ref().map(|p| &p.env),
+    )?;
 
     // Inject relay env vars so agents can find the hub and register with their ticket ID
     if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
@@ -228,6 +241,7 @@ pub fn launch_in_tmux_with_relaunch_options(
     project_path: &str,
     initial_prompt: &str,
     options: &RelaunchOptions,
+    operator_env: &OperatorEnvVars,
 ) -> Result<String> {
     // Create session name from ticket ID (sanitize for tmux)
     let session_name = format!("{}{}", SESSION_PREFIX, sanitize_session_name(&ticket.id));
@@ -404,12 +418,24 @@ pub fn launch_in_tmux_with_relaunch_options(
 
     // Wrap in docker command if docker mode is enabled
     if options.launch_options.docker_mode {
-        llm_cmd = build_docker_command(config, &llm_cmd, project_path)?;
+        llm_cmd = build_docker_command(
+            config,
+            &llm_cmd,
+            project_path,
+            options.launch_options.provider.as_ref().map(|p| &p.env),
+        )?;
     }
 
     // Write the command to a shell script file to avoid issues with long commands
     // and special characters when using tmux send-keys
-    let command_file = write_command_file(config, &session_uuid, project_path, &llm_cmd)?;
+    let command_file = write_command_file(
+        config,
+        &session_uuid,
+        project_path,
+        &llm_cmd,
+        Some(operator_env),
+        options.launch_options.provider.as_ref().map(|p| &p.env),
+    )?;
 
     // Inject relay env vars so agents can find the hub and register with their ticket ID
     if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {

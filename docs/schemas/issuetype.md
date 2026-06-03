@@ -169,6 +169,7 @@ Schema definition for a lifecycle step
 | `multi_model_config` | object | No | Configuration for multi-model steps (required when `type=multi_model`) |
 | `multi_prompt_config` | object | No | Configuration for multi-prompt steps (required when `type=multi_prompt`) |
 | `matrixed_config` | object | No | Configuration for matrixed steps (required when type=matrixed) |
+| `pipeline_config` | object | No | Configuration for pipeline steps (required when type=pipeline) |
 
 ### Definition: StepTypeTag
 
@@ -382,4 +383,39 @@ Configuration for matrixed work output steps (N x M delegators x prompts)
 ### Definition: MatrixedOutputFormat
 
 Output format for matrixed steps
+
+### Definition: PipelineConfig
+
+Configuration for pipeline steps: iterate a list of items through ordered
+stages with no barrier (each item flows through all stages independently).
+
+The step graph stays linear — a pipeline step still has exactly one
+`next_step`. The fan-out (N items x M stages) lives entirely inside this one
+step; iteration is an intra-step concern, never a step-to-step edge.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `item_source` | → `ItemSource` | Yes | Where the iterated items come from. |
+| `stages` | `array` | Yes | Ordered mini-steps each item flows through. Must be non-empty. |
+
+### Definition: ItemSource
+
+Where a pipeline's iterated items come from. The variant determines *when*
+the list resolves: export-time (a literal array → static fan-out width in
+the compiled graph) vs runtime (an identifier → symbolic width).
+
+### Definition: PipelineStage
+
+A single stage in a pipeline — deliberately flat (not a recursive
+`StepSchema`): "prompt + optional agent/model/schema" only. It has no
+`next_step`/`review_type`/`on_reject`, so a stage cannot reopen the
+step-graph linearity question.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `prompt` | `string` | Yes | Handlebars prompt. The per-item value is appended as a JS binding at export time (see `workflow_gen::export`), not via a Handlebars variable. |
+| `agent` | `string` \| `null` | No | Optional agent/delegator name (falls back to the step/issuetype agent). |
+| `model` | `string` \| `null` | No | Optional model pin (emitted as `{ model: … }`). |
+| `jsonSchema` | object | No | Optional structured-output JSON schema (emitted as `{ schema: … }`). |
+| `label` | `string` \| `null` | No | Optional display label override (defaults to `<step>:<stage-index>`). |
 

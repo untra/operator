@@ -81,6 +81,10 @@ pub fn prompt_augmentation(step: &StepSchema) -> String {
 
         // Multi-agent types handled in Phase 4
         StepTypeTag::MultiModel | StepTypeTag::MultiPrompt | StepTypeTag::Matrixed => String::new(),
+
+        // Pipeline per-item/per-stage prompts are augmented at export time
+        // (the item/prev bindings are JS-level, not Handlebars vars).
+        StepTypeTag::Pipeline => String::new(),
     }
 }
 
@@ -494,6 +498,7 @@ mod tests {
             multi_model_config: None,
             multi_prompt_config: None,
             matrixed_config: None,
+            pipeline_config: None,
         }
     }
 

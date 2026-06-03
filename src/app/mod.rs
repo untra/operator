@@ -8,7 +8,6 @@ use tokio::sync::{mpsc, RwLock};
 
 use crate::agents::tmux::SystemTmuxClient;
 use crate::agents::{SessionMonitor, TicketSessionSync};
-use crate::backstage::BackstageServer;
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
 use crate::notifications::NotificationService;
@@ -66,8 +65,6 @@ pub struct App {
     pub(crate) ticket_sync: TicketSessionSync,
     /// Last sync status message for display
     pub(crate) sync_status_message: Option<String>,
-    /// Backstage server lifecycle manager
-    pub(crate) backstage_server: BackstageServer,
     /// REST API server lifecycle manager
     pub(crate) rest_api_server: RestApiServer,
     /// Exit confirmation mode (first Ctrl+C pressed)
@@ -76,6 +73,8 @@ pub struct App {
     pub(crate) exit_confirmation_time: Option<std::time::Instant>,
     /// Start web servers on launch (--web flag)
     pub(crate) start_web_on_launch: bool,
+    /// Open the embedded web UI in browser on launch (--ui flag)
+    pub(crate) open_ui_on_launch: bool,
     /// Session recovery dialog for handling dead tmux sessions
     pub(crate) session_recovery_dialog: SessionRecoveryDialog,
     /// Collection switch dialog for changing active issue type collection
@@ -118,7 +117,7 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new(mut config: Config, start_web: bool) -> Result<Self> {
+    pub async fn new(mut config: Config, start_web: bool, open_ui: bool) -> Result<Self> {
         // Run LLM tool detection on first startup
         if !config.llm_tools.detection_complete {
             tracing::info!("Detecting LLM CLI tools...");
@@ -212,15 +211,6 @@ impl App {
         };
         let ticket_sync = TicketSessionSync::new(&config, Arc::clone(&tmux_client));
 
-        // Initialize Backstage server lifecycle manager using compiled binary mode
-        let backstage_server = BackstageServer::with_compiled_binary(
-            config.state_path(),
-            config.backstage.release_url.clone(),
-            config.backstage.local_binary_path.clone(),
-            config.backstage.port,
-        )
-        .map_err(|e| anyhow::anyhow!("Failed to initialize backstage server: {e}"))?;
-
         // Initialize REST API server lifecycle manager
         let rest_api_server = RestApiServer::new(config.clone(), config.rest_api.port);
 
@@ -303,11 +293,11 @@ impl App {
             session_preview: SessionPreview::new(),
             ticket_sync,
             sync_status_message: None,
-            backstage_server,
             rest_api_server,
             exit_confirmation_mode: false,
             exit_confirmation_time: None,
             start_web_on_launch: start_web,
+            open_ui_on_launch: open_ui,
             session_recovery_dialog: SessionRecoveryDialog::new(),
             collection_dialog: CollectionSwitchDialog::new(),
             kanban_view: KanbanView::new(),
@@ -331,6 +321,7 @@ impl App {
         })
     }
 
+    #[allow(clippy::cognitive_complexity)]
     pub async fn run(&mut self) -> Result<()> {
         // Reconcile state with actual tmux sessions on startup
         self.reconcile_sessions()?;
@@ -360,23 +351,21 @@ impl App {
             }
         }
 
-        // Start Backstage web server if --web flag was passed
-        if self.start_web_on_launch {
-            if let Err(e) = self.backstage_server.start() {
-                tracing::error!("Backstage start failed: {}", e);
+        // Start web servers if --web flag was passed
+        if self.start_web_on_launch && self.rest_api_server.is_running() {
+            let port = self.config.rest_api.port;
+            let url = format!("http://localhost:{port}/");
+            if let Err(e) = status_actions::open_in_browser(&url) {
+                tracing::warn!("Failed to open web UI: {}", e);
             }
-            // Wait for server to be ready then open browser
-            if self.backstage_server.is_running() {
-                match self.backstage_server.wait_for_ready(25000) {
-                    Ok(()) => {
-                        if let Err(e) = self.backstage_server.open_browser() {
-                            tracing::warn!("Failed to open browser: {}", e);
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!("Server not ready: {}", e);
-                    }
-                }
+        }
+
+        // Open embedded web UI in browser if --ui flag was passed
+        if self.open_ui_on_launch && self.rest_api_server.is_running() {
+            let port = self.config.rest_api.port;
+            let url = format!("http://localhost:{port}/");
+            if let Err(e) = status_actions::open_in_browser(&url) {
+                tracing::warn!("Failed to open web UI: {}", e);
             }
         }
 
@@ -396,6 +385,14 @@ impl App {
             // Update dashboard with server statuses and exit confirmation mode
             self.dashboard
                 .update_rest_api_status(self.rest_api_server.status());
+            // MCP session count — try_lock so we never block the UI tick;
+            // a contended lock falls back to the previous frame's count.
+            let mcp_sessions = self
+                .rest_api_server
+                .api_state()
+                .and_then(|s| s.mcp_sessions.try_lock().ok().map(|m| m.len()))
+                .unwrap_or(0);
+            self.dashboard.update_mcp_active_sessions(mcp_sessions);
             self.dashboard
                 .update_exit_confirmation_mode(self.exit_confirmation_mode);
 

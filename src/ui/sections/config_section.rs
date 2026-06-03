@@ -51,6 +51,7 @@ impl StatusSection for ConfigSection {
             // Working Dir: primary=open, special=none (must launch from dir), refresh=none
             TreeRow {
                 section_id: SectionId::Configuration,
+                id: "working-dir".into(),
                 depth: 1,
                 label: "Working Dir".into(),
                 description: if snapshot.working_dir.is_empty() {
@@ -77,6 +78,7 @@ impl StatusSection for ConfigSection {
             // Config: primary=edit, special=reset to defaults, refresh=reload config
             TreeRow {
                 section_id: SectionId::Configuration,
+                id: "config-file".into(),
                 depth: 1,
                 label: "Config".into(),
                 description: if snapshot.config_file_found {
@@ -114,6 +116,7 @@ impl StatusSection for ConfigSection {
             // Tickets: primary=open dir, no special or refresh
             TreeRow {
                 section_id: SectionId::Configuration,
+                id: "tickets-dir".into(),
                 depth: 1,
                 label: "Tickets".into(),
                 description: if snapshot.tickets_dir_exists {
@@ -139,6 +142,7 @@ impl StatusSection for ConfigSection {
                 let wrapper = &snapshot.wrapper_connection_status;
                 TreeRow {
                     section_id: SectionId::Configuration,
+                    id: "wrapper-connection".into(),
                     depth: 1,
                     label: wrapper.label().into(),
                     description: wrapper.description(),
@@ -169,6 +173,7 @@ impl StatusSection for ConfigSection {
             // Wrapper type: display-only
             TreeRow {
                 section_id: SectionId::Configuration,
+                id: "wrapper-type".into(),
                 depth: 1,
                 label: "Wrapper".into(),
                 description: snapshot.wrapper_type.clone(),
@@ -180,6 +185,7 @@ impl StatusSection for ConfigSection {
             // $EDITOR: display-only
             TreeRow {
                 section_id: SectionId::Configuration,
+                id: "editor".into(),
                 depth: 1,
                 label: "$EDITOR".into(),
                 description: if snapshot.env_editor.is_empty() {
@@ -199,6 +205,7 @@ impl StatusSection for ConfigSection {
             // $VISUAL: display-only
             TreeRow {
                 section_id: SectionId::Configuration,
+                id: "visual".into(),
                 depth: 1,
                 label: "$VISUAL".into(),
                 description: if snapshot.env_visual.is_empty() {
@@ -218,6 +225,7 @@ impl StatusSection for ConfigSection {
             // Version: primary=open downloads, refresh=check for updates
             TreeRow {
                 section_id: SectionId::Configuration,
+                id: "version".into(),
                 depth: 1,
                 label: "Version".into(),
                 description: if let Some(ref update) = snapshot.update_available_version {

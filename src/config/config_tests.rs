@@ -221,6 +221,28 @@ fn test_effective_max_agents_reserves_cores() {
     assert!(effective <= cpu_count.saturating_sub(config.agents.cores_reserved));
 }
 
+// --- effective_max_agents_per_repo tests ---
+
+#[test]
+fn test_effective_max_agents_per_repo_default() {
+    let config = Config::default();
+    assert_eq!(config.effective_max_agents_per_repo(), 1);
+}
+
+#[test]
+fn test_effective_max_agents_per_repo_clamps_zero() {
+    let mut config = Config::default();
+    config.agents.max_agents_per_repo = 0;
+    assert_eq!(config.effective_max_agents_per_repo(), 1);
+}
+
+#[test]
+fn test_effective_max_agents_per_repo_custom() {
+    let mut config = Config::default();
+    config.agents.max_agents_per_repo = 3;
+    assert_eq!(config.effective_max_agents_per_repo(), 3);
+}
+
 // --- Path resolution tests ---
 
 #[test]
@@ -530,6 +552,119 @@ fn test_upsert_project_github() {
 fn test_relay_config_default_auto_inject_is_false() {
     let config = Config::default();
     assert!(!config.relay.auto_inject_mcp);
+}
+
+// --- ExternalMcpServer tests ---
+
+#[test]
+fn test_mcp_external_servers_defaults_to_empty() {
+    let config = McpConfig::default();
+    assert!(config.external_servers.is_empty());
+}
+
+#[test]
+fn test_mcp_config_without_external_servers_still_parses() {
+    let toml_str = r"
+        http_enabled = true
+        stdio_advertised = false
+        expose_ticket_write_tools = true
+    ";
+    let config: McpConfig = toml::from_str(toml_str).unwrap();
+    assert!(config.http_enabled);
+    assert!(!config.stdio_advertised);
+    assert!(config.expose_ticket_write_tools);
+    assert!(config.external_servers.is_empty());
+}
+
+#[test]
+fn test_external_mcp_server_static_config_roundtrip() {
+    let toml_str = r#"
+        [[external_servers]]
+        name = "my-tools"
+        command = "/usr/local/bin/my-mcp-server"
+        args = ["--stdio"]
+        env = { API_KEY = "${MY_TOOLS_API_KEY}" }
+    "#;
+    let config: McpConfig = toml::from_str(toml_str).unwrap();
+    assert_eq!(config.external_servers.len(), 1);
+    let server = &config.external_servers[0];
+    assert_eq!(server.name, "my-tools");
+    assert_eq!(server.command, "/usr/local/bin/my-mcp-server");
+    assert_eq!(server.args, vec!["--stdio"]);
+    assert_eq!(server.env.get("API_KEY").unwrap(), "${MY_TOOLS_API_KEY}");
+    assert!(server.enabled);
+    assert!(server.discover_from.is_none());
+}
+
+#[test]
+fn test_external_mcp_server_sidecar_config_roundtrip() {
+    let toml_str = r#"
+        [[external_servers]]
+        name = "kanbots"
+        command = ""
+        discover_from = ".kanbots/active-session.json"
+    "#;
+    let config: McpConfig = toml::from_str(toml_str).unwrap();
+    assert_eq!(config.external_servers.len(), 1);
+    let server = &config.external_servers[0];
+    assert_eq!(server.name, "kanbots");
+    assert_eq!(server.command, "");
+    assert_eq!(
+        server.discover_from.as_deref(),
+        Some(".kanbots/active-session.json")
+    );
+    assert!(server.enabled);
+}
+
+#[test]
+fn test_external_mcp_server_disabled() {
+    let toml_str = r#"
+        [[external_servers]]
+        name = "disabled-server"
+        command = "some-binary"
+        enabled = false
+    "#;
+    let config: McpConfig = toml::from_str(toml_str).unwrap();
+    assert!(!config.external_servers[0].enabled);
+}
+
+#[test]
+fn test_external_mcp_server_multiple_servers() {
+    let toml_str = r#"
+        [[external_servers]]
+        name = "kanbots"
+        command = ""
+        discover_from = ".kanbots/active-session.json"
+
+        [[external_servers]]
+        name = "my-tools"
+        command = "/usr/local/bin/my-mcp"
+        args = ["--port", "9090"]
+    "#;
+    let config: McpConfig = toml::from_str(toml_str).unwrap();
+    assert_eq!(config.external_servers.len(), 2);
+    assert_eq!(config.external_servers[0].name, "kanbots");
+    assert_eq!(config.external_servers[1].name, "my-tools");
+}
+
+#[test]
+fn test_external_mcp_server_json_serde_roundtrip() {
+    let server = ExternalMcpServer {
+        name: "test".to_string(),
+        command: "/bin/test".to_string(),
+        args: vec!["--flag".to_string()],
+        env: std::collections::HashMap::from([("KEY".to_string(), "val".to_string())]),
+        enabled: true,
+        discover_from: Some("/tmp/sidecar.json".to_string()),
+    };
+    let json = serde_json::to_string(&server).unwrap();
+    let parsed: ExternalMcpServer = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.name, "test");
+    assert_eq!(parsed.command, "/bin/test");
+    assert_eq!(parsed.args, vec!["--flag"]);
+    assert_eq!(parsed.env.get("KEY").unwrap(), "val");
+    assert!(parsed.enabled);
+    assert_eq!(parsed.discover_from.as_deref(), Some("/tmp/sidecar.json"));
 }
 
 #[test]

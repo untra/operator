@@ -10,12 +10,28 @@ use axum::{
     Json,
 };
 
+use crate::api::providers::model_server::{probe_models, ModelServerKind};
 use crate::config::{implicit_model_server_for_tool, Config, ModelServer};
-use crate::rest::dto::{CreateModelServerRequest, ModelServerResponse, ModelServersResponse};
+use crate::rest::dto::{
+    CreateModelServerRequest, ModelEntry, ModelServerKindEntry, ModelServerModelsResponse,
+    ModelServerResponse, ModelServersResponse, UpdateModelServerRequest,
+};
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 
 const IMPLICIT_TOOL_NAMES: &[&str] = &["claude", "codex", "gemini"];
+
+/// Find a server by name among user-declared servers, then implicit builtins.
+fn find_server(config: &Config, name: &str) -> Option<(ModelServer, bool)> {
+    if let Some(s) = config.model_servers.iter().find(|s| s.name == name) {
+        return Some((s.clone(), true));
+    }
+    IMPLICIT_TOOL_NAMES
+        .iter()
+        .map(|t| implicit_model_server_for_tool(t))
+        .find(|s| s.name == name)
+        .map(|s| (s, false))
+}
 
 fn server_to_response(s: &ModelServer, user_declared: bool) -> ModelServerResponse {
     ModelServerResponse {
@@ -31,6 +47,7 @@ fn server_to_response(s: &ModelServer, user_declared: bool) -> ModelServerRespon
 
 /// List all model servers (user-declared + implicit builtins)
 #[utoipa::path(
+    operation_id = "model_servers_list",
     get,
     path = "/api/v1/model-servers",
     tag = "ModelServers",
@@ -59,6 +76,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<ModelServersResponse> {
 
 /// Get a single model server by name
 #[utoipa::path(
+    operation_id = "model_servers_get_one",
     get,
     path = "/api/v1/model-servers/{name}",
     tag = "ModelServers",
@@ -90,6 +108,7 @@ pub async fn get_one(
 
 /// Create a new model server
 #[utoipa::path(
+    operation_id = "model_servers_create",
     post,
     path = "/api/v1/model-servers",
     tag = "ModelServers",
@@ -146,6 +165,7 @@ pub async fn create(
 ///
 /// Implicit builtin servers cannot be deleted.
 #[utoipa::path(
+    operation_id = "model_servers_delete",
     delete,
     path = "/api/v1/model-servers/{name}",
     tag = "ModelServers",
@@ -188,6 +208,123 @@ pub async fn delete(
         .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
 
     Ok(Json(response))
+}
+
+/// Update an existing user-declared model server
+#[utoipa::path(
+    operation_id = "model_servers_update",
+    put,
+    path = "/api/v1/model-servers/{name}",
+    tag = "ModelServers",
+    params(
+        ("name" = String, Path, description = "Model server name")
+    ),
+    request_body = UpdateModelServerRequest,
+    responses(
+        (status = 200, description = "Model server updated", body = ModelServerResponse),
+        (status = 404, description = "Model server not found"),
+        (status = 409, description = "Cannot update implicit builtin server")
+    )
+)]
+pub async fn update(
+    State(state): State<ApiState>,
+    Path(name): Path<String>,
+    Json(req): Json<UpdateModelServerRequest>,
+) -> Result<Json<ModelServerResponse>, ApiError> {
+    if IMPLICIT_TOOL_NAMES
+        .iter()
+        .any(|t| implicit_model_server_for_tool(t).name == name)
+    {
+        return Err(ApiError::Conflict(format!(
+            "'{name}' is an implicit builtin and cannot be updated"
+        )));
+    }
+
+    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    let server = config
+        .model_servers
+        .iter_mut()
+        .find(|s| s.name == name)
+        .ok_or_else(|| ApiError::NotFound(format!("Model server '{name}' not found")))?;
+
+    server.kind = req.kind;
+    server.base_url = req.base_url;
+    server.api_key_env = req.api_key_env;
+    server.extra_env = req.extra_env;
+    server.display_name = req.display_name;
+    let updated = server.clone();
+
+    config
+        .save()
+        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+
+    Ok(Json(server_to_response(&updated, true)))
+}
+
+/// List the models a server offers, via a live probe of its inference endpoint.
+///
+/// The probe doubles as a reachability check — `reachable: false` with an `error`
+/// when the endpoint is unreachable or rejects the request.
+#[utoipa::path(
+    operation_id = "model_servers_models",
+    get,
+    path = "/api/v1/model-servers/{name}/models",
+    tag = "ModelServers",
+    params(
+        ("name" = String, Path, description = "Model server name")
+    ),
+    responses(
+        (status = 200, description = "Models offered by the server", body = ModelServerModelsResponse),
+        (status = 404, description = "Model server not found")
+    )
+)]
+pub async fn models(
+    State(state): State<ApiState>,
+    Path(name): Path<String>,
+) -> Result<Json<ModelServerModelsResponse>, ApiError> {
+    let (server, _) = find_server(&state.config, &name)
+        .ok_or_else(|| ApiError::NotFound(format!("Model server '{name}' not found")))?;
+
+    let outcome = probe_models(&server).await;
+    Ok(Json(ModelServerModelsResponse {
+        server: name,
+        reachable: outcome.reachable,
+        models: outcome
+            .models
+            .into_iter()
+            .map(|m| ModelEntry {
+                id: m.id,
+                display_name: m.display_name,
+            })
+            .collect(),
+        error: outcome.error,
+    }))
+}
+
+/// The catalog of supported model-server kinds (single source of truth).
+#[utoipa::path(
+    operation_id = "model_servers_kinds",
+    get,
+    path = "/api/v1/model-servers/kinds",
+    tag = "ModelServers",
+    responses(
+        (status = 200, description = "Supported model-server kinds", body = [ModelServerKindEntry])
+    )
+)]
+pub async fn kinds() -> Json<Vec<ModelServerKindEntry>> {
+    Json(
+        ModelServerKind::ALL
+            .iter()
+            .map(|k| ModelServerKindEntry {
+                slug: k.slug().to_string(),
+                display_name: k.display_name().to_string(),
+                description: k.connect_blurb().to_string(),
+                setup_url: k.setup_url().to_string(),
+                icon: k.icon().to_string(),
+                is_builtin: k.is_builtin(),
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
@@ -240,6 +377,41 @@ mod tests {
         let server = resp.expect("implicit openai-api should resolve").0;
         assert_eq!(server.name, "openai-api");
         assert!(!server.user_declared);
+    }
+
+    #[tokio::test]
+    async fn test_kinds_lists_all_catalog_entries() {
+        let resp = kinds().await;
+        let slugs: Vec<&str> = resp.0.iter().map(|k| k.slug.as_str()).collect();
+        assert!(slugs.contains(&"ollama"));
+        assert!(slugs.contains(&"openai-compat"));
+        assert!(slugs.contains(&"anthropic-api"));
+        // Vendor APIs are flagged builtin.
+        let anthropic = resp.0.iter().find(|k| k.slug == "anthropic-api").unwrap();
+        assert!(anthropic.is_builtin);
+        let ollama = resp.0.iter().find(|k| k.slug == "ollama").unwrap();
+        assert!(!ollama.is_builtin);
+    }
+
+    #[tokio::test]
+    async fn test_models_builtin_without_base_url_is_unreachable() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test-ms-models"));
+        let resp = models(State(state), Path("anthropic-api".to_string()))
+            .await
+            .expect("builtin resolves");
+        assert_eq!(resp.0.server, "anthropic-api");
+        assert!(!resp.0.reachable);
+        assert!(resp.0.models.is_empty());
+        assert!(resp.0.error.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_models_404_on_unknown() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test-ms-models-404"));
+        let resp = models(State(state), Path("nope".to_string())).await;
+        assert!(resp.is_err());
     }
 
     #[tokio::test]

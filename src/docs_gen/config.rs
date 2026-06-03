@@ -70,11 +70,6 @@ const CONFIG_SECTIONS: &[ConfigSection] = &[
         description: "Tmux integration settings",
     },
     ConfigSection {
-        name: "backstage",
-        schema_name: "BackstageConfig",
-        description: "Backstage server integration",
-    },
-    ConfigSection {
         name: "llm_tools",
         schema_name: "LlmToolsConfig",
         description: "LLM CLI tool detection and providers",
@@ -338,14 +333,6 @@ impl ConfigDocGenerator {
                 "to_file" => Some(config.logging.to_file.to_string()),
                 _ => None,
             },
-            "backstage" => match field {
-                "enabled" => Some(config.backstage.enabled.to_string()),
-                "port" => Some(config.backstage.port.to_string()),
-                "auto_start" => Some(config.backstage.auto_start.to_string()),
-                "subpath" => Some(config.backstage.subpath),
-                "branding_subpath" => Some(config.backstage.branding_subpath),
-                _ => None,
-            },
             _ => None,
         };
 
@@ -381,7 +368,7 @@ impl ConfigDocGenerator {
         output.push_str("**Examples**:\n");
         output.push_str("- `OPERATOR_AGENTS__MAX_PARALLEL=2`\n");
         output.push_str("- `OPERATOR_LOGGING__LEVEL=debug`\n");
-        output.push_str("- `OPERATOR_BACKSTAGE__PORT=8080`\n\n");
+        output.push_str("- `OPERATOR_TMUX__ENABLED=true`\n\n");
 
         output
     }
@@ -411,8 +398,6 @@ mod tests {
         assert!(result.contains("## `[notifications]`"));
         assert!(result.contains("## `[queue]`"));
         assert!(result.contains("## `[paths]`"));
-        assert!(result.contains("## `[backstage]`"));
-
         // Should have example config
         assert!(result.contains("## Example Configuration"));
         assert!(result.contains("```toml"));

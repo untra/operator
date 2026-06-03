@@ -8,10 +8,13 @@
 
 use anyhow::{anyhow, Result};
 
+use super::export::PipelineEnv;
 use super::export_workflow;
+use crate::config::Config;
 use crate::issuetypes::{IssueType, IssueTypeRegistry};
 use crate::pr_config::PrConfig;
 use crate::queue::{LlmTask, Ticket};
+use crate::templates::schema::ItemSource;
 
 /// The result of exporting a ticket to a Claude dynamic workflow.
 #[derive(Debug, Clone)]
@@ -32,6 +35,7 @@ pub fn export_workflow_for_ticket(
     ticket: &Ticket,
     registry: &IssueTypeRegistry,
     pr_config: Option<&PrConfig>,
+    config: &Config,
 ) -> Result<ExportedWorkflow> {
     let issuetype = registry.get(&ticket.ticket_type).ok_or_else(|| {
         anyhow!(
@@ -41,7 +45,8 @@ pub fn export_workflow_for_ticket(
         )
     })?;
 
-    let contents = export_workflow(ticket, issuetype, pr_config)?;
+    let env = pipeline_env_for(config, ticket, issuetype);
+    let contents = export_workflow(ticket, issuetype, pr_config, &env)?;
 
     Ok(ExportedWorkflow {
         ticket_id: ticket.id.clone(),
@@ -61,7 +66,9 @@ pub fn export_workflow_for_ticket(
 /// as empty strings rather than erroring.
 pub fn export_workflow_for_issuetype(issuetype: &IssueType) -> Result<ExportedWorkflow> {
     let ticket = preview_ticket(issuetype);
-    let contents = export_workflow(&ticket, issuetype, None)?;
+    // No config/filesystem context in a preview: environment-dependent
+    // pipeline item sources (projects/glob) render as symbolic placeholders.
+    let contents = export_workflow(&ticket, issuetype, None, &PipelineEnv::default())?;
 
     Ok(ExportedWorkflow {
         ticket_id: ticket.id,
@@ -69,6 +76,27 @@ pub fn export_workflow_for_issuetype(issuetype: &IssueType) -> Result<ExportedWo
         suggested_filename: format!("{}.preview.workflow.js", issuetype.key),
         contents,
     })
+}
+
+/// Build the pipeline-resolution environment for a real ticket export.
+///
+/// Project discovery (a directory scan) only runs when the issuetype actually
+/// contains a `projects` item source; the glob root is a pure path join.
+fn pipeline_env_for(config: &Config, ticket: &Ticket, issuetype: &IssueType) -> PipelineEnv {
+    let needs_projects = issuetype.steps.iter().any(|s| {
+        matches!(
+            s.pipeline_config.as_ref().map(|c| &c.item_source),
+            Some(ItemSource::Projects)
+        )
+    });
+    PipelineEnv {
+        projects: if needs_projects {
+            config.discover_projects()
+        } else {
+            Vec::new()
+        },
+        glob_root: Some(config.projects_path().join(&ticket.project)),
+    }
 }
 
 /// Build an illustrative placeholder ticket for an issue type preview.
@@ -133,7 +161,9 @@ mod tests {
 
     #[test]
     fn exports_known_ticket_type_into_workflow() {
-        let exported = export_workflow_for_ticket(&ticket("FEAT"), &registry(), None).unwrap();
+        let exported =
+            export_workflow_for_ticket(&ticket("FEAT"), &registry(), None, &Config::default())
+                .unwrap();
         assert_eq!(exported.ticket_id, "FEAT-1234");
         assert_eq!(exported.issuetype_key, "FEAT");
         assert_eq!(exported.suggested_filename, "FEAT-1234.workflow.js");
@@ -150,7 +180,8 @@ mod tests {
 
     #[test]
     fn errors_when_issuetype_unknown() {
-        let result = export_workflow_for_ticket(&ticket("NOPE"), &registry(), None);
+        let result =
+            export_workflow_for_ticket(&ticket("NOPE"), &registry(), None, &Config::default());
         assert!(result.is_err(), "unknown issuetype should error");
     }
 

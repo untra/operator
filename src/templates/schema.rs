@@ -200,6 +200,9 @@ pub struct StepSchema {
     /// Configuration for matrixed steps (required when type=matrixed)
     #[serde(default)]
     pub matrixed_config: Option<MatrixedConfig>,
+    /// Configuration for pipeline steps (required when type=pipeline)
+    #[serde(default)]
+    pub pipeline_config: Option<PipelineConfig>,
 }
 
 /// Status category for a step
@@ -306,6 +309,8 @@ pub enum StepTypeTag {
     MultiPrompt,
     /// N x M delegators x prompt variations
     Matrixed,
+    /// Iterate a list of items through ordered stages with no barrier
+    Pipeline,
 }
 
 fn default_step_type() -> StepTypeTag {
@@ -532,6 +537,81 @@ pub enum MatrixedOutputFormat {
     Structured,
 }
 
+// ── Pipeline ────────────────────────────────────────────────────────────
+
+/// Configuration for pipeline steps: iterate a list of items through ordered
+/// stages with no barrier (each item flows through all stages independently).
+///
+/// The step graph stays linear — a pipeline step still has exactly one
+/// `next_step`. The fan-out (N items x M stages) lives entirely inside this one
+/// step; iteration is an intra-step concern, never a step-to-step edge.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PipelineConfig {
+    /// Where the iterated items come from.
+    pub item_source: ItemSource,
+    /// Ordered mini-steps each item flows through. Must be non-empty.
+    pub stages: Vec<PipelineStage>,
+}
+
+/// A single stage in a pipeline — deliberately flat (not a recursive
+/// `StepSchema`): "prompt + optional agent/model/schema" only. It has no
+/// `next_step`/`review_type`/`on_reject`, so a stage cannot reopen the
+/// step-graph linearity question.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PipelineStage {
+    /// Handlebars prompt. The per-item value is appended as a JS binding at
+    /// export time (see `workflow_gen::export`), not via a Handlebars variable.
+    pub prompt: String,
+    /// Optional agent/delegator name (falls back to the step/issuetype agent).
+    #[serde(default)]
+    pub agent: Option<String>,
+    /// Optional model pin (emitted as `{ model: … }`).
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Optional structured-output JSON schema (emitted as `{ schema: … }`).
+    #[serde(default, rename = "jsonSchema")]
+    pub json_schema: Option<serde_json::Value>,
+    /// Optional display label override (defaults to `<step>:<stage-index>`).
+    #[serde(default)]
+    pub label: Option<String>,
+}
+
+/// Where a pipeline's iterated items come from. The variant determines *when*
+/// the list resolves: export-time (a literal array → static fan-out width in
+/// the compiled graph) vs runtime (an identifier → symbolic width).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ItemSource {
+    /// The configured/relevant projects (`config.discover_projects()`),
+    /// resolved to a literal array at export time. The "plan work across many
+    /// projects" mechanism.
+    Projects,
+    /// An array produced by a prior step. Emits that step's result identifier
+    /// (`r_<step>`) — a runtime value, so the graph width is symbolic.
+    FromStep {
+        /// Name of the prior step whose (array) output is iterated.
+        step: String,
+    },
+    /// A glob pattern, expanded to a literal array at export time against the
+    /// project root (`projects_path()/<ticket.project>`).
+    Glob {
+        /// Glob pattern, relative to the project root.
+        pattern: String,
+    },
+    /// A literal, author-provided list, emitted verbatim as a literal array.
+    Static {
+        /// The items to iterate.
+        items: Vec<String>,
+    },
+    /// A ticket field value split into a list. Resolution is deferred — there
+    /// is no list `FieldType` and ticket field values are not captured at
+    /// export time yet — so this currently emits a symbolic placeholder.
+    Field {
+        /// Name of the ticket field to read.
+        name: String,
+    },
+}
+
 impl TemplateSchema {
     /// Parse a template schema from JSON
     pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
@@ -584,6 +664,20 @@ impl TemplateSchema {
                         "Step '{}' on_reject references unknown step '{}'",
                         step.name, on_reject.goto_step
                     ));
+                }
+            }
+
+            // A pipeline from_step source must name an existing step: the
+            // export emits its result identifier (`r_<step>`), which would be
+            // undefined at runtime otherwise.
+            if let Some(ref cfg) = step.pipeline_config {
+                if let ItemSource::FromStep { step: source } = &cfg.item_source {
+                    if !source.is_empty() && !step_names.contains(&source.as_str()) {
+                        errors.push(format!(
+                            "Step '{}': pipeline item_source 'from_step' references unknown step '{}'",
+                            step.name, source
+                        ));
+                    }
                 }
             }
 
@@ -757,6 +851,48 @@ impl StepSchema {
                 } else {
                     errors.push(format!(
                         "Step '{}': type 'matrixed' requires matrixed_config",
+                        self.name
+                    ));
+                }
+            }
+            StepTypeTag::Pipeline => {
+                if let Some(ref cfg) = self.pipeline_config {
+                    if cfg.stages.is_empty() {
+                        errors.push(format!(
+                            "Step '{}': pipeline_config.stages must be non-empty",
+                            self.name
+                        ));
+                    }
+                    match &cfg.item_source {
+                        ItemSource::Static { items } if items.is_empty() => {
+                            errors.push(format!(
+                                "Step '{}': pipeline item_source 'static' must have a non-empty items list",
+                                self.name
+                            ));
+                        }
+                        ItemSource::Glob { pattern } if pattern.is_empty() => {
+                            errors.push(format!(
+                                "Step '{}': pipeline item_source 'glob' must have a non-empty pattern",
+                                self.name
+                            ));
+                        }
+                        ItemSource::FromStep { step } if step.is_empty() => {
+                            errors.push(format!(
+                                "Step '{}': pipeline item_source 'from_step' must name a step",
+                                self.name
+                            ));
+                        }
+                        ItemSource::Field { name } if name.is_empty() => {
+                            errors.push(format!(
+                                "Step '{}': pipeline item_source 'field' must name a field",
+                                self.name
+                            ));
+                        }
+                        _ => {}
+                    }
+                } else {
+                    errors.push(format!(
+                        "Step '{}': type 'pipeline' requires pipeline_config",
                         self.name
                     ));
                 }
@@ -1836,5 +1972,148 @@ mod tests {
         let result = schema.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err()[0].contains("at least one required or optional tool"));
+    }
+
+    // ── Pipeline step validation ────────────────────────────────────
+
+    /// Wrap a single pipeline step's JSON into a full template and validate it.
+    fn validate_pipeline_step(step_json: &str) -> Result<(), Vec<String>> {
+        let json = format!(
+            r#"{{
+                "key": "PIPE",
+                "name": "Pipe",
+                "description": "Pipeline template",
+                "mode": "autonomous",
+                "glyph": "*",
+                "fields": [
+                    {{ "name": "id", "description": "ID", "type": "string", "required": true, "auto": "id" }}
+                ],
+                "steps": [ {step_json} ]
+            }}"#
+        );
+        TemplateSchema::from_json(&json).unwrap().validate()
+    }
+
+    #[test]
+    fn test_pipeline_valid_static_config_passes() {
+        let result = validate_pipeline_step(
+            r#"{
+                "name": "triage",
+                "type": "pipeline",
+                "outputs": ["report"],
+                "prompt": "",
+                "pipeline_config": {
+                    "item_source": { "type": "static", "items": ["a", "b"] },
+                    "stages": [ { "prompt": "Look at {{item}}" } ]
+                }
+            }"#,
+        );
+        assert!(result.is_ok(), "expected valid pipeline, got {result:?}");
+    }
+
+    #[test]
+    fn test_pipeline_missing_config_errors() {
+        let result = validate_pipeline_step(
+            r#"{
+                "name": "triage",
+                "type": "pipeline",
+                "outputs": ["report"],
+                "prompt": ""
+            }"#,
+        );
+        let errs = result.unwrap_err();
+        assert!(
+            errs.iter().any(|e| e.contains("requires pipeline_config")),
+            "got {errs:?}"
+        );
+    }
+
+    #[test]
+    fn test_pipeline_empty_stages_errors() {
+        let result = validate_pipeline_step(
+            r#"{
+                "name": "triage",
+                "type": "pipeline",
+                "outputs": ["report"],
+                "prompt": "",
+                "pipeline_config": {
+                    "item_source": { "type": "projects" },
+                    "stages": []
+                }
+            }"#,
+        );
+        let errs = result.unwrap_err();
+        assert!(
+            errs.iter().any(|e| e.contains("stages must be non-empty")),
+            "got {errs:?}"
+        );
+    }
+
+    #[test]
+    fn test_pipeline_static_empty_items_errors() {
+        let result = validate_pipeline_step(
+            r#"{
+                "name": "triage",
+                "type": "pipeline",
+                "outputs": ["report"],
+                "prompt": "",
+                "pipeline_config": {
+                    "item_source": { "type": "static", "items": [] },
+                    "stages": [ { "prompt": "x" } ]
+                }
+            }"#,
+        );
+        let errs = result.unwrap_err();
+        assert!(
+            errs.iter()
+                .any(|e| e.contains("static") && e.contains("non-empty")),
+            "got {errs:?}"
+        );
+    }
+
+    #[test]
+    fn test_pipeline_from_step_unknown_step_errors() {
+        // Cross-referenced alongside next_step/on_reject target checks: the
+        // emitted r_<step> identifier would be undefined at runtime otherwise.
+        let result = validate_pipeline_step(
+            r#"{
+                "name": "fix",
+                "type": "pipeline",
+                "outputs": ["code"],
+                "prompt": "",
+                "pipeline_config": {
+                    "item_source": { "type": "from_step", "step": "nonexistent" },
+                    "stages": [ { "prompt": "x" } ]
+                }
+            }"#,
+        );
+        let errs = result.unwrap_err();
+        assert!(
+            errs.iter()
+                .any(|e| e.contains("from_step") && e.contains("nonexistent")),
+            "got {errs:?}"
+        );
+    }
+
+    #[test]
+    fn test_pipeline_glob_empty_pattern_errors() {
+        let result = validate_pipeline_step(
+            r#"{
+                "name": "triage",
+                "type": "pipeline",
+                "outputs": ["report"],
+                "prompt": "",
+                "pipeline_config": {
+                    "item_source": { "type": "glob", "pattern": "" },
+                    "stages": [ { "prompt": "x" } ]
+                }
+            }"#,
+        );
+        let errs = result.unwrap_err();
+        assert!(
+            errs.iter()
+                .any(|e| e.contains("glob") && e.contains("pattern")),
+            "got {errs:?}"
+        );
     }
 }

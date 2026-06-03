@@ -307,6 +307,7 @@ mod tests {
             multi_model_config: None,
             multi_prompt_config: None,
             matrixed_config: None,
+            pipeline_config: None,
         }
     }
 

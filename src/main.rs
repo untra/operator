@@ -775,7 +775,8 @@ fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {
 
             // Same registry loader the REST API (ApiState::new) uses.
             let registry = startup::templates::load_registry(&config.tickets_path());
-            let exported = workflow_gen::export_workflow_for_ticket(&resolved, &registry, None)?;
+            let exported =
+                workflow_gen::export_workflow_for_ticket(&resolved, &registry, None, config)?;
 
             match out.as_deref() {
                 Some(p) if p == std::path::Path::new("-") => {

@@ -42,8 +42,9 @@ pub async fn export(
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
 
     let registry = state.registry.read().await;
-    let exported = crate::workflow_gen::export_workflow_for_ticket(&ticket, &registry, None)
-        .map_err(|e| ApiError::NotFound(e.to_string()))?;
+    let exported =
+        crate::workflow_gen::export_workflow_for_ticket(&ticket, &registry, None, &state.config)
+            .map_err(|e| ApiError::NotFound(e.to_string()))?;
 
     Ok(Json(exported.into()))
 }

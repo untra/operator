@@ -42,6 +42,7 @@ These are tools that comparable and aspirational for Operator
 - [agtx](https://github.com/fynnfluegge/agtx)
 - [claude-relay](https://github.com/Innestic/claude-relay)
 - [kanbots](https://github.com/Innestic/claude-relay)
+- [agentic website](https://agenticmotherfucking.website/)
 
 ## Similar, but Worse:
 

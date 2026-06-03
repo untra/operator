@@ -28,6 +28,7 @@ pub const GAP_MARKER: &str = "OPERATOR-GAP";
 
 #[cfg(test)]
 mod tests {
+    use super::export::PipelineEnv;
     use super::*;
     use crate::issuetypes::IssueType;
     use crate::queue::Ticket;
@@ -76,7 +77,7 @@ mod tests {
     fn export(steps_json: &str) -> String {
         let it = issuetype(steps_json);
         let tk = ticket("FEAT-1234", "gamesvc", "Add pagination");
-        export_workflow(&tk, &it, None).expect("export ok")
+        export_workflow(&tk, &it, None, &PipelineEnv::default()).expect("export ok")
     }
 
     #[test]
@@ -232,8 +233,8 @@ mod tests {
     fn output_is_deterministic_and_has_no_wallclock() {
         let it = issuetype(r#"[{"name":"plan","outputs":["plan"],"prompt":"go {{ id }}"}]"#);
         let tk = ticket("FEAT-1234", "gamesvc", "x");
-        let a = export_workflow(&tk, &it, None).unwrap();
-        let b = export_workflow(&tk, &it, None).unwrap();
+        let a = export_workflow(&tk, &it, None, &PipelineEnv::default()).unwrap();
+        let b = export_workflow(&tk, &it, None, &PipelineEnv::default()).unwrap();
         assert_eq!(a, b, "export is not deterministic");
         assert!(!a.contains("Date.now"), "must not emit Date.now");
         assert!(!a.contains("Math.random"), "must not emit Math.random");
@@ -255,6 +256,267 @@ mod tests {
         assert!(
             out.contains("`x`") && out.contains("${y}"),
             "backtick/dollar mangled:\n{out}"
+        );
+    }
+
+    // ── Pipeline step emission ──────────────────────────────────────
+
+    #[test]
+    fn pipeline_static_emits_literal_items_and_stage_thunks() {
+        let out = export(
+            r#"[{"name":"triage","display_name":"Per-project triage","type":"pipeline","outputs":["report"],
+                 "prompt":"",
+                 "pipeline_config":{
+                   "item_source":{"type":"static","items":["alpha","beta"]},
+                   "stages":[{"prompt":"Triage {{ id }}"}]}}]"#,
+        );
+        // Top-level const binding over the pipeline call, items as a literal array.
+        assert!(
+            out.contains(r#"const r_triage = await pipeline(["alpha", "beta"],"#),
+            "pipeline call with literal items missing:\n{out}"
+        );
+        // Stage is a (prev, item, i) thunk around agent().
+        assert!(
+            out.contains("(prev, item, i) => agent("),
+            "stage thunk missing:\n{out}"
+        );
+        // The handlebars-rendered prompt with the item binding structurally appended.
+        assert!(
+            out.contains(r#"agent("Triage FEAT-1234" + "\n\nItem: " + JSON.stringify(item)"#),
+            "item binding not appended to stage prompt:\n{out}"
+        );
+        // No .then() chains (compiler drops them).
+        assert!(!out.contains(".then("), "must not emit .then():\n{out}");
+    }
+
+    #[test]
+    fn pipeline_stage_opts_carry_label_and_phase() {
+        let out = export(
+            r#"[{"name":"triage","display_name":"Per-project triage","type":"pipeline","outputs":["report"],
+                 "prompt":"",
+                 "pipeline_config":{
+                   "item_source":{"type":"static","items":["a"]},
+                   "stages":[{"prompt":"x"}]}}]"#,
+        );
+        // Default label <step>:<index>; explicit phase opt so stage agents group
+        // under this step's phase instead of racing the global phase() state.
+        assert!(
+            out.contains(r#"label: "triage:0""#),
+            "default stage label missing:\n{out}"
+        );
+        assert!(
+            out.contains(r#"phase: "Per-project triage""#),
+            "explicit phase opt missing:\n{out}"
+        );
+    }
+
+    #[test]
+    fn pipeline_later_stages_append_prev_but_first_does_not() {
+        let out = export(
+            r#"[{"name":"sweep","type":"pipeline","outputs":["report"],
+                 "prompt":"",
+                 "pipeline_config":{
+                   "item_source":{"type":"static","items":["a"]},
+                   "stages":[{"prompt":"first"},{"prompt":"second"}]}}]"#,
+        );
+        // Stage 0: prev IS the item (Workflow-tool contract), so no prev append.
+        assert!(
+            out.contains(r#"agent("first" + "\n\nItem: " + JSON.stringify(item), {"#),
+            "stage 0 should append only the item:\n{out}"
+        );
+        // Stage 1+: previous stage's output appended.
+        assert!(
+            out.contains(
+                r#"agent("second" + "\n\nItem: " + JSON.stringify(item) + "\n\nPrior stage output:\n" + JSON.stringify(prev), {"#
+            ),
+            "stage 1 should append item and prev:\n{out}"
+        );
+    }
+
+    #[test]
+    fn pipeline_from_step_emits_prior_result_identifier() {
+        let out = export(
+            r#"[{"name":"find","type":"classifier","outputs":["report"],
+                 "prompt":"List affected modules","next_step":"fix",
+                 "classifier_config":{"output_type":"big_text"}},
+                {"name":"fix","type":"pipeline","outputs":["code"],
+                 "prompt":"",
+                 "pipeline_config":{
+                   "item_source":{"type":"from_step","step":"find"},
+                   "stages":[{"prompt":"Fix the module"}]}}]"#,
+        );
+        // Items expression is the prior step's result var — a runtime value, so
+        // the compiled graph shows a symbolic (not static) fan-out width.
+        assert!(
+            out.contains("const r_fix = await pipeline(r_find,"),
+            "from_step identifier items missing:\n{out}"
+        );
+        // Operator cannot statically check that the prior step returns an
+        // array — that gap must be marked.
+        assert!(
+            out.contains(GAP_MARKER) && out.contains("array"),
+            "array-ness GAP marker missing:\n{out}"
+        );
+    }
+
+    /// Export with an explicit pipeline environment (projects / glob root).
+    fn export_with_env(steps_json: &str, env: &PipelineEnv) -> String {
+        let it = issuetype(steps_json);
+        let tk = ticket("FEAT-1234", "gamesvc", "Add pagination");
+        export_workflow(&tk, &it, None, env).expect("export ok")
+    }
+
+    const PROJECTS_PIPELINE: &str = r#"[{"name":"sweep","type":"pipeline","outputs":["report"],
+         "prompt":"",
+         "pipeline_config":{
+           "item_source":{"type":"projects"},
+           "stages":[{"prompt":"Check the project"}]}}]"#;
+
+    #[test]
+    fn pipeline_projects_emits_sorted_project_list_from_env() {
+        let env = PipelineEnv {
+            projects: vec!["svc-b".to_string(), "svc-a".to_string()],
+            glob_root: None,
+        };
+        let out = export_with_env(PROJECTS_PIPELINE, &env);
+        // Sorted for determinism regardless of discovery (read_dir) order.
+        assert!(
+            out.contains(r#"const r_sweep = await pipeline(["svc-a", "svc-b"],"#),
+            "sorted project items missing:\n{out}"
+        );
+    }
+
+    #[test]
+    fn pipeline_projects_without_env_emits_gap_placeholder() {
+        let out = export_with_env(PROJECTS_PIPELINE, &PipelineEnv::default());
+        // No environment (e.g. issuetype preview): runtime-safe empty binding,
+        // passed as an identifier so the compiled graph shows symbolic width.
+        assert!(
+            out.contains(GAP_MARKER) && out.contains("const r_sweep_items = [];"),
+            "GAP placeholder missing:\n{out}"
+        );
+        assert!(
+            out.contains("await pipeline(r_sweep_items,"),
+            "placeholder identifier not passed to pipeline:\n{out}"
+        );
+    }
+
+    #[test]
+    fn pipeline_glob_expands_relative_to_root_sorted() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("b.md"), "b").unwrap();
+        std::fs::write(dir.path().join("a.md"), "a").unwrap();
+        std::fs::write(dir.path().join("skip.txt"), "no").unwrap();
+        let env = PipelineEnv {
+            projects: vec![],
+            glob_root: Some(dir.path().to_path_buf()),
+        };
+        let out = export_with_env(
+            r#"[{"name":"docs","type":"pipeline","outputs":["report"],
+                 "prompt":"",
+                 "pipeline_config":{
+                   "item_source":{"type":"glob","pattern":"*.md"},
+                   "stages":[{"prompt":"Review the file"}]}}]"#,
+            &env,
+        );
+        // Matches emitted relative to the glob root (host-absolute paths would
+        // leak machine state into the artifact), sorted for determinism.
+        assert!(
+            out.contains(r#"const r_docs = await pipeline(["a.md", "b.md"],"#),
+            "glob-expanded items missing:\n{out}"
+        );
+    }
+
+    #[test]
+    fn pipeline_glob_without_root_emits_gap_placeholder() {
+        let out = export_with_env(
+            r#"[{"name":"docs","type":"pipeline","outputs":["report"],
+                 "prompt":"",
+                 "pipeline_config":{
+                   "item_source":{"type":"glob","pattern":"*.md"},
+                   "stages":[{"prompt":"Review"}]}}]"#,
+            &PipelineEnv::default(),
+        );
+        assert!(
+            out.contains(GAP_MARKER) && out.contains("await pipeline(r_docs_items,"),
+            "glob GAP placeholder missing:\n{out}"
+        );
+    }
+
+    #[test]
+    fn pipeline_field_always_emits_gap_placeholder() {
+        // Field resolution is deferred: ticket field values are not captured
+        // at export time (no list FieldType exists yet).
+        let env = PipelineEnv {
+            projects: vec!["p".to_string()],
+            glob_root: None,
+        };
+        let out = export_with_env(
+            r#"[{"name":"perf","type":"pipeline","outputs":["report"],
+                 "prompt":"",
+                 "pipeline_config":{
+                   "item_source":{"type":"field","name":"modules"},
+                   "stages":[{"prompt":"Profile"}]}}]"#,
+            &env,
+        );
+        assert!(
+            out.contains(GAP_MARKER) && out.contains("await pipeline(r_perf_items,"),
+            "field GAP placeholder missing:\n{out}"
+        );
+    }
+
+    /// Companion to `dumps_all_builtin_previews_for_compiler_check`: no builtin
+    /// issuetype has a pipeline step yet, so dump a representative pipeline
+    /// workflow (static items, `from_step` items, two stages) for the
+    /// naiveworkflow-compiler verification pass.
+    #[test]
+    fn dumps_pipeline_sample_for_compiler_check() {
+        let env = PipelineEnv {
+            projects: vec!["svc-b".to_string(), "svc-a".to_string()],
+            glob_root: None,
+        };
+        let out = export_with_env(
+            r#"[{"name":"find","type":"classifier","outputs":["report"],
+                 "prompt":"List affected projects","next_step":"sweep",
+                 "classifier_config":{"output_type":"big_text"}},
+                {"name":"sweep","display_name":"Per-project sweep","type":"pipeline","outputs":["report"],
+                 "prompt":"","next_step":"fix",
+                 "pipeline_config":{
+                   "item_source":{"type":"projects"},
+                   "stages":[{"prompt":"Audit the project"},{"prompt":"Summarize findings"}]}},
+                {"name":"fix","type":"pipeline","outputs":["code"],
+                 "prompt":"",
+                 "pipeline_config":{
+                   "item_source":{"type":"from_step","step":"find"},
+                   "stages":[{"prompt":"Apply the fix"}]}}]"#,
+            &env,
+        );
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("workflow-previews");
+        std::fs::create_dir_all(&dir).expect("create preview dir");
+        std::fs::write(dir.join("PIPELINE-sample.workflow.js"), &out).expect("write sample");
+        assert!(out.contains("await pipeline("), "sample missing pipeline");
+    }
+
+    #[test]
+    fn pipeline_stage_model_and_schema_opts() {
+        let out = export(
+            r#"[{"name":"triage","type":"pipeline","outputs":["report"],
+                 "prompt":"",
+                 "pipeline_config":{
+                   "item_source":{"type":"static","items":["a"]},
+                   "stages":[{"prompt":"x","model":"opus",
+                              "jsonSchema":{"type":"object","required":["value"]}}]}}]"#,
+        );
+        assert!(
+            out.contains(r#"model: "opus""#),
+            "stage model opt missing:\n{out}"
+        );
+        assert!(
+            out.contains(r#"schema: {"required":["value"],"type":"object"}"#)
+                || out.contains(r#"schema: {"type":"object","required":["value"]}"#),
+            "stage schema opt missing:\n{out}"
         );
     }
 }

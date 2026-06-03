@@ -12,17 +12,36 @@ use crate::issuetypes::IssueType;
 use crate::pr_config::PrConfig;
 use crate::queue::Ticket;
 use crate::steps::manager::StepManager;
-use crate::templates::schema::{RagSource, ReviewType, StepSchema, StepTypeTag};
+use crate::templates::schema::{ItemSource, RagSource, ReviewType, StepSchema, StepTypeTag};
+
+/// Environment inputs needed to resolve pipeline item sources that depend on
+/// the machine (project list, glob root). Absent entries (e.g. the issuetype
+/// preview path) make those sources fall back to a GAP-marked placeholder.
+///
+/// Resolving these at export time bakes machine state into the artifact: the
+/// export is deterministic *given the same project/filesystem environment* —
+/// the same conditional that already applies to step-output loading in
+/// `build_ticket_context` — and the output still never contains wall-clock or
+/// randomness.
+#[derive(Debug, Clone, Default)]
+pub struct PipelineEnv {
+    /// Configured/discovered project names for `item_source: projects`.
+    pub projects: Vec<String>,
+    /// Root directory against which `item_source: glob` patterns expand.
+    pub glob_root: Option<std::path::PathBuf>,
+}
 
 /// Render `ticket` against `issuetype` into a concrete Claude dynamic-workflow
 /// `.js` source string.
 ///
-/// Deterministic: the output never contains wall-clock, `Date.now`, or
-/// `Math.random`, so the same inputs always produce byte-identical output.
+/// Deterministic given the same project/filesystem environment: the output
+/// never contains wall-clock, `Date.now`, or `Math.random`, so the same inputs
+/// in the same environment always produce byte-identical output.
 pub fn export_workflow(
     ticket: &Ticket,
     issuetype: &IssueType,
     pr_config: Option<&PrConfig>,
+    pipeline_env: &PipelineEnv,
 ) -> Result<String> {
     // Reuse the exact variable surface a step prompt sees at launch time.
     let ctx = StepManager::build_ticket_context(ticket, pr_config);
@@ -42,7 +61,7 @@ pub fn export_workflow(
     out.push_str(&provenance_header(ticket, issuetype));
     out.push_str(&meta_block(ticket, issuetype, &steps));
     for step in &steps {
-        out.push_str(&render_step(&hbs, &ctx, step)?);
+        out.push_str(&render_step(&hbs, &ctx, step, pipeline_env)?);
     }
     Ok(out)
 }
@@ -117,7 +136,12 @@ fn meta_block(ticket: &Ticket, it: &IssueType, steps: &[&StepSchema]) -> String 
     )
 }
 
-fn render_step(hbs: &Handlebars, ctx: &Value, step: &StepSchema) -> Result<String> {
+fn render_step(
+    hbs: &Handlebars,
+    ctx: &Value,
+    step: &StepSchema,
+    pipeline_env: &PipelineEnv,
+) -> Result<String> {
     let var = step_map::result_var(&step.name);
     let prompt = render(hbs, &step.prompt, ctx)?;
     let has_review = step.requires_review() || step.on_reject.is_some();
@@ -198,6 +222,9 @@ fn render_step(hbs: &Handlebars, ctx: &Value, step: &StepSchema) -> Result<Strin
                 }
             }
             s.push_str(&agent_call(&var, &prompt, &step.name, None));
+        }
+        StepTypeTag::Pipeline => {
+            s.push_str(&render_pipeline(hbs, ctx, step, &var, pipeline_env)?);
         }
         StepTypeTag::Mcp => {
             s.push_str(&format!(
@@ -404,6 +431,158 @@ fn render_matrixed(hbs: &Handlebars, ctx: &Value, step: &StepSchema, var: &str) 
         var = var,
         rows = rows,
     ))
+}
+
+/// Render a pipeline step: one top-level `const r_x = await pipeline(items,
+/// …stage thunks);`. Items resolve per `ItemSource` (literal array → static
+/// fan-out width in the compiled graph; identifier → symbolic). The step graph
+/// stays linear — the N-item fan-out lives entirely inside this one statement.
+fn render_pipeline(
+    hbs: &Handlebars,
+    ctx: &Value,
+    step: &StepSchema,
+    var: &str,
+    env: &PipelineEnv,
+) -> Result<String> {
+    let Some(cfg) = &step.pipeline_config else {
+        let prompt = render(hbs, &step.prompt, ctx)?;
+        return Ok(agent_call(var, &prompt, &step.name, None));
+    };
+
+    let (preamble, items_expr) = pipeline_items_expr(&cfg.item_source, var, env);
+
+    let mut stages = String::new();
+    for (i, stage) in cfg.stages.iter().enumerate() {
+        let prompt = render(hbs, &stage.prompt, ctx)?;
+        // Structurally append the per-item runtime bindings to the quoted
+        // prompt (mirrors render_multi_model's `+ JSON.stringify(...)`); a
+        // template literal would change escaping rules. Stage 0's `prev` IS
+        // the item (Workflow-tool contract), so only later stages append it.
+        let mut prompt_expr = format!(
+            "{} + \"\\n\\nItem: \" + JSON.stringify(item)",
+            js::quote(&prompt)
+        );
+        if i > 0 {
+            prompt_expr.push_str(" + \"\\n\\nPrior stage output:\\n\" + JSON.stringify(prev)");
+        }
+
+        let label = stage
+            .label
+            .clone()
+            .unwrap_or_else(|| format!("{}:{i}", step.name));
+        // Explicit `phase` opt: stage agents run inside a container, where
+        // relying on the global phase() state would race.
+        let mut opts = format!(
+            "label: {}, phase: {}",
+            js::quote(&label),
+            js::quote(step.display_name())
+        );
+        let model = stage
+            .model
+            .as_deref()
+            .or(stage.agent.as_deref())
+            .or(step.agent.as_deref());
+        if let Some(m) = model {
+            opts.push_str(&format!(", model: {}", js::quote(m)));
+        }
+        if let Some(schema) = &stage.json_schema {
+            let schema_str = serde_json::to_string(schema).unwrap_or_else(|_| "{}".to_string());
+            opts.push_str(&format!(", schema: {schema_str}"));
+        }
+
+        stages.push_str(&format!(
+            "  (prev, item, i) => agent({prompt_expr}, {{ {opts} }}),\n"
+        ));
+    }
+
+    Ok(format!(
+        "{preamble}const {var} = await pipeline({items_expr},\n{stages});\n"
+    ))
+}
+
+/// Resolve a pipeline `ItemSource` to `(preamble lines, items expression)`.
+///
+/// `Static`, `Projects`, and `Glob` emit a literal array (static ×N in the
+/// compiled graph); `FromStep` emits the prior step's result identifier
+/// (symbolic ×N). Sources the export environment cannot resolve fall back to
+/// an empty, GAP-marked placeholder binding — runtime-safe (zero iterations)
+/// and rendered symbolic.
+fn pipeline_items_expr(source: &ItemSource, var: &str, env: &PipelineEnv) -> (String, String) {
+    match source {
+        ItemSource::Static { items } => (String::new(), items_literal(items)),
+        ItemSource::FromStep { step } => (
+            // The referenced step's existence is validated at schema load; its
+            // *shape* is a runtime value operator cannot statically check.
+            format!(
+                "// {GAP_MARKER}: items are step '{}' output at runtime; operator cannot statically check it is an array.\n",
+                js::comment_safe(step)
+            ),
+            step_map::result_var(step),
+        ),
+        ItemSource::Projects => {
+            if env.projects.is_empty() {
+                return unresolved_items(var, "projects");
+            }
+            // Sorted for determinism regardless of discovery (read_dir) order.
+            let mut projects = env.projects.clone();
+            projects.sort();
+            (String::new(), items_literal(&projects))
+        }
+        ItemSource::Glob { pattern } => {
+            let Some(root) = &env.glob_root else {
+                return unresolved_items(var, &format!("glob:{pattern}"));
+            };
+            let matches = expand_glob(root, pattern);
+            if matches.is_empty() {
+                return unresolved_items(var, &format!("glob:{pattern} (no matches)"));
+            }
+            (String::new(), items_literal(&matches))
+        }
+        // Deferred: ticket field values are not captured at export time (and
+        // no list FieldType exists yet), so Field cannot resolve here.
+        ItemSource::Field { name } => unresolved_items(var, &format!("field:{name}")),
+    }
+}
+
+/// Quote a list of items into a JS array literal.
+fn items_literal(items: &[String]) -> String {
+    let quoted: Vec<String> = items.iter().map(|i| js::quote(i)).collect();
+    format!("[{}]", quoted.join(", "))
+}
+
+/// Expand `pattern` against `root`, returning matches relative to `root`
+/// (host-absolute paths would leak machine state into the artifact), sorted
+/// for determinism.
+fn expand_glob(root: &std::path::Path, pattern: &str) -> Vec<String> {
+    let full = root.join(pattern);
+    let mut matches: Vec<String> = glob::glob(&full.to_string_lossy())
+        .map(|paths| {
+            paths
+                .flatten()
+                .filter_map(|p| {
+                    p.strip_prefix(root)
+                        .ok()
+                        .map(|rel| rel.to_string_lossy().to_string())
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    matches.sort();
+    matches
+}
+
+/// GAP-marked placeholder for an item source that could not be resolved at
+/// export time. Passing the identifier (not a literal) keeps the compiled
+/// graph honest: the fan-out width shows as symbolic, not a fake static count.
+fn unresolved_items(var: &str, desc: &str) -> (String, String) {
+    let ident = format!("{var}_items");
+    (
+        format!(
+            "// {GAP_MARKER}: pipeline items '{}' unresolved at export time; placeholder iterates zero items.\nconst {ident} = [];\n",
+            js::comment_safe(desc)
+        ),
+        ident,
+    )
 }
 
 fn describe_rag_source(src: &RagSource) -> String {

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Docker | Operator! Documentation</title>
+  <meta name="description" content="Run Operator from an official multi-arch Docker image, mounting your projects root as the workspace.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Docker | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Docker" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Run Operator from an official multi-arch Docker image, mounting your projects root as the workspace." />
+<meta name="twitter:description" property="og:description" content="Run Operator from an official multi-arch Docker image, mounting your projects root as the workspace." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/platforms/docker/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/platforms/docker/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Docker" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Run Operator from an official multi-arch Docker image, mounting your projects root as the workspace.","headline":"Docker","url":"https://operator.untra.io/getting-started/platforms/docker/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/platforms/docker.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.1</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-03</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Docker</h1>
+  
+
+  <h1 id="docker">Docker</h1>
+
+<p><span class="badge supported">Supported</span></p>
+
+<p>Run <a href="https://operator.untra.io">Operator</a> from an official multi-arch container image. The image bundles the Operator binary (with the embedded web dashboard and REST API) on a slim Debian base, plus the <code class="language-plaintext highlighter-rouge">git</code> and <code class="language-plaintext highlighter-rouge">tmux</code> substrate Operator needs to launch agents. Mount your projects root into the container and Operator treats it as the workspace.</p>
+
+<p><strong>Image:</strong> <a href="https://hub.docker.com/r/untra/operator"><code class="language-plaintext highlighter-rouge">untra/operator</code></a> — <code class="language-plaintext highlighter-rouge">linux/amd64</code> and <code class="language-plaintext highlighter-rouge">linux/arm64</code>.</p>
+
+<blockquote>
+  <p><strong>Not to be confused with</strong> the <code class="language-plaintext highlighter-rouge">[docker]</code> config section, which makes Operator launch each <em>agent</em> inside a container. This page is about distributing <em>Operator itself</em> as a container image. The two are orthogonal.</p>
+</blockquote>
+
+<h2 id="usage">Usage</h2>
+
+<p>Run the TUI dashboard from your projects root:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--rm</span> <span class="nt">-v</span> <span class="si">$(</span><span class="nb">pwd</span><span class="si">)</span>:/op:rw <span class="nt">-it</span> untra/operator
+</code></pre></div></div>
+
+<p>The image sets <code class="language-plaintext highlighter-rouge">WORKDIR /op</code>, so the mounted directory becomes Operator’s working
+directory. If it contains <code class="language-plaintext highlighter-rouge">.tickets/operator/config.toml</code>, Operator loads it as implied
+startup; otherwise it falls back to built-in defaults.</p>
+
+<p>Subcommands are appended after the image name. Run as a background REST API service:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--rm</span> <span class="nt">-v</span> <span class="si">$(</span><span class="nb">pwd</span><span class="si">)</span>:/op:rw <span class="nt">-p</span> 127.0.0.1:7008:7008 untra/operator api
+</code></pre></div></div>
+
+<blockquote>
+  <p><strong>Security:</strong> the REST API is <strong>unauthenticated</strong>, sends permissive CORS headers, and
+exposes mutating endpoints (launching agents, editing config). The publish above binds it
+to loopback (<code class="language-plaintext highlighter-rouge">127.0.0.1</code>) only — a bare <code class="language-plaintext highlighter-rouge">-p 7008:7008</code> would expose it on every host
+interface. Do not publish it to untrusted networks; if you need remote access, put it
+behind an authenticating reverse proxy.</p>
+</blockquote>
+
+<p>Any Operator subcommand works the same way:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--rm</span> <span class="nt">-v</span> <span class="si">$(</span><span class="nb">pwd</span><span class="si">)</span>:/op:rw untra/operator queue     <span class="c"># show queue</span>
+docker run <span class="nt">--rm</span> <span class="nt">-v</span> <span class="si">$(</span><span class="nb">pwd</span><span class="si">)</span>:/op:rw untra/operator setup     <span class="c"># initialize workspace</span>
+</code></pre></div></div>
+
+<p>Pin a specific version instead of <code class="language-plaintext highlighter-rouge">latest</code>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--rm</span> <span class="nt">-v</span> <span class="si">$(</span><span class="nb">pwd</span><span class="si">)</span>:/op:rw <span class="nt">-it</span> untra/operator:0.2.1
+</code></pre></div></div>
+
+<h2 id="whats-in-the-image">What’s in the image</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Included</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator</code> binary</td>
+      <td>The CLI/TUI/REST API, with the web dashboard embedded</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">git</code></td>
+      <td>Branch and commit operations for ticket work</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tmux</code></td>
+      <td>Default session wrapper Operator uses to spawn agent sessions</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">ca-certificates</code></td>
+      <td>TLS for LLM, kanban, and git provider APIs</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Not included: the LLM CLI and its auth.</strong> Operator launches agents via an LLM tool
+(<code class="language-plaintext highlighter-rouge">claude</code>, <code class="language-plaintext highlighter-rouge">codex</code>, or <code class="language-plaintext highlighter-rouge">gemini</code>) that you supply. Two ways to provide it:</p>
+
+<ol>
+  <li>
+    <p><strong>Derived image</strong> — extend the official image with your tool of choice:</p>
+
+    <div class="language-dockerfile highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">FROM</span><span class="s"> untra/operator</span>
+<span class="c"># The base image defaults to the non-root `operator` user; switch to root to</span>
+<span class="c"># install, then drop back.</span>
+<span class="k">USER</span><span class="s"> root</span>
+<span class="k">RUN </span>apt-get update <span class="o">&amp;&amp;</span> apt-get <span class="nb">install</span> <span class="nt">-y</span> <span class="nt">--no-install-recommends</span> nodejs npm <span class="se">\
+</span> <span class="o">&amp;&amp;</span> npm <span class="nb">install</span> <span class="nt">-g</span> @anthropic-ai/claude-code <span class="se">\
+</span> <span class="o">&amp;&amp;</span> <span class="nb">rm</span> <span class="nt">-rf</span> /var/lib/apt/lists/<span class="k">*</span>
+<span class="k">USER</span><span class="s"> operator</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p><strong>Mount + env vars</strong> — mount an already-installed, authenticated CLI from the host
+and pass credentials. The container runs as uid 1000 with <code class="language-plaintext highlighter-rouge">$HOME=/home/operator</code>:</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--rm</span> <span class="nt">-v</span> <span class="si">$(</span><span class="nb">pwd</span><span class="si">)</span>:/op:rw <span class="se">\</span>
+  <span class="nt">-v</span> <span class="nv">$HOME</span>/.claude:/home/operator/.claude <span class="se">\</span>
+  <span class="nt">-e</span> ANTHROPIC_API_KEY <span class="se">\</span>
+  <span class="nt">-it</span> untra/operator
+</code></pre></div>    </div>
+  </li>
+</ol>
+
+<h2 id="implied-startup">Implied startup</h2>
+
+<p>Operator reads <code class="language-plaintext highlighter-rouge">.tickets/operator/config.toml</code> relative to its working directory. Because
+the image uses <code class="language-plaintext highlighter-rouge">WORKDIR /op</code> and you mount your projects root at <code class="language-plaintext highlighter-rouge">/op</code>, an existing config
+is picked up automatically — no flags required. Run from a directory without one and
+Operator uses its built-in defaults.</p>
+
+<p>A global override at <code class="language-plaintext highlighter-rouge">~/.config/operator/config.toml</code> (i.e.
+<code class="language-plaintext highlighter-rouge">/home/operator/.config/operator/config.toml</code> in the container) also works if you mount it.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<ul>
+  <li>Docker (with <code class="language-plaintext highlighter-rouge">buildx</code> for multi-arch hosts, which is the default on modern Docker).</li>
+  <li>The host directory you mount at <code class="language-plaintext highlighter-rouge">/op</code> should be your <strong>projects root</strong> — the directory
+containing your code repositories and <code class="language-plaintext highlighter-rouge">.tickets/</code> — so Operator can start work in the
+right place.</li>
+  <li>Use <code class="language-plaintext highlighter-rouge">-it</code> for the interactive TUI; omit it for one-shot subcommands and <code class="language-plaintext highlighter-rouge">api</code>.</li>
+</ul>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="permission-denied-writing-to-the-mounted-directory">Permission denied writing to the mounted directory</h3>
+
+<p>The container runs as the unprivileged <code class="language-plaintext highlighter-rouge">operator</code> user (uid 1000), so it can only write into
+<code class="language-plaintext highlighter-rouge">/op</code> (state, prompts, logs) if the mounted host directory is writable by uid 1000. On a
+typical single-user Linux host your uid is already 1000 and it just works; otherwise either
+make the directory writable (e.g. <code class="language-plaintext highlighter-rouge">chmod -R g+w</code> with a matching group, or <code class="language-plaintext highlighter-rouge">chown</code>) or run the
+container as your own uid:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--rm</span> <span class="nt">-v</span> <span class="si">$(</span><span class="nb">pwd</span><span class="si">)</span>:/op:rw <span class="nt">--user</span> <span class="si">$(</span><span class="nb">id</span> <span class="nt">-u</span><span class="si">)</span>:<span class="si">$(</span><span class="nb">id</span> <span class="nt">-g</span><span class="si">)</span> <span class="nt">-it</span> untra/operator
+</code></pre></div></div>
+
+<p>When overriding <code class="language-plaintext highlighter-rouge">--user</code>, the chosen uid has no entry in the image, so point <code class="language-plaintext highlighter-rouge">$HOME</code> at a
+writable location for any tool config (e.g. add <code class="language-plaintext highlighter-rouge">-e HOME=/op</code>).</p>
+
+<h3 id="the-dashboard-renders-as-garbled-output">The dashboard renders as garbled output</h3>
+
+<p>The TUI needs an interactive TTY. Include <code class="language-plaintext highlighter-rouge">-it</code> in the <code class="language-plaintext highlighter-rouge">docker run</code> invocation.</p>
+
+<h3 id="agents-fail-to-launch">Agents fail to launch</h3>
+
+<p>The base image intentionally omits the LLM CLI. Confirm your derived image or mount
+provides an authenticated <code class="language-plaintext highlighter-rouge">claude</code> / <code class="language-plaintext highlighter-rouge">codex</code> / <code class="language-plaintext highlighter-rouge">gemini</code> on <code class="language-plaintext highlighter-rouge">PATH</code> inside the container
+(<code class="language-plaintext highlighter-rouge">docker run --rm --entrypoint sh untra/operator -c 'command -v claude'</code>).</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Delegators | Operator! Documentation</title>
+  <meta name="description" content="Named LLM tool + model pairings for autonomous ticket launching.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Delegators | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Delegators" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Named LLM tool + model pairings for autonomous ticket launching." />
+<meta name="twitter:description" property="og:description" content="Named LLM tool + model pairings for autonomous ticket launching." />
+<link rel="canonical" href="https://operator.untra.io/delegators/" />
+<meta property="og:url" content="https://operator.untra.io/delegators/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Delegators" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Named LLM tool + model pairings for autonomous ticket launching.","headline":"Delegators","url":"https://operator.untra.io/delegators/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/delegators/index.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.1</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-03</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Delegators</h1>
+  
+
+  <p>A <strong>delegator</strong> is a named pairing of an LLM tool (e.g. <code class="language-plaintext highlighter-rouge">claude</code>) and a model alias (e.g. <code class="language-plaintext highlighter-rouge">opus</code>) that Operator uses to launch agents for tickets. Delegators give you control over which tool and model handles which tickets, and let you configure launch behavior per pairing. LLM tasks can be launched on behalf on a named delegator, which allows you to refine and version their prompts.</p>
+
+<h2 id="quick-start">Quick start</h2>
+
+<p>Add a <code class="language-plaintext highlighter-rouge">[[delegators]]</code> entry to your <code class="language-plaintext highlighter-rouge">operator.toml</code>:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span>        <span class="o">=</span><span class="w"> </span><span class="s">"claude-sonnet-auto"</span>
+<span class="n">llm_tool</span>    <span class="o">=</span><span class="w"> </span><span class="s">"claude"</span>
+<span class="n">model</span>       <span class="o">=</span><span class="w"> </span><span class="s">"sonnet"</span>
+
+<span class="k">[</span><span class="n">delegators</span><span class="k">.</span><span class="n">launch_config</span><span class="k">]</span>
+<span class="n">yolo</span>        <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</code></pre></div></div>
+
+<p>Then run <code class="language-plaintext highlighter-rouge">cargo run -- launch</code> (or use the VS Code sidebar “Add Delegator” button) to create one interactively.</p>
+
+<h2 id="how-delegators-relate-to-llm-tools-and-model-servers">How delegators relate to LLM Tools and Model Servers</h2>
+
+<p>Three concepts work together:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Concept</th>
+      <th>What it picks</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>LLM Tool</strong></td>
+      <td>Which CLI binary to run</td>
+      <td><code class="language-plaintext highlighter-rouge">claude</code>, <code class="language-plaintext highlighter-rouge">codex</code>, <code class="language-plaintext highlighter-rouge">gemini</code></td>
+    </tr>
+    <tr>
+      <td><strong>Delegator</strong></td>
+      <td>Which tool + model to use</td>
+      <td><code class="language-plaintext highlighter-rouge">claude</code> + <code class="language-plaintext highlighter-rouge">opus</code></td>
+    </tr>
+    <tr>
+      <td><strong>Model Server</strong></td>
+      <td>Which inference endpoint to call</td>
+      <td><code class="language-plaintext highlighter-rouge">ollama-local</code>, <code class="language-plaintext highlighter-rouge">anthropic-api</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>A delegator bridges a tool (the binary) to a model server (the backend). If <code class="language-plaintext highlighter-rouge">model_server</code> is omitted, the tool’s implicit vendor default is used (<code class="language-plaintext highlighter-rouge">claude</code> → Anthropic API, <code class="language-plaintext highlighter-rouge">codex</code> → OpenAI API, <code class="language-plaintext highlighter-rouge">gemini</code> → Google API).</p>
+
+<h2 id="fields">Fields</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td>Yes</td>
+      <td>Unique identifier (e.g. <code class="language-plaintext highlighter-rouge">"claude-opus-auto"</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">llm_tool</code></td>
+      <td>Yes</td>
+      <td>Tool name matching a detected binary (<code class="language-plaintext highlighter-rouge">"claude"</code>, <code class="language-plaintext highlighter-rouge">"codex"</code>, <code class="language-plaintext highlighter-rouge">"gemini"</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model</code></td>
+      <td>Yes</td>
+      <td>Model alias passed to the tool (e.g. <code class="language-plaintext highlighter-rouge">"opus"</code>, <code class="language-plaintext highlighter-rouge">"sonnet"</code>, <code class="language-plaintext highlighter-rouge">"gpt-4o"</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">display_name</code></td>
+      <td>No</td>
+      <td>Human-readable label shown in the UI</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model_server</code></td>
+      <td>No</td>
+      <td>Name of a declared <code class="language-plaintext highlighter-rouge">[[model_servers]]</code> entry; omit to use the tool’s vendor default</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model_properties</code></td>
+      <td>No</td>
+      <td>Arbitrary key-value pairs forwarded to the model (e.g. <code class="language-plaintext highlighter-rouge">reasoning_effort = "high"</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">launch_config</code></td>
+      <td>No</td>
+      <td>Per-delegator launch overrides (see below)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="launch-configuration">Launch configuration</h2>
+
+<p><code class="language-plaintext highlighter-rouge">[delegators.launch_config]</code> lets you override launch behavior for a specific delegator:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span>     <span class="o">=</span><span class="w"> </span><span class="s">"claude-opus-yolo"</span>
+<span class="n">llm_tool</span> <span class="o">=</span><span class="w"> </span><span class="s">"claude"</span>
+<span class="n">model</span>    <span class="o">=</span><span class="w"> </span><span class="s">"opus"</span>
+
+<span class="k">[</span><span class="n">delegators</span><span class="k">.</span><span class="n">launch_config</span><span class="k">]</span>
+<span class="n">yolo</span>             <span class="o">=</span><span class="w"> </span><span class="kc">true</span>          <span class="c"># auto-accept all prompts</span>
+<span class="n">permission_mode</span>  <span class="o">=</span><span class="w"> </span><span class="s">"bypassPermissions"</span>
+<span class="n">use_worktrees</span>    <span class="o">=</span><span class="w"> </span><span class="kc">true</span>          <span class="c"># override global git.use_worktrees</span>
+<span class="n">prompt_suffix</span>    <span class="o">=</span><span class="w"> </span><span class="s">"</span><span class="se">\n\n</span><span class="s">Be concise."</span>
+</code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Option</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">yolo</code></td>
+      <td><code class="language-plaintext highlighter-rouge">false</code></td>
+      <td>Run in auto-accept mode (skips all confirmation prompts)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">permission_mode</code></td>
+      <td>inherit</td>
+      <td>Permission mode override</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">flags</code></td>
+      <td><code class="language-plaintext highlighter-rouge">[]</code></td>
+      <td>Extra CLI flags appended to the launch command</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">use_worktrees</code></td>
+      <td>inherit</td>
+      <td>Override global <code class="language-plaintext highlighter-rouge">git.use_worktrees</code> for this delegator</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">create_branch</code></td>
+      <td>inherit</td>
+      <td>Whether to create a git branch per ticket</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">docker</code></td>
+      <td>inherit</td>
+      <td>Run agent in a Docker container</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt_prefix</code></td>
+      <td>none</td>
+      <td>Text prepended before the generated ticket prompt</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt_suffix</code></td>
+      <td>none</td>
+      <td>Text appended after the generated ticket prompt</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><code class="language-plaintext highlighter-rouge">inherit</code> means the global config value is used.</p>
+
+<h3 id="relay-mcp-injection">Relay MCP injection</h3>
+
+<p>Set <code class="language-plaintext highlighter-rouge">operator_relay = true</code> to enable the relay MCP server for Claude Code
+launches from this delegator. Use <code class="language-plaintext highlighter-rouge">false</code> to disable it even when the global
+default is <code class="language-plaintext highlighter-rouge">true</code>. Omit the field to use the global <code class="language-plaintext highlighter-rouge">relay.auto_inject_mcp</code>
+default.</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">delegators</span><span class="k">.</span><span class="n">coordination</span><span class="k">.</span><span class="n">launch_config</span><span class="k">]</span>
+<span class="n">operator_relay</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>   <span class="c"># coordination-heavy delegators: enable relay</span>
+
+<span class="k">[</span><span class="n">delegators</span><span class="k">.</span><span class="n">task</span><span class="k">.</span><span class="n">launch_config</span><span class="k">]</span>
+<span class="n">operator_relay</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>  <span class="c"># single-agent task delegators: disable relay</span>
+</code></pre></div></div>
+
+<h2 id="using-a-custom-model-server">Using a custom model server</h2>
+
+<p>To route a delegator through a local Ollama instance:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">model_servers</span><span class="k">]]</span>
+<span class="n">name</span>     <span class="o">=</span><span class="w"> </span><span class="s">"ollama-local"</span>
+<span class="n">kind</span>     <span class="o">=</span><span class="w"> </span><span class="s">"ollama"</span>
+<span class="n">base_url</span> <span class="o">=</span><span class="w"> </span><span class="s">"http://localhost:11434"</span>
+
+<span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span>         <span class="o">=</span><span class="w"> </span><span class="s">"codex-qwen"</span>
+<span class="n">llm_tool</span>     <span class="o">=</span><span class="w"> </span><span class="s">"codex"</span>
+<span class="n">model</span>        <span class="o">=</span><span class="w"> </span><span class="s">"qwen2.5-coder"</span>
+<span class="n">model_server</span> <span class="o">=</span><span class="w"> </span><span class="s">"ollama-local"</span>
+</code></pre></div></div>
+
+<h2 id="multiple-delegators">Multiple delegators</h2>
+
+<p>You can declare as many delegators as you like. When launching a ticket, Operator selects a delegator based on the ticket’s <code class="language-plaintext highlighter-rouge">delegator</code> frontmatter field or the configured default:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span>     <span class="o">=</span><span class="w"> </span><span class="s">"claude-sonnet-auto"</span>
+<span class="n">llm_tool</span> <span class="o">=</span><span class="w"> </span><span class="s">"claude"</span>
+<span class="n">model</span>    <span class="o">=</span><span class="w"> </span><span class="s">"sonnet"</span>
+
+<span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span>     <span class="o">=</span><span class="w"> </span><span class="s">"claude-opus-research"</span>
+<span class="n">llm_tool</span> <span class="o">=</span><span class="w"> </span><span class="s">"claude"</span>
+<span class="n">model</span>    <span class="o">=</span><span class="w"> </span><span class="s">"opus"</span>
+
+<span class="k">[</span><span class="n">delegators</span><span class="k">.</span><span class="n">launch_config</span><span class="k">]</span>
+<span class="n">prompt_suffix</span> <span class="o">=</span><span class="w"> </span><span class="s">"</span><span class="se">\n\n</span><span class="s">Think carefully before acting."</span>
+</code></pre></div></div>
+
+<h2 id="rest-api">REST API</h2>
+
+<p>The running Operator API exposes full CRUD for delegators:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>Path</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET</code></td>
+      <td><code class="language-plaintext highlighter-rouge">/api/v1/delegators</code></td>
+      <td>List all delegators</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST</code></td>
+      <td><code class="language-plaintext highlighter-rouge">/api/v1/delegators</code></td>
+      <td>Create a delegator</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST</code></td>
+      <td><code class="language-plaintext highlighter-rouge">/api/v1/delegators/from-tool</code></td>
+      <td>Create from a detected tool (auto-generates name)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET</code></td>
+      <td><code class="language-plaintext highlighter-rouge">/api/v1/delegators/{name}</code></td>
+      <td>Get one delegator</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">PUT</code></td>
+      <td><code class="language-plaintext highlighter-rouge">/api/v1/delegators/{name}</code></td>
+      <td>Update a delegator</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">DELETE</code></td>
+      <td><code class="language-plaintext highlighter-rouge">/api/v1/delegators/{name}</code></td>
+      <td>Delete a delegator</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>See the <a href="/docs/schemas/openapi.json">OpenAPI reference</a> for request/response shapes.</p>
+
+<h2 id="see-also">See also</h2>
+
+<ul>
+  <li><a href="/docs/configuration/">Configuration reference</a> — full <code class="language-plaintext highlighter-rouge">operator.toml</code> schema</li>
+  <li><a href="/docs/llm-tools/">LLM Tools</a> — which tools Operator can detect and launch</li>
+  <li><a href="/docs/schemas/config/">Schema reference</a> — type definitions for <code class="language-plaintext highlighter-rouge">Delegator</code> and <code class="language-plaintext highlighter-rouge">DelegatorLaunchConfig</code></li>
+</ul>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

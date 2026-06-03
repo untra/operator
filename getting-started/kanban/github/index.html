@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitHub Projects | Operator! Documentation</title>
+  <meta name="description" content="Configure GitHub Projects v2 integration with Operator.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>GitHub Projects | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="GitHub Projects" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Configure GitHub Projects v2 integration with Operator." />
+<meta name="twitter:description" property="og:description" content="Configure GitHub Projects v2 integration with Operator." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/kanban/github/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/kanban/github/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="GitHub Projects" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Configure GitHub Projects v2 integration with Operator.","headline":"GitHub Projects","url":"https://operator.untra.io/getting-started/kanban/github/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/kanban/github.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.1</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-03</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">GitHub Projects</h1>
+  
+
+  <h1 id="github-projects">GitHub Projects</h1>
+
+<p>Connect Operator to <a href="https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects"><strong>GitHub Projects v2</strong></a> for issue tracking and project management.</p>
+
+<blockquote>
+  <p><strong>⚠ Token Disambiguation — read this first</strong></p>
+
+  <p>GitHub Projects uses a <strong>separate</strong> API token from Operator’s git provider (the one that creates pull requests). Even if you’ve already set <code class="language-plaintext highlighter-rouge">GITHUB_TOKEN</code> for PR workflows, you’ll need a <em>second</em> token in <code class="language-plaintext highlighter-rouge">OPERATOR_GITHUB_TOKEN</code> with the <code class="language-plaintext highlighter-rouge">project</code> (or <code class="language-plaintext highlighter-rouge">read:project</code>) scope. The two <strong>can</strong> be the same physical PAT minted with both scopes — but they must be exposed via two different environment variables so Operator can route them correctly.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Operator subsystem</th>
+        <th>Env var</th>
+        <th>Required scopes</th>
+        <th>Configured at</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Git provider (PRs, branches)</td>
+        <td><code class="language-plaintext highlighter-rouge">GITHUB_TOKEN</code></td>
+        <td><code class="language-plaintext highlighter-rouge">repo</code> (or fine-grained Contents + PRs)</td>
+        <td><code class="language-plaintext highlighter-rouge">[git.github]</code></td>
+      </tr>
+      <tr>
+        <td>Kanban provider (Projects v2)</td>
+        <td><code class="language-plaintext highlighter-rouge">OPERATOR_GITHUB_TOKEN</code></td>
+        <td><code class="language-plaintext highlighter-rouge">project</code> or <code class="language-plaintext highlighter-rouge">read:project</code> (or fine-grained Projects)</td>
+        <td><code class="language-plaintext highlighter-rouge">[kanban.github."&lt;owner&gt;"]</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>Operator deliberately <strong>does not</strong> fall back from <code class="language-plaintext highlighter-rouge">OPERATOR_GITHUB_TOKEN</code> to <code class="language-plaintext highlighter-rouge">GITHUB_TOKEN</code>. Silently using a repo-scoped token would produce confusing 403s deep in the sync loop. If only <code class="language-plaintext highlighter-rouge">GITHUB_TOKEN</code> is set, the kanban provider stays inactive.</p>
+</blockquote>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<ul>
+  <li>A GitHub account with access to at least one Project v2 (user-owned or org-owned)</li>
+  <li>A Personal Access Token (PAT) — classic or fine-grained — with the <code class="language-plaintext highlighter-rouge">project</code> scope, or a GitHub App installation token with <code class="language-plaintext highlighter-rouge">organization_projects: write</code></li>
+  <li>Operator installed and running</li>
+</ul>
+
+<h2 id="create-a-token">Create a Token</h2>
+
+<p>You have two options. <strong>Fine-grained PATs are recommended</strong> because they’re scoped to specific orgs/repos and have built-in expiration.</p>
+
+<h3 id="option-a--classic-personal-access-token-simpler">Option A — Classic Personal Access Token (simpler)</h3>
+
+<ol>
+  <li>Go to <a href="https://github.com/settings/tokens">github.com/settings/tokens</a></li>
+  <li>Click <strong>Generate new token (classic)</strong></li>
+  <li>Name it something like <em>“Operator Kanban (read+write)”</em></li>
+  <li>Select scopes:
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">project</code> (full read + write to Projects v2) — <strong>or</strong> <code class="language-plaintext highlighter-rouge">read:project</code> (read-only)</li>
+      <li>Optionally <code class="language-plaintext highlighter-rouge">read:org</code> if you need to enumerate org projects</li>
+    </ul>
+  </li>
+  <li>Click <strong>Generate token</strong>, then copy the <code class="language-plaintext highlighter-rouge">ghp_...</code> value</li>
+</ol>
+
+<h3 id="option-b--fine-grained-personal-access-token-recommended">Option B — Fine-Grained Personal Access Token (recommended)</h3>
+
+<ol>
+  <li>Go to <a href="https://github.com/settings/personal-access-tokens">github.com/settings/personal-access-tokens</a></li>
+  <li>Click <strong>Generate new token</strong></li>
+  <li><strong>Resource owner</strong>: select the user or org that owns the projects you want to sync</li>
+  <li><strong>Repository access</strong>: select the repos whose issues should appear as project items (use <em>Public Repositories</em> for read-only org-wide access, or <em>Selected repositories</em> for tighter scoping)</li>
+  <li><strong>Permissions</strong>:
+    <ul>
+      <li><strong>Organization → Projects</strong>: Read-and-write (or Read-only)</li>
+      <li><strong>Repository → Issues</strong>: Read (so issue content is fetched alongside project items)</li>
+      <li><strong>Repository → Contents</strong>: Read (only if you also want body/labels)</li>
+    </ul>
+  </li>
+  <li>Click <strong>Generate token</strong>, then copy the <code class="language-plaintext highlighter-rouge">github_pat_...</code> value</li>
+</ol>
+
+<h2 id="configuration">Configuration</h2>
+
+<h3 id="1-export-the-token">1. Export the token</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Kanban projects token (this guide)</span>
+<span class="nb">export </span><span class="nv">OPERATOR_GITHUB_TOKEN</span><span class="o">=</span><span class="s2">"ghp_xxxxxxxxxxxxxxxx"</span>
+
+<span class="c"># Optional: separate token for git/PR operations (NOT this guide)</span>
+<span class="nb">export </span><span class="nv">GITHUB_TOKEN</span><span class="o">=</span><span class="s2">"ghp_yyyyyyyyyyyyyyyy"</span>
+</code></pre></div></div>
+
+<h3 id="2-add-a-kanban-section-to-configoperatorconfigtoml">2. Add a kanban section to <code class="language-plaintext highlighter-rouge">~/.config/operator/config.toml</code></h3>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">kanban</span><span class="k">.</span><span class="n">github</span><span class="k">.</span><span class="s">"my-org"</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">api_key_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"OPERATOR_GITHUB_TOKEN"</span>  <span class="c"># default</span>
+
+<span class="k">[</span><span class="n">kanban</span><span class="k">.</span><span class="n">github</span><span class="k">.</span><span class="s">"my-org"</span><span class="k">.</span><span class="n">projects</span><span class="k">.</span><span class="n">PVT_kwDOABcdefg</span><span class="k">]</span>
+<span class="n">sync_user_id</span> <span class="o">=</span><span class="w"> </span><span class="s">"12345678"</span>        <span class="c"># numeric GitHub `databaseId`</span>
+<span class="n">sync_statuses</span> <span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">"In Progress"</span><span class="p">,</span> <span class="s">"Todo"</span><span class="p">]</span>
+<span class="n">collection_name</span> <span class="o">=</span><span class="w"> </span><span class="s">"dev_kanban"</span>
+</code></pre></div></div>
+
+<p>The hashmap key under <code class="language-plaintext highlighter-rouge">[kanban.github."&lt;owner&gt;"]</code> is the GitHub owner login (user or org). Project keys inside <code class="language-plaintext highlighter-rouge">projects</code> are <strong>GraphQL node IDs</strong> (e.g. <code class="language-plaintext highlighter-rouge">PVT_kwDOABcdefg</code>) — not project numbers — because every Projects v2 mutation needs the node ID and storing it directly avoids an extra lookup per call.</p>
+
+<h3 id="3-multiple-owners-with-different-tokens">3. Multiple Owners with Different Tokens</h3>
+
+<p>You can scope distinct tokens per owner via <code class="language-plaintext highlighter-rouge">api_key_env</code>:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">kanban</span><span class="k">.</span><span class="n">github</span><span class="k">.</span><span class="s">"my-personal-account"</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">api_key_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"OPERATOR_GITHUB_TOKEN"</span>          <span class="c"># personal PAT</span>
+
+<span class="k">[</span><span class="n">kanban</span><span class="k">.</span><span class="n">github</span><span class="k">.</span><span class="s">"my-employer-org"</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">api_key_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"OPERATOR_GITHUB_WORK_TOKEN"</span>     <span class="c"># work fine-grained PAT</span>
+</code></pre></div></div>
+
+<p>Then set both env vars:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">OPERATOR_GITHUB_TOKEN</span><span class="o">=</span><span class="s2">"ghp_personal..."</span>
+<span class="nb">export </span><span class="nv">OPERATOR_GITHUB_WORK_TOKEN</span><span class="o">=</span><span class="s2">"github_pat_work..."</span>
+</code></pre></div></div>
+
+<h2 id="finding-your-project-node-id">Finding Your Project Node ID</h2>
+
+<p>Easiest path is via <code class="language-plaintext highlighter-rouge">gh</code>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gh api graphql <span class="nt">-f</span> <span class="nv">query</span><span class="o">=</span><span class="s1">'
+query {
+  viewer {
+    projectsV2(first: 10) {
+      nodes { id number title owner { ... on Organization { login } ... on User { login } } }
+    }
+  }
+}
+'</span>
+</code></pre></div></div>
+
+<p>For org-owned projects:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gh api graphql <span class="nt">-f</span> <span class="nv">query</span><span class="o">=</span><span class="s1">'
+query($login: String!) {
+  organization(login: $login) {
+    projectsV2(first: 20) {
+      nodes { id number title }
+    }
+  }
+}
+'</span> <span class="nt">-F</span> <span class="nv">login</span><span class="o">=</span>my-org
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">id</code> field is what you put in <code class="language-plaintext highlighter-rouge">[kanban.github."&lt;owner&gt;".projects.&lt;id&gt;]</code>.</p>
+
+<p>If you’d rather skip this step, use the <strong>VS Code extension</strong> or <strong>Operator TUI</strong> onboarding flow — both will list your projects after validating your token and write the config for you.</p>
+
+<h2 id="finding-your-sync_user_id">Finding Your <code class="language-plaintext highlighter-rouge">sync_user_id</code></h2>
+
+<p><code class="language-plaintext highlighter-rouge">sync_user_id</code> is your GitHub user’s numeric <code class="language-plaintext highlighter-rouge">databaseId</code> (NOT your login string). The validation step in onboarding fetches this for you, but you can also get it manually:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gh api user <span class="nt">--jq</span> .id
+<span class="c"># 12345678</span>
+</code></pre></div></div>
+
+<p>Or via GraphQL:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gh api graphql <span class="nt">-f</span> <span class="nv">query</span><span class="o">=</span><span class="s1">'query { viewer { databaseId login } }'</span>
+</code></pre></div></div>
+
+<h2 id="issue-mapping">Issue Mapping</h2>
+
+<p>Operator’s GitHub Projects provider exposes issue types via two paths, in order of preference:</p>
+
+<ol>
+  <li><strong>Org-level Issue Types</strong> (recommended where available) — the new first-class GitHub feature. See <a href="https://docs.github.com/en/issues/tracking-your-work-with-issues/configuring-issues/managing-issue-types-in-an-organization">docs.github.com/en/issues/tracking-your-work-with-issues/configuring-issues/managing-issue-types-in-an-organization</a>. If your org has issue types configured, the provider exposes them directly.</li>
+  <li><strong>Repo labels (fallback)</strong> — when issue types aren’t available (user-owned projects or orgs without the feature), the provider aggregates labels from all repos linked through project items.</li>
+</ol>
+
+<p>Configure mappings via <code class="language-plaintext highlighter-rouge">type_mappings</code> in your <code class="language-plaintext highlighter-rouge">ProjectSyncConfig</code>:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>GitHub source</th>
+      <th>Operator type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">bug</code> (label) / <code class="language-plaintext highlighter-rouge">Bug</code> (issue type)</td>
+      <td><code class="language-plaintext highlighter-rouge">FIX</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">feature</code> (label) / <code class="language-plaintext highlighter-rouge">Feature</code> (issue type)</td>
+      <td><code class="language-plaintext highlighter-rouge">FEAT</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enhancement</code> (label)</td>
+      <td><code class="language-plaintext highlighter-rouge">FEAT</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">spike</code> (label) / <code class="language-plaintext highlighter-rouge">Spike</code> (issue type)</td>
+      <td><code class="language-plaintext highlighter-rouge">SPIKE</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Operator’s <code class="language-plaintext highlighter-rouge">kanban_issuetype_service</code> syncs the available types into a local catalog at <code class="language-plaintext highlighter-rouge">.tickets/operator/kanban/github/&lt;project_id&gt;/issuetypes.json</code> after onboarding completes.</p>
+
+<h2 id="per-project-configuration">Per-Project Configuration</h2>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">kanban</span><span class="k">.</span><span class="n">github</span><span class="k">.</span><span class="s">"my-org"</span><span class="k">.</span><span class="n">projects</span><span class="k">.</span><span class="n">PVT_kwDOABcdefg</span><span class="k">]</span>
+<span class="n">sync_user_id</span> <span class="o">=</span><span class="w"> </span><span class="s">"12345678"</span>                  <span class="c"># your numeric GitHub databaseId</span>
+<span class="n">sync_statuses</span> <span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">"In Progress"</span><span class="p">,</span> <span class="s">"Todo"</span><span class="p">]</span>    <span class="c"># Status field option names to sync</span>
+<span class="n">collection_name</span> <span class="o">=</span><span class="w"> </span><span class="s">"dev_kanban"</span>             <span class="c"># IssueTypeCollection to use</span>
+
+<span class="k">[</span><span class="n">kanban</span><span class="k">.</span><span class="n">github</span><span class="k">.</span><span class="s">"my-org"</span><span class="k">.</span><span class="n">projects</span><span class="k">.</span><span class="n">PVT_kwDOABcdefg</span><span class="k">.</span><span class="n">type_mappings</span><span class="k">]</span>
+<span class="s">"L_bug"</span>     <span class="o">=</span><span class="w"> </span><span class="s">"FIX"</span>
+<span class="s">"L_feature"</span> <span class="o">=</span><span class="w"> </span><span class="s">"FEAT"</span>
+<span class="s">"L_spike"</span>   <span class="o">=</span><span class="w"> </span><span class="s">"SPIKE"</span>
+</code></pre></div></div>
+
+<p>The keys in <code class="language-plaintext highlighter-rouge">type_mappings</code> are the GraphQL label IDs (or issue type IDs) returned by <code class="language-plaintext highlighter-rouge">get_issue_types()</code> — they’re persisted in the local issue type catalog after the first sync, and you can find them with:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> .tickets/operator/kanban/github/PVT_kwDOABcdefg/issuetypes.json
+</code></pre></div></div>
+
+<h2 id="syncing-issues">Syncing Issues</h2>
+
+<p>Pull issues from GitHub Projects:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>operator <span class="nb">sync</span>
+</code></pre></div></div>
+
+<p>The provider client-side filters by your <code class="language-plaintext highlighter-rouge">sync_user_id</code> (project items don’t support server-side assignee filtering in the GraphQL API), so very large projects may pull a few extra pages before applying the filter. Status filtering uses the <code class="language-plaintext highlighter-rouge">Status</code> single-select field’s option names — make sure the values in <code class="language-plaintext highlighter-rouge">sync_statuses</code> exactly match the names defined in your project (case-insensitive).</p>
+
+<h3 id="what-gets-synced">What gets synced</h3>
+
+<ul>
+  <li><strong>Real issues</strong> linked to the project</li>
+  <li><strong>Pull requests</strong> linked to the project</li>
+  <li><strong>Draft issues</strong> (project-only items, no underlying repo issue)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">key</code> field on the synced ticket follows these formats:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Item type</th>
+      <th>Key format</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Issue</td>
+      <td><code class="language-plaintext highlighter-rouge">octocat/hello#42</code></td>
+    </tr>
+    <tr>
+      <td>Pull request</td>
+      <td><code class="language-plaintext highlighter-rouge">octocat/hello!42</code></td>
+    </tr>
+    <tr>
+      <td>Draft issue</td>
+      <td><code class="language-plaintext highlighter-rouge">draft:PVTI_lAHO_xxxxxxx</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="creating-new-issues">Creating New Issues</h2>
+
+<p>For v1, the GitHub Projects provider creates <strong>draft issues only</strong> via the <code class="language-plaintext highlighter-rouge">addProjectV2DraftIssue</code> mutation. Draft issues live inside the project (not in any repo) and can be promoted to real issues later from the GitHub UI.</p>
+
+<p>If you need real repo issues, create them through GitHub’s normal flows — they’ll appear in operator after the next sync if they’re added to a project the operator is configured for.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="token-authenticated-but-lacks-project-scope">“Token authenticated but lacks ‘project’ scope”</h3>
+
+<p>This is the disambiguation guard rail firing. It means the token reached GitHub’s API successfully but doesn’t have the <code class="language-plaintext highlighter-rouge">project</code> scope — most likely you accidentally pasted your <code class="language-plaintext highlighter-rouge">GITHUB_TOKEN</code> (which is repo-scoped for PR workflows). Re-mint a token with the <code class="language-plaintext highlighter-rouge">project</code> (or <code class="language-plaintext highlighter-rouge">read:project</code>) scope and re-run onboarding.</p>
+
+<p>If you’re using a fine-grained PAT and you’re sure it has Projects permissions, double-check the <strong>Resource owner</strong> matches the org/user whose projects you’re trying to sync — fine-grained PATs are scoped per resource owner.</p>
+
+<h3 id="authentication-errors">Authentication errors</h3>
+
+<p>Verify your token reaches the API:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-H</span> <span class="s2">"Authorization: bearer </span><span class="nv">$OPERATOR_GITHUB_TOKEN</span><span class="s2">"</span> <span class="se">\</span>
+     <span class="nt">-H</span> <span class="s2">"User-Agent: operator"</span> <span class="se">\</span>
+     https://api.github.com/graphql <span class="se">\</span>
+     <span class="nt">-d</span> <span class="s1">'{"query":"{ viewer { login databaseId } }"}'</span>
+</code></pre></div></div>
+
+<p>For classic PATs, also check the response headers — they include <code class="language-plaintext highlighter-rouge">x-oauth-scopes</code>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-i</span> <span class="nt">-H</span> <span class="s2">"Authorization: bearer </span><span class="nv">$OPERATOR_GITHUB_TOKEN</span><span class="s2">"</span> <span class="se">\</span>
+     https://api.github.com/user 2&gt;&amp;1 | <span class="nb">grep</span> <span class="nt">-i</span> x-oauth-scopes
+<span class="c"># x-oauth-scopes: project, read:org, repo</span>
+</code></pre></div></div>
+
+<p>If <code class="language-plaintext highlighter-rouge">project</code> (or <code class="language-plaintext highlighter-rouge">read:project</code>) is missing, that’s your problem.</p>
+
+<h3 id="missing-issues">Missing issues</h3>
+
+<ul>
+  <li>Confirm <code class="language-plaintext highlighter-rouge">sync_user_id</code> is the numeric <code class="language-plaintext highlighter-rouge">databaseId</code>, <strong>not</strong> your login. <code class="language-plaintext highlighter-rouge">gh api user --jq .id</code> returns the right value.</li>
+  <li>Confirm the issue is actually assigned to that user. Operator filters client-side after fetching, so unassigned items are dropped silently.</li>
+  <li>Confirm the issue’s Status field value appears in <code class="language-plaintext highlighter-rouge">sync_statuses</code>. Match is case-insensitive but must otherwise be exact.</li>
+  <li>For huge projects (&gt;500 items), check the operator logs for pagination warnings.</li>
+</ul>
+
+<h3 id="no-github-projects-v2-found-for-this-token">“No GitHub Projects v2 found for this token”</h3>
+
+<p>Either your token genuinely has no project access, or the projects you expected to see aren’t visible to the authenticated user. For org projects, you may need <code class="language-plaintext highlighter-rouge">read:org</code> scope (classic) or <em>Members → Read</em> permission (fine-grained) so the org enumeration works.</p>
+
+<h2 id="see-also">See Also</h2>
+
+<ul>
+  <li><a href="./jira.md">Jira Cloud setup</a></li>
+  <li><a href="./linear.md">Linear setup</a></li>
+  <li><a href="../../kanban/index.md">Kanban workflow overview</a></li>
+</ul>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

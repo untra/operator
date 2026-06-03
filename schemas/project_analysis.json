@@ -1,0 +1,919 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProjectAnalysis",
+  "description": "Complete project analysis result.\n\nThis is the top-level structure that conforms to `project_analysis.schema.json`.\nClaude fills this structure during the ASSESS issuetype's analyze step.",
+  "type": "object",
+  "properties": {
+    "project_name": {
+      "description": "Project directory name",
+      "type": "string"
+    },
+    "project_path": {
+      "description": "Absolute path to project root",
+      "type": "string"
+    },
+    "analyzed_at": {
+      "description": "ISO 8601 timestamp of analysis",
+      "type": "string"
+    },
+    "kind_assessment": {
+      "description": "Detected project Kind from taxonomy",
+      "$ref": "#/$defs/KindAssessment"
+    },
+    "languages": {
+      "description": "Detected programming languages",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/LanguageDetection"
+      }
+    },
+    "frameworks": {
+      "description": "Detected frameworks and libraries",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/FrameworkDetection"
+      }
+    },
+    "databases": {
+      "description": "Detected database systems",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DatabaseDetection"
+      }
+    },
+    "docker": {
+      "description": "Docker configuration detection",
+      "$ref": "#/$defs/DockerDetection"
+    },
+    "ports": {
+      "description": "Detected port configurations",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PortDetection"
+      }
+    },
+    "testing": {
+      "description": "Detected test frameworks",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TestFrameworkDetection"
+      }
+    },
+    "file_stats": {
+      "description": "File statistics for context",
+      "$ref": "#/$defs/FileStats"
+    },
+    "commands": {
+      "description": "Executable commands for common operations",
+      "$ref": "#/$defs/Commands"
+    },
+    "entry_points": {
+      "description": "Key entry points into the codebase",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EntryPoint"
+      }
+    },
+    "environment": {
+      "description": "Environment variables used by the project",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EnvVar"
+      }
+    }
+  },
+  "required": [
+    "project_name",
+    "project_path",
+    "analyzed_at",
+    "kind_assessment",
+    "languages",
+    "frameworks",
+    "databases",
+    "docker",
+    "ports",
+    "testing",
+    "file_stats",
+    "commands",
+    "entry_points",
+    "environment"
+  ],
+  "$defs": {
+    "KindAssessment": {
+      "description": "Kind assessment from the 25-Kind taxonomy.\n\nMaps to one of the Kinds defined in `taxonomy.toml`:\n- Foundation (1-4): infrastructure, identity-access, config-policy, monorepo-meta\n- Standards (5-10): design-system, software-library, proto-sdk, blueprint, security-tooling, compliance-audit\n- Engines (11-16): ml-model, data-etl, microservice, api-gateway, ui-frontend, internal-tool\n- Ecosystem (17-21): build-tool, e2e-test, docs-site, playbook, cli-devtool\n- Noncurrent (22-25): reference-example, experiment-sandbox, archival-fork, test-data-fixtures\n\n## Tier-Based Assessment Scoping\n\nNot all assessment types apply to all tiers:\n- **Frameworks**: Assessed for Standards, Engines, Ecosystem (not Foundation, Noncurrent)\n- **Databases**: Assessed for Engines, Ecosystem (not Foundation, Standards, Noncurrent)\n- **Testing**: Assessed for Standards, Engines, Ecosystem (not Foundation, Noncurrent)\n\nFoundation tier projects are pure infrastructure with no application-level code.\nNoncurrent tier projects are low-importance repos where detailed analysis is skipped.",
+      "type": "object",
+      "properties": {
+        "primary_kind": {
+          "description": "Primary detected Kind key (e.g., \"microservice\", \"ui-frontend\")",
+          "type": "string"
+        },
+        "confidence": {
+          "description": "Confidence score 0.0-1.0",
+          "type": "number",
+          "format": "float"
+        },
+        "tier": {
+          "description": "Taxonomy tier: foundation, standards, engines, or ecosystem",
+          "type": "string"
+        },
+        "matching_files": {
+          "description": "Files that matched Kind patterns",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "alternatives": {
+          "description": "Alternative Kind candidates with their scores",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/KindCandidate"
+          }
+        }
+      },
+      "required": [
+        "primary_kind",
+        "confidence",
+        "tier",
+        "matching_files"
+      ]
+    },
+    "KindCandidate": {
+      "description": "Alternative Kind candidate with confidence score.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "description": "Kind key",
+          "type": "string"
+        },
+        "confidence": {
+          "description": "Confidence score 0.0-1.0",
+          "type": "number",
+          "format": "float"
+        },
+        "match_count": {
+          "description": "Number of file pattern matches",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "kind",
+        "confidence",
+        "match_count"
+      ]
+    },
+    "LanguageDetection": {
+      "description": "Language detection result.\n\nSupports both known languages (rust, typescript, python, etc.) and\nunknown/emerging languages via free-form string.",
+      "type": "object",
+      "properties": {
+        "language": {
+          "description": "Language identifier (e.g., \"rust\", \"typescript\", \"python\")",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Human-readable name (e.g., \"Rust\", \"TypeScript\", \"Python\")",
+          "type": "string"
+        },
+        "confidence": {
+          "description": "Confidence score 0.0-1.0",
+          "type": "number",
+          "format": "float"
+        },
+        "is_primary": {
+          "description": "Whether this is the primary/dominant language",
+          "type": "boolean"
+        },
+        "file_count": {
+          "description": "Number of files in this language",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "evidence": {
+          "description": "Evidence supporting this detection",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        }
+      },
+      "required": [
+        "language",
+        "display_name",
+        "confidence",
+        "is_primary",
+        "file_count",
+        "evidence"
+      ]
+    },
+    "Evidence": {
+      "description": "Evidence supporting a detection.\n\nProvides explainability for why something was detected.",
+      "type": "object",
+      "properties": {
+        "evidence_type": {
+          "description": "Type of evidence",
+          "$ref": "#/$defs/EvidenceType"
+        },
+        "file_path": {
+          "description": "File path relative to project root",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pattern": {
+          "description": "Pattern that matched (glob or regex)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "matched_content": {
+          "description": "Matched content excerpt (max ~200 chars)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "line_number": {
+          "description": "Line number if applicable",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "evidence_type"
+      ]
+    },
+    "EvidenceType": {
+      "description": "Types of evidence for detections.",
+      "oneOf": [
+        {
+          "description": "File exists at expected path",
+          "type": "string",
+          "const": "file_exists"
+        },
+        {
+          "description": "File name matches a pattern",
+          "type": "string",
+          "const": "file_pattern"
+        },
+        {
+          "description": "Content within file matches a pattern",
+          "type": "string",
+          "const": "content_match"
+        },
+        {
+          "description": "Configuration key found",
+          "type": "string",
+          "const": "config_key"
+        },
+        {
+          "description": "Listed as dependency in manifest",
+          "type": "string",
+          "const": "dependency"
+        },
+        {
+          "description": "Import/require statement found",
+          "type": "string",
+          "const": "import"
+        },
+        {
+          "description": "File extension indicates language",
+          "type": "string",
+          "const": "extension"
+        }
+      ]
+    },
+    "FrameworkDetection": {
+      "description": "Framework/library detection result.\n\nSupports both known frameworks and unknown/custom frameworks.",
+      "type": "object",
+      "properties": {
+        "framework": {
+          "description": "Framework identifier (e.g., \"axum\", \"react\", \"django\")",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Human-readable name (e.g., \"Axum\", \"React\", \"Django\")",
+          "type": "string"
+        },
+        "category": {
+          "description": "Framework category",
+          "$ref": "#/$defs/FrameworkCategory"
+        },
+        "confidence": {
+          "description": "Confidence score 0.0-1.0",
+          "type": "number",
+          "format": "float"
+        },
+        "version": {
+          "description": "Version if detected (e.g., \"0.7.5\", \"18.2.0\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "description": "Evidence supporting this detection",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        }
+      },
+      "required": [
+        "framework",
+        "display_name",
+        "category",
+        "confidence",
+        "evidence"
+      ]
+    },
+    "FrameworkCategory": {
+      "description": "Framework categories for classification.",
+      "oneOf": [
+        {
+          "description": "Web frameworks (Axum, Express, Django, etc.)",
+          "type": "string",
+          "const": "web"
+        },
+        {
+          "description": "Object-Relational Mappers (Diesel, `SQLAlchemy`, Prisma)",
+          "type": "string",
+          "const": "orm"
+        },
+        {
+          "description": "Testing frameworks (Jest, Pytest)",
+          "type": "string",
+          "const": "testing"
+        },
+        {
+          "description": "Build tools (Webpack, Vite, esbuild)",
+          "type": "string",
+          "const": "build"
+        },
+        {
+          "description": "Logging frameworks (tracing, winston)",
+          "type": "string",
+          "const": "logging"
+        },
+        {
+          "description": "Serialization libraries (serde, Jackson)",
+          "type": "string",
+          "const": "serialization"
+        },
+        {
+          "description": "CLI frameworks (clap, commander)",
+          "type": "string",
+          "const": "cli"
+        },
+        {
+          "description": "Async runtimes (Tokio, asyncio)",
+          "type": "string",
+          "const": "async"
+        },
+        {
+          "description": "API frameworks (tonic, `GraphQL`)",
+          "type": "string",
+          "const": "api"
+        },
+        {
+          "description": "UI frameworks (React, Vue, Yew)",
+          "type": "string",
+          "const": "ui"
+        },
+        {
+          "description": "Other/uncategorized",
+          "type": "string",
+          "const": "other"
+        }
+      ]
+    },
+    "DatabaseDetection": {
+      "description": "Database detection result.\n\nSupports both known databases and unknown/custom databases.",
+      "type": "object",
+      "properties": {
+        "database": {
+          "description": "Database identifier (e.g., \"postgres\", \"mongodb\", \"redis\")",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Human-readable name (e.g., \"`PostgreSQL`\", \"`MongoDB`\", \"Redis\")",
+          "type": "string"
+        },
+        "category": {
+          "description": "Database category",
+          "$ref": "#/$defs/DatabaseCategory"
+        },
+        "confidence": {
+          "description": "Confidence score 0.0-1.0",
+          "type": "number",
+          "format": "float"
+        },
+        "port": {
+          "description": "Default or detected port",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "evidence": {
+          "description": "Evidence supporting this detection",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        }
+      },
+      "required": [
+        "database",
+        "display_name",
+        "category",
+        "confidence",
+        "evidence"
+      ]
+    },
+    "DatabaseCategory": {
+      "description": "Database categories for classification.",
+      "oneOf": [
+        {
+          "description": "SQL databases (`PostgreSQL`, `MySQL`, `SQLite`)",
+          "type": "string",
+          "const": "relational"
+        },
+        {
+          "description": "Document stores (`MongoDB`, `CouchDB`)",
+          "type": "string",
+          "const": "document"
+        },
+        {
+          "description": "Key-value stores (Redis as KV, etcd)",
+          "type": "string",
+          "const": "key_value"
+        },
+        {
+          "description": "Graph databases (Neo4j, Neptune)",
+          "type": "string",
+          "const": "graph"
+        },
+        {
+          "description": "Time-series databases (`InfluxDB`, `TimescaleDB`)",
+          "type": "string",
+          "const": "time_series"
+        },
+        {
+          "description": "Message queues (`RabbitMQ`, Kafka)",
+          "type": "string",
+          "const": "message_queue"
+        },
+        {
+          "description": "Search engines (Elasticsearch, Meilisearch)",
+          "type": "string",
+          "const": "search"
+        },
+        {
+          "description": "Caching systems (Redis as cache, Memcached)",
+          "type": "string",
+          "const": "cache"
+        }
+      ]
+    },
+    "DockerDetection": {
+      "description": "Docker configuration detection.",
+      "type": "object",
+      "properties": {
+        "has_dockerfile": {
+          "description": "Whether Dockerfile exists",
+          "type": "boolean"
+        },
+        "has_compose": {
+          "description": "Whether docker-compose.yml/yaml exists",
+          "type": "boolean"
+        },
+        "base_images": {
+          "description": "Base images detected from Dockerfile(s)",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DockerImage"
+          }
+        },
+        "compose_services": {
+          "description": "Service names from docker-compose",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "description": "Evidence supporting this detection",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        }
+      },
+      "required": [
+        "has_dockerfile",
+        "has_compose",
+        "base_images",
+        "compose_services",
+        "evidence"
+      ]
+    },
+    "DockerImage": {
+      "description": "Docker base image information.",
+      "type": "object",
+      "properties": {
+        "image": {
+          "description": "Image name (e.g., \"rust\", \"node\", \"postgres\")",
+          "type": "string"
+        },
+        "tag": {
+          "description": "Image tag if specified (e.g., \"1.75\", \"20-alpine\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stage": {
+          "description": "Build stage name if multi-stage (e.g., \"builder\", \"runtime\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "image"
+      ]
+    },
+    "PortDetection": {
+      "description": "Port detection result.",
+      "type": "object",
+      "properties": {
+        "port_type": {
+          "description": "Port type category",
+          "$ref": "#/$defs/PortType"
+        },
+        "port_number": {
+          "description": "Actual port number if detected",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "env_var": {
+          "description": "Environment variable name if port is configured via env",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "description": "Confidence score 0.0-1.0",
+          "type": "number",
+          "format": "float"
+        },
+        "evidence": {
+          "description": "Evidence supporting this detection",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        }
+      },
+      "required": [
+        "port_type",
+        "confidence",
+        "evidence"
+      ]
+    },
+    "PortType": {
+      "description": "Port type categories.",
+      "oneOf": [
+        {
+          "description": "HTTP server port (typically 80, 8080, 3000)",
+          "type": "string",
+          "const": "http"
+        },
+        {
+          "description": "HTTPS server port (typically 443, 8443)",
+          "type": "string",
+          "const": "https"
+        },
+        {
+          "description": "gRPC server port (typically 50051)",
+          "type": "string",
+          "const": "grpc"
+        },
+        {
+          "description": "Database connection port (5432, 3306, 27017)",
+          "type": "string",
+          "const": "database"
+        },
+        {
+          "description": "Redis port (typically 6379)",
+          "type": "string",
+          "const": "redis"
+        },
+        {
+          "description": "`RabbitMQ` port (typically 5672)",
+          "type": "string",
+          "const": "rabbitmq"
+        },
+        {
+          "description": "WebSocket port",
+          "type": "string",
+          "const": "websocket"
+        },
+        {
+          "description": "Metrics/observability port (Prometheus 9090, etc.)",
+          "type": "string",
+          "const": "metrics"
+        },
+        {
+          "description": "Debug port (Node 9229, etc.)",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Other/unknown port type",
+          "type": "string",
+          "const": "other"
+        }
+      ]
+    },
+    "TestFrameworkDetection": {
+      "description": "Test framework detection result.",
+      "type": "object",
+      "properties": {
+        "framework": {
+          "description": "Framework identifier (e.g., \"`cargo_test`\", \"jest\", \"pytest\")",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Human-readable name (e.g., \"Cargo Test\", \"Jest\", \"Pytest\")",
+          "type": "string"
+        },
+        "category": {
+          "description": "Test category",
+          "$ref": "#/$defs/TestCategory"
+        },
+        "confidence": {
+          "description": "Confidence score 0.0-1.0",
+          "type": "number",
+          "format": "float"
+        },
+        "evidence": {
+          "description": "Evidence supporting this detection",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        }
+      },
+      "required": [
+        "framework",
+        "display_name",
+        "category",
+        "confidence",
+        "evidence"
+      ]
+    },
+    "TestCategory": {
+      "description": "Test categories for classification.",
+      "oneOf": [
+        {
+          "description": "Unit tests",
+          "type": "string",
+          "const": "unit"
+        },
+        {
+          "description": "Integration tests",
+          "type": "string",
+          "const": "integration"
+        },
+        {
+          "description": "End-to-end tests",
+          "type": "string",
+          "const": "e2e"
+        },
+        {
+          "description": "Performance/load tests",
+          "type": "string",
+          "const": "performance"
+        },
+        {
+          "description": "Security tests",
+          "type": "string",
+          "const": "security"
+        },
+        {
+          "description": "Mixed/general testing framework",
+          "type": "string",
+          "const": "mixed"
+        }
+      ]
+    },
+    "FileStats": {
+      "description": "File statistics providing context for the analysis.",
+      "type": "object",
+      "properties": {
+        "total_files": {
+          "description": "Total number of files analyzed",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "by_extension": {
+          "description": "File count by extension (e.g., {\"rs\": 42, \"toml\": 3})",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          }
+        },
+        "directories": {
+          "description": "Number of directories traversed",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "excluded_files": {
+          "description": "Number of files excluded (`node_modules`, target, etc.)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "total_files",
+        "by_extension",
+        "directories",
+        "excluded_files"
+      ]
+    },
+    "Commands": {
+      "description": "Executable commands for common project operations.\n\nThese commands are detected from package.json scripts, Makefile, Cargo.toml,\nor other project configuration files.",
+      "type": "object",
+      "properties": {
+        "start": {
+          "description": "Command to start the application (e.g., \"cargo run\", \"npm start\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dev": {
+          "description": "Command to start in development mode (e.g., \"npm run dev\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "test": {
+          "description": "Command to run tests (e.g., \"cargo test\", \"npm test\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "build": {
+          "description": "Command to build for production (e.g., \"cargo build --release\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lint": {
+          "description": "Command to run linter (e.g., \"cargo clippy\", \"npm run lint\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fmt": {
+          "description": "Command to format code (e.g., \"cargo fmt\", \"npm run fmt\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "typecheck": {
+          "description": "Command to run type checker (e.g., \"tsc --noEmit\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "EntryPoint": {
+      "description": "A key entry point into the codebase.\n\nEntry points help AI agents understand where to start when exploring\nor modifying specific aspects of the project.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "Relative path from project root",
+          "type": "string"
+        },
+        "purpose": {
+          "description": "Purpose of this entry point",
+          "$ref": "#/$defs/EntryPointPurpose"
+        }
+      },
+      "required": [
+        "file",
+        "purpose"
+      ]
+    },
+    "EntryPointPurpose": {
+      "description": "Purpose categories for entry points.",
+      "oneOf": [
+        {
+          "description": "Main binary entry point (e.g., src/main.rs, index.js)",
+          "type": "string",
+          "const": "binary_entry"
+        },
+        {
+          "description": "Library entry point (e.g., src/lib.rs, lib/index.js)",
+          "type": "string",
+          "const": "library_entry"
+        },
+        {
+          "description": "Test entry point (e.g., tests/main.rs)",
+          "type": "string",
+          "const": "test_entry"
+        },
+        {
+          "description": "Configuration file (e.g., config/default.toml)",
+          "type": "string",
+          "const": "config"
+        },
+        {
+          "description": "Route definitions (e.g., src/routes.rs, routes/index.js)",
+          "type": "string",
+          "const": "routes"
+        },
+        {
+          "description": "Main UI component (e.g., src/App.tsx)",
+          "type": "string",
+          "const": "main_component"
+        }
+      ]
+    },
+    "EnvVar": {
+      "description": "An environment variable used by the project.\n\nDetected from .env.example, docker-compose.yml, config files, or code.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Environment variable name (e.g., \"`DATABASE_URL`\")",
+          "type": "string"
+        },
+        "required": {
+          "description": "Whether this variable is required for the app to run",
+          "type": "boolean"
+        },
+        "purpose": {
+          "description": "What this variable is used for",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "default": {
+          "description": "Default value if not set",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "example": {
+          "description": "Example value for documentation",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "required"
+      ]
+    }
+  },
+  "$id": "https://gbqr.us/operator/project-analysis.schema.json",
+  "$comment": "AUTO-GENERATED FROM src/taxonomy/analyzer.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only project-analysis-schema"
+}

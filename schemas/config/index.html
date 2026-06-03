@@ -1,0 +1,2483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuration Schema | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Configuration Schema | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Configuration Schema" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta name="twitter:description" property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/schemas/config/" />
+<meta property="og:url" content="https://operator.untra.io/schemas/config/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Configuration Schema" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Configuration Schema","url":"https://operator.untra.io/schemas/config/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" class="active"
+                    >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/schemas/config.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.1</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-03</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Configuration Schema</h1>
+  
+
+  <!-- AUTO-GENERATED FROM docs/schemas/config.json - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+<h1 id="configuration-schema">Configuration Schema</h1>
+
+<p>JSON Schema for the Operator configuration file (<code class="language-plaintext highlighter-rouge">config.toml</code>).</p>
+
+<h2 id="schema-information">Schema Information</h2>
+
+<ul>
+  <li><strong>$schema</strong>: <code class="language-plaintext highlighter-rouge">https://json-schema.org/draft/2020-12/schema</code></li>
+  <li><strong>title</strong>: <code class="language-plaintext highlighter-rouge">Config</code></li>
+</ul>
+
+<h2 id="required-fields">Required Fields</h2>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">agents</code></li>
+  <li><code class="language-plaintext highlighter-rouge">notifications</code></li>
+  <li><code class="language-plaintext highlighter-rouge">queue</code></li>
+  <li><code class="language-plaintext highlighter-rouge">paths</code></li>
+  <li><code class="language-plaintext highlighter-rouge">ui</code></li>
+  <li><code class="language-plaintext highlighter-rouge">launch</code></li>
+  <li><code class="language-plaintext highlighter-rouge">templates</code></li>
+</ul>
+
+<h2 id="properties">Properties</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">projects</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>List of projects operator can assign work to</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">agents</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">AgentsConfig</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">notifications</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">NotificationsConfig</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">queue</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">QueueConfig</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">paths</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">PathsConfig</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">ui</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">UiConfig</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">launch</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">LaunchConfig</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">templates</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">TemplatesConfig</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">api</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">ApiConfig</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">logging</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">LoggingConfig</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tmux</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">TmuxConfig</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">sessions</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">SessionsConfig</code></td>
+      <td>No</td>
+      <td>Session wrapper configuration (tmux, vscode, or cmux)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">llm_tools</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">LlmToolsConfig</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">rest_api</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">RestApiConfig</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">git</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">GitConfig</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">kanban</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">KanbanConfig</code></td>
+      <td>No</td>
+      <td>Kanban provider configuration for syncing issues from Jira, Linear, etc.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">version_check</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">VersionCheckConfig</code></td>
+      <td>No</td>
+      <td>Version check configuration for automatic update notifications</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">delegators</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Agent delegator configurations for autonomous ticket launching</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model_servers</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>User-declared model servers (ollama, lmstudio, any OpenAI-compat host). Implicit builtin servers exist for each <code class="language-plaintext highlighter-rouge">llm_tool</code>’s vendor API and do not need declaration.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">relay</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">RelayConfig</code></td>
+      <td>No</td>
+      <td>Relay MCP injection configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">mcp</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">McpConfig</code></td>
+      <td>No</td>
+      <td>Model Context Protocol (MCP) server configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">acp</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">AcpConfig</code></td>
+      <td>No</td>
+      <td>Agent Client Protocol (ACP) agent configuration</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="type-definitions">Type Definitions</h2>
+
+<h3 id="agentsconfig">AgentsConfig</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">max_parallel</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">cores_reserved</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">max_agents_per_repo</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Maximum concurrent agents per project/repo (default: 1). Requires <code class="language-plaintext highlighter-rouge">git.use_worktrees</code> = true when &gt; 1 to avoid conflicts.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">health_check_interval</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">generation_timeout_secs</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Timeout in seconds for each agent generation (default: 300 = 5 min)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">sync_interval</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Interval in seconds between ticket-session syncs (default: 60)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">step_timeout</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Maximum seconds a step can run before timing out (default: 1800 = 30 min)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">silence_threshold</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Seconds of tmux silence before considering agent awaiting input (default: 30)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="notificationsconfig">NotificationsConfig</h3>
+
+<p>Notifications configuration with support for multiple integrations.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>Yes</td>
+      <td>Global enabled flag for all notifications</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">os</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">OsNotificationConfig</code></td>
+      <td>No</td>
+      <td>OS notification configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">webhook</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Single webhook configuration (for simple setups)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">webhooks</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Multiple webhook configurations</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="osnotificationconfig">OsNotificationConfig</h3>
+
+<p>OS notification configuration.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether OS notifications are enabled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">sound</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Play sound with notifications</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">events</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Events to send (empty = all events) Possible values: agent.started, agent.completed, agent.failed, <code class="language-plaintext highlighter-rouge">agent.awaiting_input</code>, <code class="language-plaintext highlighter-rouge">agent.session_lost</code>, pr.created, pr.merged, pr.closed, <code class="language-plaintext highlighter-rouge">pr.ready_to_merge</code>, <code class="language-plaintext highlighter-rouge">pr.changes_requested</code>, ticket.returned, investigation.created</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="webhookconfig">WebhookConfig</h3>
+
+<p>Webhook notification configuration.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional name for this webhook (for logging)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether this webhook is enabled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">url</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Webhook URL</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">auth_type</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Authentication type: “bearer” or “basic”</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">token_env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Environment variable containing the bearer token</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">username</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Username for basic auth</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">password_env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Environment variable containing the password for basic auth</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">events</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Events to send (empty = all events)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="queueconfig">QueueConfig</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">auto_assign</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">priority_order</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">poll_interval_ms</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="pathsconfig">PathsConfig</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tickets</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">projects</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">state</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">worktrees</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Base directory for per-ticket worktrees (default: ~/.operator/worktrees)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="uiconfig">UiConfig</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">refresh_rate_ms</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">completed_history_hours</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">summary_max_length</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">panel_names</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">PanelNamesConfig</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="panelnamesconfig">PanelNamesConfig</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">status</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">queue</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">in_progress</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">completed</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td> </td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="launchconfig">LaunchConfig</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">confirm_autonomous</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">confirm_paired</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">launch_delay_ms</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>Yes</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">docker</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">DockerConfig</code></td>
+      <td>No</td>
+      <td>Docker execution configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">yolo</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">YoloConfig</code></td>
+      <td>No</td>
+      <td>YOLO (auto-accept) mode configuration</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="dockerconfig">DockerConfig</h3>
+
+<p>Docker execution configuration for running agents in containers</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether docker mode option is available in launch dialog</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">image</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Docker image to use (required if enabled)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">extra_args</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Additional docker run arguments</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">mount_path</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Container mount path for the project (default: /workspace)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">env_vars</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Environment variables to pass through to the container</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="yoloconfig">YoloConfig</h3>
+
+<p>YOLO (auto-accept) mode configuration for fully autonomous execution</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether YOLO mode option is available in launch dialog</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="templatesconfig">TemplatesConfig</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">preset</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">CollectionPreset</code></td>
+      <td>No</td>
+      <td>Named preset for issue type collection Options: simple, <code class="language-plaintext highlighter-rouge">dev_kanban</code>, <code class="language-plaintext highlighter-rouge">devops_kanban</code>, custom</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">collection</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">active_collection</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="collectionpreset">CollectionPreset</h3>
+
+<p>Predefined issue type collections</p>
+
+<p><strong>Allowed Values:</strong></p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">simple</code> - Simple tasks only: TASK</li>
+  <li><code class="language-plaintext highlighter-rouge">dev_kanban</code> - Developer kanban: TASK, FEAT, FIX</li>
+  <li><code class="language-plaintext highlighter-rouge">devops_kanban</code> - DevOps kanban: TASK, SPIKE, INV, FEAT, FIX</li>
+  <li><code class="language-plaintext highlighter-rouge">custom</code> - Custom collection (use the collection field)</li>
+</ul>
+
+<h3 id="apiconfig">ApiConfig</h3>
+
+<p>API integrations configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">pr_check_interval_secs</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Interval in seconds between PR status checks (default: 60)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">rate_limit_check_interval_secs</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Interval in seconds between rate limit checks (default: 300)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">rate_limit_warning_threshold</code></td>
+      <td><code class="language-plaintext highlighter-rouge">number</code></td>
+      <td>No</td>
+      <td>Show warning when rate limit remaining is below this percentage (default: 0.2)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="loggingconfig">LoggingConfig</h3>
+
+<p>Logging configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">level</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Log level filter (trace, debug, info, warn, error)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">to_file</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether to log to file in TUI mode (false = stderr for debugging)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="tmuxconfig">TmuxConfig</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">config_generated</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether custom tmux config has been generated</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="sessionsconfig">SessionsConfig</h3>
+
+<p>Session wrapper configuration</p>
+
+<p>Controls how operator creates and manages terminal sessions for agents.
+Four modes are supported:</p>
+<ul>
+  <li>tmux: Standalone tmux sessions (default)</li>
+  <li>vscode: VS Code integrated terminal (requires extension)</li>
+  <li>cmux: macOS terminal multiplexer (requires running inside cmux)</li>
+  <li>zellij: Zellij terminal workspace manager</li>
+</ul>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">wrapper</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">SessionWrapperType</code></td>
+      <td>No</td>
+      <td>Which session wrapper to use</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tmux</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">SessionsTmuxConfig</code></td>
+      <td>No</td>
+      <td>Tmux-specific configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">vscode</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">SessionsVSCodeConfig</code></td>
+      <td>No</td>
+      <td>VS Code-specific configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">cmux</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">SessionsCmuxConfig</code></td>
+      <td>No</td>
+      <td>cmux-specific configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">zellij</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">SessionsZellijConfig</code></td>
+      <td>No</td>
+      <td>Zellij-specific configuration</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="sessionwrappertype">SessionWrapperType</h3>
+
+<p>Session wrapper type for terminal session management</p>
+
+<p><strong>Allowed Values:</strong></p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">tmux</code> - Standalone tmux sessions (default)</li>
+  <li><code class="language-plaintext highlighter-rouge">vscode</code> - VS Code integrated terminal (via extension webhook)</li>
+  <li><code class="language-plaintext highlighter-rouge">cmux</code> - cmux macOS terminal multiplexer</li>
+  <li><code class="language-plaintext highlighter-rouge">zellij</code> - Zellij terminal workspace manager</li>
+</ul>
+
+<h3 id="sessionstmuxconfig">SessionsTmuxConfig</h3>
+
+<p>Tmux-specific session configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">config_generated</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether custom tmux config has been generated</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">socket_name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Socket name for session isolation</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="sessionsvscodeconfig">SessionsVSCodeConfig</h3>
+
+<p>VS Code extension session configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">webhook_port</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Port for extension webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">connect_timeout_ms</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Connection timeout in milliseconds</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="sessionscmuxconfig">SessionsCmuxConfig</h3>
+
+<p>cmux macOS terminal multiplexer session configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">binary_path</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Path to the cmux binary</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">require_in_cmux</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Require running inside cmux (<code class="language-plaintext highlighter-rouge">CMUX_WORKSPACE_ID</code> env var present)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">placement</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">CmuxPlacementPolicy</code></td>
+      <td>No</td>
+      <td>Where to place new agent sessions: “auto”, “workspace”, or “window”</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="cmuxplacementpolicy">CmuxPlacementPolicy</h3>
+
+<p>Placement policy for cmux sessions: where to create new agent terminals</p>
+
+<p><strong>Allowed Values:</strong></p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">auto</code> - Automatically choose: 0-1 windows → new workspace, &gt;1 windows → new window</li>
+  <li><code class="language-plaintext highlighter-rouge">workspace</code> - Always create a new workspace in the active window</li>
+  <li><code class="language-plaintext highlighter-rouge">window</code> - Always create a new window for each ticket</li>
+</ul>
+
+<h3 id="sessionszellijconfig">SessionsZellijConfig</h3>
+
+<p>Zellij terminal workspace manager session configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">require_in_zellij</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Require running inside Zellij (ZELLIJ env var present)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="llmtoolsconfig">LlmToolsConfig</h3>
+
+<p>LLM CLI tools configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">detected</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Detected CLI tools (populated on first startup)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">providers</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Available {tool, model} pairs for launching tickets Built from detected tools + their model aliases</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">detection_complete</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether detection has been completed</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">default_tool</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>User’s preferred default LLM tool (e.g., “claude”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">default_model</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>User’s preferred default model alias (e.g., “opus”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">skill_directory_overrides</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Per-tool overrides for skill directories (keyed by <code class="language-plaintext highlighter-rouge">tool_name</code>)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="detectedtool">DetectedTool</h3>
+
+<p>A detected CLI tool (e.g., claude binary)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Tool name (e.g., “claude”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">path</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Path to the binary</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">version</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Version string</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">min_version</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Minimum required version for Operator compatibility</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">version_ok</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether the installed version meets the minimum requirement</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model_aliases</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Available model aliases (e.g., [“opus”, “sonnet”, “haiku”])</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">command_template</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Command template with , ,  placeholders</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">capabilities</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">ToolCapabilities</code></td>
+      <td>No</td>
+      <td>Tool capabilities</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">yolo_flags</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>CLI flags for YOLO (auto-accept) mode</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="toolcapabilities">ToolCapabilities</h3>
+
+<p>Tool capabilities</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">supports_sessions</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether the tool supports session continuity via UUID</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">supports_headless</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether the tool can run in headless/non-interactive mode</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="llmprovider">LlmProvider</h3>
+
+<p>A {tool, model} pair that can be selected when launching tickets.
+Includes optional variant fields adopted from vibe-kanban’s profile system.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tool</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>CLI tool name (e.g., “claude”, “codex”, “gemini”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Model alias or name (e.g., “opus”, “sonnet”, “gpt-4.1”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">display_name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional display name for UI (e.g., “Claude Opus”, “Codex High”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">flags</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Additional CLI flags for this provider (e.g., [”–dangerously-skip-permissions”])</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Environment variables to set when launching</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">approvals</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether this provider requires approval gates</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">plan_only</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether to run in plan-only mode</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">reasoning_effort</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Reasoning effort level (Codex: “low”, “medium”, “high”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">sandbox</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Sandbox mode (Codex: “danger-full-access”, “workspace-write”)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="skilldirectoriesoverride">SkillDirectoriesOverride</h3>
+
+<p>Per-tool skill directory overrides</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">global</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Additional global skill directories</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">project</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Additional project-relative skill directories</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="restapiconfig">RestApiConfig</h3>
+
+<p>REST API server configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether the REST API is enabled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">port</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Port for the REST API server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">cors_origins</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>CORS allowed origins (empty = allow all)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="gitconfig">GitConfig</h3>
+
+<p>Git provider configuration for PR/MR operations</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">provider</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Active provider (auto-detected from remote URL if not specified)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">github</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">GitHubConfig</code></td>
+      <td>No</td>
+      <td>GitHub-specific configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gitlab</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">GitLabConfig</code></td>
+      <td>No</td>
+      <td>GitLab-specific configuration (planned)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">branch_format</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Branch naming format (e.g., “{type}/{ticket_id}-{slug}”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">use_worktrees</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether to use git worktrees for per-ticket isolation (default: false) When false, tickets work directly in the project directory with branches</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="gitproviderconfig">GitProviderConfig</h3>
+
+<p>Git provider selection</p>
+
+<p><strong>Allowed Values:</strong></p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">github</code> - GitHub (github.com)</li>
+  <li><code class="language-plaintext highlighter-rouge">gitlab</code> - GitLab (gitlab.com or self-hosted)</li>
+  <li><code class="language-plaintext highlighter-rouge">bitbucket</code> - Bitbucket (bitbucket.org)</li>
+  <li><code class="language-plaintext highlighter-rouge">azuredevops</code> - Azure DevOps (dev.azure.com)</li>
+</ul>
+
+<h3 id="githubconfig">GitHubConfig</h3>
+
+<p>GitHub-specific configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether GitHub integration is enabled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">token_env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Environment variable containing the GitHub token (default: <code class="language-plaintext highlighter-rouge">GITHUB_TOKEN</code>)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="gitlabconfig">GitLabConfig</h3>
+
+<p>GitLab-specific configuration (planned)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether GitLab integration is enabled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">token_env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Environment variable containing the GitLab token (default: <code class="language-plaintext highlighter-rouge">GITLAB_TOKEN</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">host</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>GitLab host (default: gitlab.com, can be self-hosted)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="kanbanconfig">KanbanConfig</h3>
+
+<p>Kanban provider configuration for syncing issues from external systems</p>
+
+<p>Providers are keyed by domain/workspace:</p>
+<ul>
+  <li>Jira: keyed by domain (e.g., “foobar.atlassian.net”)</li>
+  <li>Linear: keyed by workspace slug (e.g., “myworkspace”)</li>
+  <li>GitHub Projects: keyed by owner login (e.g., “my-org”)</li>
+</ul>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">jira</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Jira Cloud instances keyed by domain (e.g., “foobar.atlassian.net”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">linear</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Linear instances keyed by workspace slug</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">github</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>GitHub Projects v2 instances keyed by owner login (user or org)  NOTE: This is the <em>kanban</em> GitHub integration (Projects v2), distinct from <code class="language-plaintext highlighter-rouge">GitHubConfig</code> which is the <em>git provider</em> used for PRs and branches. The two use different env vars and different scopes — see <code class="language-plaintext highlighter-rouge">docs/getting-started/kanban/github.md</code> for the full disambiguation.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="jiraconfig">JiraConfig</h3>
+
+<p>Jira Cloud provider configuration</p>
+
+<p>The domain is specified as the <code class="language-plaintext highlighter-rouge">HashMap</code> key in KanbanConfig.jira</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether this provider is enabled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">api_key_env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Environment variable name containing the API key (default: <code class="language-plaintext highlighter-rouge">OPERATOR_JIRA_API_KEY</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">email</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Atlassian account email for authentication</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">projects</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Per-project sync configuration</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="projectsyncconfig">ProjectSyncConfig</h3>
+
+<p>Per-project/team sync configuration for a kanban provider</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">sync_user_id</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>User ID to sync issues for (provider-specific format) - Jira: accountId (e.g., “5e3f7acd9876543210abcdef”) - Linear: user ID (e.g., “abc12345-6789-0abc-def0-123456789abc”) - GitHub Projects: numeric GitHub <code class="language-plaintext highlighter-rouge">databaseId</code> (e.g., “12345678”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">sync_statuses</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Workflow statuses to sync (empty = default/first status only)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">collection_name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional <code class="language-plaintext highlighter-rouge">IssueTypeCollection</code> name this project maps to. Not required for kanban onboarding or sync.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">type_mappings</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX). Multiple kanban types can map to the same operator template.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">bidirectional</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>When true, operator pushes status changes and activity logs back to this kanban project. Ticket state changes (todo→doing, doing→done) and step completions with delegator info are reflected upstream. Default: false.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="linearconfig">LinearConfig</h3>
+
+<p>Linear provider configuration</p>
+
+<p>The workspace slug is specified as the <code class="language-plaintext highlighter-rouge">HashMap</code> key in KanbanConfig.linear</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether this provider is enabled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">api_key_env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Environment variable name containing the API key (default: <code class="language-plaintext highlighter-rouge">OPERATOR_LINEAR_API_KEY</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">projects</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Per-team sync configuration</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="githubprojectsconfig">GithubProjectsConfig</h3>
+
+<p>GitHub Projects v2 (kanban) provider configuration</p>
+
+<p>The owner login (user or org) is specified as the <code class="language-plaintext highlighter-rouge">HashMap</code> key in
+<code class="language-plaintext highlighter-rouge">KanbanConfig.github</code>. Project keys inside <code class="language-plaintext highlighter-rouge">projects</code> are <code class="language-plaintext highlighter-rouge">GraphQL</code> node
+IDs (e.g., <code class="language-plaintext highlighter-rouge">PVT_kwDOABcdefg</code>) — opaque, stable identifiers used directly
+by every GitHub Projects v2 mutation without needing a lookup.</p>
+
+<p><strong>Distinct from <code class="language-plaintext highlighter-rouge">GitHubConfig</code></strong> (the git provider used for PR/branch
+operations). They live in different parts of the config tree, use
+different env vars (<code class="language-plaintext highlighter-rouge">OPERATOR_GITHUB_TOKEN</code> vs <code class="language-plaintext highlighter-rouge">GITHUB_TOKEN</code>), and
+require different OAuth scopes (<code class="language-plaintext highlighter-rouge">project</code> vs <code class="language-plaintext highlighter-rouge">repo</code>). See
+<code class="language-plaintext highlighter-rouge">docs/getting-started/kanban/github.md</code> for the full rationale.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether this provider is enabled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">api_key_env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Environment variable name containing the GitHub token (default: <code class="language-plaintext highlighter-rouge">OPERATOR_GITHUB_TOKEN</code>). The token must have <code class="language-plaintext highlighter-rouge">project</code> (or <code class="language-plaintext highlighter-rouge">read:project</code>) scope, NOT just <code class="language-plaintext highlighter-rouge">repo</code> — see the disambiguation guide in the kanban github docs.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">projects</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Per-project sync configuration. Keys are <code class="language-plaintext highlighter-rouge">GraphQL</code> project node IDs.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="versioncheckconfig">VersionCheckConfig</h3>
+
+<p>Version check configuration for automatic update notifications</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Enable automatic version checking on startup</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">url</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>URL to fetch latest version from (optional, can be removed)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">timeout_secs</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Timeout in seconds for version check HTTP request</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="delegator">Delegator</h3>
+
+<p>Agent delegator configuration for autonomous ticket launching</p>
+
+<p>A delegator is a named {tool, model} pairing with optional launch configuration
+that can be used to launch agents for tickets.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Unique name for this delegator (e.g., “claude-opus-auto”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">llm_tool</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>LLM tool name (must match a detected tool, e.g., “claude”, “codex”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Model alias (e.g., “opus”, “sonnet”, “gpt-4o”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">display_name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional display name for UI</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model_properties</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Arbitrary model properties (e.g., <code class="language-plaintext highlighter-rouge">reasoning_effort</code>, sandbox)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">launch_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Optional launch configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model_server</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Name of a declared <code class="language-plaintext highlighter-rouge">ModelServer</code> (from <code class="language-plaintext highlighter-rouge">Config.model_servers</code>). <code class="language-plaintext highlighter-rouge">None</code> means use the <code class="language-plaintext highlighter-rouge">llm_tool</code>’s implicit vendor default (claude → anthropic-api, codex → openai-api, gemini → google-api).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="delegatorlaunchconfig">DelegatorLaunchConfig</h3>
+
+<p>Launch configuration for a delegator</p>
+
+<p>Controls how the delegator launches agents. Optional fields use tri-state
+semantics: <code class="language-plaintext highlighter-rouge">None</code> = inherit from global config, <code class="language-plaintext highlighter-rouge">Some(true/false)</code> = override.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">yolo</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Run in YOLO (auto-accept) mode</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">permission_mode</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Permission mode override</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">flags</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Additional CLI flags</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">use_worktrees</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Override global <code class="language-plaintext highlighter-rouge">git.use_worktrees</code> per-delegator (None = use global setting)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">create_branch</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Whether to create a git branch for the ticket (None = default behavior)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">docker</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Run in docker container (None = use global <code class="language-plaintext highlighter-rouge">launch.docker.enabled</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt_prefix</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Prompt text to prepend before the generated step prompt</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt_suffix</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Prompt text to append after the generated step prompt</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator_relay</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Override global relay auto-inject MCP setting per-delegator (None = use global setting)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="modelserver">ModelServer</h3>
+
+<p>A named host that serves models via an inference API.</p>
+
+<p>Model servers are orthogonal to <code class="language-plaintext highlighter-rouge">llm_tools</code>: a delegator pairs an agentic CLI
+(<code class="language-plaintext highlighter-rouge">llm_tool</code>, e.g. claude/codex/gemini) with a model-serving endpoint
+(<code class="language-plaintext highlighter-rouge">model_server</code>, e.g. ollama-local, openai-api, a custom vllm host).</p>
+
+<p>Implicit builtin servers (<code class="language-plaintext highlighter-rouge">anthropic-api</code>, <code class="language-plaintext highlighter-rouge">openai-api</code>, <code class="language-plaintext highlighter-rouge">google-api</code>) are
+returned by [<code class="language-plaintext highlighter-rouge">implicit_model_server_for_tool</code>] and do not need to be declared
+in config.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Unique name (e.g., “ollama-local”, “vllm-gpu1”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">kind</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Kind: “ollama”, “openai-compat”, “anthropic-api”, “openai-api”, “google-api”, “lmstudio”</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">base_url</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Base URL of the inference endpoint (e.g., <code class="language-plaintext highlighter-rouge">http://localhost:11434</code>). <code class="language-plaintext highlighter-rouge">None</code> for implicit vendor servers means use the SDK default.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">api_key_env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Name of an env var providing the API key (e.g., <code class="language-plaintext highlighter-rouge">OLLAMA_API_KEY</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">extra_env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Additional environment variables set when spawning agents that use this server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">display_name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional display name for UI</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="relayconfig">RelayConfig</h3>
+
+<p>Relay MCP injection configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">auto_inject_mcp</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>When true, automatically inject the relay MCP server for all delegators. When false (default), relay injection is opt-in per delegator.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="mcpconfig">McpConfig</h3>
+
+<p>Model Context Protocol (MCP) server configuration</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">http_enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether to mount MCP HTTP/SSE endpoints on the REST API server. Toggling requires an API restart (no hot-swap of the axum router).</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">stdio_advertised</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether the descriptor endpoint advertises the <code class="language-plaintext highlighter-rouge">operator mcp</code> stdio command. Set to false on multi-tenant/remote deployments where clients shouldn’t spawn local subprocesses.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">expose_ticket_write_tools</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether to expose ticket-mutating tools (claim, complete, return-to-queue, create) over MCP. Defaults to <code class="language-plaintext highlighter-rouge">false</code> because any MCP client can call them.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">external_servers</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>External MCP servers to inject into spawned agent sessions. Each entry produces a separate <code class="language-plaintext highlighter-rouge">--mcp-config</code> file alongside the relay config when launching Claude Code agents.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="externalmcpserver">ExternalMcpServer</h3>
+
+<p>An external MCP server to inject into spawned agent sessions.</p>
+
+<p>Values in <code class="language-plaintext highlighter-rouge">command</code>, <code class="language-plaintext highlighter-rouge">args</code>, and <code class="language-plaintext highlighter-rouge">env</code> support <code class="language-plaintext highlighter-rouge">${VAR}</code> interpolation,
+expanded at spawn time from the operator process environment.</p>
+
+<p>When <code class="language-plaintext highlighter-rouge">discover_from</code> is set, operator reads an MCP server spec from that
+JSON sidecar file at spawn time. The sidecar must contain a top-level
+<code class="language-plaintext highlighter-rouge">mcpServer</code> object with <code class="language-plaintext highlighter-rouge">command</code>, <code class="language-plaintext highlighter-rouge">args</code>, and <code class="language-plaintext highlighter-rouge">env</code> fields. If the file
+is absent and <code class="language-plaintext highlighter-rouge">command</code> is empty, the server is silently skipped.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Server name used as the key in the <code class="language-plaintext highlighter-rouge">mcpServers</code> JSON object (e.g., “kanbots”). Must be unique across all external servers.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">command</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>No</td>
+      <td>Command to execute. Supports <code class="language-plaintext highlighter-rouge">${VAR}</code> interpolation.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">args</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Command arguments. Each element supports <code class="language-plaintext highlighter-rouge">${VAR}</code> interpolation.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">env</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Environment variables passed to the MCP server process. Values support <code class="language-plaintext highlighter-rouge">${VAR}</code> interpolation.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enabled</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether this server is enabled. Allows disabling without removing config.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">discover_from</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Path to a JSON sidecar discovery file. Relative paths resolve from the project directory. The sidecar must contain <code class="language-plaintext highlighter-rouge">{ "mcpServer": { ... } }</code>. When the file exists, its <code class="language-plaintext highlighter-rouge">mcpServer</code> spec is used verbatim (overriding <code class="language-plaintext highlighter-rouge">command</code>/<code class="language-plaintext highlighter-rouge">args</code>/<code class="language-plaintext highlighter-rouge">env</code>). When absent and <code class="language-plaintext highlighter-rouge">command</code> is empty, the server is silently skipped.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="acpconfig">AcpConfig</h3>
+
+<p>Agent Client Protocol (ACP) agent configuration.</p>
+
+<p>Operator runs as an ACP agent over stdio when editors (Zed, <code class="language-plaintext highlighter-rouge">JetBrains</code>,
+Emacs <code class="language-plaintext highlighter-rouge">agent-shell</code>, Kiro, etc.) spawn <code class="language-plaintext highlighter-rouge">operator acp</code>. Each ACP session
+maps to an in-progress ACP ticket and a delegator subprocess.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">stdio_advertised</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether the dashboard advertises the <code class="language-plaintext highlighter-rouge">operator acp</code> stdio entrypoint (and editor-config snippet actions). Set to false on machines that shouldn’t be used as ACP agents.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">default_delegator</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Name of the delegator (from <code class="language-plaintext highlighter-rouge">[[delegators]]</code>) to use for ACP prompts. If unset or not found, falls back to the operator’s default delegator resolution.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">max_concurrent_sessions</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code></td>
+      <td>No</td>
+      <td>Maximum number of concurrent ACP sessions. New <code class="language-plaintext highlighter-rouge">session/new</code> requests beyond this limit are rejected with a JSON-RPC error.</td>
+    </tr>
+  </tbody>
+</table>
+
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relay | Operator! Documentation</title>
+  <meta name="description" content="Multi-agent peer-to-peer communication hub embedded in Operator.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Relay | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Relay" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Multi-agent peer-to-peer communication hub embedded in Operator." />
+<meta name="twitter:description" property="og:description" content="Multi-agent peer-to-peer communication hub embedded in Operator." />
+<link rel="canonical" href="https://operator.untra.io/relay/" />
+<meta property="og:url" content="https://operator.untra.io/relay/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Relay" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Multi-agent peer-to-peer communication hub embedded in Operator.","headline":"Relay","url":"https://operator.untra.io/relay/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/relay/index.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.1</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-03</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Relay</h1>
+  
+
+  <p><span class="operator-brand">Operator!</span> embeds a relay hub that lets agents launched for different tickets discover and message each other in real time. When a delegator sets <code class="language-plaintext highlighter-rouge">operator_relay = true</code> in its <code class="language-plaintext highlighter-rouge">launch_config</code>, Operator injects the <code class="language-plaintext highlighter-rouge">relay</code> MCP server into Claude Code launches for that delegator — provided the relay hub socket is available. Injection does <strong>not</strong> happen automatically for all launches; the global default is <code class="language-plaintext highlighter-rouge">relay.auto_inject_mcp = false</code>.</p>
+
+<p>The MCP server runs as <code class="language-plaintext highlighter-rouge">opr8r relay</code> (a subcommand of the signed <code class="language-plaintext highlighter-rouge">opr8r</code> binary) so no additional executable needs to be signed or distributed. Codex and other tools receive the env vars but require manual MCP configuration.</p>
+
+<h2 id="tools-shipped-by-operator">Tools shipped by Operator</h2>
+
+<p>Operator ships two complementary executables for agent orchestration:</p>
+
+<h3 id="opr8r--step-wrapper-and-api-client">opr8r — step wrapper and API client</h3>
+
+<p><code class="language-plaintext highlighter-rouge">opr8r</code> wraps LLM tool invocations (Claude Code, Codex, Gemini CLI) inside multi-step ticket workflows. It runs as the <strong>parent process</strong> of the LLM tool, intercepts its exit code, and reports step completion to the Operator REST API. The API then decides what happens next — another step, a review gate, or workflow completion.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>opr8r --ticket-id FEAT-042 --step build -- claude --prompt "implement the feature"
+         ↓ launches
+       claude (child process)
+         ↓ on exit, opr8r reports to
+       Operator API  →  next step / review / done
+</code></pre></div></div>
+
+<p>See the <a href="/docs/cli/">opr8r CLI reference</a> for full flag documentation.</p>
+
+<h3 id="relay--mcp-client-for-the-relay-hub">relay — MCP client for the relay hub</h3>
+
+<p><code class="language-plaintext highlighter-rouge">relay</code> is the MCP stdio server that Operator ships so agents can communicate with each other. It runs as a <strong>child process</strong> of the LLM tool (spawned by the MCP host), connects to the relay hub over a Unix socket, and exposes five relay tools via the MCP protocol:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tool</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">relay_peers</code></td>
+      <td>List other active agent sessions on this machine</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">relay_ask</code></td>
+      <td>Send a question to a named peer and await a reply</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">relay_reply</code></td>
+      <td>Reply to a pending ask</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">relay_broadcast</code></td>
+      <td>Send a message to all connected peers</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">relay_rename</code></td>
+      <td>Change this session’s peer name</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><code class="language-plaintext highlighter-rouge">relay</code> is a subcommand of <code class="language-plaintext highlighter-rouge">opr8r</code> (<code class="language-plaintext highlighter-rouge">opr8r relay</code>) so it is distributed and code-signed as part of the same binary. No separate download is needed.</p>
+
+<h2 id="how-the-hub-works">How the hub works</h2>
+
+<p>The relay hub is a Unix socket server that runs inside the Operator process. Each agent registers as a named peer when it connects. Operator assigns each agent its ticket ID as its peer name, so agents can address each other by ticket.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>operator process
+└── RelayHub (Unix socket at $RELAY_HUB_SOCKET)
+    ├── opr8r relay  ←  Claude agent "FEAT-001"
+    │     relay_ask("FEAT-002", "have you finished the auth module?")
+    │                                    ↓
+    └── opr8r relay  ←  Claude agent "FEAT-002"
+          relay_reply(ask_id, "yes, pushed to feat/auth")
+</code></pre></div></div>
+
+<p>The hub runs for the lifetime of the Operator process. Unlike the standalone <code class="language-plaintext highlighter-rouge">claude-relay</code> tool, there is no idle-shutdown timer — the hub stays up as long as Operator is running.</p>
+
+<h2 id="hub-socket">Hub socket</h2>
+
+<p>The hub binds to a Unix domain socket. The path is resolved in this priority order (matching claude-relay’s <code class="language-plaintext highlighter-rouge">data-dir.ts</code> so existing deployments need no changes):</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Priority</th>
+      <th>Source</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><code class="language-plaintext highlighter-rouge">$RELAY_HUB_SOCKET</code></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><code class="language-plaintext highlighter-rouge">$CLAUDE_PLUGIN_DATA/hub.sock</code></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>fallback</td>
+      <td><code class="language-plaintext highlighter-rouge">~/.claude-relay/hub.sock</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Operator exports <code class="language-plaintext highlighter-rouge">RELAY_HUB_SOCKET</code> automatically at startup, so every child process it spawns can find the hub. For Claude Code, Operator also writes a per-session <code class="language-plaintext highlighter-rouge">relay-mcp.json</code> and passes <code class="language-plaintext highlighter-rouge">--mcp-config &lt;path&gt;</code> at launch time, so <code class="language-plaintext highlighter-rouge">relay</code> starts automatically alongside the agent — no manual setup needed. For other tools, the socket env var is exported but MCP wiring requires manual configuration.</p>
+
+<h2 id="agent-naming">Agent naming</h2>
+
+<p>When Operator launches an agent, it injects two env vars into the session:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">RELAY_HUB_SOCKET</span><span class="o">=</span>/path/to/hub.sock
+<span class="nb">export </span><span class="nv">RELAY_AGENT_NAME</span><span class="o">=</span>FEAT-042
+</code></pre></div></div>
+
+<p>The agent connects to the hub and registers under the name <code class="language-plaintext highlighter-rouge">FEAT-042</code>. Any other agent that knows the ticket ID can address it directly.</p>
+
+<p>For agents running standalone (not launched by Operator), <code class="language-plaintext highlighter-rouge">relay</code> reads <code class="language-plaintext highlighter-rouge">~/.claude/sessions/{ppid}.json</code> and uses whatever name the user sets with <code class="language-plaintext highlighter-rouge">/rename</code> in Claude Code.</p>
+
+<h2 id="environment-variables">Environment variables</h2>
+
+<p>These variables are shared with the claude-relay ecosystem and intentionally do not use the <code class="language-plaintext highlighter-rouge">OPERATOR_</code> prefix, so existing tools pick them up automatically.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Variable</th>
+      <th>Set by</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">RELAY_HUB_SOCKET</code></td>
+      <td>Operator at startup</td>
+      <td>Unix socket path for the relay hub</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">RELAY_AGENT_NAME</code></td>
+      <td>Operator at agent launch</td>
+      <td>Peer name registered for this session (ticket ID)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">CLAUDE_PLUGIN_DATA</code></td>
+      <td>Claude Code</td>
+      <td>Secondary socket path fallback</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">OPERATOR_RELAY</code></td>
+      <td>User override</td>
+      <td>Path to <code class="language-plaintext highlighter-rouge">opr8r</code> binary when auto-discovery fails</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><code class="language-plaintext highlighter-rouge">RELAY_HUB_SOCKET</code> and <code class="language-plaintext highlighter-rouge">RELAY_AGENT_NAME</code> are the entry points for hooking into the relay system from outside Operator. Any process that sets these variables and speaks the relay wire protocol can participate as a peer.</p>
+
+<h2 id="wire-compatibility">Wire compatibility</h2>
+
+<p>The protocol is byte-compatible with TypeScript claude-relay. Existing TS channels connect to the Rust hub unchanged:</p>
+
+<ul>
+  <li>Same <code class="language-plaintext highlighter-rouge">PROTOCOL_VERSION = "2"</code></li>
+  <li>Same message type names: <code class="language-plaintext highlighter-rouge">register</code>, <code class="language-plaintext highlighter-rouge">rename</code>, <code class="language-plaintext highlighter-rouge">list_peers</code>, <code class="language-plaintext highlighter-rouge">ask</code>, <code class="language-plaintext highlighter-rouge">reply</code>, <code class="language-plaintext highlighter-rouge">broadcast</code></li>
+  <li>Same error codes: <code class="language-plaintext highlighter-rouge">peer_not_found</code>, <code class="language-plaintext highlighter-rouge">name_taken</code>, <code class="language-plaintext highlighter-rouge">timeout</code>, etc.</li>
+  <li>Same line-delimited JSON framing over Unix socket</li>
+</ul>
+
+<h2 id="see-also">See also</h2>
+
+<ul>
+  <li><a href="/docs/getting-started/agents/claude/">Claude agent setup</a></li>
+  <li><a href="/docs/getting-started/agents/codex/">Codex agent setup</a></li>
+  <li><a href="/docs/delegators/">Delegators</a> — named tool + model pairings that launch agents</li>
+</ul>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

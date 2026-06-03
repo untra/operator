@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design System | Operator! Documentation</title>
+  <meta name="description" content="Operator's brand palette, design tokens, and the consistency rules each rendering surface follows.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Design System | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Design System" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Operator’s brand palette, design tokens, and the consistency rules each rendering surface follows." />
+<meta name="twitter:description" property="og:description" content="Operator’s brand palette, design tokens, and the consistency rules each rendering surface follows." />
+<link rel="canonical" href="https://operator.untra.io/design-system/" />
+<meta property="og:url" content="https://operator.untra.io/design-system/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Design System" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Operator’s brand palette, design tokens, and the consistency rules each rendering surface follows.","headline":"Design System","url":"https://operator.untra.io/design-system/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" class="active" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/design-system/index.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.1</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-03</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Design System</h1>
+  
+
+  <p><span class="operator-brand">Operator!</span> presents one brand across four
+rendering surfaces. This page is the human-readable companion to the brand
+tokens — it explains <em>intent</em> the raw <code class="language-plaintext highlighter-rouge">:root</code> block can’t, and records the rules
+each surface follows so the look stays consistent as the codebase grows.</p>
+
+<h2 id="source-of-truth">Source of truth</h2>
+
+<p>All brand colors live in one file: <strong><code class="language-plaintext highlighter-rouge">docs/assets/css/tokens.css</code></strong>. It declares
+the palette and the dark-mode overrides as CSS custom properties, and nothing
+else re-declares them. Change a color there and both web surfaces follow.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docs/assets/css/tokens.css   ← single source of truth (:root + [data-theme="dark"])
+   ├─ docs site:  linked in _includes/head.html, before main.css
+   └─ embedded SPA: @import "../../docs/assets/css/tokens.css" in ui/src/index.css
+</code></pre></div></div>
+
+<h2 id="palette">Palette</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Token</th>
+      <th>Light</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-salmon</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#e05d44</code></td>
+      <td>Terracotta — primary brand, headings accents, CTAs</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-cornflower</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#6688aa</code></td>
+      <td>Muted blue — secondary/muted text, separators</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-cream</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#f2eac9</code></td>
+      <td>Warm accent / highlight surfaces</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-coral</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#e05d44</code></td>
+      <td>Links / accents (alias of salmon in light mode)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-bg</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#faf8f5</code></td>
+      <td>Page background</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-white</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#ffffff</code></td>
+      <td>Base surface</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-green-l1</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#66aa99</code></td>
+      <td>Sage — nav buttons</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-green-l2</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#448880</code></td>
+      <td>Teal — hover / success</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-green-l3</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#115566</code></td>
+      <td>Deep pine — selected / primary text</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-green-l4</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#082226</code></td>
+      <td>Midnight — darkest</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--color-teal</code></td>
+      <td><code class="language-plaintext highlighter-rouge">#115566</code></td>
+      <td>Body text (equals green-l3)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Dark mode (<code class="language-plaintext highlighter-rouge">[data-theme="dark"]</code>) keeps salmon constant, brightens coral, and
+inverts the green scale. See <code class="language-plaintext highlighter-rouge">tokens.css</code> for the exact dark values.</p>
+
+<blockquote>
+  <p><strong>Naming note:</strong> <code class="language-plaintext highlighter-rouge">--color-cornflower</code> was previously named
+<code class="language-plaintext highlighter-rouge">--color-salmon-dark</code>, which lied about its value (<code class="language-plaintext highlighter-rouge">#6688aa</code> is blue, not a
+dark salmon). It was renamed in lockstep across both web surfaces.</p>
+</blockquote>
+
+<h2 id="semantic-tokens-spa-only">Semantic tokens (SPA only)</h2>
+
+<p>The embedded SPA layers app-specific semantic tokens on top of the brand
+palette, in <code class="language-plaintext highlighter-rouge">ui/src/index.css</code>. The docs site doesn’t need these. Components
+reference the semantic token, never the raw brand color:</p>
+
+<p><code class="language-plaintext highlighter-rouge">--surface</code>, <code class="language-plaintext highlighter-rouge">--surface-alt</code>, <code class="language-plaintext highlighter-rouge">--border</code>, <code class="language-plaintext highlighter-rouge">--text</code>, <code class="language-plaintext highlighter-rouge">--text-muted</code>,
+<code class="language-plaintext highlighter-rouge">--danger</code> / <code class="language-plaintext highlighter-rouge">--danger-bg</code>, <code class="language-plaintext highlighter-rouge">--warning</code> / <code class="language-plaintext highlighter-rouge">--warning-bg</code>,
+<code class="language-plaintext highlighter-rouge">--success</code> / <code class="language-plaintext highlighter-rouge">--success-bg</code>, plus layout tokens <code class="language-plaintext highlighter-rouge">--radius-sm|--radius|--radius-lg</code>
+and <code class="language-plaintext highlighter-rouge">--font-sans|--font-mono</code>.</p>
+
+<h2 id="the-four-surfaces">The four surfaces</h2>
+
+<p>Each surface gets the rule that fits it — they are deliberately not styled
+identically.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Surface</th>
+      <th>Where</th>
+      <th>Rule</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Docs site</strong> (Jekyll)</td>
+      <td><code class="language-plaintext highlighter-rouge">docs/assets/css/main.css</code></td>
+      <td>Links <code class="language-plaintext highlighter-rouge">tokens.css</code>; style with <code class="language-plaintext highlighter-rouge">var(--...)</code>, never raw hex.</td>
+    </tr>
+    <tr>
+      <td><strong>Embedded SPA</strong> (Vite/React)</td>
+      <td><code class="language-plaintext highlighter-rouge">ui/src/index.css</code> + <code class="language-plaintext highlighter-rouge">*.module.css</code></td>
+      <td>Imports <code class="language-plaintext highlighter-rouge">tokens.css</code>; uses semantic tokens, never raw hex.</td>
+    </tr>
+    <tr>
+      <td><strong>Ratatui TUI</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">src/ui/*.rs</code></td>
+      <td>Terminal can’t render hex — map a semantic <strong>role to ANSI</strong> (danger→Red, success→Green, warning→Yellow, focus→Cyan).</td>
+    </tr>
+    <tr>
+      <td><strong>VS Code webview</strong> (MUI)</td>
+      <td><code class="language-plaintext highlighter-rouge">vscode-extension/webview-ui/</code></td>
+      <td>Defers to the VS Code host theme; brand only as accents via <code class="language-plaintext highlighter-rouge">OPERATOR_BRAND</code>. Never overrides the editor theme.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="concept-icons-codicons">Concept icons (codicons)</h2>
+
+<p>Each high-level Operator concept gets <strong>one icon</strong> so the same idea reads the same
+across surfaces. The vocabulary is <a href="https://github.com/microsoft/vscode-codicons">codicons</a>
+— the icon set VS Code uses — chosen because the VS Code extension already renders
+its tree with codicon <code class="language-plaintext highlighter-rouge">ThemeIcon</code>s. This table is the <strong>single source of truth</strong>:
+consult it (and update it) whenever you give a concept an icon.</p>
+
+<p>Each surface follows it by convention — there is no shared runtime registry:</p>
+
+<ul>
+  <li><strong>Embedded SPA</strong> reads it via <code class="language-plaintext highlighter-rouge">ui/src/concepts.ts</code> (<code class="language-plaintext highlighter-rouge">CONCEPTS[key].icon</code>), rendered
+by <code class="language-plaintext highlighter-rouge">ui/src/components/ConceptIcon.tsx</code>. The font is imported once in <code class="language-plaintext highlighter-rouge">main.tsx</code>.</li>
+  <li><strong>Docs site</strong> reads it via the <code class="language-plaintext highlighter-rouge">codicon:</code> field on items in
+<code class="language-plaintext highlighter-rouge">_data/navigation.yml</code>, emitted by <code class="language-plaintext highlighter-rouge">_includes/sidebar.html</code>. The vendored webfont
+is linked from <code class="language-plaintext highlighter-rouge">_includes/head.html</code> (<code class="language-plaintext highlighter-rouge">assets/css/codicon.css</code> + <code class="language-plaintext highlighter-rouge">assets/fonts/codicon.ttf</code>).</li>
+  <li><strong>VS Code extension</strong> already uses codicon <code class="language-plaintext highlighter-rouge">ThemeIcon</code>s directly.</li>
+</ul>
+
+<p>This is <strong>additive</strong> — distinct from the issue-type <code class="language-plaintext highlighter-rouge">glyph</code>→icon map in
+<code class="language-plaintext highlighter-rouge">vscode-extension/src/issuetype-service.ts</code> and the <code class="language-plaintext highlighter-rouge">glyph_for_key</code>/<code class="language-plaintext highlighter-rouge">color_for_key</code>
+helpers in <code class="language-plaintext highlighter-rouge">src/templates/mod.rs</code> (documented below). It follows the same
+“central key → presentation” pattern, keyed by section concept.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Concept (key)</th>
+      <th style="text-align: center">Icon</th>
+      <th>codicon</th>
+      <th style="text-align: center">SPA</th>
+      <th style="text-align: center">Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>dashboard</td>
+      <td style="text-align: center"><i class="codicon codicon-dashboard"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">dashboard</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td>queue</td>
+      <td style="text-align: center"><i class="codicon codicon-list-ordered"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">list-ordered</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td>config (Configuration)</td>
+      <td style="text-align: center"><i class="codicon codicon-settings-gear"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">settings-gear</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>connections</td>
+      <td style="text-align: center"><i class="codicon codicon-plug"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">plug</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td>kanban</td>
+      <td style="text-align: center"><i class="codicon codicon-layout"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">layout</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>llm (LLM Tools)</td>
+      <td style="text-align: center"><i class="codicon codicon-sparkle"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">sparkle</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>model-servers</td>
+      <td style="text-align: center"><i class="codicon codicon-server"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">server</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td>git</td>
+      <td style="text-align: center"><i class="codicon codicon-git-branch"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">git-branch</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td>issuetypes (Issue Types)</td>
+      <td style="text-align: center"><i class="codicon codicon-issues"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">issues</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>delegators</td>
+      <td style="text-align: center"><i class="codicon codicon-rocket"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">rocket</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td>projects (Managed Projects)</td>
+      <td style="text-align: center"><i class="codicon codicon-project"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">project</code></td>
+      <td style="text-align: center">✓</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td>agents</td>
+      <td style="text-align: center"><i class="codicon codicon-robot"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">robot</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>tickets</td>
+      <td style="text-align: center"><i class="codicon codicon-note"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">note</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>taxonomy</td>
+      <td style="text-align: center"><i class="codicon codicon-type-hierarchy"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">type-hierarchy</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>schemas</td>
+      <td style="text-align: center"><i class="codicon codicon-bracket"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">bracket</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>shortcuts</td>
+      <td style="text-align: center"><i class="codicon codicon-keyboard"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">keyboard</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>cli</td>
+      <td style="text-align: center"><i class="codicon codicon-terminal"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">terminal</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">✓</td>
+    </tr>
+    <tr>
+      <td>design-system</td>
+      <td style="text-align: center"><i class="codicon codicon-symbol-color"></i></td>
+      <td><code class="language-plaintext highlighter-rouge">symbol-color</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">✓</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Keys match the <code class="language-plaintext highlighter-rouge">SectionId</code> serde renames in <code class="language-plaintext highlighter-rouge">src/ui/status_panel.rs</code> (and the SPA’s
+section ids). Every codicon name is unique — the Kanban-vs-Managed-Projects collision
+was resolved as kanban→<code class="language-plaintext highlighter-rouge">layout</code>, projects→<code class="language-plaintext highlighter-rouge">project</code>.</p>
+
+<blockquote>
+  <p><strong>Attribution:</strong> codicon <strong>icons</strong> are licensed <a href="https://github.com/microsoft/vscode-codicons/blob/main/LICENSE">CC-BY-4.0</a>;
+the font/CSS <strong>code</strong> is MIT, © Microsoft. The webfont is vendored under
+<code class="language-plaintext highlighter-rouge">docs/assets/</code> and bundled into the SPA via <code class="language-plaintext highlighter-rouge">@vscode/codicons</code>.</p>
+</blockquote>
+
+<h2 id="issue-type-glyphs--colors">Issue type glyphs &amp; colors</h2>
+
+<p>Issue type color + glyph are defined once in the collection JSON schemas and
+read through <code class="language-plaintext highlighter-rouge">color_for_key</code> / <code class="language-plaintext highlighter-rouge">glyph_for_key</code> in <code class="language-plaintext highlighter-rouge">src/templates/mod.rs</code>. Reuse
+those helpers — do not re-hardcode the mapping in new UI.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Glyph</th>
+      <th>Color</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>FEAT</td>
+      <td><code class="language-plaintext highlighter-rouge">*</code></td>
+      <td>green</td>
+    </tr>
+    <tr>
+      <td>FIX</td>
+      <td><code class="language-plaintext highlighter-rouge">#</code></td>
+      <td>magenta</td>
+    </tr>
+    <tr>
+      <td>TASK</td>
+      <td><code class="language-plaintext highlighter-rouge">&gt;</code></td>
+      <td>cyan</td>
+    </tr>
+    <tr>
+      <td>SPIKE</td>
+      <td><code class="language-plaintext highlighter-rouge">?</code></td>
+      <td>blue</td>
+    </tr>
+    <tr>
+      <td>INV</td>
+      <td><code class="language-plaintext highlighter-rouge">!</code></td>
+      <td>yellow</td>
+    </tr>
+    <tr>
+      <td>ASSESS</td>
+      <td><code class="language-plaintext highlighter-rouge">~</code></td>
+      <td>magenta</td>
+    </tr>
+    <tr>
+      <td>SYNC</td>
+      <td><code class="language-plaintext highlighter-rouge">@</code></td>
+      <td>blue</td>
+    </tr>
+    <tr>
+      <td>INIT</td>
+      <td><code class="language-plaintext highlighter-rouge">%</code></td>
+      <td>green</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="priority-colors">Priority colors</h2>
+
+<p>Priority maps to a single role across surfaces: P0 → danger (red), P1 → warning
+(yellow/gold), P2 → sage green, P3 → muted border. In the SPA these resolve to
+<code class="language-plaintext highlighter-rouge">--danger</code> / <code class="language-plaintext highlighter-rouge">--warning</code> / <code class="language-plaintext highlighter-rouge">--color-green-l1</code> / <code class="language-plaintext highlighter-rouge">--border</code>
+(<code class="language-plaintext highlighter-rouge">ui/src/components/KanbanBoard.module.css</code>); in the TUI to the nearest ANSI
+(<code class="language-plaintext highlighter-rouge">src/ui/panels.rs</code>).</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

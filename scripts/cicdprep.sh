@@ -93,6 +93,25 @@ run_step() {
   fi
 }
 
+# Verify a bun project's lockfile is in sync with its package.json, exactly the
+# way CI does (`bun install --frozen-lockfile`). This is the check that catches
+# the "lockfile had changes, but lockfile is frozen" CI failure locally — it
+# happens when package.json is edited but bun.lock isn't regenerated/committed.
+check_bun_lockfile() {
+  local dir="$1"
+  step "Lockfile sync: $dir"
+  if [ ! -f "$dir/bun.lock" ]; then
+    skip "Lockfile sync: $dir (no bun.lock)"
+    return
+  fi
+  if (cd "$dir" && bun install --frozen-lockfile) >/dev/null 2>&1; then
+    pass "Lockfile sync: $dir"
+  else
+    echo -e "  ${YELLOW}lockfile out of sync — run: ${BOLD}(cd $dir && bun install)${RESET}${YELLOW} and commit bun.lock${RESET}"
+    fail "Lockfile sync: $dir"
+  fi
+}
+
 # --- Detect changed files ---
 
 section "Detecting changes"
@@ -146,6 +165,30 @@ needs_opr8r()      { has_changes '^opr8r/'; }
 needs_vscode()     { has_changes '^(vscode-extension/|icons/)'; }
 needs_zed()        { has_changes '^zed-extension/'; }
 needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/taxonomy/taxonomy\.toml|src/templates/.*\.json)'; }
+
+# A bun project needs a lockfile check whenever its package.json or bun.lock
+# changed. Root project lives at the repo root; others under their dir.
+needs_bun_root()       { has_changes '^(package\.json|bun\.lock)$'; }
+needs_bun_ui()         { has_changes '^ui/(package\.json|bun\.lock)$'; }
+needs_bun_backstage()  { has_changes '^backstage-server/(.*/)?(package\.json|bun\.lock)$'; }
+
+# --- 0. Bun lockfiles ---
+#
+# Run this first, cheaply, across every bun project so a stale lockfile fails
+# loudly and early instead of midway through a UI build. Mirrors CI's
+# `bun install --frozen-lockfile`, and additionally covers the root and
+# backstage-server lockfiles that CI does not currently enforce.
+
+if needs_bun_root || needs_bun_ui || needs_bun_backstage; then
+  section "Bun lockfiles"
+  require_tool bun "bun lockfile sync"
+
+  if needs_bun_root;      then check_bun_lockfile ".";                else skip "Lockfile sync: . (no changes)"; fi
+  if needs_bun_ui;        then check_bun_lockfile "ui";               else skip "Lockfile sync: ui (no changes)"; fi
+  if needs_bun_backstage; then check_bun_lockfile "backstage-server"; else skip "Lockfile sync: backstage-server (no changes)"; fi
+else
+  skip "Bun lockfiles"
+fi
 
 # --- 1. Operator (main crate) ---
 

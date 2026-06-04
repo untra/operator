@@ -30,7 +30,7 @@ jobs:
       SIGNED_BLOB_NAME: signed-${{ github.run_id }}-${{ inputs.artifact-name }}
     steps:
       - name: Download unsigned artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.artifact-name }}
           path: unsigned
@@ -126,7 +126,7 @@ jobs:
             --file "signed/${{ steps.find-exe.outputs.exe_name }}"
 
       - name: Upload signed artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.artifact-name }}
           path: signed/${{ steps.find-exe.outputs.exe_name }}

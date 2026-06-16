@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://operator.dev/schemas/operator_output.schema.json",
+  "$id": "https://operator.untra.io/schemas/operator_output.json",
   "title": "OperatorOutput",
   "description": "Standardized agent output for progress tracking and step transitions. Used by agents to report their status, progress, and recommendations to the Operator system.",
   "type": "object",

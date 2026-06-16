@@ -15,7 +15,7 @@ use crate::notifications::NotificationService;
 use crate::relay::hub::RelayHub;
 #[cfg(unix)]
 use crate::relay::socket_path::hub_socket_path;
-use crate::rest::RestApiServer;
+use crate::rest::{ExternalApiProbe, RestApiServer};
 use crate::services::{KanbanSyncService, PrMonitorService, PrStatusEvent, TrackedPr};
 use crate::ui::create_dialog::CreateDialog;
 use crate::ui::dialogs::HelpDialog;
@@ -109,8 +109,6 @@ pub struct App {
     pub(crate) update_notification_shown_at: Option<std::time::Instant>,
     /// Receiver for version check results
     pub(crate) version_rx: mpsc::UnboundedReceiver<String>,
-    /// True if REST API port was in use at startup (another instance may be running)
-    pub(crate) api_port_conflict: bool,
     /// Relay hub handle (None if hub failed to start or another instance is running)
     #[cfg(unix)]
     pub(crate) relay_hub: Option<RelayHub>,
@@ -314,7 +312,6 @@ impl App {
             update_available_version: None,
             update_notification_shown_at: None,
             version_rx,
-            api_port_conflict: false,
             #[cfg(unix)]
             relay_hub,
             tmux_client,
@@ -339,13 +336,48 @@ impl App {
 
         // Always try to start REST API (unless disabled in config)
         if self.config.rest_api.enabled {
-            // Check if port is already in use (another operator instance may be running)
+            // If the port is already in use, probe it: a same-version operator
+            // serving this same project is adopted as our API (so downstream
+            // steps proceed); anything else is reported as a clear conflict
+            // rather than silently blocking.
             if self.rest_api_server.is_port_in_use().await {
-                self.api_port_conflict = true;
-                tracing::warn!(
-                    port = self.config.rest_api.port,
-                    "REST API port is already in use. Another operator instance may be running from this .tickets/ directory."
-                );
+                let port = self.config.rest_api.port;
+                match self.rest_api_server.probe_external().await {
+                    ExternalApiProbe::AdoptableSameProject { version, .. } => {
+                        tracing::info!(
+                            port,
+                            %version,
+                            "Adopting existing operator API on this port (same version, same project)"
+                        );
+                        self.rest_api_server.mark_external();
+                    }
+                    ExternalApiProbe::VersionMismatch { found } => {
+                        let reason = format!(
+                            "Port {port} held by operator v{found} (this is v{}); start it elsewhere or stop the other instance",
+                            env!("CARGO_PKG_VERSION")
+                        );
+                        tracing::warn!("{reason}");
+                        self.rest_api_server.mark_conflict(reason);
+                    }
+                    ExternalApiProbe::DifferentProject { found_name } => {
+                        let reason = format!(
+                            "Port {port} serves a different project ('{found_name}'); configure a different rest_api.port"
+                        );
+                        tracing::warn!("{reason}");
+                        self.rest_api_server.mark_conflict(reason);
+                    }
+                    ExternalApiProbe::NotOperator => {
+                        let reason = format!("Port {port} is held by a non-operator process");
+                        tracing::warn!("{reason}");
+                        self.rest_api_server.mark_conflict(reason);
+                    }
+                    ExternalApiProbe::Unreachable => {
+                        let reason =
+                            format!("Port {port} is in use but not responding to health checks");
+                        tracing::warn!("{reason}");
+                        self.rest_api_server.mark_conflict(reason);
+                    }
+                }
             } else if let Err(e) = self.rest_api_server.start() {
                 tracing::error!("REST API start failed: {}", e);
             }

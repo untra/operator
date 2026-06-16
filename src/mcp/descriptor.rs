@@ -5,8 +5,9 @@
 //! vscode-extension) and, optionally, the stdio entrypoint command so
 //! clients can spawn `operator mcp` as a subprocess instead.
 
-use axum::extract::{Host, State};
+use axum::extract::State;
 use axum::Json;
+use axum_extra::extract::Host;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

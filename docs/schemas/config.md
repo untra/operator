@@ -359,6 +359,7 @@ REST API server configuration
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether the REST API is enabled |
+| `host` | `string` | No | Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server — which reports the project directory name — is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces. |
 | `port` | `integer` | No | Port for the REST API server |
 | `cors_origins` | `array` | No | CORS allowed origins (empty = allow all) |
 

@@ -60,14 +60,80 @@ pub enum RestApiStatus {
     Stopped,
     Starting,
     Stopping,
-    Running { port: u16 },
+    /// This process owns the server listening on `port`.
+    Running {
+        port: u16,
+    },
+    /// Another process already serves a compatible (same version, same project)
+    /// operator API on `port`; we adopted it instead of starting our own.
+    RunningExternal {
+        port: u16,
+    },
     Error(String),
 }
 
 impl RestApiStatus {
-    /// Returns true if the server is running
+    /// Returns true if a usable server is available — whether this process owns
+    /// it (`Running`) or we adopted a compatible external one (`RunningExternal`).
     pub fn is_running(&self) -> bool {
-        matches!(self, RestApiStatus::Running { .. })
+        matches!(
+            self,
+            RestApiStatus::Running { .. } | RestApiStatus::RunningExternal { .. }
+        )
+    }
+}
+
+/// Result of probing an API already listening on the expected port, used to
+/// decide whether to adopt it as "connected" or report a clear conflict.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExternalApiProbe {
+    /// A same-version operator API serving the same project — safe to adopt.
+    AdoptableSameProject { port: u16, version: String },
+    /// An operator API of a different version is on the port.
+    VersionMismatch { found: String },
+    /// A same-version operator API serving a *different* project is on the port.
+    DifferentProject { found_name: String },
+    /// Something is listening, but it is not an operator API.
+    NotOperator,
+    /// Nothing answered (port held by a process that isn't accepting HTTP, etc.).
+    Unreachable,
+}
+
+/// Tolerant view of `/api/v1/health` — older or foreign servers may omit fields.
+#[derive(Debug, Clone, serde::Deserialize)]
+struct ProbeHealth {
+    #[serde(default)]
+    version: String,
+    #[serde(default)]
+    directory_name: String,
+    #[serde(default)]
+    directory_id: String,
+}
+
+/// Decide how to treat an API on the port, given the local identity and the
+/// health payload it returned. Pure so the decision is unit-testable.
+fn classify_probe(
+    port: u16,
+    local_version: &str,
+    local_directory_id: &str,
+    health: &ProbeHealth,
+) -> ExternalApiProbe {
+    if health.version.is_empty() {
+        // Responded, but without a version — not an operator health endpoint.
+        ExternalApiProbe::NotOperator
+    } else if health.version != local_version {
+        ExternalApiProbe::VersionMismatch {
+            found: health.version.clone(),
+        }
+    } else if health.directory_id != local_directory_id {
+        ExternalApiProbe::DifferentProject {
+            found_name: health.directory_name.clone(),
+        }
+    } else {
+        ExternalApiProbe::AdoptableSameProject {
+            port,
+            version: health.version.clone(),
+        }
     }
 }
 
@@ -128,8 +194,37 @@ impl RestApiServer {
     /// This is useful for detecting if another operator instance is already running.
     pub async fn is_port_in_use(&self) -> bool {
         use std::net::SocketAddr;
-        let addr = SocketAddr::from(([0, 0, 0, 0], self.port));
+        let addr = SocketAddr::new(self.config.rest_api.host_ip(), self.port);
         tokio::net::TcpListener::bind(addr).await.is_err()
+    }
+
+    /// Probe an API already listening on the configured port to decide whether
+    /// it is a same-version operator serving this project (safe to adopt) or a
+    /// conflict we should report. Always connects over loopback.
+    pub async fn probe_external(&self) -> ExternalApiProbe {
+        let url = format!("http://127.0.0.1:{}/api/v1/health", self.port);
+        let client = match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(2))
+            .build()
+        {
+            Ok(c) => c,
+            Err(_) => return ExternalApiProbe::Unreachable,
+        };
+
+        let response = match client.get(&url).send().await {
+            Ok(r) => r,
+            Err(_) => return ExternalApiProbe::Unreachable,
+        };
+
+        // A 2xx that doesn't deserialize into a health shape is "not operator".
+        let health = match response.json::<ProbeHealth>().await {
+            Ok(h) => h,
+            Err(_) => return ExternalApiProbe::NotOperator,
+        };
+
+        let (_local_name, local_id) =
+            crate::rest::directory::directory_identity(&self.tickets_path);
+        classify_probe(self.port, env!("CARGO_PKG_VERSION"), &local_id, &health)
     }
 
     /// Start the REST API server
@@ -146,6 +241,7 @@ impl RestApiServer {
         *self.api_state.lock().unwrap() = Some(state.clone());
         let router = build_router(state);
         let port = self.port;
+        let host_ip = self.config.rest_api.host_ip();
         let status = self.status.clone();
         let tickets_path = self.tickets_path.clone();
         let api_state_handle = self.api_state.clone();
@@ -154,7 +250,7 @@ impl RestApiServer {
 
         let handle = tokio::spawn(async move {
             use std::net::SocketAddr;
-            let addr = SocketAddr::from(([0, 0, 0, 0], port));
+            let addr = SocketAddr::new(host_ip, port);
 
             match tokio::net::TcpListener::bind(addr).await {
                 Ok(listener) => {
@@ -193,6 +289,19 @@ impl RestApiServer {
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         Ok(())
+    }
+
+    /// Adopt an external server already listening on our port as the active API.
+    /// Used when a probe found a same-version operator serving this project.
+    pub fn mark_external(&self) {
+        *self.status.lock().unwrap() = RestApiStatus::RunningExternal { port: self.port };
+    }
+
+    /// Record that the port is occupied by something we cannot adopt (different
+    /// version, different project, or a non-operator process). Surfaced to the
+    /// operator via the dashboard's REST API status line.
+    pub fn mark_conflict(&self, reason: impl Into<String>) {
+        *self.status.lock().unwrap() = RestApiStatus::Error(reason.into());
     }
 
     /// Stop the REST API server
@@ -244,7 +353,71 @@ mod tests {
         assert!(!RestApiStatus::Starting.is_running());
         assert!(!RestApiStatus::Stopping.is_running());
         assert!(RestApiStatus::Running { port: 7008 }.is_running());
+        // An adopted external server must also count as running so downstream
+        // steps (web UI launch, etc.) proceed.
+        assert!(RestApiStatus::RunningExternal { port: 7008 }.is_running());
         assert!(!RestApiStatus::Error("test".to_string()).is_running());
+    }
+
+    fn probe_health(version: &str, dir_id: &str, dir_name: &str) -> ProbeHealth {
+        ProbeHealth {
+            version: version.to_string(),
+            directory_name: dir_name.to_string(),
+            directory_id: dir_id.to_string(),
+        }
+    }
+
+    #[test]
+    fn test_classify_adoptable_same_version_same_project() {
+        let h = probe_health("0.2.1", "abc123abc123", "acme");
+        let result = classify_probe(7008, "0.2.1", "abc123abc123", &h);
+        assert_eq!(
+            result,
+            ExternalApiProbe::AdoptableSameProject {
+                port: 7008,
+                version: "0.2.1".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_version_mismatch() {
+        let h = probe_health("0.3.0", "abc123abc123", "acme");
+        let result = classify_probe(7008, "0.2.1", "abc123abc123", &h);
+        assert_eq!(
+            result,
+            ExternalApiProbe::VersionMismatch {
+                found: "0.3.0".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_different_project() {
+        // Same version, different directory id -> must NOT adopt.
+        let h = probe_health("0.2.1", "deadbeef0000", "other-repo");
+        let result = classify_probe(7008, "0.2.1", "abc123abc123", &h);
+        assert_eq!(
+            result,
+            ExternalApiProbe::DifferentProject {
+                found_name: "other-repo".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_not_operator_when_no_version() {
+        let h = probe_health("", "", "");
+        let result = classify_probe(7008, "0.2.1", "abc123abc123", &h);
+        assert_eq!(result, ExternalApiProbe::NotOperator);
+    }
+
+    #[tokio::test]
+    async fn test_probe_external_unreachable_when_nothing_listening() {
+        // Port 1 is privileged/closed; nothing answers -> Unreachable.
+        let config = Config::default();
+        let server = RestApiServer::new(config, 1);
+        assert_eq!(server.probe_external().await, ExternalApiProbe::Unreachable);
     }
 
     #[test]

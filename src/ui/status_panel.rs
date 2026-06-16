@@ -623,7 +623,9 @@ impl StatusSnapshot {
     /// Returns the API port if the REST server is running.
     pub fn api_port(&self) -> Option<u16> {
         match &self.api_status {
-            RestApiStatus::Running { port } => Some(*port),
+            RestApiStatus::Running { port } | RestApiStatus::RunningExternal { port } => {
+                Some(*port)
+            }
             _ => None,
         }
     }

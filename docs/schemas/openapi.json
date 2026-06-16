@@ -2,9 +2,9 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Operator API",
-    "description": "REST API for managing issue types and collections in the Operator system.",
+    "description": "REST API for managing and running Operator server system.",
     "contact": {
-      "name": "gbqr.us",
+      "name": "untra",
       "url": "https://github.com/untra/operator"
     },
     "license": {
@@ -3618,9 +3618,19 @@
         "description": "Health check response",
         "required": [
           "status",
-          "version"
+          "version",
+          "directory_name",
+          "directory_id"
         ],
         "properties": {
+          "directory_id": {
+            "type": "string",
+            "description": "Non-reversible fingerprint of the working root's canonical path."
+          },
+          "directory_name": {
+            "type": "string",
+            "description": "Top-level directory name of the operator working root (e.g. \"acme\")."
+          },
           "status": {
             "type": "string"
           },
@@ -5240,6 +5250,8 @@
         "required": [
           "status",
           "version",
+          "directory_name",
+          "directory_id",
           "issuetype_count",
           "collection_count",
           "active_collection"
@@ -5251,6 +5263,14 @@
           "collection_count": {
             "type": "integer",
             "minimum": 0
+          },
+          "directory_id": {
+            "type": "string",
+            "description": "Non-reversible fingerprint of the working root's canonical path."
+          },
+          "directory_name": {
+            "type": "string",
+            "description": "Top-level directory name of the operator working root (e.g. \"acme\")."
           },
           "issuetype_count": {
             "type": "integer",

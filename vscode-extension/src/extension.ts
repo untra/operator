@@ -834,8 +834,21 @@ async function startOperatorServerCommand(ctx: CommandContext): Promise<void> {
 
   const apiClient = new OperatorApiClient();
   try {
-    await apiClient.health();
-    void vscode.window.showInformationMessage('Operator is already running');
+    const health = await apiClient.health();
+    const localVersion = await getOperatorVersion(operatorPath);
+    if (localVersion && health.version && health.version !== localVersion) {
+      // The port is held by a different operator version — adopting it could
+      // mix incompatible client/server APIs. Warn instead of silently starting.
+      void vscode.window.showWarningMessage(
+        `A different Operator version (v${health.version}) is already running on this port; ` +
+          `this binary is v${localVersion}. Stop the other instance or set a different ` +
+          `port (operator.apiUrl) before starting your own server.`
+      );
+      return;
+    }
+    void vscode.window.showInformationMessage(
+      health.version ? `Operator is already running (v${health.version})` : 'Operator is already running'
+    );
     return;
   } catch {
     // Not running, proceed to start

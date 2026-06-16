@@ -5,7 +5,10 @@ url: "https://operator.untra.io"
 baseurl: ""
 
 # Social/SEO
-image: /assets/img/patricia_512.png
+# 1200x630 social card (raster PNG — SVG is not rendered by social unfurlers).
+# Also set in `defaults` below because jekyll-seo-tag emits og:image from
+# page.image, not site.image.
+image: /assets/img/operator_og.png
 twitter:
   card: summary_large_image
 
@@ -36,6 +39,7 @@ defaults:
       path: ""
     values:
       layout: "doc"
+      image: /assets/img/operator_og.png
 
 # Collections
 collections_dir: .

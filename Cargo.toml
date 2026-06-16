@@ -3,8 +3,8 @@ name = "operator"
 version = "0.2.1"
 edition = "2021"
 rust-version = "1.95"
-description = "Multi-agent orchestration dashboard for gbqr.us"
-authors = ["gbqr.us"]
+description = "Multi-agent orchestration dashboard for kanban shaped software development"
+authors = ["untra"]
 license = "MIT"
 default-run = "operator"
 
@@ -25,6 +25,11 @@ path = "src/bin/generate_types.rs"
 operator-relay = { path = "crates/relay" }
 
 # TUI
+# NOTE: ratatui is held at 0.29 and crossterm at 0.28 because the official
+# `tui-textarea` 0.7 depends on ratatui 0.29 / crossterm 0.28.
+# Bumping either here pulls a second ratatui/crossterm into the tree and the
+# `Style`/`KeyEvent` types stop unifying in `form_field.rs`. Revisit when
+# upstream `tui-textarea` supports ratatui 0.30.
 ratatui = "0.29"
 crossterm = "0.28"
 tui-textarea = "0.7"
@@ -36,18 +41,18 @@ handlebars = "6"
 tokio = { version = "1", features = ["full"] }
 
 # File watching
-notify = "7"
+notify = "8"
 
 # Configuration
-config = "0.14"
+config = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
-toml = "0.8"
+toml = "1"
 
 # Schema and TypeScript generation
 schemars = { version = "1.0", features = ["chrono04", "uuid1", "preserve_order"] }
-ts-rs = { version = "10", features = ["uuid-impl", "chrono-impl", "no-serde-warnings", "serde-json-impl"] }
+ts-rs = { version = "12", features = ["uuid-impl", "chrono-impl", "no-serde-warnings", "serde-json-impl"] }
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -60,19 +65,19 @@ thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
-dirs = "5"
+dirs = "6"
 glob = "0.3"
 regex = "1"
 once_cell = "1"
 lazy_static = "1"
 backon = "1"
-which = "7"
+which = "8"
 
 # System info (for core count)
-sysinfo = "0.32"
+sysinfo = "0.39"
 
 # Cryptography (for content hashing)
-sha2 = "0.10"
+sha2 = "0.11"
 
 # HTTP client for API calls
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "blocking"] }
@@ -81,7 +86,9 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls", "blocking"] }
 async-trait = "0.1"
 
 # REST API
-axum = { version = "0.7", features = ["macros", "tokio", "tracing"] }
+axum = { version = "0.8", features = ["macros", "tokio", "tracing"] }
+# `Host` extractor moved out of axum core in 0.8; it now lives in axum-extra.
+axum-extra = "0.10"
 tokio-stream = "0.1"
 futures-util = "0.3"
 tower = "0.5"
@@ -90,15 +97,15 @@ http-body-util = "0.1"
 
 # OpenAPI documentation
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
-utoipa-swagger-ui = { version = "8", features = ["axum"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 
 # Agent Client Protocol (ACP) — JSON-RPC 2.0 over stdio for editor integration
-agent-client-protocol = "0.12"
+agent-client-protocol = "0.14"
 
 # Embedded web UI (behind embed-ui feature flag)
 rust-embed = { version = "8", optional = true }
 mime_guess = { version = "2", optional = true }
-utoipa-axum = "0.1"
+utoipa-axum = "0.2"
 
 [features]
 default = ["embed-ui"]

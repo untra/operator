@@ -95,6 +95,7 @@
       "$ref": "#/$defs/RestApiConfig",
       "default": {
         "enabled": true,
+        "host": "127.0.0.1",
         "port": 7008,
         "cors_origins": []
       }
@@ -1060,6 +1061,11 @@
           "description": "Whether the REST API is enabled",
           "type": "boolean",
           "default": true
+        },
+        "host": {
+          "description": "Address the REST API binds to. Defaults to `127.0.0.1` (local only) so\nthe server — which reports the project directory name — is not reachable\nfrom other hosts. Set to `0.0.0.0` to expose it on all interfaces.",
+          "type": "string",
+          "default": "127.0.0.1"
         },
         "port": {
           "description": "Port for the REST API server",

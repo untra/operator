@@ -406,6 +406,12 @@ export type RestApiConfig = {
  */
 enabled: boolean, 
 /**
+ * Address the REST API binds to. Defaults to `127.0.0.1` (local only) so
+ * the server — which reports the project directory name — is not reachable
+ * from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
+ */
+host: string, 
+/**
  * Port for the REST API server
  */
 port: number, 
@@ -439,7 +445,7 @@ default_model: string | null,
 /**
  * Per-tool overrides for skill directories (keyed by `tool_name`)
  */
-skill_directory_overrides: { [key in string]?: SkillDirectoriesOverride }, };
+skill_directory_overrides: { [key in string]: SkillDirectoriesOverride }, };
 
 export type DetectedTool = { 
 /**
@@ -509,7 +515,7 @@ flags: Array<string>,
 /**
  * Environment variables to set when launching
  */
-env: { [key in string]?: string }, 
+env: { [key in string]: string }, 
 /**
  * Whether this provider requires approval gates
  */
@@ -557,7 +563,7 @@ display_name: string | null,
 /**
  * Arbitrary model properties (e.g., `reasoning_effort`, sandbox)
  */
-model_properties: { [key in string]?: string }, 
+model_properties: { [key in string]: string }, 
 /**
  * Optional launch configuration
  */
@@ -579,19 +585,19 @@ model_server: string | null,
  * `--format agnt` workflow export as an `agnt-agent` node. `None` = ordinary,
  * locally launchable delegator.
  */
-remote_agent: RemoteAgentRef | null, 
+remote_agent?: RemoteAgentRef | null, 
 /**
  * Opaque AGNT-namespaced extension fields, preserved verbatim across an
  * `AgentProfile` round-trip so re-export is lossless (e.g. `memory`,
  * `assignedWorkflows`, `creditLimit`). Operator never interprets this.
  */
-x_agnt: JsonValue | null, 
+x_agnt?: JsonValue | null, 
 /**
  * Opaque OpenAI-namespaced extension fields, preserved verbatim across an
  * `AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`,
  * `metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted.
  */
-x_openai: JsonValue | null, 
+x_openai?: JsonValue | null, 
 /**
  * Opaque carry for `AgentProfile` shared-core fields Operator cannot model
  * first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an
@@ -599,7 +605,7 @@ x_openai: JsonValue | null,
  * shared-core fields, not AGNT-specific, so folding them into `x_agnt` would
  * corrupt that namespace. Operator never interprets this.
  */
-unmapped_core: JsonValue | null, };
+unmapped_core?: JsonValue | null, };
 
 export type DelegatorLaunchConfig = { 
 /**
@@ -656,7 +662,7 @@ model: string,
  * System prompt. Operator has no first-class system prompt, so this is
  * preserved opaquely across import (see [`Delegator::unmapped_core`]).
  */
-system_prompt: string | null, 
+system_prompt?: string | null, 
 /**
  * Named skills. Preserved opaquely across import.
  */
@@ -673,43 +679,43 @@ tools: Array<string>,
  * Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...).
  * `None` = a locally launchable agent, not bound to a remote platform.
  */
-remote_agent: RemoteAgentRef | null, 
+remote_agent?: RemoteAgentRef | null, 
 /**
  * Operator-owned extension fields (typed). `None` when the agent carries no
  * Operator-specific configuration.
  */
-x_operator: XOperator | null, 
+x_operator?: XOperator | null, 
 /**
  * AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`,
  * `creditLimit`, ...). Operator never interprets this — pure pass-through.
  */
-x_agnt: JsonValue | null, 
+x_agnt?: JsonValue | null, 
 /**
  * OpenAI-owned extension fields, opaque (`instructions`, `tools`,
  * `tool_resources`, `metadata`, thread refs, ...). Mirror of `x_agnt` for a
  * second platform — never interpreted. This field is the whole per-tool cost
  * of adding `OpenAI`: a passthrough bag, no mapping logic.
  */
-x_openai: JsonValue | null, };
+x_openai?: JsonValue | null, };
 
 export type XOperator = { 
 /**
  * Optional display name for UI.
  */
-display_name: string | null, 
+display_name?: string | null, 
 /**
  * Arbitrary model properties (e.g. `reasoning_effort`, sandbox).
  */
-model_properties: { [key in string]?: string }, 
+model_properties?: { [key in string]: string }, 
 /**
  * Name of a declared `ModelServer` (`None` = implicit vendor default).
  */
-model_server: string | null, 
+model_server?: string | null, 
 /**
  * Launch configuration (permission mode, flags, worktree/docker, prompt
  * wrapping, ...).
  */
-launch_config: DelegatorLaunchConfig | null, };
+launch_config?: DelegatorLaunchConfig | null, };
 
 export type RemoteAgentRef = { 
 /**
@@ -768,11 +774,11 @@ export type State = { paused: boolean, agents: Array<AgentState>, completed: Arr
 /**
  * Per-project LLM usage statistics
  */
-project_llm_stats: { [key in string]?: ProjectLlmStats }, 
+project_llm_stats: { [key in string]: ProjectLlmStats }, 
 /**
  * Per-project issue type collection preferences (`project_name` -> `collection_name`)
  */
-project_collection_prefs: { [key in string]?: string }, 
+project_collection_prefs: { [key in string]: string }, 
 /**
  * Active multi-agent step groups (`multi_model`, `multi_prompt`, `matrixed`)
  */
@@ -895,9 +901,25 @@ review_type: string | null, next_step: string | null, permission_mode: string | 
 
 export type CollectionResponse = { name: string, description: string, types: Array<string>, is_active: boolean, };
 
-export type HealthResponse = { status: string, version: string, };
+export type HealthResponse = { status: string, version: string, 
+/**
+ * Top-level directory name of the operator working root (e.g. "acme").
+ */
+directory_name: string, 
+/**
+ * Non-reversible fingerprint of the working root's canonical path.
+ */
+directory_id: string, };
 
-export type StatusResponse = { status: string, version: string, issuetype_count: number, collection_count: number, active_collection: string, };
+export type StatusResponse = { status: string, version: string, 
+/**
+ * Top-level directory name of the operator working root (e.g. "acme").
+ */
+directory_name: string, 
+/**
+ * Non-reversible fingerprint of the working root's canonical path.
+ */
+directory_id: string, issuetype_count: number, collection_count: number, active_collection: string, };
 
 export type SectionDto = { 
 /**
@@ -1024,7 +1046,7 @@ summary: string | null,
  * Additional Handlebars values for the template. Explicit `project`/
  * `summary` fields take precedence over the same keys here.
  */
-values: { [key in string]?: string }, };
+values: { [key in string]: string }, };
 
 export type CreateTicketResponse = { 
 /**
@@ -1116,7 +1138,7 @@ display_name: string | null,
 /**
  * Arbitrary model properties
  */
-model_properties: { [key in string]?: string }, 
+model_properties: { [key in string]: string }, 
 /**
  * Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
  */
@@ -1161,7 +1183,7 @@ display_name: string | null,
 /**
  * Arbitrary model properties
  */
-model_properties: { [key in string]?: string }, 
+model_properties: { [key in string]: string }, 
 /**
  * Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
  */
@@ -1184,7 +1206,7 @@ yolo: boolean,
 /**
  * Permission mode override
  */
-permission_mode: string | null, 
+permission_mode?: string | null, 
 /**
  * Additional CLI flags
  */
@@ -1192,41 +1214,41 @@ flags: Array<string>,
 /**
  * Override global `git.use_worktrees` (None = use global setting)
  */
-use_worktrees: boolean | null, 
+use_worktrees?: boolean | null, 
 /**
  * Whether to create a git branch for the ticket (None = default behavior)
  */
-create_branch: boolean | null, 
+create_branch?: boolean | null, 
 /**
  * Run in docker container (None = use global `launch.docker.enabled`)
  */
-docker: boolean | null, 
+docker?: boolean | null, 
 /**
  * Prompt text to prepend before the generated step prompt
  */
-prompt_prefix: string | null, 
+prompt_prefix?: string | null, 
 /**
  * Prompt text to append after the generated step prompt
  */
-prompt_suffix: string | null, 
+prompt_suffix?: string | null, 
 /**
  * Override global relay auto-inject MCP setting per-delegator (None = use global setting)
  */
-operator_relay: boolean | null, };
+operator_relay?: boolean | null, };
 
 export type LlmTask = { 
 /**
  * LLM task ID (e.g., Claude delegate mode task UUID)
  */
-id: string | null, 
+id?: string | null, 
 /**
  * LLM task status: "open" or "resolved"
  */
-status: string | null, 
+status?: string | null, 
 /**
  * List of task IDs that must resolve before this task
  */
-blocked_by: Array<string>, };
+blocked_by?: Array<string>, };
 
 export type JiraSearchResponse = { 
 /**
@@ -1410,7 +1432,7 @@ workingDir?: string,
 /**
  * Environment variables to set
  */
-env?: { [key in string]?: string }, };
+env?: { [key in string]: string }, };
 
 export type VsCodeSendCommandRequest = { 
 /**
@@ -1524,7 +1546,7 @@ project: string,
 /**
  * Session UUIDs by step name
  */
-sessions?: { [key in string]?: string }, 
+sessions?: { [key in string]: string }, 
 /**
  * Git worktree path if using per-ticket worktrees
  */

@@ -8,7 +8,7 @@ kind: Component
 metadata:
   name: operator
   title: Operator
-  description: Multi-agent orchestration dashboard for gbqr.us - TUI application for managing ticket queues, launching Claude Code agents, and tracking progress across projects.
+  description: Multi-agent orchestration dashboard for kanban shaped software development - TUI application for managing ticket queues, launching Claude Code agents, and tracking progress across projects.
   annotations:
     backstage.io/techdocs-ref: dir:.
     github.com/project-slug: untra/operator

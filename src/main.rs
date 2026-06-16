@@ -808,8 +808,8 @@ fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {
 
 fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
     use docs_gen::{
-        cli, config, config_schema, issuetype, issuetype_json_schema, jira_api, metadata, openapi,
-        operator_output_schema, project_analysis_schema, schema_index, shortcuts, startup,
+        cli, config, config_schema, issuetype, issuetype_json_schema, jira_api, llms, metadata,
+        openapi, operator_output_schema, project_analysis_schema, schema_index, shortcuts, startup,
         state_schema, taxonomy, DocGenerator,
     };
     use std::path::PathBuf;
@@ -875,9 +875,12 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
                 project_analysis_schema::ProjectAnalysisSchemaDocGenerator,
             )]
         }
+        Some("llms") => {
+            vec![Box::new(llms::LlmsTxtDocGenerator)]
+        }
         Some(other) => {
             println!(
-                "Unknown generator: {other}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api, operator-output-schema, issuetype-json-schema, project-analysis-schema"
+                "Unknown generator: {other}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api, operator-output-schema, issuetype-json-schema, project-analysis-schema, llms"
             );
             return Ok(());
         }
@@ -899,6 +902,7 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
                 Box::new(operator_output_schema::OperatorOutputSchemaDocGenerator),
                 Box::new(issuetype_json_schema::IssuetypeJsonSchemaDocGenerator),
                 Box::new(project_analysis_schema::ProjectAnalysisSchemaDocGenerator),
+                Box::new(llms::LlmsTxtDocGenerator),
             ]
         }
     };

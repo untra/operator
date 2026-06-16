@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gbqr.us/operator/project-analysis.schema.json",
+  "$id": "https://operator.untra.io/schemas/project_analysis.json",
   "title": "Project Analysis Schema",
   "description": "Structured output schema for project assessment analysis. Used by the ASSESS issuetype's analyze step with Claude's --json-schema mode.",
   "type": "object",

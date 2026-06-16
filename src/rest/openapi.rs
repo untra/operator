@@ -32,11 +32,14 @@ use crate::rest::error::ErrorResponse;
 #[openapi(
     info(
         title = "Operator API",
-        version = "0.1.6",
-        description = "REST API for managing issue types and collections in the Operator system.",
+        // NOTE: no `version` here on purpose. The version is stamped at runtime
+        // from `CARGO_PKG_VERSION` in `crate::rest::openapi_spec`, the single
+        // source of truth, so it always matches the published release and
+        // `/api/v1/health`. A hardcoded literal here would silently go stale.
+        description = "REST API for managing and running Operator server system.",
         license(name = "MIT"),
         contact(
-            name = "gbqr.us",
+            name = "untra",
             url = "https://github.com/untra/operator"
         )
     ),
@@ -168,22 +171,19 @@ impl ApiDoc {
     ///
     /// Sourced from the fully-mounted router via [`crate::rest::openapi_spec`]
     /// so every live route appears in the spec (the bare `ApiDoc` derive carries
-    /// only info/components/tags — paths self-register on mount). The version is
-    /// automatically derived from Cargo.toml to stay in sync.
+    /// only info/components/tags — paths self-register on mount). `openapi_spec`
+    /// also stamps `info.version` from `CARGO_PKG_VERSION`, so it stays in sync
+    /// with the release version and `/api/v1/health`.
     pub fn json() -> Result<String, serde_json::Error> {
-        let mut spec = crate::rest::openapi_spec();
-        spec.info.version = env!("CARGO_PKG_VERSION").to_string();
-        serde_json::to_string_pretty(&spec)
+        serde_json::to_string_pretty(&crate::rest::openapi_spec())
     }
 
     /// Generate the OpenAPI specification as a YAML string.
     ///
-    /// The version is automatically derived from Cargo.toml to stay in sync.
+    /// The version is stamped from `CARGO_PKG_VERSION` by [`crate::rest::openapi_spec`].
     #[allow(dead_code)]
     pub fn yaml() -> Result<String, serde_yaml::Error> {
-        let mut spec = crate::rest::openapi_spec();
-        spec.info.version = env!("CARGO_PKG_VERSION").to_string();
-        serde_yaml::to_string(&spec)
+        serde_yaml::to_string(&crate::rest::openapi_spec())
     }
 }
 
@@ -274,6 +274,36 @@ mod tests {
         assert!(
             spec.contains(&format!("\"version\": \"{cargo_version}\"")),
             "OpenAPI version should match Cargo.toml version ({cargo_version}), but spec contains different version"
+        );
+    }
+
+    #[test]
+    fn test_served_openapi_spec_version_matches_cargo() {
+        // The version served by swagger-ui (`/api-docs/openapi.json`) comes from
+        // `openapi_spec()`, NOT `ApiDoc::json()`. Guard the served path directly
+        // so a stale hardcoded literal in the derive can never resurface and make
+        // swagger-ui disagree with `/api/v1/health`.
+        let spec = crate::rest::openapi_spec();
+        assert_eq!(
+            spec.info.version,
+            env!("CARGO_PKG_VERSION"),
+            "served OpenAPI spec version must match the compiled release version"
+        );
+    }
+
+    #[test]
+    fn test_version_file_matches_cargo_version() {
+        // CI computes the release version, then writes it to BOTH `VERSION` and
+        // `Cargo.toml` before building (see .github/workflows/build.yaml). This
+        // asserts they never drift, so the version every API surface reports
+        // (`CARGO_PKG_VERSION`) is exactly the published release version.
+        let version_file = concat!(env!("CARGO_MANIFEST_DIR"), "/VERSION");
+        let file_version = std::fs::read_to_string(version_file)
+            .expect("VERSION file should exist at the crate root");
+        assert_eq!(
+            file_version.trim(),
+            env!("CARGO_PKG_VERSION"),
+            "VERSION file must match Cargo.toml version so the reported API version matches the published release"
         );
     }
 }

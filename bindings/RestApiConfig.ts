@@ -9,6 +9,12 @@ export type RestApiConfig = {
  */
 enabled: boolean, 
 /**
+ * Address the REST API binds to. Defaults to `127.0.0.1` (local only) so
+ * the server — which reports the project directory name — is not reachable
+ * from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
+ */
+host: string, 
+/**
  * Port for the REST API server
  */
 port: number, 

@@ -266,7 +266,7 @@ fn require_write_tools(state: &ApiState) -> Result<(), String> {
 pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<Value, String> {
     match name {
         "operator_health" => {
-            let resp = routes::health::health().await;
+            let resp = routes::health::health(State(state.clone())).await;
             serde_json::to_value(&*resp).map_err(|e| e.to_string())
         }
         "operator_status" => {

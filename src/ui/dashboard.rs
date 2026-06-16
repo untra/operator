@@ -243,7 +243,7 @@ impl Dashboard {
         snapshot.env_visual = self.editor_config.visual.clone();
         snapshot.mcp_http_status = if self.config.mcp.http_enabled {
             match &self.rest_api_status {
-                RestApiStatus::Running { port } => {
+                RestApiStatus::Running { port } | RestApiStatus::RunningExternal { port } => {
                     crate::ui::status_panel::McpHttpStatus::Mounted { port: *port }
                 }
                 _ => crate::ui::status_panel::McpHttpStatus::NotMounted,

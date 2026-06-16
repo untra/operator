@@ -27,7 +27,7 @@ project: string,
 /**
  * Session UUIDs by step name
  */
-sessions?: { [key in string]?: string }, 
+sessions?: { [key in string]: string }, 
 /**
  * Git worktree path if using per-ticket worktrees
  */

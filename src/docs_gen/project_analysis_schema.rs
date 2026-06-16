@@ -37,7 +37,7 @@ impl DocGenerator for ProjectAnalysisSchemaDocGenerator {
             obj.insert(
                 "$id".to_string(),
                 serde_json::Value::String(
-                    "https://gbqr.us/operator/project-analysis.schema.json".to_string(),
+                    "https://operator.untra.io/schemas/project_analysis.json".to_string(),
                 ),
             );
             obj.insert(

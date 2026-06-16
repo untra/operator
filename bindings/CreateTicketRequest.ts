@@ -20,4 +20,4 @@ summary: string | null,
  * Additional Handlebars values for the template. Explicit `project`/
  * `summary` fields take precedence over the same keys here.
  */
-values: { [key in string]?: string }, };
+values: { [key in string]: string }, };

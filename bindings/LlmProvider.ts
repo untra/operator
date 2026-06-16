@@ -24,7 +24,7 @@ flags: Array<string>,
 /**
  * Environment variables to set when launching
  */
-env: { [key in string]?: string }, 
+env: { [key in string]: string }, 
 /**
  * Whether this provider requires approval gates
  */

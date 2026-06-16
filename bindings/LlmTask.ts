@@ -7,12 +7,12 @@ export type LlmTask = {
 /**
  * LLM task ID (e.g., Claude delegate mode task UUID)
  */
-id: string | null, 
+id?: string | null, 
 /**
  * LLM task status: "open" or "resolved"
  */
-status: string | null, 
+status?: string | null, 
 /**
  * List of task IDs that must resolve before this task
  */
-blocked_by: Array<string>, };
+blocked_by?: Array<string>, };

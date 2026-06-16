@@ -13,6 +13,9 @@
 - **Config**: config crate (TOML)
 - **File Watching**: notify crate
 
+## Code Style
+Aim for functional software development with a focus on stateless, single responsibility focus. comments should be terse and used judiciously.
+
 ## Development Standards
 
 ### Mandatory Before Committing
@@ -208,6 +211,7 @@ Operator uses a schema-driven, code-derived documentation strategy to reduce mai
 | `src/main.rs` + `src/env_vars.rs` | `docs/cli/index.md` | CLI commands and env vars |
 | `src/config.rs` | `docs/configuration/index.md` | Config structure (via schemars) |
 | `src/rest/` | `docs/schemas/openapi.json` | REST API spec (via utoipa) |
+| `src/docs_gen/llms.rs` + `docs/*/index.md` | `docs/llms.txt` | llms.txt site map for LLMs (no front matter; served verbatim) |
 
 ### Regenerating Documentation
 

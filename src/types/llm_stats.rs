@@ -329,16 +329,16 @@ mod tests {
 
     #[test]
     fn test_export_bindings_projectllmstats() {
-        let _ = ProjectLlmStats::export_to_string();
+        let _ = ProjectLlmStats::export_to_string(&ts_rs::Config::default());
     }
 
     #[test]
     fn test_export_bindings_llmtoolusage() {
-        let _ = LlmToolUsage::export_to_string();
+        let _ = LlmToolUsage::export_to_string(&ts_rs::Config::default());
     }
 
     #[test]
     fn test_export_bindings_llmmodelusage() {
-        let _ = LlmModelUsage::export_to_string();
+        let _ = LlmModelUsage::export_to_string(&ts_rs::Config::default());
     }
 }

@@ -3,4 +3,12 @@
 /**
  * Health check response
  */
-export type HealthResponse = { status: string, version: string, };
+export type HealthResponse = { status: string, version: string, 
+/**
+ * Top-level directory name of the operator working root (e.g. "acme").
+ */
+directory_name: string, 
+/**
+ * Non-reversible fingerprint of the working root's canonical path.
+ */
+directory_id: string, };

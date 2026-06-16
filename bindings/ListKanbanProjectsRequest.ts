@@ -7,4 +7,4 @@ import type { LinearCredentials } from "./LinearCredentials";
 /**
  * Request to list projects/teams from a provider using ephemeral creds.
  */
-export type ListKanbanProjectsRequest = { provider: KanbanProviderKind, jira: JiraCredentials | null, linear: LinearCredentials | null, github: GithubCredentials | null, };
+export type ListKanbanProjectsRequest = { provider: KanbanProviderKind, jira?: JiraCredentials | null, linear?: LinearCredentials | null, github?: GithubCredentials | null, };

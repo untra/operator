@@ -37,7 +37,7 @@ impl DocGenerator for OperatorOutputSchemaDocGenerator {
             obj.insert(
                 "$id".to_string(),
                 serde_json::Value::String(
-                    "https://operator.dev/schemas/operator_output.schema.json".to_string(),
+                    "https://operator.untra.io/schemas/operator_output.json".to_string(),
                 ),
             );
             obj.insert(

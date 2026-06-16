@@ -94,6 +94,6 @@
     "status",
     "exit_signal"
   ],
-  "$id": "https://operator.dev/schemas/operator_output.schema.json",
+  "$id": "https://operator.untra.io/schemas/operator_output.json",
   "$comment": "AUTO-GENERATED FROM src/rest/dto.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only operator-output-schema"
 }

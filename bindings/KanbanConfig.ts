@@ -15,11 +15,11 @@ export type KanbanConfig = {
 /**
  * Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net")
  */
-jira: { [key in string]?: JiraConfig }, 
+jira: { [key in string]: JiraConfig }, 
 /**
  * Linear instances keyed by workspace slug
  */
-linear: { [key in string]?: LinearConfig }, 
+linear: { [key in string]: LinearConfig }, 
 /**
  * GitHub Projects v2 instances keyed by owner login (user or org)
  *
@@ -28,4 +28,4 @@ linear: { [key in string]?: LinearConfig },
  * branches. The two use different env vars and different scopes — see
  * `docs/getting-started/kanban/github.md` for the full disambiguation.
  */
-github: { [key in string]?: GithubProjectsConfig }, };
+github: { [key in string]: GithubProjectsConfig }, };

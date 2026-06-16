@@ -25,7 +25,7 @@ display_name: string | null,
 /**
  * Arbitrary model properties
  */
-model_properties: { [key in string]?: string }, 
+model_properties: { [key in string]: string }, 
 /**
  * Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
  */

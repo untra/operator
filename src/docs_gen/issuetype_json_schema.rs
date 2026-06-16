@@ -37,7 +37,7 @@ impl DocGenerator for IssuetypeJsonSchemaDocGenerator {
             obj.insert(
                 "$id".to_string(),
                 serde_json::Value::String(
-                    "https://gbqr.us/operator/issuetype-template.schema.json".to_string(),
+                    "https://operator.untra.io/schemas/issuetype_schema.json".to_string(),
                 ),
             );
             obj.insert(

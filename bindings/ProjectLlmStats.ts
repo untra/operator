@@ -20,7 +20,7 @@ preferred_model: string | null,
 /**
  * Usage history per LLM tool
  */
-tool_usage: { [key in string]?: LlmToolUsage }, 
+tool_usage: { [key in string]: LlmToolUsage }, 
 /**
  * Last updated timestamp
  */

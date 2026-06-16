@@ -18,6 +18,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 use utoipa_swagger_ui::SwaggerUi;
 
+pub mod directory;
 pub mod dto;
 pub mod error;
 pub mod openapi;
@@ -50,7 +51,7 @@ pub mod web_ui {
 }
 
 pub use openapi::ApiDoc;
-pub use server::{ApiSessionInfo, RestApiServer, RestApiStatus};
+pub use server::{ApiSessionInfo, ExternalApiProbe, RestApiServer, RestApiStatus};
 pub use state::ApiState;
 
 /// Default port for the REST API server
@@ -185,8 +186,16 @@ fn documented_router() -> OpenApiRouter<ApiState> {
 /// Built from [`documented_router`] so it always reflects the mounted routes.
 /// Config-gated MCP transport routes are omitted (they carry no
 /// `#[utoipa::path]` and only ever exist when `[mcp].http_enabled`).
+///
+/// The `info.version` is stamped here from `CARGO_PKG_VERSION` — the compiled
+/// release version that CI writes into `Cargo.toml`/`VERSION` on every release.
+/// This is the single source of version truth for *every* consumer (served
+/// swagger-ui, generated `docs/schemas/openapi.json`, and `ApiDoc::json/yaml`),
+/// so the spec version always matches `/api/v1/health` and the published release.
 pub fn openapi_spec() -> utoipa::openapi::OpenApi {
-    documented_router().split_for_parts().1
+    let mut spec = documented_router().split_for_parts().1;
+    spec.info.version = env!("CARGO_PKG_VERSION").to_string();
+    spec
 }
 
 /// Build the API router with all routes
@@ -198,7 +207,7 @@ pub fn build_router(state: ApiState) -> Router {
 
     let mcp_enabled = state.config.mcp.http_enabled;
 
-    let (mut router, api) = documented_router().split_for_parts();
+    let (mut router, _api) = documented_router().split_for_parts();
 
     // MCP transport endpoints — gated by [mcp].http_enabled and intentionally
     // undocumented (no OpenAPI schema for the SSE/JSON-RPC transport).
@@ -219,7 +228,9 @@ pub fn build_router(state: ApiState) -> Router {
         )
         .layer(cors)
         .with_state(state)
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api));
+        // Serve the version-stamped spec (not the raw `_api` half) so swagger-ui
+        // reports the release version, matching /api/v1/health.
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi_spec()));
 
     #[cfg(feature = "embed-ui")]
     let router = router.fallback(web_ui::spa_handler);
@@ -230,8 +241,9 @@ pub fn build_router(state: ApiState) -> Router {
 /// Start the REST API server (standalone mode with session file and logging)
 pub async fn serve(state: ApiState, port: u16) -> Result<()> {
     let tickets_path = state.tickets_path.clone();
+    let host_ip = state.config.rest_api.host_ip();
     let app = build_router(state);
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = SocketAddr::new(host_ip, port);
 
     tracing::info!("REST API listening on http://{}", addr);
     tracing::info!("Swagger UI available at http://{}/swagger-ui", addr);

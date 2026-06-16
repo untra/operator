@@ -10,17 +10,17 @@ export type XOperator = {
 /**
  * Optional display name for UI.
  */
-display_name: string | null, 
+display_name?: string | null, 
 /**
  * Arbitrary model properties (e.g. `reasoning_effort`, sandbox).
  */
-model_properties: { [key in string]?: string }, 
+model_properties?: { [key in string]: string }, 
 /**
  * Name of a declared `ModelServer` (`None` = implicit vendor default).
  */
-model_server: string | null, 
+model_server?: string | null, 
 /**
  * Launch configuration (permission mode, flags, worktree/docker, prompt
  * wrapping, ...).
  */
-launch_config: DelegatorLaunchConfig | null, };
+launch_config?: DelegatorLaunchConfig | null, };

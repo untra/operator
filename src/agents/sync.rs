@@ -683,7 +683,7 @@ impl TicketSessionSync {
                         if let Ok(content) = self.tmux.capture_pane(session_name, false) {
                             let mut hasher = Sha256::new();
                             hasher.update(content.as_bytes());
-                            let new_hash = format!("{:x}", hasher.finalize());
+                            let new_hash = crate::agents::hex_encode(&hasher.finalize());
 
                             // Compare with stored hash
                             let content_changed = agent.content_hash.as_ref() != Some(&new_hash);
@@ -1137,7 +1137,7 @@ mod tests {
         // Calculate hash of OLD content (different from what's in the session)
         let mut old_hasher = Sha256::new();
         old_hasher.update(b"Old content");
-        let old_hash = format!("{:x}", old_hasher.finalize());
+        let old_hash = crate::agents::hex_encode(&old_hasher.finalize());
 
         // Add an awaiting agent with old content hash
         let agent_id = state
@@ -1193,7 +1193,7 @@ mod tests {
         let content = mock.capture_pane("op-FEAT-unchanged", false).unwrap();
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
-        let same_hash = format!("{:x}", hasher.finalize());
+        let same_hash = crate::agents::hex_encode(&hasher.finalize());
 
         let sync = TicketSessionSync::new(&config, Arc::clone(&mock) as Arc<dyn TmuxClient>);
         let mut state = State::load(&config).unwrap();

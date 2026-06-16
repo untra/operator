@@ -118,7 +118,7 @@ impl TmuxActivityDetector {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
-        format!("{:x}", hasher.finalize())
+        crate::agents::hex_encode(&hasher.finalize())
     }
 }
 
@@ -225,7 +225,7 @@ impl CmuxActivityDetector {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
-        format!("{:x}", hasher.finalize())
+        crate::agents::hex_encode(&hasher.finalize())
     }
 
     fn get_workspace_ref(&self, session_id: &str) -> Option<String> {
@@ -329,7 +329,7 @@ impl ZellijActivityDetector {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
-        format!("{:x}", hasher.finalize())
+        crate::agents::hex_encode(&hasher.finalize())
     }
 
     fn get_tab_name(&self, session_id: &str) -> Option<String> {

@@ -1,0 +1,149 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "ELVBATCH",
+  "name": "Elves Batch",
+  "description": "Execute one independently shippable Elves batch with validation, review, and checkpointing.",
+  "mode": "autonomous",
+  "glyph": "B",
+  "color": "green",
+  "project_required": true,
+  "agent": "elves-coder",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Batch summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "One batch from survival guide",
+      "max_length": 120,
+      "display_order": 1
+    },
+    {
+      "name": "batch_goal",
+      "description": "Exact goal for this batch",
+      "type": "text",
+      "required": true,
+      "default": "",
+      "display_order": 2
+    },
+    {
+      "name": "validation_commands",
+      "description": "Commands required for this batch",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "display_order": 3
+    },
+    {
+      "name": "continue_after_batch",
+      "description": "Whether the agent may suggest another batch after this one",
+      "type": "bool",
+      "required": false,
+      "default": "true",
+      "display_order": 4
+    }
+  ],
+  "steps": [
+    {
+      "name": "reread",
+      "display_name": "Reread Memory",
+      "outputs": ["plan"],
+      "prompt": "Start the Elves batch by rereading durable memory.\n\nRead `docs/elves/survival-guide.md`, `docs/elves/execution-log.md`, `docs/elves/learnings.md`, `.elves-session.json`, active PR state if present, and the batch goal. Write a short batch plan to `docs/elves/batches/{{ id }}.md`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write", "Bash"],
+      "artifact_patterns": ["docs/elves/batches/{{ id }}.md"],
+      "next_step": "tag"
+    },
+    {
+      "name": "tag",
+      "display_name": "Checkpoint Start",
+      "outputs": ["documentation"],
+      "prompt": "Create a pre-batch checkpoint.\n\nRecord current git status, branch, commit, PR status, and intended batch scope in `docs/elves/batches/{{ id }}.md`. If using git tags or commits for checkpoints, create the appropriate lightweight checkpoint.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "next_step": "implement"
+    },
+    {
+      "name": "implement",
+      "display_name": "Implement Batch",
+      "outputs": ["code"],
+      "prompt": "Implement exactly this Elves batch: {{ batch_goal }}\n\nStay inside the batch boundary. Update the execution log as decisions are made. If scope expands, stop and document rather than continuing silently.",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "next_step": "validate"
+    },
+    {
+      "name": "validate",
+      "display_name": "Validate Batch",
+      "outputs": ["test"],
+      "prompt": "Validate this Elves batch.\n\nRun touched-surface proof first, then the validation commands from the ticket and survival guide. Fix failures only when the fix is within batch scope. Record exact commands and results in `docs/elves/batches/{{ id }}.md`.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "implement",
+        "prompt": "Batch validation was rejected: {{ rejection_reason }}\n\nRepair the batch within scope and rerun validation."
+      },
+      "next_step": "review"
+    },
+    {
+      "name": "review",
+      "display_name": "Fresh Review",
+      "outputs": ["review"],
+      "prompt": "Perform a fresh review of this batch.\n\nRead the diff, execution log, validation evidence, and current PR comments/checks if any. Focus on correctness, regression risk, scope creep, and missing validation. Write findings to `docs/elves/batches/{{ id }}.md`.",
+      "agent": "elves-reviewer",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "implement",
+        "prompt": "Fresh review requested changes: {{ rejection_reason }}\n\nFix the review findings and repeat validation."
+      },
+      "next_step": "judge"
+    },
+    {
+      "name": "judge",
+      "display_name": "Judge Verdict",
+      "outputs": ["review"],
+      "prompt": "Judge whether the batch is safe to checkpoint.\n\nRead any project constitution, invariants, survival guide, diff, tests, and review notes. Emit pass, warn, or fail in `docs/elves/batches/{{ id }}.md`. Fail means return to implementation. Warn means checkpoint but clearly document residual risk.",
+      "agent": "elves-judge",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write"],
+      "permission_mode": "plan",
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "implement",
+        "prompt": "Judge verdict failed or was rejected: {{ rejection_reason }}\n\nAddress the unsafe condition or stop with a blocker."
+      },
+      "next_step": "document"
+    },
+    {
+      "name": "document",
+      "display_name": "Persist Memory",
+      "outputs": ["documentation"],
+      "prompt": "Persist durable memory after this batch.\n\nUpdate `docs/elves/execution-log.md`, `docs/elves/learnings.md`, `docs/elves/survival-guide.md`, and `.elves-session.json` with batch result, validation, decisions, risks, and exact resume instructions.",
+      "allowed_tools": ["Read", "Write", "Edit"],
+      "next_step": "push"
+    },
+    {
+      "name": "push",
+      "display_name": "Checkpoint Push",
+      "outputs": ["pr", "code"],
+      "prompt": "Checkpoint this Elves batch.\n\nCommit focused changes if appropriate, push the branch when configured, update the PR if one exists, and record commit/push status in the batch log. Do not merge.",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "next_step": "entropy"
+    },
+    {
+      "name": "entropy",
+      "display_name": "Continue Or Stop",
+      "outputs": ["report", "ticket"],
+      "prompt": "Decide whether to continue after this Elves batch.\n\nConsider `continue_after_batch`, remaining plan, time budget, validation confidence, review status, and risk. If continuing is safe, create or recommend the next ELVBATCH. If not, stop with exact human next steps.",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "artifact_patterns": ["docs/elves/batches/{{ id }}.md"]
+    }
+  ]
+}

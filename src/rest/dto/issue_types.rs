@@ -437,6 +437,36 @@ pub struct UpdateStepRequest {
 // Collection DTOs
 // =============================================================================
 
+/// Descriptive workflow hints for a collection (v1: metadata only).
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct WorkflowHintsDto {
+    #[serde(default)]
+    pub loop_kind: Option<String>,
+    #[serde(default)]
+    pub memory_surfaces: Vec<String>,
+    #[serde(default)]
+    pub review_gates: Vec<String>,
+    #[serde(default)]
+    pub external_tools: Vec<String>,
+    #[serde(default)]
+    pub stop_conditions: Vec<String>,
+    pub runner_semantics: String,
+}
+
+impl From<&crate::collections::manifest::WorkflowHints> for WorkflowHintsDto {
+    fn from(h: &crate::collections::manifest::WorkflowHints) -> Self {
+        Self {
+            loop_kind: h.loop_kind.clone(),
+            memory_surfaces: h.memory_surfaces.clone(),
+            review_gates: h.review_gates.clone(),
+            external_tools: h.external_tools.clone(),
+            stop_conditions: h.stop_conditions.clone(),
+            runner_semantics: h.runner_semantics.clone(),
+        }
+    }
+}
+
 /// Response for a collection
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -445,6 +475,15 @@ pub struct CollectionResponse {
     pub description: String,
     pub types: Vec<String>,
     pub is_active: bool,
+    /// Collection semver (present for hosted collections).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Publisher identifier (present for hosted collections).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publisher: Option<String>,
+    /// Descriptive workflow hints (present for hosted collections).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_hints: Option<WorkflowHintsDto>,
 }
 
 impl CollectionResponse {
@@ -454,6 +493,196 @@ impl CollectionResponse {
             description: c.description.clone(),
             types: c.types.clone(),
             is_active,
+            version: c.version.clone(),
+            publisher: c.publisher.clone(),
+            workflow_hints: c.workflow_hints.as_ref().map(WorkflowHintsDto::from),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_issue_type_summary_serializes_step_count_as_camel_case() {
+        // IssueTypeSummary is the only DTO here using rename_all = "camelCase";
+        // snake_case `step_count` must appear on the wire as `stepCount`.
+        let summary = IssueTypeSummary {
+            key: "FEAT".to_string(),
+            name: "Feature".to_string(),
+            description: "A feature".to_string(),
+            mode: "autonomous".to_string(),
+            glyph: "F".to_string(),
+            color: Some("cyan".to_string()),
+            source: "user".to_string(),
+            step_count: 3,
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("\"stepCount\":3"));
+        assert!(!json.contains("step_count"));
+    }
+
+    #[test]
+    fn test_issue_type_summary_color_absent_when_none() {
+        let summary = IssueTypeSummary {
+            key: "FEAT".to_string(),
+            name: "Feature".to_string(),
+            description: "A feature".to_string(),
+            mode: "autonomous".to_string(),
+            glyph: "F".to_string(),
+            color: None,
+            source: "user".to_string(),
+            step_count: 0,
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(!json.contains("color"));
+    }
+
+    #[test]
+    fn test_issue_type_summary_deserializes_from_camel_case() {
+        let json = r#"{
+            "key": "FIX",
+            "name": "Fix",
+            "description": "A fix",
+            "mode": "autonomous",
+            "glyph": "X",
+            "source": "user",
+            "stepCount": 5
+        }"#;
+        let summary: IssueTypeSummary = serde_json::from_str(json).unwrap();
+        assert_eq!(summary.step_count, 5);
+        assert!(summary.color.is_none());
+    }
+
+    #[test]
+    fn test_create_issue_type_request_applies_defaults_when_absent() {
+        // mode -> default_mode(), project_required -> default_true(), fields -> empty.
+        let json = r#"{
+            "key": "feat",
+            "name": "Feature",
+            "description": "A feature",
+            "glyph": "F",
+            "steps": []
+        }"#;
+        let req: CreateIssueTypeRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.mode, "autonomous");
+        assert!(req.project_required);
+        assert!(req.fields.is_empty());
+        assert!(req.color.is_none());
+    }
+
+    #[test]
+    fn test_create_field_request_applies_typed_defaults_when_absent() {
+        // field_type -> default_string_type(), user_editable -> default_true(),
+        // required defaults to false, options to empty.
+        let json = r#"{ "name": "title", "description": "Title field" }"#;
+        let req: CreateFieldRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.field_type, "string");
+        assert!(req.user_editable);
+        assert!(!req.required);
+        assert!(req.options.is_empty());
+    }
+
+    #[test]
+    fn test_create_step_request_applies_defaults_when_absent() {
+        // allowed_tools -> ["*"], review_type -> "none", permission_mode -> "default".
+        let json = r#"{ "name": "execute", "prompt": "Do the thing" }"#;
+        let req: CreateStepRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.allowed_tools, vec!["*".to_string()]);
+        assert_eq!(req.review_type, "none");
+        assert_eq!(req.permission_mode, "default");
+        assert!(req.next_step.is_none());
+        assert!(req.outputs.is_empty());
+    }
+
+    #[test]
+    fn test_field_response_skips_empty_options_and_none_default() {
+        let resp = FieldResponse {
+            name: "title".to_string(),
+            description: "Title".to_string(),
+            field_type: "string".to_string(),
+            required: true,
+            default: None,
+            options: vec![],
+            placeholder: None,
+            max_length: None,
+            user_editable: true,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        // skip_serializing_if = "Vec::is_empty" and "Option::is_none"
+        assert!(!json.contains("options"));
+        assert!(!json.contains("default"));
+        assert!(!json.contains("placeholder"));
+        assert!(json.contains("\"required\":true"));
+    }
+
+    #[test]
+    fn test_field_response_includes_options_when_present() {
+        let resp = FieldResponse {
+            name: "priority".to_string(),
+            description: "Priority".to_string(),
+            field_type: "enum".to_string(),
+            required: false,
+            default: Some("P2".to_string()),
+            options: vec!["P0".to_string(), "P2".to_string()],
+            placeholder: None,
+            max_length: None,
+            user_editable: true,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"options\":[\"P0\",\"P2\"]"));
+        assert!(json.contains("\"default\":\"P2\""));
+    }
+
+    #[test]
+    fn test_update_issue_type_request_all_fields_optional() {
+        // Every field is #[serde(default)] Option/None; empty object parses to all-None.
+        let req: UpdateIssueTypeRequest = serde_json::from_str("{}").unwrap();
+        assert!(req.name.is_none());
+        assert!(req.mode.is_none());
+        assert!(req.project_required.is_none());
+        assert!(req.fields.is_none());
+        assert!(req.steps.is_none());
+    }
+
+    #[test]
+    fn test_collection_response_roundtrip() {
+        let resp = CollectionResponse {
+            name: "default".to_string(),
+            description: "Default collection".to_string(),
+            types: vec!["FEAT".to_string(), "FIX".to_string()],
+            is_active: true,
+            version: None,
+            publisher: None,
+            workflow_hints: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let parsed: CollectionResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.types, vec!["FEAT".to_string(), "FIX".to_string()]);
+        assert!(parsed.is_active);
+        // Optional hosted-only fields are omitted from the wire when absent.
+        assert!(!json.contains("workflow_hints"));
+    }
+
+    #[test]
+    fn test_collection_response_includes_workflow_hints() {
+        let collection = IssueTypeCollection::new("dev_kanban", "Dev")
+            .with_types(["TASK"])
+            .with_manifest_metadata(
+                Some(crate::collections::manifest::WorkflowHints {
+                    loop_kind: Some("single_pass".to_string()),
+                    review_gates: vec!["test_suite".to_string()],
+                    ..Default::default()
+                }),
+                Some("1.0.0".to_string()),
+                Some("untra".to_string()),
+            );
+        let resp = CollectionResponse::from_collection(&collection, true);
+        assert_eq!(resp.version.as_deref(), Some("1.0.0"));
+        assert_eq!(resp.publisher.as_deref(), Some("untra"));
+        let hints = resp.workflow_hints.expect("hints surfaced");
+        assert_eq!(hints.loop_kind.as_deref(), Some("single_pass"));
+        assert_eq!(hints.runner_semantics, "prompt_driven");
     }
 }

@@ -35,12 +35,22 @@ impl App {
                         SetupResult::Cancel => {
                             self.should_quit = true;
                         }
-                        SetupResult::ExitUnimplemented(message) => {
-                            self.exit_message = Some(message);
-                            self.should_quit = true;
-                        }
                         SetupResult::Continue => {
-                            // Moved to next step - stay in setup
+                            // On entering the hosted picker, fetch the list (with
+                            // embedded fallback) so the UI can render it.
+                            if matches!(
+                                setup.step,
+                                crate::ui::setup::SetupStep::HostedCollectionFetch
+                            ) && !setup.hosted_loaded
+                            {
+                                let templates = &self.config.templates;
+                                let url = templates
+                                    .collections_fetch_enabled
+                                    .then(|| templates.collections_manifest_url.clone())
+                                    .flatten();
+                                let timeout = templates.collections_fetch_timeout_secs;
+                                setup.load_hosted_collections(url.as_deref(), timeout).await;
+                            }
                         }
                     }
                 }

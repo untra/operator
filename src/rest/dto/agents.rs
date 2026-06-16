@@ -551,3 +551,223 @@ pub struct UpdateTicketStatusResponse {
     /// Human-readable message
     pub message: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_health_response_roundtrip_preserves_fields() {
+        let resp = HealthResponse {
+            status: "ok".to_string(),
+            version: "0.2.2".to_string(),
+            directory_name: "acme".to_string(),
+            directory_id: "abc123".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let parsed: HealthResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.status, "ok");
+        assert_eq!(parsed.version, "0.2.2");
+        assert_eq!(parsed.directory_name, "acme");
+        assert_eq!(parsed.directory_id, "abc123");
+    }
+
+    #[test]
+    fn test_kanban_ticket_card_step_display_name_absent_when_none() {
+        let card = KanbanTicketCard {
+            id: "FEAT-1".to_string(),
+            summary: "Add thing".to_string(),
+            ticket_type: "FEAT".to_string(),
+            project: "gamesvc".to_string(),
+            status: "queued".to_string(),
+            step: "execute".to_string(),
+            step_display_name: None,
+            priority: "P2-medium".to_string(),
+            timestamp: "20260616-1200".to_string(),
+        };
+        let json = serde_json::to_string(&card).unwrap();
+        assert!(!json.contains("step_display_name"));
+    }
+
+    #[test]
+    fn test_kanban_ticket_card_step_display_name_present_when_set() {
+        let card = KanbanTicketCard {
+            id: "FEAT-1".to_string(),
+            summary: "Add thing".to_string(),
+            ticket_type: "FEAT".to_string(),
+            project: "gamesvc".to_string(),
+            status: "queued".to_string(),
+            step: "execute".to_string(),
+            step_display_name: Some("Execute".to_string()),
+            priority: "P2-medium".to_string(),
+            timestamp: "20260616-1200".to_string(),
+        };
+        let json = serde_json::to_string(&card).unwrap();
+        assert!(json.contains("\"step_display_name\":\"Execute\""));
+    }
+
+    #[test]
+    fn test_queue_status_response_nests_by_type_counts() {
+        let resp = QueueStatusResponse {
+            queued: 3,
+            in_progress: 1,
+            awaiting: 2,
+            completed: 7,
+            by_type: QueueByType {
+                inv: 1,
+                fix: 1,
+                feat: 1,
+                spike: 0,
+            },
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"by_type\":{"));
+        let parsed: QueueStatusResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.by_type.inv, 1);
+        assert_eq!(parsed.by_type.spike, 0);
+        assert_eq!(parsed.completed, 7);
+    }
+
+    #[test]
+    fn test_active_agent_response_session_fields_absent_when_none() {
+        let agent = ActiveAgentResponse {
+            id: "op-1".to_string(),
+            ticket_id: "FEAT-1".to_string(),
+            ticket_type: "FEAT".to_string(),
+            project: "gamesvc".to_string(),
+            status: "running".to_string(),
+            mode: "autonomous".to_string(),
+            started_at: "2026-06-16T12:00:00Z".to_string(),
+            current_step: None,
+            session_wrapper: None,
+            session_window_ref: None,
+            session_context_ref: None,
+            session_pane_ref: None,
+        };
+        let json = serde_json::to_string(&agent).unwrap();
+        assert!(!json.contains("current_step"));
+        assert!(!json.contains("session_wrapper"));
+        assert!(!json.contains("session_window_ref"));
+        assert!(!json.contains("session_context_ref"));
+        assert!(!json.contains("session_pane_ref"));
+    }
+
+    #[test]
+    fn test_agent_detail_response_optional_fields_absent_when_none() {
+        let detail = AgentDetailResponse {
+            id: "uuid-1".to_string(),
+            ticket_id: "FEAT-1".to_string(),
+            ticket_type: "FEAT".to_string(),
+            project: "gamesvc".to_string(),
+            status: "running".to_string(),
+            started_at: "2026-06-16T12:00:00Z".to_string(),
+            last_activity: "2026-06-16T12:05:00Z".to_string(),
+            current_step: None,
+            llm_tool: None,
+            llm_model: None,
+            launch_mode: None,
+            pr_url: None,
+            pr_status: None,
+            session_wrapper: None,
+            review_state: None,
+            completed_steps: vec![],
+            worktree_path: None,
+            paired: false,
+        };
+        let json = serde_json::to_string(&detail).unwrap();
+        // skip_serializing_if optionals are omitted...
+        assert!(!json.contains("pr_url"));
+        assert!(!json.contains("worktree_path"));
+        // ...but non-optional fields (incl. empty Vec) remain in the shape.
+        assert!(json.contains("\"completed_steps\":[]"));
+        assert!(json.contains("\"paired\":false"));
+    }
+
+    #[test]
+    fn test_launch_ticket_request_minimal_json_applies_defaults() {
+        // Every field is #[serde(default)]; an empty object must parse.
+        let req: LaunchTicketRequest = serde_json::from_str("{}").unwrap();
+        assert!(req.delegator.is_none());
+        assert!(req.provider.is_none());
+        assert!(req.model.is_none());
+        assert!(req.model_server.is_none());
+        assert!(!req.yolo_mode);
+        assert!(req.wrapper.is_none());
+        assert!(req.retry_reason.is_none());
+        assert!(req.resume_session_id.is_none());
+    }
+
+    #[test]
+    fn test_step_complete_request_output_valid_defaults_true_when_absent() {
+        // default_true(): output_valid should be true when the JSON omits it.
+        let json = r#"{ "exit_code": 0, "duration_secs": 10 }"#;
+        let req: StepCompleteRequest = serde_json::from_str(json).unwrap();
+        assert!(req.output_valid);
+        assert!(req.output.is_none());
+    }
+
+    #[test]
+    fn test_step_complete_response_circuit_state_defaults_closed_when_absent() {
+        // default_circuit_closed(): circuit_state should be "closed" when omitted,
+        // and the other #[serde(default)] fields fall back to their zero values.
+        let json = r#"{ "status": "completed", "auto_proceed": true }"#;
+        let resp: StepCompleteResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.circuit_state, "closed");
+        assert!(!resp.output_valid);
+        assert!(!resp.should_iterate);
+        assert_eq!(resp.iteration_count, 0);
+        assert_eq!(resp.cumulative_files_modified, 0);
+        assert_eq!(resp.cumulative_errors, 0);
+    }
+
+    #[test]
+    fn test_ticket_detail_response_roundtrip_preserves_maps() {
+        let mut sessions = std::collections::HashMap::new();
+        sessions.insert("execute".to_string(), "uuid-1".to_string());
+        let mut step_delegators = std::collections::HashMap::new();
+        step_delegators.insert("execute".to_string(), "claude-opus".to_string());
+
+        let detail = TicketDetailResponse {
+            id: "FEAT-1".to_string(),
+            summary: "Add thing".to_string(),
+            ticket_type: "FEAT".to_string(),
+            project: "gamesvc".to_string(),
+            status: "running".to_string(),
+            step: "execute".to_string(),
+            step_display_name: None,
+            priority: "P2-medium".to_string(),
+            timestamp: "20260616-1200".to_string(),
+            content: "# Ticket".to_string(),
+            filename: "feat-1.md".to_string(),
+            filepath: "/tmp/feat-1.md".to_string(),
+            sessions,
+            step_delegators,
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
+        };
+        let json = serde_json::to_string(&detail).unwrap();
+        let parsed: TicketDetailResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.sessions.get("execute").unwrap(), "uuid-1");
+        assert_eq!(
+            parsed.step_delegators.get("execute").unwrap(),
+            "claude-opus"
+        );
+        assert!(parsed.external_provider.is_none());
+    }
+
+    #[test]
+    fn test_next_step_info_prompt_absent_when_none() {
+        let info = NextStepInfo {
+            name: "review".to_string(),
+            display_name: "Review".to_string(),
+            review_type: "pr".to_string(),
+            prompt: None,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("\"review_type\":\"pr\""));
+        assert!(!json.contains("prompt"));
+    }
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "dev_kanban",
+  "name": "Dev Kanban",
+  "description": "Developer kanban with TASK, FEAT, FIX",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": ["builtin", "kanban", "dev"],
+  "issue_types": [
+    { "key": "TASK", "schema_path": "TASK.json", "template_path": "TASK.md" },
+    { "key": "FEAT", "schema_path": "FEAT.json", "template_path": "FEAT.md" },
+    { "key": "FIX", "schema_path": "FIX.json", "template_path": "FIX.md" }
+  ],
+  "workflow_hints": {
+    "loop_kind": "single_pass",
+    "memory_surfaces": ["ticket"],
+    "review_gates": ["test_suite"],
+    "external_tools": ["git"],
+    "stop_conditions": ["tests_green"],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": ["TASK", "FEAT", "FIX"]
+}

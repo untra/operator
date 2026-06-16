@@ -2,6 +2,9 @@
 import { callOperator } from "./lib/operator-client.js";
 
 class CreateTicketTool {
+  constructor() {
+    this.name = "operator-create-ticket";
+  }
   async execute(params, _inputData, _workflowEngine) {
     if (!params || !params.template) {
       return { success: false, result: null, error: "missing required param: template" };

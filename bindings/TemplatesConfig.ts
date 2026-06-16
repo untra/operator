@@ -16,4 +16,18 @@ collection: Array<string>,
  * Active collection name (overrides preset if set)
  * Can be a builtin preset name or a user-defined collection
  */
-active_collection: string | null, };
+active_collection: string | null, 
+/**
+ * Enable fetching hosted issuetype collections during setup.
+ * When disabled, only the embedded (offline) collections are offered.
+ */
+collections_fetch_enabled: boolean, 
+/**
+ * URL of the hosted collection index manifest, fetched during setup.
+ * Points at a `CollectionIndex` JSON document listing available collections.
+ */
+collections_manifest_url: string | null, 
+/**
+ * Timeout in seconds for hosted collection fetch HTTP requests.
+ */
+collections_fetch_timeout_secs: bigint, };

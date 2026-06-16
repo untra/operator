@@ -1,0 +1,71 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "ELVRPT",
+  "name": "Elves Report",
+  "description": "Produce a morning-after report for an Elves run.",
+  "mode": "paired",
+  "glyph": "R",
+  "color": "yellow",
+  "project_required": true,
+  "agent": "elves-coordinator",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Report summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "max_length": 120,
+      "display_order": 1
+    },
+    {
+      "name": "report_format",
+      "description": "Report output format",
+      "type": "enum",
+      "required": false,
+      "default": "markdown",
+      "options": ["markdown", "html"],
+      "display_order": 2
+    }
+  ],
+  "steps": [
+    {
+      "name": "gather",
+      "display_name": "Gather Run State",
+      "outputs": ["report"],
+      "prompt": "Gather all Elves run state.\n\nRead execution log, survival guide, learnings, batch logs, git commits, PR/check status, and any blockers. Record source paths in `docs/elves/report-{{ id }}.md`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "next_step": "summarize"
+    },
+    {
+      "name": "summarize",
+      "display_name": "Write Report",
+      "outputs": ["report", "documentation"],
+      "prompt": "Write the morning-after Elves report.\n\nInclude final status, timeline, completed batches, validation evidence, PR status, unresolved issues, decisions made, lessons learned, risks, and concrete human next steps. Use the requested format: {{ report_format }}.",
+      "allowed_tools": ["Read", "Write", "Edit"],
+      "artifact_patterns": ["docs/elves/report-{{ id }}.md"],
+      "next_step": "review"
+    },
+    {
+      "name": "review",
+      "display_name": "Report Review",
+      "outputs": ["review"],
+      "prompt": "Review the Elves report for accuracy.\n\nCross-check claims against logs, commits, tests, PR status, and remaining blockers. Fix overstatements or missing risks before handing to the user.",
+      "allowed_tools": ["Read", "Edit", "Grep", "Bash"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "summarize",
+        "prompt": "The report was rejected: {{ rejection_reason }}\n\nCorrect the report and review it again."
+      }
+    }
+  ]
+}

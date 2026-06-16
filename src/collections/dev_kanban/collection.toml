@@ -1,5 +1,0 @@
-name = "dev_kanban"
-description = "Developer kanban with TASK, FEAT, FIX"
-
-# Issue types in this collection (display order)
-types = ["TASK", "FEAT", "FIX"]

@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "ralph_loop",
+  "name": "Ralph Loop",
+  "description": "PRD-to-story loop for completing one right-sized story per fresh agent context.",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "snarktank",
+  "url": "https://github.com/snarktank/ralph",
+  "license": "MIT",
+  "tags": [
+    "agentic-loop",
+    "prd",
+    "stories",
+    "ralph"
+  ],
+  "compatibility": null,
+  "issue_types": [
+    {
+      "key": "PRD",
+      "schema_path": "PRD.json",
+      "schema_checksum": "6d70b60b8c3986d4782c5e8c5e453c1b9dc44234cb2bbd054498231945435ce1",
+      "template_path": "PRD.md",
+      "template_checksum": "c719e1af7c715cdac7d59ec8586d06c612debfbf8c560d5be3ae738499fe9518"
+    },
+    {
+      "key": "STORY",
+      "schema_path": "STORY.json",
+      "schema_checksum": "7af1d443e7083d08c860a51a6524fec969c99812e6ee51d181058d7b8e92bd0e",
+      "template_path": "STORY.md",
+      "template_checksum": "340c5fda8830dd79fbe8432dc6921d1556e145d657933b8575f1092013bd9f54"
+    },
+    {
+      "key": "RLOOP",
+      "schema_path": "RLOOP.json",
+      "schema_checksum": "edb318f1adf22fb6ce18ebff5b99f3e741ff8aee911e34d4864bd756e038ab8d",
+      "template_path": "RLOOP.md",
+      "template_checksum": "c29422d0a45c58aa22aee9d010f9ea38d3ecaf47940e53611b082ac180194fb3"
+    }
+  ],
+  "workflow_hints": {
+    "loop_kind": "fresh_context_story_loop",
+    "memory_surfaces": [
+      ".tickets/workflows/{{ id }}/prd.json",
+      ".tickets/workflows/{{ id }}/progress.txt",
+      "AGENTS.md"
+    ],
+    "review_gates": [
+      "plan_review",
+      "test_suite",
+      "story_completion_check"
+    ],
+    "external_tools": [
+      "git",
+      "project test command"
+    ],
+    "stop_conditions": [
+      "all stories have passes=true",
+      "blocked story documented",
+      "quality gates fail repeatedly",
+      "max_iterations reached (advisory; outer story loop is operator-queue-driven)"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": [
+    "PRD",
+    "STORY",
+    "RLOOP"
+  ],
+  "checksum": "e2cf02402f73f87c6547e87e90ae3aeef47d6add5c23935b716085e5e9d3703b"
+}

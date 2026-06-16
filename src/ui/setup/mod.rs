@@ -30,14 +30,28 @@ pub struct SetupScreen {
     pub(crate) projects_by_tool: HashMap<String, Vec<String>>,
     /// Selected collection preset
     pub selected_preset: CollectionPreset,
-    /// Custom issuetype collection (only used when preset is Custom)
+    /// Effective issuetype collection (used when preset is Custom, e.g. from the
+    /// hosted browser's merged selection)
     pub custom_collection: Vec<String>,
+    /// Dynamic collection-source options (curated + per-provider imports),
+    /// rebuilt on entering the collection-source step
+    pub(crate) source_options: Vec<CollectionSourceOption>,
     /// List state for collection source selection
     pub(crate) source_state: ListState,
-    /// List state for custom collection selection
-    pub(crate) collection_state: ListState,
-    /// Whether we came from custom selection (for back navigation)
-    pub(crate) from_custom: bool,
+    /// Transient notice shown on the collection-source step (e.g. a deferred
+    /// kanban import message)
+    pub(crate) import_notice: Option<String>,
+    // ─── Hosted Collection State ───────────────────────────────────────────────
+    /// Collections resolved for the hosted picker (hosted + embedded fallback)
+    pub hosted_resolved: Vec<crate::collections::fetch::ResolvedCollection>,
+    /// List state for the hosted collection picker (highlight cursor)
+    pub(crate) hosted_state: ListState,
+    /// Ids of collections checked in the multi-select hosted picker
+    pub(crate) hosted_selected_ids: Vec<String>,
+    /// Whether the hosted collection list has been loaded (fetch attempted)
+    pub(crate) hosted_loaded: bool,
+    /// Id of the chosen hosted collection (set when a hosted collection is picked)
+    pub selected_hosted_id: Option<String>,
     /// Selected optional fields to include in TASK (and other types)
     pub task_optional_fields: Vec<String>,
     /// List state for field configuration selection
@@ -90,9 +104,6 @@ impl SetupScreen {
         let mut source_state = ListState::default();
         source_state.select(Some(0));
 
-        let mut collection_state = ListState::default();
-        collection_state.select(Some(0));
-
         let mut field_state = ListState::default();
         field_state.select(Some(0));
 
@@ -105,6 +116,9 @@ impl SetupScreen {
         let mut worktree_state = ListState::default();
         worktree_state.select(Some(0));
 
+        let mut hosted_state = ListState::default();
+        hosted_state.select(Some(0));
+
         Self {
             visible: true,
             step: SetupStep::Welcome,
@@ -113,10 +127,15 @@ impl SetupScreen {
             detected_tools,
             projects_by_tool,
             selected_preset: CollectionPreset::DevopsKanban,
-            custom_collection: ALL_ISSUE_TYPES.iter().map(|s| (*s).to_string()).collect(),
+            custom_collection: Vec::new(),
+            source_options: CollectionSourceOption::curated(),
             source_state,
-            collection_state,
-            from_custom: false,
+            import_notice: None,
+            hosted_resolved: Vec::new(),
+            hosted_state,
+            hosted_selected_ids: Vec::new(),
+            hosted_loaded: false,
+            selected_hosted_id: None,
             // Default: all optional fields enabled
             task_optional_fields: TASK_OPTIONAL_FIELDS
                 .iter()
@@ -164,6 +183,45 @@ impl SetupScreen {
         self.task_optional_fields.clone()
     }
 
+    /// The resolved hosted collection currently highlighted in the picker.
+    pub(crate) fn highlighted_hosted(
+        &self,
+    ) -> Option<&crate::collections::fetch::ResolvedCollection> {
+        let i = self.hosted_state.selected()?;
+        self.hosted_resolved.get(i)
+    }
+
+    /// The resolved hosted collection the user committed to (by id), for scaffolding.
+    pub fn selected_hosted_collections(
+        &self,
+    ) -> Vec<&crate::collections::fetch::ResolvedCollection> {
+        if !self.hosted_selected_ids.is_empty() {
+            self.hosted_resolved
+                .iter()
+                .filter(|r| self.hosted_selected_ids.contains(&r.manifest.id))
+                .collect()
+        } else if let Some(id) = self.selected_hosted_id.as_deref() {
+            self.hosted_resolved
+                .iter()
+                .filter(|r| r.manifest.id == id)
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Load the hosted collection picker list (hosted manifest + embedded fallback).
+    ///
+    /// Always populates at least the embedded collections, so the picker is never
+    /// empty even offline. `manifest_url` should be `None` when fetching is disabled.
+    pub async fn load_hosted_collections(&mut self, manifest_url: Option<&str>, timeout_secs: u64) {
+        self.hosted_resolved =
+            crate::collections::fetch::resolve_for_setup(manifest_url, timeout_secs).await;
+        self.hosted_state
+            .select((!self.hosted_resolved.is_empty()).then_some(0));
+        self.hosted_loaded = true;
+    }
+
     /// Get the selected startup ticket types to create
     pub fn selected_startup_tickets(&self) -> Vec<String> {
         self.startup_ticket_options
@@ -177,23 +235,70 @@ impl SetupScreen {
     fn selected_source(&self) -> Option<CollectionSourceOption> {
         self.source_state
             .selected()
-            .map(|i| CollectionSourceOption::all()[i])
+            .and_then(|i| self.source_options.get(i).cloned())
+    }
+
+    /// Enter the collection-source step, rebuilding the dynamic option list from
+    /// the kanban providers detected/configured earlier in the wizard.
+    fn enter_collection_source(&mut self) {
+        self.source_options =
+            CollectionSourceOption::with_providers(&self.detected_kanban_providers);
+        self.source_state.select(Some(0));
+        self.import_notice = None;
+        self.step = SetupStep::CollectionSource;
+    }
+
+    /// Commit the hosted-picker selection: union the issue types of every checked
+    /// collection (or the highlighted one if none are checked), in first-seen
+    /// order, and advance to the field-config step.
+    fn commit_hosted_selection(&mut self) {
+        // Resolve the chosen collections by id (checked set, else highlighted).
+        let chosen: Vec<&crate::collections::fetch::ResolvedCollection> =
+            if self.hosted_selected_ids.is_empty() {
+                self.highlighted_hosted().into_iter().collect()
+            } else {
+                self.hosted_resolved
+                    .iter()
+                    .filter(|r| self.hosted_selected_ids.contains(&r.manifest.id))
+                    .collect()
+            };
+        if chosen.is_empty() {
+            return;
+        }
+
+        let mut merged: Vec<String> = Vec::new();
+        for r in &chosen {
+            let keys = if r.manifest.default_selected.is_empty() {
+                r.manifest.type_keys()
+            } else {
+                r.manifest.default_selected.clone()
+            };
+            for k in keys {
+                if !merged.contains(&k) {
+                    merged.push(k);
+                }
+            }
+        }
+
+        // Record the single committed id when exactly one collection is chosen
+        // (drives back-navigation + scaffolding); None when several are merged.
+        self.selected_hosted_id = (chosen.len() == 1).then(|| chosen[0].manifest.id.clone());
+        self.selected_preset = CollectionPreset::Custom;
+        self.custom_collection = merged;
+        self.step = SetupStep::TaskFieldConfig;
     }
 
     /// Toggle selection (Space key)
     pub fn toggle_selection(&mut self) {
         match self.step {
-            SetupStep::CustomCollection => {
-                // Toggle the currently highlighted collection item
-                if let Some(i) = self.collection_state.selected() {
-                    let types = ALL_ISSUE_TYPES;
-                    if i < types.len() {
-                        let type_str = types[i].to_string();
-                        if self.custom_collection.contains(&type_str) {
-                            self.custom_collection.retain(|t| t != &type_str);
-                        } else {
-                            self.custom_collection.push(type_str);
-                        }
+            SetupStep::HostedCollectionFetch => {
+                // Toggle the highlighted collection in the multi-select picker.
+                if let Some(r) = self.highlighted_hosted() {
+                    let id = r.manifest.id.clone();
+                    if let Some(pos) = self.hosted_selected_ids.iter().position(|x| x == &id) {
+                        self.hosted_selected_ids.remove(pos);
+                    } else {
+                        self.hosted_selected_ids.push(id);
                     }
                 }
             }
@@ -248,17 +353,18 @@ impl SetupScreen {
     pub fn select_next(&mut self) {
         match self.step {
             SetupStep::CollectionSource => {
-                let len = CollectionSourceOption::all().len();
-                let i = self.source_state.selected().map_or(0, |i| (i + 1) % len);
-                self.source_state.select(Some(i));
+                let len = self.source_options.len();
+                if len > 0 {
+                    let i = self.source_state.selected().map_or(0, |i| (i + 1) % len);
+                    self.source_state.select(Some(i));
+                }
             }
-            SetupStep::CustomCollection => {
-                let len = ALL_ISSUE_TYPES.len();
-                let i = self
-                    .collection_state
-                    .selected()
-                    .map_or(0, |i| (i + 1) % len);
-                self.collection_state.select(Some(i));
+            SetupStep::HostedCollectionFetch => {
+                let len = self.hosted_resolved.len();
+                if len > 0 {
+                    let i = self.hosted_state.selected().map_or(0, |i| (i + 1) % len);
+                    self.hosted_state.select(Some(i));
+                }
             }
             SetupStep::TaskFieldConfig => {
                 let len = TASK_OPTIONAL_FIELDS.len();
@@ -288,23 +394,30 @@ impl SetupScreen {
     pub fn select_prev(&mut self) {
         match self.step {
             SetupStep::CollectionSource => {
-                let len = CollectionSourceOption::all().len();
-                let i =
-                    self.source_state
-                        .selected()
-                        .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
-                self.source_state.select(Some(i));
+                let len = self.source_options.len();
+                if len > 0 {
+                    let i = self.source_state.selected().map_or(0, |i| {
+                        if i == 0 {
+                            len - 1
+                        } else {
+                            i - 1
+                        }
+                    });
+                    self.source_state.select(Some(i));
+                }
             }
-            SetupStep::CustomCollection => {
-                let len = ALL_ISSUE_TYPES.len();
-                let i = self.collection_state.selected().map_or(0, |i| {
-                    if i == 0 {
-                        len - 1
-                    } else {
-                        i - 1
-                    }
-                });
-                self.collection_state.select(Some(i));
+            SetupStep::HostedCollectionFetch => {
+                let len = self.hosted_resolved.len();
+                if len > 0 {
+                    let i = self.hosted_state.selected().map_or(0, |i| {
+                        if i == 0 {
+                            len - 1
+                        } else {
+                            i - 1
+                        }
+                    });
+                    self.hosted_state.select(Some(i));
+                }
             }
             SetupStep::TaskFieldConfig => {
                 let len = TASK_OPTIONAL_FIELDS.len();
@@ -346,7 +459,36 @@ impl SetupScreen {
     pub fn confirm(&mut self) -> SetupResult {
         match self.step {
             SetupStep::Welcome => {
-                self.step = SetupStep::CollectionSource;
+                // Kanban setup runs first so the collection step can offer
+                // "import from a configured provider" options. Detect providers
+                // from environment variables on the way into the kanban step.
+                if !self.kanban_detection_complete {
+                    self.detected_kanban_providers =
+                        crate::api::providers::kanban::detect_kanban_env_vars();
+                    self.kanban_detection_complete = true;
+                }
+                self.step = SetupStep::KanbanInfo;
+                SetupResult::Continue
+            }
+            SetupStep::KanbanInfo => {
+                // Configure valid providers, otherwise proceed to the collection step.
+                if self.valid_kanban_providers.is_empty() || self.kanban_skipped {
+                    self.enter_collection_source();
+                } else {
+                    self.step = SetupStep::KanbanProviderSetup { provider_index: 0 };
+                }
+                SetupResult::Continue
+            }
+            SetupStep::KanbanProviderSetup { provider_index } => {
+                // Move to the next provider or on to the collection step.
+                let next_index = provider_index + 1;
+                if next_index < self.valid_kanban_providers.len() {
+                    self.step = SetupStep::KanbanProviderSetup {
+                        provider_index: next_index,
+                    };
+                } else {
+                    self.enter_collection_source();
+                }
                 SetupResult::Continue
             }
             SetupStep::CollectionSource => {
@@ -354,32 +496,38 @@ impl SetupScreen {
                     match source {
                         CollectionSourceOption::Simple => {
                             self.selected_preset = CollectionPreset::Simple;
-                            self.from_custom = false;
+                            self.selected_hosted_id = None;
                             self.step = SetupStep::TaskFieldConfig;
                             SetupResult::Continue
                         }
                         CollectionSourceOption::DevKanban => {
                             self.selected_preset = CollectionPreset::DevKanban;
-                            self.from_custom = false;
+                            self.selected_hosted_id = None;
                             self.step = SetupStep::TaskFieldConfig;
                             SetupResult::Continue
                         }
                         CollectionSourceOption::DevopsKanban => {
                             self.selected_preset = CollectionPreset::DevopsKanban;
-                            self.from_custom = false;
+                            self.selected_hosted_id = None;
                             self.step = SetupStep::TaskFieldConfig;
                             SetupResult::Continue
                         }
-                        CollectionSourceOption::ImportJira => SetupResult::ExitUnimplemented(
-                            "Jira import is not yet implemented".to_string(),
-                        ),
-                        CollectionSourceOption::ImportNotion => SetupResult::ExitUnimplemented(
-                            "Notion import is not yet implemented".to_string(),
-                        ),
-                        CollectionSourceOption::CustomSelection => {
-                            self.selected_preset = CollectionPreset::Custom;
-                            self.from_custom = true;
-                            self.step = SetupStep::CustomCollection;
+                        CollectionSourceOption::Browse => {
+                            // The async list load is triggered by the key handler on
+                            // entering this step (see handle_key); reset prior state.
+                            self.hosted_loaded = false;
+                            self.selected_hosted_id = None;
+                            self.hosted_selected_ids.clear();
+                            self.step = SetupStep::HostedCollectionFetch;
+                            SetupResult::Continue
+                        }
+                        CollectionSourceOption::ImportFromProvider(r) => {
+                            // Import is scaffolded: structural conversion is deferred.
+                            // Surface a provider-specific notice and stay on the step.
+                            self.import_notice = Some(format!(
+                                "Importing from {} is coming soon.",
+                                r.author_attribution()
+                            ));
                             SetupResult::Continue
                         }
                     }
@@ -387,10 +535,9 @@ impl SetupScreen {
                     SetupResult::Continue
                 }
             }
-            SetupStep::CustomCollection => {
-                if !self.custom_collection.is_empty() {
-                    self.step = SetupStep::TaskFieldConfig;
-                }
+            SetupStep::HostedCollectionFetch => {
+                // Commit the checked collections (or the highlighted one).
+                self.commit_hosted_selection();
                 SetupResult::Continue
             }
             SetupStep::TaskFieldConfig => {
@@ -439,68 +586,22 @@ impl SetupScreen {
             SetupStep::TmuxOnboarding => {
                 // Only allow proceeding if tmux is available
                 if matches!(self.tmux_status, TmuxDetectionStatus::Available { .. }) {
-                    // Detect kanban providers if not already done
-                    if !self.kanban_detection_complete {
-                        self.detected_kanban_providers =
-                            crate::api::providers::kanban::detect_kanban_env_vars();
-                        self.kanban_detection_complete = true;
-                    }
-                    self.step = SetupStep::KanbanInfo;
+                    self.step = SetupStep::AcceptanceCriteria;
                 }
                 // If tmux not available, stay on this step (user must install or go back)
                 SetupResult::Continue
             }
             SetupStep::VSCodeSetup => {
                 // For now, allow proceeding (extension check will be added later)
-                // Detect kanban providers if not already done
-                if !self.kanban_detection_complete {
-                    self.detected_kanban_providers =
-                        crate::api::providers::kanban::detect_kanban_env_vars();
-                    self.kanban_detection_complete = true;
-                }
-                self.step = SetupStep::KanbanInfo;
+                self.step = SetupStep::AcceptanceCriteria;
                 SetupResult::Continue
             }
             SetupStep::CmuxSetup => {
-                // Detect kanban providers if not already done
-                if !self.kanban_detection_complete {
-                    self.detected_kanban_providers =
-                        crate::api::providers::kanban::detect_kanban_env_vars();
-                    self.kanban_detection_complete = true;
-                }
-                self.step = SetupStep::KanbanInfo;
+                self.step = SetupStep::AcceptanceCriteria;
                 SetupResult::Continue
             }
             SetupStep::ZellijSetup => {
-                // Detect kanban providers if not already done
-                if !self.kanban_detection_complete {
-                    self.detected_kanban_providers =
-                        crate::api::providers::kanban::detect_kanban_env_vars();
-                    self.kanban_detection_complete = true;
-                }
-                self.step = SetupStep::KanbanInfo;
-                SetupResult::Continue
-            }
-            SetupStep::KanbanInfo => {
-                // If no valid providers or skipped, go to acceptance criteria
-                if self.valid_kanban_providers.is_empty() || self.kanban_skipped {
-                    self.step = SetupStep::AcceptanceCriteria;
-                } else {
-                    // Start with first valid provider
-                    self.step = SetupStep::KanbanProviderSetup { provider_index: 0 };
-                }
-                SetupResult::Continue
-            }
-            SetupStep::KanbanProviderSetup { provider_index } => {
-                // Move to next provider or acceptance criteria
-                let next_index = provider_index + 1;
-                if next_index < self.valid_kanban_providers.len() {
-                    self.step = SetupStep::KanbanProviderSetup {
-                        provider_index: next_index,
-                    };
-                } else {
-                    self.step = SetupStep::AcceptanceCriteria;
-                }
+                self.step = SetupStep::AcceptanceCriteria;
                 SetupResult::Continue
             }
             SetupStep::AcceptanceCriteria => {
@@ -525,19 +626,42 @@ impl SetupScreen {
     pub fn go_back(&mut self) -> SetupResult {
         match self.step {
             SetupStep::Welcome => SetupResult::Cancel,
-            SetupStep::CollectionSource => {
+            SetupStep::KanbanInfo => {
                 self.step = SetupStep::Welcome;
                 SetupResult::Continue
             }
-            SetupStep::CustomCollection => {
-                self.step = SetupStep::CollectionSource;
+            SetupStep::KanbanProviderSetup { provider_index } => {
+                if provider_index > 0 {
+                    self.step = SetupStep::KanbanProviderSetup {
+                        provider_index: provider_index - 1,
+                    };
+                } else {
+                    self.step = SetupStep::KanbanInfo;
+                }
+                SetupResult::Continue
+            }
+            SetupStep::CollectionSource => {
+                // Return to the kanban step that preceded the collection step.
+                if !self.valid_kanban_providers.is_empty() && !self.kanban_skipped {
+                    let last_index = self.valid_kanban_providers.len() - 1;
+                    self.step = SetupStep::KanbanProviderSetup {
+                        provider_index: last_index,
+                    };
+                } else {
+                    self.step = SetupStep::KanbanInfo;
+                }
+                SetupResult::Continue
+            }
+            SetupStep::HostedCollectionFetch => {
+                self.enter_collection_source();
                 SetupResult::Continue
             }
             SetupStep::TaskFieldConfig => {
-                if self.from_custom {
-                    self.step = SetupStep::CustomCollection;
+                // A Custom preset means the hosted browser produced the selection.
+                if matches!(self.selected_preset, CollectionPreset::Custom) {
+                    self.step = SetupStep::HostedCollectionFetch;
                 } else {
-                    self.step = SetupStep::CollectionSource;
+                    self.enter_collection_source();
                 }
                 SetupResult::Continue
             }
@@ -565,35 +689,13 @@ impl SetupScreen {
                 self.step = SetupStep::WorktreePreference;
                 SetupResult::Continue
             }
-            SetupStep::KanbanInfo => {
-                // Go back to the appropriate wrapper setup step
+            SetupStep::AcceptanceCriteria => {
+                // Go back to the wrapper setup step that preceded this one.
                 match self.selected_wrapper {
                     SessionWrapperType::Tmux => self.step = SetupStep::TmuxOnboarding,
                     SessionWrapperType::Vscode => self.step = SetupStep::VSCodeSetup,
                     SessionWrapperType::Cmux => self.step = SetupStep::CmuxSetup,
                     SessionWrapperType::Zellij => self.step = SetupStep::ZellijSetup,
-                }
-                SetupResult::Continue
-            }
-            SetupStep::KanbanProviderSetup { provider_index } => {
-                if provider_index > 0 {
-                    self.step = SetupStep::KanbanProviderSetup {
-                        provider_index: provider_index - 1,
-                    };
-                } else {
-                    self.step = SetupStep::KanbanInfo;
-                }
-                SetupResult::Continue
-            }
-            SetupStep::AcceptanceCriteria => {
-                // Go back to last kanban provider setup or kanban info
-                if !self.valid_kanban_providers.is_empty() && !self.kanban_skipped {
-                    let last_index = self.valid_kanban_providers.len() - 1;
-                    self.step = SetupStep::KanbanProviderSetup {
-                        provider_index: last_index,
-                    };
-                } else {
-                    self.step = SetupStep::KanbanInfo;
                 }
                 SetupResult::Continue
             }
@@ -617,7 +719,7 @@ impl SetupScreen {
         match self.step.clone() {
             SetupStep::Welcome => self.render_welcome_step(frame),
             SetupStep::CollectionSource => self.render_collection_source_step(frame),
-            SetupStep::CustomCollection => self.render_custom_collection_step(frame),
+            SetupStep::HostedCollectionFetch => self.render_hosted_collection_step(frame),
             SetupStep::TaskFieldConfig => self.render_task_field_config_step(frame),
             SetupStep::SessionWrapperChoice => self.render_session_wrapper_choice_step(frame),
             SetupStep::WorktreePreference => self.render_worktree_preference_step(frame),

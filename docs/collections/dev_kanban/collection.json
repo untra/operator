@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "dev_kanban",
+  "name": "Dev Kanban",
+  "description": "Developer kanban with TASK, FEAT, FIX",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": [
+    "builtin",
+    "kanban",
+    "dev"
+  ],
+  "compatibility": null,
+  "issue_types": [
+    {
+      "key": "TASK",
+      "schema_path": "TASK.json",
+      "schema_checksum": "f654229454da050ca038c273cc74884c2dbe68f09b293eee3764f23d6771b939",
+      "template_path": "TASK.md",
+      "template_checksum": "7a71bf692588af1d1ac5d9192edd64316353ada616e22019dfff7683ab5d09c4"
+    },
+    {
+      "key": "FEAT",
+      "schema_path": "FEAT.json",
+      "schema_checksum": "42a04e3c8c821e69f334e92b94d57e5aa18e08bc064fe82f53839284b834e520",
+      "template_path": "FEAT.md",
+      "template_checksum": "fbc7e17641d8e796dad14c09fe20ffcbbdbdb8f58199b0d29d9e9729b51b4d5a"
+    },
+    {
+      "key": "FIX",
+      "schema_path": "FIX.json",
+      "schema_checksum": "4deafa08b2dcf1c94462d7079574be05d2efd6ff0abb6036b8fde955dca0e0a1",
+      "template_path": "FIX.md",
+      "template_checksum": "5237e1faf9b2c49d80fc9efff5a0d3e184f86c4fa5a34ff4dfed26ee883856bf"
+    }
+  ],
+  "workflow_hints": {
+    "loop_kind": "single_pass",
+    "memory_surfaces": [
+      "ticket"
+    ],
+    "review_gates": [
+      "test_suite"
+    ],
+    "external_tools": [
+      "git"
+    ],
+    "stop_conditions": [
+      "tests_green"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": [
+    "TASK",
+    "FEAT",
+    "FIX"
+  ],
+  "checksum": "21b4b7f7b419660f776f8f162ad6f8a1049d623a7438eaf15e759cc4c278cfe4"
+}

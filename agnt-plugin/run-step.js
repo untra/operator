@@ -9,6 +9,9 @@
 import { callOperator } from "./lib/operator-client.js";
 
 class RunStepTool {
+  constructor() {
+    this.name = "operator-run-step";
+  }
   async execute(params, _inputData, _workflowEngine) {
     const ticket = params && (params.ticket || params.id);
     if (!ticket) {

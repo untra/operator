@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "generated_at": null,
+  "collections": [
+    {
+      "id": "simple",
+      "name": "Simple",
+      "description": "Simple workflow with TASK only",
+      "version": "1.0.0",
+      "tags": [
+        "builtin"
+      ],
+      "manifest_path": "simple/collection.json",
+      "checksum": "fce81369f98e00ee6fe35194076055b59f4882d8d1613a914bbce660593a05b4"
+    },
+    {
+      "id": "dev_kanban",
+      "name": "Dev Kanban",
+      "description": "Developer kanban with TASK, FEAT, FIX",
+      "version": "1.0.0",
+      "tags": [
+        "builtin",
+        "kanban",
+        "dev"
+      ],
+      "manifest_path": "dev_kanban/collection.json",
+      "checksum": "87460062d63068e9e96f6ee628cc466bec6951c0b766f338178b66cb5ac1d23f"
+    },
+    {
+      "id": "devops_kanban",
+      "name": "DevOps Kanban",
+      "description": "DevOps kanban with TASK, FEAT, FIX, SPIKE, INV",
+      "version": "1.0.0",
+      "tags": [
+        "builtin",
+        "kanban",
+        "devops"
+      ],
+      "manifest_path": "devops_kanban/collection.json",
+      "checksum": "068c5112a615ccc4f9a1c11e0b90c1a193b07e5b07565100880750f1624edaa4"
+    },
+    {
+      "id": "operator",
+      "name": "Operator",
+      "description": "Operator automation tasks: ASSESS, SYNC, INIT",
+      "version": "1.0.0",
+      "tags": [
+        "builtin",
+        "automation"
+      ],
+      "manifest_path": "operator/collection.json",
+      "checksum": "9a5aa2ac773bd4e445cb951f870b7e78ff3e0002be9a66bba05c14e9abe9c4f3"
+    },
+    {
+      "id": "full",
+      "name": "Full",
+      "description": "Full workflow: all issue types combined",
+      "version": "1.0.0",
+      "tags": [
+        "builtin"
+      ],
+      "manifest_path": "full/collection.json",
+      "checksum": "305830707c108a825bd5aab14aaf9e489e0d7b286e36c77269ad0da94420f2d4"
+    },
+    {
+      "id": "ralph_loop",
+      "name": "Ralph Loop",
+      "description": "PRD-to-story loop for completing one right-sized story per fresh agent context.",
+      "version": "1.0.0",
+      "tags": [
+        "agentic-loop",
+        "prd",
+        "stories",
+        "ralph"
+      ],
+      "manifest_path": "ralph_loop/collection.json",
+      "checksum": "f37e1379c1ffea6208d25add591daa468b680c2a796b04fc490c0a4e30f96c39"
+    },
+    {
+      "id": "jr_orchestration",
+      "name": "JR Orchestration",
+      "description": "Feature/task orchestration with coder, reviewer, architect, and rebase work units.",
+      "version": "1.0.0",
+      "tags": [
+        "agentic-loop",
+        "feature-graph",
+        "review",
+        "jr"
+      ],
+      "manifest_path": "jr_orchestration/collection.json",
+      "checksum": "e89a9ec49af83f5c431fc95e0418943d7aedc3fd087b5b05ee12b339007c0f39"
+    },
+    {
+      "id": "elves_overnight",
+      "name": "Elves Overnight",
+      "description": "Long-running staged batch workflow with durable memory, validation, PR review, and reporting.",
+      "version": "1.0.0",
+      "tags": [
+        "agentic-loop",
+        "overnight",
+        "batch",
+        "elves"
+      ],
+      "manifest_path": "elves_overnight/collection.json",
+      "checksum": "1078479804ba0d581bff29d7e153904dee0d46cfb41d4f05841891814a9f62eb"
+    }
+  ]
+}

@@ -117,7 +117,7 @@ pub fn scaffold_collection(templates_path: &Path, collection: &EmbeddedCollectio
     })?;
 
     // Write collection manifest
-    fs::write(collection_path.join("collection.toml"), collection.manifest)?;
+    fs::write(collection_path.join("collection.json"), collection.manifest)?;
 
     // Write issuetype JSON and markdown files
     for issuetype in collection.issuetypes {
@@ -213,8 +213,8 @@ mod tests {
         assert!(templates_path.join("devops_kanban/SPIKE.json").exists());
         assert!(templates_path.join("devops_kanban/INV.json").exists());
 
-        // Check collection.toml was created
-        assert!(templates_path.join("dev_kanban/collection.toml").exists());
+        // Check collection.json was created
+        assert!(templates_path.join("dev_kanban/collection.json").exists());
     }
 
     #[test]
@@ -240,7 +240,7 @@ mod tests {
 
         scaffold_collection_by_name(&templates_path, "simple").unwrap();
 
-        assert!(templates_path.join("simple/collection.toml").exists());
+        assert!(templates_path.join("simple/collection.json").exists());
         assert!(templates_path.join("simple/TASK.json").exists());
         assert!(templates_path.join("simple/TASK.md").exists());
     }

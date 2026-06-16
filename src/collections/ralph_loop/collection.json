@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "ralph_loop",
+  "name": "Ralph Loop",
+  "description": "PRD-to-story loop for completing one right-sized story per fresh agent context.",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "snarktank",
+  "url": "https://github.com/snarktank/ralph",
+  "license": "MIT",
+  "tags": ["agentic-loop", "prd", "stories", "ralph"],
+  "issue_types": [
+    { "key": "PRD", "schema_path": "PRD.json", "template_path": "PRD.md" },
+    { "key": "STORY", "schema_path": "STORY.json", "template_path": "STORY.md" },
+    { "key": "RLOOP", "schema_path": "RLOOP.json", "template_path": "RLOOP.md" }
+  ],
+  "workflow_hints": {
+    "loop_kind": "fresh_context_story_loop",
+    "memory_surfaces": [".tickets/workflows/{{ id }}/prd.json", ".tickets/workflows/{{ id }}/progress.txt", "AGENTS.md"],
+    "review_gates": ["plan_review", "test_suite", "story_completion_check"],
+    "external_tools": ["git", "project test command"],
+    "stop_conditions": ["all stories have passes=true", "blocked story documented", "quality gates fail repeatedly", "max_iterations reached (advisory; outer story loop is operator-queue-driven)"],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": ["PRD", "STORY", "RLOOP"]
+}

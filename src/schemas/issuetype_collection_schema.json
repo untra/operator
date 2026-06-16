@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://operator.untra.io/collections/schema.json",
+  "title": "Operator Hosted Collection Manifest",
+  "description": "Format for a shareable, hostable issuetype collection (collection.json). A collection references per-issuetype schema files (issuetype_schema.json format) by relative path, each with a SHA-256 checksum. This same format is used for the offline collections embedded in the operator binary.",
+  "type": "object",
+  "required": ["schema_version", "id", "name", "issue_types"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Manifest schema version. Unknown versions are rejected by the fetcher (offline fallback used)."
+    },
+    "id": { "type": "string", "description": "Stable collection id (e.g. dev_kanban)." },
+    "name": { "type": "string", "description": "Display name." },
+    "description": { "type": "string", "description": "One-line description." },
+    "version": { "type": "string", "description": "Collection semver." },
+    "publisher": { "type": ["string", "null"], "description": "Publisher identifier (e.g. untra)." },
+    "author": { "type": ["string", "null"], "description": "Human author/attribution shown in the setup picker. Built-ins are authored by 'Operator!'; a kanban-imported collection lists the provider name + workspace/project." },
+    "url": { "type": ["string", "null"], "description": "Link to the collection's source (GitHub repo or project page)." },
+    "license": { "type": ["string", "null"], "description": "SPDX license id." },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "compatibility": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "operator_version": {
+          "type": ["string", "null"],
+          "description": "Minimum operator version this collection targets (e.g. >=0.2.0)."
+        }
+      }
+    },
+    "issue_types": {
+      "type": "array",
+      "description": "Issue types in this collection, in display order.",
+      "items": {
+        "type": "object",
+        "required": ["key", "schema_path"],
+        "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string", "description": "Issue type key (e.g. TASK)." },
+          "schema_path": { "type": "string", "description": "Path to the issuetype JSON, relative to the manifest." },
+          "schema_checksum": { "type": "string", "description": "SHA-256 (lowercase hex) of the issuetype JSON bytes. Required for hosted manifests; omitted for embedded ones." },
+          "template_path": { "type": ["string", "null"], "description": "Optional path to the markdown template, relative to the manifest." },
+          "template_checksum": { "type": ["string", "null"], "description": "SHA-256 (lowercase hex) of the markdown template bytes, if present." }
+        }
+      }
+    },
+    "workflow_hints": {
+      "type": ["object", "null"],
+      "description": "Descriptive metadata about the collection's intended agentic loop shape. v1 is metadata only: stored and displayed but not executed.",
+      "additionalProperties": false,
+      "properties": {
+        "loop_kind": { "type": ["string", "null"], "description": "Loop shape (e.g. single_pass, ralph, review_loop)." },
+        "memory_surfaces": { "type": "array", "items": { "type": "string" } },
+        "review_gates": { "type": "array", "items": { "type": "string" } },
+        "external_tools": { "type": "array", "items": { "type": "string" } },
+        "stop_conditions": { "type": "array", "items": { "type": "string" } },
+        "runner_semantics": {
+          "type": "string",
+          "const": "prompt_driven",
+          "description": "How the runner interprets the hints. v1 is always prompt_driven."
+        }
+      }
+    },
+    "default_selected": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Subset of issue_types[].key selected by default in the setup picker."
+    },
+    "checksum": {
+      "type": ["string", "null"],
+      "description": "SHA-256 (lowercase hex) derived from the issue-type file checksums (schema_checksum + template_checksum joined by newlines, in issue_types order)."
+    }
+  }
+}

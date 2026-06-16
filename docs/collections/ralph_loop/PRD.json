@@ -1,0 +1,105 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "PRD",
+  "name": "Product Requirements Document",
+  "description": "Draft, normalize, and slice a product requirements document into Ralph-style executable stories.",
+  "mode": "paired",
+  "glyph": "P",
+  "color": "blue",
+  "project_required": true,
+  "agent": "ralph-planner",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "priority",
+      "description": "Priority level",
+      "type": "enum",
+      "required": false,
+      "default": "P2-medium",
+      "options": ["P0-critical", "P1-high", "P2-medium", "P3-low"],
+      "display_order": 1
+    },
+    {
+      "name": "summary",
+      "description": "Product or feature summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "What product capability should be specified?",
+      "max_length": 120,
+      "display_order": 2
+    },
+    {
+      "name": "source_notes",
+      "description": "Raw requirements, links, constraints, or notes",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "placeholder": "Paste product notes, acceptance criteria, constraints, or relevant links.",
+      "display_order": 3
+    },
+    {
+      "name": "quality_commands",
+      "description": "Commands each story should pass before completion",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "placeholder": "Example: npm test && npm run lint",
+      "display_order": 4
+    }
+  ],
+  "steps": [
+    {
+      "name": "draft",
+      "display_name": "Draft PRD",
+      "outputs": ["plan", "documentation"],
+      "prompt": "Draft a product requirements document for {{ summary }}.\n\nUse the ticket notes as source material, then inspect the project enough to make the requirements concrete. Write the human-readable PRD to `.tickets/workflows/{{ id }}/prd.md`.\n\nThe PRD must include goals, non-goals, users, constraints, risks, acceptance criteria, and a story list. Each story should be small enough for one fresh agent context.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write"],
+      "artifact_patterns": [".tickets/workflows/{{ id }}/prd.md"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "draft",
+        "prompt": "The PRD draft was rejected: {{ rejection_reason }}\n\nRevise `.tickets/workflows/{{ id }}/prd.md` and tighten the story list before asking for review again."
+      },
+      "next_step": "structure"
+    },
+    {
+      "name": "structure",
+      "display_name": "Structure Stories",
+      "outputs": ["documentation"],
+      "prompt": "Convert `.tickets/workflows/{{ id }}/prd.md` into Ralph-style structured state at `.tickets/workflows/{{ id }}/prd.json`.\n\nThe JSON should include an ordered `stories` array. Each story needs a stable id, title, description, acceptance criteria, dependencies, and `passes: false`. Include a `quality_commands` field from the ticket when provided.\n\nDo not mark any story complete yet.",
+      "allowed_tools": ["Read", "Write", "Edit"],
+      "artifact_patterns": [".tickets/workflows/{{ id }}/prd.json"],
+      "next_step": "slice"
+    },
+    {
+      "name": "slice",
+      "display_name": "Slice Check",
+      "outputs": ["review"],
+      "prompt": "Review `.tickets/workflows/{{ id }}/prd.json` for story size and execution order.\n\nA good Ralph story can be completed independently by a fresh agent using only the PRD, progress file, repo context, and current ticket. Split any story that is too broad. Make dependencies explicit. If a story is ambiguous, update the PRD and JSON rather than relying on future memory.",
+      "allowed_tools": ["Read", "Edit", "Grep"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "draft",
+        "prompt": "The story slicing review found problems: {{ rejection_reason }}\n\nRevise the PRD and structured story list so each story is independently executable."
+      },
+      "next_step": "ready"
+    },
+    {
+      "name": "ready",
+      "display_name": "Initialize Progress",
+      "outputs": ["documentation", "ticket"],
+      "prompt": "Initialize Ralph loop state for this PRD.\n\nWrite `.tickets/workflows/{{ id }}/progress.txt` with: project context, quality commands, current branch, how to select the next story, and any constraints a fresh STORY agent must know. Add a short note explaining that each STORY ticket should complete exactly one story and update `prd.json` plus `progress.txt`.\n\nIf useful, create the first STORY ticket for the first incomplete story.",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "artifact_patterns": [".tickets/workflows/{{ id }}/progress.txt"]
+    }
+  ]
+}

@@ -2,6 +2,9 @@
 import { callOperator } from "./lib/operator-client.js";
 
 class AlertTool {
+  constructor() {
+    this.name = "operator-alert";
+  }
   async execute(params, _inputData, _workflowEngine) {
     if (!params || !params.message) {
       return { success: false, result: null, error: "missing required param: message" };

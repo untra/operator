@@ -495,6 +495,28 @@ pub struct TemplatesConfig {
     /// Can be a builtin preset name or a user-defined collection
     #[serde(default)]
     pub active_collection: Option<String>,
+
+    /// Enable fetching hosted issuetype collections during setup.
+    /// When disabled, only the embedded (offline) collections are offered.
+    #[serde(default = "default_true")]
+    pub collections_fetch_enabled: bool,
+
+    /// URL of the hosted collection index manifest, fetched during setup.
+    /// Points at a `CollectionIndex` JSON document listing available collections.
+    #[serde(default = "default_collections_manifest_url")]
+    pub collections_manifest_url: Option<String>,
+
+    /// Timeout in seconds for hosted collection fetch HTTP requests.
+    #[serde(default = "default_collections_fetch_timeout")]
+    pub collections_fetch_timeout_secs: u64,
+}
+
+fn default_collections_manifest_url() -> Option<String> {
+    Some("https://operator.untra.io/collections/index.json".to_string())
+}
+
+fn default_collections_fetch_timeout() -> u64 {
+    5
 }
 
 impl Default for TemplatesConfig {
@@ -503,6 +525,9 @@ impl Default for TemplatesConfig {
             preset: CollectionPreset::DevKanban,
             collection: Vec::new(),
             active_collection: None,
+            collections_fetch_enabled: true,
+            collections_manifest_url: default_collections_manifest_url(),
+            collections_fetch_timeout_secs: 5,
         }
     }
 }

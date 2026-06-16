@@ -34,7 +34,7 @@ jobs:
 
       # Install Rust toolchain for docs generation
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.95
 
       # Cache cargo for faster builds
       - name: Cache cargo

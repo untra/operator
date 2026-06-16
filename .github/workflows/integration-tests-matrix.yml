@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -122,7 +122,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -178,7 +178,7 @@ jobs:
         run: brew install tmux
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -237,7 +237,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -306,7 +306,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -359,7 +359,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -411,7 +411,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo
         uses: actions/cache@v5

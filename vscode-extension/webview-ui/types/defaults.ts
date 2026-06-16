@@ -101,6 +101,7 @@ const DEFAULT_CONFIG: Config = {
   },
   rest_api: {
     enabled: false,
+    host: '127.0.0.1',
     port: 7008,
     cors_origins: [],
   },

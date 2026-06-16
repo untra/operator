@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.95
         with:
           targets: wasm32-wasip1
           components: clippy, rustfmt

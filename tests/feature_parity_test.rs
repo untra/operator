@@ -184,16 +184,55 @@ const CANONICAL_VIEWS: &[(&str, &str, &str)] = &[
     ("Completed", "CompletedPanel", "operator-completed"),
 ];
 
-/// Status panel sections that must exist in both TUI and `VSCode`.
-/// Each tuple: (section name, TUI `SectionId` variant, `VSCode` `sectionId` string)
-const STATUS_SECTIONS: &[(&str, &str, &str)] = &[
-    ("Configuration", "Configuration", "config"),
-    ("Connections", "Connections", "connections"),
-    ("Kanban", "Kanban", "kanban"),
-    ("LLM Tools", "LlmTools", "llm"),
-    ("Delegators", "Delegators", "delegators"),
-    ("Git", "Git", "git"),
-];
+/// The canonical status-section ids, parsed from the committed ts-rs export
+/// `bindings/SectionId.ts` — itself generated from the `SectionId` enum in
+/// `src/ui/status_panel.rs` (the single source of truth). The VS Code copy under
+/// `vscode-extension/src/generated/` is gitignored (it's produced by
+/// `npm run copy-types`), so we read the tracked `bindings/` original to stay
+/// reproducible on a fresh checkout. Parsing the file means this list can never
+/// go stale: add a `SectionId` variant and it flows here automatically, so the
+/// per-surface checks below catch any surface that forgot to add it.
+fn canonical_section_ids() -> Vec<String> {
+    let src = include_str!("../bindings/SectionId.ts");
+    // `export type SectionId = "config" | "connections" | ...;`
+    let body = src.split_once('=').map(|(_, b)| b).unwrap_or(src);
+    let mut ids = Vec::new();
+    let mut rest = body;
+    while let Some(i) = rest.find('"') {
+        let after = &rest[i + 1..];
+        match after.find('"') {
+            Some(end) => {
+                ids.push(after[..end].to_string());
+                rest = &after[end + 1..];
+            }
+            None => break,
+        }
+    }
+    ids
+}
+
+/// Extract the ordered ids listed in `ui/src/concepts.ts`'s `STATUS_KEYS` array.
+fn concepts_status_keys() -> Vec<String> {
+    let src = include_str!("../ui/src/concepts.ts");
+    let start = src
+        .find("STATUS_KEYS")
+        .and_then(|i| src[i..].find('[').map(|j| i + j + 1))
+        .expect("concepts.ts should declare STATUS_KEYS = [ ... ]");
+    let end = start + src[start..].find(']').expect("STATUS_KEYS array end");
+    let mut ids = Vec::new();
+    let mut rest = &src[start..end];
+    while let Some(i) = rest.find('\'') {
+        let after = &rest[i + 1..];
+        match after.find('\'') {
+            Some(e) => {
+                ids.push(after[..e].to_string());
+                rest = &after[e + 1..];
+            }
+            None => break,
+        }
+    }
+    ids
+}
 
 /// Verify TUI has all 4 canonical view panels
 #[test]
@@ -219,28 +258,93 @@ fn test_vscode_has_all_canonical_views() {
     }
 }
 
-/// Verify TUI status panel has all canonical sections
+/// The canonical section list must be non-trivial (guards a parsing regression
+/// that would silently make the coverage checks vacuous).
+#[test]
+fn test_canonical_section_ids_present() {
+    let ids = canonical_section_ids();
+    assert!(
+        ids.len() >= 9,
+        "expected at least 9 canonical sections, parsed {ids:?}"
+    );
+    assert!(ids.contains(&"config".to_string()));
+    assert!(ids.contains(&"projects".to_string()));
+}
+
+/// Every canonical section id must be referenced by the TUI status panel (as a
+/// serde rename) so the TUI can't drop a section the source of truth declares.
 #[test]
 fn test_tui_has_all_status_sections() {
     let status_panel_src = include_str!("../src/ui/status_panel.rs");
-    for (name, tui_variant, _) in STATUS_SECTIONS {
+    for id in canonical_section_ids() {
         assert!(
-            status_panel_src.contains(tui_variant),
-            "TUI StatusPanel should have SectionId::{tui_variant} for '{name}'"
+            status_panel_src.contains(&format!("\"{id}\"")),
+            "TUI status_panel.rs is missing the serde rename for section '{id}'"
         );
     }
 }
 
-/// Verify `VSCode` extension has all status sections
+/// Every canonical section id must be referenced by the VS Code status provider.
 #[test]
 fn test_vscode_has_all_status_sections() {
     let status_provider_src = include_str!("../vscode-extension/src/status-provider.ts");
-    for (name, _, vscode_section) in STATUS_SECTIONS {
+    for id in canonical_section_ids() {
         assert!(
-            status_provider_src.contains(vscode_section),
-            "VSCode StatusTreeProvider should have sectionId '{vscode_section}' for '{name}'"
+            status_provider_src.contains(&id),
+            "VSCode status-provider.ts is missing sectionId '{id}'"
         );
     }
+}
+
+/// The web UI sidebar (`STATUS_KEYS` in concepts.ts) must list exactly the
+/// canonical sections, in the same order, as the TUI / VS Code surfaces.
+#[test]
+fn test_web_ui_status_keys_match_canonical_order() {
+    assert_eq!(
+        concepts_status_keys(),
+        canonical_section_ids(),
+        "ui/src/concepts.ts STATUS_KEYS must match the canonical SectionId order"
+    );
+}
+
+/// Every `docsUrl` the web UI links to must resolve to a real docs page, so a
+/// concept page never sends a reader to a 404.
+#[test]
+fn test_concepts_docs_urls_resolve() {
+    const BASE: &str = "${DOCS_BASE}";
+    let src = include_str!("../ui/src/concepts.ts");
+    let docs_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs");
+    let mut checked = 0;
+    for line in src.lines() {
+        let Some(i) = line.find("docsUrl:") else {
+            continue;
+        };
+        // e.g. ``docsUrl: `${DOCS_BASE}/getting-started/git/`,``
+        let after = &line[i..];
+        let Some(b) = after.find(BASE) else {
+            continue;
+        };
+        let rest = &after[b + BASE.len()..];
+        let Some(end) = rest.find('`') else {
+            continue;
+        };
+        let path = rest[..end].trim_matches('/');
+        let resolves = if path.is_empty() {
+            docs_dir.join("index.md").exists()
+        } else {
+            docs_dir.join(format!("{path}.md")).exists()
+                || docs_dir.join(path).join("index.md").exists()
+        };
+        assert!(
+            resolves,
+            "concepts.ts docsUrl '/{path}/' does not resolve to a docs page on disk"
+        );
+        checked += 1;
+    }
+    assert!(
+        checked >= 9,
+        "expected to verify all concept docsUrls; only matched {checked}"
+    );
 }
 
 /// View structure parity summary

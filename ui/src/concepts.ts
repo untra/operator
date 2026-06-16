@@ -118,6 +118,14 @@ export const CONCEPTS: Record<string, Concept> = {
     docsUrl: `${DOCS_BASE}/configuration/`,
     summary: 'Projects operator manages and routes tickets into.',
   },
+  workflows: {
+    key: 'workflows',
+    icon: 'type-hierarchy',
+    label: 'Workflows',
+    route: '/workflows',
+    docsUrl: `${DOCS_BASE}/getting-started/workflows/`,
+    summary: 'Export formats a ticket + issue type can be rendered into for other tools.',
+  },
 };
 
 /** Sidebar order for the status sections (matches the TUI / VS Code ordering). */
@@ -131,6 +139,7 @@ export const STATUS_KEYS = [
   'issuetypes',
   'delegators',
   'projects',
+  'workflows',
 ] as const;
 
 /** Sidebar order for the web-only pages. */

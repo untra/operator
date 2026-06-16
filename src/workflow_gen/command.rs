@@ -50,7 +50,7 @@ fn preview_filename(key: &str, format: WorkflowFormat) -> String {
 ///
 /// `config` is needed only by the AGNT target, which resolves each step's
 /// delegator name against `config.delegators` to decide between an
-/// `operator-run-step` node and an `agnt-agent` node. The Claude target ignores it.
+/// `operator-run-step` node and a native AGNT `agnt-agent` node. The Claude target ignores it.
 fn render(
     ticket: &Ticket,
     issuetype: &IssueType,
@@ -108,7 +108,7 @@ pub fn export_workflow_for_issuetype(
     let ticket = preview_ticket(issuetype);
     // No config/filesystem context in a preview: environment-dependent pipeline
     // item sources (projects/glob) render as symbolic placeholders, and with an
-    // empty delegator set the AGNT target never resolves an `agnt-agent` node —
+    // empty delegator set the AGNT target never resolves a native `agnt-agent` node —
     // so those nodes appear only in real ticket exports, by design.
     let contents = render(
         &ticket,

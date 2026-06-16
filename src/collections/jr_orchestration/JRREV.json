@@ -1,0 +1,88 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "JRREV",
+  "name": "JR Review",
+  "description": "Fresh review work unit for a JR task or feature branch.",
+  "mode": "paired",
+  "glyph": "V",
+  "color": "yellow",
+  "project_required": true,
+  "agent": "jr-code-reviewer",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Review target summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "max_length": 120,
+      "display_order": 1
+    },
+    {
+      "name": "target_ref",
+      "description": "Task id, feature id, branch, commit range, or PR",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "display_order": 2
+    },
+    {
+      "name": "review_focus",
+      "description": "Specific concerns for this review",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "display_order": 3
+    }
+  ],
+  "steps": [
+    {
+      "name": "diff",
+      "display_name": "Inspect Diff",
+      "outputs": ["report"],
+      "prompt": "Inspect the JR review target `{{ target_ref }}`.\n\nGather the relevant diff, task/feature notes, acceptance criteria, tests, and prior review comments. Do not edit code in this step. Write review context to `.tickets/jr/reviews/{{ id }}.md`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "permission_mode": "plan",
+      "artifact_patterns": [".tickets/jr/reviews/{{ id }}.md"],
+      "next_step": "quality"
+    },
+    {
+      "name": "quality",
+      "display_name": "Quality Review",
+      "outputs": ["review"],
+      "prompt": "Review quality for `{{ target_ref }}`.\n\nCheck correctness, missing tests, scope creep, architectural fit, compatibility, error handling, docs, and likely regressions. Focus especially on: {{ review_focus }}. Add findings to `.tickets/jr/reviews/{{ id }}.md`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "permission_mode": "plan",
+      "next_step": "decision"
+    },
+    {
+      "name": "decision",
+      "display_name": "Review Decision",
+      "outputs": ["review"],
+      "prompt": "Make a clear JR review decision for `{{ target_ref }}`.\n\nWrite one of: `approved`, `changes-requested`, or `escalate`. For requested changes, provide precise file-level tasks. For escalation, explain what a human or architect must decide.",
+      "allowed_tools": ["Read", "Write"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "quality",
+        "prompt": "The review decision was not clear enough: {{ rejection_reason }}\n\nRe-read the target and produce a sharper decision."
+      },
+      "next_step": "handoff"
+    },
+    {
+      "name": "handoff",
+      "display_name": "Review Handoff",
+      "outputs": ["documentation"],
+      "prompt": "Write the review handoff.\n\nUpdate `.tickets/jr/reviews/{{ id }}.md` with the final decision, required next tickets if any, suggested assignee role, and exact validation to rerun after fixes.",
+      "allowed_tools": ["Read", "Write", "Edit"]
+    }
+  ]
+}

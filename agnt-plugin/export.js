@@ -2,6 +2,9 @@
 import { callOperator } from "./lib/operator-client.js";
 
 class ExportWorkflowTool {
+  constructor() {
+    this.name = "operator-export-workflow";
+  }
   async execute(params, _inputData, _workflowEngine) {
     if (!params || !params.id) {
       return { success: false, result: null, error: "missing required param: id" };

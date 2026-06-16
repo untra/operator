@@ -613,3 +613,261 @@ fn describe_rag_source(src: &RagSource) -> String {
         RagSource::Mcp { server, tool, .. } => format!("mcp:{server}/{tool}"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Minimal issuetype wrapping `steps_json`, used to materialize real
+    /// `StepSchema` values (serde defaults fill the rest) for the private
+    /// helpers that take a `&StepSchema`.
+    fn issuetype_with_steps(steps_json: &str) -> IssueType {
+        let json = format!(
+            r#"{{
+                "key": "FEAT",
+                "name": "Feature",
+                "description": "A new feature",
+                "mode": "autonomous",
+                "glyph": "*",
+                "fields": [],
+                "steps": {steps_json}
+            }}"#
+        );
+        IssueType::from_json(&json).expect("valid issuetype json")
+    }
+
+    fn ticket(id: &str, project: &str, summary: &str) -> Ticket {
+        Ticket {
+            filename: "20241221-1430-FEAT-proj-test.md".to_string(),
+            filepath: "/test/path".to_string(),
+            timestamp: "20241221-1430".to_string(),
+            ticket_type: "FEAT".to_string(),
+            project: project.to_string(),
+            id: id.to_string(),
+            summary: summary.to_string(),
+            priority: "P2-medium".to_string(),
+            status: "queued".to_string(),
+            step: String::new(),
+            content: "body".to_string(),
+            sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
+        }
+    }
+
+    // ── agent_call ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_agent_call_without_model_emits_single_await_line() {
+        let out = agent_call("r_plan", "Do the thing", "plan", None);
+        assert_eq!(
+            out,
+            "const r_plan = await agent(\"Do the thing\", { label: \"plan\" });\n"
+        );
+        assert!(!out.contains("model:"), "no model opt expected:\n{out}");
+    }
+
+    #[test]
+    fn test_agent_call_with_model_includes_model_opt() {
+        let out = agent_call("r_build", "Build it", "build", Some("opus"));
+        assert!(
+            out.contains("label: \"build\", model: \"opus\""),
+            "model opt missing:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_agent_call_escapes_prompt_quotes() {
+        let out = agent_call("r_x", "say \"hi\"", "x", None);
+        assert!(
+            out.contains(r#"agent("say \"hi\"","#),
+            "embedded quotes not escaped:\n{out}"
+        );
+    }
+
+    // ── items_literal ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_items_literal_quotes_and_joins() {
+        let items = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(items_literal(&items), r#"["a", "b"]"#);
+    }
+
+    #[test]
+    fn test_items_literal_empty_is_empty_array() {
+        assert_eq!(items_literal(&[]), "[]");
+    }
+
+    #[test]
+    fn test_items_literal_escapes_embedded_quotes() {
+        let items = vec![r#"a"b"#.to_string()];
+        assert_eq!(items_literal(&items), r#"["a\"b"]"#);
+    }
+
+    // ── describe_rag_source ─────────────────────────────────────────────
+
+    #[test]
+    fn test_describe_rag_source_glob_prefixes_pattern() {
+        let src = RagSource::Glob {
+            pattern: "docs/*.md".to_string(),
+        };
+        assert_eq!(describe_rag_source(&src), "glob:docs/*.md");
+    }
+
+    #[test]
+    fn test_describe_rag_source_file_prefixes_path() {
+        let src = RagSource::File {
+            path: "README.md".to_string(),
+        };
+        assert_eq!(describe_rag_source(&src), "file:README.md");
+    }
+
+    #[test]
+    fn test_describe_rag_source_mcp_joins_server_and_tool() {
+        let src = RagSource::Mcp {
+            server: "srv".to_string(),
+            tool: "search".to_string(),
+            query: None,
+        };
+        assert_eq!(describe_rag_source(&src), "mcp:srv/search");
+    }
+
+    // ── meta_block ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_meta_block_emits_export_const_meta_with_name_and_phases() {
+        let it = issuetype_with_steps(
+            r#"[{"name":"plan","display_name":"Planning","outputs":["plan"],"prompt":"p"},
+                {"name":"build","display_name":"Building","outputs":["code"],"prompt":"b"}]"#,
+        );
+        let tk = ticket("FEAT-1234", "gamesvc", "Add pagination");
+        let steps: Vec<&StepSchema> = it.steps.iter().collect();
+        let out = meta_block(&tk, &it, &steps);
+
+        assert!(
+            out.contains("export const meta = {"),
+            "meta header missing:\n{out}"
+        );
+        assert!(
+            out.contains(r#"name: "FEAT-1234 — Add pagination""#),
+            "name should combine ticket id + summary:\n{out}"
+        );
+        assert!(out.contains("phases: ["), "phases array missing:\n{out}");
+        // Each step's display_name becomes a phase title.
+        assert!(
+            out.contains(r#"{ title: "Planning" }"#) && out.contains(r#"{ title: "Building" }"#),
+            "phase titles missing:\n{out}"
+        );
+    }
+
+    // ── judge_loop ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_judge_loop_emits_bounded_do_while_with_gap_marker() {
+        let it = issuetype_with_steps(
+            r#"[{"name":"plan","outputs":["plan"],"prompt":"plan it","review_type":"plan"}]"#,
+        );
+        let step = &it.steps[0];
+        let out = judge_loop(step, "r_plan", "plan it", None);
+
+        assert!(out.contains("do {"), "do-block missing:\n{out}");
+        assert!(out.contains("} while ("), "while condition missing:\n{out}");
+        assert!(out.contains("REVISE"), "REVISE sentinel missing:\n{out}");
+        // Bounded retry: at most 3 attempts.
+        assert!(
+            out.contains("++r_plan_attempt < 3"),
+            "attempt bound missing:\n{out}"
+        );
+        assert!(
+            out.contains(GAP_MARKER),
+            "human-gate GAP marker missing:\n{out}"
+        );
+    }
+
+    // ── pipeline_items_expr ─────────────────────────────────────────────
+
+    #[test]
+    fn test_pipeline_items_expr_static_emits_literal_array() {
+        let src = ItemSource::Static {
+            items: vec!["alpha".to_string(), "beta".to_string()],
+        };
+        let (preamble, expr) = pipeline_items_expr(&src, "r_x", &PipelineEnv::default());
+        assert_eq!(preamble, "");
+        assert_eq!(expr, r#"["alpha", "beta"]"#);
+    }
+
+    #[test]
+    fn test_pipeline_items_expr_from_step_references_step_var() {
+        let src = ItemSource::FromStep {
+            step: "triage".to_string(),
+        };
+        let (preamble, expr) = pipeline_items_expr(&src, "r_x", &PipelineEnv::default());
+        // Symbolic: the prior step's result identifier, no literal array.
+        assert_eq!(expr, "r_triage");
+        assert!(
+            preamble.contains(GAP_MARKER) && preamble.contains("triage"),
+            "runtime-shape GAP note missing:\n{preamble}"
+        );
+    }
+
+    #[test]
+    fn test_pipeline_items_expr_projects_sorts_and_emits_literal() {
+        let env = PipelineEnv {
+            projects: vec!["zeta".to_string(), "alpha".to_string()],
+            glob_root: None,
+        };
+        let (preamble, expr) = pipeline_items_expr(&ItemSource::Projects, "r_x", &env);
+        assert_eq!(preamble, "");
+        assert_eq!(expr, r#"["alpha", "zeta"]"#, "projects must be sorted");
+    }
+
+    #[test]
+    fn test_pipeline_items_expr_projects_empty_falls_back_to_placeholder() {
+        let (preamble, expr) =
+            pipeline_items_expr(&ItemSource::Projects, "r_x", &PipelineEnv::default());
+        assert_eq!(expr, "r_x_items", "unresolved → symbolic placeholder ident");
+        assert!(
+            preamble.contains(GAP_MARKER) && preamble.contains("const r_x_items = [];"),
+            "zero-iteration placeholder missing:\n{preamble}"
+        );
+    }
+
+    #[test]
+    fn test_pipeline_items_expr_field_emits_gap_placeholder() {
+        let src = ItemSource::Field {
+            name: "components".to_string(),
+        };
+        let (preamble, expr) = pipeline_items_expr(&src, "r_x", &PipelineEnv::default());
+        assert_eq!(expr, "r_x_items");
+        assert!(
+            preamble.contains(GAP_MARKER) && preamble.contains("field:components"),
+            "field placeholder note missing:\n{preamble}"
+        );
+    }
+
+    // ── expand_glob (filesystem) ────────────────────────────────────────
+
+    #[test]
+    fn test_expand_glob_returns_sorted_relative_paths() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("b.md"), "b").unwrap();
+        std::fs::write(dir.path().join("a.md"), "a").unwrap();
+        std::fs::write(dir.path().join("skip.txt"), "no").unwrap();
+
+        let matches = expand_glob(dir.path(), "*.md");
+        // Sorted, relative (no absolute path leaking machine state), .txt excluded.
+        assert_eq!(matches, vec!["a.md".to_string(), "b.md".to_string()]);
+    }
+
+    #[test]
+    fn test_expand_glob_no_match_returns_empty() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("a.md"), "a").unwrap();
+        assert!(expand_glob(dir.path(), "*.rs").is_empty());
+    }
+}

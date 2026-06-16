@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "full",
+  "name": "Full",
+  "description": "Full workflow: all issue types combined",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": ["builtin"],
+  "issue_types": [
+    { "key": "TASK", "schema_path": "TASK.json", "template_path": "TASK.md" },
+    { "key": "FEAT", "schema_path": "FEAT.json", "template_path": "FEAT.md" },
+    { "key": "FIX", "schema_path": "FIX.json", "template_path": "FIX.md" },
+    { "key": "SPIKE", "schema_path": "SPIKE.json", "template_path": "SPIKE.md" },
+    { "key": "INV", "schema_path": "INV.json", "template_path": "INV.md" },
+    { "key": "ASSESS", "schema_path": "ASSESS.json", "template_path": "ASSESS.md" },
+    { "key": "SYNC", "schema_path": "SYNC.json", "template_path": "SYNC.md" },
+    { "key": "INIT", "schema_path": "INIT.json", "template_path": "INIT.md" }
+  ],
+  "default_selected": ["TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT"]
+}

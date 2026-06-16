@@ -594,6 +594,26 @@
             "null"
           ],
           "default": null
+        },
+        "collections_fetch_enabled": {
+          "description": "Enable fetching hosted issuetype collections during setup.\nWhen disabled, only the embedded (offline) collections are offered.",
+          "type": "boolean",
+          "default": true
+        },
+        "collections_manifest_url": {
+          "description": "URL of the hosted collection index manifest, fetched during setup.\nPoints at a `CollectionIndex` JSON document listing available collections.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": "https://operator.untra.io/collections/index.json"
+        },
+        "collections_fetch_timeout_secs": {
+          "description": "Timeout in seconds for hosted collection fetch HTTP requests.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 5
         }
       }
     },
@@ -1420,7 +1440,7 @@
           "default": null
         },
         "remote_agent": {
-          "description": "Declarative reference to a remote, named agent on another platform\n(e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).\n\nExport-only: Operator has no runtime client for those platforms, so a\ndelegator carrying this CANNOT be launched locally — resolution errors out\n(see `delegator_resolution`). It is stored, listed, serialized into an\n`AgentProfile`, and — for `platform == \"agnt\"` — surfaced in the\n`--format agnt` workflow export as an `agnt-agent` node. `None` = ordinary,\nlocally launchable delegator.",
+          "description": "Declarative reference to a remote, named agent on another platform\n(e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).\n\nExport-only: Operator has no runtime client for those platforms, so a\ndelegator carrying this CANNOT be launched locally — resolution errors out\n(see `delegator_resolution`). It is stored, listed, serialized into an\n`AgentProfile`, and — for `platform == \"agnt\"` — surfaced in the\n`--format agnt` workflow export as a native AGNT `agnt-agent` node, whose\n`agentId` is this reference's `id` (AGNT identifies agents by UUID, so the\n`id` must be the agent's UUID, not its display name). `None` = ordinary,\nlocally launchable delegator.",
           "anyOf": [
             {
               "$ref": "#/$defs/RemoteAgentRef"
@@ -1530,7 +1550,7 @@
           "type": "string"
         },
         "id": {
-          "description": "Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id).",
+          "description": "Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id).",
           "type": "string"
         }
       },

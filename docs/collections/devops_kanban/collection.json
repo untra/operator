@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "id": "devops_kanban",
+  "name": "DevOps Kanban",
+  "description": "DevOps kanban with TASK, FEAT, FIX, SPIKE, INV",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": [
+    "builtin",
+    "kanban",
+    "devops"
+  ],
+  "compatibility": null,
+  "issue_types": [
+    {
+      "key": "TASK",
+      "schema_path": "TASK.json",
+      "schema_checksum": "f654229454da050ca038c273cc74884c2dbe68f09b293eee3764f23d6771b939",
+      "template_path": "TASK.md",
+      "template_checksum": "7a71bf692588af1d1ac5d9192edd64316353ada616e22019dfff7683ab5d09c4"
+    },
+    {
+      "key": "FEAT",
+      "schema_path": "FEAT.json",
+      "schema_checksum": "2e8405834ef2a8a62966c70357cbe23f5557f446009e8d434d9fae4efc8f626a",
+      "template_path": "FEAT.md",
+      "template_checksum": "fbc7e17641d8e796dad14c09fe20ffcbbdbdb8f58199b0d29d9e9729b51b4d5a"
+    },
+    {
+      "key": "FIX",
+      "schema_path": "FIX.json",
+      "schema_checksum": "4deafa08b2dcf1c94462d7079574be05d2efd6ff0abb6036b8fde955dca0e0a1",
+      "template_path": "FIX.md",
+      "template_checksum": "5237e1faf9b2c49d80fc9efff5a0d3e184f86c4fa5a34ff4dfed26ee883856bf"
+    },
+    {
+      "key": "SPIKE",
+      "schema_path": "SPIKE.json",
+      "schema_checksum": "1f69f05190fdff5545371c042c388e276accbbb50179ce65365f17dac042c0b5",
+      "template_path": "SPIKE.md",
+      "template_checksum": "030d37b1b4b3b8a26db62bd590a61fb5b9e01d5a39be6ab771bd56e31179f2c4"
+    },
+    {
+      "key": "INV",
+      "schema_path": "INV.json",
+      "schema_checksum": "42129e41c6c735adb47061a7d99478a1e4ed9ca5ca9f42b3c300c4a833f9265b",
+      "template_path": "INV.md",
+      "template_checksum": "65ef45c01d30b93f9d81b830896f20fe4eb9645e82d8e16ea1bd77ac4f359050"
+    }
+  ],
+  "workflow_hints": {
+    "loop_kind": "review_loop",
+    "memory_surfaces": [
+      "ticket",
+      "scratchpad"
+    ],
+    "review_gates": [
+      "human",
+      "test_suite"
+    ],
+    "external_tools": [
+      "git",
+      "ci"
+    ],
+    "stop_conditions": [
+      "tests_green",
+      "review_approved"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": [
+    "TASK",
+    "FEAT",
+    "FIX",
+    "SPIKE",
+    "INV"
+  ],
+  "checksum": "4daee86eaf261d0e069f4dcc7236a4ea581485a72ffc409d54c9dc372470a12a"
+}

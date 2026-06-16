@@ -76,6 +76,8 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::health::status))
         // Canonical status sections (shared with the TUI / VS Code extension)
         .routes(routes!(routes::sections::list))
+        // Vertical integration catalog + support status
+        .routes(routes!(routes::integrations::catalog))
         // Issue type endpoints
         .routes(routes!(
             routes::issuetypes::list,
@@ -122,6 +124,8 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::workflow::export))
         // Workflow preview endpoint (issue type -> graph, no ticket)
         .routes(routes!(routes::workflow::preview))
+        // Workflow export formats discovery endpoint
+        .routes(routes!(routes::workflow::formats))
         // Step completion endpoint (for opr8r wrapper)
         .routes(routes!(routes::launch::complete_step))
         // Kanban provider endpoints

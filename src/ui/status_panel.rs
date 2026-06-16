@@ -17,7 +17,7 @@ use crate::rest::RestApiStatus;
 
 use super::sections::{
     ConfigSection, ConnectionsSection, DelegatorSection, GitSection, IssueTypeSection,
-    KanbanSection, LlmSection, ManagedProjectsSection, ModelServerSection,
+    KanbanSection, LlmSection, ManagedProjectsSection, ModelServerSection, WorkflowsSection,
 };
 
 // ---------------------------------------------------------------------------
@@ -48,6 +48,8 @@ pub enum SectionId {
     Delegators,
     #[serde(rename = "projects")]
     ManagedProjects,
+    #[serde(rename = "workflows")]
+    Workflows,
 }
 
 /// Health state of a section — controls the header color.
@@ -98,6 +100,7 @@ impl SectionId {
             SectionId::IssueTypes => "issuetypes",
             SectionId::Delegators => "delegators",
             SectionId::ManagedProjects => "projects",
+            SectionId::Workflows => "workflows",
         }
     }
 }
@@ -883,6 +886,7 @@ impl TreeState {
         expanded.insert(SectionId::IssueTypes, false);
         expanded.insert(SectionId::Delegators, false);
         expanded.insert(SectionId::ManagedProjects, false);
+        expanded.insert(SectionId::Workflows, false);
         Self {
             expanded,
             selected: 0,
@@ -912,6 +916,7 @@ pub fn all_sections() -> Vec<Box<dyn StatusSection>> {
         Box::new(IssueTypeSection),
         Box::new(DelegatorSection),
         Box::new(ManagedProjectsSection),
+        Box::new(WorkflowsSection),
     ]
 }
 
@@ -1396,7 +1401,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_build_section_dtos_returns_all_nine_in_canonical_order() {
+    fn test_build_section_dtos_returns_all_sections_in_canonical_order() {
         let snapshot = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
         let dtos = build_section_dtos(&snapshot);
         let ids: Vec<&str> = dtos.iter().map(|d| d.id.as_str()).collect();
@@ -1412,6 +1417,7 @@ mod tests {
                 "issuetypes",
                 "delegators",
                 "projects",
+                "workflows",
             ]
         );
     }
@@ -1813,19 +1819,16 @@ mod tests {
     #[test]
     fn test_select_next_wraps() {
         let mut panel = StatusPanel::new("Status".into());
-        // Collapse config so only the header is visible
-        panel
-            .tree_state
-            .expanded
-            .insert(SectionId::Configuration, false);
 
-        // Use a snapshot where only Configuration is green but Connections prerequisites fail
-        let mut snap = test_snapshot();
-        snap.config_file_found = false; // Makes Configuration red, hiding Connections
+        // A fully-ready snapshot (config found + API running) so connections are
+        // Green and several prerequisite-gated sections — including Workflows —
+        // are visible, giving us multiple rows to wrap across.
+        let snap = test_snapshot();
         let count = panel.visible_count(&snap);
-        assert_eq!(count, 1, "Only 1 row visible");
+        assert!(count >= 2, "need multiple visible rows to test wrap");
 
-        panel.tree_state.selected = 0;
+        // Selecting next from the last visible row wraps to the first.
+        panel.tree_state.selected = count - 1;
         panel.select_next(&snap);
         assert_eq!(panel.tree_state.selected, 0, "Should wrap");
     }

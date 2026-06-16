@@ -175,6 +175,9 @@ YOLO (auto-accept) mode configuration for fully autonomous execution
 | `preset` | → `CollectionPreset` | No | Named preset for issue type collection Options: simple, `dev_kanban`, `devops_kanban`, custom |
 | `collection` | `array` | No | Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV |
 | `active_collection` | `string` \| `null` | No | Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection |
+| `collections_fetch_enabled` | `boolean` | No | Enable fetching hosted issuetype collections during setup. When disabled, only the embedded (offline) collections are offered. |
+| `collections_manifest_url` | `string` \| `null` | No | URL of the hosted collection index manifest, fetched during setup. Points at a `CollectionIndex` JSON document listing available collections. |
+| `collections_fetch_timeout_secs` | `integer` | No | Timeout in seconds for hosted collection fetch HTTP requests. |
 
 ### CollectionPreset
 
@@ -504,7 +507,7 @@ that can be used to launch agents for tickets.
 | `model_properties` | `object` | No | Arbitrary model properties (e.g., `reasoning_effort`, sandbox) |
 | `launch_config` | object | No | Optional launch configuration |
 | `model_server` | `string` \| `null` | No | Name of a declared `ModelServer` (from `Config.model_servers`). `None` means use the `llm_tool`'s implicit vendor default (claude → anthropic-api, codex → openai-api, gemini → google-api). |
-| `remote_agent` | object | No | Declarative reference to a remote, named agent on another platform (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).  Export-only: Operator has no runtime client for those platforms, so a delegator carrying this CANNOT be launched locally — resolution errors out (see `delegator_resolution`). It is stored, listed, serialized into an `AgentProfile`, and — for `platform == "agnt"` — surfaced in the `--format agnt` workflow export as an `agnt-agent` node. `None` = ordinary, locally launchable delegator. |
+| `remote_agent` | object | No | Declarative reference to a remote, named agent on another platform (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).  Export-only: Operator has no runtime client for those platforms, so a delegator carrying this CANNOT be launched locally — resolution errors out (see `delegator_resolution`). It is stored, listed, serialized into an `AgentProfile`, and — for `platform == "agnt"` — surfaced in the `--format agnt` workflow export as a native AGNT `agnt-agent` node, whose `agentId` is this reference's `id` (AGNT identifies agents by UUID, so the `id` must be the agent's UUID, not its display name). `None` = ordinary, locally launchable delegator. |
 | `x_agnt` | object | No | Opaque AGNT-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip so re-export is lossless (e.g. `memory`, `assignedWorkflows`, `creditLimit`). Operator never interprets this. |
 | `x_openai` | object | No | Opaque OpenAI-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`, `metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted. |
 | `unmapped_core` | object | No | Opaque carry for `AgentProfile` shared-core fields Operator cannot model first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an import→export round-trip is lossless. Distinct from `x_agnt`: these are shared-core fields, not AGNT-specific, so folding them into `x_agnt` would corrupt that namespace. Operator never interprets this. |
@@ -541,7 +544,7 @@ cannot be launched locally (see the guard in `delegator_resolution`).
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `platform` | `string` | Yes | Hosting platform (e.g. `"agnt"`, `"openai"`). |
-| `id` | `string` | Yes | Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id). |
+| `id` | `string` | Yes | Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id). |
 
 ### ModelServer
 

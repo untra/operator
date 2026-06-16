@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "simple",
+  "name": "Simple",
+  "description": "Simple workflow with TASK only",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": ["builtin"],
+  "issue_types": [
+    { "key": "TASK", "schema_path": "TASK.json", "template_path": "TASK.md" }
+  ],
+  "default_selected": ["TASK"]
+}

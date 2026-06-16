@@ -14,8 +14,10 @@
 //! Generated docs include a header warning and are written to `docs/`.
 
 pub mod cli;
+pub mod collections_manifest;
 pub mod config;
 pub mod config_schema;
+pub mod integrations;
 pub mod issuetype;
 pub mod issuetype_json_schema;
 pub mod jira_api;
@@ -92,6 +94,8 @@ pub fn generate_all(docs_dir: &Path) -> Result<()> {
         Box::new(openapi::OpenApiDocGenerator),
         Box::new(llm_tools::LlmToolsDocGenerator),
         Box::new(startup::StartupDocGenerator),
+        Box::new(collections_manifest::CollectionsManifestGenerator),
+        Box::new(integrations::MaturityDocGenerator),
         Box::new(config_schema::ConfigSchemaDocGenerator),
         Box::new(state_schema::StateSchemaDocGenerator),
         Box::new(schema_index::SchemaIndexDocGenerator),

@@ -3,6 +3,7 @@
 mod acceptance;
 mod collection;
 mod confirm;
+mod hosted;
 mod kanban;
 mod startup;
 mod task_fields;
@@ -12,6 +13,7 @@ mod wrapper;
 pub use acceptance::*;
 pub use collection::*;
 pub use confirm::*;
+pub use hosted::*;
 pub use kanban::*;
 pub use startup::*;
 pub use task_fields::*;

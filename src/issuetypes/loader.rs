@@ -22,6 +22,12 @@ pub struct LoadedCollection {
     pub types: HashMap<String, IssueType>,
     /// Ordered list of type keys (from collection.toml types field, or derived)
     pub type_order: Vec<String>,
+    /// Descriptive workflow hints (from collection.json, if present)
+    pub workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
+    /// Collection semver (from collection.json, if present)
+    pub version: Option<String>,
+    /// Publisher (from collection.json, if present)
+    pub publisher: Option<String>,
 }
 
 /// Load all built-in issue types
@@ -305,7 +311,7 @@ pub fn validate_collection_types(
 /// ```text
 /// templates/
 /// ├── dev_kanban/
-/// │   ├── collection.toml  (optional: description, types)
+/// │   ├── collection.json  (optional: description, issue_types order)
 /// │   ├── TASK.json
 /// │   ├── TASK.md
 /// │   ├── FEAT.json
@@ -313,13 +319,14 @@ pub fn validate_collection_types(
 /// │   ├── FIX.json
 /// │   └── FIX.md
 /// ├── devops_kanban/
-/// │   ├── collection.toml
+/// │   ├── collection.json
 /// │   └── ...
 /// ```
 ///
 /// Each subdirectory of `templates_path` is treated as a collection.
 /// Issue types (*.json files) are loaded directly from the collection directory.
-/// Optional `collection.toml` can specify description and types order.
+/// Optional `collection.json` (or legacy `collection.toml`) specifies the
+/// description and issue type order.
 pub fn load_collections_from_dir(
     templates_path: &Path,
 ) -> Result<HashMap<String, LoadedCollection>> {
@@ -370,8 +377,8 @@ pub fn load_collections_from_dir(
             continue;
         }
 
-        // Try to load collection metadata from collection.toml
-        let (description, type_order) = load_collection_metadata(&path, &types);
+        // Try to load collection metadata from collection.json / collection.toml
+        let meta = load_collection_metadata(&path, &types);
 
         info!(
             "Loaded collection '{}' with {} issue types",
@@ -383,9 +390,12 @@ pub fn load_collections_from_dir(
             collection_name.clone(),
             LoadedCollection {
                 name: collection_name,
-                description,
+                description: meta.description,
                 types,
-                type_order,
+                type_order: meta.type_order,
+                workflow_hints: meta.workflow_hints,
+                version: meta.version,
+                publisher: meta.publisher,
             },
         );
     }
@@ -449,19 +459,52 @@ fn load_types_from_collection_dir(
     Ok(types)
 }
 
-/// Load optional collection metadata from collection.toml
-///
-/// Returns (description, `type_order`) where `type_order` is read from the `types` field
-/// in collection.toml, or derived alphabetically from the loaded types.
+/// Metadata for a loaded collection, sourced from `collection.json` (preferred)
+/// or the legacy `collection.toml`.
+struct CollectionMetadata {
+    description: String,
+    type_order: Vec<String>,
+    workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
+    version: Option<String>,
+    publisher: Option<String>,
+}
+
+/// Load optional collection metadata from `collection.json` (preferred) or the
+/// legacy `collection.toml` (for workspaces scaffolded before the JSON migration).
 fn load_collection_metadata(
     collection_path: &Path,
     types: &HashMap<String, IssueType>,
-) -> (String, Vec<String>) {
-    let metadata_path = collection_path.join("collection.toml");
+) -> CollectionMetadata {
+    // Preferred: collection.json (current format).
+    let json_path = collection_path.join("collection.json");
+    if json_path.exists() {
+        if let Ok(content) = fs::read_to_string(&json_path) {
+            if let Ok(manifest) =
+                crate::collections::manifest::CollectionManifest::from_json(&content)
+            {
+                let type_order = if manifest.issue_types.is_empty() {
+                    derive_type_order(types)
+                } else {
+                    manifest.type_keys()
+                };
+                return CollectionMetadata {
+                    description: manifest.description,
+                    type_order,
+                    workflow_hints: manifest.workflow_hints,
+                    version: (!manifest.version.is_empty()).then_some(manifest.version),
+                    publisher: manifest.publisher,
+                };
+            }
+        }
+    }
 
+    // Back-compat: legacy collection.toml.
+    let metadata_path = collection_path.join("collection.toml");
     if metadata_path.exists() {
         if let Ok(content) = fs::read_to_string(&metadata_path) {
-            if let Ok(toml_value) = content.parse::<toml::Value>() {
+            // toml 1.0: parse the document as a Table (parsing into Value expects
+            // a bare value and rejects a document).
+            if let Ok(toml_value) = toml::from_str::<toml::Table>(&content) {
                 let description = toml_value
                     .get("description")
                     .and_then(|v| v.as_str())
@@ -479,7 +522,13 @@ fn load_collection_metadata(
                     })
                     .unwrap_or_else(|| derive_type_order(types));
 
-                return (description, type_order);
+                return CollectionMetadata {
+                    description,
+                    type_order,
+                    workflow_hints: None,
+                    version: None,
+                    publisher: None,
+                };
             }
         }
     }
@@ -496,7 +545,13 @@ fn load_collection_metadata(
         types.len()
     );
 
-    (description, derive_type_order(types))
+    CollectionMetadata {
+        description,
+        type_order: derive_type_order(types),
+        workflow_hints: None,
+        version: None,
+        publisher: None,
+    }
 }
 
 /// Derive type order from issue types (alphabetical by key)
@@ -530,6 +585,43 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let types = load_user_types(temp_dir.path()).unwrap();
         assert!(types.is_empty());
+    }
+
+    #[test]
+    fn test_load_collection_metadata_reads_collection_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let dir = temp_dir.path();
+        fs::write(
+            dir.join("collection.json"),
+            r#"{
+                "schema_version": 1,
+                "id": "demo",
+                "name": "Demo",
+                "description": "Demo collection",
+                "issue_types": [
+                    {"key": "TASK", "schema_path": "TASK.json"},
+                    {"key": "FEAT", "schema_path": "FEAT.json"}
+                ]
+            }"#,
+        )
+        .unwrap();
+        let meta = load_collection_metadata(dir, &HashMap::new());
+        assert_eq!(meta.description, "Demo collection");
+        assert_eq!(meta.type_order, vec!["TASK", "FEAT"]);
+    }
+
+    #[test]
+    fn test_load_collection_metadata_falls_back_to_legacy_toml() {
+        let temp_dir = TempDir::new().unwrap();
+        let dir = temp_dir.path();
+        fs::write(
+            dir.join("collection.toml"),
+            "description = \"Legacy collection\"\ntypes = [\"FIX\", \"INV\"]\n",
+        )
+        .unwrap();
+        let meta = load_collection_metadata(dir, &HashMap::new());
+        assert_eq!(meta.description, "Legacy collection");
+        assert_eq!(meta.type_order, vec!["FIX", "INV"]);
     }
 
     #[test]

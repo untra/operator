@@ -40,9 +40,10 @@ use operator::rest::dto::{
     CollectionResponse, CreateAlertRequest, CreateAlertResponse, CreateDelegatorRequest,
     CreateFieldRequest, CreateIssueTypeRequest, CreateStepRequest, CreateTicketRequest,
     CreateTicketResponse, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
-    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, KanbanProviderCatalogEntry,
-    SectionDto, SectionRowDto, SkillEntry, SkillsResponse, StatusResponse, StepResponse,
-    UpdateIssueTypeRequest, UpdateStepRequest, WorkflowExportResponse, WorkflowPreviewResponse,
+    FieldResponse, HealthResponse, IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary,
+    KanbanProviderCatalogEntry, SectionDto, SectionRowDto, SkillEntry, SkillsResponse,
+    StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto, WorkflowPreviewResponse,
 };
 use operator::state::{AgentState, CompletedTicket, State};
 use operator::types::{
@@ -141,15 +142,20 @@ fn generate_typescript() -> String {
         CreateStepRequest::decl(&cfg),
         UpdateStepRequest::decl(&cfg),
         CollectionResponse::decl(&cfg),
+        WorkflowHintsDto::decl(&cfg),
         HealthResponse::decl(&cfg),
         StatusResponse::decl(&cfg),
         SectionDto::decl(&cfg),
         SectionRowDto::decl(&cfg),
+        // Integration catalog + support status DTO
+        operator::integrations::SupportStatus::decl(&cfg),
+        IntegrationCatalogEntryDto::decl(&cfg),
         // Kanban provider catalog DTO
         KanbanProviderCatalogEntry::decl(&cfg),
         // Workflow export DTOs
         WorkflowExportResponse::decl(&cfg),
         WorkflowPreviewResponse::decl(&cfg),
+        WorkflowFormatDto::decl(&cfg),
         // Ticket creation + alert DTOs
         CreateTicketRequest::decl(&cfg),
         CreateTicketResponse::decl(&cfg),

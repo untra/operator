@@ -403,3 +403,186 @@ pub struct DefaultLlmResponse {
     /// Default model alias (empty string if not set)
     pub model: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_project_summary_skips_optional_kind_fields_when_none() {
+        let summary = ProjectSummary {
+            project_name: "gamesvc".to_string(),
+            project_path: "/repos/gamesvc".to_string(),
+            exists: true,
+            has_catalog_info: false,
+            has_project_context: false,
+            kind: None,
+            kind_confidence: None,
+            kind_tier: None,
+            languages: vec!["Rust".to_string()],
+            frameworks: vec![],
+            databases: vec![],
+            has_docker: None,
+            has_tests: None,
+            ports: vec![6400, 6401],
+            env_var_count: 0,
+            entry_point_count: 1,
+            commands: vec!["test".to_string()],
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(!json.contains("kind_confidence"));
+        assert!(!json.contains("has_docker"));
+        // Non-optional Vec fields stay present even when empty.
+        assert!(json.contains("\"frameworks\":[]"));
+        assert!(json.contains("\"ports\":[6400,6401]"));
+
+        let parsed: ProjectSummary = serde_json::from_str(&json).unwrap();
+        assert!(parsed.kind.is_none());
+        assert_eq!(parsed.languages, vec!["Rust".to_string()]);
+    }
+
+    #[test]
+    fn test_delegator_response_roundtrip() {
+        let resp = DelegatorResponse {
+            name: "claude-opus".to_string(),
+            llm_tool: "claude".to_string(),
+            model: "opus".to_string(),
+            display_name: Some("Claude Opus".to_string()),
+            model_properties: HashMap::new(),
+            model_server: None,
+            launch_config: None,
+            remote_agent: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        // None optionals are skipped.
+        assert!(!json.contains("model_server"));
+        assert!(!json.contains("launch_config"));
+        assert!(!json.contains("remote_agent"));
+        let parsed: DelegatorResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, "claude-opus");
+        assert_eq!(parsed.display_name, Some("Claude Opus".to_string()));
+    }
+
+    #[test]
+    fn test_delegator_launch_config_dto_defaults_when_absent() {
+        // yolo defaults to false; tri-state overrides default to None.
+        let dto: DelegatorLaunchConfigDto = serde_json::from_str("{}").unwrap();
+        assert!(!dto.yolo);
+        assert!(dto.permission_mode.is_none());
+        assert!(dto.flags.is_empty());
+        assert!(dto.use_worktrees.is_none());
+        assert!(dto.operator_relay.is_none());
+    }
+
+    #[test]
+    fn test_model_server_response_carries_api_key_env_name_not_raw_secret() {
+        // Secret-by-reference: the DTO references the API key only by env-var NAME
+        // (`api_key_env`); it has no field that could carry the raw secret value.
+        let resp = ModelServerResponse {
+            name: "ollama-local".to_string(),
+            kind: "ollama".to_string(),
+            base_url: Some("http://localhost:11434".to_string()),
+            api_key_env: Some("OLLAMA_API_KEY".to_string()),
+            extra_env: HashMap::new(),
+            display_name: None,
+            user_declared: true,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        // The env-var NAME reference is present...
+        assert!(json.contains("\"api_key_env\":\"OLLAMA_API_KEY\""));
+        // ...but there is no raw `api_key` secret field on the wire.
+        assert!(!json.contains("\"api_key\":"));
+    }
+
+    #[test]
+    fn test_model_server_response_skips_none_optionals() {
+        let resp = ModelServerResponse {
+            name: "anthropic".to_string(),
+            kind: "anthropic-api".to_string(),
+            base_url: None,
+            api_key_env: None,
+            extra_env: HashMap::new(),
+            display_name: None,
+            user_declared: false,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(!json.contains("base_url"));
+        assert!(!json.contains("api_key_env"));
+        assert!(!json.contains("display_name"));
+        // extra_env has no skip attribute, so it is always present.
+        assert!(json.contains("\"extra_env\":{}"));
+    }
+
+    #[test]
+    fn test_create_model_server_request_extra_env_defaults_empty() {
+        let json = r#"{ "name": "ollama-local", "kind": "ollama" }"#;
+        let req: CreateModelServerRequest = serde_json::from_str(json).unwrap();
+        assert!(req.extra_env.is_empty());
+        assert!(req.base_url.is_none());
+        assert!(req.api_key_env.is_none());
+    }
+
+    #[test]
+    fn test_update_model_server_request_extra_env_defaults_empty() {
+        let json = r#"{ "kind": "ollama" }"#;
+        let req: UpdateModelServerRequest = serde_json::from_str(json).unwrap();
+        assert!(req.extra_env.is_empty());
+        assert!(req.display_name.is_none());
+    }
+
+    #[test]
+    fn test_model_server_kind_entry_skips_none_brand_and_defaults() {
+        let entry = ModelServerKindEntry {
+            slug: "ollama".to_string(),
+            display_name: "Ollama".to_string(),
+            description: "Local models".to_string(),
+            setup_url: "https://ollama.com".to_string(),
+            icon: "server".to_string(),
+            is_builtin: true,
+            category: "first-party".to_string(),
+            category_label: "First-party".to_string(),
+            brand_icon: None,
+            default_base_url: Some("http://localhost:11434".to_string()),
+            default_api_key_env: None,
+            connectable: true,
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        // `category` field name is kept for wire/TS stability.
+        assert!(json.contains("\"category\":\"first-party\""));
+        assert!(!json.contains("brand_icon"));
+        assert!(!json.contains("default_api_key_env"));
+        let parsed: ModelServerKindEntry = serde_json::from_str(&json).unwrap();
+        assert!(parsed.connectable);
+        assert!(parsed.brand_icon.is_none());
+    }
+
+    #[test]
+    fn test_model_server_models_response_error_absent_when_reachable() {
+        let resp = ModelServerModelsResponse {
+            server: "ollama-local".to_string(),
+            reachable: true,
+            models: vec![ModelEntry {
+                id: "llama3".to_string(),
+                display_name: None,
+            }],
+            error: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(!json.contains("error"));
+        assert!(!json.contains("display_name"));
+        assert!(json.contains("\"reachable\":true"));
+    }
+
+    #[test]
+    fn test_default_llm_response_roundtrip_with_empty_strings() {
+        let resp = DefaultLlmResponse {
+            tool: String::new(),
+            model: String::new(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert_eq!(json, r#"{"tool":"","model":""}"#);
+        let parsed: DefaultLlmResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.tool, "");
+    }
+}

@@ -19,6 +19,20 @@ pub enum SessionWrapperType {
 }
 
 impl SessionWrapperType {
+    /// The canonical list of session wrappers, in display order. Single source of
+    /// truth mirrored by the vertical catalog (`crate::integrations::catalog`);
+    /// `vscode` is advertised under the Editor vertical.
+    ///
+    /// Consumed by `tests/vertical_parity.rs` to enforce catalog coverage; reads
+    /// as unused in the bin crate, which has no blanket dead-code allowance here.
+    #[allow(dead_code)]
+    pub const ALL: [SessionWrapperType; 4] = [
+        SessionWrapperType::Tmux,
+        SessionWrapperType::Vscode,
+        SessionWrapperType::Cmux,
+        SessionWrapperType::Zellij,
+    ];
+
     /// Short display name for the wrapper (used in header bar, logs)
     pub fn display_name(&self) -> &'static str {
         match self {

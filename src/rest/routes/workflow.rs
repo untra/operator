@@ -12,7 +12,9 @@ use axum::{
 use serde::Deserialize;
 
 use crate::queue::Queue;
-use crate::rest::dto::{WorkflowExportResponse, WorkflowPreviewResponse};
+use crate::rest::dto::{
+    workflow_formats, WorkflowExportResponse, WorkflowFormatDto, WorkflowPreviewResponse,
+};
 use crate::rest::error::ApiError;
 use crate::rest::routes::tickets::find_ticket_anywhere;
 use crate::rest::state::ApiState;
@@ -101,6 +103,25 @@ pub async fn preview(
     Ok(Json(exported.into()))
 }
 
+/// List the workflow export formats operator can emit.
+///
+/// Returns each [`WorkflowFormat`] with its label, file extension, support
+/// status, and docs link — derived from `WorkflowFormat::ALL` joined to the
+/// `Workflows` catalog vertical. Lets UIs render a format picker for the
+/// `format` query param accepted by export/preview.
+#[utoipa::path(
+    operation_id = "workflow_formats",
+    get,
+    path = "/api/v1/workflow-formats",
+    tag = "Workflow",
+    responses(
+        (status = 200, description = "Available workflow export formats", body = [WorkflowFormatDto])
+    )
+)]
+pub async fn formats() -> Json<Vec<WorkflowFormatDto>> {
+    Json(workflow_formats())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -161,6 +182,14 @@ mod tests {
         let v: serde_json::Value =
             serde_json::from_str(&body.contents).expect("agnt preview is valid JSON");
         assert!(v["nodes"].is_array());
+    }
+
+    #[tokio::test]
+    async fn formats_lists_every_workflow_format() {
+        let body = formats().await.0;
+        assert_eq!(body.len(), WorkflowFormat::ALL.len());
+        assert!(body.iter().any(|f| f.slug == "claude"));
+        assert!(body.iter().any(|f| f.slug == "agnt"));
     }
 
     #[tokio::test]

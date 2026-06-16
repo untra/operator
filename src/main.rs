@@ -9,6 +9,10 @@ mod config;
 mod editors;
 mod git;
 mod issuetypes;
+// Vertical catalog + capability inventory: consumed by the lib's REST/docs
+// layers and the external parity tests; several items read as unused in the bin.
+#[allow(dead_code, unused_imports)]
+mod integrations;
 mod llm;
 mod logging;
 mod permissions;
@@ -112,7 +116,7 @@ fn print_tmux_error(err: &TmuxError) {
 
 #[derive(Parser)]
 #[command(name = "operator")]
-#[command(about = "Multi-agent orchestration dashboard for gbqr.us")]
+#[command(about = "Multi-agent orchestration dashboard for kanban shaped software development")]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]
@@ -808,9 +812,10 @@ fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {
 
 fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
     use docs_gen::{
-        cli, config, config_schema, issuetype, issuetype_json_schema, jira_api, llms, metadata,
-        openapi, operator_output_schema, project_analysis_schema, schema_index, shortcuts, startup,
-        state_schema, taxonomy, DocGenerator,
+        cli, collections_manifest, config, config_schema, integrations, issuetype,
+        issuetype_json_schema, jira_api, llms, metadata, openapi, operator_output_schema,
+        project_analysis_schema, schema_index, shortcuts, startup, state_schema, taxonomy,
+        DocGenerator,
     };
     use std::path::PathBuf;
 
@@ -878,9 +883,15 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
         Some("llms") => {
             vec![Box::new(llms::LlmsTxtDocGenerator)]
         }
+        Some("collections-manifest") => {
+            vec![Box::new(collections_manifest::CollectionsManifestGenerator)]
+        }
+        Some("maturity") => {
+            vec![Box::new(integrations::MaturityDocGenerator)]
+        }
         Some(other) => {
             println!(
-                "Unknown generator: {other}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api, operator-output-schema, issuetype-json-schema, project-analysis-schema, llms"
+                "Unknown generator: {other}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api, operator-output-schema, issuetype-json-schema, project-analysis-schema, llms, collections-manifest, maturity"
             );
             return Ok(());
         }
@@ -903,6 +914,8 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
                 Box::new(issuetype_json_schema::IssuetypeJsonSchemaDocGenerator),
                 Box::new(project_analysis_schema::ProjectAnalysisSchemaDocGenerator),
                 Box::new(llms::LlmsTxtDocGenerator),
+                Box::new(collections_manifest::CollectionsManifestGenerator),
+                Box::new(integrations::MaturityDocGenerator),
             ]
         }
     };

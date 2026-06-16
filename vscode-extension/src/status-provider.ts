@@ -7,7 +7,7 @@
  * Sections use progressive disclosure — they only appear when prerequisites are met:
  *   Tier 0: Configuration (always visible)
  *   Tier 1: Connections (requires configReady)
- *   Tier 2: Kanban, LLM Tools, Model Servers, Git (requires connectionsReady / llmReady)
+ *   Tier 2: Kanban/kanban, LLM Tools/llm, Model Servers/model-servers, Git/git, Workflows/workflows (requires connectionsReady / llmReady)
  *   Tier 3: Issue Types/issuetypes (kanbanConfigured), Delegators/delegators (llmConfigured), Managed Projects/projects (gitConfigured)
  */
 
@@ -25,6 +25,7 @@ import { IssueTypeSection } from './sections/issuetype-section';
 import { DelegatorSection } from './sections/delegator-section';
 import { ModelServerSection } from './sections/modelserver-section';
 import { ManagedProjectsSection } from './sections/managed-projects-section';
+import { WorkflowsSection } from './sections/workflows-section';
 
 // Backward-compatible re-exports
 export { StatusItem } from './status-item';
@@ -60,6 +61,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   private delegatorSection: DelegatorSection;
   private modelServerSection: ModelServerSection;
   private managedProjectsSection: ManagedProjectsSection;
+  private workflowsSection: WorkflowsSection;
 
   // All sections for check() and routing
   private allSections: StatusSection[];
@@ -77,6 +79,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     this.delegatorSection = new DelegatorSection();
     this.modelServerSection = new ModelServerSection();
     this.managedProjectsSection = new ManagedProjectsSection();
+    this.workflowsSection = new WorkflowsSection();
 
     // Canonical section order — must match the `SectionId` enum in
     // src/ui/status_panel.rs (the single source of truth) and the TUI's
@@ -91,6 +94,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       this.issueTypeSection,
       this.delegatorSection,
       this.managedProjectsSection,
+      this.workflowsSection,
     ];
     this.sectionMap = new Map(this.allSections.map(s => [s.sectionId, s]));
     this.ctx = this.buildContext();

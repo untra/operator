@@ -9,9 +9,9 @@ use crate::rest::dto::{
     CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest, CreateModelServerRequest,
     CreateStepRequest, CreateTicketRequest, CreateTicketResponse, DefaultLlmResponse,
     DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse, ExternalIssueTypeSummary,
-    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, KanbanBoardResponse,
-    KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanSyncResponse, KanbanTicketCard,
-    LaunchTicketRequest, LaunchTicketResponse, ListKanbanProjectsRequest,
+    FieldResponse, HealthResponse, IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary,
+    KanbanBoardResponse, KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanSyncResponse,
+    KanbanTicketCard, LaunchTicketRequest, LaunchTicketResponse, ListKanbanProjectsRequest,
     ListKanbanProjectsResponse, ModelEntry, ModelServerKindEntry, ModelServerModelsResponse,
     ModelServerResponse, ModelServersResponse, NextStepInfo, OperatorOutput, ProjectSummary,
     QueueByType, QueueControlResponse, QueueStatusResponse, RejectReviewRequest, ReviewResponse,
@@ -20,8 +20,8 @@ use crate::rest::dto::{
     StepCompleteResponse, StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse,
     UpdateIssueTypeRequest, UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
     UpdateTicketStatusResponse, ValidateKanbanCredentialsRequest,
-    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowPreviewResponse,
-    WriteKanbanConfigRequest, WriteKanbanConfigResponse,
+    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto,
+    WorkflowPreviewResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
 };
 // AgentProfile interchange types live in `crate::config`, not `rest::dto`.
 use crate::config::{AgentProfile, DelegatorLaunchConfig, RemoteAgentRef, XOperator};
@@ -54,11 +54,14 @@ use crate::rest::error::ErrorResponse;
             StatusResponse,
             SectionDto,
             SectionRowDto,
+            IntegrationCatalogEntryDto,
+            crate::integrations::SupportStatus,
             IssueTypeResponse,
             IssueTypeSummary,
             FieldResponse,
             StepResponse,
             CollectionResponse,
+            WorkflowHintsDto,
             LaunchTicketResponse,
             ErrorResponse,
             // Request types
@@ -104,6 +107,7 @@ use crate::rest::error::ErrorResponse;
             // Workflow export types
             WorkflowExportResponse,
             WorkflowPreviewResponse,
+            WorkflowFormatDto,
             crate::workflow_gen::WorkflowFormat,
             // MCP types
             McpDescriptorResponse,

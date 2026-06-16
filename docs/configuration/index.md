@@ -105,6 +105,9 @@ Issue type collections and presets
 | `preset` | → `CollectionPreset` | - | Named preset for issue type collection Options: simple, `dev_kanban`, `devops_kanban`, custom |
 | `collection` | `array`[`string`] | - | Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV |
 | `active_collection` | `string` \| `null` | - | Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection |
+| `collections_fetch_enabled` | `boolean` | - | Enable fetching hosted issuetype collections during setup. When disabled, only the embedded (offline) collections are offered. |
+| `collections_manifest_url` | `string` \| `null` | - | URL of the hosted collection index manifest, fetched during setup. Points at a `CollectionIndex` JSON document listing available collections. |
+| `collections_fetch_timeout_secs` | `integer` | - | Timeout in seconds for hosted collection fetch HTTP requests. |
 
 ## `[api]`
 
@@ -224,6 +227,9 @@ enabled = false
 [templates]
 preset = "dev_kanban"
 collection = []
+collections_fetch_enabled = true
+collections_manifest_url = "https://operator.untra.io/collections/index.json"
+collections_fetch_timeout_secs = 5
 
 [api]
 pr_check_interval_secs = 60

@@ -48,7 +48,9 @@ model_server: string | null,
  * delegator carrying this CANNOT be launched locally — resolution errors out
  * (see `delegator_resolution`). It is stored, listed, serialized into an
  * `AgentProfile`, and — for `platform == "agnt"` — surfaced in the
- * `--format agnt` workflow export as an `agnt-agent` node. `None` = ordinary,
+ * `--format agnt` workflow export as a native AGNT `agnt-agent` node, whose
+ * `agentId` is this reference's `id` (AGNT identifies agents by UUID, so the
+ * `id` must be the agent's UUID, not its display name). `None` = ordinary,
  * locally launchable delegator.
  */
 remote_agent?: RemoteAgentRef | null, 

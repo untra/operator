@@ -413,6 +413,59 @@ impl DetectedKanbanProvider {
     }
 }
 
+/// The product of importing a provider's issue types into an operator collection.
+///
+/// The `author`/`url` here populate the corresponding fields on the generated
+/// collection manifest so an imported collection is attributed to its provider
+/// workspace/project rather than to `Operator!`.
+#[derive(Debug, Clone)]
+pub struct ImportedCollection {
+    /// Author attribution (provider name + workspace, optionally `/ project`).
+    pub author: String,
+    /// Provider base URL.
+    pub url: String,
+    /// Imported issue type keys, in display order.
+    pub types: Vec<String>,
+}
+
+/// Structural import of issue types from a kanban provider into an operator
+/// collection.
+///
+/// The author attribution is implemented today; the actual fetch + conversion
+/// (`get_issue_types` -> [`IssueType::new_imported`](crate::issuetypes::IssueType)
+/// -> collection manifest) is deferred (scaffold).
+pub trait IssueTypeImportSource {
+    /// Human author attribution for a collection imported from this source,
+    /// e.g. `Jira Cloud (acme.atlassian.net) / PROJ`.
+    fn author_attribution(&self, project: &str) -> String;
+
+    /// Import the provider's issue types as an operator collection. Deferred:
+    /// structural conversion is not yet implemented and this returns an error.
+    fn import_collection(&self, project: &str) -> anyhow::Result<ImportedCollection>;
+}
+
+impl IssueTypeImportSource for DetectedKanbanProvider {
+    fn author_attribution(&self, project: &str) -> String {
+        if project.is_empty() {
+            format!("{} ({})", self.provider_type.display_name(), self.domain)
+        } else {
+            format!(
+                "{} ({}) / {}",
+                self.provider_type.display_name(),
+                self.domain,
+                project
+            )
+        }
+    }
+
+    fn import_collection(&self, _project: &str) -> anyhow::Result<ImportedCollection> {
+        anyhow::bail!(
+            "importing issue types from {} is not yet implemented",
+            self.provider_type.display_name()
+        )
+    }
+}
+
 /// Detect kanban providers from environment variables
 ///
 /// Scans for `OPERATOR_JIRA_*` and `OPERATOR_LINEAR_*` environment variables
@@ -806,6 +859,40 @@ mod tests {
             KanbanProviderType::Github.default_api_key_env(),
             "OPERATOR_GITHUB_TOKEN"
         );
+    }
+
+    #[test]
+    fn test_import_source_author_attribution() {
+        let provider = DetectedKanbanProvider {
+            provider_type: KanbanProviderType::Jira,
+            domain: "acme.atlassian.net".to_string(),
+            email: Some("dev@acme.com".to_string()),
+            env_vars_found: vec![],
+            status: ProviderStatus::Valid,
+        };
+        // Without a project, attribution is provider name + workspace.
+        assert_eq!(
+            provider.author_attribution(""),
+            "Jira Cloud (acme.atlassian.net)"
+        );
+        // With a project, the project/team is appended.
+        assert_eq!(
+            provider.author_attribution("PROJ"),
+            "Jira Cloud (acme.atlassian.net) / PROJ"
+        );
+    }
+
+    #[test]
+    fn test_import_collection_is_deferred() {
+        let provider = DetectedKanbanProvider {
+            provider_type: KanbanProviderType::Linear,
+            domain: "acme".to_string(),
+            email: None,
+            env_vars_found: vec![],
+            status: ProviderStatus::Valid,
+        };
+        // Structural import is scaffolded but not yet implemented.
+        assert!(provider.import_collection("Team").is_err());
     }
 
     #[test]

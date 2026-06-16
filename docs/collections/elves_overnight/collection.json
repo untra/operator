@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "elves_overnight",
+  "name": "Elves Overnight",
+  "description": "Long-running staged batch workflow with durable memory, validation, PR review, and reporting.",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Aigora",
+  "url": "https://github.com/aigorahub/elves",
+  "license": "MIT",
+  "tags": [
+    "agentic-loop",
+    "overnight",
+    "batch",
+    "elves"
+  ],
+  "compatibility": null,
+  "issue_types": [
+    {
+      "key": "ELVSTAGE",
+      "schema_path": "ELVSTAGE.json",
+      "schema_checksum": "35dd4dc5460d4d88e28278df3a8591eb3a38c639e8e548a6fd893aee0c5a3982",
+      "template_path": "ELVSTAGE.md",
+      "template_checksum": "31a80e4ee58c016dd13076a6042008a32021c5d9b974b29a912eb301d850e1b2"
+    },
+    {
+      "key": "ELVBATCH",
+      "schema_path": "ELVBATCH.json",
+      "schema_checksum": "16c957079f1cc5777f8feff8dc97b79a1b59d08a27df533d23bb610ad3ebaeb3",
+      "template_path": "ELVBATCH.md",
+      "template_checksum": "e92e6f5a71629a1c9eb39c77799d304d5fc9175f8077f6a7c595bb6e60f7d1da"
+    },
+    {
+      "key": "LANDPR",
+      "schema_path": "LANDPR.json",
+      "schema_checksum": "663cd76ad36b3fddf8516c7d489bc595ab7e8ee4ef36c84d8bd2916de886afe5",
+      "template_path": "LANDPR.md",
+      "template_checksum": "b0f09ec49c38f5f66d0af77bcc018337bff1df1e814b0ee05aadd38be17a685b"
+    },
+    {
+      "key": "ELVRPT",
+      "schema_path": "ELVRPT.json",
+      "schema_checksum": "491f175c67462671e862420ce3a1b7275e3fcfda4edd91501cc491069bee4569",
+      "template_path": "ELVRPT.md",
+      "template_checksum": "747897b723b96b5945c14ef46f44af2a7b733517b24ceb569ff8bec1b81a0c20"
+    }
+  ],
+  "workflow_hints": {
+    "loop_kind": "staged_long_running_batch_loop",
+    "memory_surfaces": [
+      "docs/elves/survival-guide.md",
+      "docs/elves/execution-log.md",
+      "docs/elves/learnings.md",
+      ".elves-session.json",
+      "PR comments and checks"
+    ],
+    "review_gates": [
+      "stage_review",
+      "batch_validation",
+      "fresh_review",
+      "judge_verdict",
+      "human_land_gate"
+    ],
+    "external_tools": [
+      "git",
+      "gh",
+      "project test command",
+      "optional browser or visual review command"
+    ],
+    "stop_conditions": [
+      "batch complete and checkpointed",
+      "validation cannot be repaired safely",
+      "PR has unresolved requested changes",
+      "time/risk budget exhausted"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": [
+    "ELVSTAGE",
+    "ELVBATCH",
+    "LANDPR",
+    "ELVRPT"
+  ],
+  "checksum": "49e91c287046b5a9af307bfe8c09b9dc1938d573806712bef04b9dee0349d1d8"
+}

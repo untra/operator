@@ -10,7 +10,7 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.2.1"
+    "version": "0.2.2"
   },
   "paths": {
     "/api/v1/agents/active": {
@@ -701,6 +701,31 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "summary": "GET `/api/v1/integrations`",
+        "description": "Returns the catalog of advertised integrations across every vertical, each\nwith its docs link and official support status (`proto` | `alpha` | `beta` |\n`ga`).",
+        "operationId": "integrations_catalog",
+        "responses": {
+          "200": {
+            "description": "Vertical integration catalog with support status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntegrationCatalogEntryDto"
+                  }
                 }
               }
             }
@@ -2344,6 +2369,31 @@
           }
         }
       }
+    },
+    "/api/v1/workflow-formats": {
+      "get": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "List the workflow export formats operator can emit.",
+        "description": "Returns each [`WorkflowFormat`] with its label, file extension, support\nstatus, and docs link — derived from `WorkflowFormat::ALL` joined to the\n`Workflows` catalog vertical. Lets UIs render a format picker for the\n`format` query param accepted by export/preview.",
+        "operationId": "workflow_formats",
+        "responses": {
+          "200": {
+            "description": "Available workflow export formats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowFormatDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2688,11 +2738,36 @@
           "name": {
             "type": "string"
           },
+          "publisher": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Publisher identifier (present for hosted collections)."
+          },
           "types": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Collection semver (present for hosted collections)."
+          },
+          "workflow_hints": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowHintsDto",
+                "description": "Descriptive workflow hints (present for hosted collections)."
+              }
+            ]
           }
         }
       },
@@ -3636,6 +3711,51 @@
           },
           "version": {
             "type": "string"
+          }
+        }
+      },
+      "IntegrationCatalogEntryDto": {
+        "type": "object",
+        "description": "One advertised integration: its vertical, identity, docs link, and support\nstatus.",
+        "required": [
+          "vertical",
+          "vertical_label",
+          "slug",
+          "label",
+          "readme_badge",
+          "status"
+        ],
+        "properties": {
+          "docs_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absolute docs URL, or `null` if undocumented."
+          },
+          "label": {
+            "type": "string",
+            "description": "Display label for the entry (e.g. \"Jira\", \"Anthropic\")."
+          },
+          "readme_badge": {
+            "type": "boolean",
+            "description": "Whether this entry carries a curated README badge."
+          },
+          "slug": {
+            "type": "string",
+            "description": "Stable entry slug within the vertical (e.g. \"jira\", \"anthropic-api\")."
+          },
+          "status": {
+            "$ref": "#/components/schemas/SupportStatus",
+            "description": "Official support / maturity status."
+          },
+          "vertical": {
+            "type": "string",
+            "description": "Vertical slug (e.g. \"kanban\", \"model\", \"git\", \"session\", \"editor\")."
+          },
+          "vertical_label": {
+            "type": "string",
+            "description": "Human label for the vertical (e.g. \"Kanban Provider\")."
           }
         }
       },
@@ -4965,7 +5085,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id)."
+            "description": "Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id)."
           },
           "platform": {
             "type": "string",
@@ -5501,6 +5621,16 @@
           }
         }
       },
+      "SupportStatus": {
+        "type": "string",
+        "description": "Official support / maturity level of an advertised integration.",
+        "enum": [
+          "proto",
+          "alpha",
+          "beta",
+          "ga"
+        ]
+      },
       "SyncKanbanIssueTypesResponse": {
         "type": "object",
         "description": "Response from syncing kanban issue types from a provider.",
@@ -5989,6 +6119,83 @@
           "claude",
           "agnt"
         ]
+      },
+      "WorkflowFormatDto": {
+        "type": "object",
+        "description": "One workflow export format operator can emit, for `GET /api/v1/workflow-formats`.\n\nA projection of [`WorkflowFormat`] joined to its `Workflows` catalog entry —\nthe single source of truth for the format's [`SupportStatus`] and docs. Lets\nthe UIs render a format picker without hardcoding the list.",
+        "required": [
+          "slug",
+          "label",
+          "extension",
+          "status"
+        ],
+        "properties": {
+          "docs_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absolute docs URL, or `null` if undocumented."
+          },
+          "extension": {
+            "type": "string",
+            "description": "File extension of the emitted artifact, no leading dot (e.g. \"js\", \"json\")."
+          },
+          "label": {
+            "type": "string",
+            "description": "Display label (e.g. \"Claude Workflow\")."
+          },
+          "slug": {
+            "type": "string",
+            "description": "Stable slug (e.g. \"claude\", \"agnt\") — the value the `format` query param takes."
+          },
+          "status": {
+            "$ref": "#/components/schemas/SupportStatus",
+            "description": "Official support / maturity status (from the catalog)."
+          }
+        }
+      },
+      "WorkflowHintsDto": {
+        "type": "object",
+        "description": "Descriptive workflow hints for a collection (v1: metadata only).",
+        "required": [
+          "runner_semantics"
+        ],
+        "properties": {
+          "external_tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "loop_kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "memory_surfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "review_gates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "runner_semantics": {
+            "type": "string"
+          },
+          "stop_conditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "WorkflowPreviewResponse": {
         "type": "object",

@@ -1,0 +1,109 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "LANDPR",
+  "name": "Land Pull Request",
+  "description": "Run the Elves PR landing loop: collect feedback, fix blockers, prove, wait, and land only when safe.",
+  "mode": "paired",
+  "glyph": "L",
+  "color": "magenta",
+  "project_required": true,
+  "agent": "elves-reviewer",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "PR landing summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "max_length": 120,
+      "display_order": 1
+    },
+    {
+      "name": "pr_url",
+      "description": "Pull request URL or number",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "display_order": 2
+    },
+    {
+      "name": "allow_merge",
+      "description": "Whether the agent may merge when all gates pass",
+      "type": "bool",
+      "required": false,
+      "default": "false",
+      "display_order": 3
+    }
+  ],
+  "steps": [
+    {
+      "name": "collect",
+      "display_name": "Collect PR State",
+      "outputs": ["report"],
+      "prompt": "Collect complete PR state for {{ pr_url }}.\n\nRead PR description, comments, reviews, checks, requested changes, branch state, and local diff. Write state to `docs/elves/pr-landing-{{ id }}.md`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "artifact_patterns": ["docs/elves/pr-landing-{{ id }}.md"],
+      "next_step": "fresh"
+    },
+    {
+      "name": "fresh",
+      "display_name": "Fresh Review",
+      "outputs": ["review"],
+      "prompt": "Perform a fresh read-only review of the PR diff.\n\nCompare base to HEAD, check review comments against current code, and identify true blockers versus already-fixed comments. Update `docs/elves/pr-landing-{{ id }}.md`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "permission_mode": "plan",
+      "next_step": "fix"
+    },
+    {
+      "name": "fix",
+      "display_name": "Fix Blockers",
+      "outputs": ["code"],
+      "prompt": "Fix only PR landing blockers.\n\nAddress unresolved requested changes, failing checks, and fresh-review blockers. Avoid new feature work. If a blocker is unsafe or ambiguous, stop and document the exact human decision needed.",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "next_step": "prove"
+    },
+    {
+      "name": "prove",
+      "display_name": "Prove Ready",
+      "outputs": ["test"],
+      "prompt": "Prove the PR is ready to land.\n\nRun targeted tests and broader sensible checks. Re-read PR checks and review status. Update landing notes with exact evidence.",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "fix",
+        "prompt": "PR proof failed or was rejected: {{ rejection_reason }}\n\nFix blockers and prove again."
+      },
+      "next_step": "wait"
+    },
+    {
+      "name": "wait",
+      "display_name": "Wait And Re-read",
+      "outputs": ["review"],
+      "prompt": "Wait for and re-read asynchronous PR surfaces.\n\nRefresh checks, reviews, bot comments, and inline threads. If new blockers appear, reject back to fix. If no blockers remain, proceed to land gate.",
+      "allowed_tools": ["Read", "Bash", "Write"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "fix",
+        "prompt": "New PR feedback appeared: {{ rejection_reason }}\n\nAddress it before attempting to land."
+      },
+      "next_step": "land"
+    },
+    {
+      "name": "land",
+      "display_name": "Land Gate",
+      "outputs": ["pr"],
+      "prompt": "Land the PR only if safe.\n\nIf `allow_merge` is false, stop with a final ready-to-merge report. If true, merge only when the worktree is clean, checks are green, approvals are sufficient, no requested changes remain, and the branch is current. Record the result.",
+      "allowed_tools": ["Read", "Bash", "Write"],
+      "review_type": "pr"
+    }
+  ]
+}

@@ -15,6 +15,6 @@ export type RemoteAgentRef = {
  */
 platform: string, 
 /**
- * Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id).
+ * Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id).
  */
 id: string, };

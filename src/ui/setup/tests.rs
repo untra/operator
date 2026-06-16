@@ -96,6 +96,83 @@ fn test_setup_wrapper_navigation_flow() {
     assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
 }
 
+// ─── Hosted Collection Picker Tests ─────────────────────────────────────────
+
+#[test]
+fn test_collection_source_browse_enters_fetch_step() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.enter_collection_source();
+    // Select the "Browse Hosted Collections" option.
+    let idx = screen
+        .source_options
+        .iter()
+        .position(|o| *o == CollectionSourceOption::Browse)
+        .unwrap();
+    screen.source_state.select(Some(idx));
+
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::HostedCollectionFetch);
+    assert!(!screen.hosted_loaded);
+}
+
+#[tokio::test]
+async fn test_hosted_picker_offline_fallback_and_commit() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::HostedCollectionFetch;
+
+    // Offline (no URL) -> embedded fallback; picker is never empty.
+    screen.load_hosted_collections(None, 1).await;
+    assert!(screen.hosted_loaded);
+    assert!(!screen.hosted_resolved.is_empty());
+
+    // Highlight dev_kanban and commit.
+    let idx = screen
+        .hosted_resolved
+        .iter()
+        .position(|r| r.manifest.id == "dev_kanban")
+        .expect("dev_kanban present in embedded fallback");
+    screen.hosted_state.select(Some(idx));
+
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::TaskFieldConfig);
+    assert_eq!(screen.selected_hosted_id.as_deref(), Some("dev_kanban"));
+    // default_selected seeds the custom collection.
+    assert_eq!(screen.collection(), vec!["TASK", "FEAT", "FIX"]);
+}
+
+#[tokio::test]
+async fn test_hosted_picker_multi_select_merges_issue_types() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::HostedCollectionFetch;
+    screen.load_hosted_collections(None, 1).await;
+
+    // Check both `simple` (TASK) and `dev_kanban` (TASK, FEAT, FIX).
+    for id in ["simple", "dev_kanban"] {
+        let idx = screen
+            .hosted_resolved
+            .iter()
+            .position(|r| r.manifest.id == id)
+            .expect("collection present in embedded fallback");
+        screen.hosted_state.select(Some(idx));
+        screen.toggle_selection();
+    }
+
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::TaskFieldConfig);
+    // Several collections merged -> no single committed id.
+    assert!(screen.selected_hosted_id.is_none());
+    // Union in first-seen order, de-duplicated.
+    assert_eq!(screen.collection(), vec!["TASK", "FEAT", "FIX"]);
+}
+
+#[test]
+fn test_hosted_fetch_go_back_returns_to_collection_source() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::HostedCollectionFetch;
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::CollectionSource);
+}
+
 #[test]
 fn test_setup_navigation_to_worktree_preference() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
@@ -195,26 +272,90 @@ fn test_tmux_onboarding_proceeds_if_available() {
         version: "3.3a".to_string(),
     };
 
-    // Should proceed to KanbanInfo because tmux is available
+    // Wrapper setup now precedes acceptance criteria (kanban moved earlier).
     screen.confirm();
-    assert_eq!(screen.step, SetupStep::KanbanInfo);
+    assert_eq!(screen.step, SetupStep::AcceptanceCriteria);
 }
 
 #[test]
-fn test_kanban_info_go_back_respects_wrapper_choice() {
+fn test_kanban_info_go_back_returns_to_welcome() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
-
-    // Test tmux path
+    // Kanban setup is now the first step after Welcome.
     screen.step = SetupStep::KanbanInfo;
-    screen.selected_wrapper = SessionWrapperType::Tmux;
     screen.go_back();
-    assert_eq!(screen.step, SetupStep::TmuxOnboarding);
+    assert_eq!(screen.step, SetupStep::Welcome);
+}
 
-    // Test vscode path
+#[test]
+fn test_welcome_advances_to_kanban_info() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    assert_eq!(screen.step, SetupStep::Welcome);
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::KanbanInfo);
+    assert!(screen.kanban_detection_complete);
+}
+
+#[test]
+fn test_kanban_info_no_providers_advances_to_collection_source() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::KanbanInfo;
-    screen.selected_wrapper = SessionWrapperType::Vscode;
-    screen.go_back();
-    assert_eq!(screen.step, SetupStep::VSCodeSetup);
+    // No valid providers -> straight to the collection source step.
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::CollectionSource);
+    // Curated options only (no per-provider import options).
+    assert_eq!(screen.source_options, CollectionSourceOption::curated());
+}
+
+#[test]
+fn test_collection_source_lists_import_option_per_configured_provider() {
+    use crate::api::providers::kanban::{
+        DetectedKanbanProvider, KanbanProviderType, ProviderStatus,
+    };
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.detected_kanban_providers = vec![DetectedKanbanProvider {
+        provider_type: KanbanProviderType::Linear,
+        domain: "acme".to_string(),
+        env_vars_found: vec!["OPERATOR_LINEAR_API_KEY".to_string()],
+        email: None,
+        status: ProviderStatus::Valid,
+    }];
+    screen.enter_collection_source();
+
+    let import = screen
+        .source_options
+        .iter()
+        .find(|o| matches!(o, CollectionSourceOption::ImportFromProvider(_)))
+        .expect("an import option for the configured provider");
+    assert_eq!(import.label(), "Import from Linear (acme)");
+
+    // Selecting it stays on the step and surfaces a deferred notice.
+    let idx = screen
+        .source_options
+        .iter()
+        .position(|o| matches!(o, CollectionSourceOption::ImportFromProvider(_)))
+        .unwrap();
+    screen.source_state.select(Some(idx));
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::CollectionSource);
+    assert!(screen.import_notice.is_some());
+}
+
+#[test]
+fn test_collection_source_skips_provider_without_required_env_vars() {
+    use crate::api::providers::kanban::{
+        DetectedKanbanProvider, KanbanProviderType, ProviderStatus,
+    };
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    // Jira needs domain + email + key; only a domain here -> no import option.
+    screen.detected_kanban_providers = vec![DetectedKanbanProvider {
+        provider_type: KanbanProviderType::Jira,
+        domain: "acme.atlassian.net".to_string(),
+        env_vars_found: vec!["OPERATOR_JIRA_DOMAIN".to_string()],
+        email: None,
+        status: ProviderStatus::Untested,
+    }];
+    screen.enter_collection_source();
+    assert_eq!(screen.source_options, CollectionSourceOption::curated());
 }
 
 // ─── Worktree Preference Tests ────────────────────────────────────────────────

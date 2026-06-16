@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "operator",
+  "name": "Operator",
+  "description": "Operator automation tasks: ASSESS, SYNC, INIT",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": ["builtin", "automation"],
+  "issue_types": [
+    { "key": "ASSESS", "schema_path": "ASSESS.json", "template_path": "ASSESS.md" },
+    { "key": "SYNC", "schema_path": "SYNC.json", "template_path": "SYNC.md" },
+    { "key": "INIT", "schema_path": "INIT.json", "template_path": "INIT.md" },
+    { "key": "AGENT-SETUP", "schema_path": "AGENT-SETUP.json", "template_path": "AGENT-SETUP.md" },
+    { "key": "PROJECT-INIT", "schema_path": "PROJECT-INIT.json", "template_path": "PROJECT-INIT.md" }
+  ],
+  "default_selected": ["ASSESS", "SYNC", "INIT"]
+}

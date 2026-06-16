@@ -466,16 +466,36 @@ jobs:
 
       - name: Update package.json versions
         run: |
-          jq --arg v "${{ needs.version.outputs.version }}" '.version = $v' vscode-extension/package.json > tmp.json && mv tmp.json vscode-extension/package.json
+          for f in vscode-extension/package.json \
+                   backstage-server/package.json \
+                   agnt-plugin/package.json \
+                   agnt-plugin/manifest.json; do
+            jq --arg v "${{ needs.version.outputs.version }}" '.version = $v' "$f" > tmp.json && mv tmp.json "$f"
+          done
 
       - name: Update opr8r Cargo.toml version
         run: |
           sed -i 's/^version = ".*"/version = "${{ needs.version.outputs.version }}"/' opr8r/Cargo.toml
           cd opr8r && cargo update --workspace
 
+      - name: Update zed-extension versions
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ needs.version.outputs.version }}"/' zed-extension/Cargo.toml
+          sed -i 's/^version = ".*"/version = "${{ needs.version.outputs.version }}"/' zed-extension/extension.toml
+          cd zed-extension && cargo update -p operator-zed
+
       - name: Update TypeScript VERSION constant
         run: |
           sed -i "s/const VERSION = '[^']*'/const VERSION = '${{ needs.version.outputs.version }}'/" vscode-extension/src/webhook-server.ts
+
+      # openapi.json's version is code-derived (env!("CARGO_PKG_VERSION")); the
+      # already-built linux binary embeds the new version, so regenerate the
+      # committed spec from it instead of recompiling.
+      - name: Regenerate OpenAPI spec
+        run: |
+          BIN=$(find artifacts -type f -name 'operator-linux-x86_64' | head -1)
+          chmod +x "$BIN"
+          "$BIN" docs --only openapi
 
       - name: Commit version bump
         run: |
@@ -484,7 +504,11 @@ jobs:
           git add VERSION Cargo.toml Cargo.lock docs/_config.yml \
             vscode-extension/package.json \
             vscode-extension/src/webhook-server.ts \
-            opr8r/Cargo.toml opr8r/Cargo.lock
+            opr8r/Cargo.toml opr8r/Cargo.lock \
+            zed-extension/Cargo.toml zed-extension/extension.toml zed-extension/Cargo.lock \
+            backstage-server/package.json \
+            agnt-plugin/package.json agnt-plugin/manifest.json \
+            docs/schemas/openapi.json
           git commit -m "chore: bump version to v${{ needs.version.outputs.version }} [skip ci]"
           git push
 

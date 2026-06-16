@@ -378,3 +378,180 @@ pub struct SetKanbanSessionEnvResponse {
     /// into `~/.zshrc` / `~/.bashrc`.
     pub shell_export_block: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_kanban_provider_kind_serializes_lowercase_slugs() {
+        // rename_all = "lowercase": these slugs must match the catalog slugs
+        // documented on KanbanProviderCatalogEntry ("jira" | "linear" | "github").
+        assert_eq!(
+            serde_json::to_string(&KanbanProviderKind::Jira).unwrap(),
+            "\"jira\""
+        );
+        assert_eq!(
+            serde_json::to_string(&KanbanProviderKind::Linear).unwrap(),
+            "\"linear\""
+        );
+        assert_eq!(
+            serde_json::to_string(&KanbanProviderKind::Github).unwrap(),
+            "\"github\""
+        );
+    }
+
+    #[test]
+    fn test_kanban_provider_kind_deserializes_from_lowercase_slugs() {
+        let jira: KanbanProviderKind = serde_json::from_str("\"jira\"").unwrap();
+        assert_eq!(jira, KanbanProviderKind::Jira);
+        let github: KanbanProviderKind = serde_json::from_str("\"github\"").unwrap();
+        assert_eq!(github, KanbanProviderKind::Github);
+    }
+
+    #[test]
+    fn test_kanban_provider_kind_rejects_titlecase() {
+        // Wire format is strictly lowercase; the Rust variant spelling must not parse.
+        assert!(serde_json::from_str::<KanbanProviderKind>("\"Jira\"").is_err());
+    }
+
+    #[test]
+    fn test_validate_request_serializes_only_targeted_provider_body() {
+        // provider-tagged request: only the matching sub-body should appear; the
+        // other two (None) are skipped via skip_serializing_if.
+        let req = ValidateKanbanCredentialsRequest {
+            provider: KanbanProviderKind::Jira,
+            jira: Some(JiraCredentials {
+                domain: "acme.atlassian.net".to_string(),
+                email: "a@b.com".to_string(),
+                api_token: "secret-token".to_string(),
+            }),
+            linear: None,
+            github: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"provider\":\"jira\""));
+        assert!(json.contains("\"jira\":{"));
+        assert!(!json.contains("\"linear\":"));
+        assert!(!json.contains("\"github\":"));
+    }
+
+    #[test]
+    fn test_validate_request_deserializes_with_missing_provider_bodies() {
+        // The three credential slots default to None when absent.
+        let json = r#"{ "provider": "linear", "linear": { "api_key": "lin_api_x" } }"#;
+        let req: ValidateKanbanCredentialsRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.provider, KanbanProviderKind::Linear);
+        assert!(req.jira.is_none());
+        assert!(req.github.is_none());
+        assert_eq!(req.linear.unwrap().api_key, "lin_api_x");
+    }
+
+    #[test]
+    fn test_validate_response_skips_none_detail_blocks() {
+        let resp = ValidateKanbanCredentialsResponse {
+            valid: false,
+            error: Some("invalid token".to_string()),
+            jira: None,
+            linear: None,
+            github: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"valid\":false"));
+        assert!(json.contains("\"error\":\"invalid token\""));
+        assert!(!json.contains("\"jira\":"));
+        assert!(!json.contains("\"linear\":"));
+        assert!(!json.contains("\"github\":"));
+    }
+
+    #[test]
+    fn test_write_kanban_config_body_carries_env_name_not_secret() {
+        // The config-write path stores only the env-var NAME (`api_key_env`) — it
+        // must never carry the raw secret. (Contrast with the *SessionEnv bodies
+        // below, which deliberately DO carry the secret to set server env.)
+        let body = WriteJiraConfigBody {
+            domain: "acme.atlassian.net".to_string(),
+            email: "a@b.com".to_string(),
+            api_key_env: "OPERATOR_JIRA_TOKEN".to_string(),
+            project_key: "PROJ".to_string(),
+            sync_user_id: "acct-1".to_string(),
+        };
+        let json = serde_json::to_string(&body).unwrap();
+        assert!(json.contains("\"api_key_env\":\"OPERATOR_JIRA_TOKEN\""));
+        // No raw secret field channels on the config-write body.
+        assert!(!json.contains("api_token"));
+        assert!(!json.contains("\"token\":"));
+    }
+
+    #[test]
+    fn test_jira_session_env_intentionally_carries_secret() {
+        // Counterpart to the config-write body: session-env DOES transport the
+        // secret (`api_token`) so the server can set it in its process env.
+        let env = JiraSessionEnv {
+            domain: "acme.atlassian.net".to_string(),
+            email: "a@b.com".to_string(),
+            api_token: "real-secret".to_string(),
+            api_key_env: "OPERATOR_JIRA_TOKEN".to_string(),
+        };
+        let json = serde_json::to_string(&env).unwrap();
+        assert!(json.contains("\"api_token\":\"real-secret\""));
+        assert!(json.contains("\"api_key_env\":\"OPERATOR_JIRA_TOKEN\""));
+        let parsed: JiraSessionEnv = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.api_token, "real-secret");
+    }
+
+    #[test]
+    fn test_provider_catalog_entry_roundtrip() {
+        let entry = KanbanProviderCatalogEntry {
+            slug: "github".to_string(),
+            display_name: "GitHub Projects".to_string(),
+            description: "Sync from a GitHub Project v2".to_string(),
+            setup_url: "https://github.com/settings/tokens".to_string(),
+            icon: "github".to_string(),
+            configured: true,
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        let parsed: KanbanProviderCatalogEntry = serde_json::from_str(&json).unwrap();
+        // slug aligns with KanbanProviderKind::Github's lowercase wire form.
+        assert_eq!(parsed.slug, "github");
+        assert!(parsed.configured);
+    }
+
+    #[test]
+    fn test_kanban_issue_type_response_skips_none_optionals() {
+        let resp = KanbanIssueTypeResponse {
+            id: "10001".to_string(),
+            name: "Bug".to_string(),
+            description: None,
+            icon_url: None,
+            provider: "jira".to_string(),
+            project: "PROJ".to_string(),
+            source_kind: "issuetype".to_string(),
+            synced_at: "2026-06-16T12:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(!json.contains("description"));
+        assert!(!json.contains("icon_url"));
+        assert!(json.contains("\"source_kind\":\"issuetype\""));
+    }
+
+    #[test]
+    fn test_write_kanban_config_request_targets_single_provider() {
+        let req = WriteKanbanConfigRequest {
+            provider: KanbanProviderKind::Github,
+            jira: None,
+            linear: None,
+            github: Some(WriteGithubConfigBody {
+                owner: "acme".to_string(),
+                api_key_env: "OPERATOR_GITHUB_TOKEN".to_string(),
+                project_key: "PVT_kwDOABcdefg".to_string(),
+                sync_user_id: "123".to_string(),
+            }),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"provider\":\"github\""));
+        assert!(json.contains("\"github\":{"));
+        assert!(!json.contains("\"jira\":"));
+        assert!(!json.contains("\"linear\":"));
+    }
+}

@@ -13,12 +13,14 @@
 
 * **LLM Tool** [![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/agents/claude/) [![Codex](https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/agents/codex/) [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](https://operator.untra.io/getting-started/agents/gemini-cli/)
 
-* **Model Provider** [![Anthropic](https://img.shields.io/badge/Anthropic-D97757?logo=anthropic&logoColor=white)](https://operator.untra.io/getting-started/model-servers/anthropic/) [![OpenAI](https://img.shields.io/badge/OpenAI-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/model-servers/openai/) [![Google](https://img.shields.io/badge/Google-4285F4?logo=google&logoColor=white)](https://operator.untra.io/getting-started/model-servers/google/) [![OpenRouter](https://img.shields.io/badge/OpenRouter-6566F1?logo=openrouter&logoColor=white)](https://operator.untra.io/getting-started/model-servers/openrouter/) [![Ollama](https://img.shields.io/badge/Ollama-000000?logo=ollama&logoColor=white)](https://operator.untra.io/getting-started/model-servers/ollama/)
+* **Model Provider** [![Anthropic](https://img.shields.io/badge/Anthropic-D97757?logo=anthropic&logoColor=white)](https://operator.untra.io/getting-started/model-servers/anthropic/) [![OpenAI](https://img.shields.io/badge/OpenAI-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/model-servers/openai/) [![Google](https://img.shields.io/badge/Google-4285F4?logo=google&logoColor=white)](https://operator.untra.io/getting-started/model-servers/google/) [![OpenRouter](https://img.shields.io/badge/OpenRouter-94A3B8?logo=openrouter&logoColor=white)](https://operator.untra.io/getting-started/model-servers/openrouter/) [![Ollama](https://img.shields.io/badge/Ollama-000000?logo=ollama&logoColor=white)](https://operator.untra.io/getting-started/model-servers/ollama/)
 
 
 * **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/) [![GitLab](https://img.shields.io/badge/GitLab-FC6D26?logo=gitlab&logoColor=white)](https://operator.untra.io/getting-started/git/gitlab/)
 
 * **Platform** [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://operator.untra.io/getting-started/platforms/docker/) [![Coder](https://img.shields.io/badge/Coder-7C71FF?logo=coder&logoColor=white)](https://operator.untra.io/getting-started/platforms/coder/) 
+
+* **Workflow Format** [![Claude Workflow](https://img.shields.io/badge/Claude_Workflow-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/workflows/claude/) [![AGNT Workflow](https://img.shields.io/badge/AGNT_Workflow-6E56CF)](https://operator.untra.io/getting-started/workflows/agnt/)
 
 An orchestration tool for [**AI-assisted**](https://operator.untra.io/getting-started/agents/) [_kanban-shaped_](https://operator.untra.io/getting-started/kanban/) [git-versioned](https://operator.untra.io/getting-started/git/) software development.
 
@@ -98,7 +100,7 @@ Or build from source:
 ```bash
 git clone https://github.com/untra/operator.git
 cd operator
-cargo build --release
+make build                                  # cargo build --release
 sudo cp target/release/operator /usr/local/bin/
 ```
 
@@ -296,63 +298,3 @@ operator launch --llm-tool codex --model qwen2.5-coder --model-server ollama-loc
 
 Current release ships the infrastructure — ollama detection and automatic env-var injection on spawn land in the next release. See `docs/getting-started/model-servers/` for the full walkthrough.
 
-## Development
-
-```bash
-# Run in development
-cargo run
-
-# Run tests
-cargo test
-
-# Build release
-cargo build --release
-```
-
-## Documentation
-
-Reference documentation is auto-generated from source-of-truth files to minimize maintenance.
-
-### Available References
-
-| Generator | Source | Output |
-|-----------|--------|--------|
-| taxonomy | `src/taxonomy/taxonomy.toml` | `docs/taxonomy/index.md` |
-| issuetype-schema | `src/schemas/issuetype_schema.json` | `docs/schemas/issuetype.md` |
-| metadata-schema | `src/schemas/ticket_metadata.schema.json` | `docs/schemas/metadata.md` |
-| shortcuts | `src/ui/keybindings.rs` | `docs/shortcuts/index.md` |
-| cli | `src/main.rs`, `src/env_vars.rs` | `docs/cli/index.md` |
-| config | `src/config.rs` | `docs/configuration/index.md` |
-| OpenAPI | `src/rest/` (utoipa annotations) | `docs/schemas/openapi.json` |
-| llm-tools | `src/llm/tools/tool_config.schema.json` | `docs/llm-tools/index.md` |
-| startup | `src/startup/mod.rs` | `docs/startup/index.md` |
-| config-schema | `docs/schemas/config.json` | `docs/schemas/config.md` |
-| state-schema | `docs/schemas/state.json` | `docs/schemas/state.md` |
-| schema-index | `docs/schemas/` | `docs/schemas/index.md` |
-| jira-api | `docs/schemas/jira-api.json` | `docs/getting-started/kanban/jira-api.md` |
-
-### Viewing Documentation
-
-```bash
-# Serve docs locally with Jekyll
-cd docs && bundle install && bundle exec jekyll serve
-# Visit http://localhost:4000
-
-# View OpenAPI spec with Swagger UI
-# After starting Jekyll, visit http://localhost:4000/schemas/api/
-```
-
-### Regenerating Documentation
-
-```bash
-# Regenerate all auto-generated docs
-cargo run -- docs
-
-# Regenerate specific docs
-cargo run -- docs --only openapi
-cargo run -- docs --only config
-
-# Available generators: taxonomy, issuetype-schema, metadata-schema, shortcuts,
-# cli, config, OpenAPI, llm-tools, startup, config-schema, state-schema,
-# schema-index, jira-api
-```

@@ -59,6 +59,9 @@ const DEFAULT_CONFIG: Config = {
     preset: 'dev_kanban',
     collection: [],
     active_collection: null,
+    collections_fetch_enabled: true,
+    collections_manifest_url: 'https://operator.untra.io/collections/index.json',
+    collections_fetch_timeout_secs: BigInt(5),
   },
   api: {
     pr_check_interval_secs: BigInt(300),

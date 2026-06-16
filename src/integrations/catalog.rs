@@ -31,11 +31,12 @@ pub enum Vertical {
     LlmTool,
     Platform,
     Integration,
+    Workflows,
 }
 
 impl Vertical {
     /// All verticals, in README display order.
-    pub const ALL: [Vertical; 8] = [
+    pub const ALL: [Vertical; 9] = [
         Vertical::Kanban,
         Vertical::Model,
         Vertical::Git,
@@ -44,6 +45,7 @@ impl Vertical {
         Vertical::LlmTool,
         Vertical::Platform,
         Vertical::Integration,
+        Vertical::Workflows,
     ];
 
     /// Stable lowercase slug (wire id for the REST DTO).
@@ -57,6 +59,7 @@ impl Vertical {
             Vertical::LlmTool => "llm-tool",
             Vertical::Platform => "platform",
             Vertical::Integration => "integration",
+            Vertical::Workflows => "workflows",
         }
     }
 
@@ -71,6 +74,7 @@ impl Vertical {
             Vertical::LlmTool => "LLM Tool",
             Vertical::Platform => "Platform",
             Vertical::Integration => "Integration",
+            Vertical::Workflows => "Workflow Format",
         }
     }
 }
@@ -110,7 +114,9 @@ impl CatalogEntry {
 /// require a docs page (enforced by `tests/vertical_parity.rs`).
 pub fn all_integrations() -> Vec<CatalogEntry> {
     use SupportStatus::{Alpha, Beta, Ga, Proto};
-    use Vertical::{Editor, Git, Integration, Kanban, LlmTool, Model, Platform, Session};
+    use Vertical::{
+        Editor, Git, Integration, Kanban, LlmTool, Model, Platform, Session, Workflows,
+    };
     vec![
         // --- Kanban providers (mirror KanbanProviderType::ALL) ---
         entry(
@@ -305,6 +311,23 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "AGNT",
             Some("getting-started/integrations/agnt"),
             false,
+            Alpha,
+        ),
+        // --- Workflow formats (mirror WorkflowFormat::ALL) ---
+        entry(
+            Workflows,
+            "claude",
+            "Claude Workflow",
+            Some("getting-started/workflows/claude"),
+            true,
+            Ga,
+        ),
+        entry(
+            Workflows,
+            "agnt",
+            "AGNT Workflow",
+            Some("getting-started/workflows/agnt"),
+            true,
             Alpha,
         ),
     ]

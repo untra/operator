@@ -32,6 +32,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="issuetypes" element={<IssueTypesPage />} />
             <Route path="delegators" element={<SectionPage conceptKey="delegators" />} />
             <Route path="projects" element={<SectionPage conceptKey="projects" />} />
+            <Route path="workflows" element={<SectionPage conceptKey="workflows" />} />
             <Route path="queue" element={<QueuePage />} />
             <Route path="status" element={<StatusPage />} />
             <Route path="agent/:id" element={<AgentDetailPage />} />

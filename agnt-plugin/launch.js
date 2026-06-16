@@ -2,6 +2,9 @@
 import { callOperator } from "./lib/operator-client.js";
 
 class LaunchAgentTool {
+  constructor() {
+    this.name = "operator-launch-agent";
+  }
   async execute(params, _inputData, _workflowEngine) {
     if (!params || !params.id) {
       return { success: false, result: null, error: "missing required param: id" };

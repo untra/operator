@@ -82,3 +82,10 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Integration | Status | Docs |
 |---|---|---|
 | AGNT | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [AGNT](https://operator.untra.io/getting-started/integrations/agnt/) |
+
+## Workflow Format
+
+| Integration | Status | Docs |
+|---|---|---|
+| Claude Workflow | ![GA](https://img.shields.io/badge/GA-1BB91F) | [Claude Workflow](https://operator.untra.io/getting-started/workflows/claude/) |
+| AGNT Workflow | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [AGNT Workflow](https://operator.untra.io/getting-started/workflows/agnt/) |

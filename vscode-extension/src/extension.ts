@@ -1149,6 +1149,8 @@ export async function activate(
       () => openOperatorUi(ctx.getCurrentTicketsDir(), 'kanban')),
     vscode.commands.registerCommand('operator.openQueue',
       () => openOperatorUi(ctx.getCurrentTicketsDir(), 'queue')),
+    vscode.commands.registerCommand('operator.openWorkflows',
+      () => openOperatorUi(ctx.getCurrentTicketsDir(), 'workflows')),
     vscode.commands.registerCommand('operator.syncKanbanCollection',
       (item: StatusItem) => syncKanbanCollectionCommand(ctx, item)),
     vscode.commands.registerCommand('operator.addJiraProject',

@@ -145,13 +145,13 @@ name  = "agnt-researcher"
 # the agent lives on AGNT; Operator references it but never runs it
 [delegators.remote_agent]
 platform = "agnt"          # or "openai"
-id       = "Research Assistant"   # AGNT agent name, or an OpenAI asst_… id
+id       = "a1b2c3d4-…"            # AGNT agent UUID, or an OpenAI asst_… id
 ```
 
 Remote agents are **export-only**: Operator has no runtime client for those platforms, so a
 delegator carrying a `remote_agent` cannot be launched locally — resolution returns a
 `RemoteOnlyDelegator` error on every launch path. When the platform is `agnt`, the reference is
-surfaced in the [`--format agnt` workflow export](/docs/) as an `agnt-agent` node; other platforms
+surfaced in the [`--format agnt` workflow export](/docs/) as a native AGNT `agnt-agent` node; other platforms
 ride opaquely in the profile.
 
 > **Caveat:** a non-AGNT remote delegator (e.g. `platform = "openai"`) used as a step agent in an

@@ -26,6 +26,7 @@ use operator::api::providers::model_server::ModelServerKind;
 use operator::config::SessionWrapperType;
 use operator::integrations::{all_integrations, CatalogEntry, SupportStatus, Vertical};
 use operator::types::pr::GitProvider;
+use operator::workflow_gen::WorkflowFormat;
 
 /// Path relative to the crate root, regardless of the test's working directory.
 fn repo_path(rel: &str) -> PathBuf {
@@ -87,6 +88,13 @@ fn test_every_provider_enum_variant_has_catalog_entry() {
         assert!(
             has(Vertical::Session, slug) || has(Vertical::Editor, slug),
             "session/editor '{slug}'"
+        );
+    }
+    for f in WorkflowFormat::ALL {
+        assert!(
+            has(Vertical::Workflows, f.slug()),
+            "workflows '{}'",
+            f.slug()
         );
     }
 }

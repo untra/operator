@@ -283,6 +283,10 @@
         "icon": "$(globe)"
       },
       {
+        "command": "operator.openWorkflows",
+        "title": "Operator: Open Workflows in Operator UI"
+      },
+      {
         "command": "operator.syncKanbanCollection",
         "title": "Operator: Sync Collection"
       },

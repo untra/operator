@@ -12,6 +12,17 @@
 //! The emitted nodes use the `operator-*` type vocabulary defined by the
 //! companion AGNT plugin (`agnt-plugin/`), so an exported workflow runs in AGNT
 //! when that plugin is installed.
+//!
+//! The node/edge shape matches AGNT's *runnable* workflow schema, verified
+//! against AGNT's own code (`agnt-gg/agnt`), not its simplified API-examples
+//! docs page: nodes carry `{ id, type, text, x, y, parameters }` and edges carry
+//! `{ id, start: { id }, end: { id } }`. The runtime engine (`WorkflowEngine.js`)
+//! traverses `edge.start.id`/`edge.end.id`, the node executor (`NodeExecutor.js`)
+//! resolves `node.parameters` into the tool's `execute(params)`, and the
+//! workflow validator (`orchestrator/workflowTools.js`) rejects nodes lacking
+//! `text`/`x`/`y` or edges lacking `id`/`start.id`/`end.id`. Workflows are stored
+//! verbatim (`WorkflowService.saveWorkflow`), so the shape we emit is the shape
+//! that runs.
 
 use anyhow::{Context, Result};
 use handlebars::Handlebars;
@@ -39,14 +50,14 @@ const NODE_TYPE: &str = "operator-run-step";
 /// The node type emitted for a step whose resolved delegator declaratively
 /// references a named AGNT agent (see [`crate::config::AgentProfile`]). Rather
 /// than route the step back through Operator (`operator-run-step`), AGNT runs the
-/// step natively with the referenced agent. The `agentName` key carries the
-/// reference.
+/// step natively with its own agent-chat node.
 ///
-/// NOTE (cross-language contract — confirm against AGNT's native node schema):
-/// the type string `"agnt-agent"` and the `agentName` config key are Operator's
-/// chosen vocabulary; align them with the AGNT runtime / `agnt-plugin/` before
-/// treating this as stable, the same way `operator-run-step` agrees on
-/// `ticket`/`step` with `agnt-plugin/run-step.js`.
+/// This is AGNT's native tool, confirmed against its tool registry
+/// (`frontend/src/views/Docs/docfiles/tools/agnt-agent.md` in `agnt-gg/agnt`):
+/// the registered tool id is `agnt-agent` and its required parameters are
+/// `agentId` (the AGNT agent id, a UUID) and `message` (the prompt to send). It
+/// belongs to the AGNT runtime, so an exported workflow with an `agnt-agent` node
+/// runs natively in AGNT without the operator plugin.
 const AGNT_AGENT_NODE_TYPE: &str = "agnt-agent";
 
 /// An AGNT workflow document: a graph of nodes connected by edges.
@@ -58,21 +69,33 @@ struct AgntWorkflow {
     edges: Vec<AgntEdge>,
 }
 
-/// One AGNT workflow node. `config` is the per-node parameter bag the plugin
-/// tool reads at execution time.
+/// One AGNT workflow node. `parameters` is the per-node bag the node executor
+/// resolves into the tool's `execute(params)`; `text` is the canvas label and
+/// `x`/`y` the canvas coordinates (all required by AGNT's workflow validator).
 #[derive(Debug, Serialize)]
 struct AgntNode {
     id: String,
     #[serde(rename = "type")]
     node_type: String,
-    config: Value,
+    text: String,
+    x: i64,
+    y: i64,
+    parameters: Value,
 }
 
-/// A directed edge between two nodes (by `id`).
+/// A directed edge. AGNT's engine traverses `start.id` → `end.id` and tracks the
+/// edge by `id`, so all three are required (a bare `{source,target}` won't run).
 #[derive(Debug, Serialize)]
 struct AgntEdge {
-    source: String,
-    target: String,
+    id: String,
+    start: EdgeEnd,
+    end: EdgeEnd,
+}
+
+/// One endpoint of an [`AgntEdge`], referencing a node by `id`.
+#[derive(Debug, Serialize)]
+struct EdgeEnd {
+    id: String,
 }
 
 /// Render `ticket` against `issuetype` into an AGNT workflow JSON string.
@@ -93,8 +116,8 @@ pub fn export_workflow_agnt(
     let steps = ordered_steps(issuetype);
 
     let mut nodes = Vec::with_capacity(steps.len());
-    for step in &steps {
-        nodes.push(build_node(&hbs, &ctx, step, ticket, config)?);
+    for (index, step) in steps.iter().enumerate() {
+        nodes.push(build_node(&hbs, &ctx, step, ticket, config, index)?);
     }
 
     // Edges follow the `next_step` chain (only when the target resolves to a
@@ -104,8 +127,13 @@ pub fn export_workflow_agnt(
         if let Some(next) = step.next_step.as_deref() {
             if issuetype.get_step(next).is_some() {
                 edges.push(AgntEdge {
-                    source: step.name.clone(),
-                    target: next.to_string(),
+                    id: format!("{}->{}", step.name, next),
+                    start: EdgeEnd {
+                        id: step.name.clone(),
+                    },
+                    end: EdgeEnd {
+                        id: next.to_string(),
+                    },
                 });
             }
         }
@@ -120,21 +148,21 @@ pub fn export_workflow_agnt(
     serde_json::to_string_pretty(&wf).context("failed to serialize AGNT workflow")
 }
 
-/// Build one `operator-run-step` node from a step. Lossy cases (RAG/MCP
-/// sandboxing, fan-out shapes, human review gates) are recorded in `config`
-/// rather than dropped: `gap` collects `OPERATOR-GAP` notes, `fanout` summarizes
-/// a flattened parallel shape.
+/// Build one node from a step. `index` positions the node vertically on the
+/// canvas (the chain is linear). Lossy cases (RAG/MCP sandboxing, fan-out shapes,
+/// human review gates) are recorded in `parameters` rather than dropped: `gap`
+/// collects `OPERATOR-GAP` notes, `fanout` summarizes a flattened parallel shape.
 fn build_node(
     hbs: &Handlebars,
     ctx: &Value,
     step: &StepSchema,
     ticket: &Ticket,
     app_config: &Config,
+    index: usize,
 ) -> Result<AgntNode> {
-    let mut config = Map::new();
-    config.insert("ticket".into(), json!(ticket.id));
-    config.insert("step".into(), json!(step.name));
-    config.insert("phase".into(), json!(step.display_name()));
+    let mut parameters = Map::new();
+    parameters.insert("ticket".into(), json!(ticket.id));
+    parameters.insert("step".into(), json!(step.name));
 
     let mut effective_prompt = render(hbs, &step.prompt, ctx)?;
     let mut model = step.agent.clone();
@@ -159,7 +187,7 @@ fn build_node(
             } else {
                 json!({ "type": "object" })
             };
-            config.insert("schema".into(), schema);
+            parameters.insert("schema".into(), schema);
         }
         StepTypeTag::Rag => {
             gaps.push(format!(
@@ -172,7 +200,7 @@ fn build_node(
                     .map(|s| json!(describe_rag_source(s)))
                     .collect();
                 if !srcs.is_empty() {
-                    config.insert("contextSources".into(), Value::Array(srcs));
+                    parameters.insert("contextSources".into(), Value::Array(srcs));
                 }
             }
         }
@@ -190,7 +218,7 @@ fn build_node(
                     })
                     .collect();
                 if !tools.is_empty() {
-                    config.insert("requiredTools".into(), Value::Array(tools));
+                    parameters.insert("requiredTools".into(), Value::Array(tools));
                 }
             }
         }
@@ -198,7 +226,7 @@ fn build_node(
         | StepTypeTag::MultiPrompt
         | StepTypeTag::Matrixed
         | StepTypeTag::Pipeline => {
-            config.insert("fanout".into(), json!(fanout_description(step)));
+            parameters.insert("fanout".into(), json!(fanout_description(step)));
             gaps.push(format!(
                 "{GAP_MARKER}: {} fan-out flattened to a single node; the parallel/voting shape runs inside one operator agent launch.",
                 step_type_label(&step.step_type),
@@ -222,7 +250,7 @@ fn build_node(
     }
 
     // If the step's resolved delegator (held in `model`) declaratively references
-    // an AGNT agent, emit an `agnt-agent` node so AGNT runs the step natively
+    // an AGNT agent, emit a native `agnt-agent` node so AGNT runs the step itself
     // rather than calling back into Operator. Operator-only launch_config on such
     // a delegator has no analog on the AGNT side, so its presence is gap-marked.
     // Only AGNT-hosted remote agents get a native node; other platforms (e.g.
@@ -236,13 +264,13 @@ fn build_node(
                 .is_some_and(|r| r.platform == "agnt")
         });
     let node_type = if let Some(d) = agnt_delegator {
-        let agent_name = d
+        let agent_id = d
             .remote_agent
             .as_ref()
             .expect("filtered to an agnt remote_agent above")
             .id
             .clone();
-        config.insert("agentName".into(), json!(agent_name));
+        parameters.insert("agentId".into(), json!(agent_id));
         if d.launch_config.is_some() {
             gaps.push(format!(
                 "{GAP_MARKER}: delegator '{}' carries operator launch_config (permission mode/flags/worktree/docker) that AGNT agents have no analog for; only the agent reference is exported.",
@@ -254,21 +282,31 @@ fn build_node(
         NODE_TYPE
     };
 
-    config.insert("prompt".into(), json!(effective_prompt));
+    // The agnt-agent tool reads `message` (the prompt to send to the agent); the
+    // operator-run-step tool ignores the prompt (Operator owns it internally) and
+    // carries it only as an inert annotation for the AGNT canvas.
+    if node_type == AGNT_AGENT_NODE_TYPE {
+        parameters.insert("message".into(), json!(effective_prompt));
+    } else {
+        parameters.insert("prompt".into(), json!(effective_prompt));
+    }
     if let Some(m) = model {
-        config.insert("model".into(), json!(m));
+        parameters.insert("model".into(), json!(m));
     }
     if !step.allowed_tools.is_empty() {
-        config.insert("allowedTools".into(), json!(step.allowed_tools));
+        parameters.insert("allowedTools".into(), json!(step.allowed_tools));
     }
     if !gaps.is_empty() {
-        config.insert("gap".into(), json!(gaps.join(" | ")));
+        parameters.insert("gap".into(), json!(gaps.join(" | ")));
     }
 
     Ok(AgntNode {
         id: step.name.clone(),
         node_type: node_type.to_string(),
-        config: Value::Object(config),
+        text: step.display_name().to_string(),
+        x: 0,
+        y: index as i64 * 160,
+        parameters: Value::Object(parameters),
     })
 }
 
@@ -406,33 +444,57 @@ mod tests {
             assert_eq!(n["type"], NODE_TYPE, "every node is an operator-* node");
             assert!(n["id"].as_str().is_some_and(|s| !s.is_empty()), "node id");
             assert!(
-                n["config"]["prompt"].is_string(),
-                "node config carries a prompt"
+                n["parameters"]["prompt"].is_string(),
+                "node parameters carry a prompt"
             );
             assert_eq!(
-                n["config"]["ticket"], "FEAT-1234",
-                "node config carries the ticket id"
+                n["parameters"]["ticket"], "FEAT-1234",
+                "node parameters carry the ticket id"
             );
+        }
+    }
+
+    /// AGNT's workflow validator rejects nodes lacking `text`/`x`/`y` and edges
+    /// lacking `id`/`start.id`/`end.id`. Guards the canonical runnable shape.
+    #[test]
+    fn agnt_nodes_and_edges_carry_canvas_shape() {
+        let v = export("FEAT");
+        for n in v["nodes"].as_array().unwrap() {
+            assert!(
+                n["text"].as_str().is_some_and(|s| !s.is_empty()),
+                "node '{}' needs a non-empty text label",
+                n["id"]
+            );
+            assert!(n["x"].is_i64(), "node '{}' needs numeric x", n["id"]);
+            assert!(n["y"].is_i64(), "node '{}' needs numeric y", n["id"]);
+        }
+        for e in v["edges"].as_array().unwrap() {
+            assert!(e["id"].as_str().is_some_and(|s| !s.is_empty()), "edge id");
+            assert!(e["start"]["id"].is_string(), "edge start.id");
+            assert!(e["end"]["id"].is_string(), "edge end.id");
         }
     }
 
     /// Guards the cross-language contract between this emitter and the
     /// `operator-run-step` plugin tool (`agnt-plugin/run-step.js`), which reads
-    /// `config.ticket`. If the emitter stops writing the keys the tool requires,
-    /// an exported graph would fail at runtime in AGNT — this catches that.
+    /// `params.ticket` (resolved from `node.parameters`). If the emitter stops
+    /// writing the keys the tool requires, an exported graph would fail at
+    /// runtime in AGNT — this catches that.
     #[test]
     fn agnt_nodes_carry_keys_the_run_step_tool_requires() {
         let v = export("FEAT");
         for n in v["nodes"].as_array().unwrap() {
             assert!(
-                n["config"]["ticket"]
+                n["parameters"]["ticket"]
                     .as_str()
                     .is_some_and(|s| !s.is_empty()),
                 "node '{}' missing the 'ticket' key the run-step tool requires",
                 n["id"]
             );
             assert!(
-                n["config"]["step"].as_str().is_some_and(|s| !s.is_empty()),
+                n["parameters"]["step"]
+                    .as_str()
+                    .is_some_and(|s| !s.is_empty()),
                 "node '{}' missing 'step'",
                 n["id"]
             );
@@ -462,12 +524,16 @@ mod tests {
         assert_eq!(edges.len(), expected, "one edge per resolving next_step");
         for e in edges {
             assert!(
-                ids.contains(e["source"].as_str().unwrap()),
-                "edge source is a node"
+                ids.contains(e["start"]["id"].as_str().unwrap()),
+                "edge start.id is a node"
             );
             assert!(
-                ids.contains(e["target"].as_str().unwrap()),
-                "edge target is a node"
+                ids.contains(e["end"]["id"].as_str().unwrap()),
+                "edge end.id is a node"
+            );
+            assert!(
+                e["id"].as_str().is_some_and(|s| !s.is_empty()),
+                "edge carries an id"
             );
         }
     }
@@ -514,7 +580,7 @@ mod tests {
         for n in v["nodes"].as_array().unwrap() {
             if review_steps.contains(&n["id"].as_str().unwrap()) {
                 assert!(
-                    n["config"]["gap"].is_string(),
+                    n["parameters"]["gap"].is_string(),
                     "review-gated step '{}' must record a gap",
                     n["id"]
                 );
@@ -547,11 +613,11 @@ mod tests {
         assert_eq!(node["id"], "vote");
         assert_eq!(node["type"], NODE_TYPE);
         assert!(
-            node["config"]["fanout"].is_string(),
+            node["parameters"]["fanout"].is_string(),
             "fan-out step records its flattened shape"
         );
         assert!(
-            node["config"]["gap"].is_string(),
+            node["parameters"]["gap"].is_string(),
             "fan-out flattening is gap-marked"
         );
     }
@@ -601,7 +667,7 @@ mod tests {
             &it,
             None,
             &PipelineEnv::default(),
-            &config_with_remote_delegator("agnt-researcher", "agnt", "Research Assistant"),
+            &config_with_remote_delegator("agnt-researcher", "agnt", "agent-uuid-123"),
         )
         .expect("export");
         let v: Value = serde_json::from_str(&out).unwrap();
@@ -611,8 +677,12 @@ mod tests {
             "step bound to an AGNT-referencing delegator must emit an agnt-agent node"
         );
         assert_eq!(
-            node["config"]["agentName"], "Research Assistant",
-            "the agnt-agent node carries the referenced AGNT agent name"
+            node["parameters"]["agentId"], "agent-uuid-123",
+            "the agnt-agent node carries the referenced AGNT agent id"
+        );
+        assert!(
+            node["parameters"]["message"].is_string(),
+            "the agnt-agent node carries the prompt as 'message'"
         );
     }
 
@@ -636,8 +706,8 @@ mod tests {
             "a non-AGNT remote delegator gets no agnt-agent node"
         );
         assert!(
-            v["nodes"][0]["config"].get("agentName").is_none(),
-            "non-AGNT node carries no agentName"
+            v["nodes"][0]["parameters"].get("agentId").is_none(),
+            "non-AGNT node carries no agentId"
         );
     }
 
@@ -668,8 +738,8 @@ mod tests {
             "a normal delegator keeps the operator-run-step node type"
         );
         assert!(
-            v["nodes"][0]["config"].get("agentName").is_none(),
-            "non-AGNT node carries no agentName"
+            v["nodes"][0]["parameters"].get("agentId").is_none(),
+            "non-AGNT node carries no agentId"
         );
     }
 }

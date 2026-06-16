@@ -20,7 +20,7 @@ use crate::rest::dto::{
     StepCompleteResponse, StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse,
     UpdateIssueTypeRequest, UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
     UpdateTicketStatusResponse, ValidateKanbanCredentialsRequest,
-    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowHintsDto,
+    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto,
     WorkflowPreviewResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
 };
 // AgentProfile interchange types live in `crate::config`, not `rest::dto`.
@@ -107,6 +107,7 @@ use crate::rest::error::ErrorResponse;
             // Workflow export types
             WorkflowExportResponse,
             WorkflowPreviewResponse,
+            WorkflowFormatDto,
             crate::workflow_gen::WorkflowFormat,
             // MCP types
             McpDescriptorResponse,

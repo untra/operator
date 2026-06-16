@@ -76,6 +76,8 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::health::status))
         // Canonical status sections (shared with the TUI / VS Code extension)
         .routes(routes!(routes::sections::list))
+        // Vertical integration catalog + support status
+        .routes(routes!(routes::integrations::catalog))
         // Issue type endpoints
         .routes(routes!(
             routes::issuetypes::list,

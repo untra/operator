@@ -708,6 +708,31 @@
         }
       }
     },
+    "/api/v1/integrations": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "summary": "GET `/api/v1/integrations`",
+        "description": "Returns the catalog of advertised integrations across every vertical, each\nwith its docs link and official support status (`proto` | `alpha` | `beta` |\n`ga`).",
+        "operationId": "integrations_catalog",
+        "responses": {
+          "200": {
+            "description": "Vertical integration catalog with support status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntegrationCatalogEntryDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/issuetypes": {
       "get": {
         "tags": [
@@ -3664,6 +3689,51 @@
           }
         }
       },
+      "IntegrationCatalogEntryDto": {
+        "type": "object",
+        "description": "One advertised integration: its vertical, identity, docs link, and support\nstatus.",
+        "required": [
+          "vertical",
+          "vertical_label",
+          "slug",
+          "label",
+          "readme_badge",
+          "status"
+        ],
+        "properties": {
+          "docs_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absolute docs URL, or `null` if undocumented."
+          },
+          "label": {
+            "type": "string",
+            "description": "Display label for the entry (e.g. \"Jira\", \"Anthropic\")."
+          },
+          "readme_badge": {
+            "type": "boolean",
+            "description": "Whether this entry carries a curated README badge."
+          },
+          "slug": {
+            "type": "string",
+            "description": "Stable entry slug within the vertical (e.g. \"jira\", \"anthropic-api\")."
+          },
+          "status": {
+            "$ref": "#/components/schemas/SupportStatus",
+            "description": "Official support / maturity status."
+          },
+          "vertical": {
+            "type": "string",
+            "description": "Vertical slug (e.g. \"kanban\", \"model\", \"git\", \"session\", \"editor\")."
+          },
+          "vertical_label": {
+            "type": "string",
+            "description": "Human label for the vertical (e.g. \"Kanban Provider\")."
+          }
+        }
+      },
       "IssueTypeResponse": {
         "type": "object",
         "description": "Response for a single issue type",
@@ -5525,6 +5595,16 @@
             "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
           }
         }
+      },
+      "SupportStatus": {
+        "type": "string",
+        "description": "Official support / maturity level of an advertised integration.",
+        "enum": [
+          "proto",
+          "alpha",
+          "beta",
+          "ga"
+        ]
       },
       "SyncKanbanIssueTypesResponse": {
         "type": "object",

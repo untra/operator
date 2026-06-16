@@ -40,10 +40,10 @@ use operator::rest::dto::{
     CollectionResponse, CreateAlertRequest, CreateAlertResponse, CreateDelegatorRequest,
     CreateFieldRequest, CreateIssueTypeRequest, CreateStepRequest, CreateTicketRequest,
     CreateTicketResponse, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
-    FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, KanbanProviderCatalogEntry,
-    SectionDto, SectionRowDto, SkillEntry, SkillsResponse, StatusResponse, StepResponse,
-    UpdateIssueTypeRequest, UpdateStepRequest, WorkflowExportResponse, WorkflowHintsDto,
-    WorkflowPreviewResponse,
+    FieldResponse, HealthResponse, IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary,
+    KanbanProviderCatalogEntry, SectionDto, SectionRowDto, SkillEntry, SkillsResponse,
+    StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    WorkflowExportResponse, WorkflowHintsDto, WorkflowPreviewResponse,
 };
 use operator::state::{AgentState, CompletedTicket, State};
 use operator::types::{
@@ -147,6 +147,9 @@ fn generate_typescript() -> String {
         StatusResponse::decl(&cfg),
         SectionDto::decl(&cfg),
         SectionRowDto::decl(&cfg),
+        // Integration catalog + support status DTO
+        operator::integrations::SupportStatus::decl(&cfg),
+        IntegrationCatalogEntryDto::decl(&cfg),
         // Kanban provider catalog DTO
         KanbanProviderCatalogEntry::decl(&cfg),
         // Workflow export DTOs

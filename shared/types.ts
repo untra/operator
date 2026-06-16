@@ -999,6 +999,38 @@ health: string,
  */
 actions: Array<RowActionDto>, };
 
+export type SupportStatus = "proto" | "alpha" | "beta" | "ga";
+
+export type IntegrationCatalogEntryDto = { 
+/**
+ * Vertical slug (e.g. "kanban", "model", "git", "session", "editor").
+ */
+vertical: string, 
+/**
+ * Human label for the vertical (e.g. "Kanban Provider").
+ */
+vertical_label: string, 
+/**
+ * Stable entry slug within the vertical (e.g. "jira", "anthropic-api").
+ */
+slug: string, 
+/**
+ * Display label for the entry (e.g. "Jira", "Anthropic").
+ */
+label: string, 
+/**
+ * Absolute docs URL, or `null` if undocumented.
+ */
+docs_url: string | null, 
+/**
+ * Whether this entry carries a curated README badge.
+ */
+readme_badge: boolean, 
+/**
+ * Official support / maturity status.
+ */
+status: SupportStatus, };
+
 export type KanbanProviderCatalogEntry = { 
 /**
  * Stable lowercase slug ("jira" | "linear" | "github").

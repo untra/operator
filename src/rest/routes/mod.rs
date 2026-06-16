@@ -5,6 +5,7 @@ pub mod collections;
 pub mod configuration;
 pub mod delegators;
 pub mod health;
+pub mod integrations;
 pub mod issuetypes;
 pub mod kanban;
 pub mod kanban_onboarding;

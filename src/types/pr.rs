@@ -39,6 +39,26 @@ impl fmt::Display for GitProvider {
 }
 
 impl GitProvider {
+    /// The canonical list of git providers, in display order. Single source of
+    /// truth mirrored by the vertical catalog (`crate::integrations::catalog`).
+    pub const ALL: [GitProvider; 4] = [
+        GitProvider::GitHub,
+        GitProvider::GitLab,
+        GitProvider::Bitbucket,
+        GitProvider::AzureDevOps,
+    ];
+
+    /// Stable lowercase slug (matches the [`Display`](std::fmt::Display) form and
+    /// the catalog entry slug).
+    pub fn slug(&self) -> &'static str {
+        match self {
+            GitProvider::GitHub => "github",
+            GitProvider::GitLab => "gitlab",
+            GitProvider::Bitbucket => "bitbucket",
+            GitProvider::AzureDevOps => "azure",
+        }
+    }
+
     /// Detect provider from a remote URL
     pub fn from_remote_url(remote_url: &str) -> Option<Self> {
         let url_lower = remote_url.to_lowercase();

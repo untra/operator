@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "elves_overnight",
+  "name": "Elves Overnight",
+  "description": "Long-running staged batch workflow with durable memory, validation, PR review, and reporting.",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Aigora",
+  "url": "https://github.com/aigorahub/elves",
+  "license": "MIT",
+  "tags": ["agentic-loop", "overnight", "batch", "elves"],
+  "issue_types": [
+    { "key": "ELVSTAGE", "schema_path": "ELVSTAGE.json", "template_path": "ELVSTAGE.md" },
+    { "key": "ELVBATCH", "schema_path": "ELVBATCH.json", "template_path": "ELVBATCH.md" },
+    { "key": "LANDPR", "schema_path": "LANDPR.json", "template_path": "LANDPR.md" },
+    { "key": "ELVRPT", "schema_path": "ELVRPT.json", "template_path": "ELVRPT.md" }
+  ],
+  "workflow_hints": {
+    "loop_kind": "staged_long_running_batch_loop",
+    "memory_surfaces": ["docs/elves/survival-guide.md", "docs/elves/execution-log.md", "docs/elves/learnings.md", ".elves-session.json", "PR comments and checks"],
+    "review_gates": ["stage_review", "batch_validation", "fresh_review", "judge_verdict", "human_land_gate"],
+    "external_tools": ["git", "gh", "project test command", "optional browser or visual review command"],
+    "stop_conditions": ["batch complete and checkpointed", "validation cannot be repaired safely", "PR has unresolved requested changes", "time/risk budget exhausted"],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": ["ELVSTAGE", "ELVBATCH", "LANDPR", "ELVRPT"]
+}

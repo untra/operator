@@ -4,6 +4,9 @@
 //! issuetype definitions. Each collection is self-contained with its own
 //! copies of JSON schemas and markdown templates.
 
+pub mod fetch;
+pub mod manifest;
+
 /// A single embedded issuetype with JSON schema and markdown template
 #[derive(Debug, Clone)]
 pub struct EmbeddedIssueType {
@@ -20,12 +23,19 @@ pub struct EmbeddedCollection {
     pub issuetypes: &'static [EmbeddedIssueType],
 }
 
+impl EmbeddedCollection {
+    /// Parse the embedded `collection.json` manifest.
+    pub fn manifest_parsed(&self) -> Result<manifest::CollectionManifest, serde_json::Error> {
+        manifest::CollectionManifest::from_json(self.manifest)
+    }
+}
+
 /// All embedded collections
 pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     // Simple collection: TASK only
     EmbeddedCollection {
         name: "simple",
-        manifest: include_str!("simple/collection.toml"),
+        manifest: include_str!("simple/collection.json"),
         issuetypes: &[EmbeddedIssueType {
             key: "TASK",
             schema_json: include_str!("simple/TASK.json"),
@@ -35,7 +45,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     // Dev Kanban collection: TASK, FEAT, FIX
     EmbeddedCollection {
         name: "dev_kanban",
-        manifest: include_str!("dev_kanban/collection.toml"),
+        manifest: include_str!("dev_kanban/collection.json"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "TASK",
@@ -57,7 +67,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     // DevOps Kanban collection: TASK, FEAT, FIX, SPIKE, INV
     EmbeddedCollection {
         name: "devops_kanban",
-        manifest: include_str!("devops_kanban/collection.toml"),
+        manifest: include_str!("devops_kanban/collection.json"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "TASK",
@@ -89,7 +99,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     // Operator collection: ASSESS, SYNC, INIT, AGENT-SETUP, PROJECT-INIT
     EmbeddedCollection {
         name: "operator",
-        manifest: include_str!("operator/collection.toml"),
+        manifest: include_str!("operator/collection.json"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "ASSESS",
@@ -121,7 +131,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     // Full collection: All 8 issuetypes
     EmbeddedCollection {
         name: "full",
-        manifest: include_str!("full/collection.toml"),
+        manifest: include_str!("full/collection.json"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "TASK",
@@ -162,6 +172,87 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
                 key: "INIT",
                 schema_json: include_str!("full/INIT.json"),
                 template_md: include_str!("full/INIT.md"),
+            },
+        ],
+    },
+    // Ralph Loop collection: PRD, STORY, RLOOP
+    EmbeddedCollection {
+        name: "ralph_loop",
+        manifest: include_str!("ralph_loop/collection.json"),
+        issuetypes: &[
+            EmbeddedIssueType {
+                key: "PRD",
+                schema_json: include_str!("ralph_loop/PRD.json"),
+                template_md: include_str!("ralph_loop/PRD.md"),
+            },
+            EmbeddedIssueType {
+                key: "STORY",
+                schema_json: include_str!("ralph_loop/STORY.json"),
+                template_md: include_str!("ralph_loop/STORY.md"),
+            },
+            EmbeddedIssueType {
+                key: "RLOOP",
+                schema_json: include_str!("ralph_loop/RLOOP.json"),
+                template_md: include_str!("ralph_loop/RLOOP.md"),
+            },
+        ],
+    },
+    // JR Orchestration collection: feature/task/review/rebase workflows
+    EmbeddedCollection {
+        name: "jr_orchestration",
+        manifest: include_str!("jr_orchestration/collection.json"),
+        issuetypes: &[
+            EmbeddedIssueType {
+                key: "JRPLAN",
+                schema_json: include_str!("jr_orchestration/JRPLAN.json"),
+                template_md: include_str!("jr_orchestration/JRPLAN.md"),
+            },
+            EmbeddedIssueType {
+                key: "JRFEAT",
+                schema_json: include_str!("jr_orchestration/JRFEAT.json"),
+                template_md: include_str!("jr_orchestration/JRFEAT.md"),
+            },
+            EmbeddedIssueType {
+                key: "JRTASK",
+                schema_json: include_str!("jr_orchestration/JRTASK.json"),
+                template_md: include_str!("jr_orchestration/JRTASK.md"),
+            },
+            EmbeddedIssueType {
+                key: "JRREV",
+                schema_json: include_str!("jr_orchestration/JRREV.json"),
+                template_md: include_str!("jr_orchestration/JRREV.md"),
+            },
+            EmbeddedIssueType {
+                key: "JRREBASE",
+                schema_json: include_str!("jr_orchestration/JRREBASE.json"),
+                template_md: include_str!("jr_orchestration/JRREBASE.md"),
+            },
+        ],
+    },
+    // Elves Overnight collection: staged batch, PR landing, reporting
+    EmbeddedCollection {
+        name: "elves_overnight",
+        manifest: include_str!("elves_overnight/collection.json"),
+        issuetypes: &[
+            EmbeddedIssueType {
+                key: "ELVSTAGE",
+                schema_json: include_str!("elves_overnight/ELVSTAGE.json"),
+                template_md: include_str!("elves_overnight/ELVSTAGE.md"),
+            },
+            EmbeddedIssueType {
+                key: "ELVBATCH",
+                schema_json: include_str!("elves_overnight/ELVBATCH.json"),
+                template_md: include_str!("elves_overnight/ELVBATCH.md"),
+            },
+            EmbeddedIssueType {
+                key: "LANDPR",
+                schema_json: include_str!("elves_overnight/LANDPR.json"),
+                template_md: include_str!("elves_overnight/LANDPR.md"),
+            },
+            EmbeddedIssueType {
+                key: "ELVRPT",
+                schema_json: include_str!("elves_overnight/ELVRPT.json"),
+                template_md: include_str!("elves_overnight/ELVRPT.md"),
             },
         ],
     },
@@ -214,10 +305,11 @@ pub fn get_embedded_issuetype(key: &str) -> Option<&'static EmbeddedIssueType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::templates::schema::TemplateSchema;
 
     #[test]
     fn test_embedded_collections_count() {
-        assert_eq!(EMBEDDED_COLLECTIONS.len(), 5);
+        assert_eq!(EMBEDDED_COLLECTIONS.len(), 8);
     }
 
     #[test]
@@ -241,6 +333,18 @@ mod tests {
         let full = get_embedded_collection("full").unwrap();
         assert_eq!(full.name, "full");
         assert_eq!(full.issuetypes.len(), 8);
+
+        let ralph = get_embedded_collection("ralph_loop").unwrap();
+        assert_eq!(ralph.name, "ralph_loop");
+        assert_eq!(ralph.issuetypes.len(), 3);
+
+        let jr = get_embedded_collection("jr_orchestration").unwrap();
+        assert_eq!(jr.name, "jr_orchestration");
+        assert_eq!(jr.issuetypes.len(), 5);
+
+        let elves = get_embedded_collection("elves_overnight").unwrap();
+        assert_eq!(elves.name, "elves_overnight");
+        assert_eq!(elves.issuetypes.len(), 4);
     }
 
     #[test]
@@ -256,6 +360,48 @@ mod tests {
         assert!(names.contains(&"devops_kanban"));
         assert!(names.contains(&"operator"));
         assert!(names.contains(&"full"));
+    }
+
+    #[test]
+    fn test_embedded_manifests_parse_and_match_issuetypes() {
+        for collection in EMBEDDED_COLLECTIONS {
+            let manifest = collection
+                .manifest_parsed()
+                .unwrap_or_else(|e| panic!("{} manifest must parse: {e}", collection.name));
+            assert_eq!(manifest.id, collection.name, "id == name");
+            assert_eq!(manifest.schema_version, 1);
+            // The manifest's issue_types must list exactly the embedded files,
+            // in the same order, so the docs producer can emit them all.
+            let manifest_keys: Vec<&str> = manifest
+                .issue_types
+                .iter()
+                .map(|e| e.key.as_str())
+                .collect();
+            let embedded_keys: Vec<&str> = collection.issuetypes.iter().map(|it| it.key).collect();
+            assert_eq!(
+                manifest_keys, embedded_keys,
+                "{} manifest issue_types must match embedded files",
+                collection.name
+            );
+            // Embedded manifests omit checksums (bytes are compiled in/trusted).
+            for entry in &manifest.issue_types {
+                assert!(entry.schema_checksum.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn test_agentic_loop_collections_have_valid_issuetypes() {
+        for name in ["ralph_loop", "jr_orchestration", "elves_overnight"] {
+            let collection = get_embedded_collection(name).unwrap();
+            for issue_type in collection.issuetypes {
+                let schema = TemplateSchema::from_json(issue_type.schema_json)
+                    .unwrap_or_else(|e| panic!("{name}/{} schema must parse: {e}", issue_type.key));
+                schema.validate().unwrap_or_else(|errors| {
+                    panic!("{name}/{} schema invalid: {errors:?}", issue_type.key)
+                });
+            }
+        }
     }
 
     #[test]

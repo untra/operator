@@ -61,13 +61,15 @@ impl SetupScreen {
             return;
         }
 
-        let instructions =
-            Paragraph::new(vec![Line::from("Use arrows to navigate, Enter to select")])
-                .alignment(Alignment::Center)
-                .style(Style::default().fg(Color::Gray));
+        let instructions = Paragraph::new(vec![Line::from(
+            "Arrows to navigate, Space to toggle, Enter to confirm",
+        )])
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::Gray));
         frame.render_widget(instructions, chunks[1]);
 
-        // Collection list: name + version + verification status.
+        // Collection list: checkbox + name + version + workflow count + badge,
+        // with author + description on the second line.
         let items: Vec<ListItem> = self
             .hosted_resolved
             .iter()
@@ -78,8 +80,21 @@ impl SetupScreen {
                         ("ⓘ built-in", Style::default().fg(Color::Yellow))
                     }
                 };
+                let checked = self.hosted_selected_ids.contains(&r.manifest.id);
+                let checkbox = if checked { "[x]" } else { "[ ]" };
+                let count = r.manifest.issue_types.len();
+                let author = r.manifest.author.clone().unwrap_or_default();
                 ListItem::new(vec![
                     Line::from(vec![
+                        Span::styled(
+                            checkbox,
+                            Style::default().fg(if checked {
+                                Color::Green
+                            } else {
+                                Color::DarkGray
+                            }),
+                        ),
+                        Span::raw(" "),
                         Span::styled(
                             r.manifest.name.clone(),
                             Style::default().add_modifier(Modifier::BOLD),
@@ -90,12 +105,25 @@ impl SetupScreen {
                             Style::default().fg(Color::DarkGray),
                         ),
                         Span::raw("  "),
+                        Span::styled(
+                            format!("{count} workflow{}", if count == 1 { "" } else { "s" }),
+                            Style::default().fg(Color::Cyan),
+                        ),
+                        Span::raw("  "),
                         Span::styled(badge, badge_style),
                     ]),
                     Line::from(vec![
-                        Span::raw("   "),
+                        Span::raw("    "),
                         Span::styled(
                             r.manifest.description.clone(),
+                            Style::default().fg(Color::DarkGray),
+                        ),
+                        Span::styled(
+                            if author.is_empty() {
+                                String::new()
+                            } else {
+                                format!("  — by {author}")
+                            },
                             Style::default().fg(Color::DarkGray),
                         ),
                     ]),
@@ -125,6 +153,12 @@ impl SetupScreen {
                 }
                 lines.push(Line::from(hint_spans));
             }
+            if let Some(url) = &r.manifest.url {
+                lines.push(Line::from(vec![
+                    Span::styled("URL: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(url.clone()),
+                ]));
+            }
             if let Some(note) = &r.note {
                 lines.push(Line::from(vec![Span::styled(
                     format!("⚠ {note}"),
@@ -135,9 +169,21 @@ impl SetupScreen {
             frame.render_widget(details, chunks[3]);
         }
 
+        let selected = self.hosted_selected_ids.len();
         let footer = Paragraph::new(Line::from(vec![
+            Span::styled(
+                format!("{selected} selected"),
+                Style::default().fg(if selected > 0 {
+                    Color::Green
+                } else {
+                    Color::DarkGray
+                }),
+            ),
+            Span::raw("  |  "),
+            Span::styled("Space", Style::default().fg(Color::Yellow)),
+            Span::raw(" toggle  "),
             Span::styled("Enter", Style::default().fg(Color::Yellow)),
-            Span::raw(" select  "),
+            Span::raw(" confirm  "),
             Span::styled("Esc", Style::default().fg(Color::Yellow)),
             Span::raw(" back"),
         ]))

@@ -82,6 +82,38 @@ impl App {
             fs::write(&schema_filepath, filtered_schema)?;
         }
 
+        // If the user picked hosted collections, scaffold each into its own
+        // collection-scoped directory (manifest + verified issuetype files). The
+        // loader discovers every templates/<id>/collection.json; when exactly one
+        // was chosen it also becomes the active collection.
+        let hosted: Vec<_> = self
+            .setup_screen
+            .as_ref()
+            .map(|s| {
+                s.selected_hosted_collections()
+                    .into_iter()
+                    .map(|r| (r.manifest.clone(), r.files.clone()))
+                    .collect()
+            })
+            .unwrap_or_default();
+        for (manifest, files) in &hosted {
+            let dir = tickets_path.join("templates").join(&manifest.id);
+            fs::create_dir_all(&dir)?;
+            fs::write(
+                dir.join("collection.json"),
+                format!("{}\n", manifest.to_json()?),
+            )?;
+            for (key, schema_json, template_md) in files {
+                fs::write(dir.join(format!("{key}.json")), schema_json)?;
+                if let Some(md) = template_md {
+                    fs::write(dir.join(format!("{key}.md")), md)?;
+                }
+            }
+        }
+        if let [single] = hosted.as_slice() {
+            self.config.templates.active_collection = Some(single.0.id.clone());
+        }
+
         // Generate tmux configuration files
         self.generate_tmux_config()?;
 
@@ -94,6 +126,19 @@ impl App {
         // Update config with discovered projects and save
         self.config.projects = discovered_projects.clone();
         self.config.save()?;
+
+        // Reload the issue type registry so the chosen collection is active
+        // without requiring a restart (mirrors App::new's load path).
+        let mut registry = crate::issuetypes::IssueTypeRegistry::new();
+        if let Err(e) = registry.load_all(&tickets_path) {
+            tracing::warn!("Failed to reload issue types after setup: {}", e);
+        }
+        if let Some(ref active) = self.config.templates.active_collection {
+            if let Err(e) = registry.activate_collection(active) {
+                tracing::warn!("Failed to activate collection '{}': {}", active, e);
+            }
+        }
+        self.issue_type_registry = registry;
 
         // Update the create dialog with discovered projects
         self.create_dialog.set_projects(discovered_projects.clone());

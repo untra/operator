@@ -32,6 +32,15 @@ pub struct IssueTypeCollection {
     /// Sync source metadata (if collection was synced from external provider)
     #[serde(default)]
     pub sync_source: Option<CollectionSyncSource>,
+    /// Descriptive workflow hints (v1: metadata only, from a hosted manifest)
+    #[serde(default)]
+    pub workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
+    /// Collection semver (from a hosted manifest)
+    #[serde(default)]
+    pub version: Option<String>,
+    /// Publisher identifier (from a hosted manifest)
+    #[serde(default)]
+    pub publisher: Option<String>,
 }
 
 impl IssueTypeCollection {
@@ -42,7 +51,23 @@ impl IssueTypeCollection {
             description: description.into(),
             types: vec![],
             sync_source: None,
+            workflow_hints: None,
+            version: None,
+            publisher: None,
         }
+    }
+
+    /// Attach manifest metadata (workflow hints, version, publisher).
+    pub fn with_manifest_metadata(
+        mut self,
+        workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
+        version: Option<String>,
+        publisher: Option<String>,
+    ) -> Self {
+        self.workflow_hints = workflow_hints;
+        self.version = version;
+        self.publisher = publisher;
+        self
     }
 
     /// Set the sync source for this collection

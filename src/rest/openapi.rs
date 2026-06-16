@@ -20,8 +20,8 @@ use crate::rest::dto::{
     StepCompleteResponse, StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse,
     UpdateIssueTypeRequest, UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
     UpdateTicketStatusResponse, ValidateKanbanCredentialsRequest,
-    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowPreviewResponse,
-    WriteKanbanConfigRequest, WriteKanbanConfigResponse,
+    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowHintsDto,
+    WorkflowPreviewResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
 };
 // AgentProfile interchange types live in `crate::config`, not `rest::dto`.
 use crate::config::{AgentProfile, DelegatorLaunchConfig, RemoteAgentRef, XOperator};
@@ -59,6 +59,7 @@ use crate::rest::error::ErrorResponse;
             FieldResponse,
             StepResponse,
             CollectionResponse,
+            WorkflowHintsDto,
             LaunchTicketResponse,
             ErrorResponse,
             // Request types

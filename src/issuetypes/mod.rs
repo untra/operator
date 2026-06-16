@@ -235,6 +235,11 @@ impl IssueTypeRegistry {
                         .type_order
                         .iter()
                         .map(std::string::String::as_str),
+                )
+                .with_manifest_metadata(
+                    loaded_collection.workflow_hints,
+                    loaded_collection.version,
+                    loaded_collection.publisher,
                 );
 
             self.collections.insert(name, collection);

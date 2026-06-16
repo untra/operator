@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "simple",
+  "name": "Simple",
+  "description": "Simple workflow with TASK only",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": [
+    "builtin"
+  ],
+  "compatibility": null,
+  "issue_types": [
+    {
+      "key": "TASK",
+      "schema_path": "TASK.json",
+      "schema_checksum": "f654229454da050ca038c273cc74884c2dbe68f09b293eee3764f23d6771b939",
+      "template_path": "TASK.md",
+      "template_checksum": "7a71bf692588af1d1ac5d9192edd64316353ada616e22019dfff7683ab5d09c4"
+    }
+  ],
+  "workflow_hints": null,
+  "default_selected": [
+    "TASK"
+  ],
+  "checksum": "8f8083c35c5573254ac0f4b75e542557bdf759664e0aaeaea244753d0e392c83"
+}

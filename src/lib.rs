@@ -8,6 +8,7 @@
 // Public modules for type generation
 pub mod agents;
 pub mod api;
+pub mod collections;
 pub mod config;
 pub mod editors;
 pub mod git;
@@ -17,7 +18,6 @@ pub mod state;
 pub mod types;
 
 // Internal modules required by public modules
-mod collections;
 mod issuetypes;
 mod llm;
 mod notifications;

@@ -1,5 +1,6 @@
 //! Type definitions for the setup wizard
 
+use crate::api::providers::kanban::{DetectedKanbanProvider, KanbanProviderType};
 use crate::config::{CollectionPreset, SessionWrapperType};
 
 /// Simplified tool info for display on the welcome screen
@@ -10,9 +11,6 @@ pub struct DetectedToolInfo {
     pub model_count: usize,
 }
 
-/// Available issuetype collections (all known types)
-pub const ALL_ISSUE_TYPES: &[&str] = &["TASK", "FEAT", "FIX", "SPIKE", "INV"];
-
 /// Optional fields that can be configured for TASK (and propagated to other types)
 /// Note: 'summary' and 'description' remain required, 'id' is auto-generated
 pub const TASK_OPTIONAL_FIELDS: &[(&str, &str)] = &[
@@ -21,56 +19,128 @@ pub const TASK_OPTIONAL_FIELDS: &[(&str, &str)] = &[
     ("user_story", "User story or background context"),
 ];
 
-/// Collection source options shown in setup
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// A configured kanban provider that issuetypes can be imported from.
+///
+/// Built from a provider detected during setup. The author attribution on a
+/// collection imported from this provider lists the provider name + workspace
+/// (and, at import time, the chosen project/team).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportProviderRef {
+    /// Which kanban provider (Jira / Linear / GitHub).
+    pub provider: KanbanProviderType,
+    /// Domain / workspace slug / owner login (the provider's workspace key).
+    pub workspace_key: String,
+    /// Base URL of the provider instance (for author attribution + display).
+    pub base_url: String,
+}
+
+impl ImportProviderRef {
+    /// Author attribution for a collection imported from this provider, before a
+    /// specific project/team is chosen (e.g. `Jira Cloud (acme.atlassian.net)`).
+    pub fn author_attribution(&self) -> String {
+        format!("{} ({})", self.provider.display_name(), self.workspace_key)
+    }
+}
+
+/// Collection source options shown in setup.
+///
+/// The curated options ([`Simple`](Self::Simple), [`DevKanban`](Self::DevKanban),
+/// [`DevopsKanban`](Self::DevopsKanban)) ship with operator. [`Browse`](Self::Browse)
+/// opens the hosted-manifest picker. [`ImportFromProvider`](Self::ImportFromProvider)
+/// entries are generated dynamically, one per configured kanban provider.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CollectionSourceOption {
     Simple,
     DevKanban,
     DevopsKanban,
-    ImportJira,
-    ImportNotion,
-    CustomSelection,
+    /// Browse the operator-hosted manifest (multi-select collections).
+    Browse,
+    /// Import issuetypes from a configured kanban provider.
+    ImportFromProvider(ImportProviderRef),
 }
 
 impl CollectionSourceOption {
-    pub fn all() -> &'static [CollectionSourceOption] {
-        &[
+    /// The curated, install-bundled options plus the hosted browser, in display
+    /// order. Per-provider import options are appended by [`with_providers`](Self::with_providers).
+    pub fn curated() -> Vec<CollectionSourceOption> {
+        vec![
             CollectionSourceOption::Simple,
             CollectionSourceOption::DevKanban,
             CollectionSourceOption::DevopsKanban,
-            CollectionSourceOption::ImportJira,
-            CollectionSourceOption::ImportNotion,
-            CollectionSourceOption::CustomSelection,
+            CollectionSourceOption::Browse,
         ]
     }
 
-    pub fn label(&self) -> &'static str {
+    /// Build the full option list: the curated options followed by one import
+    /// option per configured kanban provider. `providers` is the set detected
+    /// during setup; a provider missing required env vars is skipped, so no
+    /// import options appear on a fresh install with nothing configured.
+    pub fn with_providers(providers: &[DetectedKanbanProvider]) -> Vec<CollectionSourceOption> {
+        let mut options = Self::curated();
+        for p in providers {
+            if !p.has_required_env_vars() {
+                continue;
+            }
+            options.push(CollectionSourceOption::ImportFromProvider(
+                ImportProviderRef {
+                    provider: p.provider_type,
+                    workspace_key: p.domain.clone(),
+                    base_url: provider_base_url(p),
+                },
+            ));
+        }
+        options
+    }
+
+    pub fn label(&self) -> String {
         match self {
-            CollectionSourceOption::Simple => "Simple",
-            CollectionSourceOption::DevKanban => "Dev Kanban",
-            CollectionSourceOption::DevopsKanban => "DevOps Kanban",
-            CollectionSourceOption::ImportJira => "Import from Jira",
-            CollectionSourceOption::ImportNotion => "Import from Notion",
-            CollectionSourceOption::CustomSelection => "Custom Selection",
+            CollectionSourceOption::Simple => "Simple".to_string(),
+            CollectionSourceOption::DevKanban => "Dev Kanban".to_string(),
+            CollectionSourceOption::DevopsKanban => "DevOps Kanban".to_string(),
+            CollectionSourceOption::Browse => "Browse Hosted Collections".to_string(),
+            CollectionSourceOption::ImportFromProvider(r) => {
+                format!(
+                    "Import from {} ({})",
+                    r.provider.display_name(),
+                    r.workspace_key
+                )
+            }
         }
     }
 
-    pub fn description(&self) -> &'static str {
+    pub fn description(&self) -> String {
         match self {
-            CollectionSourceOption::Simple => "Just TASK - minimal setup for general work",
-            CollectionSourceOption::DevKanban => "3 issue types: TASK, FEAT, FIX",
-            CollectionSourceOption::DevopsKanban => "5 issue types: TASK, SPIKE, INV, FEAT, FIX",
-            CollectionSourceOption::ImportJira => "(Coming soon)",
-            CollectionSourceOption::ImportNotion => "(Coming soon)",
-            CollectionSourceOption::CustomSelection => "Choose individual issue types",
+            CollectionSourceOption::Simple => {
+                "Just TASK - minimal setup for general work".to_string()
+            }
+            CollectionSourceOption::DevKanban => "3 issue types: TASK, FEAT, FIX".to_string(),
+            CollectionSourceOption::DevopsKanban => {
+                "5 issue types: TASK, SPIKE, INV, FEAT, FIX".to_string()
+            }
+            CollectionSourceOption::Browse => {
+                "Pick curated collections from operator.untra.io".to_string()
+            }
+            CollectionSourceOption::ImportFromProvider(r) => {
+                format!("Import issuetypes from {}", r.base_url)
+            }
         }
     }
+}
 
-    pub fn is_unimplemented(&self) -> bool {
-        matches!(
-            self,
-            CollectionSourceOption::ImportJira | CollectionSourceOption::ImportNotion
-        )
+/// Derive a base URL for author attribution from a detected provider.
+fn provider_base_url(p: &DetectedKanbanProvider) -> String {
+    match p.provider_type {
+        KanbanProviderType::Jira => {
+            if p.domain.is_empty() {
+                p.provider_type.setup_url().to_string()
+            } else if p.domain.starts_with("http") {
+                p.domain.clone()
+            } else {
+                format!("https://{}", p.domain)
+            }
+        }
+        KanbanProviderType::Linear => "https://linear.app".to_string(),
+        KanbanProviderType::Github => "https://github.com".to_string(),
     }
 }
 
@@ -81,8 +151,6 @@ pub enum SetupResult {
     Continue,
     /// Cancel/quit setup
     Cancel,
-    /// Exit with unimplemented message
-    ExitUnimplemented(String),
     /// Setup complete, initialize
     Initialize,
 }
@@ -262,8 +330,8 @@ pub enum SetupStep {
     Welcome,
     /// Select template collection source
     CollectionSource,
-    /// Custom issuetype selection (optional)
-    CustomCollection,
+    /// Browse and multi-select hosted collections (fetched from the manifest URL)
+    HostedCollectionFetch,
     /// Configure TASK optional fields
     TaskFieldConfig,
     /// Select session wrapper (tmux or vscode)

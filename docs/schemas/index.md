@@ -31,6 +31,8 @@ Machine-readable JSON Schema files for validation and code generation:
 | [config.json](config.json) | JSON Schema | Configuration file schema (generated via schemars) |
 | [state.json](state.json) | JSON Schema | Runtime state file schema (generated via schemars) |
 | [openapi.json](openapi.json) | OpenAPI 3.0 | REST API specification (generated via utoipa) |
+| [collections/schema.json](../collections/schema.json) | JSON Schema | Hosted issuetype collection manifest format (collection.json) |
+| [collections/index.json](../collections/index.json) | JSON | Index of hosted issuetype collections (fetched during setup) |
 
 ## TypeScript Types
 

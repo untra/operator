@@ -2688,11 +2688,36 @@
           "name": {
             "type": "string"
           },
+          "publisher": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Publisher identifier (present for hosted collections)."
+          },
           "types": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Collection semver (present for hosted collections)."
+          },
+          "workflow_hints": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowHintsDto",
+                "description": "Descriptive workflow hints (present for hosted collections)."
+              }
+            ]
           }
         }
       },
@@ -5989,6 +6014,48 @@
           "claude",
           "agnt"
         ]
+      },
+      "WorkflowHintsDto": {
+        "type": "object",
+        "description": "Descriptive workflow hints for a collection (v1: metadata only).",
+        "required": [
+          "runner_semantics"
+        ],
+        "properties": {
+          "external_tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "loop_kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "memory_surfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "review_gates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "runner_semantics": {
+            "type": "string"
+          },
+          "stop_conditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "WorkflowPreviewResponse": {
         "type": "object",

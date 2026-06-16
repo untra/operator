@@ -437,6 +437,36 @@ pub struct UpdateStepRequest {
 // Collection DTOs
 // =============================================================================
 
+/// Descriptive workflow hints for a collection (v1: metadata only).
+#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct WorkflowHintsDto {
+    #[serde(default)]
+    pub loop_kind: Option<String>,
+    #[serde(default)]
+    pub memory_surfaces: Vec<String>,
+    #[serde(default)]
+    pub review_gates: Vec<String>,
+    #[serde(default)]
+    pub external_tools: Vec<String>,
+    #[serde(default)]
+    pub stop_conditions: Vec<String>,
+    pub runner_semantics: String,
+}
+
+impl From<&crate::collections::manifest::WorkflowHints> for WorkflowHintsDto {
+    fn from(h: &crate::collections::manifest::WorkflowHints) -> Self {
+        Self {
+            loop_kind: h.loop_kind.clone(),
+            memory_surfaces: h.memory_surfaces.clone(),
+            review_gates: h.review_gates.clone(),
+            external_tools: h.external_tools.clone(),
+            stop_conditions: h.stop_conditions.clone(),
+            runner_semantics: h.runner_semantics.clone(),
+        }
+    }
+}
+
 /// Response for a collection
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -445,6 +475,15 @@ pub struct CollectionResponse {
     pub description: String,
     pub types: Vec<String>,
     pub is_active: bool,
+    /// Collection semver (present for hosted collections).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Publisher identifier (present for hosted collections).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publisher: Option<String>,
+    /// Descriptive workflow hints (present for hosted collections).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_hints: Option<WorkflowHintsDto>,
 }
 
 impl CollectionResponse {
@@ -454,6 +493,9 @@ impl CollectionResponse {
             description: c.description.clone(),
             types: c.types.clone(),
             is_active,
+            version: c.version.clone(),
+            publisher: c.publisher.clone(),
+            workflow_hints: c.workflow_hints.as_ref().map(WorkflowHintsDto::from),
         }
     }
 }
@@ -611,10 +653,36 @@ mod tests {
             description: "Default collection".to_string(),
             types: vec!["FEAT".to_string(), "FIX".to_string()],
             is_active: true,
+            version: None,
+            publisher: None,
+            workflow_hints: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         let parsed: CollectionResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.types, vec!["FEAT".to_string(), "FIX".to_string()]);
         assert!(parsed.is_active);
+        // Optional hosted-only fields are omitted from the wire when absent.
+        assert!(!json.contains("workflow_hints"));
+    }
+
+    #[test]
+    fn test_collection_response_includes_workflow_hints() {
+        let collection = IssueTypeCollection::new("dev_kanban", "Dev")
+            .with_types(["TASK"])
+            .with_manifest_metadata(
+                Some(crate::collections::manifest::WorkflowHints {
+                    loop_kind: Some("single_pass".to_string()),
+                    review_gates: vec!["test_suite".to_string()],
+                    ..Default::default()
+                }),
+                Some("1.0.0".to_string()),
+                Some("untra".to_string()),
+            );
+        let resp = CollectionResponse::from_collection(&collection, true);
+        assert_eq!(resp.version.as_deref(), Some("1.0.0"));
+        assert_eq!(resp.publisher.as_deref(), Some("untra"));
+        let hints = resp.workflow_hints.expect("hints surfaced");
+        assert_eq!(hints.loop_kind.as_deref(), Some("single_pass"));
+        assert_eq!(hints.runner_semantics, "prompt_driven");
     }
 }

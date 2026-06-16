@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "devops_kanban",
+  "name": "DevOps Kanban",
+  "description": "DevOps kanban with TASK, FEAT, FIX, SPIKE, INV",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": ["builtin", "kanban", "devops"],
+  "issue_types": [
+    { "key": "TASK", "schema_path": "TASK.json", "template_path": "TASK.md" },
+    { "key": "FEAT", "schema_path": "FEAT.json", "template_path": "FEAT.md" },
+    { "key": "FIX", "schema_path": "FIX.json", "template_path": "FIX.md" },
+    { "key": "SPIKE", "schema_path": "SPIKE.json", "template_path": "SPIKE.md" },
+    { "key": "INV", "schema_path": "INV.json", "template_path": "INV.md" }
+  ],
+  "workflow_hints": {
+    "loop_kind": "review_loop",
+    "memory_surfaces": ["ticket", "scratchpad"],
+    "review_gates": ["human", "test_suite"],
+    "external_tools": ["git", "ci"],
+    "stop_conditions": ["tests_green", "review_approved"],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": ["TASK", "FEAT", "FIX", "SPIKE", "INV"]
+}

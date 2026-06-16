@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "full",
+  "name": "Full",
+  "description": "Full workflow: all issue types combined",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": [
+    "builtin"
+  ],
+  "compatibility": null,
+  "issue_types": [
+    {
+      "key": "TASK",
+      "schema_path": "TASK.json",
+      "schema_checksum": "f654229454da050ca038c273cc74884c2dbe68f09b293eee3764f23d6771b939",
+      "template_path": "TASK.md",
+      "template_checksum": "7a71bf692588af1d1ac5d9192edd64316353ada616e22019dfff7683ab5d09c4"
+    },
+    {
+      "key": "FEAT",
+      "schema_path": "FEAT.json",
+      "schema_checksum": "f647a5aaec7514f3dfbaad70bc757e3360e49ba7e35ce496e98dec010ea9e51b",
+      "template_path": "FEAT.md",
+      "template_checksum": "fbc7e17641d8e796dad14c09fe20ffcbbdbdb8f58199b0d29d9e9729b51b4d5a"
+    },
+    {
+      "key": "FIX",
+      "schema_path": "FIX.json",
+      "schema_checksum": "4deafa08b2dcf1c94462d7079574be05d2efd6ff0abb6036b8fde955dca0e0a1",
+      "template_path": "FIX.md",
+      "template_checksum": "5237e1faf9b2c49d80fc9efff5a0d3e184f86c4fa5a34ff4dfed26ee883856bf"
+    },
+    {
+      "key": "SPIKE",
+      "schema_path": "SPIKE.json",
+      "schema_checksum": "1f69f05190fdff5545371c042c388e276accbbb50179ce65365f17dac042c0b5",
+      "template_path": "SPIKE.md",
+      "template_checksum": "030d37b1b4b3b8a26db62bd590a61fb5b9e01d5a39be6ab771bd56e31179f2c4"
+    },
+    {
+      "key": "INV",
+      "schema_path": "INV.json",
+      "schema_checksum": "42129e41c6c735adb47061a7d99478a1e4ed9ca5ca9f42b3c300c4a833f9265b",
+      "template_path": "INV.md",
+      "template_checksum": "65ef45c01d30b93f9d81b830896f20fe4eb9645e82d8e16ea1bd77ac4f359050"
+    },
+    {
+      "key": "ASSESS",
+      "schema_path": "ASSESS.json",
+      "schema_checksum": "63d218368c58df22606fbd654920edeb304ebc1bc7282501be38ae14027aa9e1",
+      "template_path": "ASSESS.md",
+      "template_checksum": "e2fb41d771ccf37af6189cdc0ef9b2752d3e1ddb1fa193f0264fbbdd432e7e0f"
+    },
+    {
+      "key": "SYNC",
+      "schema_path": "SYNC.json",
+      "schema_checksum": "6e52fb05db6e09cd723becb8ffe0388957c639b39fb81efe38d7e9cb8d725e55",
+      "template_path": "SYNC.md",
+      "template_checksum": "fc5cf44f553720b44ef328c560155fda137102cee28d60505b289d35e45d79cf"
+    },
+    {
+      "key": "INIT",
+      "schema_path": "INIT.json",
+      "schema_checksum": "bd7387742f9d81e49dcbe05cf25d3db0544e2f48843fb855df881d7ab094a0d6",
+      "template_path": "INIT.md",
+      "template_checksum": "ff54445fb446a8ba8155e00259ebf44860c2e8d1865df6943ceec648fe3650e8"
+    }
+  ],
+  "workflow_hints": null,
+  "default_selected": [
+    "TASK",
+    "FEAT",
+    "FIX",
+    "SPIKE",
+    "INV",
+    "ASSESS",
+    "SYNC",
+    "INIT"
+  ],
+  "checksum": "e1f9940d1c3f84b26ec6e574bc4f4804d2f9e6dc64298344ef3c06ec9dabbb77"
+}

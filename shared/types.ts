@@ -744,7 +744,21 @@ collection: Array<string>,
  * Active collection name (overrides preset if set)
  * Can be a builtin preset name or a user-defined collection
  */
-active_collection: string | null, };
+active_collection: string | null, 
+/**
+ * Enable fetching hosted issuetype collections during setup.
+ * When disabled, only the embedded (offline) collections are offered.
+ */
+collections_fetch_enabled: boolean, 
+/**
+ * URL of the hosted collection index manifest, fetched during setup.
+ * Points at a `CollectionIndex` JSON document listing available collections.
+ */
+collections_manifest_url: string | null, 
+/**
+ * Timeout in seconds for hosted collection fetch HTTP requests.
+ */
+collections_fetch_timeout_secs: bigint, };
 
 export type LoggingConfig = { 
 /**
@@ -899,7 +913,21 @@ export type UpdateStepRequest = { display_name: string | null, prompt: string | 
  */
 review_type: string | null, next_step: string | null, permission_mode: string | null, };
 
-export type CollectionResponse = { name: string, description: string, types: Array<string>, is_active: boolean, };
+export type CollectionResponse = { name: string, description: string, types: Array<string>, is_active: boolean, 
+/**
+ * Collection semver (present for hosted collections).
+ */
+version?: string | null, 
+/**
+ * Publisher identifier (present for hosted collections).
+ */
+publisher?: string | null, 
+/**
+ * Descriptive workflow hints (present for hosted collections).
+ */
+workflow_hints?: WorkflowHintsDto | null, };
+
+export type WorkflowHintsDto = { loop_kind: string | null, memory_surfaces: Array<string>, review_gates: Array<string>, external_tools: Array<string>, stop_conditions: Array<string>, runner_semantics: string, };
 
 export type HealthResponse = { status: string, version: string, 
 /**

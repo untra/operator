@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "id": "jr_orchestration",
+  "name": "JR Orchestration",
+  "description": "Feature/task orchestration with coder, reviewer, architect, and rebase work units.",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "snapwich",
+  "url": "https://github.com/snapwich/jr",
+  "license": "MIT",
+  "tags": [
+    "agentic-loop",
+    "feature-graph",
+    "review",
+    "jr"
+  ],
+  "compatibility": null,
+  "issue_types": [
+    {
+      "key": "JRPLAN",
+      "schema_path": "JRPLAN.json",
+      "schema_checksum": "f123c0fbf30095cfc0f42298789656bfccbc2a5bac12ce48a836820110c550ac",
+      "template_path": "JRPLAN.md",
+      "template_checksum": "d6b07074e56971a6e451cb620fe4a478740d17882140d6ad58da3209874a19f2"
+    },
+    {
+      "key": "JRFEAT",
+      "schema_path": "JRFEAT.json",
+      "schema_checksum": "8de197203daf3ba5635d4cd0bdee5665372a732f0b8110ad8a92615b36906c20",
+      "template_path": "JRFEAT.md",
+      "template_checksum": "85da760b93724d4f7eb05c86ca6ae427c58c240a141a797091aa4b4bcf828160"
+    },
+    {
+      "key": "JRTASK",
+      "schema_path": "JRTASK.json",
+      "schema_checksum": "48decac3204ad569f35c2b7603272db35d7084990d46d90483b326e1d718d6b6",
+      "template_path": "JRTASK.md",
+      "template_checksum": "a3029a01c71f68d505d4c209eaa022ca8f3925797bb41173d5fe78c6d5c8a6fe"
+    },
+    {
+      "key": "JRREV",
+      "schema_path": "JRREV.json",
+      "schema_checksum": "e99767e4d217392b321118e3a7e7f016636437361ed94f8453667348ff1e9394",
+      "template_path": "JRREV.md",
+      "template_checksum": "2ae11b478d2c87d68a729907037d67a56385bf9580748f278e1ce67166b51e14"
+    },
+    {
+      "key": "JRREBASE",
+      "schema_path": "JRREBASE.json",
+      "schema_checksum": "08772fab7390c7c2bc88f37d2584975c76173aba1c4618493662632fcd2f0dc2",
+      "template_path": "JRREBASE.md",
+      "template_checksum": "032e592b86ec4a40610e51a073af930e0aff5e34a920e0be9a2128b57c432afa"
+    }
+  ],
+  "workflow_hints": {
+    "loop_kind": "feature_task_review_graph",
+    "memory_surfaces": [
+      ".tickets/jr/{{ id }}/plan.md",
+      ".tickets/jr/{{ feature_id }}/handoff.md",
+      "ticket parent/dependency notes"
+    ],
+    "review_gates": [
+      "code_review",
+      "architect_review",
+      "human_pr_review"
+    ],
+    "external_tools": [
+      "git",
+      "gh",
+      "project test command"
+    ],
+    "stop_conditions": [
+      "feature PR ready for human review",
+      "review changes requested",
+      "blocked dependency documented",
+      "review escalated to human after repeated changes (operator stops; no auto-handoff)"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": [
+    "JRPLAN",
+    "JRFEAT",
+    "JRTASK",
+    "JRREV",
+    "JRREBASE"
+  ],
+  "checksum": "df35300baa40948d6be3fd7dda31aae33c9d4e2b9031e15c1882415fb5baa12d"
+}

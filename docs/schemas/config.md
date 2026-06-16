@@ -175,6 +175,9 @@ YOLO (auto-accept) mode configuration for fully autonomous execution
 | `preset` | → `CollectionPreset` | No | Named preset for issue type collection Options: simple, `dev_kanban`, `devops_kanban`, custom |
 | `collection` | `array` | No | Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV |
 | `active_collection` | `string` \| `null` | No | Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection |
+| `collections_fetch_enabled` | `boolean` | No | Enable fetching hosted issuetype collections during setup. When disabled, only the embedded (offline) collections are offered. |
+| `collections_manifest_url` | `string` \| `null` | No | URL of the hosted collection index manifest, fetched during setup. Points at a `CollectionIndex` JSON document listing available collections. |
+| `collections_fetch_timeout_secs` | `integer` | No | Timeout in seconds for hosted collection fetch HTTP requests. |
 
 ### CollectionPreset
 

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "jr_orchestration",
+  "name": "JR Orchestration",
+  "description": "Feature/task orchestration with coder, reviewer, architect, and rebase work units.",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "snapwich",
+  "url": "https://github.com/snapwich/jr",
+  "license": "MIT",
+  "tags": ["agentic-loop", "feature-graph", "review", "jr"],
+  "issue_types": [
+    { "key": "JRPLAN", "schema_path": "JRPLAN.json", "template_path": "JRPLAN.md" },
+    { "key": "JRFEAT", "schema_path": "JRFEAT.json", "template_path": "JRFEAT.md" },
+    { "key": "JRTASK", "schema_path": "JRTASK.json", "template_path": "JRTASK.md" },
+    { "key": "JRREV", "schema_path": "JRREV.json", "template_path": "JRREV.md" },
+    { "key": "JRREBASE", "schema_path": "JRREBASE.json", "template_path": "JRREBASE.md" }
+  ],
+  "workflow_hints": {
+    "loop_kind": "feature_task_review_graph",
+    "memory_surfaces": [".tickets/jr/{{ id }}/plan.md", ".tickets/jr/{{ feature_id }}/handoff.md", "ticket parent/dependency notes"],
+    "review_gates": ["code_review", "architect_review", "human_pr_review"],
+    "external_tools": ["git", "gh", "project test command"],
+    "stop_conditions": ["feature PR ready for human review", "review changes requested", "blocked dependency documented", "review escalated to human after repeated changes (operator stops; no auto-handoff)"],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": ["JRPLAN", "JRFEAT", "JRTASK", "JRREV", "JRREBASE"]
+}

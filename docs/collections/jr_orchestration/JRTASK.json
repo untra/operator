@@ -1,0 +1,114 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "JRTASK",
+  "name": "JR Task",
+  "description": "Implement one focused task inside a JR feature branch, then hand off for review.",
+  "mode": "autonomous",
+  "glyph": "T",
+  "color": "cyan",
+  "project_required": true,
+  "agent": "jr-coder",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "priority",
+      "description": "Priority level",
+      "type": "enum",
+      "required": false,
+      "default": "P2-medium",
+      "options": ["P0-critical", "P1-high", "P2-medium", "P3-low"],
+      "display_order": 1
+    },
+    {
+      "name": "summary",
+      "description": "Task summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "One scoped implementation task",
+      "max_length": 120,
+      "display_order": 2
+    },
+    {
+      "name": "feature_id",
+      "description": "Parent JRFEAT ticket",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "display_order": 3
+    },
+    {
+      "name": "dependencies",
+      "description": "Prior tasks or feature dependencies",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "display_order": 4
+    },
+    {
+      "name": "acceptance",
+      "description": "Task acceptance criteria",
+      "type": "text",
+      "required": true,
+      "default": "",
+      "display_order": 5
+    }
+  ],
+  "steps": [
+    {
+      "name": "assign",
+      "display_name": "Assign Scope",
+      "outputs": ["plan"],
+      "prompt": "Prepare to implement this JRTASK.\n\nRead the parent feature handoff, dependencies, acceptance criteria, and relevant repo files. Write a narrow task plan to `.tickets/jr/{{ feature_id }}/tasks/{{ id }}.md`. If dependencies are unmet, stop and document the blocker.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write"],
+      "artifact_patterns": [".tickets/jr/{{ feature_id }}/tasks/{{ id }}.md"],
+      "next_step": "code"
+    },
+    {
+      "name": "code",
+      "display_name": "Code Task",
+      "outputs": ["code"],
+      "prompt": "Implement only this JRTASK.\n\nStay on the parent feature branch/worktree. Keep the change small and reviewable. Do not take adjacent tasks. Update the task note with changed files and decisions.",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "next_step": "test"
+    },
+    {
+      "name": "test",
+      "display_name": "Test Task",
+      "outputs": ["test"],
+      "prompt": "Validate this JRTASK.\n\nRun targeted tests and the task's required quality commands. Add or update tests for changed behavior. Record evidence in `.tickets/jr/{{ feature_id }}/tasks/{{ id }}.md`.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "next_step": "review"
+    },
+    {
+      "name": "review",
+      "display_name": "Code Review",
+      "outputs": ["review"],
+      "prompt": "Perform a fresh JR code review for this task.\n\nReview the diff for correctness, scope discipline, tests, style, hidden regressions, and whether acceptance criteria are met. Write actionable findings into the task note. Approve only if it is ready for the parent feature.",
+      "agent": "jr-code-reviewer",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "code",
+        "prompt": "JR code review requested changes: {{ rejection_reason }}\n\nReturn to task implementation, fix the issues, and rerun tests."
+      },
+      "next_step": "close"
+    },
+    {
+      "name": "close",
+      "display_name": "Close Task",
+      "outputs": ["documentation", "code"],
+      "prompt": "Close this JRTASK.\n\nUpdate the parent feature handoff with task result, changed files, validation evidence, and next task readiness. Commit focused changes if this workflow uses per-task commits.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "artifact_patterns": [".tickets/jr/{{ feature_id }}/handoff.md"]
+    }
+  ]
+}

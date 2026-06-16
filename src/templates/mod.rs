@@ -238,3 +238,72 @@ impl std::fmt::Display for TemplateType {
         write!(f, "{}", self.display_name())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// (key, glyph, color) source-of-truth, mirroring `src/collections/full/*.json`.
+    /// A drift between the embedded schemas and these expectations should fail.
+    const KEY_GLYPH_COLOR: &[(&str, &str, &str)] = &[
+        ("FEAT", "*", "green"),
+        ("FIX", "#", "magenta"),
+        ("TASK", ">", "cyan"),
+        ("SPIKE", "?", "blue"),
+        ("INV", "!", "yellow"),
+        ("ASSESS", "~", "magenta"),
+        ("SYNC", "@", "blue"),
+        ("INIT", "%", "green"),
+    ];
+
+    #[test]
+    fn test_glyph_for_key_known_types_map_to_expected_glyphs() {
+        for (key, glyph, _) in KEY_GLYPH_COLOR {
+            assert_eq!(
+                glyph_for_key(key),
+                *glyph,
+                "glyph for {key} should be {glyph}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_color_for_key_known_types_map_to_expected_colors() {
+        for (key, _, color) in KEY_GLYPH_COLOR {
+            assert_eq!(
+                color_for_key(key),
+                Some(*color),
+                "color for {key} should be {color}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_glyph_for_key_unknown_returns_question_fallback() {
+        // Keys genuinely absent from the map (deliberately NOT "SPIKE", whose
+        // real glyph also happens to be "?").
+        assert_eq!(glyph_for_key("NOPE"), "?");
+        assert_eq!(glyph_for_key(""), "?");
+        assert_eq!(glyph_for_key("feat"), "?", "lookup is case-sensitive");
+    }
+
+    #[test]
+    fn test_color_for_key_unknown_returns_none() {
+        assert_eq!(color_for_key("NOPE"), None);
+        assert_eq!(color_for_key(""), None);
+        assert_eq!(color_for_key("feat"), None, "lookup is case-sensitive");
+    }
+
+    #[test]
+    fn test_glyph_and_color_maps_cover_every_template_type() {
+        // Every builtin TemplateType must have an entry in both maps. Asserted
+        // against the maps directly (not via glyph_for_key) because SPIKE's real
+        // glyph is "?", indistinguishable from the lookup fallback. Guards
+        // against adding an enum variant whose schema omits glyph/color.
+        for tt in TemplateType::all() {
+            let key = tt.as_str();
+            assert!(GLYPH_MAP.contains_key(key), "{key} missing from GLYPH_MAP");
+            assert!(COLOR_MAP.contains_key(key), "{key} missing from COLOR_MAP");
+        }
+    }
+}

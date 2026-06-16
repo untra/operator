@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "operator",
+  "name": "Operator",
+  "description": "Operator automation tasks: ASSESS, SYNC, INIT",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "Operator!",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": [
+    "builtin",
+    "automation"
+  ],
+  "compatibility": null,
+  "issue_types": [
+    {
+      "key": "ASSESS",
+      "schema_path": "ASSESS.json",
+      "schema_checksum": "63d218368c58df22606fbd654920edeb304ebc1bc7282501be38ae14027aa9e1",
+      "template_path": "ASSESS.md",
+      "template_checksum": "e2fb41d771ccf37af6189cdc0ef9b2752d3e1ddb1fa193f0264fbbdd432e7e0f"
+    },
+    {
+      "key": "SYNC",
+      "schema_path": "SYNC.json",
+      "schema_checksum": "6e52fb05db6e09cd723becb8ffe0388957c639b39fb81efe38d7e9cb8d725e55",
+      "template_path": "SYNC.md",
+      "template_checksum": "fc5cf44f553720b44ef328c560155fda137102cee28d60505b289d35e45d79cf"
+    },
+    {
+      "key": "INIT",
+      "schema_path": "INIT.json",
+      "schema_checksum": "bd7387742f9d81e49dcbe05cf25d3db0544e2f48843fb855df881d7ab094a0d6",
+      "template_path": "INIT.md",
+      "template_checksum": "ff54445fb446a8ba8155e00259ebf44860c2e8d1865df6943ceec648fe3650e8"
+    },
+    {
+      "key": "AGENT-SETUP",
+      "schema_path": "AGENT-SETUP.json",
+      "schema_checksum": "c611e58617b180838b286ec0907ef11d17e25581f56699cedef4d31c1223b15a",
+      "template_path": "AGENT-SETUP.md",
+      "template_checksum": "528f9437434e5ed8f8ca2f8e09c3acb04d021e8fa2fbb978cb6aed5c005aa8f7"
+    },
+    {
+      "key": "PROJECT-INIT",
+      "schema_path": "PROJECT-INIT.json",
+      "schema_checksum": "0fa43b3dbb839b0a440c2e702a9fd499ebd172bfcaaa4266a20aed7db7c90072",
+      "template_path": "PROJECT-INIT.md",
+      "template_checksum": "767a9a6481908826809222e87a36c840f759047170b0ff9d917ffa2846a19805"
+    }
+  ],
+  "workflow_hints": null,
+  "default_selected": [
+    "ASSESS",
+    "SYNC",
+    "INIT"
+  ],
+  "checksum": "4f8f40dde1b85d01d5da929ff4329ea126ffbf9da94c5e5de60154101d1881bd"
+}

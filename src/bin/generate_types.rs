@@ -42,7 +42,8 @@ use operator::rest::dto::{
     CreateTicketResponse, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
     FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, KanbanProviderCatalogEntry,
     SectionDto, SectionRowDto, SkillEntry, SkillsResponse, StatusResponse, StepResponse,
-    UpdateIssueTypeRequest, UpdateStepRequest, WorkflowExportResponse, WorkflowPreviewResponse,
+    UpdateIssueTypeRequest, UpdateStepRequest, WorkflowExportResponse, WorkflowHintsDto,
+    WorkflowPreviewResponse,
 };
 use operator::state::{AgentState, CompletedTicket, State};
 use operator::types::{
@@ -141,6 +142,7 @@ fn generate_typescript() -> String {
         CreateStepRequest::decl(&cfg),
         UpdateStepRequest::decl(&cfg),
         CollectionResponse::decl(&cfg),
+        WorkflowHintsDto::decl(&cfg),
         HealthResponse::decl(&cfg),
         StatusResponse::decl(&cfg),
         SectionDto::decl(&cfg),

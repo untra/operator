@@ -1497,6 +1497,10 @@ fn add_delegators(config: &mut Config, names: &[&str]) {
             model_properties: std::collections::HashMap::new(),
             model_server: None,
             launch_config: None,
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         });
     }
 }

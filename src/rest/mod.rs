@@ -111,7 +111,10 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::projects::assess))
         // Ticket endpoints
         .routes(routes!(routes::tickets::get_one))
+        .routes(routes!(routes::tickets::create))
         .routes(routes!(routes::tickets::update_status))
+        // External alert -> investigation
+        .routes(routes!(routes::tickets::create_alert))
         // Launch endpoints
         .routes(routes!(routes::launch::launch_ticket))
         // Workflow export endpoint
@@ -145,6 +148,10 @@ fn documented_router() -> OpenApiRouter<ApiState> {
             routes::delegators::create
         ))
         .routes(routes!(routes::delegators::create_from_tool))
+        // AgentProfile interchange (import is a distinct static path; export is a
+        // static suffix on the `{name}` param path — neither collides with CRUD).
+        .routes(routes!(routes::delegators::import_profile))
+        .routes(routes!(routes::delegators::export_profile))
         .routes(routes!(
             routes::delegators::get_one,
             routes::delegators::update,
@@ -161,6 +168,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
             routes::model_servers::create
         ))
         .routes(routes!(routes::model_servers::kinds))
+        .routes(routes!(routes::model_servers::kind_models))
         .routes(routes!(routes::model_servers::models))
         .routes(routes!(
             routes::model_servers::get_one,

@@ -17,7 +17,7 @@ export type ModelServer = {
  */
 name: string, 
 /**
- * Kind: "ollama", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio"
+ * Kind: "ollama", "openrouter", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio"
  */
 kind: string, 
 /**

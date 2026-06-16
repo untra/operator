@@ -50,6 +50,7 @@ impl StatusSection for KanbanSection {
                 label: provider.provider_type.clone(),
                 description: provider.domain.clone(),
                 icon: StatusIcon::Plug,
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet {
                     primary: StatusAction::None,
@@ -81,6 +82,7 @@ impl StatusSection for KanbanSection {
                 label: format!("Configure {}", provider.display_name()),
                 description: provider.connect_blurb().to_string(),
                 icon: StatusIcon::Plug,
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::primary(StatusAction::ConfigureKanbanProvider {
                     provider: provider.slug().to_string(),

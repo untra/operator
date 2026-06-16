@@ -10,7 +10,14 @@ import * as vscode from 'vscode';
 import { LaunchOptions, TicketInfo, ModelOption } from './types';
 import type { DelegatorResponse } from './generated/DelegatorResponse';
 import type { DelegatorsResponse } from './generated/DelegatorsResponse';
+import type { ModelServerModelsResponse } from './generated/ModelServerModelsResponse';
 import { discoverApiUrl } from './api-client';
+
+/**
+ * Provider kind probed for the model fallback list when no delegators exist.
+ * Matches the hardcoded Claude aliases this fallback replaces.
+ */
+const FALLBACK_MODEL_KIND = 'anthropic-api';
 
 interface TicketPickItem extends vscode.QuickPickItem {
   ticket: TicketInfo;
@@ -42,34 +49,74 @@ async function fetchDelegators(
 }
 
 /**
- * Build delegator QuickPick items from API response.
- * Includes an "Auto" default and falls back to hardcoded models when empty.
+ * Live text models for the no-delegator fallback, probed from a connected
+ * provider. Returns `null` when the daemon is unreachable or the provider isn't
+ * connected, so callers fall back to the hardcoded aliases.
+ *
+ * The probe already filters to LLM text models, so every id is dropdown-ready.
+ */
+async function fetchFallbackModels(
+  ticketsDir: string | undefined
+): Promise<DelegatorPickItem[] | null> {
+  try {
+    const apiUrl = await discoverApiUrl(ticketsDir);
+    const response = await fetch(
+      `${apiUrl}/api/v1/model-servers/kinds/${FALLBACK_MODEL_KIND}/models`
+    );
+    if (!response.ok) {
+      return null;
+    }
+    const data = (await response.json()) as ModelServerModelsResponse;
+    if (!data.reachable || data.models.length === 0) {
+      return null;
+    }
+    return data.models.map((m) => ({
+      label: m.id,
+      description: m.display_name ?? undefined,
+      delegatorName: undefined,
+      // Runtime-free model id; the daemon's launch route accepts any string.
+      model: m.id as ModelOption,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+/** Hardcoded Claude aliases — the offline / not-connected safety net. */
+function hardcodedModelItems(): DelegatorPickItem[] {
+  return [
+    {
+      label: 'sonnet',
+      description: 'Claude Sonnet (recommended)',
+      delegatorName: undefined,
+      model: 'sonnet',
+    },
+    {
+      label: 'opus',
+      description: 'Claude Opus (most capable)',
+      delegatorName: undefined,
+      model: 'opus',
+    },
+    {
+      label: 'haiku',
+      description: 'Claude Haiku (fastest)',
+      delegatorName: undefined,
+      model: 'haiku',
+    },
+  ];
+}
+
+/**
+ * Build the model/delegator pick list. When delegators exist, list them (plus an
+ * "Auto" default). When none exist, prefer live probed models, falling back to
+ * hardcoded aliases — resolved by [`resolveFallbackItems`] before this is called.
  */
 function buildDelegatorItems(
-  delegators: DelegatorResponse[]
+  delegators: DelegatorResponse[],
+  fallback?: DelegatorPickItem[] | null
 ): DelegatorPickItem[] {
   if (delegators.length === 0) {
-    // Fallback: hardcoded Claude models
-    return [
-      {
-        label: 'sonnet',
-        description: 'Claude Sonnet (recommended)',
-        delegatorName: undefined,
-        model: 'sonnet',
-      },
-      {
-        label: 'opus',
-        description: 'Claude Opus (most capable)',
-        delegatorName: undefined,
-        model: 'opus',
-      },
-      {
-        label: 'haiku',
-        description: 'Claude Haiku (fastest)',
-        delegatorName: undefined,
-        model: 'haiku',
-      },
-    ];
+    return fallback && fallback.length > 0 ? fallback : hardcodedModelItems();
   }
 
   const items: DelegatorPickItem[] = [
@@ -102,9 +149,11 @@ export async function showLaunchOptionsDialog(
   hasExistingSession: boolean,
   ticketsDir?: string
 ): Promise<LaunchOptions | undefined> {
-  // Fetch delegators from API
+  // Fetch delegators from API; when none, probe live models for the fallback.
   const delegators = await fetchDelegators(ticketsDir);
-  const delegatorItems = buildDelegatorItems(delegators);
+  const fallback =
+    delegators.length === 0 ? await fetchFallbackModels(ticketsDir) : null;
+  const delegatorItems = buildDelegatorItems(delegators, fallback);
 
   const delegatorChoice = await vscode.window.showQuickPick(delegatorItems, {
     title: `Launch ${ticket.id}: Select Delegator`,
@@ -190,7 +239,9 @@ export async function showQuickDelegatorPicker(
   ticketsDir?: string
 ): Promise<Pick<LaunchOptions, 'delegator' | 'model'> | undefined> {
   const delegators = await fetchDelegators(ticketsDir);
-  const items = buildDelegatorItems(delegators);
+  const fallback =
+    delegators.length === 0 ? await fetchFallbackModels(ticketsDir) : null;
+  const items = buildDelegatorItems(delegators, fallback);
 
   const choice = await vscode.window.showQuickPick(items, {
     title: 'Select Delegator',

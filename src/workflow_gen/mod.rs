@@ -14,13 +14,17 @@
 //! judge-agent retry loops marked with `OPERATOR-GAP`. `rag`/`mcp` steps depend
 //! on capabilities the workflow sandbox lacks and are likewise marked.
 
+mod agnt;
 mod command;
 mod export;
+mod format;
 pub mod js;
 mod step_map;
 
+pub use agnt::export_workflow_agnt;
 pub use command::{export_workflow_for_issuetype, export_workflow_for_ticket, ExportedWorkflow};
 pub use export::export_workflow;
+pub use format::WorkflowFormat;
 
 /// Marker emitted into generated workflows wherever an operator concept could
 /// not be faithfully represented.

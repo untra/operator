@@ -32,6 +32,13 @@ import type {
   SetKanbanSessionEnvRequest,
   SetKanbanSessionEnvResponse,
   WorkflowExportResponse,
+  ModelServerKindEntry,
+  ModelServerModelsResponse,
+  ModelServerResponse,
+  CreateModelServerRequest,
+  DelegatorsResponse,
+  DelegatorResponse,
+  CreateDelegatorRequest,
 } from './generated';
 
 // Re-export generated types for consumers
@@ -55,6 +62,13 @@ export type {
   WriteKanbanConfigResponse,
   SetKanbanSessionEnvRequest,
   SetKanbanSessionEnvResponse,
+  ModelServerKindEntry,
+  ModelServerModelsResponse,
+  ModelServerResponse,
+  CreateModelServerRequest,
+  DelegatorsResponse,
+  DelegatorResponse,
+  CreateDelegatorRequest,
 };
 
 /**
@@ -728,5 +742,58 @@ export class OperatorApiClient {
     }
 
     return (await response.json()) as SetKanbanSessionEnvResponse;
+  }
+
+  // --- Model providers ---
+
+  private async getJson<T>(path: string): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${path}`);
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+    return (await response.json()) as T;
+  }
+
+  private async postJson<T>(path: string, body: unknown): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+    return (await response.json()) as T;
+  }
+
+  /** The catalog of supported model providers (kinds). */
+  async listProviderKinds(): Promise<ModelServerKindEntry[]> {
+    return this.getJson('/api/v1/model-servers/kinds');
+  }
+
+  /** Live models for a provider kind (declared instance or kind defaults). */
+  async providerModels(slug: string): Promise<ModelServerModelsResponse> {
+    return this.getJson(`/api/v1/model-servers/kinds/${encodeURIComponent(slug)}/models`);
+  }
+
+  /** Connect a gateway provider by declaring an instance. */
+  async createModelServer(req: CreateModelServerRequest): Promise<ModelServerResponse> {
+    return this.postJson('/api/v1/model-servers', req);
+  }
+
+  async listDelegators(): Promise<DelegatorsResponse> {
+    return this.getJson('/api/v1/delegators');
+  }
+
+  async createDelegator(req: CreateDelegatorRequest): Promise<DelegatorResponse> {
+    return this.postJson('/api/v1/delegators', req);
   }
 }

@@ -16,6 +16,15 @@ interface ModelServerState {
   models: Record<string, ModelServerModelsResponse>;
 }
 
+/**
+ * Resolve a row's icon: the brand ThemeIcon (`operator-{brand}`) when the kind
+ * carries a `brand_icon` basename, else the semantic codicon fallback. Mirrors
+ * the PROVIDER_ICONS pattern used by the git/kanban sections.
+ */
+function iconForKind(brand: string | null | undefined, fallback: string): string {
+  return brand ? `operator-${brand}` : fallback;
+}
+
 export class ModelServerSection implements StatusSection {
   readonly sectionId: SectionId = 'model-servers';
   readonly prerequisites: SectionId[] = ['llm'];
@@ -119,10 +128,18 @@ export class ModelServerSection implements StatusSection {
       const probe = this.state.models[server.name];
       const hasModels = !!probe && probe.reachable && probe.models.length > 0;
 
+      // Brand the server row from its kind (looked up in the shared catalog),
+      // falling back to the declared/builtin codicon.
+      const kindEntry = this.state.kinds.find((k) => k.slug === server.kind);
+      const serverIcon = iconForKind(
+        kindEntry?.brand_icon,
+        server.user_declared ? 'server' : 'circle-outline',
+      );
+
       items.push(new StatusItem({
         label,
         description: descriptionParts.join(' · '),
-        icon: server.user_declared ? 'server' : 'circle-outline',
+        icon: serverIcon,
         tooltip: this.buildTooltip(server, probe),
         collapsibleState: hasModels
           ? vscode.TreeItemCollapsibleState.Collapsed
@@ -135,12 +152,23 @@ export class ModelServerSection implements StatusSection {
 
     // Per-kind "Setup <kind>" rows from the shared kinds endpoint (non-builtin
     // kinds only — vendor builtins always exist). Each links to the kind's
-    // credential/setup page so the user can obtain what they need.
+    // credential/setup page so the user can obtain what they need. Rows are
+    // grouped under a category header (the *Model Provider* vertical) so the
+    // catalog reads the same way as the README/docs/web surfaces.
+    let lastCategory: string | undefined;
     for (const kind of this.state.kinds.filter((k) => !k.is_builtin)) {
+      if (kind.category !== lastCategory) {
+        items.push(new StatusItem({
+          label: kind.category_label,
+          icon: 'list-tree',
+          sectionId: this.sectionId,
+        }));
+        lastCategory = kind.category;
+      }
       items.push(new StatusItem({
         label: `Setup ${kind.display_name}`,
         description: kind.description,
-        icon: kind.icon,
+        icon: iconForKind(kind.brand_icon, kind.icon),
         tooltip: `${kind.description}\nSetup: ${kind.setup_url}`,
         command: {
           command: 'vscode.open',

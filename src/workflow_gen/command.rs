@@ -9,33 +9,70 @@
 use anyhow::{anyhow, Result};
 
 use super::export::PipelineEnv;
-use super::export_workflow;
+use super::{export_workflow, export_workflow_agnt, WorkflowFormat};
 use crate::config::Config;
 use crate::issuetypes::{IssueType, IssueTypeRegistry};
 use crate::pr_config::PrConfig;
 use crate::queue::{LlmTask, Ticket};
 use crate::templates::schema::ItemSource;
 
-/// The result of exporting a ticket to a Claude dynamic workflow.
+/// The result of exporting a ticket to an orchestration workflow.
 #[derive(Debug, Clone)]
 pub struct ExportedWorkflow {
     /// The ticket the workflow was generated from.
     pub ticket_id: String,
     /// The issue type key that supplied the step structure.
     pub issuetype_key: String,
-    /// A suggested filename for writing the workflow (`<ticket-id>.workflow.js`).
+    /// A suggested filename for writing the workflow. The extension encodes the
+    /// format: `.workflow.js` (Claude) or `.agnt.workflow.json` (AGNT).
     pub suggested_filename: String,
-    /// The generated `.js` workflow source.
+    /// The generated workflow source (`.js` for Claude, JSON for AGNT).
     pub contents: String,
 }
 
-/// Resolve `ticket`'s issue type from `registry` and render it into a Claude
-/// dynamic workflow. Errors if the ticket's type has no matching issue type.
+/// Suggested filename for a ticket export, per format.
+fn ticket_filename(ticket_id: &str, format: WorkflowFormat) -> String {
+    match format {
+        WorkflowFormat::Claude => format!("{ticket_id}.workflow.js"),
+        WorkflowFormat::Agnt => format!("{ticket_id}.agnt.workflow.json"),
+    }
+}
+
+/// Suggested filename for an issuetype preview export, per format.
+fn preview_filename(key: &str, format: WorkflowFormat) -> String {
+    match format {
+        WorkflowFormat::Claude => format!("{key}.preview.workflow.js"),
+        WorkflowFormat::Agnt => format!("{key}.agnt.preview.workflow.json"),
+    }
+}
+
+/// Render `ticket` against `issuetype` into the requested `format`'s source.
+///
+/// `config` is needed only by the AGNT target, which resolves each step's
+/// delegator name against `config.delegators` to decide between an
+/// `operator-run-step` node and an `agnt-agent` node. The Claude target ignores it.
+fn render(
+    ticket: &Ticket,
+    issuetype: &IssueType,
+    pr_config: Option<&PrConfig>,
+    env: &PipelineEnv,
+    config: &Config,
+    format: WorkflowFormat,
+) -> Result<String> {
+    match format {
+        WorkflowFormat::Claude => export_workflow(ticket, issuetype, pr_config, env),
+        WorkflowFormat::Agnt => export_workflow_agnt(ticket, issuetype, pr_config, env, config),
+    }
+}
+
+/// Resolve `ticket`'s issue type from `registry` and render it into the given
+/// workflow `format`. Errors if the ticket's type has no matching issue type.
 pub fn export_workflow_for_ticket(
     ticket: &Ticket,
     registry: &IssueTypeRegistry,
     pr_config: Option<&PrConfig>,
     config: &Config,
+    format: WorkflowFormat,
 ) -> Result<ExportedWorkflow> {
     let issuetype = registry.get(&ticket.ticket_type).ok_or_else(|| {
         anyhow!(
@@ -46,12 +83,12 @@ pub fn export_workflow_for_ticket(
     })?;
 
     let env = pipeline_env_for(config, ticket, issuetype);
-    let contents = export_workflow(ticket, issuetype, pr_config, &env)?;
+    let contents = render(ticket, issuetype, pr_config, &env, config, format)?;
 
     Ok(ExportedWorkflow {
         ticket_id: ticket.id.clone(),
         issuetype_key: issuetype.key.clone(),
-        suggested_filename: format!("{}.workflow.js", ticket.id),
+        suggested_filename: ticket_filename(&ticket.id, format),
         contents,
     })
 }
@@ -64,16 +101,28 @@ pub fn export_workflow_for_ticket(
 /// `worktree_path: None` short-circuits any step-output loading, and the
 /// handlebars renderer runs with strict mode off, so missing variables render
 /// as empty strings rather than erroring.
-pub fn export_workflow_for_issuetype(issuetype: &IssueType) -> Result<ExportedWorkflow> {
+pub fn export_workflow_for_issuetype(
+    issuetype: &IssueType,
+    format: WorkflowFormat,
+) -> Result<ExportedWorkflow> {
     let ticket = preview_ticket(issuetype);
-    // No config/filesystem context in a preview: environment-dependent
-    // pipeline item sources (projects/glob) render as symbolic placeholders.
-    let contents = export_workflow(&ticket, issuetype, None, &PipelineEnv::default())?;
+    // No config/filesystem context in a preview: environment-dependent pipeline
+    // item sources (projects/glob) render as symbolic placeholders, and with an
+    // empty delegator set the AGNT target never resolves an `agnt-agent` node —
+    // so those nodes appear only in real ticket exports, by design.
+    let contents = render(
+        &ticket,
+        issuetype,
+        None,
+        &PipelineEnv::default(),
+        &Config::default(),
+        format,
+    )?;
 
     Ok(ExportedWorkflow {
         ticket_id: ticket.id,
         issuetype_key: issuetype.key.clone(),
-        suggested_filename: format!("{}.preview.workflow.js", issuetype.key),
+        suggested_filename: preview_filename(&issuetype.key, format),
         contents,
     })
 }
@@ -161,9 +210,14 @@ mod tests {
 
     #[test]
     fn exports_known_ticket_type_into_workflow() {
-        let exported =
-            export_workflow_for_ticket(&ticket("FEAT"), &registry(), None, &Config::default())
-                .unwrap();
+        let exported = export_workflow_for_ticket(
+            &ticket("FEAT"),
+            &registry(),
+            None,
+            &Config::default(),
+            WorkflowFormat::Claude,
+        )
+        .unwrap();
         assert_eq!(exported.ticket_id, "FEAT-1234");
         assert_eq!(exported.issuetype_key, "FEAT");
         assert_eq!(exported.suggested_filename, "FEAT-1234.workflow.js");
@@ -179,9 +233,34 @@ mod tests {
     }
 
     #[test]
+    fn exports_known_ticket_type_into_agnt_workflow() {
+        let exported = export_workflow_for_ticket(
+            &ticket("FEAT"),
+            &registry(),
+            None,
+            &Config::default(),
+            WorkflowFormat::Agnt,
+        )
+        .unwrap();
+        assert_eq!(exported.suggested_filename, "FEAT-1234.agnt.workflow.json");
+        let v: serde_json::Value =
+            serde_json::from_str(&exported.contents).expect("AGNT export is valid JSON");
+        assert!(v["nodes"].is_array(), "AGNT export has nodes");
+        assert_eq!(
+            v["nodes"][0]["type"], "operator-run-step",
+            "AGNT export uses operator-run-step nodes"
+        );
+    }
+
+    #[test]
     fn errors_when_issuetype_unknown() {
-        let result =
-            export_workflow_for_ticket(&ticket("NOPE"), &registry(), None, &Config::default());
+        let result = export_workflow_for_ticket(
+            &ticket("NOPE"),
+            &registry(),
+            None,
+            &Config::default(),
+            WorkflowFormat::Claude,
+        );
         assert!(result.is_err(), "unknown issuetype should error");
     }
 
@@ -189,7 +268,7 @@ mod tests {
     fn issuetype_preview_renders_without_a_ticket() {
         let reg = registry();
         let feat = reg.get("FEAT").expect("FEAT builtin");
-        let exported = export_workflow_for_issuetype(feat).unwrap();
+        let exported = export_workflow_for_issuetype(feat, WorkflowFormat::Claude).unwrap();
         assert_eq!(exported.issuetype_key, "FEAT");
         assert_eq!(exported.suggested_filename, "FEAT.preview.workflow.js");
         assert!(
@@ -210,10 +289,10 @@ mod tests {
         );
     }
 
-    /// Regression gate: dump every builtin issue type's preview workflow to
-    /// `target/workflow-previews/` so the naiveworkflow compiler can be run
-    /// against them (see the verification step in the plan / docs). Also
-    /// asserts each preview is non-empty.
+    /// Regression gate: dump every builtin issue type's preview workflow (both
+    /// formats) to `target/workflow-previews/` so the naiveworkflow compiler can
+    /// be run against the `.js` and the AGNT JSON validated. Asserts each
+    /// preview is non-empty, and that every AGNT preview parses as JSON.
     #[test]
     fn dumps_all_builtin_previews_for_compiler_check() {
         let reg = registry();
@@ -222,14 +301,21 @@ mod tests {
             .join("workflow-previews");
         std::fs::create_dir_all(&dir).expect("create preview dir");
         for it in reg.all_types() {
-            let exported = export_workflow_for_issuetype(it).unwrap();
-            assert!(
-                !exported.contents.trim().is_empty(),
-                "empty preview for {}",
-                it.key
-            );
-            std::fs::write(dir.join(&exported.suggested_filename), &exported.contents)
-                .expect("write preview");
+            for format in [WorkflowFormat::Claude, WorkflowFormat::Agnt] {
+                let exported = export_workflow_for_issuetype(it, format).unwrap();
+                assert!(
+                    !exported.contents.trim().is_empty(),
+                    "empty preview for {}",
+                    it.key
+                );
+                if format == WorkflowFormat::Agnt {
+                    serde_json::from_str::<serde_json::Value>(&exported.contents).unwrap_or_else(
+                        |e| panic!("AGNT preview for {} is invalid JSON: {e}", it.key),
+                    );
+                }
+                std::fs::write(dir.join(&exported.suggested_filename), &exported.contents)
+                    .expect("write preview");
+            }
         }
     }
 }

@@ -1,3 +1,5 @@
+#[path = "config/agent_profile.rs"]
+pub mod agent_profile;
 #[path = "config/git_config.rs"]
 pub mod git_config;
 #[path = "config/kanban.rs"]
@@ -9,6 +11,7 @@ pub mod notifications_config;
 #[path = "config/sessions.rs"]
 pub mod sessions;
 
+pub use agent_profile::*;
 pub use git_config::*;
 pub use kanban::*;
 pub use llm_tools::*;

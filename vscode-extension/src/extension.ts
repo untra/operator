@@ -911,9 +911,10 @@ async function showCreateMenu(ctx: CommandContext): Promise<void> {
 }
 
 function openCreateDelegator(ctx: CommandContext, tool?: string, model?: string): void {
-  // Delegators are agent config — kept in the extension webview's agents section.
+  // Delegators bind a model provider to an llm tool, so they live in the Model
+  // Providers section (distinct from the Coding Agents / llm-tools section).
   ConfigPanel.createOrShow(ctx.extensionContext.extensionUri);
-  ConfigPanel.navigateTo('section-agents', {
+  ConfigPanel.navigateTo('section-model-providers', {
     action: 'createDelegator',
     tool,
     model,

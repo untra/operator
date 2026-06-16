@@ -503,6 +503,10 @@ that can be used to launch agents for tickets.
 | `model_properties` | `object` | No | Arbitrary model properties (e.g., `reasoning_effort`, sandbox) |
 | `launch_config` | object | No | Optional launch configuration |
 | `model_server` | `string` \| `null` | No | Name of a declared `ModelServer` (from `Config.model_servers`). `None` means use the `llm_tool`'s implicit vendor default (claude → anthropic-api, codex → openai-api, gemini → google-api). |
+| `remote_agent` | object | No | Declarative reference to a remote, named agent on another platform (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).  Export-only: Operator has no runtime client for those platforms, so a delegator carrying this CANNOT be launched locally — resolution errors out (see `delegator_resolution`). It is stored, listed, serialized into an `AgentProfile`, and — for `platform == "agnt"` — surfaced in the `--format agnt` workflow export as an `agnt-agent` node. `None` = ordinary, locally launchable delegator. |
+| `x_agnt` | object | No | Opaque AGNT-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip so re-export is lossless (e.g. `memory`, `assignedWorkflows`, `creditLimit`). Operator never interprets this. |
+| `x_openai` | object | No | Opaque OpenAI-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`, `metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted. |
+| `unmapped_core` | object | No | Opaque carry for `AgentProfile` shared-core fields Operator cannot model first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an import→export round-trip is lossless. Distinct from `x_agnt`: these are shared-core fields, not AGNT-specific, so folding them into `x_agnt` would corrupt that namespace. Operator never interprets this. |
 
 ### DelegatorLaunchConfig
 
@@ -523,6 +527,21 @@ semantics: `None` = inherit from global config, `Some(true/false)` = override.
 | `prompt_suffix` | `string` \| `null` | No | Prompt text to append after the generated step prompt |
 | `operator_relay` | `boolean` \| `null` | No | Override global relay auto-inject MCP setting per-delegator (None = use global setting) |
 
+### RemoteAgentRef
+
+A declarative reference to a remote, named agent hosted by another platform.
+
+`platform` is the hosting service (`"agnt"`, `"openai"`) — deliberately
+distinct from the core `provider`/`llm_tool` (the model or coding CLI). These
+agents are API/memory-native and live on the remote side; Operator has no
+runtime client for them, so a delegator carrying one is **export-only** and
+cannot be launched locally (see the guard in `delegator_resolution`).
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `platform` | `string` | Yes | Hosting platform (e.g. `"agnt"`, `"openai"`). |
+| `id` | `string` | Yes | Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id). |
+
 ### ModelServer
 
 A named host that serves models via an inference API.
@@ -538,7 +557,7 @@ in config.
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Unique name (e.g., "ollama-local", "vllm-gpu1") |
-| `kind` | `string` | Yes | Kind: "ollama", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio" |
+| `kind` | `string` | Yes | Kind: "ollama", "openrouter", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio" |
 | `base_url` | `string` \| `null` | No | Base URL of the inference endpoint (e.g., `http://localhost:11434`). `None` for implicit vendor servers means use the SDK default. |
 | `api_key_env` | `string` \| `null` | No | Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`) |
 | `extra_env` | `object` | No | Additional environment variables set when spawning agents that use this server |

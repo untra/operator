@@ -293,14 +293,18 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum WorkflowAction {
-    /// Export a ticket, rendered against its issuetype, to a Claude Code dynamic workflow (.js)
+    /// Export a ticket, rendered against its issuetype, to an orchestration workflow
     Export {
         /// Ticket id (e.g. FEAT-1234) or path to a ticket markdown file
         ticket: String,
 
-        /// Output path (default: <ticket-id>.workflow.js in the current directory; "-" for stdout)
+        /// Output path (default: derived from the ticket id + format; "-" for stdout)
         #[arg(short, long)]
         out: Option<PathBuf>,
+
+        /// Output format: claude (Claude Code .js) or agnt (AGNT.gg workflow JSON)
+        #[arg(long, value_enum, default_value_t)]
+        format: workflow_gen::WorkflowFormat,
     },
 }
 
@@ -757,7 +761,11 @@ async fn cmd_create(
 
 fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {
     match action {
-        WorkflowAction::Export { ticket, out } => {
+        WorkflowAction::Export {
+            ticket,
+            out,
+            format,
+        } => {
             // Resolve the ticket (by id via the queue, or as a direct file path).
             // Resolution is the only edge-specific step; the registry build and
             // the export itself go through the same shared path as the REST API.
@@ -775,8 +783,9 @@ fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {
 
             // Same registry loader the REST API (ApiState::new) uses.
             let registry = startup::templates::load_registry(&config.tickets_path());
-            let exported =
-                workflow_gen::export_workflow_for_ticket(&resolved, &registry, None, config)?;
+            let exported = workflow_gen::export_workflow_for_ticket(
+                &resolved, &registry, None, config, format,
+            )?;
 
             match out.as_deref() {
                 Some(p) if p == std::path::Path::new("-") => {

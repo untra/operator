@@ -35,6 +35,10 @@ fn test_delegator_serde_roundtrip() {
             ..Default::default()
         }),
         model_server: None,
+        remote_agent: None,
+        x_agnt: None,
+        x_openai: None,
+        unmapped_core: None,
     };
 
     let json = serde_json::to_string(&delegator).unwrap();

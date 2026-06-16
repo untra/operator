@@ -8,7 +8,10 @@ use axum::{
     Json,
 };
 
-use crate::config::{Config, Delegator, DelegatorLaunchConfig};
+use crate::config::{
+    agent_profile::{delegator_to_profile, profile_to_delegator, AgentProfile},
+    Config, Delegator, DelegatorLaunchConfig,
+};
 use crate::rest::dto::{
     CreateDelegatorFromToolRequest, CreateDelegatorRequest, DelegatorLaunchConfigDto,
     DelegatorResponse, DelegatorsResponse,
@@ -97,6 +100,10 @@ pub async fn create(
         model_properties: req.model_properties,
         model_server: req.model_server,
         launch_config: req.launch_config.map(dto_to_launch_config),
+        remote_agent: req.remote_agent,
+        x_agnt: None,
+        x_openai: None,
+        unmapped_core: None,
     };
 
     // Read current config, add delegator, save
@@ -186,6 +193,7 @@ fn delegator_to_response(d: &Delegator) -> DelegatorResponse {
         model_properties: d.model_properties.clone(),
         model_server: d.model_server.clone(),
         launch_config: d.launch_config.as_ref().map(launch_config_to_dto),
+        remote_agent: d.remote_agent.clone(),
     }
 }
 
@@ -245,6 +253,10 @@ pub async fn create_from_tool(
         model_properties: std::collections::HashMap::new(),
         model_server: req.model_server.clone(),
         launch_config: req.launch_config.map(dto_to_launch_config),
+        remote_agent: None,
+        x_agnt: None,
+        x_openai: None,
+        unmapped_core: None,
     };
 
     // Save to config
@@ -277,10 +289,14 @@ pub async fn update(
     Path(name): Path<String>,
     Json(req): Json<CreateDelegatorRequest>,
 ) -> Result<Json<DelegatorResponse>, ApiError> {
-    // Verify the delegator exists
-    if !state.config.delegators.iter().any(|d| d.name == name) {
-        return Err(ApiError::NotFound(format!("Delegator '{name}' not found")));
-    }
+    // Verify the delegator exists, and capture its opaque AGNT carry-fields so an
+    // update through the (AGNT-unaware) request DTO doesn't drop them.
+    let existing = state
+        .config
+        .delegators
+        .iter()
+        .find(|d| d.name == name)
+        .ok_or_else(|| ApiError::NotFound(format!("Delegator '{name}' not found")))?;
 
     let updated = Delegator {
         name: name.clone(),
@@ -290,6 +306,10 @@ pub async fn update(
         model_properties: req.model_properties,
         model_server: req.model_server,
         launch_config: req.launch_config.map(dto_to_launch_config),
+        remote_agent: req.remote_agent,
+        x_agnt: existing.x_agnt.clone(),
+        x_openai: existing.x_openai.clone(),
+        unmapped_core: existing.unmapped_core.clone(),
     };
 
     // Replace in config and save
@@ -302,6 +322,80 @@ pub async fn update(
         .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
 
     Ok(Json(delegator_to_response(&updated)))
+}
+
+/// Export a delegator as a portable `AgentProfile` (`agent-profile.json`).
+///
+/// The shared core plus the Operator-namespaced `x_operator` bag; any opaque
+/// AGNT (`x_agnt`) and shared-core carry the delegator holds are restored so the
+/// profile is a lossless interchange artifact.
+#[utoipa::path(
+    operation_id = "delegators_export_profile",
+    get,
+    path = "/api/v1/delegators/{name}/profile",
+    tag = "Delegators",
+    params(
+        ("name" = String, Path, description = "Delegator name")
+    ),
+    responses(
+        (status = 200, description = "Agent profile", body = AgentProfile),
+        (status = 404, description = "Delegator not found")
+    )
+)]
+pub async fn export_profile(
+    State(state): State<ApiState>,
+    Path(name): Path<String>,
+) -> Result<Json<AgentProfile>, ApiError> {
+    let delegator = state
+        .config
+        .delegators
+        .iter()
+        .find(|d| d.name == name)
+        .ok_or_else(|| ApiError::NotFound(format!("Delegator '{name}' not found")))?;
+
+    Ok(Json(delegator_to_profile(delegator)))
+}
+
+/// Import an `AgentProfile` as a new delegator.
+///
+/// The shared-core fields Operator can't model and the opaque `x_agnt` bag are
+/// preserved on the created delegator so a later export round-trips losslessly.
+#[utoipa::path(
+    operation_id = "delegators_import_profile",
+    post,
+    path = "/api/v1/delegators/import-profile",
+    tag = "Delegators",
+    request_body = AgentProfile,
+    responses(
+        (status = 200, description = "Delegator created from profile", body = DelegatorResponse),
+        (status = 409, description = "Delegator already exists")
+    )
+)]
+pub async fn import_profile(
+    State(state): State<ApiState>,
+    Json(profile): Json<AgentProfile>,
+) -> Result<Json<DelegatorResponse>, ApiError> {
+    if state
+        .config
+        .delegators
+        .iter()
+        .any(|d| d.name == profile.name)
+    {
+        return Err(ApiError::Conflict(format!(
+            "Delegator '{}' already exists",
+            profile.name
+        )));
+    }
+
+    let delegator = profile_to_delegator(&profile);
+
+    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    config.delegators.push(delegator.clone());
+    config
+        .save()
+        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+
+    Ok(Json(delegator_to_response(&delegator)))
 }
 
 #[cfg(test)]
@@ -331,6 +425,10 @@ mod tests {
             model_properties: std::collections::HashMap::new(),
             model_server: None,
             launch_config: None,
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
@@ -364,6 +462,10 @@ mod tests {
                 flags: vec![],
                 ..Default::default()
             }),
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
@@ -396,6 +498,10 @@ mod tests {
                 prompt_suffix: Some("Run tests before finishing.".to_string()),
                 operator_relay: None,
             }),
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
@@ -430,6 +536,82 @@ mod tests {
 
         let result = create_from_tool(State(state), Json(req)).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn export_profile_returns_agent_profile() {
+        let mut config = Config::default();
+        config.delegators.push(Delegator {
+            name: "claude-opus".to_string(),
+            llm_tool: "claude".to_string(),
+            model: "opus".to_string(),
+            display_name: Some("Claude Opus".to_string()),
+            model_properties: std::collections::HashMap::new(),
+            model_server: None,
+            launch_config: None,
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
+        });
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let resp = export_profile(State(state), Path("claude-opus".to_string()))
+            .await
+            .expect("export ok");
+        assert_eq!(resp.name, "claude-opus");
+        assert_eq!(resp.provider, "claude");
+        assert_eq!(resp.model, "opus");
+        assert_eq!(
+            resp.x_operator.as_ref().unwrap().display_name.as_deref(),
+            Some("Claude Opus")
+        );
+    }
+
+    #[tokio::test]
+    async fn import_profile_conflicts_on_existing_name() {
+        // The happy path calls Config::save() (a fixed global path), so — like the
+        // create() tests — we only exercise the pre-save conflict branch here. The
+        // profile→delegator conversion (incl. x_agnt/shared-core preservation) is
+        // covered by the unit tests in `config::agent_profile`.
+        let mut config = Config::default();
+        config.delegators.push(Delegator {
+            name: "dup".to_string(),
+            llm_tool: "claude".to_string(),
+            model: "opus".to_string(),
+            display_name: None,
+            model_properties: std::collections::HashMap::new(),
+            model_server: None,
+            launch_config: None,
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
+        });
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let profile = AgentProfile {
+            name: "dup".to_string(),
+            provider: "anthropic".to_string(),
+            model: "claude-3-5-sonnet".to_string(),
+            system_prompt: None,
+            skills: vec![],
+            mcp_servers: vec![],
+            tools: vec![],
+            remote_agent: Some(crate::config::RemoteAgentRef {
+                platform: "agnt".to_string(),
+                id: "Research Assistant".to_string(),
+            }),
+            x_operator: None,
+            x_agnt: Some(serde_json::json!({ "creditLimit": 1000 })),
+            x_openai: None,
+        };
+
+        let result = import_profile(State(state), Json(profile)).await;
+        assert!(
+            matches!(result, Err(ApiError::Conflict(_))),
+            "importing a profile whose name already exists must 409"
+        );
     }
 
     #[test]

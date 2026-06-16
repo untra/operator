@@ -29,18 +29,20 @@ use operator::api::providers::kanban::{
     JiraProjectStatus, JiraSearchResponse, JiraStatus, JiraStatusRef, JiraUser,
 };
 use operator::config::{
-    AgentsConfig, ApiConfig, CollectionPreset, Config, Delegator, DelegatorLaunchConfig,
-    DetectedTool, DockerConfig, LaunchConfig, LlmProvider, LlmToolsConfig, LoggingConfig,
-    NotificationsConfig, PanelNamesConfig, PathsConfig, QueueConfig, RestApiConfig,
-    SkillDirectoriesOverride, TemplatesConfig, TmuxConfig, ToolCapabilities, UiConfig, YoloConfig,
+    AgentProfile, AgentsConfig, ApiConfig, CollectionPreset, Config, Delegator,
+    DelegatorLaunchConfig, DetectedTool, DockerConfig, LaunchConfig, LlmProvider, LlmToolsConfig,
+    LoggingConfig, NotificationsConfig, PanelNamesConfig, PathsConfig, QueueConfig, RemoteAgentRef,
+    RestApiConfig, SkillDirectoriesOverride, TemplatesConfig, TmuxConfig, ToolCapabilities,
+    UiConfig, XOperator, YoloConfig,
 };
 use operator::queue::LlmTask;
 use operator::rest::dto::{
-    CollectionResponse, CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest,
-    CreateStepRequest, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
+    CollectionResponse, CreateAlertRequest, CreateAlertResponse, CreateDelegatorRequest,
+    CreateFieldRequest, CreateIssueTypeRequest, CreateStepRequest, CreateTicketRequest,
+    CreateTicketResponse, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
     FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, KanbanProviderCatalogEntry,
     SectionDto, SectionRowDto, SkillEntry, SkillsResponse, StatusResponse, StepResponse,
-    UpdateIssueTypeRequest, UpdateStepRequest, WorkflowExportResponse,
+    UpdateIssueTypeRequest, UpdateStepRequest, WorkflowExportResponse, WorkflowPreviewResponse,
 };
 use operator::state::{AgentState, CompletedTicket, State};
 use operator::types::{
@@ -113,6 +115,9 @@ fn generate_typescript() -> String {
         SkillDirectoriesOverride::decl(),
         Delegator::decl(),
         DelegatorLaunchConfig::decl(),
+        AgentProfile::decl(),
+        XOperator::decl(),
+        RemoteAgentRef::decl(),
         CollectionPreset::decl(),
         TemplatesConfig::decl(),
         LoggingConfig::decl(),
@@ -138,8 +143,14 @@ fn generate_typescript() -> String {
         SectionRowDto::decl(),
         // Kanban provider catalog DTO
         KanbanProviderCatalogEntry::decl(),
-        // Workflow export DTO
+        // Workflow export DTOs
         WorkflowExportResponse::decl(),
+        WorkflowPreviewResponse::decl(),
+        // Ticket creation + alert DTOs
+        CreateTicketRequest::decl(),
+        CreateTicketResponse::decl(),
+        CreateAlertRequest::decl(),
+        CreateAlertResponse::decl(),
         // Skills DTOs
         SkillEntry::decl(),
         SkillsResponse::decl(),

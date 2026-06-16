@@ -6,8 +6,10 @@ on:
       - main
     paths:
       - 'src/api/providers/kanban/**'
+      - 'src/api/providers/model_server/**'
       - 'src/git/**'
       - 'tests/kanban_integration.rs'
+      - 'tests/model_server_integration.rs'
       - 'tests/git_integration.rs'
       - '.github/workflows/integration-tests.yml'
   pull_request:
@@ -15,8 +17,10 @@ on:
       - main
     paths:
       - 'src/api/providers/kanban/**'
+      - 'src/api/providers/model_server/**'
       - 'src/git/**'
       - 'tests/kanban_integration.rs'
+      - 'tests/model_server_integration.rs'
       - 'tests/git_integration.rs'
   workflow_dispatch:
     inputs:
@@ -30,6 +34,10 @@ on:
         default: true
       run_github:
         description: 'Run GitHub Projects integration tests'
+        type: boolean
+        default: true
+      run_model_servers:
+        description: 'Run model-server (provider model-listing) integration tests'
         type: boolean
         default: true
       run_git:
@@ -101,6 +109,53 @@ jobs:
           OPERATOR_GITHUB_TOKEN: ${{ secrets.OPERATOR_GITHUB_TOKEN }}
           OPERATOR_GITHUB_TEST_PROJECT: ${{ secrets.OPERATOR_GITHUB_TEST_PROJECT }}
         run: cargo test --locked --test kanban_integration github_tests -- --nocapture --test-threads=1
+
+      # Model-server (provider model-listing) integration tests.
+      # Listing models consumes no inference tokens.
+      - name: Run keyless OpenRouter model-list test
+        if: github.event_name != 'workflow_dispatch' || inputs.run_model_servers
+        run: cargo test --locked --test model_server_integration openrouter_keyless -- --nocapture --test-threads=1
+
+      - name: Run Anthropic model-list tests
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.run_model_servers) &&
+          env.OPERATOR_ANTHROPIC_API_KEY != ''
+        env:
+          OPERATOR_ANTHROPIC_API_KEY: ${{ secrets.OPERATOR_ANTHROPIC_API_KEY }}
+        run: cargo test --locked --test model_server_integration anthropic -- --nocapture --test-threads=1
+
+      - name: Run OpenAI model-list tests
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.run_model_servers) &&
+          env.OPERATOR_OPENAI_API_KEY != ''
+        env:
+          OPERATOR_OPENAI_API_KEY: ${{ secrets.OPERATOR_OPENAI_API_KEY }}
+        run: cargo test --locked --test model_server_integration openai -- --nocapture --test-threads=1
+
+      - name: Run Google model-list tests
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.run_model_servers) &&
+          env.OPERATOR_GEMINI_API_KEY != ''
+        env:
+          OPERATOR_GEMINI_API_KEY: ${{ secrets.OPERATOR_GEMINI_API_KEY }}
+        run: cargo test --locked --test model_server_integration google -- --nocapture --test-threads=1
+
+      - name: Run keyed OpenRouter model-list tests
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.run_model_servers) &&
+          env.OPERATOR_OPENROUTER_API_KEY != ''
+        env:
+          OPERATOR_OPENROUTER_API_KEY: ${{ secrets.OPERATOR_OPENROUTER_API_KEY }}
+        run: cargo test --locked --test model_server_integration openrouter_keyed -- --nocapture --test-threads=1
+
+      - name: Run model-server consistency test
+        if: github.event_name != 'workflow_dispatch' || inputs.run_model_servers
+        env:
+          OPERATOR_ANTHROPIC_API_KEY: ${{ secrets.OPERATOR_ANTHROPIC_API_KEY }}
+          OPERATOR_OPENAI_API_KEY: ${{ secrets.OPERATOR_OPENAI_API_KEY }}
+          OPERATOR_GEMINI_API_KEY: ${{ secrets.OPERATOR_GEMINI_API_KEY }}
+          OPERATOR_OPENROUTER_API_KEY: ${{ secrets.OPERATOR_OPENROUTER_API_KEY }}
+        run: cargo test --locked --test model_server_integration test_all_providers_return_same_model_shape -- --nocapture --test-threads=1
 
       - name: Run cross-provider tests
         env:

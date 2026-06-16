@@ -5,8 +5,9 @@ use utoipa::OpenApi;
 use crate::mcp::descriptor::McpDescriptorResponse;
 use crate::rest::dto::{
     ActiveAgentResponse, ActiveAgentsResponse, AgentDetailResponse, AssessTicketResponse,
-    CollectionResponse, CreateDelegatorFromToolRequest, CreateDelegatorRequest, CreateFieldRequest,
-    CreateIssueTypeRequest, CreateModelServerRequest, CreateStepRequest, DefaultLlmResponse,
+    CollectionResponse, CreateAlertRequest, CreateAlertResponse, CreateDelegatorFromToolRequest,
+    CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest, CreateModelServerRequest,
+    CreateStepRequest, CreateTicketRequest, CreateTicketResponse, DefaultLlmResponse,
     DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse, ExternalIssueTypeSummary,
     FieldResponse, HealthResponse, IssueTypeResponse, IssueTypeSummary, KanbanBoardResponse,
     KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanSyncResponse, KanbanTicketCard,
@@ -19,9 +20,11 @@ use crate::rest::dto::{
     StepCompleteResponse, StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse,
     UpdateIssueTypeRequest, UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
     UpdateTicketStatusResponse, ValidateKanbanCredentialsRequest,
-    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WriteKanbanConfigRequest,
-    WriteKanbanConfigResponse,
+    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowPreviewResponse,
+    WriteKanbanConfigRequest, WriteKanbanConfigResponse,
 };
+// AgentProfile interchange types live in `crate::config`, not `rest::dto`.
+use crate::config::{AgentProfile, DelegatorLaunchConfig, RemoteAgentRef, XOperator};
 use crate::rest::error::ErrorResponse;
 
 /// OpenAPI documentation for the Operator REST API
@@ -71,6 +74,11 @@ use crate::rest::error::ErrorResponse;
             CreateDelegatorRequest,
             CreateDelegatorFromToolRequest,
             DelegatorLaunchConfigDto,
+            // AgentProfile interchange types
+            AgentProfile,
+            XOperator,
+            RemoteAgentRef,
+            DelegatorLaunchConfig,
             // Model server types
             ModelServerResponse,
             ModelServersResponse,
@@ -86,8 +94,14 @@ use crate::rest::error::ErrorResponse;
             TicketDetailResponse,
             UpdateTicketStatusRequest,
             UpdateTicketStatusResponse,
+            CreateTicketRequest,
+            CreateTicketResponse,
+            CreateAlertRequest,
+            CreateAlertResponse,
             // Workflow export types
             WorkflowExportResponse,
+            WorkflowPreviewResponse,
+            crate::workflow_gen::WorkflowFormat,
             // MCP types
             McpDescriptorResponse,
             // Queue types

@@ -119,6 +119,10 @@ export function App() {
     postMessage({ type: 'openFile', filePath });
   }, []);
 
+  const handleStartSetup = useCallback(() => {
+    postMessage({ type: 'openWalkthrough' });
+  }, []);
+
   const handleValidateJira = useCallback(
     (domain: string, email: string, apiToken: string) => {
       setValidatingJira(true);
@@ -159,6 +163,7 @@ export function App() {
           onUpdate={handleUpdate}
           onBrowseFolder={handleBrowseFolder}
           onOpenFile={handleOpenFile}
+          onStartSetup={handleStartSetup}
           onValidateJira={handleValidateJira}
           onValidateLinear={handleValidateLinear}
           onDetectTools={handleDetectTools}
@@ -191,6 +196,7 @@ function mergeWithDefaults(incoming: WebviewConfig): WebviewConfig {
   return {
     config_path: incoming.config_path || defaults.config_path,
     working_directory: incoming.working_directory || defaults.working_directory,
+    config_exists: incoming.config_exists ?? defaults.config_exists,
     config: deepMerge(defaults.config, incoming.config),
   };
 }

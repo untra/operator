@@ -39,6 +39,7 @@ Welcome friend! <span class="operator-brand">Operator!</span> is an application 
 
 These are tools that comparable and aspirational for Operator
 
+- [agnt.gg](https://agnt.gg)
 - [agtx](https://github.com/fynnfluegge/agtx)
 - [claude-relay](https://github.com/Innestic/claude-relay)
 - [kanbots](https://github.com/Innestic/claude-relay)

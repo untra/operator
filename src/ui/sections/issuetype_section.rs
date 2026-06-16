@@ -47,6 +47,7 @@ impl StatusSection for IssueTypeSection {
                 label: it.key.clone(),
                 description: format!("{} · {}", it.name, it.mode),
                 icon: StatusIcon::Tool,
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::none(),
                 health: SectionHealth::Gray,

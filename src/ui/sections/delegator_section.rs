@@ -44,6 +44,7 @@ impl StatusSection for DelegatorSection {
                 label: "Add delegator".into(),
                 description: "Edit config to configure a delegator".into(),
                 icon: StatusIcon::Tool,
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::primary(StatusAction::EditFile(snapshot.config_path.clone())),
                 health: SectionHealth::Gray,
@@ -71,6 +72,7 @@ impl StatusSection for DelegatorSection {
                     label,
                     description,
                     icon: StatusIcon::Tool,
+                    brand_icon: None,
                     is_header: false,
                     actions: ActionSet {
                         primary: StatusAction::None,

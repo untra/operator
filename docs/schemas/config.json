@@ -1412,6 +1412,26 @@
             "null"
           ],
           "default": null
+        },
+        "remote_agent": {
+          "description": "Declarative reference to a remote, named agent on another platform\n(e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).\n\nExport-only: Operator has no runtime client for those platforms, so a\ndelegator carrying this CANNOT be launched locally — resolution errors out\n(see `delegator_resolution`). It is stored, listed, serialized into an\n`AgentProfile`, and — for `platform == \"agnt\"` — surfaced in the\n`--format agnt` workflow export as an `agnt-agent` node. `None` = ordinary,\nlocally launchable delegator.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RemoteAgentRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "x_agnt": {
+          "description": "Opaque AGNT-namespaced extension fields, preserved verbatim across an\n`AgentProfile` round-trip so re-export is lossless (e.g. `memory`,\n`assignedWorkflows`, `creditLimit`). Operator never interprets this."
+        },
+        "x_openai": {
+          "description": "Opaque OpenAI-namespaced extension fields, preserved verbatim across an\n`AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`,\n`metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted."
+        },
+        "unmapped_core": {
+          "description": "Opaque carry for `AgentProfile` shared-core fields Operator cannot model\nfirst-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an\nimport→export round-trip is lossless. Distinct from `x_agnt`: these are\nshared-core fields, not AGNT-specific, so folding them into `x_agnt` would\ncorrupt that namespace. Operator never interprets this."
         }
       },
       "required": [
@@ -1495,6 +1515,24 @@
         }
       }
     },
+    "RemoteAgentRef": {
+      "description": "A declarative reference to a remote, named agent hosted by another platform.\n\n`platform` is the hosting service (`\"agnt\"`, `\"openai\"`) — deliberately\ndistinct from the core `provider`/`llm_tool` (the model or coding CLI). These\nagents are API/memory-native and live on the remote side; Operator has no\nruntime client for them, so a delegator carrying one is **export-only** and\ncannot be launched locally (see the guard in `delegator_resolution`).",
+      "type": "object",
+      "properties": {
+        "platform": {
+          "description": "Hosting platform (e.g. `\"agnt\"`, `\"openai\"`).",
+          "type": "string"
+        },
+        "id": {
+          "description": "Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "platform",
+        "id"
+      ]
+    },
     "ModelServer": {
       "description": "A named host that serves models via an inference API.\n\nModel servers are orthogonal to `llm_tools`: a delegator pairs an agentic CLI\n(`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint\n(`model_server`, e.g. ollama-local, openai-api, a custom vllm host).\n\nImplicit builtin servers (`anthropic-api`, `openai-api`, `google-api`) are\nreturned by [`implicit_model_server_for_tool`] and do not need to be declared\nin config.",
       "type": "object",
@@ -1504,7 +1542,7 @@
           "type": "string"
         },
         "kind": {
-          "description": "Kind: \"ollama\", \"openai-compat\", \"anthropic-api\", \"openai-api\", \"google-api\", \"lmstudio\"",
+          "description": "Kind: \"ollama\", \"openrouter\", \"openai-compat\", \"anthropic-api\", \"openai-api\", \"google-api\", \"lmstudio\"",
           "type": "string"
         },
         "base_url": {

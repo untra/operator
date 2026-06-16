@@ -322,9 +322,74 @@ pub async fn kinds() -> Json<Vec<ModelServerKindEntry>> {
                 setup_url: k.setup_url().to_string(),
                 icon: k.icon().to_string(),
                 is_builtin: k.is_builtin(),
+                category: k.provider_class().slug().to_string(),
+                category_label: k.provider_class().display_name().to_string(),
+                brand_icon: k.brand_icon().map(str::to_string),
+                default_base_url: k.default_base_url().map(str::to_string),
+                default_api_key_env: k.default_api_key_env().map(str::to_string),
+                connectable: k.connectable_from_defaults(),
             })
             .collect(),
     )
+}
+
+/// List the models a *provider kind* offers, via a live probe.
+///
+/// Resolves to the declared instance of that kind (if the user has one) else a
+/// transient instance built from the kind's probe defaults — so the Model
+/// Providers catalog can show connection state + live models for every supported
+/// provider without first declaring one. `reachable` doubles as "connected".
+#[utoipa::path(
+    operation_id = "model_servers_kind_models",
+    get,
+    path = "/api/v1/model-servers/kinds/{slug}/models",
+    tag = "ModelServers",
+    params(
+        ("slug" = String, Path, description = "Model-provider kind slug (e.g. \"anthropic-api\")")
+    ),
+    responses(
+        (status = 200, description = "Models offered by the provider", body = ModelServerModelsResponse),
+        (status = 404, description = "Unknown provider kind")
+    )
+)]
+pub async fn kind_models(
+    State(state): State<ApiState>,
+    Path(slug): Path<String>,
+) -> Result<Json<ModelServerModelsResponse>, ApiError> {
+    let kind = ModelServerKind::from_slug(&slug)
+        .ok_or_else(|| ApiError::NotFound(format!("Unknown provider kind '{slug}'")))?;
+
+    // Prefer a user-declared instance of this kind; otherwise probe from the
+    // kind's built-in defaults (the probe fills in base_url/api_key_env).
+    let server = state
+        .config
+        .model_servers
+        .iter()
+        .find(|s| s.kind == slug)
+        .cloned()
+        .unwrap_or_else(|| ModelServer {
+            name: slug.clone(),
+            kind: slug.clone(),
+            base_url: None,
+            api_key_env: None,
+            extra_env: std::collections::HashMap::new(),
+            display_name: None,
+        });
+
+    let outcome = probe_models(&server).await;
+    Ok(Json(ModelServerModelsResponse {
+        server: kind.slug().to_string(),
+        reachable: outcome.reachable,
+        models: outcome
+            .models
+            .into_iter()
+            .map(|m| ModelEntry {
+                id: m.id,
+                display_name: m.display_name,
+            })
+            .collect(),
+        error: outcome.error,
+    }))
 }
 
 #[cfg(test)]
@@ -384,23 +449,61 @@ mod tests {
         let resp = kinds().await;
         let slugs: Vec<&str> = resp.0.iter().map(|k| k.slug.as_str()).collect();
         assert!(slugs.contains(&"ollama"));
+        assert!(slugs.contains(&"openrouter"));
         assert!(slugs.contains(&"openai-compat"));
         assert!(slugs.contains(&"anthropic-api"));
-        // Vendor APIs are flagged builtin.
+        // First-party providers are flagged builtin and carry the first-party class.
         let anthropic = resp.0.iter().find(|k| k.slug == "anthropic-api").unwrap();
         assert!(anthropic.is_builtin);
+        assert_eq!(anthropic.category, "first-party");
+        // Probe-connectable from defaults, with the standard key env surfaced.
+        assert!(anthropic.connectable);
+        assert_eq!(
+            anthropic.default_base_url.as_deref(),
+            Some("https://api.anthropic.com")
+        );
+        assert_eq!(
+            anthropic.default_api_key_env.as_deref(),
+            Some("ANTHROPIC_API_KEY")
+        );
+        // Gateways (ollama, openrouter, …) are not builtins.
         let ollama = resp.0.iter().find(|k| k.slug == "ollama").unwrap();
         assert!(!ollama.is_builtin);
+        assert_eq!(ollama.category, "gateway");
+        let openrouter = resp.0.iter().find(|k| k.slug == "openrouter").unwrap();
+        assert_eq!(openrouter.category, "gateway");
+        assert_eq!(openrouter.category_label, "Gateways");
+        // openai-compat is bring-your-own-endpoint: not connectable from defaults.
+        let compat = resp.0.iter().find(|k| k.slug == "openai-compat").unwrap();
+        assert!(!compat.connectable);
+        // Brand icons: anthropic/google/ollama/openrouter carry one; openai-api
+        // falls back to a codicon.
+        assert_eq!(openrouter.brand_icon.as_deref(), Some("openrouter"));
+        assert_eq!(ollama.brand_icon.as_deref(), Some("ollama"));
+        assert_eq!(anthropic.brand_icon.as_deref(), Some("anthropic"));
+        let openai = resp.0.iter().find(|k| k.slug == "openai-api").unwrap();
+        assert_eq!(openai.brand_icon, None);
     }
 
     #[tokio::test]
-    async fn test_models_builtin_without_base_url_is_unreachable() {
-        let config = Config::default();
+    async fn test_models_unreachable_endpoint_reports_error() {
+        // Probe a declared server pointing at a closed local port — deterministic
+        // and offline (connection refused), exercising the unreachable path
+        // without any external network dependency.
+        let mut config = Config::default();
+        config.model_servers.push(ModelServer {
+            name: "closed-port".into(),
+            kind: "openai-compat".into(),
+            base_url: Some("http://127.0.0.1:1".into()),
+            api_key_env: None,
+            extra_env: std::collections::HashMap::new(),
+            display_name: None,
+        });
         let state = ApiState::new(config, PathBuf::from("/tmp/test-ms-models"));
-        let resp = models(State(state), Path("anthropic-api".to_string()))
+        let resp = models(State(state), Path("closed-port".to_string()))
             .await
-            .expect("builtin resolves");
-        assert_eq!(resp.0.server, "anthropic-api");
+            .expect("declared server resolves");
+        assert_eq!(resp.0.server, "closed-port");
         assert!(!resp.0.reachable);
         assert!(resp.0.models.is_empty());
         assert!(resp.0.error.is_some());
@@ -420,5 +523,52 @@ mod tests {
         let state = ApiState::new(config, PathBuf::from("/tmp/test-ms-404"));
         let resp = get_one(State(state), Path("nope".to_string())).await;
         assert!(resp.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_kind_models_404_on_unknown_kind() {
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test-ms-km-404"));
+        let resp = kind_models(State(state), Path("nope".to_string())).await;
+        assert!(resp.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_kind_models_bring_your_own_endpoint_unreachable_from_defaults() {
+        // `openai-compat` has no default base_url and no declared instance, so a
+        // kind-level probe has nowhere to connect — reachable:false, offline.
+        let config = Config::default();
+        let state = ApiState::new(config, PathBuf::from("/tmp/test-ms-km-byo"));
+        let resp = kind_models(State(state), Path("openai-compat".to_string()))
+            .await
+            .expect("known kind resolves");
+        // Response is keyed by the kind slug (not an instance name).
+        assert_eq!(resp.0.server, "openai-compat");
+        assert!(!resp.0.reachable);
+        assert!(resp.0.models.is_empty());
+        assert!(resp.0.error.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_kind_models_prefers_declared_instance() {
+        // A declared instance of the kind is probed in preference to defaults.
+        // Point it at a closed local port: deterministic, offline (conn refused).
+        let mut config = Config::default();
+        config.model_servers.push(ModelServer {
+            name: "my-vllm".into(),
+            kind: "openai-compat".into(),
+            base_url: Some("http://127.0.0.1:1".into()),
+            api_key_env: None,
+            extra_env: std::collections::HashMap::new(),
+            display_name: None,
+        });
+        let state = ApiState::new(config, PathBuf::from("/tmp/test-ms-km-declared"));
+        let resp = kind_models(State(state), Path("openai-compat".to_string()))
+            .await
+            .expect("known kind resolves");
+        // Still keyed by the kind slug, and unreachable (the closed port refuses).
+        assert_eq!(resp.0.server, "openai-compat");
+        assert!(!resp.0.reachable);
+        assert!(resp.0.error.is_some());
     }
 }

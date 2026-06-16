@@ -22,6 +22,11 @@ depth: number, label: string, description: string,
  */
 icon: string, 
 /**
+ * Optional vendor-brand basename (e.g. "ollama"). When set, the web UI
+ * renders `/icons/{brand_icon}.svg` instead of the semantic `icon`.
+ */
+brand_icon: string | null, 
+/**
  * Health: "green" | "yellow" | "red" | "gray".
  */
 health: string, 

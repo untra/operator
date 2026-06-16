@@ -140,5 +140,6 @@ const DEFAULT_CONFIG: Config = {
 export const DEFAULT_WEBVIEW_CONFIG: WebviewConfig = {
   config_path: '',
   working_directory: '',
+  config_exists: false,
   config: DEFAULT_CONFIG,
 };

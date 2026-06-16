@@ -71,6 +71,7 @@ impl StatusSection for ConnectionsSection {
                 label: "Operator".into(),
                 description: format!("Version {}", snapshot.operator_version),
                 icon: StatusIcon::Check,
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::none(),
                 health: SectionHealth::Gray,
@@ -95,6 +96,7 @@ impl StatusSection for ConnectionsSection {
                 } else {
                     StatusIcon::Warning
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::none(),
                 health: SectionHealth::Gray,
@@ -117,6 +119,7 @@ impl StatusSection for ConnectionsSection {
                     RestApiStatus::Starting => StatusIcon::Warning,
                     _ => StatusIcon::Cross,
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet {
                     primary: match &snapshot.api_status {
@@ -164,6 +167,7 @@ impl StatusSection for ConnectionsSection {
                     RestApiStatus::Starting => StatusIcon::Warning,
                     _ => StatusIcon::Cross,
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet {
                     primary: match &snapshot.api_status {
@@ -207,6 +211,7 @@ impl StatusSection for ConnectionsSection {
                 (McpHttpStatus::Mounted { .. }, _) | (_, true) => StatusIcon::Check,
                 _ => StatusIcon::Cross,
             },
+            brand_icon: None,
             is_header: false,
             actions: ActionSet {
                 primary: StatusAction::WriteAndOpenMcpClientConfig {
@@ -249,6 +254,7 @@ impl StatusSection for ConnectionsSection {
             } else {
                 StatusIcon::Cross
             },
+            brand_icon: None,
             is_header: false,
             actions: ActionSet {
                 primary: StatusAction::WriteAndOpenAcpEditorConfig {

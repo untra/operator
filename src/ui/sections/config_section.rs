@@ -67,6 +67,7 @@ impl StatusSection for ConfigSection {
                 } else {
                     StatusIcon::Check
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::primary(if snapshot.working_dir.is_empty() {
                     StatusAction::None
@@ -91,6 +92,7 @@ impl StatusSection for ConfigSection {
                 } else {
                     StatusIcon::Cross
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: if snapshot.config_file_found {
                     ActionSet {
@@ -129,6 +131,7 @@ impl StatusSection for ConfigSection {
                 } else {
                     StatusIcon::Cross
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::primary(if snapshot.tickets_dir_exists {
                     StatusAction::OpenDirectory(snapshot.tickets_dir.clone())
@@ -151,6 +154,7 @@ impl StatusSection for ConfigSection {
                     } else {
                         StatusIcon::Cross
                     },
+                    brand_icon: None,
                     is_header: false,
                     actions: ActionSet {
                         primary: if wrapper.is_connected() {
@@ -178,6 +182,7 @@ impl StatusSection for ConfigSection {
                 label: "Wrapper".into(),
                 description: snapshot.wrapper_type.clone(),
                 icon: StatusIcon::Tool,
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::none(),
                 health: SectionHealth::Gray,
@@ -198,6 +203,7 @@ impl StatusSection for ConfigSection {
                 } else {
                     StatusIcon::Check
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::none(),
                 health: SectionHealth::Gray,
@@ -218,6 +224,7 @@ impl StatusSection for ConfigSection {
                 } else {
                     StatusIcon::Check
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::none(),
                 health: SectionHealth::Gray,
@@ -238,6 +245,7 @@ impl StatusSection for ConfigSection {
                 } else {
                     StatusIcon::None
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet {
                     primary: StatusAction::OpenUrl("https://operator.untra.io/downloads/".into()),

@@ -567,7 +567,39 @@ launch_config: DelegatorLaunchConfig | null,
  * `None` means use the `llm_tool`'s implicit vendor default
  * (claude → anthropic-api, codex → openai-api, gemini → google-api).
  */
-model_server: string | null, };
+model_server: string | null, 
+/**
+ * Declarative reference to a remote, named agent on another platform
+ * (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).
+ *
+ * Export-only: Operator has no runtime client for those platforms, so a
+ * delegator carrying this CANNOT be launched locally — resolution errors out
+ * (see `delegator_resolution`). It is stored, listed, serialized into an
+ * `AgentProfile`, and — for `platform == "agnt"` — surfaced in the
+ * `--format agnt` workflow export as an `agnt-agent` node. `None` = ordinary,
+ * locally launchable delegator.
+ */
+remote_agent: RemoteAgentRef | null, 
+/**
+ * Opaque AGNT-namespaced extension fields, preserved verbatim across an
+ * `AgentProfile` round-trip so re-export is lossless (e.g. `memory`,
+ * `assignedWorkflows`, `creditLimit`). Operator never interprets this.
+ */
+x_agnt: JsonValue | null, 
+/**
+ * Opaque OpenAI-namespaced extension fields, preserved verbatim across an
+ * `AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`,
+ * `metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted.
+ */
+x_openai: JsonValue | null, 
+/**
+ * Opaque carry for `AgentProfile` shared-core fields Operator cannot model
+ * first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an
+ * import→export round-trip is lossless. Distinct from `x_agnt`: these are
+ * shared-core fields, not AGNT-specific, so folding them into `x_agnt` would
+ * corrupt that namespace. Operator never interprets this.
+ */
+unmapped_core: JsonValue | null, };
 
 export type DelegatorLaunchConfig = { 
 /**
@@ -606,6 +638,88 @@ prompt_suffix: string | null,
  * Override global relay auto-inject MCP setting per-delegator (None = use global setting)
  */
 operator_relay: boolean | null, };
+
+export type AgentProfile = { 
+/**
+ * Unique agent name (maps to [`Delegator::name`]).
+ */
+name: string, 
+/**
+ * Inference provider / CLI tool (maps to [`Delegator::llm_tool`]).
+ */
+provider: string, 
+/**
+ * Model alias or id (maps to [`Delegator::model`]).
+ */
+model: string, 
+/**
+ * System prompt. Operator has no first-class system prompt, so this is
+ * preserved opaquely across import (see [`Delegator::unmapped_core`]).
+ */
+system_prompt: string | null, 
+/**
+ * Named skills. Preserved opaquely across import.
+ */
+skills: Array<string>, 
+/**
+ * MCP server names. Preserved opaquely across import.
+ */
+mcp_servers: Array<string>, 
+/**
+ * Tool names. Preserved opaquely across import.
+ */
+tools: Array<string>, 
+/**
+ * Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...).
+ * `None` = a locally launchable agent, not bound to a remote platform.
+ */
+remote_agent: RemoteAgentRef | null, 
+/**
+ * Operator-owned extension fields (typed). `None` when the agent carries no
+ * Operator-specific configuration.
+ */
+x_operator: XOperator | null, 
+/**
+ * AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`,
+ * `creditLimit`, ...). Operator never interprets this — pure pass-through.
+ */
+x_agnt: JsonValue | null, 
+/**
+ * OpenAI-owned extension fields, opaque (`instructions`, `tools`,
+ * `tool_resources`, `metadata`, thread refs, ...). Mirror of `x_agnt` for a
+ * second platform — never interpreted. This field is the whole per-tool cost
+ * of adding `OpenAI`: a passthrough bag, no mapping logic.
+ */
+x_openai: JsonValue | null, };
+
+export type XOperator = { 
+/**
+ * Optional display name for UI.
+ */
+display_name: string | null, 
+/**
+ * Arbitrary model properties (e.g. `reasoning_effort`, sandbox).
+ */
+model_properties: { [key in string]?: string }, 
+/**
+ * Name of a declared `ModelServer` (`None` = implicit vendor default).
+ */
+model_server: string | null, 
+/**
+ * Launch configuration (permission mode, flags, worktree/docker, prompt
+ * wrapping, ...).
+ */
+launch_config: DelegatorLaunchConfig | null, };
+
+export type RemoteAgentRef = { 
+/**
+ * Hosting platform (e.g. `"agnt"`, `"openai"`).
+ */
+platform: string, 
+/**
+ * Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id).
+ */
+id: string, };
 
 export type CollectionPreset = "simple" | "dev_kanban" | "devops_kanban" | "custom";
 
@@ -822,6 +936,11 @@ depth: number, label: string, description: string,
  */
 icon: string, 
 /**
+ * Optional vendor-brand basename (e.g. "ollama"). When set, the web UI
+ * renders `/icons/{brand_icon}.svg` instead of the semantic `icon`.
+ */
+brand_icon: string | null, 
+/**
  * Health: "green" | "yellow" | "red" | "gray".
  */
 health: string, 
@@ -873,6 +992,81 @@ suggested_filename: string,
  * The generated `.js` workflow source.
  */
 contents: string, };
+
+export type WorkflowPreviewResponse = { 
+/**
+ * The issue type key the preview was generated from.
+ */
+issuetype_key: string, 
+/**
+ * Suggested filename for saving the preview (`<KEY>.preview.workflow.js`).
+ */
+suggested_filename: string, 
+/**
+ * The generated `.js` workflow source (placeholder ticket values).
+ */
+contents: string, };
+
+export type CreateTicketRequest = { 
+/**
+ * Template type key (feature, fix, spike, investigation, task).
+ */
+template: string, 
+/**
+ * Project the ticket targets (filled into the template's `project` value).
+ */
+project: string | null, 
+/**
+ * One-line summary (filled into the template's `summary` value).
+ */
+summary: string | null, 
+/**
+ * Additional Handlebars values for the template. Explicit `project`/
+ * `summary` fields take precedence over the same keys here.
+ */
+values: { [key in string]?: string }, };
+
+export type CreateTicketResponse = { 
+/**
+ * The created ticket's id (e.g. `FEAT-1234`).
+ */
+id: string, 
+/**
+ * The ticket filename written to the queue.
+ */
+filename: string, 
+/**
+ * The absolute path the ticket was written to.
+ */
+path: string, };
+
+export type CreateAlertRequest = { 
+/**
+ * Where the alert came from (e.g. `pagerduty`, `sentry`).
+ */
+source: string, 
+/**
+ * The alert message / summary.
+ */
+message: string, 
+/**
+ * Severity label (e.g. `S1`, `S2`).
+ */
+severity: string, 
+/**
+ * Optional project the investigation targets.
+ */
+project: string | null, };
+
+export type CreateAlertResponse = { 
+/**
+ * The created investigation ticket's id.
+ */
+id: string, 
+/**
+ * The investigation ticket filename written to the queue.
+ */
+filename: string, };
 
 export type SkillEntry = { 
 /**
@@ -930,7 +1124,12 @@ model_server: string | null,
 /**
  * Optional launch configuration
  */
-launch_config: DelegatorLaunchConfigDto | null, };
+launch_config: DelegatorLaunchConfigDto | null, 
+/**
+ * Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When
+ * set, the delegator is export-only and cannot be launched locally.
+ */
+remote_agent: RemoteAgentRef | null, };
 
 export type DelegatorsResponse = { 
 /**
@@ -970,7 +1169,12 @@ model_server: string | null,
 /**
  * Optional launch configuration
  */
-launch_config: DelegatorLaunchConfigDto | null, };
+launch_config: DelegatorLaunchConfigDto | null, 
+/**
+ * Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When
+ * set, the delegator is export-only and cannot be launched locally.
+ */
+remote_agent: RemoteAgentRef | null, };
 
 export type DelegatorLaunchConfigDto = { 
 /**

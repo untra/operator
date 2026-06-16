@@ -779,7 +779,7 @@ dependencies = [
 
 [[package]]
 name = "opr8r"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "clap",
  "operator-relay",

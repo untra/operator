@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anthropic | Operator! Documentation</title>
+  <meta name="description" content="Connect Anthropic as a first-party model provider and list its models live.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Anthropic | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Anthropic" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Connect Anthropic as a first-party model provider and list its models live." />
+<meta name="twitter:description" property="og:description" content="Connect Anthropic as a first-party model provider and list its models live." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/model-servers/anthropic/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/model-servers/anthropic/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Anthropic" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Connect Anthropic as a first-party model provider and list its models live.","headline":"Anthropic","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/model-servers/anthropic/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" >AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/model-servers/anthropic.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.2</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-16</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Anthropic</h1>
+  
+
+  <h1 id="anthropic">Anthropic</h1>
+
+<p><a href="https://www.anthropic.com/"><strong>Anthropic</strong></a> is a first-party model provider — it
+produces the Claude family of models and serves them from its own API. It is the
+zero-config default for the <code class="language-plaintext highlighter-rouge">claude</code> llm tool, and a first-class
+<a href="./">model provider</a> in its own right: once connected, operator lists its
+available models live so delegators can pick one.</p>
+
+<blockquote>
+  <p><strong>Model provider ≠ llm tool.</strong> Anthropic (the provider) serves the models;
+<a href="../agents/claude/">Claude Code</a> (the llm tool) is the CLI that drives a coding
+session. A delegator pairs a tool with a provider’s model.</p>
+</blockquote>
+
+<h2 id="connect">Connect</h2>
+
+<p>Operator references your key by env-var name — it never stores the secret. Set
+the standard Anthropic key and operator can probe the provider:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">ANTHROPIC_API_KEY</span><span class="o">=</span><span class="s2">"sk-ant-..."</span>
+</code></pre></div></div>
+
+<p>A provider is <strong>connected</strong> when its <code class="language-plaintext highlighter-rouge">/models</code> probe succeeds (key present +
+endpoint reachable). In the Model Providers view (web <code class="language-plaintext highlighter-rouge">/#/model-providers</code> or the
+VS Code section) Anthropic then shows ● connected with its live model list.</p>
+
+<h2 id="listing-models">Listing models</h2>
+
+<p>Operator probes <code class="language-plaintext highlighter-rouge">https://api.anthropic.com/v1/models</code> and stays agnostic to which
+models exist — it lists whatever the API returns rather than hardcoding names:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /api/v1/model-servers/kinds/anthropic-api/models   <span class="c"># { reachable, models[], error? }</span>
+</code></pre></div></div>
+
+<h2 id="use-from-a-delegator">Use from a delegator</h2>
+
+<p>Pick a connected provider + one of its live models in the Create Delegator form,
+or declare it directly. <code class="language-plaintext highlighter-rouge">model</code> is a live id from the list above:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span> <span class="o">=</span><span class="w"> </span><span class="s">"claude-opus"</span>
+<span class="n">llm_tool</span> <span class="o">=</span><span class="w"> </span><span class="s">"claude"</span>
+<span class="n">model</span> <span class="o">=</span><span class="w"> </span><span class="s">"claude-opus-4-20250514"</span>
+<span class="c"># model_server omitted → resolves to the implicit anthropic-api default</span>
+</code></pre></div></div>
+
+<h2 id="custom-endpoint--proxy">Custom endpoint / proxy</h2>
+
+<p>To route Claude through a proxy or bridge (e.g. a local model behind
+<code class="language-plaintext highlighter-rouge">claude-code-router</code>), declare an <code class="language-plaintext highlighter-rouge">anthropic-api</code> server with an explicit
+<code class="language-plaintext highlighter-rouge">base_url</code>; that base URL is then also injected at spawn (<code class="language-plaintext highlighter-rouge">ANTHROPIC_BASE_URL</code>).
+The probe default (<code class="language-plaintext highlighter-rouge">https://api.anthropic.com</code>) is <strong>probe-only</strong> and never
+alters the agent’s launch path on its own.</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

@@ -1,0 +1,1708 @@
+{
+  "$comment": "AUTO-GENERATED - DO NOT EDIT. Regenerate with: cargo run --bin generate_types",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "type": "object",
+  "properties": {
+    "projects": {
+      "description": "List of projects operator can assign work to",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "agents": {
+      "$ref": "#/$defs/AgentsConfig"
+    },
+    "notifications": {
+      "$ref": "#/$defs/NotificationsConfig"
+    },
+    "queue": {
+      "$ref": "#/$defs/QueueConfig"
+    },
+    "paths": {
+      "$ref": "#/$defs/PathsConfig"
+    },
+    "ui": {
+      "$ref": "#/$defs/UiConfig"
+    },
+    "launch": {
+      "$ref": "#/$defs/LaunchConfig"
+    },
+    "templates": {
+      "$ref": "#/$defs/TemplatesConfig"
+    },
+    "api": {
+      "$ref": "#/$defs/ApiConfig",
+      "default": {
+        "pr_check_interval_secs": 60,
+        "rate_limit_check_interval_secs": 300,
+        "rate_limit_warning_threshold": 0.20000000298023224
+      }
+    },
+    "logging": {
+      "$ref": "#/$defs/LoggingConfig",
+      "default": {
+        "level": "info",
+        "to_file": true
+      }
+    },
+    "tmux": {
+      "$ref": "#/$defs/TmuxConfig",
+      "default": {
+        "config_generated": false
+      }
+    },
+    "sessions": {
+      "description": "Session wrapper configuration (tmux, vscode, or cmux)",
+      "$ref": "#/$defs/SessionsConfig",
+      "default": {
+        "wrapper": "tmux",
+        "tmux": {
+          "config_generated": false,
+          "socket_name": "operator"
+        },
+        "vscode": {
+          "webhook_port": 7009,
+          "connect_timeout_ms": 5000
+        },
+        "cmux": {
+          "binary_path": "/Applications/cmux.app/Contents/Resources/bin/cmux",
+          "require_in_cmux": true,
+          "placement": "auto"
+        },
+        "zellij": {
+          "require_in_zellij": true
+        }
+      }
+    },
+    "llm_tools": {
+      "$ref": "#/$defs/LlmToolsConfig",
+      "default": {
+        "detected": [],
+        "providers": [],
+        "detection_complete": false,
+        "default_tool": null,
+        "default_model": null,
+        "skill_directory_overrides": {}
+      }
+    },
+    "rest_api": {
+      "$ref": "#/$defs/RestApiConfig",
+      "default": {
+        "enabled": true,
+        "host": "127.0.0.1",
+        "port": 7008,
+        "cors_origins": []
+      }
+    },
+    "git": {
+      "$ref": "#/$defs/GitConfig",
+      "default": {
+        "provider": null,
+        "github": {
+          "enabled": false,
+          "token_env": ""
+        },
+        "gitlab": {
+          "enabled": false,
+          "token_env": "",
+          "host": null
+        },
+        "branch_format": "{type}/{ticket_id}",
+        "use_worktrees": false
+      }
+    },
+    "kanban": {
+      "description": "Kanban provider configuration for syncing issues from Jira, Linear, etc.",
+      "$ref": "#/$defs/KanbanConfig",
+      "default": {
+        "jira": {},
+        "linear": {},
+        "github": {}
+      }
+    },
+    "version_check": {
+      "description": "Version check configuration for automatic update notifications",
+      "$ref": "#/$defs/VersionCheckConfig",
+      "default": {
+        "enabled": true,
+        "url": "https://operator.untra.io/VERSION",
+        "timeout_secs": 3
+      }
+    },
+    "delegators": {
+      "description": "Agent delegator configurations for autonomous ticket launching",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Delegator"
+      },
+      "default": []
+    },
+    "model_servers": {
+      "description": "User-declared model servers (ollama, lmstudio, any OpenAI-compat host).\nImplicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ModelServer"
+      },
+      "default": []
+    },
+    "relay": {
+      "description": "Relay MCP injection configuration",
+      "$ref": "#/$defs/RelayConfig",
+      "default": {
+        "auto_inject_mcp": false
+      }
+    },
+    "mcp": {
+      "description": "Model Context Protocol (MCP) server configuration",
+      "$ref": "#/$defs/McpConfig",
+      "default": {
+        "http_enabled": true,
+        "stdio_advertised": true,
+        "expose_ticket_write_tools": false,
+        "external_servers": []
+      }
+    },
+    "acp": {
+      "description": "Agent Client Protocol (ACP) agent configuration",
+      "$ref": "#/$defs/AcpConfig",
+      "default": {
+        "stdio_advertised": true,
+        "default_delegator": null,
+        "max_concurrent_sessions": 8
+      }
+    }
+  },
+  "required": [
+    "agents",
+    "notifications",
+    "queue",
+    "paths",
+    "ui",
+    "launch",
+    "templates"
+  ],
+  "$defs": {
+    "AgentsConfig": {
+      "type": "object",
+      "properties": {
+        "max_parallel": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "cores_reserved": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "max_agents_per_repo": {
+          "description": "Maximum concurrent agents per project/repo (default: 1).\nRequires `git.use_worktrees` = true when > 1 to avoid conflicts.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 1
+        },
+        "health_check_interval": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "generation_timeout_secs": {
+          "description": "Timeout in seconds for each agent generation (default: 300 = 5 min)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 300
+        },
+        "sync_interval": {
+          "description": "Interval in seconds between ticket-session syncs (default: 60)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 60
+        },
+        "step_timeout": {
+          "description": "Maximum seconds a step can run before timing out (default: 1800 = 30 min)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 1800
+        },
+        "silence_threshold": {
+          "description": "Seconds of tmux silence before considering agent awaiting input (default: 30)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 6
+        }
+      },
+      "required": [
+        "max_parallel",
+        "cores_reserved",
+        "health_check_interval"
+      ]
+    },
+    "NotificationsConfig": {
+      "description": "Notifications configuration with support for multiple integrations.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Global enabled flag for all notifications",
+          "type": "boolean"
+        },
+        "os": {
+          "description": "OS notification configuration",
+          "$ref": "#/$defs/OsNotificationConfig",
+          "default": {
+            "enabled": true,
+            "sound": false,
+            "events": []
+          }
+        },
+        "webhook": {
+          "description": "Single webhook configuration (for simple setups)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WebhookConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "webhooks": {
+          "description": "Multiple webhook configurations",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WebhookConfig"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "enabled"
+      ]
+    },
+    "OsNotificationConfig": {
+      "description": "OS notification configuration.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether OS notifications are enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "sound": {
+          "description": "Play sound with notifications",
+          "type": "boolean",
+          "default": false
+        },
+        "events": {
+          "description": "Events to send (empty = all events)\nPossible values: agent.started, agent.completed, agent.failed,\n`agent.awaiting_input`, `agent.session_lost`, pr.created, pr.merged,\npr.closed, `pr.ready_to_merge`, `pr.changes_requested`,\nticket.returned, investigation.created",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    },
+    "WebhookConfig": {
+      "description": "Webhook notification configuration.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Optional name for this webhook (for logging)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "enabled": {
+          "description": "Whether this webhook is enabled",
+          "type": "boolean",
+          "default": false
+        },
+        "url": {
+          "description": "Webhook URL",
+          "type": "string",
+          "default": ""
+        },
+        "auth_type": {
+          "description": "Authentication type: \"bearer\" or \"basic\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "token_env": {
+          "description": "Environment variable containing the bearer token",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "username": {
+          "description": "Username for basic auth",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "password_env": {
+          "description": "Environment variable containing the password for basic auth",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "events": {
+          "description": "Events to send (empty = all events)",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        }
+      }
+    },
+    "QueueConfig": {
+      "type": "object",
+      "properties": {
+        "auto_assign": {
+          "type": "boolean"
+        },
+        "priority_order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "poll_interval_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "auto_assign",
+        "priority_order",
+        "poll_interval_ms"
+      ]
+    },
+    "PathsConfig": {
+      "type": "object",
+      "properties": {
+        "tickets": {
+          "type": "string"
+        },
+        "projects": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "worktrees": {
+          "description": "Base directory for per-ticket worktrees (default: ~/.operator/worktrees)",
+          "type": "string",
+          "default": "/Users/samuelvolin/.operator/worktrees"
+        }
+      },
+      "required": [
+        "tickets",
+        "projects",
+        "state"
+      ]
+    },
+    "UiConfig": {
+      "type": "object",
+      "properties": {
+        "refresh_rate_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "completed_history_hours": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "summary_max_length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "panel_names": {
+          "$ref": "#/$defs/PanelNamesConfig",
+          "default": {
+            "status": "STATUS",
+            "queue": "TODO QUEUE",
+            "in_progress": "IN PROGRESS",
+            "completed": "DONE"
+          }
+        }
+      },
+      "required": [
+        "refresh_rate_ms",
+        "completed_history_hours",
+        "summary_max_length"
+      ]
+    },
+    "PanelNamesConfig": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "default": "STATUS"
+        },
+        "queue": {
+          "type": "string",
+          "default": "TODO QUEUE"
+        },
+        "in_progress": {
+          "type": "string",
+          "default": "IN PROGRESS"
+        },
+        "completed": {
+          "type": "string",
+          "default": "DONE"
+        }
+      }
+    },
+    "LaunchConfig": {
+      "type": "object",
+      "properties": {
+        "confirm_autonomous": {
+          "type": "boolean"
+        },
+        "confirm_paired": {
+          "type": "boolean"
+        },
+        "launch_delay_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "docker": {
+          "description": "Docker execution configuration",
+          "$ref": "#/$defs/DockerConfig",
+          "default": {
+            "enabled": false,
+            "image": "",
+            "extra_args": [],
+            "mount_path": "/workspace",
+            "env_vars": []
+          }
+        },
+        "yolo": {
+          "description": "YOLO (auto-accept) mode configuration",
+          "$ref": "#/$defs/YoloConfig",
+          "default": {
+            "enabled": false
+          }
+        }
+      },
+      "required": [
+        "confirm_autonomous",
+        "confirm_paired",
+        "launch_delay_ms"
+      ]
+    },
+    "DockerConfig": {
+      "description": "Docker execution configuration for running agents in containers",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether docker mode option is available in launch dialog",
+          "type": "boolean",
+          "default": false
+        },
+        "image": {
+          "description": "Docker image to use (required if enabled)",
+          "type": "string",
+          "default": ""
+        },
+        "extra_args": {
+          "description": "Additional docker run arguments",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "mount_path": {
+          "description": "Container mount path for the project (default: /workspace)",
+          "type": "string",
+          "default": "/workspace"
+        },
+        "env_vars": {
+          "description": "Environment variables to pass through to the container",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    },
+    "YoloConfig": {
+      "description": "YOLO (auto-accept) mode configuration for fully autonomous execution",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether YOLO mode option is available in launch dialog",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "TemplatesConfig": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "description": "Named preset for issue type collection\nOptions: simple, `dev_kanban`, `devops_kanban`, custom",
+          "$ref": "#/$defs/CollectionPreset",
+          "default": "dev_kanban"
+        },
+        "collection": {
+          "description": "Custom issuetype collection (only used when preset = custom)\nList of issue type keys: TASK, FEAT, FIX, SPIKE, INV",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "active_collection": {
+          "description": "Active collection name (overrides preset if set)\nCan be a builtin preset name or a user-defined collection",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "CollectionPreset": {
+      "description": "Predefined issue type collections",
+      "oneOf": [
+        {
+          "description": "Simple tasks only: TASK",
+          "type": "string",
+          "const": "simple"
+        },
+        {
+          "description": "Developer kanban: TASK, FEAT, FIX",
+          "type": "string",
+          "const": "dev_kanban"
+        },
+        {
+          "description": "DevOps kanban: TASK, SPIKE, INV, FEAT, FIX",
+          "type": "string",
+          "const": "devops_kanban"
+        },
+        {
+          "description": "Custom collection (use the collection field)",
+          "type": "string",
+          "const": "custom"
+        }
+      ]
+    },
+    "ApiConfig": {
+      "description": "API integrations configuration",
+      "type": "object",
+      "properties": {
+        "pr_check_interval_secs": {
+          "description": "Interval in seconds between PR status checks (default: 60)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 60
+        },
+        "rate_limit_check_interval_secs": {
+          "description": "Interval in seconds between rate limit checks (default: 300)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 300
+        },
+        "rate_limit_warning_threshold": {
+          "description": "Show warning when rate limit remaining is below this percentage (default: 0.2)",
+          "type": "number",
+          "format": "float",
+          "default": 0.20000000298023224
+        }
+      }
+    },
+    "LoggingConfig": {
+      "description": "Logging configuration",
+      "type": "object",
+      "properties": {
+        "level": {
+          "description": "Log level filter (trace, debug, info, warn, error)",
+          "type": "string",
+          "default": "info"
+        },
+        "to_file": {
+          "description": "Whether to log to file in TUI mode (false = stderr for debugging)",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "TmuxConfig": {
+      "type": "object",
+      "properties": {
+        "config_generated": {
+          "description": "Whether custom tmux config has been generated",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "SessionsConfig": {
+      "description": "Session wrapper configuration\n\nControls how operator creates and manages terminal sessions for agents.\nFour modes are supported:\n- tmux: Standalone tmux sessions (default)\n- vscode: VS Code integrated terminal (requires extension)\n- cmux: macOS terminal multiplexer (requires running inside cmux)\n- zellij: Zellij terminal workspace manager",
+      "type": "object",
+      "properties": {
+        "wrapper": {
+          "description": "Which session wrapper to use",
+          "$ref": "#/$defs/SessionWrapperType",
+          "default": "tmux"
+        },
+        "tmux": {
+          "description": "Tmux-specific configuration",
+          "$ref": "#/$defs/SessionsTmuxConfig",
+          "default": {
+            "config_generated": false,
+            "socket_name": "operator"
+          }
+        },
+        "vscode": {
+          "description": "VS Code-specific configuration",
+          "$ref": "#/$defs/SessionsVSCodeConfig",
+          "default": {
+            "webhook_port": 7009,
+            "connect_timeout_ms": 5000
+          }
+        },
+        "cmux": {
+          "description": "cmux-specific configuration",
+          "$ref": "#/$defs/SessionsCmuxConfig",
+          "default": {
+            "binary_path": "/Applications/cmux.app/Contents/Resources/bin/cmux",
+            "require_in_cmux": true,
+            "placement": "auto"
+          }
+        },
+        "zellij": {
+          "description": "Zellij-specific configuration",
+          "$ref": "#/$defs/SessionsZellijConfig",
+          "default": {
+            "require_in_zellij": true
+          }
+        }
+      }
+    },
+    "SessionWrapperType": {
+      "description": "Session wrapper type for terminal session management",
+      "oneOf": [
+        {
+          "description": "Standalone tmux sessions (default)",
+          "type": "string",
+          "const": "tmux"
+        },
+        {
+          "description": "VS Code integrated terminal (via extension webhook)",
+          "type": "string",
+          "const": "vscode"
+        },
+        {
+          "description": "cmux macOS terminal multiplexer",
+          "type": "string",
+          "const": "cmux"
+        },
+        {
+          "description": "Zellij terminal workspace manager",
+          "type": "string",
+          "const": "zellij"
+        }
+      ]
+    },
+    "SessionsTmuxConfig": {
+      "description": "Tmux-specific session configuration",
+      "type": "object",
+      "properties": {
+        "config_generated": {
+          "description": "Whether custom tmux config has been generated",
+          "type": "boolean",
+          "default": false
+        },
+        "socket_name": {
+          "description": "Socket name for session isolation",
+          "type": "string",
+          "default": "operator"
+        }
+      }
+    },
+    "SessionsVSCodeConfig": {
+      "description": "VS Code extension session configuration",
+      "type": "object",
+      "properties": {
+        "webhook_port": {
+          "description": "Port for extension webhook server",
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": 7009
+        },
+        "connect_timeout_ms": {
+          "description": "Connection timeout in milliseconds",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 5000
+        }
+      }
+    },
+    "SessionsCmuxConfig": {
+      "description": "cmux macOS terminal multiplexer session configuration",
+      "type": "object",
+      "properties": {
+        "binary_path": {
+          "description": "Path to the cmux binary",
+          "type": "string",
+          "default": "/Applications/cmux.app/Contents/Resources/bin/cmux"
+        },
+        "require_in_cmux": {
+          "description": "Require running inside cmux (`CMUX_WORKSPACE_ID` env var present)",
+          "type": "boolean",
+          "default": true
+        },
+        "placement": {
+          "description": "Where to place new agent sessions: \"auto\", \"workspace\", or \"window\"",
+          "$ref": "#/$defs/CmuxPlacementPolicy",
+          "default": "auto"
+        }
+      }
+    },
+    "CmuxPlacementPolicy": {
+      "description": "Placement policy for cmux sessions: where to create new agent terminals",
+      "oneOf": [
+        {
+          "description": "Automatically choose: 0-1 windows → new workspace, >1 windows → new window",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Always create a new workspace in the active window",
+          "type": "string",
+          "const": "workspace"
+        },
+        {
+          "description": "Always create a new window for each ticket",
+          "type": "string",
+          "const": "window"
+        }
+      ]
+    },
+    "SessionsZellijConfig": {
+      "description": "Zellij terminal workspace manager session configuration",
+      "type": "object",
+      "properties": {
+        "require_in_zellij": {
+          "description": "Require running inside Zellij (ZELLIJ env var present)",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "LlmToolsConfig": {
+      "description": "LLM CLI tools configuration",
+      "type": "object",
+      "properties": {
+        "detected": {
+          "description": "Detected CLI tools (populated on first startup)",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DetectedTool"
+          },
+          "default": []
+        },
+        "providers": {
+          "description": "Available {tool, model} pairs for launching tickets\nBuilt from detected tools + their model aliases",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LlmProvider"
+          },
+          "default": []
+        },
+        "detection_complete": {
+          "description": "Whether detection has been completed",
+          "type": "boolean",
+          "default": false
+        },
+        "default_tool": {
+          "description": "User's preferred default LLM tool (e.g., \"claude\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "default_model": {
+          "description": "User's preferred default model alias (e.g., \"opus\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "skill_directory_overrides": {
+          "description": "Per-tool overrides for skill directories (keyed by `tool_name`)",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SkillDirectoriesOverride"
+          },
+          "default": {}
+        }
+      }
+    },
+    "DetectedTool": {
+      "description": "A detected CLI tool (e.g., claude binary)",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Tool name (e.g., \"claude\")",
+          "type": "string"
+        },
+        "path": {
+          "description": "Path to the binary",
+          "type": "string"
+        },
+        "version": {
+          "description": "Version string",
+          "type": "string"
+        },
+        "min_version": {
+          "description": "Minimum required version for Operator compatibility",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "version_ok": {
+          "description": "Whether the installed version meets the minimum requirement",
+          "type": "boolean",
+          "default": false
+        },
+        "model_aliases": {
+          "description": "Available model aliases (e.g., [\"opus\", \"sonnet\", \"haiku\"])",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "command_template": {
+          "description": "Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders",
+          "type": "string",
+          "default": ""
+        },
+        "capabilities": {
+          "description": "Tool capabilities",
+          "$ref": "#/$defs/ToolCapabilities",
+          "default": {
+            "supports_sessions": false,
+            "supports_headless": false
+          }
+        },
+        "yolo_flags": {
+          "description": "CLI flags for YOLO (auto-accept) mode",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "name",
+        "path",
+        "version"
+      ]
+    },
+    "ToolCapabilities": {
+      "description": "Tool capabilities",
+      "type": "object",
+      "properties": {
+        "supports_sessions": {
+          "description": "Whether the tool supports session continuity via UUID",
+          "type": "boolean",
+          "default": false
+        },
+        "supports_headless": {
+          "description": "Whether the tool can run in headless/non-interactive mode",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "LlmProvider": {
+      "description": "A {tool, model} pair that can be selected when launching tickets.\nIncludes optional variant fields adopted from vibe-kanban's profile system.",
+      "type": "object",
+      "properties": {
+        "tool": {
+          "description": "CLI tool name (e.g., \"claude\", \"codex\", \"gemini\")",
+          "type": "string"
+        },
+        "model": {
+          "description": "Model alias or name (e.g., \"opus\", \"sonnet\", \"gpt-4.1\")",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Optional display name for UI (e.g., \"Claude Opus\", \"Codex High\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "flags": {
+          "description": "Additional CLI flags for this provider (e.g., [\"--dangerously-skip-permissions\"])",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "env": {
+          "description": "Environment variables to set when launching",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "approvals": {
+          "description": "Whether this provider requires approval gates",
+          "type": "boolean",
+          "default": false
+        },
+        "plan_only": {
+          "description": "Whether to run in plan-only mode",
+          "type": "boolean",
+          "default": false
+        },
+        "reasoning_effort": {
+          "description": "Reasoning effort level (Codex: \"low\", \"medium\", \"high\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "sandbox": {
+          "description": "Sandbox mode (Codex: \"danger-full-access\", \"workspace-write\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "tool",
+        "model"
+      ]
+    },
+    "SkillDirectoriesOverride": {
+      "description": "Per-tool skill directory overrides",
+      "type": "object",
+      "properties": {
+        "global": {
+          "description": "Additional global skill directories",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "project": {
+          "description": "Additional project-relative skill directories",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    },
+    "RestApiConfig": {
+      "description": "REST API server configuration",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether the REST API is enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "host": {
+          "description": "Address the REST API binds to. Defaults to `127.0.0.1` (local only) so\nthe server — which reports the project directory name — is not reachable\nfrom other hosts. Set to `0.0.0.0` to expose it on all interfaces.",
+          "type": "string",
+          "default": "127.0.0.1"
+        },
+        "port": {
+          "description": "Port for the REST API server",
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": 7008
+        },
+        "cors_origins": {
+          "description": "CORS allowed origins (empty = allow all)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    },
+    "GitConfig": {
+      "description": "Git provider configuration for PR/MR operations",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "Active provider (auto-detected from remote URL if not specified)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitProviderConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "github": {
+          "description": "GitHub-specific configuration",
+          "$ref": "#/$defs/GitHubConfig",
+          "default": {
+            "enabled": false,
+            "token_env": ""
+          }
+        },
+        "gitlab": {
+          "description": "GitLab-specific configuration (planned)",
+          "$ref": "#/$defs/GitLabConfig",
+          "default": {
+            "enabled": false,
+            "token_env": "",
+            "host": null
+          }
+        },
+        "branch_format": {
+          "description": "Branch naming format (e.g., \"{type}/{ticket_id}-{slug}\")",
+          "type": "string",
+          "default": "{type}/{ticket_id}"
+        },
+        "use_worktrees": {
+          "description": "Whether to use git worktrees for per-ticket isolation (default: false)\nWhen false, tickets work directly in the project directory with branches",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "GitProviderConfig": {
+      "description": "Git provider selection",
+      "oneOf": [
+        {
+          "description": "GitHub (github.com)",
+          "type": "string",
+          "const": "github"
+        },
+        {
+          "description": "GitLab (gitlab.com or self-hosted)",
+          "type": "string",
+          "const": "gitlab"
+        },
+        {
+          "description": "Bitbucket (bitbucket.org)",
+          "type": "string",
+          "const": "bitbucket"
+        },
+        {
+          "description": "Azure DevOps (dev.azure.com)",
+          "type": "string",
+          "const": "azuredevops"
+        }
+      ]
+    },
+    "GitHubConfig": {
+      "description": "GitHub-specific configuration",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether GitHub integration is enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "token_env": {
+          "description": "Environment variable containing the GitHub token (default: `GITHUB_TOKEN`)",
+          "type": "string",
+          "default": "GITHUB_TOKEN"
+        }
+      }
+    },
+    "GitLabConfig": {
+      "description": "GitLab-specific configuration (planned)",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether GitLab integration is enabled",
+          "type": "boolean",
+          "default": false
+        },
+        "token_env": {
+          "description": "Environment variable containing the GitLab token (default: `GITLAB_TOKEN`)",
+          "type": "string",
+          "default": "GITLAB_TOKEN"
+        },
+        "host": {
+          "description": "GitLab host (default: gitlab.com, can be self-hosted)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "KanbanConfig": {
+      "description": "Kanban provider configuration for syncing issues from external systems\n\nProviders are keyed by domain/workspace:\n- Jira: keyed by domain (e.g., \"foobar.atlassian.net\")\n- Linear: keyed by workspace slug (e.g., \"myworkspace\")\n- GitHub Projects: keyed by owner login (e.g., \"my-org\")",
+      "type": "object",
+      "properties": {
+        "jira": {
+          "description": "Jira Cloud instances keyed by domain (e.g., \"foobar.atlassian.net\")",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/JiraConfig"
+          },
+          "default": {}
+        },
+        "linear": {
+          "description": "Linear instances keyed by workspace slug",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/LinearConfig"
+          },
+          "default": {}
+        },
+        "github": {
+          "description": "GitHub Projects v2 instances keyed by owner login (user or org)\n\nNOTE: This is the *kanban* GitHub integration (Projects v2), distinct\nfrom `GitHubConfig` which is the *git provider* used for PRs and\nbranches. The two use different env vars and different scopes — see\n`docs/getting-started/kanban/github.md` for the full disambiguation.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/GithubProjectsConfig"
+          },
+          "default": {}
+        }
+      }
+    },
+    "JiraConfig": {
+      "description": "Jira Cloud provider configuration\n\nThe domain is specified as the `HashMap` key in KanbanConfig.jira",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether this provider is enabled",
+          "type": "boolean",
+          "default": false
+        },
+        "api_key_env": {
+          "description": "Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`)",
+          "type": "string",
+          "default": "OPERATOR_JIRA_API_KEY"
+        },
+        "email": {
+          "description": "Atlassian account email for authentication",
+          "type": "string",
+          "default": ""
+        },
+        "projects": {
+          "description": "Per-project sync configuration",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ProjectSyncConfig"
+          },
+          "default": {}
+        }
+      }
+    },
+    "ProjectSyncConfig": {
+      "description": "Per-project/team sync configuration for a kanban provider",
+      "type": "object",
+      "properties": {
+        "sync_user_id": {
+          "description": "User ID to sync issues for (provider-specific format)\n- Jira: accountId (e.g., \"5e3f7acd9876543210abcdef\")\n- Linear: user ID (e.g., \"abc12345-6789-0abc-def0-123456789abc\")\n- GitHub Projects: numeric GitHub `databaseId` (e.g., \"12345678\")",
+          "type": "string",
+          "default": ""
+        },
+        "sync_statuses": {
+          "description": "Workflow statuses to sync (empty = default/first status only)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "collection_name": {
+          "description": "Optional `IssueTypeCollection` name this project maps to.\nNot required for kanban onboarding or sync.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type_mappings": {
+          "description": "Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX).\nMultiple kanban types can map to the same operator template.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "bidirectional": {
+          "description": "When true, operator pushes status changes and activity logs back to this kanban project.\nTicket state changes (todo→doing, doing→done) and step completions with delegator info\nare reflected upstream. Default: false.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "LinearConfig": {
+      "description": "Linear provider configuration\n\nThe workspace slug is specified as the `HashMap` key in KanbanConfig.linear",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether this provider is enabled",
+          "type": "boolean",
+          "default": false
+        },
+        "api_key_env": {
+          "description": "Environment variable name containing the API key (default: `OPERATOR_LINEAR_API_KEY`)",
+          "type": "string",
+          "default": "OPERATOR_LINEAR_API_KEY"
+        },
+        "projects": {
+          "description": "Per-team sync configuration",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ProjectSyncConfig"
+          },
+          "default": {}
+        }
+      }
+    },
+    "GithubProjectsConfig": {
+      "description": "GitHub Projects v2 (kanban) provider configuration\n\nThe owner login (user or org) is specified as the `HashMap` key in\n`KanbanConfig.github`. Project keys inside `projects` are `GraphQL` node\nIDs (e.g., `PVT_kwDOABcdefg`) — opaque, stable identifiers used directly\nby every GitHub Projects v2 mutation without needing a lookup.\n\n**Distinct from `GitHubConfig`** (the git provider used for PR/branch\noperations). They live in different parts of the config tree, use\ndifferent env vars (`OPERATOR_GITHUB_TOKEN` vs `GITHUB_TOKEN`), and\nrequire different OAuth scopes (`project` vs `repo`). See\n`docs/getting-started/kanban/github.md` for the full rationale.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether this provider is enabled",
+          "type": "boolean",
+          "default": false
+        },
+        "api_key_env": {
+          "description": "Environment variable name containing the GitHub token (default:\n`OPERATOR_GITHUB_TOKEN`). The token must have `project` (or\n`read:project`) scope, NOT just `repo` — see the disambiguation\nguide in the kanban github docs.",
+          "type": "string",
+          "default": "OPERATOR_GITHUB_TOKEN"
+        },
+        "projects": {
+          "description": "Per-project sync configuration. Keys are `GraphQL` project node IDs.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ProjectSyncConfig"
+          },
+          "default": {}
+        }
+      }
+    },
+    "VersionCheckConfig": {
+      "description": "Version check configuration for automatic update notifications",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enable automatic version checking on startup",
+          "type": "boolean",
+          "default": true
+        },
+        "url": {
+          "description": "URL to fetch latest version from (optional, can be removed)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": "https://operator.untra.io/VERSION"
+        },
+        "timeout_secs": {
+          "description": "Timeout in seconds for version check HTTP request",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 3
+        }
+      }
+    },
+    "Delegator": {
+      "description": "Agent delegator configuration for autonomous ticket launching\n\nA delegator is a named {tool, model} pairing with optional launch configuration\nthat can be used to launch agents for tickets.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Unique name for this delegator (e.g., \"claude-opus-auto\")",
+          "type": "string"
+        },
+        "llm_tool": {
+          "description": "LLM tool name (must match a detected tool, e.g., \"claude\", \"codex\")",
+          "type": "string"
+        },
+        "model": {
+          "description": "Model alias (e.g., \"opus\", \"sonnet\", \"gpt-4o\")",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Optional display name for UI",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "model_properties": {
+          "description": "Arbitrary model properties (e.g., `reasoning_effort`, sandbox)",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "launch_config": {
+          "description": "Optional launch configuration",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DelegatorLaunchConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model_server": {
+          "description": "Name of a declared `ModelServer` (from `Config.model_servers`).\n`None` means use the `llm_tool`'s implicit vendor default\n(claude → anthropic-api, codex → openai-api, gemini → google-api).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "remote_agent": {
+          "description": "Declarative reference to a remote, named agent on another platform\n(e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).\n\nExport-only: Operator has no runtime client for those platforms, so a\ndelegator carrying this CANNOT be launched locally — resolution errors out\n(see `delegator_resolution`). It is stored, listed, serialized into an\n`AgentProfile`, and — for `platform == \"agnt\"` — surfaced in the\n`--format agnt` workflow export as an `agnt-agent` node. `None` = ordinary,\nlocally launchable delegator.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RemoteAgentRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "x_agnt": {
+          "description": "Opaque AGNT-namespaced extension fields, preserved verbatim across an\n`AgentProfile` round-trip so re-export is lossless (e.g. `memory`,\n`assignedWorkflows`, `creditLimit`). Operator never interprets this."
+        },
+        "x_openai": {
+          "description": "Opaque OpenAI-namespaced extension fields, preserved verbatim across an\n`AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`,\n`metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted."
+        },
+        "unmapped_core": {
+          "description": "Opaque carry for `AgentProfile` shared-core fields Operator cannot model\nfirst-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an\nimport→export round-trip is lossless. Distinct from `x_agnt`: these are\nshared-core fields, not AGNT-specific, so folding them into `x_agnt` would\ncorrupt that namespace. Operator never interprets this."
+        }
+      },
+      "required": [
+        "name",
+        "llm_tool",
+        "model"
+      ]
+    },
+    "DelegatorLaunchConfig": {
+      "description": "Launch configuration for a delegator\n\nControls how the delegator launches agents. Optional fields use tri-state\nsemantics: `None` = inherit from global config, `Some(true/false)` = override.",
+      "type": "object",
+      "properties": {
+        "yolo": {
+          "description": "Run in YOLO (auto-accept) mode",
+          "type": "boolean",
+          "default": false
+        },
+        "permission_mode": {
+          "description": "Permission mode override",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "flags": {
+          "description": "Additional CLI flags",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "use_worktrees": {
+          "description": "Override global `git.use_worktrees` per-delegator (None = use global setting)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "create_branch": {
+          "description": "Whether to create a git branch for the ticket (None = default behavior)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "docker": {
+          "description": "Run in docker container (None = use global `launch.docker.enabled`)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "prompt_prefix": {
+          "description": "Prompt text to prepend before the generated step prompt",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "prompt_suffix": {
+          "description": "Prompt text to append after the generated step prompt",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "operator_relay": {
+          "description": "Override global relay auto-inject MCP setting per-delegator (None = use global setting)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "RemoteAgentRef": {
+      "description": "A declarative reference to a remote, named agent hosted by another platform.\n\n`platform` is the hosting service (`\"agnt\"`, `\"openai\"`) — deliberately\ndistinct from the core `provider`/`llm_tool` (the model or coding CLI). These\nagents are API/memory-native and live on the remote side; Operator has no\nruntime client for them, so a delegator carrying one is **export-only** and\ncannot be launched locally (see the guard in `delegator_resolution`).",
+      "type": "object",
+      "properties": {
+        "platform": {
+          "description": "Hosting platform (e.g. `\"agnt\"`, `\"openai\"`).",
+          "type": "string"
+        },
+        "id": {
+          "description": "Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "platform",
+        "id"
+      ]
+    },
+    "ModelServer": {
+      "description": "A named host that serves models via an inference API.\n\nModel servers are orthogonal to `llm_tools`: a delegator pairs an agentic CLI\n(`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint\n(`model_server`, e.g. ollama-local, openai-api, a custom vllm host).\n\nImplicit builtin servers (`anthropic-api`, `openai-api`, `google-api`) are\nreturned by [`implicit_model_server_for_tool`] and do not need to be declared\nin config.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Unique name (e.g., \"ollama-local\", \"vllm-gpu1\")",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind: \"ollama\", \"openrouter\", \"openai-compat\", \"anthropic-api\", \"openai-api\", \"google-api\", \"lmstudio\"",
+          "type": "string"
+        },
+        "base_url": {
+          "description": "Base URL of the inference endpoint (e.g., `http://localhost:11434`).\n`None` for implicit vendor servers means use the SDK default.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "api_key_env": {
+          "description": "Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "extra_env": {
+          "description": "Additional environment variables set when spawning agents that use this server",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "display_name": {
+          "description": "Optional display name for UI",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ]
+    },
+    "RelayConfig": {
+      "description": "Relay MCP injection configuration",
+      "type": "object",
+      "properties": {
+        "auto_inject_mcp": {
+          "description": "When true, automatically inject the relay MCP server for all delegators.\nWhen false (default), relay injection is opt-in per delegator.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "McpConfig": {
+      "description": "Model Context Protocol (MCP) server configuration",
+      "type": "object",
+      "properties": {
+        "http_enabled": {
+          "description": "Whether to mount MCP HTTP/SSE endpoints on the REST API server.\nToggling requires an API restart (no hot-swap of the axum router).",
+          "type": "boolean",
+          "default": true
+        },
+        "stdio_advertised": {
+          "description": "Whether the descriptor endpoint advertises the `operator mcp` stdio\ncommand. Set to false on multi-tenant/remote deployments where clients\nshouldn't spawn local subprocesses.",
+          "type": "boolean",
+          "default": true
+        },
+        "expose_ticket_write_tools": {
+          "description": "Whether to expose ticket-mutating tools (claim, complete, return-to-queue,\ncreate) over MCP. Defaults to `false` because any MCP client can call them.",
+          "type": "boolean",
+          "default": false
+        },
+        "external_servers": {
+          "description": "External MCP servers to inject into spawned agent sessions.\nEach entry produces a separate `--mcp-config` file alongside the\nrelay config when launching Claude Code agents.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExternalMcpServer"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExternalMcpServer": {
+      "description": "An external MCP server to inject into spawned agent sessions.\n\nValues in `command`, `args`, and `env` support `${VAR}` interpolation,\nexpanded at spawn time from the operator process environment.\n\nWhen `discover_from` is set, operator reads an MCP server spec from that\nJSON sidecar file at spawn time. The sidecar must contain a top-level\n`mcpServer` object with `command`, `args`, and `env` fields. If the file\nis absent and `command` is empty, the server is silently skipped.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Server name used as the key in the `mcpServers` JSON object\n(e.g., \"kanbots\"). Must be unique across all external servers.",
+          "type": "string"
+        },
+        "command": {
+          "description": "Command to execute. Supports `${VAR}` interpolation.",
+          "type": "string",
+          "default": ""
+        },
+        "args": {
+          "description": "Command arguments. Each element supports `${VAR}` interpolation.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "env": {
+          "description": "Environment variables passed to the MCP server process.\nValues support `${VAR}` interpolation.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "enabled": {
+          "description": "Whether this server is enabled. Allows disabling without removing config.",
+          "type": "boolean",
+          "default": true
+        },
+        "discover_from": {
+          "description": "Path to a JSON sidecar discovery file. Relative paths resolve from\nthe project directory. The sidecar must contain `{ \"mcpServer\": { ... } }`.\nWhen the file exists, its `mcpServer` spec is used verbatim (overriding\n`command`/`args`/`env`). When absent and `command` is empty, the server\nis silently skipped.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "AcpConfig": {
+      "description": "Agent Client Protocol (ACP) agent configuration.\n\nOperator runs as an ACP agent over stdio when editors (Zed, `JetBrains`,\nEmacs `agent-shell`, Kiro, etc.) spawn `operator acp`. Each ACP session\nmaps to an in-progress ACP ticket and a delegator subprocess.",
+      "type": "object",
+      "properties": {
+        "stdio_advertised": {
+          "description": "Whether the dashboard advertises the `operator acp` stdio entrypoint\n(and editor-config snippet actions). Set to false on machines that\nshouldn't be used as ACP agents.",
+          "type": "boolean",
+          "default": true
+        },
+        "default_delegator": {
+          "description": "Name of the delegator (from `[[delegators]]`) to use for ACP prompts.\nIf unset or not found, falls back to the operator's default delegator\nresolution.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "max_concurrent_sessions": {
+          "description": "Maximum number of concurrent ACP sessions. New `session/new` requests\nbeyond this limit are rejected with a JSON-RPC error.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 8
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Platform Support & Limitations | Operator! Documentation</title>
+  <meta name="description" content="What works on each operating system and which features are unavailable on specific platforms.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Platform Support &amp; Limitations | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Platform Support &amp; Limitations" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="What works on each operating system and which features are unavailable on specific platforms." />
+<meta name="twitter:description" property="og:description" content="What works on each operating system and which features are unavailable on specific platforms." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/platform-support/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/platform-support/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Platform Support &amp; Limitations" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"What works on each operating system and which features are unavailable on specific platforms.","headline":"Platform Support &amp; Limitations","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/platform-support/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" class="active" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" >AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/platform-support.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.2</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-16</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Platform Support & Limitations</h1>
+  
+
+  <h1 id="platform-support--limitations">Platform Support &amp; Limitations</h1>
+
+<p>This page is the authoritative reference for what Operator supports on each operating system. Each gap is tagged as one of: <strong>not applicable</strong> (the underlying tool doesn’t exist on that OS), <strong>blocked</strong> (a dependency prevents support and a workaround is needed), or <strong>planned</strong> (the intent is to support it; no timeline committed).</p>
+
+<h2 id="quick-reference-matrix">Quick Reference Matrix</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>macOS</th>
+      <th>Linux</th>
+      <th>Windows</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Session manager: VS Code Extension</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>✅ Required</td>
+    </tr>
+    <tr>
+      <td>Session manager: Cursor</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>Session manager: tmux</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td>Session manager: cmux</td>
+      <td>✅</td>
+      <td>❌</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td>Session manager: Zellij</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td>Relay hub (multi-agent)</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">opr8r relay</code> subcommand</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td>Native OS notifications</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>⚠️</td>
+    </tr>
+    <tr>
+      <td>Kanban: Jira Cloud</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>Kanban: Linear</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>Kanban: GitHub Issues</td>
+      <td>⚠️</td>
+      <td>⚠️</td>
+      <td>⚠️</td>
+    </tr>
+    <tr>
+      <td>Git: GitHub (<code class="language-plaintext highlighter-rouge">gh</code>)</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>Git: GitLab (<code class="language-plaintext highlighter-rouge">glab</code>)</td>
+      <td>⚠️</td>
+      <td>⚠️</td>
+      <td>⚠️</td>
+    </tr>
+    <tr>
+      <td>Agent: Claude Code</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>Agent: Codex</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>Agent: Gemini CLI</td>
+      <td>⚠️</td>
+      <td>⚠️</td>
+      <td>⚠️</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Legend:</strong> ✅ Fully supported  ·  ❌ Not available  ·  ⚠️ Partial / planned</p>
+
+<hr />
+
+<h2 id="windows">Windows</h2>
+
+<p>Windows is a supported download target. The step-wrapper (<code class="language-plaintext highlighter-rouge">opr8r</code>), REST API, kanban sync, and VS Code extension all work. The following features are currently unavailable on Windows.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Status</th>
+      <th>Reason</th>
+      <th>Workaround</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Relay hub / <code class="language-plaintext highlighter-rouge">opr8r relay</code></td>
+      <td>❌ Blocked</td>
+      <td>Requires Unix domain sockets (<code class="language-plaintext highlighter-rouge">tokio::net::unix</code>), which are not available on Windows</td>
+      <td>None yet. Planned: named-pipe or TCP-loopback transport in a future release</td>
+    </tr>
+    <tr>
+      <td>tmux session manager</td>
+      <td>❌ N/A</td>
+      <td>tmux does not run on Windows</td>
+      <td>Use the VS Code Extension</td>
+    </tr>
+    <tr>
+      <td>cmux session manager</td>
+      <td>❌ N/A</td>
+      <td>cmux is macOS-specific</td>
+      <td>Use the VS Code Extension</td>
+    </tr>
+    <tr>
+      <td>Zellij session manager</td>
+      <td>❌ N/A</td>
+      <td>Zellij does not run on Windows</td>
+      <td>Use the VS Code Extension</td>
+    </tr>
+    <tr>
+      <td>Native OS notifications</td>
+      <td>⚠️ Planned</td>
+      <td>Platform notification crates (<code class="language-plaintext highlighter-rouge">mac-notification-sys</code>, <code class="language-plaintext highlighter-rouge">notify-rust</code>) are Unix-only; a Windows crate has not been integrated</td>
+      <td>Notifications fall back to log output only</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="linux">Linux</h2>
+
+<p>Linux is a first-class platform. One known gap:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Status</th>
+      <th>Reason</th>
+      <th>Workaround</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>cmux session manager</td>
+      <td>❌ N/A</td>
+      <td>cmux is a macOS-specific terminal multiplexer</td>
+      <td>Use tmux or the VS Code Extension</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="macos">macOS</h2>
+
+<p>macOS is the primary development platform. No known feature gaps.</p>
+
+<hr />
+
+<h2 id="integration-level-gaps-all-platforms">Integration-Level Gaps (all platforms)</h2>
+
+<p>These gaps apply on every operating system because the integration itself is not fully implemented.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Status</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Kanban: GitHub Issues</td>
+      <td>⚠️ Detection only</td>
+      <td>GitHub Issues is detected as a provider but full two-way sync (create, update, close) is not implemented. Only Jira Cloud and Linear have full sync.</td>
+    </tr>
+    <tr>
+      <td>Git: GitLab (<code class="language-plaintext highlighter-rouge">glab</code>)</td>
+      <td>⚠️ Detection only</td>
+      <td>GitLab is detected via the <code class="language-plaintext highlighter-rouge">glab</code> CLI for branch and PR metadata, but PR creation and status webhooks are not implemented.</td>
+    </tr>
+    <tr>
+      <td>Git: Bitbucket, Azure DevOps</td>
+      <td>⚠️ Detection only</td>
+      <td>Detected via their respective CLIs; no PR workflow integration.</td>
+    </tr>
+    <tr>
+      <td>Agent: Gemini CLI</td>
+      <td>⚠️ Experimental</td>
+      <td>Session detection and artifact parsing are less battle-tested than Claude Code. Some multi-step issue-type flows may behave unexpectedly.</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="reporting-a-gap">Reporting a Gap</h2>
+
+<p>If you hit a limitation not listed here, please <a href="https://github.com/untra/operator/issues" target="_blank">open an issue on GitHub</a>.</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

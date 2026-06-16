@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ollama | Operator! Documentation</title>
+  <meta name="description" content="Run local open models with Ollama as an Operator model provider.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Ollama | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Ollama" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Run local open models with Ollama as an Operator model provider." />
+<meta name="twitter:description" property="og:description" content="Run local open models with Ollama as an Operator model provider." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/model-servers/ollama/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/model-servers/ollama/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Ollama" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Run local open models with Ollama as an Operator model provider.","headline":"Ollama","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/model-servers/ollama/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" >AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/model-servers/ollama.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.2</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-16</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Ollama</h1>
+  
+
+  <h1 id="ollama">Ollama</h1>
+
+<p><a href="https://ollama.com/"><strong>Ollama</strong></a> runs open models (Llama, Qwen, Mistral, …)
+locally and serves them over an OpenAI-compatible API. Declare it as a
+<a href="./">model server</a> to drive agents against models on your own machine — no cloud
+key required.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<ul>
+  <li>Ollama installed and running: <a href="https://ollama.com/download">ollama.com/download</a>,
+then <code class="language-plaintext highlighter-rouge">ollama serve</code> (default <code class="language-plaintext highlighter-rouge">http://localhost:11434</code>)</li>
+  <li>At least one model pulled, e.g. <code class="language-plaintext highlighter-rouge">ollama pull qwen2.5-coder</code></li>
+  <li>An OpenAI-protocol LLM tool — <strong>codex</strong> works directly; claude/gemini need a
+bridge (see <a href="./#protocol-compatibility">Protocol compatibility</a>)</li>
+</ul>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>Declare the server in <code class="language-plaintext highlighter-rouge">operator.toml</code> (no API key needed for a local server):</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">model_servers</span><span class="k">]]</span>
+<span class="n">name</span> <span class="o">=</span><span class="w"> </span><span class="s">"ollama-local"</span>
+<span class="n">kind</span> <span class="o">=</span><span class="w"> </span><span class="s">"ollama"</span>
+<span class="n">base_url</span> <span class="o">=</span><span class="w"> </span><span class="s">"http://localhost:11434"</span>
+<span class="n">display_name</span> <span class="o">=</span><span class="w"> </span><span class="s">"Ollama (local)"</span>
+</code></pre></div></div>
+
+<p>Then reference it from a delegator:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span> <span class="o">=</span><span class="w"> </span><span class="s">"codex-local-qwen"</span>
+<span class="n">llm_tool</span> <span class="o">=</span><span class="w"> </span><span class="s">"codex"</span>
+<span class="n">model</span> <span class="o">=</span><span class="w"> </span><span class="s">"qwen2.5-coder"</span>
+<span class="n">model_server</span> <span class="o">=</span><span class="w"> </span><span class="s">"ollama-local"</span>
+</code></pre></div></div>
+
+<h2 id="listing-models">Listing models</h2>
+
+<p>Ollama enumerates its pulled models at <code class="language-plaintext highlighter-rouge">/api/tags</code>. Operator probes it for the
+live list (which doubles as a reachability check):</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># REST</span>
+GET /api/v1/model-servers/ollama-local/models   <span class="c"># { reachable, models[], error? }</span>
+</code></pre></div></div>
+
+<p>In the VS Code status tree, expand the <code class="language-plaintext highlighter-rouge">ollama-local</code> server to browse the models
+you’ve pulled.</p>
+
+<h2 id="how-env-injection-works">How env injection works</h2>
+
+<p>Ollama speaks the OpenAI protocol, so when a delegator resolves to it Operator
+exports <code class="language-plaintext highlighter-rouge">OPENAI_BASE_URL=http://localhost:11434</code>. A local server needs no key; if
+you’ve put one behind a proxy, set <code class="language-plaintext highlighter-rouge">api_key_env</code> and it is injected <strong>by
+reference</strong>. See the <a href="./#how-env-injection-works">Model Providers overview</a> for
+the full mechanism.</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

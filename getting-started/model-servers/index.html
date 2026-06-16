@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supported Model Providers | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Supported Model Providers | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Supported Model Providers" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta name="twitter:description" property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/getting-started/model-servers/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/model-servers/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Supported Model Providers" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Supported Model Providers","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/model-servers/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link active">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" >AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/model-servers/index.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.2</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-16</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <h1 id="model-providers">Model Providers</h1>
+
+<p>A <strong>model server</strong> is a named host that serves models via an inference API. It’s orthogonal to the LLM tool that runs your coding agent:</p>
+
+<ul>
+  <li><strong>LLM tools</strong> (claude, codex, gemini) are the agentic CLIs that drive the coding session — they use tools, edit files, resume sessions.</li>
+  <li><strong>Model servers</strong> are where the model weights live — Anthropic’s API, OpenAI’s API, Google’s API, or a many-model provider like <a href="openrouter/">OpenRouter</a>, a local <a href="ollama/">Ollama</a> server, lmstudio, or vllm.</li>
+</ul>
+
+<p>A delegator pairs an LLM tool with a model (and, optionally, a model server).</p>
+
+<h2 id="two-families">Two families</h2>
+
+<p>Every kind is a <strong>model provider</strong>. They split into two classes — the grouping
+every surface (README badges, the status tree, the REST <code class="language-plaintext highlighter-rouge">/kinds</code> catalog) derives
+from <code class="language-plaintext highlighter-rouge">ModelServerKind::provider_class()</code>:</p>
+
+<ul>
+  <li><strong>First-party</strong> — a single vendor’s own API: <a href="anthropic/">Anthropic</a>
+(<code class="language-plaintext highlighter-rouge">anthropic-api</code>), <a href="openai/">OpenAI</a> (<code class="language-plaintext highlighter-rouge">openai-api</code>), <a href="google/">Google</a>
+(<code class="language-plaintext highlighter-rouge">google-api</code>). These double as the zero-config defaults for the
+claude/codex/gemini tools, so you rarely declare them — but they’re first-class:
+operator lists each one’s live models from its <code class="language-plaintext highlighter-rouge">/models</code> endpoint when the
+corresponding key env is set.</li>
+  <li><strong>Gateways</strong> — a host or aggregator that fronts <em>many</em> models behind one
+endpoint: <a href="openrouter/">OpenRouter</a> (<code class="language-plaintext highlighter-rouge">openrouter</code>), a local <a href="ollama/">Ollama</a>
+server (<code class="language-plaintext highlighter-rouge">ollama</code>), or any <code class="language-plaintext highlighter-rouge">openai-compat</code> / <code class="language-plaintext highlighter-rouge">lmstudio</code> server. Declare one to
+reach its whole catalog.</li>
+</ul>
+
+<p><code class="language-plaintext highlighter-rouge">provider_class()</code> (first-party vs gateway) answers a different question than
+<code class="language-plaintext highlighter-rouge">is_builtin()</code> (whether the kind is a zero-config default that can’t be deleted).</p>
+
+<h2 id="the-three-layer-hierarchy">The three-layer hierarchy</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>┌─ llm_tools ─────────┐   ┌─ model_servers ──────┐
+│ claude  (detected)  │   │ anthropic-api (impl.)│
+│ codex   (detected)  │   │ openai-api    (impl.)│
+│ gemini  (detected)  │   │ google-api    (impl.)│
+│                     │   │ ollama-local  (user) │
+└─────────────────────┘   └──────────────────────┘
+            ▲                        ▲
+            │                        │
+            └───── delegators ───────┘
+   name, llm_tool, model, model_server (optional)
+</code></pre></div></div>
+
+<h2 id="zero-config-defaults">Zero-config defaults</h2>
+
+<p>You don’t need to declare a model server for the vendor-default path. Every detected LLM tool has an implicit first-party default:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>llm_tool</th>
+      <th>implicit model_server</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">claude</code></td>
+      <td><code class="language-plaintext highlighter-rouge">anthropic-api</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">codex</code></td>
+      <td><code class="language-plaintext highlighter-rouge">openai-api</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gemini</code></td>
+      <td><code class="language-plaintext highlighter-rouge">google-api</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Delegators that omit <code class="language-plaintext highlighter-rouge">model_server</code> resolve to these builtins automatically. Existing configs keep working unchanged.</p>
+
+<h2 id="kinds">Kinds</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th><code class="language-plaintext highlighter-rouge">kind</code></th>
+      <th>Use for</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">anthropic-api</code></td>
+      <td>Anthropic Console / a compatible proxy (bridge for local models)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">openai-api</code></td>
+      <td>OpenAI / a compatible proxy</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">google-api</code></td>
+      <td>Google Gemini API</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">ollama</code></td>
+      <td>Local ollama server (<code class="language-plaintext highlighter-rouge">ollama serve</code>, default <code class="language-plaintext highlighter-rouge">http://localhost:11434</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">openrouter</code></td>
+      <td><a href="openrouter/">OpenRouter</a> hosted gateway to 300+ models (<code class="language-plaintext highlighter-rouge">https://openrouter.ai/api/v1</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">openai-compat</code></td>
+      <td>Any OpenAI-API-compatible server (vllm, lmstudio, together.ai, groq, …)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">lmstudio</code></td>
+      <td>LM Studio’s local server</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="declaring-a-model-server">Declaring a model server</h2>
+
+<p>Edit <code class="language-plaintext highlighter-rouge">operator.toml</code> (or create a delegator via the REST API / VS Code status tree):</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">model_servers</span><span class="k">]]</span>
+<span class="n">name</span> <span class="o">=</span><span class="w"> </span><span class="s">"ollama-local"</span>
+<span class="n">kind</span> <span class="o">=</span><span class="w"> </span><span class="s">"ollama"</span>
+<span class="n">base_url</span> <span class="o">=</span><span class="w"> </span><span class="s">"http://localhost:11434"</span>
+<span class="n">display_name</span> <span class="o">=</span><span class="w"> </span><span class="s">"Ollama (local)"</span>
+</code></pre></div></div>
+
+<p>Then reference it from a delegator:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span> <span class="o">=</span><span class="w"> </span><span class="s">"codex-local-qwen"</span>
+<span class="n">llm_tool</span> <span class="o">=</span><span class="w"> </span><span class="s">"codex"</span>
+<span class="n">model</span> <span class="o">=</span><span class="w"> </span><span class="s">"qwen2.5-coder"</span>
+<span class="n">model_server</span> <span class="o">=</span><span class="w"> </span><span class="s">"ollama-local"</span>
+</code></pre></div></div>
+
+<h2 id="ad-hoc-cli-usage">Ad-hoc CLI usage</h2>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Named delegator (recommended for repeatable runs)</span>
+operator launch <span class="nt">--delegator</span> codex-local-qwen
+
+<span class="c"># Ad-hoc overrides (for one-off experiments)</span>
+operator launch <span class="se">\</span>
+  <span class="nt">--llm-tool</span> codex <span class="se">\</span>
+  <span class="nt">--model</span> qwen2.5-coder <span class="se">\</span>
+  <span class="nt">--model-server</span> ollama-local
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">--delegator</code> and the ad-hoc trio (<code class="language-plaintext highlighter-rouge">--llm-tool</code>, <code class="language-plaintext highlighter-rouge">--model</code>, <code class="language-plaintext highlighter-rouge">--model-server</code>) are mutually exclusive.</p>
+
+<h2 id="protocol-compatibility">Protocol compatibility</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>llm_tool</th>
+      <th>ollama-compatible?</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">codex</code></td>
+      <td>Yes, directly</td>
+      <td>Codex speaks OpenAI API; ollama exposes <code class="language-plaintext highlighter-rouge">/v1</code> out of the box.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">claude</code></td>
+      <td>Only via bridge</td>
+      <td>Claude CLI speaks Anthropic protocol. Run <code class="language-plaintext highlighter-rouge">claude-code-router</code> (or similar) at a port and point <code class="language-plaintext highlighter-rouge">base_url</code> at that bridge with <code class="language-plaintext highlighter-rouge">kind = "anthropic-api"</code>.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gemini</code></td>
+      <td>Only via bridge</td>
+      <td>Same story as claude; use <code class="language-plaintext highlighter-rouge">litellm-proxy</code> or similar.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="listing-models">Listing models</h2>
+
+<p>Each kind knows how to enumerate the models its endpoint serves (ollama <code class="language-plaintext highlighter-rouge">/api/tags</code>,
+OpenAI-protocol <code class="language-plaintext highlighter-rouge">/v1/models</code>, Anthropic <code class="language-plaintext highlighter-rouge">/v1/models</code>, Gemini <code class="language-plaintext highlighter-rouge">/v1beta/models</code>). The
+same probe doubles as a reachability check — there is no separate “test connection”.</p>
+
+<ul>
+  <li><strong>REST</strong>: <code class="language-plaintext highlighter-rouge">GET /api/v1/model-servers/{name}/models</code> returns <code class="language-plaintext highlighter-rouge">{ reachable, models[], error? }</code>.</li>
+  <li><strong>VS Code</strong>: expand a server in the status tree to see its live model list (or an
+“unreachable” line with the error).</li>
+</ul>
+
+<h2 id="rest-api">REST API</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET    /api/v1/model-servers          # list (declared + implicit builtins)
+GET    /api/v1/model-servers/kinds    # the supported-kind catalog (single source of truth)
+GET    /api/v1/model-servers/kinds/{slug}/models  # live models for a provider (connection check)
+GET    /api/v1/model-servers/{name}   # fetch by name
+GET    /api/v1/model-servers/{name}/models  # live model list + reachability
+POST   /api/v1/model-servers          # create
+PUT    /api/v1/model-servers/{name}   # update (implicit builtins are protected)
+DELETE /api/v1/model-servers/{name}   # delete (implicit builtins are protected)
+</code></pre></div></div>
+
+<h2 id="how-env-injection-works">How env injection works</h2>
+
+<p>When a delegator (or the ad-hoc <code class="language-plaintext highlighter-rouge">--model-server</code> flag) resolves to a model server,
+operator exports the server’s connection env into the spawned agent’s command script,
+keyed by the server’s protocol:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>kind</th>
+      <th>base URL var</th>
+      <th>API key var (mapped from <code class="language-plaintext highlighter-rouge">api_key_env</code>)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">anthropic-api</code></td>
+      <td><code class="language-plaintext highlighter-rouge">ANTHROPIC_BASE_URL</code></td>
+      <td><code class="language-plaintext highlighter-rouge">ANTHROPIC_API_KEY</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">openai-api</code> / <code class="language-plaintext highlighter-rouge">openai-compat</code> / <code class="language-plaintext highlighter-rouge">ollama</code> / <code class="language-plaintext highlighter-rouge">openrouter</code> / <code class="language-plaintext highlighter-rouge">lmstudio</code></td>
+      <td><code class="language-plaintext highlighter-rouge">OPENAI_BASE_URL</code></td>
+      <td><code class="language-plaintext highlighter-rouge">OPENAI_API_KEY</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">google-api</code></td>
+      <td><code class="language-plaintext highlighter-rouge">GOOGLE_GEMINI_BASE_URL</code></td>
+      <td><code class="language-plaintext highlighter-rouge">GEMINI_API_KEY</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The API key is injected <strong>by reference</strong>, not by value: if <code class="language-plaintext highlighter-rouge">api_key_env = "MY_KEY"</code>,
+the script exports <code class="language-plaintext highlighter-rouge">OPENAI_API_KEY="${MY_KEY}"</code>, which the shell resolves from the
+inherited environment at run time. The secret is never written into the on-disk
+command script. Any <code class="language-plaintext highlighter-rouge">extra_env</code> entries are exported verbatim and take precedence.
+Implicit builtins with no <code class="language-plaintext highlighter-rouge">base_url</code> inject nothing — the vendor-default path is unchanged.</p>
+
+<p><strong>Still deferred:</strong></p>
+
+<ul>
+  <li>Automatic ollama detection during <code class="language-plaintext highlighter-rouge">operator setup</code></li>
+  <li>Full walkthroughs / bundled binaries for wiring up claude/gemini via a bridge</li>
+  <li>A primary “select server” UI action (selecting a server is currently inert; use a
+delegator’s <code class="language-plaintext highlighter-rouge">model_server</code> to bind one)</li>
+</ul>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

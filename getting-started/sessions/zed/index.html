@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zed | Operator! Documentation</title>
+  <meta name="description" content="Zed editor integration for Operator via MCP context server, ACP agent, and slash commands.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Zed | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Zed" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Zed editor integration for Operator via MCP context server, ACP agent, and slash commands." />
+<meta name="twitter:description" property="og:description" content="Zed editor integration for Operator via MCP context server, ACP agent, and slash commands." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/sessions/zed/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/sessions/zed/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Zed" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Zed editor integration for Operator via MCP context server, ACP agent, and slash commands.","headline":"Zed","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/sessions/zed/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" >AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/sessions/zed.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.2</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-16</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Zed</h1>
+  
+
+  <h1 id="zed">Zed</h1>
+
+<p><span class="badge alpha">Alpha</span></p>
+
+<div class="alpha-banner">
+This integration is in alpha and may have limited functionality or incomplete support.
+</div>
+
+<p>The <a href="https://zed.dev">Zed</a> extension for Operator provides three integration layers: an MCP context server for tools and resources, an ACP agent server for delegated prompts, and slash commands for quick operations.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<ul>
+  <li><a href="https://operator.untra.io">Operator</a> installed and on PATH</li>
+  <li>Zed editor</li>
+</ul>
+
+<h2 id="installation">Installation</h2>
+
+<ol>
+  <li>Open Zed</li>
+  <li>Open the Extensions panel (<strong>Zed &gt; Extensions</strong> or <code class="language-plaintext highlighter-rouge">Cmd+Shift+X</code>)</li>
+  <li>Search for <strong>Operator</strong></li>
+  <li>Click <strong>Install</strong></li>
+</ol>
+
+<h2 id="setup">Setup</h2>
+
+<h3 id="mcp-context-server-automatic">MCP Context Server (automatic)</h3>
+
+<p>After installing the extension, Zed automatically registers <code class="language-plaintext highlighter-rouge">operator mcp</code> as a context server. All Operator tools appear in the Agent Panel:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">operator_health</code> / <code class="language-plaintext highlighter-rouge">operator_status</code> — system health</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_list_tickets</code> — query queue, in-progress, completed tickets</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_claim_ticket</code> / <code class="language-plaintext highlighter-rouge">operator_complete_ticket</code> / <code class="language-plaintext highlighter-rouge">operator_return_to_queue</code> — ticket lifecycle</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_create_ticket</code> — create tickets from templates</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_list_issue_types</code> / <code class="language-plaintext highlighter-rouge">operator_list_collections</code> / <code class="language-plaintext highlighter-rouge">operator_list_skills</code> — registry queries</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_launch_ticket</code> / <code class="language-plaintext highlighter-rouge">operator_pause_queue</code> / <code class="language-plaintext highlighter-rouge">operator_resume_queue</code> — queue operations</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_approve_agent</code> / <code class="language-plaintext highlighter-rouge">operator_reject_agent</code> — review actions</li>
+</ul>
+
+<p>If the <code class="language-plaintext highlighter-rouge">operator</code> binary is not found, the extension shows installation instructions.</p>
+
+<h3 id="acp-agent-server-one-time-setup">ACP Agent Server (one-time setup)</h3>
+
+<p>Run <code class="language-plaintext highlighter-rouge">/op-setup-agent</code> in the AI assistant to generate the config snippet, then paste it into <code class="language-plaintext highlighter-rouge">~/.config/zed/settings.json</code>. After restarting Zed, Operator appears as an agent in the Agent Panel — you can send prompts that flow through ACP to a Claude Code delegator.</p>
+
+<h2 id="slash-commands">Slash Commands</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-status</code></td>
+      <td>Show Operator health and status</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-queue</code></td>
+      <td>List tickets in queue</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-launch TICKET-ID</code></td>
+      <td>Launch a ticket</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-active</code></td>
+      <td>List active agents</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-completed</code></td>
+      <td>List recently completed tickets</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-ticket TICKET-ID</code></td>
+      <td>Show ticket details</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-pause</code></td>
+      <td>Pause queue processing</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-resume</code></td>
+      <td>Resume queue processing</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-sync</code></td>
+      <td>Sync kanban collections</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-approve AGENT-ID</code></td>
+      <td>Approve agent review</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-reject AGENT-ID REASON</code></td>
+      <td>Reject agent review</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/op-setup-agent</code></td>
+      <td>Generate ACP agent server config</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Commands with arguments support tab-completion from live API data.</p>
+
+<h2 id="how-it-works">How It Works</h2>
+
+<p>Operator integrates with Zed through three communication channels:</p>
+
+<ul>
+  <li><strong>MCP Context Server</strong> — Runs <code class="language-plaintext highlighter-rouge">operator mcp</code> via stdio. Tools and ticket resources appear natively in the Agent Panel without additional configuration.</li>
+  <li><strong>ACP Agent Server</strong> — Runs <code class="language-plaintext highlighter-rouge">operator acp</code> via stdio. Prompts sent to the Operator agent flow through a delegator to Claude Code, with streaming output back to Zed.</li>
+  <li><strong>Slash Commands</strong> — Communicate with the Operator REST API for quick status checks and operations directly in the AI assistant.</li>
+</ul>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>The Operator binary must be on your PATH. The extension also checks common install locations (<code class="language-plaintext highlighter-rouge">/usr/local/bin</code>, <code class="language-plaintext highlighter-rouge">/opt/homebrew/bin</code>). The REST API URL for slash commands defaults to <code class="language-plaintext highlighter-rouge">http://localhost:7008</code>.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="mcp-tools-not-appearing">MCP tools not appearing</h3>
+
+<ol>
+  <li>Verify Operator is on PATH: <code class="language-plaintext highlighter-rouge">which operator</code></li>
+  <li>Test MCP server: <code class="language-plaintext highlighter-rouge">operator mcp</code> (should wait for JSON-RPC input)</li>
+  <li>Check Zed’s extension logs: <strong>View &gt; Output &gt; Extensions</strong></li>
+</ol>
+
+<h3 id="slash-commands-failing">Slash commands failing</h3>
+
+<ol>
+  <li>Check that Operator API is running: <code class="language-plaintext highlighter-rouge">operator api</code></li>
+  <li>Verify connectivity: <code class="language-plaintext highlighter-rouge">curl http://localhost:7008/api/v1/health</code></li>
+</ol>
+
+<h3 id="extension-not-appearing">Extension not appearing</h3>
+
+<ol>
+  <li>Open the Extensions panel and verify Operator is listed as installed</li>
+  <li>Try <strong>Zed &gt; Extensions &gt; Reload</strong> or restart Zed</li>
+</ol>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

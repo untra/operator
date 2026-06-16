@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Issue Type Schema | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Issue Type Schema | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Issue Type Schema" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta name="twitter:description" property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/schemas/issuetype/" />
+<meta property="og:url" content="https://operator.untra.io/schemas/issuetype/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Issue Type Schema" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Issue Type Schema","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/schemas/issuetype/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" >AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" class="active"
+                    >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/schemas/issuetype.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.2</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-16</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Issue Type Schema</h1>
+  
+
+  <!-- AUTO-GENERATED FROM src/templates/schema.rs (TemplateSchema) - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+<h1 id="issue-type-schema">Issue Type Schema</h1>
+
+<p>Schema definition for an issuetype template</p>
+
+<h2 id="schema-information">Schema Information</h2>
+
+<ul>
+  <li><strong>$schema</strong>: <code class="language-plaintext highlighter-rouge">https://json-schema.org/draft/2020-12/schema</code></li>
+  <li><strong>$id</strong>: <code class="language-plaintext highlighter-rouge">N/A</code></li>
+</ul>
+
+<h2 id="required-fields">Required Fields</h2>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">key</code></li>
+  <li><code class="language-plaintext highlighter-rouge">name</code></li>
+  <li><code class="language-plaintext highlighter-rouge">description</code></li>
+  <li><code class="language-plaintext highlighter-rouge">mode</code></li>
+  <li><code class="language-plaintext highlighter-rouge">glyph</code></li>
+  <li><code class="language-plaintext highlighter-rouge">fields</code></li>
+  <li><code class="language-plaintext highlighter-rouge">steps</code></li>
+</ul>
+
+<h2 id="properties">Properties</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">key</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Unique issuetype key (e.g., FEAT, FIX, SPIKE, INV, TASK)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Display name of the template type</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">description</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Brief description of when to use this template</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">mode</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">ExecutionMode</code></td>
+      <td>Yes</td>
+      <td>Whether this issuetype runs autonomously or requires human pairing</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">glyph</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Glyph character displayed in UI for this issuetype</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">color</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional color for glyph display in TUI</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">project_required</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether a project must be specified for this issuetype</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">fields</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>Field definitions for this template</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">steps</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>Lifecycle steps for completing this ticket type</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional prompt for work launching (interpolated with handlebars)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">agent_prompt</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Prompt for generating this issue type’s operator agent via <code class="language-plaintext highlighter-rouge">claude -p</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">agent</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Default delegator name for this issuetype (overridden by step.agent)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="key">key</h3>
+
+<ul>
+  <li><strong>Description</strong>: Unique issuetype key (e.g., FEAT, FIX, SPIKE, INV, TASK)</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">string</code></li>
+</ul>
+
+<h3 id="name">name</h3>
+
+<ul>
+  <li><strong>Description</strong>: Display name of the template type</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">string</code></li>
+</ul>
+
+<h3 id="description">description</h3>
+
+<ul>
+  <li><strong>Description</strong>: Brief description of when to use this template</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">string</code></li>
+</ul>
+
+<h3 id="mode">mode</h3>
+
+<ul>
+  <li><strong>Description</strong>: Whether this issuetype runs autonomously or requires human pairing</li>
+  <li><strong>Type</strong>: → <code class="language-plaintext highlighter-rouge">ExecutionMode</code></li>
+</ul>
+
+<h3 id="glyph">glyph</h3>
+
+<ul>
+  <li><strong>Description</strong>: Glyph character displayed in UI for this issuetype</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">string</code></li>
+</ul>
+
+<h3 id="color">color</h3>
+
+<ul>
+  <li><strong>Description</strong>: Optional color for glyph display in TUI</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></li>
+  <li><strong>Default</strong>: <code class="language-plaintext highlighter-rouge">null</code></li>
+</ul>
+
+<h3 id="project_required">project_required</h3>
+
+<ul>
+  <li><strong>Description</strong>: Whether a project must be specified for this issuetype</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">boolean</code></li>
+  <li><strong>Default</strong>: <code class="language-plaintext highlighter-rouge">true</code></li>
+</ul>
+
+<h3 id="fields">fields</h3>
+
+<ul>
+  <li><strong>Description</strong>: Field definitions for this template</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">array</code></li>
+</ul>
+
+<h3 id="steps">steps</h3>
+
+<ul>
+  <li><strong>Description</strong>: Lifecycle steps for completing this ticket type</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">array</code></li>
+</ul>
+
+<h3 id="prompt">prompt</h3>
+
+<ul>
+  <li><strong>Description</strong>: Optional prompt for work launching (interpolated with handlebars)</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></li>
+  <li><strong>Default</strong>: <code class="language-plaintext highlighter-rouge">null</code></li>
+</ul>
+
+<h3 id="agent_prompt">agent_prompt</h3>
+
+<ul>
+  <li><strong>Description</strong>: Prompt for generating this issue type’s operator agent via <code class="language-plaintext highlighter-rouge">claude -p</code></li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></li>
+  <li><strong>Default</strong>: <code class="language-plaintext highlighter-rouge">null</code></li>
+</ul>
+
+<h3 id="agent">agent</h3>
+
+<ul>
+  <li><strong>Description</strong>: Default delegator name for this issuetype (overridden by step.agent)</li>
+  <li><strong>Type</strong>: <code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></li>
+  <li><strong>Default</strong>: <code class="language-plaintext highlighter-rouge">null</code></li>
+</ul>
+
+<h2 id="definitions">Definitions</h2>
+
+<h3 id="definition-executionmode">Definition: ExecutionMode</h3>
+
+<p>Execution mode for an issuetype</p>
+
+<h3 id="definition-fieldschema">Definition: FieldSchema</h3>
+
+<p>Schema definition for a single field in a template</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Field identifier (matches handlebar variable name)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">description</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Help text for the field</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">type</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">FieldType</code></td>
+      <td>Yes</td>
+      <td>Type of the field</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">required</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether this field must be filled</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">default</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Default value if any</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">auto</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Auto-generation strategy for this field</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">options</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Options for enum fields</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">placeholder</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Placeholder text shown in template</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">max_length</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Maximum length for string fields</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">display_order</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Display order in form (lower = first)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">user_editable</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether the user can edit this field (false for auto-generated)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-fieldtype">Definition: FieldType</h3>
+
+<p>Types of fields supported in template schemas</p>
+
+<h3 id="definition-autogenstrategy">Definition: AutoGenStrategy</h3>
+
+<p>Auto-generation strategies for fields</p>
+
+<h3 id="definition-stepschema">Definition: StepSchema</h3>
+
+<p>Schema definition for a lifecycle step</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Step identifier (lowercase)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">display_name</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Human-readable step name</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">type</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">StepTypeTag</code></td>
+      <td>No</td>
+      <td>Step type discriminator (defaults to “task” for backward compatibility)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">outputs</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>Types of outputs this step produces</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Initial prompt template for the Claude agent</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">review_type</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">ReviewType</code></td>
+      <td>No</td>
+      <td>Type of review required for this step (none, plan, visual, pr)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">visual_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Configuration for visual review (required when <code class="language-plaintext highlighter-rouge">review_type</code> is “visual”)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">on_reject</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>What to do if step output is rejected</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">next_step</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Name of the next step (None for final step)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">allowed_tools</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Claude Code tools allowed in this step</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">agent</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional agent (delegator) name for this step (overrides ticket’s default agent)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">permissions</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Provider-agnostic permissions for this step</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">cli_args</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Arbitrary CLI arguments per provider</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">permission_mode</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">PermissionMode</code></td>
+      <td>No</td>
+      <td>Preferred LLM permission mode for this step</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">jsonSchema</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Inline JSON schema for structured output (Claude-specific)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">jsonSchemaFile</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Path to JSON schema file for structured output (Claude-specific)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">artifact_patterns</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>File glob patterns in the worktree that signal this step is complete</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">classifier_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Configuration for classifier steps (required when type=classifier)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">rag_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Configuration for RAG steps (required when type=rag)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">delegator_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Configuration for delegator steps (required when type=delegator)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">mcp_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Configuration for MCP steps (required when type=mcp)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">multi_model_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Configuration for multi-model steps (required when <code class="language-plaintext highlighter-rouge">type=multi_model</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">multi_prompt_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Configuration for multi-prompt steps (required when <code class="language-plaintext highlighter-rouge">type=multi_prompt</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">matrixed_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Configuration for matrixed steps (required when type=matrixed)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">pipeline_config</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Configuration for pipeline steps (required when type=pipeline)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-steptypetag">Definition: StepTypeTag</h3>
+
+<p>Discriminator tag for step types</p>
+
+<h3 id="definition-stepoutput">Definition: StepOutput</h3>
+
+<p>Types of outputs a step can produce</p>
+
+<h3 id="definition-reviewtype">Definition: ReviewType</h3>
+
+<p>Type of review required for a step</p>
+
+<h3 id="definition-visualreviewconfig">Definition: VisualReviewConfig</h3>
+
+<p>Configuration for visual review steps</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">url</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>URL to open for visual check (supports handlebars templates)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">startup_command</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional startup command (e.g., dev server) to run before opening browser</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">startup_timeout_secs</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Timeout in seconds for server startup (default: 30)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-onreject">Definition: OnReject</h3>
+
+<p>Action to take when a step is rejected</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">goto_step</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Step name to return to on rejection</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Prompt to use when restarting after rejection</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-steppermissions">Definition: StepPermissions</h3>
+
+<p>Complete permission set for a step (as defined in issuetype schema)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tools</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">ToolPermissions</code></td>
+      <td>No</td>
+      <td>Tool-level allow/deny lists</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">directories</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">DirectoryPermissions</code></td>
+      <td>No</td>
+      <td>Directory-level allow/deny lists</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">mcp_servers</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">McpServerPermissions</code></td>
+      <td>No</td>
+      <td>MCP server enable/disable configuration</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">custom_flags</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">CustomFlags</code></td>
+      <td>No</td>
+      <td>Per-provider custom configuration flags</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-toolpermissions">Definition: ToolPermissions</h3>
+
+<p>Tool-level permissions (allow/deny lists)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">allow</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Tools/patterns to allow</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">deny</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Tools/patterns to deny</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-toolpattern">Definition: ToolPattern</h3>
+
+<p>Provider-agnostic tool pattern</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tool</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Tool name: Read, Write, Edit, Bash, Glob, Grep, <code class="language-plaintext highlighter-rouge">WebFetch</code>, etc.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">pattern</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional pattern for tool arguments (e.g., “cargo test:*” for Bash)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-directorypermissions">Definition: DirectoryPermissions</h3>
+
+<p>Directory-level permissions</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">allow</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Additional directories to allow access to (glob patterns)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">deny</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Directories to deny access to (glob patterns)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-mcpserverpermissions">Definition: McpServerPermissions</h3>
+
+<p>MCP server permissions (server-level enable/disable only)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enable</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>MCP servers to enable for this step</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">disable</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>MCP servers to disable for this step</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-customflags">Definition: CustomFlags</h3>
+
+<p>Per-provider custom configuration flags</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">claude</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Claude-specific configuration flags</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gemini</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Gemini-specific configuration flags</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">codex</code></td>
+      <td><code class="language-plaintext highlighter-rouge">object</code></td>
+      <td>No</td>
+      <td>Codex-specific configuration flags</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-providercliargs">Definition: ProviderCliArgs</h3>
+
+<p>Arbitrary CLI arguments per provider</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">claude</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>CLI arguments for Claude</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gemini</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>CLI arguments for Gemini</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">codex</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>CLI arguments for Codex</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-permissionmode">Definition: PermissionMode</h3>
+
+<p>Permission mode for LLM interaction</p>
+
+<h3 id="definition-classifierconfig">Definition: ClassifierConfig</h3>
+
+<p>Configuration for classifier steps that return structured typed output</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">output_type</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">ClassifierOutputType</code></td>
+      <td>Yes</td>
+      <td>What type of answer the classifier returns</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">options</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>For enum type: the allowed options</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">max_length</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>For <code class="language-plaintext highlighter-rouge">short_string</code>: max character length (default 255)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">agent</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Agent/delegator to use (overrides issuetype default)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-classifieroutputtype">Definition: ClassifierOutputType</h3>
+
+<p>Output types for classifier steps</p>
+
+<h3 id="definition-ragconfig">Definition: RagConfig</h3>
+
+<p>Configuration for RAG (retrieval-augmented generation) steps</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">sources</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>Context sources to retrieve before running the prompt</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">max_context_tokens</code></td>
+      <td><code class="language-plaintext highlighter-rouge">integer</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Maximum tokens of context to inject (default: 50000)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">agent</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Agent/delegator to use</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">allowed_tools</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Tools allowed for the agent</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-ragsource">Definition: RagSource</h3>
+
+<p>A source of context for RAG steps</p>
+
+<h3 id="definition-delegatorstepconfig">Definition: DelegatorStepConfig</h3>
+
+<p>Configuration for delegator steps that run with a specific model+flavor</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">delegator</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Named delegator reference (from config.delegators)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt_flavor</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Additional prompt flavor text prepended to the step prompt</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">allowed_tools</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Tools allowed</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">permissions</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Permissions</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-mcpstepconfig">Definition: McpStepConfig</h3>
+
+<p>Configuration for MCP steps that require specific MCP tools</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">required_tools</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>MCP tools that MUST be available (step fails if missing)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">optional_tools</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>MCP tools that SHOULD be available (warning if missing)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">agent</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Agent/delegator to use</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">allowed_tools</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>No</td>
+      <td>Tools allowed (in addition to MCP tools)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-mcptoolref">Definition: McpToolRef</h3>
+
+<p>Reference to a specific MCP server tool</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">server</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>MCP server name</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tool</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Specific tool name (None = all tools from this server)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-multimodelconfig">Definition: MultiModelConfig</h3>
+
+<p>Configuration for multi-model delegation steps (fan-out + vote)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">delegators</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>Named delegator references (from config.delegators), minimum 2</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">voting_strategy</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">VotingStrategy</code></td>
+      <td>Yes</td>
+      <td>How to aggregate/select the final answer</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">share_answers</code></td>
+      <td><code class="language-plaintext highlighter-rouge">boolean</code></td>
+      <td>No</td>
+      <td>Whether to share all answers with all models in the voting round</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">voting_prompt</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Prompt for the voting round (Handlebars, receives  array)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">voting_mode</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">VotingMode</code></td>
+      <td>No</td>
+      <td>How the voting round executes</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-votingstrategy">Definition: VotingStrategy</h3>
+
+<p>Voting strategy for multi-model steps</p>
+
+<h3 id="definition-votingmode">Definition: VotingMode</h3>
+
+<p>How the voting round is executed in multi-model steps</p>
+
+<h3 id="definition-multipromptconfig">Definition: MultiPromptConfig</h3>
+
+<p>Configuration for multi-prompt interrogation steps (N variations, select best)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt_variations</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>Prompt variations (Handlebars templates), minimum 2</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">selection_strategy</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">SelectionStrategy</code></td>
+      <td>Yes</td>
+      <td>How to select the best result</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">agent</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Agent/delegator to use for all variations</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">selection_prompt</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Prompt for the selection/review round</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-selectionstrategy">Definition: SelectionStrategy</h3>
+
+<p>Selection strategy for multi-prompt steps</p>
+
+<h3 id="definition-matrixedconfig">Definition: MatrixedConfig</h3>
+
+<p>Configuration for matrixed work output steps (N x M delegators x prompts)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">delegators</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>Named delegator references (N), minimum 2</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt_variations</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>Prompt variations (M) — Handlebars templates, minimum 2</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">output_format</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">MatrixedOutputFormat</code></td>
+      <td>Yes</td>
+      <td>How to organize/present the N x M output</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">aggregation_prompt</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional aggregation prompt (receives the full matrix of results)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-matrixedoutputformat">Definition: MatrixedOutputFormat</h3>
+
+<p>Output format for matrixed steps</p>
+
+<h3 id="definition-pipelineconfig">Definition: PipelineConfig</h3>
+
+<p>Configuration for pipeline steps: iterate a list of items through ordered
+stages with no barrier (each item flows through all stages independently).</p>
+
+<p>The step graph stays linear — a pipeline step still has exactly one
+<code class="language-plaintext highlighter-rouge">next_step</code>. The fan-out (N items x M stages) lives entirely inside this one
+step; iteration is an intra-step concern, never a step-to-step edge.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">item_source</code></td>
+      <td>→ <code class="language-plaintext highlighter-rouge">ItemSource</code></td>
+      <td>Yes</td>
+      <td>Where the iterated items come from.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">stages</code></td>
+      <td><code class="language-plaintext highlighter-rouge">array</code></td>
+      <td>Yes</td>
+      <td>Ordered mini-steps each item flows through. Must be non-empty.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="definition-itemsource">Definition: ItemSource</h3>
+
+<p>Where a pipeline’s iterated items come from. The variant determines <em>when</em>
+the list resolves: export-time (a literal array → static fan-out width in
+the compiled graph) vs runtime (an identifier → symbolic width).</p>
+
+<h3 id="definition-pipelinestage">Definition: PipelineStage</h3>
+
+<p>A single stage in a pipeline — deliberately flat (not a recursive
+<code class="language-plaintext highlighter-rouge">StepSchema</code>): “prompt + optional agent/model/schema” only. It has no
+<code class="language-plaintext highlighter-rouge">next_step</code>/<code class="language-plaintext highlighter-rouge">review_type</code>/<code class="language-plaintext highlighter-rouge">on_reject</code>, so a stage cannot reopen the
+step-graph linearity question.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Required</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code></td>
+      <td>Yes</td>
+      <td>Handlebars prompt. The per-item value is appended as a JS binding at export time (see <code class="language-plaintext highlighter-rouge">workflow_gen::export</code>), not via a Handlebars variable.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">agent</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional agent/delegator name (falls back to the step/issuetype agent).</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional model pin (emitted as <code class="language-plaintext highlighter-rouge">{ model: … }</code>).</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">jsonSchema</code></td>
+      <td>object</td>
+      <td>No</td>
+      <td>Optional structured-output JSON schema (emitted as <code class="language-plaintext highlighter-rouge">{ schema: … }</code>).</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">label</code></td>
+      <td><code class="language-plaintext highlighter-rouge">string</code> | <code class="language-plaintext highlighter-rouge">null</code></td>
+      <td>No</td>
+      <td>Optional display label override (defaults to <code class="language-plaintext highlighter-rouge">&lt;step&gt;:&lt;stage-index&gt;</code>).</td>
+    </tr>
+  </tbody>
+</table>
+
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

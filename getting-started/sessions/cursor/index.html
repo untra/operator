@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cursor | Operator! Documentation</title>
+  <meta name="description" content="Cursor IDE integration via the operator-terminals VS Code extension and Cursor's native MCP support.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Cursor | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Cursor" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Cursor IDE integration via the operator-terminals VS Code extension and Cursor’s native MCP support." />
+<meta name="twitter:description" property="og:description" content="Cursor IDE integration via the operator-terminals VS Code extension and Cursor’s native MCP support." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/sessions/cursor/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/sessions/cursor/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Cursor" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Cursor IDE integration via the operator-terminals VS Code extension and Cursor’s native MCP support.","headline":"Cursor","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/sessions/cursor/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" >AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Core</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/kanban/" ><i class="codicon codicon-layout nav-codicon"></i>Kanban</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/issue-types/" ><i class="codicon codicon-issues nav-codicon"></i>Issue Types</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/tickets/" ><i class="codicon codicon-note nav-codicon"></i>Tickets</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/agents/" class="nav-parent-link "><i class="codicon codicon-robot nav-codicon"></i>Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/agents/artifact-detection/" >Artifact Detection</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+                <li>
+                  <a href="/typescript/" >TypeScript Types</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/sessions/cursor.md"><small>View this page
+          source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.2</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-06-16</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Cursor</h1>
+  
+
+  <h1 id="cursor">Cursor</h1>
+
+<p><span class="badge supported">Supported</span></p>
+
+<p><a href="https://open-vsx.org/extension/untra/operator-terminals" target="_blank" class="button">Install from OpenVSX</a></p>
+
+<p><a href="https://www.cursor.com">Cursor</a> is a fork of VS Code that natively runs most VS Code extensions and adds its own MCP configuration surface. The same <code class="language-plaintext highlighter-rouge">operator-terminals</code> extension that powers the VS Code session manager runs in Cursor unmodified — the only difference is <strong>where</strong> the extension writes the MCP server entry.</p>
+
+<h2 id="two-integration-paths">Two Integration Paths</h2>
+
+<h3 id="1-extension-path-recommended">1. Extension Path (recommended)</h3>
+
+<p>Install <code class="language-plaintext highlighter-rouge">operator-terminals</code> from OpenVSX (Cursor’s default extension registry) or via a downloaded <code class="language-plaintext highlighter-rouge">.vsix</code>, then run <code class="language-plaintext highlighter-rouge">Operator: Connect MCP Server</code> from the command palette. Inside Cursor, the extension writes the operator MCP entry to <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code> instead of VS Code’s workspace <code class="language-plaintext highlighter-rouge">mcp.servers</code> — Cursor’s MCP UI only surfaces user-scope entries, so writing workspace config would have no effect.</p>
+
+<p>This path also gives you the sidebar (Queue / In Progress / Completed), styled terminals, and the rest of the extension’s features.</p>
+
+<h3 id="2-native-mcp-path-no-extension">2. Native MCP Path (no extension)</h3>
+
+<p>If you don’t want the extension, you can register operator directly with Cursor:</p>
+
+<ol>
+  <li>From operator’s TUI, navigate to the <strong>Connections</strong> panel and trigger the <code class="language-plaintext highlighter-rouge">WriteAndOpenMcpClientConfig</code> action with <code class="language-plaintext highlighter-rouge">client: "cursor"</code>. This writes a ready-to-paste snippet to <code class="language-plaintext highlighter-rouge">&lt;tickets&gt;/operator/mcp/cursor.json</code> and opens it in your editor.</li>
+  <li>Copy the snippet’s <code class="language-plaintext highlighter-rouge">mcpServers.operator</code> block into your <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code>, merging with any existing entries.</li>
+  <li>Restart Cursor or toggle the server in <strong>Cursor Settings → MCP</strong>.</li>
+</ol>
+
+<h2 id="installation">Installation</h2>
+
+<h3 id="from-openvsx-cursors-default">From OpenVSX (Cursor’s default)</h3>
+
+<ol>
+  <li>Open Cursor.</li>
+  <li>Open the Extensions sidebar (<code class="language-plaintext highlighter-rouge">Cmd+Shift+X</code> / <code class="language-plaintext highlighter-rouge">Ctrl+Shift+X</code>).</li>
+  <li>Search for <strong>Operator Terminals</strong>.</li>
+  <li>Click <strong>Install</strong>.</li>
+</ol>
+
+<h3 id="manual-installation">Manual Installation</h3>
+
+<ol>
+  <li>Download the <code class="language-plaintext highlighter-rouge">.vsix</code> from <a href="https://github.com/untra/operator/releases" target="_blank">GitHub releases</a>.</li>
+  <li>In Cursor, open Extensions, click the <code class="language-plaintext highlighter-rouge">…</code> menu, and pick <strong>Install from VSIX…</strong>.</li>
+</ol>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>The extension shares the same configuration as the VS Code session manager. Settings are scoped under <code class="language-plaintext highlighter-rouge">operator.*</code> in Cursor’s <code class="language-plaintext highlighter-rouge">settings.json</code>.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Setting</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.webhookPort</code></td>
+      <td><code class="language-plaintext highlighter-rouge">7009</code></td>
+      <td>Port for webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.autoStart</code></td>
+      <td><code class="language-plaintext highlighter-rouge">true</code></td>
+      <td>Start server on Cursor launch</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.terminalPrefix</code></td>
+      <td><code class="language-plaintext highlighter-rouge">op-</code></td>
+      <td>Prefix for managed terminal names</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.ticketsDir</code></td>
+      <td><code class="language-plaintext highlighter-rouge">.tickets</code></td>
+      <td>Path to tickets directory</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.apiUrl</code></td>
+      <td><code class="language-plaintext highlighter-rouge">http://localhost:7008</code></td>
+      <td>Operator REST API URL</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="mcp-integration">MCP Integration</h2>
+
+<p>Cursor’s <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code> uses the <code class="language-plaintext highlighter-rouge">mcpServers</code> shape with <code class="language-plaintext highlighter-rouge">command</code>, <code class="language-plaintext highlighter-rouge">args</code>, and <code class="language-plaintext highlighter-rouge">cwd</code> — stdio only. SSE-style URL entries are not honored by Cursor’s MCP UI.</p>
+
+<h3 id="requirements">Requirements</h3>
+
+<ul>
+  <li>Operator must be running with <code class="language-plaintext highlighter-rouge">[mcp].stdio_advertised = true</code> in its config (this is the default). Restart the operator API after toggling.</li>
+  <li>The operator binary path written into <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code> is taken from the running operator process — if you reinstall or move the binary, re-run <code class="language-plaintext highlighter-rouge">Operator: Connect MCP Server</code> to refresh the path.</li>
+</ul>
+
+<h3 id="merge-semantics">Merge Semantics</h3>
+
+<p>The extension’s Cursor-write path is additive:</p>
+
+<ul>
+  <li>Any existing top-level keys in <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code> are preserved.</li>
+  <li>Any existing <code class="language-plaintext highlighter-rouge">mcpServers.*</code> entries (other servers you’ve registered) are preserved.</li>
+  <li>Only <code class="language-plaintext highlighter-rouge">mcpServers.operator</code> is set or overwritten on each run.</li>
+</ul>
+
+<p>If <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code> exists but contains malformed JSON, the extension shows an error and refuses to overwrite the file — fix or remove it manually and re-run the command.</p>
+
+<h2 id="commands">Commands</h2>
+
+<p>Same set as the VS Code session manager — access via the command palette (<code class="language-plaintext highlighter-rouge">Cmd+Shift+P</code>):</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Start Webhook Server</code></td>
+      <td>Start the webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Stop Webhook Server</code></td>
+      <td>Stop the webhook server</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Connect MCP Server</code></td>
+      <td>Register operator with Cursor’s MCP (writes <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Launch Ticket</code></td>
+      <td>Launch a ticket in a new terminal</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">Operator: Show Server Status</code></td>
+      <td>Display server status</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="requirements-1">Requirements</h2>
+
+<ul>
+  <li>Cursor with stable MCP support (Cursor 0.42 or later; verify <code class="language-plaintext highlighter-rouge">Settings → MCP</code> is present).</li>
+  <li>Operator built from <code class="language-plaintext highlighter-rouge">main</code> or a release that includes the MCP stdio plan (<code class="language-plaintext highlighter-rouge">operator mcp</code> subcommand and <code class="language-plaintext highlighter-rouge">[mcp].stdio_advertised</code> config flag).</li>
+</ul>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="operator-mcp-stdio-entrypoint-is-not-advertised"><code class="language-plaintext highlighter-rouge">Operator MCP stdio entrypoint is not advertised</code></h3>
+
+<p>The descriptor your operator API returned did not include a <code class="language-plaintext highlighter-rouge">stdio</code> field, so Cursor cannot register the server. Set <code class="language-plaintext highlighter-rouge">[mcp].stdio_advertised = true</code> in your operator config and restart the API, then re-run <code class="language-plaintext highlighter-rouge">Operator: Connect MCP Server</code>.</p>
+
+<h3 id="editing-cursormcpjson-manually">Editing <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code> manually</h3>
+
+<p>Open the file in any text editor. To remove the operator entry, delete the <code class="language-plaintext highlighter-rouge">mcpServers.operator</code> key (preserve the rest of the file’s structure). Save and restart Cursor or toggle the server in <strong>Cursor Settings → MCP</strong>.</p>
+
+<h3 id="switching-between-vs-code-and-cursor-on-the-same-workspace">Switching between VS Code and Cursor on the same workspace</h3>
+
+<p>If you previously ran <code class="language-plaintext highlighter-rouge">Operator: Connect MCP Server</code> in stock VS Code on the same workspace, the workspace <code class="language-plaintext highlighter-rouge">mcp.servers.operator</code> entry still exists in that workspace’s <code class="language-plaintext highlighter-rouge">.vscode/settings.json</code>. Running the command again in Cursor adds a user-scope entry in <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code>. <strong>Both work in their respective hosts</strong>; the extension intentionally does not delete the workspace entry from inside Cursor (doing so would surprise you when you reopen the workspace in VS Code).</p>
+
+<p>If you want a clean slate in only one of the two editors, delete the entry from the file Cursor or VS Code doesn’t see (<code class="language-plaintext highlighter-rouge">.vscode/settings.json</code> for VS Code, <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code> for Cursor).</p>
+
+<h3 id="cursor-doesnt-see-the-operator-server-after-running-the-command">Cursor doesn’t see the operator server after running the command</h3>
+
+<ol>
+  <li>Check that <code class="language-plaintext highlighter-rouge">~/.cursor/mcp.json</code> exists and contains <code class="language-plaintext highlighter-rouge">mcpServers.operator</code> with <code class="language-plaintext highlighter-rouge">command</code>, <code class="language-plaintext highlighter-rouge">args</code>, and <code class="language-plaintext highlighter-rouge">cwd</code>.</li>
+  <li>Restart Cursor or open <strong>Cursor Settings → MCP</strong> and toggle the operator server off and on.</li>
+  <li>Confirm the <code class="language-plaintext highlighter-rouge">command</code> path in the JSON is executable (<code class="language-plaintext highlighter-rouge">ls -l &lt;path&gt;</code> and run it manually with <code class="language-plaintext highlighter-rouge">&lt;path&gt; mcp</code> — it should hang waiting for JSON-RPC on stdin, which is correct).</li>
+</ol>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

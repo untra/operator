@@ -44,6 +44,7 @@ impl StatusSection for GitSection {
                         label: "Configure GitHub".into(),
                         description: "Set up GitHub".into(),
                         icon: StatusIcon::Plug,
+                        brand_icon: None,
                         is_header: false,
                         actions: ActionSet::primary(StatusAction::ConfigureGitProvider {
                             provider: "github".into(),
@@ -57,6 +58,7 @@ impl StatusSection for GitSection {
                         label: "Configure GitLab".into(),
                         description: "Set up GitLab".into(),
                         icon: StatusIcon::Plug,
+                        brand_icon: None,
                         is_header: false,
                         actions: ActionSet::primary(StatusAction::ConfigureGitProvider {
                             provider: "gitlab".into(),
@@ -76,6 +78,7 @@ impl StatusSection for GitSection {
                         label: "Provider".into(),
                         description: provider.clone(),
                         icon: StatusIcon::Branch,
+                        brand_icon: None,
                         is_header: false,
                         actions: ActionSet {
                             primary: StatusAction::None,
@@ -105,6 +108,7 @@ impl StatusSection for GitSection {
                         } else {
                             StatusIcon::Warning
                         },
+                        brand_icon: None,
                         is_header: false,
                         actions: ActionSet::primary(if snapshot.git_token_set {
                             StatusAction::None
@@ -125,6 +129,7 @@ impl StatusSection for GitSection {
                         label: "Branch Format".into(),
                         description: fmt.clone(),
                         icon: StatusIcon::Branch,
+                        brand_icon: None,
                         is_header: false,
                         actions: ActionSet::none(),
                         health: SectionHealth::Gray,
@@ -142,6 +147,7 @@ impl StatusSection for GitSection {
                         "Disabled".into()
                     },
                     icon: StatusIcon::Branch,
+                    brand_icon: None,
                     is_header: false,
                     actions: ActionSet::none(),
                     health: SectionHealth::Gray,

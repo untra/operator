@@ -6,6 +6,7 @@
 import { Link } from 'react-router-dom';
 import type { SectionDto } from '../api-client';
 import { CONCEPTS } from '../concepts';
+import { BrandIcon } from './BrandIcon';
 import styles from './SectionCard.module.css';
 
 export function SectionCard({ section }: { section: SectionDto }) {
@@ -53,6 +54,7 @@ export function SectionCard({ section }: { section: SectionDto }) {
                 style={{ paddingLeft: `${Math.max(0, row.depth - 1) * 1.25}rem` }}
               >
                 <span className={styles.dot} data-health={row.health} />
+                {row.brand_icon && <BrandIcon name={row.brand_icon} />}
                 <span className={styles.rowLabel}>{row.label}</span>
                 {row.description && <span className={styles.rowDesc}>{row.description}</span>}
                 {row.actions.length > 0 && (

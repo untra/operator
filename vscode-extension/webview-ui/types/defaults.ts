@@ -101,6 +101,7 @@ const DEFAULT_CONFIG: Config = {
   },
   rest_api: {
     enabled: false,
+    host: '127.0.0.1',
     port: 7008,
     cors_origins: [],
   },
@@ -140,5 +141,6 @@ const DEFAULT_CONFIG: Config = {
 export const DEFAULT_WEBVIEW_CONFIG: WebviewConfig = {
   config_path: '',
   working_directory: '',
+  config_exists: false,
   config: DEFAULT_CONFIG,
 };

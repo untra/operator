@@ -16,6 +16,7 @@ export class ConnectionsSection implements StatusSection {
   private webhookStatus: WebhookStatus = { running: false };
   private apiStatus: ApiStatus = { connected: false };
   private operatorVersion: string | undefined;
+  private localDirectoryName: string | undefined;
   private mcpRegistered: boolean = false;
   private wrapperType: string = 'vscode';
   private webUiAvailable: boolean = false;
@@ -37,10 +38,17 @@ export class ConnectionsSection implements StatusSection {
   }
 
   async check(ctx: SectionContext): Promise<void> {
+    // Top-level name of this workspace (parent of the .tickets dir), used to
+    // confirm an already-running API serves THIS project before adopting it.
+    this.localDirectoryName = ctx.ticketsDir
+      ? path.basename(path.dirname(ctx.ticketsDir))
+      : undefined;
+    // Resolve the local binary version first so the API health check can compare
+    // against it (adopt only on version equality).
+    await this.checkOperatorVersion(ctx);
     await Promise.allSettled([
       this.checkWebhookStatus(ctx),
       this.checkApiStatus(ctx),
-      this.checkOperatorVersion(ctx),
       this.checkWrapperType(ctx),
     ]);
     this.mcpRegistered = isMcpServerRegistered();
@@ -132,13 +140,57 @@ export class ConnectionsSection implements StatusSection {
     try {
       const response = await fetch(`${apiUrl}/api/v1/health`);
       if (response.ok) {
-        const health = await response.json() as { version?: string };
-        const port = new URL(apiUrl).port;
+        const health = await response.json() as {
+          version?: string;
+          directory_name?: string;
+        };
+        const portStr = new URL(apiUrl).port;
+        const port = portStr ? parseInt(portStr, 10) : 7008;
+        const found = health.version;
+        const expected = this.operatorVersion;
+
+        // Same version is required to consider this API "ours". A different
+        // version stays gated with a clear warning rather than connecting
+        if (expected && found && found !== expected) {
+          this.apiStatus = {
+            connected: false,
+            port,
+            url: apiUrl,
+            mismatch: {
+              kind: 'version',
+              detail: `running v${found}, this binary is v${expected}`,
+            },
+          };
+          this.webUiAvailable = false;
+          return false;
+        }
+
+        // Same project is required too (best-effort by directory name). Prevents
+        // adopting a same-version server that serves a different repo on this port.
+        if (
+          this.localDirectoryName &&
+          health.directory_name &&
+          health.directory_name !== this.localDirectoryName
+        ) {
+          this.apiStatus = {
+            connected: false,
+            port,
+            url: apiUrl,
+            mismatch: {
+              kind: 'project',
+              detail: `serves '${health.directory_name}', this workspace is '${this.localDirectoryName}'`,
+            },
+          };
+          this.webUiAvailable = false;
+          return false;
+        }
+
         this.apiStatus = {
           connected: true,
-          version: health.version || sessionVersion,
-          port: port ? parseInt(port, 10) : 7008,
+          version: found || sessionVersion,
+          port,
           url: apiUrl,
+          directoryName: health.directory_name,
         };
         await this.checkWebUi(apiUrl);
         return true;
@@ -224,27 +276,48 @@ export class ConnectionsSection implements StatusSection {
     }
 
     // 3. API Connection
-    const apiItem = this.apiStatus.connected
-      ? new StatusItem({
-          label: 'API',
-          description: this.apiStatus.url || 'Connected',
-          icon: 'pass',
-          tooltip: `Operator REST API at ${this.apiStatus.url}`,
-          sectionId: this.sectionId,
-        })
-      : new StatusItem({
-          label: 'API',
-          description: configuredBoth ? 'Disconnected' : 'Not Ready',
-          icon: 'error',
-          tooltip: configuredBoth
-            ? 'Click to start Operator API server'
-            : 'Complete configuration first',
-          command: configuredBoth ? {
-            command: 'operator.startOperatorServer',
-            title: 'Start Operator Server',
-          } : undefined,
-          sectionId: this.sectionId,
-        });
+    let apiItem: StatusItem;
+    if (this.apiStatus.connected) {
+      apiItem = new StatusItem({
+        label: 'API',
+        description: this.apiStatus.url || 'Connected',
+        icon: 'pass',
+        tooltip: this.apiStatus.directoryName
+          ? `Operator REST API at ${this.apiStatus.url} (project '${this.apiStatus.directoryName}')`
+          : `Operator REST API at ${this.apiStatus.url}`,
+        sectionId: this.sectionId,
+      });
+    } else if (this.apiStatus.mismatch) {
+      // An API answered on the port but is not adoptable as ours.
+      const mismatch = this.apiStatus.mismatch;
+      apiItem = new StatusItem({
+        label: 'API',
+        description: mismatch.kind === 'version' ? 'Version mismatch' : 'Different project',
+        icon: 'warning',
+        tooltip:
+          `An Operator API on this port ${mismatch.detail}. ` +
+          'Stop the other instance or configure a different port (operator.apiUrl), then start your own server.',
+        command: {
+          command: 'operator.startOperatorServer',
+          title: 'Start Operator Server',
+        },
+        sectionId: this.sectionId,
+      });
+    } else {
+      apiItem = new StatusItem({
+        label: 'API',
+        description: configuredBoth ? 'Disconnected' : 'Not Ready',
+        icon: 'error',
+        tooltip: configuredBoth
+          ? 'Click to start Operator API server'
+          : 'Complete configuration first',
+        command: configuredBoth ? {
+          command: 'operator.startOperatorServer',
+          title: 'Start Operator Server',
+        } : undefined,
+        sectionId: this.sectionId,
+      });
+    }
 
     // 4. Web UI
     const webUiItem = this.webUiAvailable

@@ -29,7 +29,7 @@ args: Array<string>,
  * Environment variables passed to the MCP server process.
  * Values support `${VAR}` interpolation.
  */
-env: { [key in string]?: string }, 
+env: { [key in string]: string }, 
 /**
  * Whether this server is enabled. Allows disabling without removing config.
  */

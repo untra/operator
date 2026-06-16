@@ -23,7 +23,7 @@ api_key_env: string | null,
 /**
  * Additional environment variables set when spawning agents that use this server
  */
-extra_env: { [key in string]?: string }, 
+extra_env: { [key in string]: string }, 
 /**
  * Optional display name for UI
  */

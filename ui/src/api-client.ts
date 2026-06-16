@@ -21,6 +21,14 @@ import type { Config } from '@operator/bindings/Config';
 import type { AgentDetailResponse } from '@operator/bindings/AgentDetailResponse';
 import type { WorkflowExportResponse } from '@operator/bindings/WorkflowExportResponse';
 import type { WorkflowPreviewResponse } from '@operator/bindings/WorkflowPreviewResponse';
+import type { ModelServerKindEntry } from '@operator/bindings/ModelServerKindEntry';
+import type { ModelServerModelsResponse } from '@operator/bindings/ModelServerModelsResponse';
+import type { ModelServersResponse } from '@operator/bindings/ModelServersResponse';
+import type { ModelServerResponse } from '@operator/bindings/ModelServerResponse';
+import type { CreateModelServerRequest } from '@operator/bindings/CreateModelServerRequest';
+import type { DelegatorsResponse } from '@operator/bindings/DelegatorsResponse';
+import type { DelegatorResponse } from '@operator/bindings/DelegatorResponse';
+import type { CreateDelegatorRequest } from '@operator/bindings/CreateDelegatorRequest';
 
 export type {
   HealthResponse,
@@ -45,6 +53,14 @@ export type {
   AgentDetailResponse,
   WorkflowExportResponse,
   WorkflowPreviewResponse,
+  ModelServerKindEntry,
+  ModelServerModelsResponse,
+  ModelServersResponse,
+  ModelServerResponse,
+  CreateModelServerRequest,
+  DelegatorsResponse,
+  DelegatorResponse,
+  CreateDelegatorRequest,
 };
 
 export class ApiError extends Error {
@@ -223,6 +239,46 @@ export class OperatorApi {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
+    });
+  }
+
+  // --- Model providers ---
+
+  /** The catalog of supported model providers (kinds). */
+  listProviderKinds(): Promise<ModelServerKindEntry[]> {
+    return request(this.base, '/api/v1/model-servers/kinds');
+  }
+
+  /** Live models for a provider kind (probes declared instance or defaults). */
+  providerModels(slug: string): Promise<ModelServerModelsResponse> {
+    return request(this.base, `/api/v1/model-servers/kinds/${encodeURIComponent(slug)}/models`);
+  }
+
+  /** Declared servers + implicit builtins. */
+  listModelServers(): Promise<ModelServersResponse> {
+    return request(this.base, '/api/v1/model-servers');
+  }
+
+  /** Connect a gateway provider by declaring an instance. */
+  createModelServer(req: CreateModelServerRequest): Promise<ModelServerResponse> {
+    return request(this.base, '/api/v1/model-servers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+  }
+
+  // --- Delegators ---
+
+  listDelegators(): Promise<DelegatorsResponse> {
+    return request(this.base, '/api/v1/delegators');
+  }
+
+  createDelegator(req: CreateDelegatorRequest): Promise<DelegatorResponse> {
+    return request(this.base, '/api/v1/delegators', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
     });
   }
 

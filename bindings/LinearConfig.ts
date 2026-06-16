@@ -18,4 +18,4 @@ api_key_env: string,
 /**
  * Per-team sync configuration
  */
-projects: { [key in string]?: ProjectSyncConfig }, };
+projects: { [key in string]: ProjectSyncConfig }, };

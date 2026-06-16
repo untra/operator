@@ -32,4 +32,4 @@ last_used: string,
 /**
  * Per-model breakdown
  */
-model_usage: { [key in string]?: LlmModelUsage }, };
+model_usage: { [key in string]: LlmModelUsage }, };

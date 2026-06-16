@@ -1,3 +1,5 @@
+#[path = "config/agent_profile.rs"]
+pub mod agent_profile;
 #[path = "config/git_config.rs"]
 pub mod git_config;
 #[path = "config/kanban.rs"]
@@ -9,6 +11,7 @@ pub mod notifications_config;
 #[path = "config/sessions.rs"]
 pub mod sessions;
 
+pub use agent_profile::*;
 pub use git_config::*;
 pub use kanban::*;
 pub use llm_tools::*;
@@ -273,6 +276,11 @@ pub struct RestApiConfig {
     /// Whether the REST API is enabled
     #[serde(default = "default_rest_enabled")]
     pub enabled: bool,
+    /// Address the REST API binds to. Defaults to `127.0.0.1` (local only) so
+    /// the server — which reports the project directory name — is not reachable
+    /// from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
+    #[serde(default = "default_rest_host")]
+    pub host: String,
     /// Port for the REST API server
     #[serde(default = "default_rest_port")]
     pub port: u16,
@@ -285,6 +293,10 @@ fn default_rest_enabled() -> bool {
     true
 }
 
+fn default_rest_host() -> String {
+    "127.0.0.1".to_string()
+}
+
 fn default_rest_port() -> u16 {
     7008
 }
@@ -293,9 +305,20 @@ impl Default for RestApiConfig {
     fn default() -> Self {
         Self {
             enabled: default_rest_enabled(),
+            host: default_rest_host(),
             port: default_rest_port(),
             cors_origins: Vec::new(),
         }
+    }
+}
+
+impl RestApiConfig {
+    /// Parse the configured `host` into an `IpAddr`, falling back to localhost
+    /// if it is not a valid IP literal (we never bind a wider scope by accident).
+    pub fn host_ip(&self) -> std::net::IpAddr {
+        self.host
+            .parse()
+            .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST))
     }
 }
 

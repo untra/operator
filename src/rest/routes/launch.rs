@@ -517,6 +517,10 @@ mod tests {
                 prompt_suffix: Some("SUFFIX".to_string()),
                 operator_relay: None,
             }),
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test-launch"));
 
@@ -556,6 +560,10 @@ mod tests {
             model_properties: std::collections::HashMap::new(),
             model_server: None,
             launch_config: Some(crate::config::DelegatorLaunchConfig::default()),
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test-launch"));
 
@@ -601,6 +609,10 @@ mod tests {
             model_properties: std::collections::HashMap::new(),
             model_server: None,
             launch_config: None,
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         }
     }
 
@@ -734,6 +746,10 @@ mod tests {
                 prompt_suffix: Some("END".to_string()),
                 operator_relay: None,
             }),
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         }]);
         let ctx = AgentContext {
             step_agent: Some("codex-auto".to_string()),

@@ -55,11 +55,11 @@ filepath: string,
 /**
  * Session IDs per step (`step_name` -> `session_uuid`)
  */
-sessions: { [key in string]?: string }, 
+sessions: { [key in string]: string }, 
 /**
  * Delegator used per step (`step_name` -> `delegator_name`)
  */
-step_delegators: { [key in string]?: string }, 
+step_delegators: { [key in string]: string }, 
 /**
  * Path to git worktree (if created)
  */

@@ -81,10 +81,10 @@ export const CONCEPTS: Record<string, Concept> = {
   'model-servers': {
     key: 'model-servers',
     icon: 'server',
-    label: 'Model Servers',
-    route: '/model-servers',
+    label: 'Model Providers',
+    route: '/model-providers',
     docsUrl: `${DOCS_BASE}/getting-started/model-servers/`,
-    summary: 'Configured model servers backing the LLM tools.',
+    summary: 'Connect model providers and list their models for delegators.',
   },
   git: {
     key: 'git',

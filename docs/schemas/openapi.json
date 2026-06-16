@@ -2,15 +2,15 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Operator API",
-    "description": "REST API for managing issue types and collections in the Operator system.",
+    "description": "REST API for managing and running Operator server system.",
     "contact": {
-      "name": "gbqr.us",
+      "name": "untra",
       "url": "https://github.com/untra/operator"
     },
     "license": {
       "name": "MIT"
     },
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "paths": {
     "/api/v1/agents/active": {
@@ -181,6 +181,48 @@
           },
           "404": {
             "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/api/v1/alerts": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Raise an external alert as an investigation (INV) ticket.",
+        "description": "Creates an investigation through the same embedded-template path as\n[`create`], folding the alert's `source`/`severity` into the ticket values.\nPowers the AGNT `operator-alert` node.",
+        "operationId": "alerts_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAlertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Investigation created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAlertResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to create investigation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -463,6 +505,41 @@
         }
       }
     },
+    "/api/v1/delegators/import-profile": {
+      "post": {
+        "tags": [
+          "Delegators"
+        ],
+        "summary": "Import an `AgentProfile` as a new delegator.",
+        "description": "The shared-core fields Operator can't model and the opaque `x_agnt` bag are\npreserved on the created delegator so a later export round-trips losslessly.",
+        "operationId": "delegators_import_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentProfile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Delegator created from profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegatorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Delegator already exists"
+          }
+        }
+      }
+    },
     "/api/v1/delegators/{name}": {
       "get": {
         "tags": [
@@ -564,6 +641,42 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DelegatorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Delegator not found"
+          }
+        }
+      }
+    },
+    "/api/v1/delegators/{name}/profile": {
+      "get": {
+        "tags": [
+          "Delegators"
+        ],
+        "summary": "Export a delegator as a portable `AgentProfile` (`agent-profile.json`).",
+        "description": "The shared core plus the Operator-namespaced `x_operator` bag; any opaque\nAGNT (`x_agnt`) and shared-core carry the delegator holds are restored so the\nprofile is a lossless interchange artifact.",
+        "operationId": "delegators_export_profile",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Delegator name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentProfile"
                 }
               }
             }
@@ -1014,6 +1127,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Output format: claude (default) or agnt",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowFormat"
             }
           }
         ],
@@ -1466,6 +1588,42 @@
         }
       }
     },
+    "/api/v1/model-servers/kinds/{slug}/models": {
+      "get": {
+        "tags": [
+          "ModelServers"
+        ],
+        "summary": "List the models a *provider kind* offers, via a live probe.",
+        "description": "Resolves to the declared instance of that kind (if the user has one) else a\ntransient instance built from the kind's probe defaults — so the Model\nProviders catalog can show connection state + live models for every supported\nprovider without first declaring one. `reachable` doubles as \"connected\".",
+        "operationId": "model_servers_kind_models",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "Model-provider kind slug (e.g. \"anthropic-api\")",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Models offered by the provider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelServerModelsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown provider kind"
+          }
+        }
+      }
+    },
     "/api/v1/model-servers/{name}": {
       "get": {
         "tags": [
@@ -1898,6 +2056,48 @@
         }
       }
     },
+    "/api/v1/tickets": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Create a new ticket from a template and write it to the queue.",
+        "description": "Reuses the same [`TicketCreator`] the CLI (`operator create`) and MCP\n(`operator_create_ticket`) use, so a ticket created over HTTP is identical to\none created on any other surface. Powers the AGNT `operator-create-ticket`\nnode.",
+        "operationId": "tickets_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTicketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Ticket created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTicketResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown template type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tickets/{id}": {
       "get": {
         "tags": [
@@ -2109,6 +2309,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Output format: claude (default) or agnt",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowFormat"
             }
           }
         ],
@@ -2358,6 +2567,85 @@
           }
         }
       },
+      "AgentProfile": {
+        "type": "object",
+        "description": "A canonical cross-tool agent definition (serialized as `agent-profile.json`).\n\nShared core (`name`/`provider`/`model`/`system_prompt`/`skills`/`mcp_servers`/\n`tools`) plus namespaced extension bags. `x_operator` is typed (Operator owns\nthose fields); `x_agnt` and `x_openai` are opaque per-platform pass-throughs.",
+        "required": [
+          "name",
+          "provider",
+          "model"
+        ],
+        "properties": {
+          "mcp_servers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "MCP server names. Preserved opaquely across import."
+          },
+          "model": {
+            "type": "string",
+            "description": "Model alias or id (maps to [`Delegator::model`])."
+          },
+          "name": {
+            "type": "string",
+            "description": "Unique agent name (maps to [`Delegator::name`])."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Inference provider / CLI tool (maps to [`Delegator::llm_tool`])."
+          },
+          "remote_agent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteAgentRef",
+                "description": "Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...).\n`None` = a locally launchable agent, not bound to a remote platform."
+              }
+            ]
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Named skills. Preserved opaquely across import."
+          },
+          "system_prompt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "System prompt. Operator has no first-class system prompt, so this is\npreserved opaquely across import (see [`Delegator::unmapped_core`])."
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tool names. Preserved opaquely across import."
+          },
+          "x_agnt": {
+            "description": "AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`,\n`creditLimit`, ...). Operator never interprets this — pure pass-through."
+          },
+          "x_openai": {
+            "description": "OpenAI-owned extension fields, opaque (`instructions`, `tools`,\n`tool_resources`, `metadata`, thread refs, ...). Mirror of `x_agnt` for a\nsecond platform — never interpreted. This field is the whole per-tool cost\nof adding `OpenAI`: a passthrough bag, no mapping logic."
+          },
+          "x_operator": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/XOperator",
+                "description": "Operator-owned extension fields (typed). `None` when the agent carries no\nOperator-specific configuration."
+              }
+            ]
+          }
+        }
+      },
       "AssessTicketResponse": {
         "type": "object",
         "description": "Response from creating an ASSESS ticket",
@@ -2405,6 +2693,54 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "CreateAlertRequest": {
+        "type": "object",
+        "description": "Request to raise an external alert as an investigation ticket.",
+        "required": [
+          "source",
+          "message",
+          "severity"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "The alert message / summary."
+          },
+          "project": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional project the investigation targets."
+          },
+          "severity": {
+            "type": "string",
+            "description": "Severity label (e.g. `S1`, `S2`)."
+          },
+          "source": {
+            "type": "string",
+            "description": "Where the alert came from (e.g. `pagerduty`, `sentry`)."
+          }
+        }
+      },
+      "CreateAlertResponse": {
+        "type": "object",
+        "description": "Response after raising an alert.",
+        "required": [
+          "id",
+          "filename"
+        ],
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "The investigation ticket filename written to the queue."
+          },
+          "id": {
+            "type": "string",
+            "description": "The created investigation ticket's id."
           }
         }
       },
@@ -2515,6 +2851,17 @@
           "name": {
             "type": "string",
             "description": "Unique name for the delegator"
+          },
+          "remote_agent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteAgentRef",
+                "description": "Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When\nset, the delegator is export-only and cannot be launched locally."
+              }
+            ]
           }
         }
       },
@@ -2713,6 +3060,66 @@
           }
         }
       },
+      "CreateTicketRequest": {
+        "type": "object",
+        "description": "Request to create a new ticket from a template.",
+        "required": [
+          "template"
+        ],
+        "properties": {
+          "project": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Project the ticket targets (filled into the template's `project` value)."
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "One-line summary (filled into the template's `summary` value)."
+          },
+          "template": {
+            "type": "string",
+            "description": "Template type key (feature, fix, spike, investigation, task)."
+          },
+          "values": {
+            "type": "object",
+            "description": "Additional Handlebars values for the template. Explicit `project`/\n`summary` fields take precedence over the same keys here.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateTicketResponse": {
+        "type": "object",
+        "description": "Response after creating a ticket.",
+        "required": [
+          "id",
+          "filename",
+          "path"
+        ],
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "The ticket filename written to the queue."
+          },
+          "id": {
+            "type": "string",
+            "description": "The created ticket's id (e.g. `FEAT-1234`)."
+          },
+          "path": {
+            "type": "string",
+            "description": "The absolute path the ticket was written to."
+          }
+        }
+      },
       "DefaultLlmResponse": {
         "type": "object",
         "description": "Response with the current default LLM tool and model",
@@ -2728,6 +3135,72 @@
           "tool": {
             "type": "string",
             "description": "Default tool name (empty string if not set)"
+          }
+        }
+      },
+      "DelegatorLaunchConfig": {
+        "type": "object",
+        "description": "Launch configuration for a delegator\n\nControls how the delegator launches agents. Optional fields use tri-state\nsemantics: `None` = inherit from global config, `Some(true/false)` = override.",
+        "properties": {
+          "create_branch": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether to create a git branch for the ticket (None = default behavior)"
+          },
+          "docker": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Run in docker container (None = use global `launch.docker.enabled`)"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Additional CLI flags"
+          },
+          "operator_relay": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Override global relay auto-inject MCP setting per-delegator (None = use global setting)"
+          },
+          "permission_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Permission mode override"
+          },
+          "prompt_prefix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Prompt text to prepend before the generated step prompt"
+          },
+          "prompt_suffix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Prompt text to append after the generated step prompt"
+          },
+          "use_worktrees": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Override global `git.use_worktrees` per-delegator (None = use global setting)"
+          },
+          "yolo": {
+            "type": "boolean",
+            "description": "Run in YOLO (auto-accept) mode"
           }
         }
       },
@@ -2853,6 +3326,17 @@
           "name": {
             "type": "string",
             "description": "Unique name"
+          },
+          "remote_agent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteAgentRef",
+                "description": "Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When\nset, the delegator is export-only and cannot be launched locally."
+              }
+            ]
           }
         }
       },
@@ -3134,9 +3618,19 @@
         "description": "Health check response",
         "required": [
           "status",
-          "version"
+          "version",
+          "directory_name",
+          "directory_id"
         ],
         "properties": {
+          "directory_id": {
+            "type": "string",
+            "description": "Non-reversible fingerprint of the working root's canonical path."
+          },
+          "directory_name": {
+            "type": "string",
+            "description": "Top-level directory name of the operator working root (e.g. \"acme\")."
+          },
           "status": {
             "type": "string"
           },
@@ -3943,9 +4437,45 @@
           "description",
           "setup_url",
           "icon",
-          "is_builtin"
+          "is_builtin",
+          "category",
+          "category_label",
+          "connectable"
         ],
         "properties": {
+          "brand_icon": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Brand-icon basename (e.g. \"ollama\") for surfaces that render vendor\nlogos, or `None` to fall back to the `icon` codicon."
+          },
+          "category": {
+            "type": "string",
+            "description": "Provider-class slug grouping kinds within the Model Provider vertical\n(\"first-party\" or \"gateway\"). Distinct from `is_builtin`. (Field name\nkept as `category` for wire/TS stability.)"
+          },
+          "category_label": {
+            "type": "string",
+            "description": "Human-friendly provider-class group header (e.g. \"First-party\")"
+          },
+          "connectable": {
+            "type": "boolean",
+            "description": "Whether operator can probe this provider from built-in defaults (it has a\n`default_base_url`) without the user first declaring an instance."
+          },
+          "default_api_key_env": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Default env var the probe reads to authenticate (e.g. `ANTHROPIC_API_KEY`),\nor `None` when no key is needed by default."
+          },
+          "default_base_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Default inference base URL used to probe this provider's models when no\ninstance declares one, or `None` for bring-your-own-endpoint kinds."
+          },
           "description": {
             "type": "string",
             "description": "One-line connect blurb"
@@ -4425,6 +4955,24 @@
           }
         }
       },
+      "RemoteAgentRef": {
+        "type": "object",
+        "description": "A declarative reference to a remote, named agent hosted by another platform.\n\n`platform` is the hosting service (`\"agnt\"`, `\"openai\"`) — deliberately\ndistinct from the core `provider`/`llm_tool` (the model or coding CLI). These\nagents are API/memory-native and live on the remote side; Operator has no\nruntime client for them, so a delegator carrying one is **export-only** and\ncannot be launched locally (see the guard in `delegator_resolution`).",
+        "required": [
+          "platform",
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id)."
+          },
+          "platform": {
+            "type": "string",
+            "description": "Hosting platform (e.g. `\"agnt\"`, `\"openai\"`)."
+          }
+        }
+      },
       "ReviewResponse": {
         "type": "object",
         "description": "Response for agent review operations (approve/reject)",
@@ -4531,6 +5079,13 @@
               "$ref": "#/components/schemas/RowActionDto"
             },
             "description": "Browser-openable actions for this row (links shown in the web UI)."
+          },
+          "brand_icon": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional vendor-brand basename (e.g. \"ollama\"). When set, the web UI\nrenders `/icons/{brand_icon}.svg` instead of the semantic `icon`."
           },
           "depth": {
             "type": "integer",
@@ -4695,6 +5250,8 @@
         "required": [
           "status",
           "version",
+          "directory_name",
+          "directory_id",
           "issuetype_count",
           "collection_count",
           "active_collection"
@@ -4706,6 +5263,14 @@
           "collection_count": {
             "type": "integer",
             "minimum": 0
+          },
+          "directory_id": {
+            "type": "string",
+            "description": "Non-reversible fingerprint of the working root's canonical path."
+          },
+          "directory_name": {
+            "type": "string",
+            "description": "Top-level directory name of the operator working root (e.g. \"acme\")."
           },
           "issuetype_count": {
             "type": "integer",
@@ -5417,6 +5982,14 @@
           }
         }
       },
+      "WorkflowFormat": {
+        "type": "string",
+        "description": "Which orchestration format `workflow export` should emit.",
+        "enum": [
+          "claude",
+          "agnt"
+        ]
+      },
       "WorkflowPreviewResponse": {
         "type": "object",
         "description": "Response for a *preview* workflow generated from an issue type alone (no\nconcrete ticket). Used by the UI to visualize an issue type's workflow shape.",
@@ -5577,6 +6150,47 @@
           },
           "workspace_key": {
             "type": "string"
+          }
+        }
+      },
+      "XOperator": {
+        "type": "object",
+        "description": "The Operator-namespaced half of an [`AgentProfile`] — the fields a Delegator\ncarries that have no shared-core equivalent. AGNT ignores this bag; Operator\nround-trips it losslessly.",
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional display name for UI."
+          },
+          "launch_config": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DelegatorLaunchConfig",
+                "description": "Launch configuration (permission mode, flags, worktree/docker, prompt\nwrapping, ...)."
+              }
+            ]
+          },
+          "model_properties": {
+            "type": "object",
+            "description": "Arbitrary model properties (e.g. `reasoning_effort`, sandbox).",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "model_server": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a declared `ModelServer` (`None` = implicit vendor default)."
           }
         }
       }

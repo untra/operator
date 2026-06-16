@@ -12,6 +12,7 @@ import { QueuePage } from './routes/QueuePage';
 import { StatusPage } from './routes/StatusPage';
 import { SectionPage } from './routes/SectionPage';
 import { AgentDetailPage } from './routes/AgentDetailPage';
+import { ModelProvidersPage } from './routes/ModelProvidersPage';
 
 const host = createBrowserHost();
 
@@ -26,7 +27,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="connections" element={<SectionPage conceptKey="connections" />} />
             <Route path="kanban" element={<SectionPage conceptKey="kanban" />} />
             <Route path="llm" element={<SectionPage conceptKey="llm" />} />
-            <Route path="model-servers" element={<SectionPage conceptKey="model-servers" />} />
+            <Route path="model-providers" element={<ModelProvidersPage />} />
             <Route path="git" element={<SectionPage conceptKey="git" />} />
             <Route path="issuetypes" element={<IssueTypesPage />} />
             <Route path="delegators" element={<SectionPage conceptKey="delegators" />} />

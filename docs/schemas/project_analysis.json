@@ -914,6 +914,6 @@
       ]
     }
   },
-  "$id": "https://gbqr.us/operator/project-analysis.schema.json",
+  "$id": "https://operator.untra.io/schemas/project_analysis.json",
   "$comment": "AUTO-GENERATED FROM src/taxonomy/analyzer.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only project-analysis-schema"
 }

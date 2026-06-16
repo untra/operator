@@ -30,4 +30,4 @@ api_key_env: string,
 /**
  * Per-project sync configuration. Keys are `GraphQL` project node IDs.
  */
-projects: { [key in string]?: ProjectSyncConfig }, };
+projects: { [key in string]: ProjectSyncConfig }, };

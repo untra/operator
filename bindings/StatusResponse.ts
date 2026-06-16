@@ -3,4 +3,12 @@
 /**
  * Status response with registry info
  */
-export type StatusResponse = { status: string, version: string, issuetype_count: number, collection_count: number, active_collection: string, };
+export type StatusResponse = { status: string, version: string, 
+/**
+ * Top-level directory name of the operator working root (e.g. "acme").
+ */
+directory_name: string, 
+/**
+ * Non-reversible fingerprint of the working root's canonical path.
+ */
+directory_id: string, issuetype_count: number, collection_count: number, active_collection: string, };

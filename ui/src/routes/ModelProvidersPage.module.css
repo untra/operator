@@ -1,0 +1,182 @@
+.page {
+  padding: 1rem 1.25rem 3rem;
+  max-width: 920px;
+}
+
+.loading,
+.empty {
+  padding: 1rem 1.25rem;
+  color: var(--text-muted);
+}
+
+.error {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.notice {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: var(--success-bg);
+  color: var(--success);
+  font-size: 0.85rem;
+}
+
+.group {
+  margin-top: 1.75rem;
+}
+
+.groupHeading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.15rem;
+  color: var(--text);
+}
+
+.groupBlurb {
+  margin: 0 0 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.providerList,
+.delegatorList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.providerRow,
+.delegatorRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+}
+
+.providerIcon {
+  display: inline-flex;
+  width: 16px;
+  justify-content: center;
+}
+
+.providerName {
+  font-weight: 600;
+  font-size: 0.88rem;
+  min-width: 9rem;
+}
+
+.providerDesc {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.connected {
+  background: var(--success);
+}
+.disconnected {
+  background: var(--text-muted);
+}
+.checking {
+  background: var(--warning);
+}
+
+.connText {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  min-width: 5rem;
+}
+
+.connectBtn,
+.submitBtn {
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.connectBtn:hover,
+.submitBtn:hover {
+  border-color: var(--text-muted);
+}
+
+.submitBtn {
+  align-self: flex-start;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+}
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 460px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fieldLabel {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.select,
+.input {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.delegatorName {
+  font-weight: 600;
+  font-size: 0.86rem;
+  min-width: 10rem;
+}
+
+.delegatorMeta {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-family: var(--font-mono, monospace);
+}

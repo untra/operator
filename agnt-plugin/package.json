@@ -1,0 +1,12 @@
+{
+  "name": "operator-plugin",
+  "version": "0.2.1",
+  "description": "Orchestrate Operator! ticket-driven coding agents from AGNT workflows",
+  "author": "untra",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}

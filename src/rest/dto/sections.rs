@@ -48,6 +48,10 @@ pub struct SectionRowDto {
     pub description: String,
     /// Icon hint (e.g. "check", "warning", "tool", "folder").
     pub icon: String,
+    /// Optional vendor-brand basename (e.g. "ollama"). When set, the web UI
+    /// renders `/icons/{brand_icon}.svg` instead of the semantic `icon`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brand_icon: Option<String>,
     /// Health: "green" | "yellow" | "red" | "gray".
     pub health: String,
     /// Browser-openable actions for this row (links shown in the web UI).

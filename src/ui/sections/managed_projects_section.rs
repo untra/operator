@@ -55,6 +55,7 @@ impl StatusSection for ManagedProjectsSection {
                 } else {
                     StatusIcon::Warning
                 },
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet::none(),
                 health: SectionHealth::Gray,

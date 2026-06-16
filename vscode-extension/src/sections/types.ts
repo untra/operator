@@ -58,6 +58,8 @@ export interface ApiStatus {
   version?: string;
   port?: number;
   url?: string;
+  directoryName?: string;
+  mismatch?: { kind: 'version' | 'project'; detail: string };
 }
 
 /** Internal state for the Configuration section */

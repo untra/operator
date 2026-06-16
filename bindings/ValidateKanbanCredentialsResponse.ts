@@ -9,4 +9,4 @@ import type { LinearValidationDetailsDto } from "./LinearValidationDetailsDto";
  * `valid: false` is returned for auth failures — never a 4xx/5xx HTTP
  * status — so clients can display `error` inline without exception handling.
  */
-export type ValidateKanbanCredentialsResponse = { valid: boolean, error: string | null, jira: JiraValidationDetailsDto | null, linear: LinearValidationDetailsDto | null, github: GithubValidationDetailsDto | null, };
+export type ValidateKanbanCredentialsResponse = { valid: boolean, error?: string | null, jira?: JiraValidationDetailsDto | null, linear?: LinearValidationDetailsDto | null, github?: GithubValidationDetailsDto | null, };

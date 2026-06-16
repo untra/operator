@@ -1,0 +1,34 @@
+<!-- AUTO-GENERATED FROM docs/*/index.md - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs --only llms -->
+
+# Operator!
+
+> Operator! is a Rust TUI for orchestrating Claude Code and other LLM coding agents across multi-repository codebases, driven by kanban-style markdown tickets. It connects to Jira, Linear, and GitHub Projects; launches agents in tmux, cmux, Zellij, VS Code, or Zed sessions; reaches models via Anthropic, OpenAI, Google, OpenRouter, or Ollama; and enforces team workflows.
+
+Operator runs from the root of your work directory, discovers projects by LLM marker files (CLAUDE.md / CODEX.md / GEMINI.md) and git repositories, and manages a `.tickets/` queue. It exposes a REST API and an embedded web developer portal.
+
+## Getting Started
+- [Getting Started](https://operator.untra.io/getting-started/): Install and configure Operator! for managing AI-assisted development workflows.
+- [Downloads](https://operator.untra.io/downloads/): Download Operator! binaries for macOS, Linux, and Windows.
+
+## Core Concepts
+- [Kanban Workflow](https://operator.untra.io/kanban/): Understand the kanban-style workflow for managing tickets through queue, in-progress, and completed stages.
+- [Tickets](https://operator.untra.io/tickets/): Create and manage tickets with markdown format, naming conventions, and best practices for LLM agents.
+- [Issue Types](https://operator.untra.io/issue-types/): Learn about INV, FIX, FEAT, SPIKE, and TASK issue types, custom definitions, and Jira imports.
+- [Agents](https://operator.untra.io/agents/): Understand agent lifecycle, states, autonomous vs paired modes, parallelism rules, and session tracking.
+- [Delegators](https://operator.untra.io/delegators/): Named LLM tool + model pairings for autonomous ticket launching.
+
+## Integrations
+- [LLM Tools](https://operator.untra.io/llm-tools/): Configure Claude Code and other LLM tools for AI-powered agent integration with Operator!.
+- [Relay](https://operator.untra.io/relay/): Multi-agent peer-to-peer communication hub embedded in Operator.
+
+## Reference
+- [CLI Reference](https://operator.untra.io/cli/): Commands and environment variables.
+- [Configuration](https://operator.untra.io/configuration/): TOML configuration structure and options.
+- [Schema Reference](https://operator.untra.io/schemas/): Ticket metadata, issue type, and OpenAPI schema reference.
+- [Keyboard Shortcuts](https://operator.untra.io/shortcuts/): TUI keyboard shortcuts by context.
+- [Project Taxonomy](https://operator.untra.io/taxonomy/): Project Kinds across five tiers.
+
+## Optional
+- [Architecture](https://operator.untra.io/architecture/): System design overview.
+- [GitHub Repository](https://github.com/untra/operator): Source code (Rust, MIT).

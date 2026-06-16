@@ -184,6 +184,10 @@ pub struct TreeRow {
     pub label: String,
     pub description: String,
     pub icon: StatusIcon,
+    /// Optional vendor-brand basename (e.g. "ollama") for surfaces that render
+    /// logos (the web UI). The TUI ignores this and renders [`icon`](Self::icon)
+    /// as a semantic ANSI glyph — brand logos can't be drawn in a terminal.
+    pub brand_icon: Option<String>,
     pub is_header: bool,
     pub actions: ActionSet,
     pub health: SectionHealth,
@@ -619,7 +623,9 @@ impl StatusSnapshot {
     /// Returns the API port if the REST server is running.
     pub fn api_port(&self) -> Option<u16> {
         match &self.api_status {
-            RestApiStatus::Running { port } => Some(*port),
+            RestApiStatus::Running { port } | RestApiStatus::RunningExternal { port } => {
+                Some(*port)
+            }
             _ => None,
         }
     }
@@ -986,6 +992,7 @@ pub fn build_section_dtos(snapshot: &StatusSnapshot) -> Vec<crate::rest::dto::Se
                         label: r.label,
                         description: r.description,
                         icon: r.icon.as_str().to_string(),
+                        brand_icon: r.brand_icon,
                         health: r.health.as_str().to_string(),
                         actions: web_actions(&r.actions),
                     })
@@ -1067,6 +1074,7 @@ impl StatusPanel {
                 label: section.label().to_string(),
                 description: section.description(snapshot),
                 icon: StatusIcon::None,
+                brand_icon: None,
                 is_header: true,
                 actions: ActionSet {
                     primary: StatusAction::ToggleSection(section.section_id()),

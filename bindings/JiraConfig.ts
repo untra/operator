@@ -22,4 +22,4 @@ email: string,
 /**
  * Per-project sync configuration
  */
-projects: { [key in string]?: ProjectSyncConfig }, };
+projects: { [key in string]: ProjectSyncConfig }, };

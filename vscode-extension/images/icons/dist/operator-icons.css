@@ -1,6 +1,6 @@
 @font-face {
     font-family: "operator-icons";
-    src: url("./operator-icons.woff?fcc8d5950361d91fb09f1e205e9c5b3b") format("woff");
+    src: url("./operator-icons.woff?6c3ab21a9c63b13425d5ccd88817371e") format("woff");
 }
 
 i[class^="opi-"]:before, i[class*=" opi-"]:before {
@@ -29,33 +29,45 @@ i[class^="opi-"]:before, i[class*=" opi-"]:before {
 .opi-tmux:before {
     content: "\f105";
 }
-.opi-notification:before {
+.opi-openrouter:before {
     content: "\f106";
 }
-.opi-linear:before {
+.opi-ollama:before {
     content: "\f107";
 }
-.opi-gitlab:before {
+.opi-notification:before {
     content: "\f108";
 }
-.opi-github:before {
+.opi-linear:before {
     content: "\f109";
 }
-.opi-gemini:before {
+.opi-google:before {
     content: "\f10a";
 }
-.opi-codex:before {
+.opi-gitlab:before {
     content: "\f10b";
 }
-.opi-coder:before {
+.opi-github:before {
     content: "\f10c";
 }
-.opi-cmux:before {
+.opi-gemini:before {
     content: "\f10d";
 }
-.opi-claude:before {
+.opi-codex:before {
     content: "\f10e";
 }
-.opi-atlassian:before {
+.opi-coder:before {
     content: "\f10f";
+}
+.opi-cmux:before {
+    content: "\f110";
+}
+.opi-claude:before {
+    content: "\f111";
+}
+.opi-atlassian:before {
+    content: "\f112";
+}
+.opi-anthropic:before {
+    content: "\f113";
 }

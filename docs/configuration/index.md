@@ -228,7 +228,7 @@ collection = []
 [api]
 pr_check_interval_secs = 60
 rate_limit_check_interval_secs = 300
-rate_limit_warning_threshold = 0.20000000298023224
+rate_limit_warning_threshold = 0.2
 
 [logging]
 level = "info"
@@ -265,6 +265,7 @@ detection_complete = false
 
 [rest_api]
 enabled = true
+host = "127.0.0.1"
 port = 7008
 cors_origins = []
 

@@ -50,6 +50,7 @@ impl StatusSection for LlmSection {
                 label: tool.name.clone(),
                 description: tool.version.clone(),
                 icon: StatusIcon::Tool,
+                brand_icon: None,
                 is_header: false,
                 actions: ActionSet {
                     primary: StatusAction::None,
@@ -87,6 +88,7 @@ impl StatusSection for LlmSection {
                     label,
                     description: format!("{}:{}", tool.name, model),
                     icon,
+                    brand_icon: None,
                     is_header: false,
                     actions: ActionSet::primary(StatusAction::SetDefaultLlm {
                         tool_name: tool.name.clone(),

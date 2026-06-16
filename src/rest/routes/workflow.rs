@@ -6,15 +6,25 @@
 //! web UI and VS Code extension produce identical output.
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     Json,
 };
+use serde::Deserialize;
 
 use crate::queue::Queue;
 use crate::rest::dto::{WorkflowExportResponse, WorkflowPreviewResponse};
 use crate::rest::error::ApiError;
 use crate::rest::routes::tickets::find_ticket_anywhere;
 use crate::rest::state::ApiState;
+use crate::workflow_gen::WorkflowFormat;
+
+/// Query parameters for the workflow export/preview endpoints.
+#[derive(Debug, Default, Deserialize)]
+pub struct ExportQuery {
+    /// Output format: `claude` (default) or `agnt`.
+    #[serde(default)]
+    pub format: WorkflowFormat,
+}
 
 /// Export a ticket to a Claude dynamic workflow.
 ///
@@ -27,7 +37,8 @@ use crate::rest::state::ApiState;
     path = "/api/v1/tickets/{id}/workflow-export",
     tag = "Workflow",
     params(
-        ("id" = String, Path, description = "Ticket ID (e.g., FEAT-7598)")
+        ("id" = String, Path, description = "Ticket ID (e.g., FEAT-7598)"),
+        ("format" = Option<WorkflowFormat>, Query, description = "Output format: claude (default) or agnt")
     ),
     responses(
         (status = 200, description = "Generated workflow", body = WorkflowExportResponse),
@@ -37,14 +48,20 @@ use crate::rest::state::ApiState;
 pub async fn export(
     State(state): State<ApiState>,
     Path(ticket_id): Path<String>,
+    Query(query): Query<ExportQuery>,
 ) -> Result<Json<WorkflowExportResponse>, ApiError> {
     let queue = Queue::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
 
     let registry = state.registry.read().await;
-    let exported =
-        crate::workflow_gen::export_workflow_for_ticket(&ticket, &registry, None, &state.config)
-            .map_err(|e| ApiError::NotFound(e.to_string()))?;
+    let exported = crate::workflow_gen::export_workflow_for_ticket(
+        &ticket,
+        &registry,
+        None,
+        &state.config,
+        query.format,
+    )
+    .map_err(|e| ApiError::NotFound(e.to_string()))?;
 
     Ok(Json(exported.into()))
 }
@@ -60,7 +77,8 @@ pub async fn export(
     path = "/api/v1/issuetypes/{key}/workflow-preview",
     tag = "Workflow",
     params(
-        ("key" = String, Path, description = "Issue type key (e.g., FEAT, FIX)")
+        ("key" = String, Path, description = "Issue type key (e.g., FEAT, FIX)"),
+        ("format" = Option<WorkflowFormat>, Query, description = "Output format: claude (default) or agnt")
     ),
     responses(
         (status = 200, description = "Generated preview workflow", body = WorkflowPreviewResponse),
@@ -70,13 +88,14 @@ pub async fn export(
 pub async fn preview(
     State(state): State<ApiState>,
     Path(key): Path<String>,
+    Query(query): Query<ExportQuery>,
 ) -> Result<Json<WorkflowPreviewResponse>, ApiError> {
     let registry = state.registry.read().await;
     let issuetype = registry
         .get(&key.to_uppercase())
         .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?;
 
-    let exported = crate::workflow_gen::export_workflow_for_issuetype(issuetype)
+    let exported = crate::workflow_gen::export_workflow_for_issuetype(issuetype, query.format)
         .map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     Ok(Json(exported.into()))
@@ -88,34 +107,71 @@ mod tests {
     use crate::config::Config;
     use std::path::PathBuf;
 
-    fn make_state() -> ApiState {
+    // Each test gets its own tickets path: `ApiState::new` scans/scaffolds the
+    // registry from that directory, so a shared path races across parallel tests.
+    fn make_state(name: &str) -> ApiState {
         ApiState::new(
             Config::default(),
-            PathBuf::from("/tmp/test-tickets-workflow"),
+            PathBuf::from(format!("/tmp/test-tickets-workflow-{name}")),
         )
     }
 
     #[tokio::test]
     async fn export_unknown_ticket_is_not_found() {
-        let state = make_state();
-        let result = export(State(state), Path("NONEXISTENT-999".to_string())).await;
+        let state = make_state("export-unknown");
+        let result = export(
+            State(state),
+            Path("NONEXISTENT-999".to_string()),
+            Query(ExportQuery::default()),
+        )
+        .await;
         assert!(result.is_err(), "unknown ticket should error");
     }
 
     #[tokio::test]
     async fn preview_known_issuetype_returns_workflow() {
-        let state = make_state();
+        let state = make_state("preview-known");
         // Lower-case key exercises the to_uppercase() normalization.
-        let result = preview(State(state), Path("feat".to_string())).await;
+        let result = preview(
+            State(state),
+            Path("feat".to_string()),
+            Query(ExportQuery::default()),
+        )
+        .await;
         let body = result.expect("FEAT preview should resolve").0;
         assert_eq!(body.issuetype_key, "FEAT");
         assert!(body.contents.contains("export const meta"));
     }
 
     #[tokio::test]
+    async fn preview_agnt_format_returns_json_graph() {
+        let state = make_state("preview-agnt");
+        let result = preview(
+            State(state),
+            Path("feat".to_string()),
+            Query(ExportQuery {
+                format: WorkflowFormat::Agnt,
+            }),
+        )
+        .await;
+        let body = result.expect("FEAT agnt preview should resolve").0;
+        assert!(body
+            .suggested_filename
+            .ends_with(".agnt.preview.workflow.json"));
+        let v: serde_json::Value =
+            serde_json::from_str(&body.contents).expect("agnt preview is valid JSON");
+        assert!(v["nodes"].is_array());
+    }
+
+    #[tokio::test]
     async fn preview_unknown_issuetype_is_not_found() {
-        let state = make_state();
-        let result = preview(State(state), Path("NOPE".to_string())).await;
+        let state = make_state("preview-unknown");
+        let result = preview(
+            State(state),
+            Path("NOPE".to_string()),
+            Query(ExportQuery::default()),
+        )
+        .await;
         assert!(result.is_err(), "unknown issue type should error");
     }
 }

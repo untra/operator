@@ -127,16 +127,55 @@ model    = "opus"
 prompt_suffix = "\n\nThink carefully before acting."
 ```
 
+## Agent profiles & remote agents
+
+A delegator can be serialized to a portable **agent profile** (`agent-profile.json`) — a
+tool-agnostic interchange format with a shared core (`provider`, `model`, `system_prompt`,
+`skills`, `mcp_servers`, `tools`) plus namespaced extension bags: `x_operator` (Operator's
+launch config and model properties) and per-platform opaque bags (`x_agnt`, `x_openai`) that are
+preserved verbatim. Profiles round-trip losslessly in both directions, so a profile authored on
+another platform survives `import → export` byte-for-byte.
+
+A delegator may also carry a **`remote_agent`** reference — a `{ platform, id }` pointer to a
+remote, named agent that lives on another service:
+
+```toml
+[[delegators]]
+name  = "agnt-researcher"
+# the agent lives on AGNT; Operator references it but never runs it
+[delegators.remote_agent]
+platform = "agnt"          # or "openai"
+id       = "Research Assistant"   # AGNT agent name, or an OpenAI asst_… id
+```
+
+Remote agents are **export-only**: Operator has no runtime client for those platforms, so a
+delegator carrying a `remote_agent` cannot be launched locally — resolution returns a
+`RemoteOnlyDelegator` error on every launch path. When the platform is `agnt`, the reference is
+surfaced in the [`--format agnt` workflow export](/docs/) as an `agnt-agent` node; other platforms
+ride opaquely in the profile.
+
+> **Caveat:** a non-AGNT remote delegator (e.g. `platform = "openai"`) used as a step agent in an
+> `agnt` export still emits an ordinary `operator-run-step` node. If AGNT runs that node it calls
+> back into Operator, which then hits the `RemoteOnlyDelegator` guard and errors. Don't bind a
+> non-AGNT remote delegator as the step agent of a workflow you intend to export to AGNT.
+
+> **Design note — the interchange is tool-agnostic.** AGNT was the first remote platform; adding
+> OpenAI Assistants as the second cost only a generic `remote_agent { platform, id }` reference and
+> an opaque `x_openai` bag mirroring `x_agnt` — **no new mapping logic, no executor, no export
+> node.** That's the evidence the schema core is not shaped around any one tool.
+
 ## REST API
 
-The running Operator API exposes full CRUD for delegators:
+The running Operator API exposes full CRUD for delegators, plus agent-profile interchange:
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/v1/delegators` | List all delegators |
 | `POST` | `/api/v1/delegators` | Create a delegator |
 | `POST` | `/api/v1/delegators/from-tool` | Create from a detected tool (auto-generates name) |
+| `POST` | `/api/v1/delegators/import-profile` | Create a delegator from an `AgentProfile` |
 | `GET` | `/api/v1/delegators/{name}` | Get one delegator |
+| `GET` | `/api/v1/delegators/{name}/profile` | Export a delegator as an `AgentProfile` |
 | `PUT` | `/api/v1/delegators/{name}` | Update a delegator |
 | `DELETE` | `/api/v1/delegators/{name}` | Delete a delegator |
 

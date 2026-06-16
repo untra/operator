@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gbqr.us/operator/tool-config.schema.json",
+  "$id": "https://operator.untra.io/schemas/tool_config.schema.json",
   "title": "LLM Tool Configuration Schema",
   "description": "Schema for configuring LLM CLI tools in Operator. Each tool config defines how Operator detects, invokes, and manages an LLM CLI tool like Claude Code, Gemini CLI, or OpenAI Codex.",
   "type": "object",

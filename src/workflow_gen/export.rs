@@ -46,9 +46,7 @@ pub fn export_workflow(
     // Reuse the exact variable surface a step prompt sees at launch time.
     let ctx = StepManager::build_ticket_context(ticket, pr_config);
 
-    let mut hbs = Handlebars::new();
-    hbs.set_strict_mode(false);
-    hbs.register_escape_fn(handlebars::no_escape);
+    let hbs = handlebars_renderer();
 
     let steps = ordered_steps(issuetype);
 
@@ -66,9 +64,19 @@ pub fn export_workflow(
     Ok(out)
 }
 
+/// A Handlebars renderer configured the way every workflow emitter needs it:
+/// non-strict (missing vars render empty) with escaping disabled (the emitters
+/// do their own JS/JSON-literal escaping). Shared by the `.js` and AGNT targets.
+pub(super) fn handlebars_renderer() -> Handlebars<'static> {
+    let mut hbs = Handlebars::new();
+    hbs.set_strict_mode(false);
+    hbs.register_escape_fn(handlebars::no_escape);
+    hbs
+}
+
 /// Order steps by following the `next_step` chain from the first step, then
 /// appending any steps not reachable that way (in declaration order).
-fn ordered_steps(it: &IssueType) -> Vec<&StepSchema> {
+pub(super) fn ordered_steps(it: &IssueType) -> Vec<&StepSchema> {
     let mut order: Vec<&StepSchema> = Vec::new();
     let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
 
@@ -112,13 +120,26 @@ fn provenance_header(ticket: &Ticket, it: &IssueType) -> String {
     )
 }
 
-fn meta_block(ticket: &Ticket, it: &IssueType, steps: &[&StepSchema]) -> String {
-    let name = if ticket.summary.is_empty() {
+/// The workflow's display name: `<ticket-id> — <summary>` (falling back to the
+/// issuetype name when the ticket has no summary). Shared by the `.js` `meta`
+/// block and the AGNT workflow `name`.
+pub(super) fn meta_name(ticket: &Ticket, it: &IssueType) -> String {
+    if ticket.summary.is_empty() {
         format!("{} — {}", ticket.id, it.name)
     } else {
         format!("{} — {}", ticket.id, ticket.summary)
-    };
-    let description = format!("{}: {}", it.name, it.description);
+    }
+}
+
+/// The workflow's description: `<issuetype name>: <issuetype description>`.
+/// Shared by the `.js` `meta` block and the AGNT workflow `description`.
+pub(super) fn meta_description(it: &IssueType) -> String {
+    format!("{}: {}", it.name, it.description)
+}
+
+fn meta_block(ticket: &Ticket, it: &IssueType, steps: &[&StepSchema]) -> String {
+    let name = meta_name(ticket, it);
+    let description = meta_description(it);
 
     let mut phases = String::new();
     for step in steps {

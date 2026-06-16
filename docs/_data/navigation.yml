@@ -51,6 +51,24 @@ docs:
           - title: Gemini CLI
             url: /getting-started/agents/gemini-cli/
             icon: gemini
+      - title: Supported Model Providers
+        url: /getting-started/model-servers/
+        children:
+          - title: Anthropic
+            url: /getting-started/model-servers/anthropic/
+            icon: anthropic
+          - title: OpenAI
+            url: /getting-started/model-servers/openai/
+            icon: codex
+          - title: Google
+            url: /getting-started/model-servers/google/
+            icon: google
+          - title: OpenRouter
+            url: /getting-started/model-servers/openrouter/
+            icon: openrouter
+          - title: Ollama
+            url: /getting-started/model-servers/ollama/
+            icon: ollama
       - title: Supported Git Repositories
         url: /getting-started/git/
         children:
@@ -78,6 +96,11 @@ docs:
           - title: Docker
             url: /getting-started/platforms/docker/
             icon: docker
+      - title: Automation Platform Integrations
+        url: /getting-started/integrations/
+        children:
+          - title: AGNT.gg
+            url: /getting-started/integrations/agnt/
   - title: Core
     children:
       - title: Kanban

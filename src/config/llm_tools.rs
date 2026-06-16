@@ -125,6 +125,22 @@ pub struct SkillDirectoriesOverride {
     pub project: Vec<String>,
 }
 
+/// A declarative reference to a remote, named agent hosted by another platform.
+///
+/// `platform` is the hosting service (`"agnt"`, `"openai"`) — deliberately
+/// distinct from the core `provider`/`llm_tool` (the model or coding CLI). These
+/// agents are API/memory-native and live on the remote side; Operator has no
+/// runtime client for them, so a delegator carrying one is **export-only** and
+/// cannot be launched locally (see the guard in `delegator_resolution`).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema)]
+#[ts(export)]
+pub struct RemoteAgentRef {
+    /// Hosting platform (e.g. `"agnt"`, `"openai"`).
+    pub platform: String,
+    /// Platform-native agent identifier (e.g. an AGNT agent name, an `OpenAI` `asst_…` id).
+    pub id: String,
+}
+
 /// Agent delegator configuration for autonomous ticket launching
 ///
 /// A delegator is a named {tool, model} pairing with optional launch configuration
@@ -152,6 +168,34 @@ pub struct Delegator {
     /// (claude → anthropic-api, codex → openai-api, gemini → google-api).
     #[serde(default)]
     pub model_server: Option<String>,
+    /// Declarative reference to a remote, named agent on another platform
+    /// (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).
+    ///
+    /// Export-only: Operator has no runtime client for those platforms, so a
+    /// delegator carrying this CANNOT be launched locally — resolution errors out
+    /// (see `delegator_resolution`). It is stored, listed, serialized into an
+    /// `AgentProfile`, and — for `platform == "agnt"` — surfaced in the
+    /// `--format agnt` workflow export as an `agnt-agent` node. `None` = ordinary,
+    /// locally launchable delegator.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_agent: Option<RemoteAgentRef>,
+    /// Opaque AGNT-namespaced extension fields, preserved verbatim across an
+    /// `AgentProfile` round-trip so re-export is lossless (e.g. `memory`,
+    /// `assignedWorkflows`, `creditLimit`). Operator never interprets this.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x_agnt: Option<serde_json::Value>,
+    /// Opaque OpenAI-namespaced extension fields, preserved verbatim across an
+    /// `AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`,
+    /// `metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x_openai: Option<serde_json::Value>,
+    /// Opaque carry for `AgentProfile` shared-core fields Operator cannot model
+    /// first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an
+    /// import→export round-trip is lossless. Distinct from `x_agnt`: these are
+    /// shared-core fields, not AGNT-specific, so folding them into `x_agnt` would
+    /// corrupt that namespace. Operator never interprets this.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unmapped_core: Option<serde_json::Value>,
 }
 
 /// A named host that serves models via an inference API.
@@ -168,7 +212,7 @@ pub struct Delegator {
 pub struct ModelServer {
     /// Unique name (e.g., "ollama-local", "vllm-gpu1")
     pub name: String,
-    /// Kind: "ollama", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio"
+    /// Kind: "ollama", "openrouter", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio"
     pub kind: String,
     /// Base URL of the inference endpoint (e.g., `http://localhost:11434`).
     /// `None` for implicit vendor servers means use the SDK default.
@@ -206,11 +250,60 @@ pub fn implicit_model_server_for_tool(tool: &str) -> ModelServer {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn delegator_deserializes_without_new_fields() {
+        // Pre-existing config JSON that has none of remote_agent/x_agnt/x_openai/unmapped_core.
+        let json = r#"{
+            "name": "claude-opus",
+            "llm_tool": "claude",
+            "model": "opus"
+        }"#;
+        let d: Delegator = serde_json::from_str(json).expect("legacy delegator still deserializes");
+        assert_eq!(d.name, "claude-opus");
+        assert!(d.remote_agent.is_none());
+        assert!(d.x_agnt.is_none());
+        assert!(d.x_openai.is_none());
+        assert!(d.unmapped_core.is_none());
+    }
+
+    #[test]
+    fn delegator_serializes_omits_none_new_fields() {
+        let d = Delegator {
+            name: "claude-opus".to_string(),
+            llm_tool: "claude".to_string(),
+            model: "opus".to_string(),
+            display_name: None,
+            model_properties: std::collections::HashMap::new(),
+            launch_config: None,
+            model_server: None,
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
+        };
+        let v = serde_json::to_value(&d).unwrap();
+        assert!(
+            v.get("remote_agent").is_none(),
+            "None remote_agent is omitted"
+        );
+        assert!(v.get("x_agnt").is_none(), "None x_agnt is omitted");
+        assert!(v.get("x_openai").is_none(), "None x_openai is omitted");
+        assert!(
+            v.get("unmapped_core").is_none(),
+            "None unmapped_core is omitted"
+        );
+    }
+}
+
 /// Launch configuration for a delegator
 ///
 /// Controls how the delegator launches agents. Optional fields use tri-state
 /// semantics: `None` = inherit from global config, `Some(true/false)` = override.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub struct DelegatorLaunchConfig {
     /// Run in YOLO (auto-accept) mode

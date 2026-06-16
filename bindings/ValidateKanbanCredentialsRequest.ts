@@ -7,4 +7,4 @@ import type { LinearCredentials } from "./LinearCredentials";
 /**
  * Request to validate kanban credentials without persisting them.
  */
-export type ValidateKanbanCredentialsRequest = { provider: KanbanProviderKind, jira: JiraCredentials | null, linear: LinearCredentials | null, github: GithubCredentials | null, };
+export type ValidateKanbanCredentialsRequest = { provider: KanbanProviderKind, jira?: JiraCredentials | null, linear?: LinearCredentials | null, github?: GithubCredentials | null, };

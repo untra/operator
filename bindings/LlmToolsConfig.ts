@@ -31,4 +31,4 @@ default_model: string | null,
 /**
  * Per-tool overrides for skill directories (keyed by `tool_name`)
  */
-skill_directory_overrides: { [key in string]?: SkillDirectoriesOverride }, };
+skill_directory_overrides: { [key in string]: SkillDirectoriesOverride }, };

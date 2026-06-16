@@ -117,6 +117,10 @@ pub struct DelegatorResponse {
     /// Optional launch configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub launch_config: Option<DelegatorLaunchConfigDto>,
+    /// Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When
+    /// set, the delegator is export-only and cannot be launched locally.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_agent: Option<crate::config::RemoteAgentRef>,
 }
 
 /// Request to create a new delegator
@@ -141,6 +145,10 @@ pub struct CreateDelegatorRequest {
     /// Optional launch configuration
     #[serde(default)]
     pub launch_config: Option<DelegatorLaunchConfigDto>,
+    /// Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When
+    /// set, the delegator is export-only and cannot be launched locally.
+    #[serde(default)]
+    pub remote_agent: Option<crate::config::RemoteAgentRef>,
 }
 
 /// Launch configuration DTO for delegators
@@ -313,6 +321,27 @@ pub struct ModelServerKindEntry {
     pub icon: String,
     /// Whether this is an implicit vendor builtin (always present, not deletable)
     pub is_builtin: bool,
+    /// Provider-class slug grouping kinds within the Model Provider vertical
+    /// ("first-party" or "gateway"). Distinct from `is_builtin`. (Field name
+    /// kept as `category` for wire/TS stability.)
+    pub category: String,
+    /// Human-friendly provider-class group header (e.g. "First-party")
+    pub category_label: String,
+    /// Brand-icon basename (e.g. "ollama") for surfaces that render vendor
+    /// logos, or `None` to fall back to the `icon` codicon.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brand_icon: Option<String>,
+    /// Default inference base URL used to probe this provider's models when no
+    /// instance declares one, or `None` for bring-your-own-endpoint kinds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_base_url: Option<String>,
+    /// Default env var the probe reads to authenticate (e.g. `ANTHROPIC_API_KEY`),
+    /// or `None` when no key is needed by default.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_api_key_env: Option<String>,
+    /// Whether operator can probe this provider from built-in defaults (it has a
+    /// `default_base_url`) without the user first declaring an instance.
+    pub connectable: bool,
 }
 
 /// A single model offered by a server (from a live probe).

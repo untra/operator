@@ -15,4 +15,4 @@ workingDir?: string,
 /**
  * Environment variables to set
  */
-env?: { [key in string]?: string }, };
+env?: { [key in string]: string }, };

@@ -13,6 +13,10 @@ use utoipa::ToSchema;
 pub struct HealthResponse {
     pub status: String,
     pub version: String,
+    /// Top-level directory name of the operator working root (e.g. "acme").
+    pub directory_name: String,
+    /// Non-reversible fingerprint of the working root's canonical path.
+    pub directory_id: String,
 }
 
 /// Status response with registry info
@@ -21,6 +25,10 @@ pub struct HealthResponse {
 pub struct StatusResponse {
     pub status: String,
     pub version: String,
+    /// Top-level directory name of the operator working root (e.g. "acme").
+    pub directory_name: String,
+    /// Non-reversible fingerprint of the working root's canonical path.
+    pub directory_id: String,
     pub issuetype_count: usize,
     pub collection_count: usize,
     pub active_collection: String,

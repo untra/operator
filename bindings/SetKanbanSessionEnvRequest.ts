@@ -8,4 +8,4 @@ import type { LinearSessionEnv } from "./LinearSessionEnv";
  * Request to set kanban-related env vars on the server for the current
  * session so subsequent `from_config` calls find the API key.
  */
-export type SetKanbanSessionEnvRequest = { provider: KanbanProviderKind, jira: JiraSessionEnv | null, linear: LinearSessionEnv | null, github: GithubSessionEnv | null, };
+export type SetKanbanSessionEnvRequest = { provider: KanbanProviderKind, jira?: JiraSessionEnv | null, linear?: LinearSessionEnv | null, github?: GithubSessionEnv | null, };

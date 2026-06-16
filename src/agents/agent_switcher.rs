@@ -341,6 +341,10 @@ mod tests {
             model_properties: HashMap::default(),
             model_server: None,
             launch_config: None,
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         }
     }
 

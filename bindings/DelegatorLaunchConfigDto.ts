@@ -14,7 +14,7 @@ yolo: boolean,
 /**
  * Permission mode override
  */
-permission_mode: string | null, 
+permission_mode?: string | null, 
 /**
  * Additional CLI flags
  */
@@ -22,24 +22,24 @@ flags: Array<string>,
 /**
  * Override global `git.use_worktrees` (None = use global setting)
  */
-use_worktrees: boolean | null, 
+use_worktrees?: boolean | null, 
 /**
  * Whether to create a git branch for the ticket (None = default behavior)
  */
-create_branch: boolean | null, 
+create_branch?: boolean | null, 
 /**
  * Run in docker container (None = use global `launch.docker.enabled`)
  */
-docker: boolean | null, 
+docker?: boolean | null, 
 /**
  * Prompt text to prepend before the generated step prompt
  */
-prompt_prefix: string | null, 
+prompt_prefix?: string | null, 
 /**
  * Prompt text to append after the generated step prompt
  */
-prompt_suffix: string | null, 
+prompt_suffix?: string | null, 
 /**
  * Override global relay auto-inject MCP setting per-delegator (None = use global setting)
  */
-operator_relay: boolean | null, };
+operator_relay?: boolean | null, };

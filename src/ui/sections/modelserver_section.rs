@@ -1,4 +1,4 @@
-use crate::api::providers::model_server::ModelServerKind;
+use crate::api::providers::model_server::{ModelProviderClass, ModelServerKind};
 use crate::ui::status_panel::{
     ActionMeta, ActionSet, SectionHealth, SectionId, StatusAction, StatusIcon, StatusSection,
     StatusSnapshot, TreeRow,
@@ -91,6 +91,9 @@ impl StatusSection for ModelServerSection {
                     label,
                     description,
                     icon: StatusIcon::Tool,
+                    brand_icon: ModelServerKind::from_slug(&s.kind)
+                        .and_then(|k| k.brand_icon())
+                        .map(str::to_string),
                     is_header: false,
                     actions: action,
                     health: if s.user_declared {
@@ -106,17 +109,37 @@ impl StatusSection for ModelServerSection {
         // from ModelServerKind::ALL so the options can't drift from the other
         // surfaces. The vendor builtins always exist, so they aren't offered here.
         // Multiple servers of the same kind are allowed, so these are always shown.
+        // Rows are grouped under a category header (the *Model Provider* vertical)
+        // so the catalog reads the same way as the README/docs/web surfaces.
+        let mut last_category: Option<ModelProviderClass> = None;
         for kind in ModelServerKind::ALL {
             if kind.is_builtin() {
                 continue;
             }
+            let category = kind.provider_class();
+            if last_category != Some(category) {
+                rows.push(TreeRow {
+                    section_id: SectionId::ModelServers,
+                    id: format!("category-{}", category.slug()),
+                    depth: 1,
+                    label: category.display_name().to_string(),
+                    description: String::new(),
+                    icon: StatusIcon::Tool,
+                    brand_icon: None,
+                    is_header: true,
+                    actions: ActionSet::none(),
+                    health: SectionHealth::Gray,
+                });
+                last_category = Some(category);
+            }
             rows.push(TreeRow {
                 section_id: SectionId::ModelServers,
                 id: format!("add-{}", kind.slug()),
-                depth: 1,
+                depth: 2,
                 label: format!("Add {}", kind.display_name()),
                 description: kind.connect_blurb().to_string(),
                 icon: StatusIcon::Tool,
+                brand_icon: kind.brand_icon().map(str::to_string),
                 is_header: false,
                 actions: ActionSet::primary(StatusAction::ConfigureModelServer {
                     kind: kind.slug().to_string(),
@@ -256,13 +279,23 @@ mod tests {
         let rows = ModelServerSection.children(&snapshot);
 
         let add_rows: Vec<&TreeRow> = rows.iter().filter(|r| r.id.starts_with("add-")).collect();
-        // ollama, openai-compat, lmstudio — the addable kinds.
-        assert_eq!(add_rows.len(), 3);
+        // ollama, openrouter, openai-compat, lmstudio — the addable kinds.
+        assert_eq!(add_rows.len(), 4);
         assert!(add_rows
             .iter()
             .any(|r| matches!(&r.actions.primary, StatusAction::ConfigureModelServer { kind } if kind == "ollama")));
+        assert!(add_rows
+            .iter()
+            .any(|r| matches!(&r.actions.primary, StatusAction::ConfigureModelServer { kind } if kind == "openrouter")));
         // No add-row for vendor builtins.
         assert!(!add_rows.iter().any(|r| r.id == "add-anthropic-api"));
+
+        // The addable kinds (all gateways) sit under a "Gateways" header.
+        let header = rows
+            .iter()
+            .find(|r| r.is_header && r.id == "category-gateway")
+            .expect("gateway provider-class header present");
+        assert_eq!(header.label, "Gateways");
     }
 
     #[test]

@@ -1,19 +1,39 @@
 ---
 layout: default
-title: Model Servers
+title: Supported Model Providers
 parent: Getting Started
 nav_order: 5
-has_children: false
+has_children: true
 ---
 
-# Model Servers
+# Model Providers
 
 A **model server** is a named host that serves models via an inference API. It's orthogonal to the LLM tool that runs your coding agent:
 
 - **LLM tools** (claude, codex, gemini) are the agentic CLIs that drive the coding session — they use tools, edit files, resume sessions.
-- **Model servers** are where the model weights live — Anthropic's API, OpenAI's API, Google's API, or a local/alt host like ollama, lmstudio, or vllm.
+- **Model servers** are where the model weights live — Anthropic's API, OpenAI's API, Google's API, or a many-model provider like [OpenRouter](openrouter/), a local [Ollama](ollama/) server, lmstudio, or vllm.
 
 A delegator pairs an LLM tool with a model (and, optionally, a model server).
+
+## Two families
+
+Every kind is a **model provider**. They split into two classes — the grouping
+every surface (README badges, the status tree, the REST `/kinds` catalog) derives
+from `ModelServerKind::provider_class()`:
+
+- **First-party** — a single vendor's own API: [Anthropic](anthropic/)
+  (`anthropic-api`), [OpenAI](openai/) (`openai-api`), [Google](google/)
+  (`google-api`). These double as the zero-config defaults for the
+  claude/codex/gemini tools, so you rarely declare them — but they're first-class:
+  operator lists each one's live models from its `/models` endpoint when the
+  corresponding key env is set.
+- **Gateways** — a host or aggregator that fronts *many* models behind one
+  endpoint: [OpenRouter](openrouter/) (`openrouter`), a local [Ollama](ollama/)
+  server (`ollama`), or any `openai-compat` / `lmstudio` server. Declare one to
+  reach its whole catalog.
+
+`provider_class()` (first-party vs gateway) answers a different question than
+`is_builtin()` (whether the kind is a zero-config default that can't be deleted).
 
 ## The three-layer hierarchy
 
@@ -30,9 +50,9 @@ A delegator pairs an LLM tool with a model (and, optionally, a model server).
    name, llm_tool, model, model_server (optional)
 ```
 
-## Implicit builtins
+## Zero-config defaults
 
-You don't need to declare a model server for the vendor-default path. Every detected LLM tool has an implicit builtin:
+You don't need to declare a model server for the vendor-default path. Every detected LLM tool has an implicit first-party default:
 
 | llm_tool | implicit model_server |
 |----------|------------------------|
@@ -50,6 +70,7 @@ Delegators that omit `model_server` resolve to these builtins automatically. Exi
 | `openai-api`    | OpenAI / a compatible proxy                                              |
 | `google-api`    | Google Gemini API                                                        |
 | `ollama`        | Local ollama server (`ollama serve`, default `http://localhost:11434`)   |
+| `openrouter`    | [OpenRouter](openrouter/) hosted gateway to 300+ models (`https://openrouter.ai/api/v1`) |
 | `openai-compat` | Any OpenAI-API-compatible server (vllm, lmstudio, together.ai, groq, …)  |
 | `lmstudio`      | LM Studio's local server                                                 |
 
@@ -113,6 +134,7 @@ same probe doubles as a reachability check — there is no separate "test connec
 ```
 GET    /api/v1/model-servers          # list (declared + implicit builtins)
 GET    /api/v1/model-servers/kinds    # the supported-kind catalog (single source of truth)
+GET    /api/v1/model-servers/kinds/{slug}/models  # live models for a provider (connection check)
 GET    /api/v1/model-servers/{name}   # fetch by name
 GET    /api/v1/model-servers/{name}/models  # live model list + reachability
 POST   /api/v1/model-servers          # create
@@ -129,7 +151,7 @@ keyed by the server's protocol:
 | kind            | base URL var          | API key var (mapped from `api_key_env`) |
 |-----------------|-----------------------|------------------------------------------|
 | `anthropic-api` | `ANTHROPIC_BASE_URL`  | `ANTHROPIC_API_KEY`                      |
-| `openai-api` / `openai-compat` / `ollama` / `lmstudio` | `OPENAI_BASE_URL` | `OPENAI_API_KEY` |
+| `openai-api` / `openai-compat` / `ollama` / `openrouter` / `lmstudio` | `OPENAI_BASE_URL` | `OPENAI_API_KEY` |
 | `google-api`    | `GOOGLE_GEMINI_BASE_URL` | `GEMINI_API_KEY`                      |
 
 The API key is injected **by reference**, not by value: if `api_key_env = "MY_KEY"`,

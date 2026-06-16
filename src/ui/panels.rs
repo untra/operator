@@ -333,6 +333,11 @@ fn web_indicator(status: &RestApiStatus, embed_ui: bool) -> Span<'static> {
             format!("  {label} ●:{port}"),
             Style::default().fg(Color::Green),
         ),
+        // Adopted an external operator API — still usable, marked distinctly.
+        RestApiStatus::RunningExternal { port } => Span::styled(
+            format!("  {label} ●:{port} ↗"),
+            Style::default().fg(Color::Green),
+        ),
         RestApiStatus::Starting | RestApiStatus::Stopping => {
             Span::styled(format!("  {label} ●"), Style::default().fg(Color::Yellow))
         }

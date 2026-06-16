@@ -469,16 +469,16 @@ mod tests {
     // TypeScript binding tests
     #[test]
     fn test_export_bindings_pullrequestinfo() {
-        let _ = PullRequestInfo::export_to_string();
+        let _ = PullRequestInfo::export_to_string(&ts_rs::Config::default());
     }
 
     #[test]
     fn test_export_bindings_repoinfo() {
-        let _ = RepoInfo::export_to_string();
+        let _ = RepoInfo::export_to_string(&ts_rs::Config::default());
     }
 
     #[test]
     fn test_export_bindings_gitprovider() {
-        let _ = GitProvider::export_to_string();
+        let _ = GitProvider::export_to_string(&ts_rs::Config::default());
     }
 }

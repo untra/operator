@@ -1452,6 +1452,6 @@
       ]
     }
   },
-  "$id": "https://gbqr.us/operator/issuetype-template.schema.json",
+  "$id": "https://operator.untra.io/schemas/issuetype_schema.json",
   "$comment": "AUTO-GENERATED FROM src/templates/schema.rs - DO NOT EDIT. Regenerate with: cargo run -- docs --only issuetype-json-schema"
 }

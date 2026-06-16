@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gbqr.us/operator/ticket-metadata.schema.json",
+  "$id": "https://operator.untra.io/schemas/ticket_metadata.schema.json",
   "title": "Ticket Metadata Schema",
   "description": "Schema for operator-tracked ticket metadata in YAML frontmatter. This schema documents the structure of ticket files used by the operator TUI.",
   "type": "object",
@@ -35,33 +35,45 @@
       "description": "Target project name (subdirectory in projects root)",
       "examples": ["gamesvc", "operator", "www", "iac"]
     },
-    "created": {
-      "type": "string",
-      "format": "date",
-      "description": "Creation date in YYYY-MM-DD format (legacy, prefer createdDatetime)"
-    },
-    "createdDatetime": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO 8601 datetime when the ticket was created",
-      "examples": ["2024-12-25T14:30:00Z", "2024-12-25T09:15:00-05:00"]
-    },
-    "startedDatetime": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO 8601 datetime when work began on the ticket (moved to running status)",
-      "examples": ["2024-12-25T15:00:00Z"]
-    },
-    "completedDatetime": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO 8601 datetime when the ticket was completed",
-      "examples": ["2024-12-25T17:30:00Z"]
-    },
     "branch": {
       "type": "string",
       "description": "Git branch name for this ticket (auto-generated from type and summary)",
       "examples": ["feature/FEAT-1234-add-user-auth", "fix/FIX-5678-login-timeout"]
+    },
+    "worktree_path": {
+      "type": "string",
+      "description": "Filesystem path to the git worktree for this ticket (per-ticket isolation)",
+      "examples": ["/Users/dev/worktrees/op-FEAT-1234"]
+    },
+    "external_id": {
+      "type": "string",
+      "description": "External issue ID from the kanban provider (e.g., PROJ-123 for Jira, ENG-456 for Linear)",
+      "examples": ["PROJ-123", "ENG-456"]
+    },
+    "external_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Full URL to the issue in the external provider's web UI",
+      "examples": ["https://example.atlassian.net/browse/PROJ-123"]
+    },
+    "external_provider": {
+      "type": "string",
+      "description": "Provider name for the external issue (e.g., jira, linear)",
+      "examples": ["jira", "linear"]
+    },
+    "step_delegators": {
+      "type": "object",
+      "description": "Step name to delegator name mapping. Populated when a step launches; used for bidirectional kanban activity logs.",
+      "additionalProperties": {
+        "type": "string",
+        "description": "Delegator name used for this step"
+      },
+      "examples": [
+        {
+          "plan": "claude",
+          "build": "claude-code"
+        }
+      ]
     },
     "sessions": {
       "type": "object",
@@ -124,12 +136,18 @@
       "step": "build",
       "priority": "P2-medium",
       "project": "gamesvc",
-      "createdDatetime": "2024-12-25T14:30:00Z",
-      "startedDatetime": "2024-12-25T15:00:00Z",
       "branch": "feature/FEAT-1234-add-user-auth",
+      "worktree_path": "/Users/dev/worktrees/op-FEAT-1234",
+      "external_id": "PROJ-123",
+      "external_url": "https://example.atlassian.net/browse/PROJ-123",
+      "external_provider": "jira",
       "sessions": {
         "plan": "550e8400-e29b-41d4-a716-446655440000",
         "build": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+      },
+      "step_delegators": {
+        "plan": "claude",
+        "build": "claude-code"
       }
     },
     {
@@ -138,9 +156,6 @@
       "step": "summarize",
       "priority": "P2-medium",
       "project": "operator",
-      "createdDatetime": "2024-12-25T09:00:00Z",
-      "startedDatetime": "2024-12-25T10:00:00Z",
-      "completedDatetime": "2024-12-25T12:30:00Z",
       "sessions": {
         "explore": "abc12345-6789-0abc-def0-123456789abc"
       },

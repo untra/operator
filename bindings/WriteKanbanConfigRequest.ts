@@ -10,4 +10,4 @@ import type { WriteLinearConfigBody } from "./WriteLinearConfigBody";
  * This endpoint does NOT take the secret — only the env var NAME
  * (`api_key_env`). The secret is set via `/api/v1/kanban/session-env`.
  */
-export type WriteKanbanConfigRequest = { provider: KanbanProviderKind, jira: WriteJiraConfigBody | null, linear: WriteLinearConfigBody | null, github: WriteGithubConfigBody | null, };
+export type WriteKanbanConfigRequest = { provider: KanbanProviderKind, jira?: WriteJiraConfigBody | null, linear?: WriteLinearConfigBody | null, github?: WriteGithubConfigBody | null, };

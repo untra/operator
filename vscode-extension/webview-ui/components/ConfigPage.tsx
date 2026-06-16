@@ -7,6 +7,7 @@ import { OperatorBrand } from './OperatorBrand';
 import { LinkOutCard } from './LinkOutCard';
 import { PrimaryConfigSection } from './sections/PrimaryConfigSection';
 import { CodingAgentsSection } from './sections/CodingAgentsSection';
+import { ModelProvidersSection } from './sections/ModelProvidersSection';
 import { KanbanProvidersSection } from './sections/KanbanProvidersSection';
 import { GitRepositoriesSection } from './sections/GitRepositoriesSection';
 import type {
@@ -23,6 +24,7 @@ interface ConfigPageProps {
   onUpdate: (section: string, key: string, value: unknown) => void;
   onBrowseFolder: (field: string) => void;
   onOpenFile: (filePath: string) => void;
+  onStartSetup: () => void;
   onValidateJira: (domain: string, email: string, apiToken: string) => void;
   onValidateLinear: (apiKey: string) => void;
   onDetectTools: () => void;
@@ -43,6 +45,7 @@ export function ConfigPage({
   onUpdate,
   onBrowseFolder,
   onOpenFile,
+  onStartSetup,
   onValidateJira,
   onValidateLinear,
   onDetectTools,
@@ -59,11 +62,15 @@ export function ConfigPage({
 }: ConfigPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasWorkDir = Boolean(config.working_directory);
+  // When no config file exists yet (or it's empty), nudge the user into the
+  // setup walkthrough instead of trying to open a non-existent config.toml.
+  const needsSetup = !config.config_exists;
 
   const navItems: NavItem[] = useMemo(() => [
     { id: 'section-primary', label: 'Workspace Configuration' },
     { id: 'section-kanban', label: 'Kanban Providers', disabled: !hasWorkDir },
     { id: 'section-agents', label: 'Coding Agents', disabled: !hasWorkDir },
+    { id: 'section-model-providers', label: 'Model Providers', disabled: !apiReachable },
     { id: 'section-git', label: 'Git Version Control', disabled: !hasWorkDir },
     { id: 'section-projects', label: 'Operator Managed Projects', disabled: !apiReachable },
   ], [hasWorkDir, apiReachable]);
@@ -85,21 +92,37 @@ export function ConfigPage({
           <Typography variant="h6">
             <OperatorBrand /> Settings
           </Typography>
-          <Button
-            variant="outlined"
-            onClick={() => onOpenFile(config.config_path)}
-            disabled={!config.working_directory}
-            sx={{
-              borderColor: '#66AA99',
-              color: '#66AA99',
-              '&:hover': {
+          {needsSetup ? (
+            <Button
+              variant="contained"
+              onClick={onStartSetup}
+              sx={{
+                backgroundColor: '#66AA99',
+                color: '#fff',
+                '&:hover': {
+                  backgroundColor: '#5A998A',
+                },
+              }}
+            >
+              start operator setup
+            </Button>
+          ) : (
+            <Button
+              variant="outlined"
+              onClick={() => onOpenFile(config.config_path)}
+              disabled={!config.working_directory}
+              sx={{
                 borderColor: '#66AA99',
-                backgroundColor: 'rgba(102, 170, 153, 0.08)',
-              },
-            }}
-          >
-            edit config.toml
-          </Button>
+                color: '#66AA99',
+                '&:hover': {
+                  borderColor: '#66AA99',
+                  backgroundColor: 'rgba(102, 170, 153, 0.08)',
+                },
+              }}
+            >
+              edit config.toml
+            </Button>
+          )}
         </Box>
         <PrimaryConfigSection
           working_directory={config.working_directory}
@@ -128,6 +151,10 @@ export function ConfigPage({
           llm_tools={config.config.llm_tools}
           onUpdate={onUpdate}
           onDetectTools={onDetectTools}
+        />
+        <ModelProvidersSection
+          detectedTools={config.config.llm_tools.detected.map((t) => t.name)}
+          apiReachable={apiReachable}
         />
         <GitRepositoriesSection
           git={config.config.git}

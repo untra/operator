@@ -1,0 +1,266 @@
+{
+  "name": "operator-plugin",
+  "version": "0.2.1",
+  "description": "Orchestrate Operator! ticket-driven coding agents from AGNT workflows",
+  "author": "untra",
+  "displayName": "Operator!",
+  "homepage": "https://github.com/untra/operator",
+  "icon": "table",
+  "tools": [
+    {
+      "type": "operator-create-ticket",
+      "entryPoint": "./create-ticket.js",
+      "schema": {
+        "title": "Operator: Create Ticket",
+        "category": "action",
+        "type": "operator-create-ticket",
+        "icon": "file",
+        "description": "Create a new Operator ticket from a template and write it to the queue.",
+        "documentation": "https://operator.untra.io/getting-started/integrations/agnt/",
+        "parameters": {
+          "operatorBaseUrl": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Base URL of the Operator REST API",
+            "placeholder": "http://localhost:7008",
+            "default": "http://localhost:7008"
+          },
+          "template": {
+            "type": "string",
+            "inputType": "select",
+            "description": "Template key for the ticket type",
+            "options": ["feat", "fix", "task", "spike", "inv", "assess", "sync", "init"],
+            "required": true
+          },
+          "project": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Project the ticket targets",
+            "placeholder": "gamesvc"
+          },
+          "summary": {
+            "type": "string",
+            "inputType": "textarea",
+            "description": "One-line summary of the work"
+          }
+        },
+        "outputs": {
+          "success": { "type": "boolean", "description": "Whether the ticket was created" },
+          "result": { "type": "object", "description": "Created ticket: { id, filename, path }" },
+          "error": { "type": "string", "description": "Error message if the call failed" }
+        }
+      }
+    },
+    {
+      "type": "operator-launch-agent",
+      "entryPoint": "./launch.js",
+      "schema": {
+        "title": "Operator: Launch Agent",
+        "category": "action",
+        "type": "operator-launch-agent",
+        "icon": "bolt",
+        "description": "Launch/start a coding agent for an existing Operator ticket.",
+        "documentation": "https://operator.untra.io/getting-started/integrations/agnt/",
+        "parameters": {
+          "operatorBaseUrl": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Base URL of the Operator REST API",
+            "placeholder": "http://localhost:7008",
+            "default": "http://localhost:7008"
+          },
+          "id": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Ticket id to launch",
+            "placeholder": "FEAT-1234",
+            "required": true
+          },
+          "delegator": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Named delegator to use (optional)"
+          },
+          "model": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Model to use (optional)",
+            "placeholder": "sonnet / opus"
+          },
+          "wrapper": {
+            "type": "string",
+            "inputType": "select",
+            "description": "Session wrapper (optional)",
+            "options": ["vscode", "tmux", "cmux", "terminal"]
+          }
+        },
+        "outputs": {
+          "success": { "type": "boolean", "description": "Whether the agent launched" },
+          "result": { "type": "object", "description": "Launch details: { agent_id, ticket_id, session_id, command, terminal_name, working_directory, branch }" },
+          "error": { "type": "string", "description": "Error message if the call failed" }
+        }
+      }
+    },
+    {
+      "type": "operator-run-step",
+      "entryPoint": "./run-step.js",
+      "schema": {
+        "title": "Operator: Run Step",
+        "category": "action",
+        "type": "operator-run-step",
+        "icon": "terminal",
+        "description": "Run an Operator ticket for one issuetype step. This is the node type emitted by `operator workflow export --format agnt`.",
+        "documentation": "https://operator.untra.io/getting-started/integrations/agnt/",
+        "parameters": {
+          "operatorBaseUrl": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Base URL of the Operator REST API",
+            "placeholder": "http://localhost:7008",
+            "default": "http://localhost:7008"
+          },
+          "ticket": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Ticket id to run",
+            "placeholder": "FEAT-1234",
+            "required": true
+          },
+          "step": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Step name this node represents (informational)"
+          },
+          "model": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Model to use (optional)",
+            "placeholder": "sonnet / opus"
+          }
+        },
+        "outputs": {
+          "success": { "type": "boolean", "description": "Whether the ticket run launched" },
+          "result": { "type": "object", "description": "Launch details: { agent_id, ticket_id, session_id, command, terminal_name, working_directory, branch }" },
+          "error": { "type": "string", "description": "Error message if the call failed" }
+        }
+      }
+    },
+    {
+      "type": "operator-queue-status",
+      "entryPoint": "./queue.js",
+      "schema": {
+        "title": "Operator: Queue Status",
+        "category": "action",
+        "type": "operator-queue-status",
+        "icon": "chart",
+        "description": "Read the Operator queue status (counts by status, active agents).",
+        "documentation": "https://operator.untra.io/getting-started/integrations/agnt/",
+        "parameters": {
+          "operatorBaseUrl": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Base URL of the Operator REST API",
+            "placeholder": "http://localhost:7008",
+            "default": "http://localhost:7008"
+          }
+        },
+        "outputs": {
+          "success": { "type": "boolean", "description": "Whether the status was read" },
+          "result": { "type": "object", "description": "Queue counts: { queued, in_progress, awaiting, completed, by_type }" },
+          "error": { "type": "string", "description": "Error message if the call failed" }
+        }
+      }
+    },
+    {
+      "type": "operator-export-workflow",
+      "entryPoint": "./export.js",
+      "schema": {
+        "title": "Operator: Export Workflow",
+        "category": "action",
+        "type": "operator-export-workflow",
+        "icon": "code",
+        "description": "Export a ticket (rendered against its issuetype) to a Claude or AGNT workflow.",
+        "documentation": "https://operator.untra.io/getting-started/integrations/agnt/",
+        "parameters": {
+          "operatorBaseUrl": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Base URL of the Operator REST API",
+            "placeholder": "http://localhost:7008",
+            "default": "http://localhost:7008"
+          },
+          "id": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Ticket id to export",
+            "placeholder": "FEAT-1234",
+            "required": true
+          },
+          "format": {
+            "type": "string",
+            "inputType": "select",
+            "description": "Output format",
+            "options": ["agnt", "claude"],
+            "default": "agnt"
+          }
+        },
+        "outputs": {
+          "success": { "type": "boolean", "description": "Whether the export succeeded" },
+          "result": { "type": "object", "description": "Exported workflow: { ticket_id, issuetype_key, suggested_filename, contents }" },
+          "error": { "type": "string", "description": "Error message if the call failed" }
+        }
+      }
+    },
+    {
+      "type": "operator-alert",
+      "entryPoint": "./alert.js",
+      "schema": {
+        "title": "Operator: Raise Alert",
+        "category": "action",
+        "type": "operator-alert",
+        "icon": "webhook",
+        "description": "Raise an external alert as an Operator investigation (INV) ticket.",
+        "documentation": "https://operator.untra.io/getting-started/integrations/agnt/",
+        "parameters": {
+          "operatorBaseUrl": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Base URL of the Operator REST API",
+            "placeholder": "http://localhost:7008",
+            "default": "http://localhost:7008"
+          },
+          "source": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Where the alert came from",
+            "placeholder": "pagerduty",
+            "default": "agnt"
+          },
+          "message": {
+            "type": "string",
+            "inputType": "textarea",
+            "description": "The alert message / summary",
+            "required": true
+          },
+          "severity": {
+            "type": "string",
+            "inputType": "select",
+            "description": "Severity label",
+            "options": ["S1", "S2", "S3"],
+            "default": "S2"
+          },
+          "project": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Project the investigation targets (optional)"
+          }
+        },
+        "outputs": {
+          "success": { "type": "boolean", "description": "Whether the investigation was created" },
+          "result": { "type": "object", "description": "Created investigation: { id, filename }" },
+          "error": { "type": "string", "description": "Error message if the call failed" }
+        }
+      }
+    }
+  ]
+}

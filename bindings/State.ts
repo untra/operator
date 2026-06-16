@@ -8,11 +8,11 @@ export type State = { paused: boolean, agents: Array<AgentState>, completed: Arr
 /**
  * Per-project LLM usage statistics
  */
-project_llm_stats: { [key in string]?: ProjectLlmStats }, 
+project_llm_stats: { [key in string]: ProjectLlmStats }, 
 /**
  * Per-project issue type collection preferences (`project_name` -> `collection_name`)
  */
-project_collection_prefs: { [key in string]?: string }, 
+project_collection_prefs: { [key in string]: string }, 
 /**
  * Active multi-agent step groups (`multi_model`, `multi_prompt`, `matrixed`)
  */

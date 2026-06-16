@@ -112,14 +112,23 @@ connect_timeout_ms = 5000
 # Model servers (where models are hosted)
 # Implicit builtins exist for anthropic-api, openai-api, google-api and do not
 # need to be declared. Declare a `[[model_servers]]` entry when pointing a
-# delegator at an alternate host (ollama, lmstudio, vllm, any OpenAI-compatible
-# endpoint).
+# delegator at a many-model provider (openrouter, ollama, lmstudio, vllm, any
+# OpenAI-compatible endpoint).
 #
 # [[model_servers]]
 # name = "ollama-local"
 # kind = "ollama"
 # base_url = "http://localhost:11434"
 # display_name = "Ollama (local)"
+#
+# # OpenRouter: one OpenAI-compatible key fronting 300+ models.
+# # Set OPENROUTER_API_KEY in your environment; it is referenced, never stored.
+# [[model_servers]]
+# name = "openrouter"
+# kind = "openrouter"
+# base_url = "https://openrouter.ai/api/v1"
+# api_key_env = "OPENROUTER_API_KEY"
+# display_name = "OpenRouter"
 #
 # # Example for running an Anthropic-protocol bridge (e.g. claude-code-router)
 # # in front of ollama so the `claude` CLI can talk to local models:

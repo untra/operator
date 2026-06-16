@@ -13,7 +13,7 @@ Schema for operator-tracked ticket metadata in YAML frontmatter. This schema doc
 ## Schema Information
 
 - **$schema**: `http://json-schema.org/draft-07/schema#`
-- **$id**: `https://gbqr.us/operator/ticket-metadata.schema.json`
+- **$id**: `https://operator.untra.io/schemas/ticket_metadata.schema.json`
 - **Additional Properties**: Allowed
 
 ## Required Fields
@@ -30,11 +30,12 @@ Schema for operator-tracked ticket metadata in YAML frontmatter. This schema doc
 | `step` | `string` | No | Current workflow step name (e.g., plan, build, code, test, deploy) |
 | `priority` | `string` | No | Ticket priority level |
 | `project` | `string` | No | Target project name (subdirectory in projects root) |
-| `created` | `string` (date) | No | Creation date in YYYY-MM-DD format (legacy, prefer createdDatetime) |
-| `createdDatetime` | `string` (date-time) | No | ISO 8601 datetime when the ticket was created |
-| `startedDatetime` | `string` (date-time) | No | ISO 8601 datetime when work began on the ticket (moved to running status) |
-| `completedDatetime` | `string` (date-time) | No | ISO 8601 datetime when the ticket was completed |
 | `branch` | `string` | No | Git branch name for this ticket (auto-generated from type and summary) |
+| `worktree_path` | `string` | No | Filesystem path to the git worktree for this ticket (per-ticket isolation) |
+| `external_id` | `string` | No | External issue ID from the kanban provider (e.g., PROJ-123 for Jira, ENG-456 for Linear) |
+| `external_url` | `string` (uri) | No | Full URL to the issue in the external provider's web UI |
+| `external_provider` | `string` | No | Provider name for the external issue (e.g., jira, linear) |
+| `step_delegators` | `object` | No | Step name to delegator name mapping. Populated when a step launches; used for bidirectional kanban activity logs. |
 | `sessions` | `object` | No | Step name to LLM session UUID mapping. Each step gets its own session ID for continuity. |
 | `llm_task` | `object` | No | LLM task metadata for delegate mode integration |
 
@@ -71,38 +72,44 @@ Schema for operator-tracked ticket metadata in YAML frontmatter. This schema doc
 - **Type**: `string`
 - **Examples**: `gamesvc`, `operator`, `www`, `iac`
 
-### created
-
-- **Description**: Creation date in YYYY-MM-DD format (legacy, prefer createdDatetime)
-- **Type**: `string` (date)
-- **Format**: `date`
-
-### createdDatetime
-
-- **Description**: ISO 8601 datetime when the ticket was created
-- **Type**: `string` (date-time)
-- **Format**: `date-time`
-- **Examples**: `2024-12-25T14:30:00Z`, `2024-12-25T09:15:00-05:00`
-
-### startedDatetime
-
-- **Description**: ISO 8601 datetime when work began on the ticket (moved to running status)
-- **Type**: `string` (date-time)
-- **Format**: `date-time`
-- **Examples**: `2024-12-25T15:00:00Z`
-
-### completedDatetime
-
-- **Description**: ISO 8601 datetime when the ticket was completed
-- **Type**: `string` (date-time)
-- **Format**: `date-time`
-- **Examples**: `2024-12-25T17:30:00Z`
-
 ### branch
 
 - **Description**: Git branch name for this ticket (auto-generated from type and summary)
 - **Type**: `string`
 - **Examples**: `feature/FEAT-1234-add-user-auth`, `fix/FIX-5678-login-timeout`
+
+### worktree_path
+
+- **Description**: Filesystem path to the git worktree for this ticket (per-ticket isolation)
+- **Type**: `string`
+- **Examples**: `/Users/dev/worktrees/op-FEAT-1234`
+
+### external_id
+
+- **Description**: External issue ID from the kanban provider (e.g., PROJ-123 for Jira, ENG-456 for Linear)
+- **Type**: `string`
+- **Examples**: `PROJ-123`, `ENG-456`
+
+### external_url
+
+- **Description**: Full URL to the issue in the external provider's web UI
+- **Type**: `string` (uri)
+- **Format**: `uri`
+- **Examples**: `https://example.atlassian.net/browse/PROJ-123`
+
+### external_provider
+
+- **Description**: Provider name for the external issue (e.g., jira, linear)
+- **Type**: `string`
+- **Examples**: `jira`, `linear`
+
+### step_delegators
+
+- **Description**: Step name to delegator name mapping. Populated when a step launches; used for bidirectional kanban activity logs.
+- **Type**: `object`
+- **Examples**: `{"plan":"claude","build":"claude-code"}`
+
+**Additional Properties**: `string` (Delegator name used for this step)
 
 ### sessions
 
@@ -149,12 +156,18 @@ Complete ticket metadata examples:
   "step": "build",
   "priority": "P2-medium",
   "project": "gamesvc",
-  "createdDatetime": "2024-12-25T14:30:00Z",
-  "startedDatetime": "2024-12-25T15:00:00Z",
   "branch": "feature/FEAT-1234-add-user-auth",
+  "worktree_path": "/Users/dev/worktrees/op-FEAT-1234",
+  "external_id": "PROJ-123",
+  "external_url": "https://example.atlassian.net/browse/PROJ-123",
+  "external_provider": "jira",
   "sessions": {
     "plan": "550e8400-e29b-41d4-a716-446655440000",
     "build": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+  },
+  "step_delegators": {
+    "plan": "claude",
+    "build": "claude-code"
   }
 }
 ```
@@ -168,9 +181,6 @@ Complete ticket metadata examples:
   "step": "summarize",
   "priority": "P2-medium",
   "project": "operator",
-  "createdDatetime": "2024-12-25T09:00:00Z",
-  "startedDatetime": "2024-12-25T10:00:00Z",
-  "completedDatetime": "2024-12-25T12:30:00Z",
   "sessions": {
     "explore": "abc12345-6789-0abc-def0-123456789abc"
   },

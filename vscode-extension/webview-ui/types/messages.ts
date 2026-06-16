@@ -3,14 +3,26 @@ import type { IssueTypeSummary } from '../../src/generated/IssueTypeSummary';
 import type { IssueTypeResponse } from '../../src/generated/IssueTypeResponse';
 import type { CollectionResponse } from '../../src/generated/CollectionResponse';
 import type { ExternalIssueTypeSummary } from '../../src/generated/ExternalIssueTypeSummary';
+import type { ModelServerKindEntry } from '../../src/generated/ModelServerKindEntry';
+import type { ModelServerModelsResponse } from '../../src/generated/ModelServerModelsResponse';
+import type { DelegatorResponse } from '../../src/generated/DelegatorResponse';
+import type { CreateDelegatorRequest } from '../../src/generated/CreateDelegatorRequest';
 
 // Re-export generated types for consumers
 export type { IssueTypeSummary, IssueTypeResponse, CollectionResponse, ExternalIssueTypeSummary };
+export type {
+  ModelServerKindEntry,
+  ModelServerModelsResponse,
+  DelegatorResponse,
+  CreateDelegatorRequest,
+};
 
 /** Wrapper that pairs the generated Config with extension metadata */
 export interface WebviewConfig {
   config_path: string;
   working_directory: string;
+  /** True only when the config file exists on disk with non-empty content. */
+  config_exists: boolean;
   config: Config;
 }
 
@@ -47,6 +59,7 @@ export type WebviewToExtensionMessage =
   | { type: 'detectLlmTools' }
   | { type: 'openExternal'; url: string }
   | { type: 'openFile'; filePath: string }
+  | { type: 'openWalkthrough' }
   | { type: 'checkApiHealth' }
   | { type: 'getProjects' }
   | { type: 'assessProject'; projectName: string }
@@ -59,7 +72,11 @@ export type WebviewToExtensionMessage =
   | { type: 'createIssueType'; request: import('../../src/generated/CreateIssueTypeRequest').CreateIssueTypeRequest }
   | { type: 'updateIssueType'; key: string; request: import('../../src/generated/UpdateIssueTypeRequest').UpdateIssueTypeRequest }
   | { type: 'deleteIssueType'; key: string }
-  | { type: 'openOperatorUi'; route: 'issuetypes' | 'projects' };
+  | { type: 'openOperatorUi'; route: 'issuetypes' | 'projects' }
+  | { type: 'getModelProviders' }
+  | { type: 'probeProvider'; slug: string }
+  | { type: 'connectProvider'; slug: string }
+  | { type: 'createDelegator'; request: CreateDelegatorRequest };
 
 /** Messages from the extension host to the webview */
 export type ExtensionToWebviewMessage =
@@ -85,7 +102,11 @@ export type ExtensionToWebviewMessage =
   | { type: 'externalIssueTypesError'; provider: string; projectKey: string; error: string }
   | { type: 'issueTypeCreated'; issueType: IssueTypeResponse }
   | { type: 'issueTypeUpdated'; issueType: IssueTypeResponse }
-  | { type: 'issueTypeDeleted'; key: string };
+  | { type: 'issueTypeDeleted'; key: string }
+  | { type: 'modelProvidersLoaded'; kinds: ModelServerKindEntry[]; delegators: DelegatorResponse[] }
+  | { type: 'providerProbed'; slug: string; result: ModelServerModelsResponse }
+  | { type: 'delegatorCreated'; name: string }
+  | { type: 'modelProvidersError'; error: string };
 
 export interface JiraValidationInfo {
   valid: boolean;

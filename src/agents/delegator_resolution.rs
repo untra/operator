@@ -21,7 +21,7 @@ pub struct AgentContext {
 
 /// Error type for delegator resolution failures.
 #[derive(Debug, thiserror::Error)]
-#[allow(clippy::enum_variant_names)] // All failures are "unknown reference to X"; prefix is semantic.
+#[allow(clippy::enum_variant_names)] // The `Unknown*` variants share a semantic prefix; not a naming smell.
 pub enum ResolutionError {
     #[error("Unknown delegator '{0}'")]
     UnknownDelegator(String),
@@ -29,6 +29,16 @@ pub enum ResolutionError {
     UnknownProvider(String),
     #[error("Unknown model_server '{0}'")]
     UnknownModelServer(String),
+    /// The delegator declaratively references a remote, named agent on another
+    /// platform (AGNT, `OpenAI`, ...). Operator has no runtime client for those
+    /// platforms, so such a delegator is export-only and cannot be resolved into a
+    /// launchable provider.
+    #[error("Delegator '{name}' references {platform} agent '{agent_id}' and is export-only; it cannot be launched locally (Operator has no {platform} runtime client)")]
+    RemoteOnlyDelegator {
+        name: String,
+        platform: String,
+        agent_id: String,
+    },
 }
 
 /// Resolve a delegator's `ModelServer`: named lookup if set, else implicit vendor default.
@@ -58,6 +68,18 @@ pub(crate) fn delegator_to_provider(
     config: &Config,
     d: &Delegator,
 ) -> Result<LlmProvider, ResolutionError> {
+    // A delegator that declaratively references a remote agent (AGNT, OpenAI, ...)
+    // is export-only: Operator cannot spawn it (no runtime client for those
+    // platforms). Guard at the single resolution choke point so every local-launch
+    // path (explicit, step-agent, issuetype-agent, default, and the multi-agent
+    // fan-out) is covered, for every platform.
+    if let Some(r) = &d.remote_agent {
+        return Err(ResolutionError::RemoteOnlyDelegator {
+            name: d.name.clone(),
+            platform: r.platform.clone(),
+            agent_id: r.id.clone(),
+        });
+    }
     let server = resolve_model_server_for_delegator(config, d)?;
     let env = crate::api::providers::model_server::env_for_server(&server);
     Ok(LlmProvider {
@@ -293,6 +315,10 @@ mod tests {
             model_properties: std::collections::HashMap::new(),
             model_server: None,
             launch_config: None,
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         }
     }
 
@@ -469,6 +495,10 @@ mod tests {
                 prompt_suffix: Some("SUFFIX".to_string()),
                 operator_relay: None,
             }),
+            remote_agent: None,
+            x_agnt: None,
+            x_openai: None,
+            unmapped_core: None,
         });
 
         let options =
@@ -480,6 +510,84 @@ mod tests {
         assert_eq!(options.extra_flags, vec!["--verbose".to_string()]);
         assert_eq!(options.prompt_prefix.as_deref(), Some("PREFIX"));
         assert_eq!(options.prompt_suffix.as_deref(), Some("SUFFIX"));
+    }
+
+    #[test]
+    fn resolve_remote_only_delegator_errors() {
+        let mut config = Config::default();
+        let mut d = make_delegator("agnt-researcher", "anthropic", "claude-3-5-sonnet");
+        d.remote_agent = Some(crate::config::RemoteAgentRef {
+            platform: "agnt".to_string(),
+            id: "Research Assistant".to_string(),
+        });
+        config.delegators.push(d);
+
+        let err = resolve_launch_options(
+            &config,
+            Some("agnt-researcher"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, ResolutionError::RemoteOnlyDelegator { .. }),
+            "explicit remote-only delegator must error, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn resolve_remote_only_is_platform_agnostic() {
+        // The guard fires for any platform, not just AGNT — an OpenAI Assistant
+        // delegator is equally export-only. Proves the generalization.
+        let mut config = Config::default();
+        let mut d = make_delegator("openai-reviewer", "openai", "gpt-4o");
+        d.remote_agent = Some(crate::config::RemoteAgentRef {
+            platform: "openai".to_string(),
+            id: "asst_abc123".to_string(),
+        });
+        config.delegators.push(d);
+
+        let err = resolve_launch_options(
+            &config,
+            Some("openai-reviewer"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap_err();
+        match err {
+            ResolutionError::RemoteOnlyDelegator { platform, .. } => assert_eq!(platform, "openai"),
+            other => panic!("expected RemoteOnlyDelegator for openai, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_remote_only_step_agent_errors() {
+        // The guard sits in the single resolution choke point, so the step-agent
+        // path errors too — proving the export-only contract holds on every path.
+        let mut config = Config::default();
+        let mut d = make_delegator("agnt-researcher", "anthropic", "claude-3-5-sonnet");
+        d.remote_agent = Some(crate::config::RemoteAgentRef {
+            platform: "agnt".to_string(),
+            id: "Research Assistant".to_string(),
+        });
+        config.delegators.push(d);
+
+        let ctx = AgentContext {
+            step_agent: Some("agnt-researcher".to_string()),
+            issuetype_agent: None,
+        };
+        let err =
+            resolve_launch_options(&config, None, None, None, None, false, Some(&ctx)).unwrap_err();
+        assert!(
+            matches!(err, ResolutionError::RemoteOnlyDelegator { .. }),
+            "step-agent remote-only delegator must error, got {err:?}"
+        );
     }
 
     #[test]

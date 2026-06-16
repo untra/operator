@@ -27,4 +27,34 @@ icon: string,
 /**
  * Whether this is an implicit vendor builtin (always present, not deletable)
  */
-is_builtin: boolean, };
+is_builtin: boolean, 
+/**
+ * Provider-class slug grouping kinds within the Model Provider vertical
+ * ("first-party" or "gateway"). Distinct from `is_builtin`. (Field name
+ * kept as `category` for wire/TS stability.)
+ */
+category: string, 
+/**
+ * Human-friendly provider-class group header (e.g. "First-party")
+ */
+category_label: string, 
+/**
+ * Brand-icon basename (e.g. "ollama") for surfaces that render vendor
+ * logos, or `None` to fall back to the `icon` codicon.
+ */
+brand_icon: string | null, 
+/**
+ * Default inference base URL used to probe this provider's models when no
+ * instance declares one, or `None` for bring-your-own-endpoint kinds.
+ */
+default_base_url: string | null, 
+/**
+ * Default env var the probe reads to authenticate (e.g. `ANTHROPIC_API_KEY`),
+ * or `None` when no key is needed by default.
+ */
+default_api_key_env: string | null, 
+/**
+ * Whether operator can probe this provider from built-in defaults (it has a
+ * `default_base_url`) without the user first declaring an instance.
+ */
+connectable: boolean, };

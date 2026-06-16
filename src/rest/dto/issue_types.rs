@@ -457,3 +457,164 @@ impl CollectionResponse {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_issue_type_summary_serializes_step_count_as_camel_case() {
+        // IssueTypeSummary is the only DTO here using rename_all = "camelCase";
+        // snake_case `step_count` must appear on the wire as `stepCount`.
+        let summary = IssueTypeSummary {
+            key: "FEAT".to_string(),
+            name: "Feature".to_string(),
+            description: "A feature".to_string(),
+            mode: "autonomous".to_string(),
+            glyph: "F".to_string(),
+            color: Some("cyan".to_string()),
+            source: "user".to_string(),
+            step_count: 3,
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("\"stepCount\":3"));
+        assert!(!json.contains("step_count"));
+    }
+
+    #[test]
+    fn test_issue_type_summary_color_absent_when_none() {
+        let summary = IssueTypeSummary {
+            key: "FEAT".to_string(),
+            name: "Feature".to_string(),
+            description: "A feature".to_string(),
+            mode: "autonomous".to_string(),
+            glyph: "F".to_string(),
+            color: None,
+            source: "user".to_string(),
+            step_count: 0,
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(!json.contains("color"));
+    }
+
+    #[test]
+    fn test_issue_type_summary_deserializes_from_camel_case() {
+        let json = r#"{
+            "key": "FIX",
+            "name": "Fix",
+            "description": "A fix",
+            "mode": "autonomous",
+            "glyph": "X",
+            "source": "user",
+            "stepCount": 5
+        }"#;
+        let summary: IssueTypeSummary = serde_json::from_str(json).unwrap();
+        assert_eq!(summary.step_count, 5);
+        assert!(summary.color.is_none());
+    }
+
+    #[test]
+    fn test_create_issue_type_request_applies_defaults_when_absent() {
+        // mode -> default_mode(), project_required -> default_true(), fields -> empty.
+        let json = r#"{
+            "key": "feat",
+            "name": "Feature",
+            "description": "A feature",
+            "glyph": "F",
+            "steps": []
+        }"#;
+        let req: CreateIssueTypeRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.mode, "autonomous");
+        assert!(req.project_required);
+        assert!(req.fields.is_empty());
+        assert!(req.color.is_none());
+    }
+
+    #[test]
+    fn test_create_field_request_applies_typed_defaults_when_absent() {
+        // field_type -> default_string_type(), user_editable -> default_true(),
+        // required defaults to false, options to empty.
+        let json = r#"{ "name": "title", "description": "Title field" }"#;
+        let req: CreateFieldRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.field_type, "string");
+        assert!(req.user_editable);
+        assert!(!req.required);
+        assert!(req.options.is_empty());
+    }
+
+    #[test]
+    fn test_create_step_request_applies_defaults_when_absent() {
+        // allowed_tools -> ["*"], review_type -> "none", permission_mode -> "default".
+        let json = r#"{ "name": "execute", "prompt": "Do the thing" }"#;
+        let req: CreateStepRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.allowed_tools, vec!["*".to_string()]);
+        assert_eq!(req.review_type, "none");
+        assert_eq!(req.permission_mode, "default");
+        assert!(req.next_step.is_none());
+        assert!(req.outputs.is_empty());
+    }
+
+    #[test]
+    fn test_field_response_skips_empty_options_and_none_default() {
+        let resp = FieldResponse {
+            name: "title".to_string(),
+            description: "Title".to_string(),
+            field_type: "string".to_string(),
+            required: true,
+            default: None,
+            options: vec![],
+            placeholder: None,
+            max_length: None,
+            user_editable: true,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        // skip_serializing_if = "Vec::is_empty" and "Option::is_none"
+        assert!(!json.contains("options"));
+        assert!(!json.contains("default"));
+        assert!(!json.contains("placeholder"));
+        assert!(json.contains("\"required\":true"));
+    }
+
+    #[test]
+    fn test_field_response_includes_options_when_present() {
+        let resp = FieldResponse {
+            name: "priority".to_string(),
+            description: "Priority".to_string(),
+            field_type: "enum".to_string(),
+            required: false,
+            default: Some("P2".to_string()),
+            options: vec!["P0".to_string(), "P2".to_string()],
+            placeholder: None,
+            max_length: None,
+            user_editable: true,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"options\":[\"P0\",\"P2\"]"));
+        assert!(json.contains("\"default\":\"P2\""));
+    }
+
+    #[test]
+    fn test_update_issue_type_request_all_fields_optional() {
+        // Every field is #[serde(default)] Option/None; empty object parses to all-None.
+        let req: UpdateIssueTypeRequest = serde_json::from_str("{}").unwrap();
+        assert!(req.name.is_none());
+        assert!(req.mode.is_none());
+        assert!(req.project_required.is_none());
+        assert!(req.fields.is_none());
+        assert!(req.steps.is_none());
+    }
+
+    #[test]
+    fn test_collection_response_roundtrip() {
+        let resp = CollectionResponse {
+            name: "default".to_string(),
+            description: "Default collection".to_string(),
+            types: vec!["FEAT".to_string(), "FIX".to_string()],
+            is_active: true,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let parsed: CollectionResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.types, vec!["FEAT".to_string(), "FIX".to_string()]);
+        assert!(parsed.is_active);
+    }
+}

@@ -1,6 +1,6 @@
 {
   "name": "operator-plugin",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Orchestrate Operator! ticket-driven coding agents from AGNT workflows",
   "author": "untra",
   "license": "MIT",

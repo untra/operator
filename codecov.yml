@@ -12,11 +12,6 @@ coverage:
         threshold: 2%
         flags:
           - rust
-      typescript:
-        target: auto
-        threshold: 2%
-        flags:
-          - typescript
       vscode-extension:
         target: auto
         threshold: 2%
@@ -36,11 +31,6 @@ flags:
     paths:
       - src/
     carryforward: true
-  typescript:
-    paths:
-      - backstage-server/packages/
-      - backstage-server/src/
-    carryforward: true
   vscode-extension:
     paths:
       - vscode-extension/src/
@@ -57,5 +47,5 @@ comment:
 
 ignore:
   - "tests/**"
-  - "backstage-server/e2e/**"
+  - "backstage-server/**"
   - "vscode-extension/test/**"

@@ -1,7 +1,7 @@
 id = "operator"
 name = "Operator"
 description = "Multi-agent orchestration for Coding Agents — MCP tools, ACP agent, and slash commands"
-version = "0.2.0"
+version = "0.2.2"
 schema_version = 1
 authors = ["Samuel Volin <sam@untra.io>"]
 repository = "https://github.com/untra/operator"

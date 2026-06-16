@@ -20,12 +20,28 @@ Aim for functional software development with a focus on stateless, single respon
 
 ### Mandatory Before Committing
 
-All changes MUST pass these checks before committing:
+All changes MUST pass these checks before committing. Run them with `make check`,
+which mirrors the CI `lint-test` job exactly (so a clean local run means a clean
+CI run):
 
 ```bash
-cargo fmt                      # Format code
-cargo clippy -- -D warnings    # Lint (warnings are errors)
-cargo test                     # Run all tests
+make check
+# equivalent to the exact CI commands:
+cargo fmt --all -- --check                                   # Format check
+cargo clippy --locked --all-targets --all-features -- -D warnings  # Lint (warnings are errors)
+cargo test --locked                                          # Run all tests
+```
+
+> The `--locked --all-targets --all-features` flags matter: plain
+> `cargo clippy` misses test-target and feature-gated lints (e.g. a dependency
+> deprecation that only surfaces under `--all-targets`), which is how a clippy
+> failure can pass locally yet break CI. Always use the full command above.
+
+Install the pre-push hook once per clone so this gate runs automatically before
+every push:
+
+```bash
+make install-hooks   # sets core.hooksPath=.githooks
 ```
 
 If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)]` attributes to silence warnings unless there's a documented reason (e.g., code used only in tests).
@@ -65,7 +81,7 @@ cargo test test_new_feature -- --nocapture
 cargo test
 
 # 5. Run full validation before committing
-cargo fmt && cargo clippy -- -D warnings && cargo test
+make check
 ```
 
 ### Test Organization
@@ -77,8 +93,10 @@ cargo fmt && cargo clippy -- -D warnings && cargo test
 ## Quick Reference
 
 ```bash
+make check                     # Full CI-parity gate (fmt + clippy + test)
+make install-hooks             # Install the pre-push hook (once per clone)
 cargo fmt                      # Format code
-cargo clippy -- -D warnings    # Lint (warnings as errors)
+cargo clippy --locked --all-targets --all-features -- -D warnings  # Lint (CI parity)
 cargo test                     # Run all tests
 cargo test <name>              # Run specific test
 cargo run                      # Run TUI
@@ -192,7 +210,7 @@ On startup, operator scans the configured projects directory for subdirectories 
 
 ### Completing Work
 
-1. Run full validation: `cargo fmt && cargo clippy -- -D warnings && cargo test`
+1. Run full validation: `make check` (CI-parity fmt + clippy + test)
 2. Ensure all tests pass and no clippy warnings
 3. Commit with message: `{type}({project}): {summary}\n\nTicket: {ID}\n`
 

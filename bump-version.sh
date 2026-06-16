@@ -30,6 +30,8 @@ TEXT_FILES=(
   "VERSION"
   "Cargo.toml"
   "opr8r/Cargo.toml"
+  "zed-extension/Cargo.toml"
+  "zed-extension/extension.toml"
   "vscode-extension/src/webhook-server.ts"
   "docs/_config.yml"
 )
@@ -38,6 +40,8 @@ TEXT_FILES=(
 JSON_FILES=(
   "vscode-extension/package.json"
   "backstage-server/package.json"
+  "agnt-plugin/package.json"
+  "agnt-plugin/manifest.json"
 )
 
 for f in "${TEXT_FILES[@]}"; do

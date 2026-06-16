@@ -8,11 +8,11 @@
 use std::convert::Infallible;
 use std::time::Duration;
 
+use super::Host;
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, Sse};
 use axum::response::IntoResponse;
 use axum::Json;
-use axum_extra::extract::Host;
 use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::mpsc;

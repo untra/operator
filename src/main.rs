@@ -112,7 +112,7 @@ fn print_tmux_error(err: &TmuxError) {
 
 #[derive(Parser)]
 #[command(name = "operator")]
-#[command(about = "Multi-agent orchestration dashboard for gbqr.us")]
+#[command(about = "Multi-agent orchestration dashboard for kanban shaped software development")]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]

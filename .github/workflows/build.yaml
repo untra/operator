@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
         with:
           components: rustfmt, clippy
 
@@ -112,7 +112,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
         with:
           components: llvm-tools-preview
 
@@ -160,7 +160,7 @@ jobs:
           done
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: codecov.json
           flags: rust
@@ -173,7 +173,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
@@ -209,7 +209,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -253,7 +253,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
         with:
           targets: ${{ matrix.target }}
 
@@ -353,7 +353,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo registry
         uses: actions/cache@v5

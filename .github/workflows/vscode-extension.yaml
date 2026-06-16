@@ -64,7 +64,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: always()
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: vscode-extension/coverage/lcov.info
           flags: vscode-extension
@@ -99,7 +99,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo registry
         uses: actions/cache@v5

@@ -32,11 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Install Rust toolchain for docs generation
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       # Cache cargo for faster builds
       - name: Cache cargo

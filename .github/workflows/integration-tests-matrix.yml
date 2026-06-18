@@ -74,10 +74,10 @@ jobs:
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -119,10 +119,10 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -167,7 +167,7 @@ jobs:
             opr8r_artifact: opr8r-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install tmux (Linux)
         if: runner.os == 'Linux'
@@ -178,7 +178,7 @@ jobs:
         run: brew install tmux
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -234,10 +234,10 @@ jobs:
             opr8r_artifact: opr8r-linux-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -303,10 +303,10 @@ jobs:
             opr8r_artifact: opr8r-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -356,10 +356,10 @@ jobs:
             artifact: operator-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -408,10 +408,10 @@ jobs:
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -465,7 +465,7 @@ jobs:
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download operator binary
         uses: actions/download-artifact@v8
@@ -530,7 +530,7 @@ jobs:
       run:
         working-directory: vscode-extension
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

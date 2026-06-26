@@ -1819,23 +1819,13 @@ mod tests {
     #[test]
     fn test_select_next_wraps() {
         let mut panel = StatusPanel::new("Status".into());
-        // Collapse config and workflows so only their headers are visible.
-        panel
-            .tree_state
-            .expanded
-            .insert(SectionId::Configuration, false);
-        panel
-            .tree_state
-            .expanded
-            .insert(SectionId::Workflows, false);
 
-        // Snapshot where Configuration is red, hiding every prerequisite-gated
-        // section. Workflows has no prerequisites, so it stays visible — leaving
-        // exactly the Configuration and Workflows headers.
-        let mut snap = test_snapshot();
-        snap.config_file_found = false;
+        // A fully-ready snapshot (config found + API running) so connections are
+        // Green and several prerequisite-gated sections — including Workflows —
+        // are visible, giving us multiple rows to wrap across.
+        let snap = test_snapshot();
         let count = panel.visible_count(&snap);
-        assert_eq!(count, 2, "Configuration + always-visible Workflows headers");
+        assert!(count >= 2, "need multiple visible rows to test wrap");
 
         // Selecting next from the last visible row wraps to the first.
         panel.tree_state.selected = count - 1;

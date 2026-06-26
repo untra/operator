@@ -27,7 +27,7 @@ impl StatusSection for WorkflowsSection {
     }
 
     fn prerequisites(&self) -> &[SectionId] {
-        &[]
+        &[SectionId::Connections]
     }
 
     fn health(&self, _snapshot: &StatusSnapshot) -> SectionHealth {

@@ -18,6 +18,12 @@ Aim for functional software development with a focus on stateless, single respon
 
 ## Development Standards
 
+1. Ask, don't assume. If something is unclear, ask before writing into a corner. Never make silent assumptions about intent, architecture or requirements.
+2. Consider the simplest solution first. First attempt the simplest approach that could work, then consider abstractions and flexibility with regards to similar implementations.
+3. Avoid changing unrelated code. If a file or function is not part of the current task, do not modify it.
+4. Flag uncertainty explicitly. If you are not confident about an approach or technical detail, say so before proceeding.
+5. I am open to ideas on better approaches or strategies. Speak up and suggest a better course if I am off-course from a better solution.
+
 ### Mandatory Before Committing
 
 All changes MUST pass these checks before committing. Run them with `make check`,

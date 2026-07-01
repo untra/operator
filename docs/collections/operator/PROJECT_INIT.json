@@ -1,6 +1,6 @@
 {
   "$schema": "../../schemas/issuetype_schema.json",
-  "key": "PROJECT-INIT",
+  "key": "PROJECT_INIT",
   "name": "Project Initialization",
   "description": "Initialize project with Operator conventions",
   "mode": "autonomous",

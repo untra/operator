@@ -69,6 +69,7 @@ export type WebviewToExtensionMessage =
   | { type: 'getCollections' }
   | { type: 'activateCollection'; name: string }
   | { type: 'getExternalIssueTypes'; provider: string; domain: string; projectKey: string }
+  | { type: 'getKanbanStatuses'; provider: string; projectKey: string }
   | { type: 'createIssueType'; request: import('../../src/generated/CreateIssueTypeRequest').CreateIssueTypeRequest }
   | { type: 'updateIssueType'; key: string; request: import('../../src/generated/UpdateIssueTypeRequest').UpdateIssueTypeRequest }
   | { type: 'deleteIssueType'; key: string }
@@ -100,6 +101,8 @@ export type ExtensionToWebviewMessage =
   | { type: 'collectionsError'; error: string }
   | { type: 'externalIssueTypesLoaded'; provider: string; projectKey: string; types: ExternalIssueTypeSummary[] }
   | { type: 'externalIssueTypesError'; provider: string; projectKey: string; error: string }
+  | { type: 'kanbanStatusesLoaded'; provider: string; projectKey: string; statuses: string[] }
+  | { type: 'kanbanStatusesError'; provider: string; projectKey: string; error: string }
   | { type: 'issueTypeCreated'; issueType: IssueTypeResponse }
   | { type: 'issueTypeUpdated'; issueType: IssueTypeResponse }
   | { type: 'issueTypeDeleted'; key: string }

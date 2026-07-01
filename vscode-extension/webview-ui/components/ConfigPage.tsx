@@ -37,6 +37,8 @@ interface ConfigPageProps {
   collections: CollectionResponse[];
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
+  kanbanStatuses: Map<string, string[]>;
+  onGetKanbanStatuses: (provider: string, projectKey: string) => void;
   onOpenOperatorUi: (route: 'issuetypes' | 'projects') => void;
 }
 
@@ -58,6 +60,8 @@ export function ConfigPage({
   collections,
   externalIssueTypes,
   onGetExternalIssueTypes,
+  kanbanStatuses,
+  onGetKanbanStatuses,
   onOpenOperatorUi,
 }: ConfigPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -144,6 +148,8 @@ export function ConfigPage({
           collections={collections}
           externalIssueTypes={externalIssueTypes}
           onGetExternalIssueTypes={onGetExternalIssueTypes}
+          kanbanStatuses={kanbanStatuses}
+          onGetKanbanStatuses={onGetKanbanStatuses}
           onOpenOperatorUi={onOpenOperatorUi}
         />
         <CodingAgentsSection

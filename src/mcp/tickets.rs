@@ -8,6 +8,29 @@ use serde_json::{json, Value};
 use crate::queue::{Queue, Ticket};
 use crate::rest::state::ApiState;
 
+/// Kanban transitions pushed upstream after a successful local move.
+enum KanbanTransition {
+    Claimed,
+    Completed,
+    Requeued,
+}
+
+/// Fire-and-forget: mirror a ticket move to the upstream kanban board.
+/// No-op unless bidirectional sync is configured (`state.kanban_sync`).
+fn push_kanban_transition(state: &ApiState, ticket: &Ticket, transition: KanbanTransition) {
+    let Some(ks) = state.kanban_sync.clone() else {
+        return;
+    };
+    let ticket = ticket.clone();
+    tokio::spawn(async move {
+        match transition {
+            KanbanTransition::Claimed => ks.on_ticket_claimed(&ticket).await,
+            KanbanTransition::Completed => ks.on_ticket_completed(&ticket).await,
+            KanbanTransition::Requeued => ks.on_ticket_requeued(&ticket).await,
+        }
+    });
+}
+
 fn ticket_to_json(t: &Ticket) -> Value {
     json!({
         "id": t.id,
@@ -76,12 +99,14 @@ pub async fn claim_ticket(args: Value, state: &ApiState) -> Result<Value, String
     let ticket = find_ticket(state, id, "queue").await?;
     let config = (*state.config).clone();
     let id_str = id.to_string();
+    let ticket_for_push = ticket.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         let queue = Queue::new(&config).map_err(|e| e.to_string())?;
         queue.claim_ticket(&ticket).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())??;
+    push_kanban_transition(state, &ticket_for_push, KanbanTransition::Claimed);
     Ok(json!({ "id": id_str, "moved_to": "in-progress" }))
 }
 
@@ -93,12 +118,14 @@ pub async fn complete_ticket(args: Value, state: &ApiState) -> Result<Value, Str
     let ticket = find_ticket(state, id, "in-progress").await?;
     let config = (*state.config).clone();
     let id_str = id.to_string();
+    let ticket_for_push = ticket.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         let queue = Queue::new(&config).map_err(|e| e.to_string())?;
         queue.complete_ticket(&ticket).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())??;
+    push_kanban_transition(state, &ticket_for_push, KanbanTransition::Completed);
     Ok(json!({ "id": id_str, "moved_to": "completed" }))
 }
 
@@ -110,12 +137,14 @@ pub async fn return_to_queue(args: Value, state: &ApiState) -> Result<Value, Str
     let ticket = find_ticket(state, id, "in-progress").await?;
     let config = (*state.config).clone();
     let id_str = id.to_string();
+    let ticket_for_push = ticket.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         let queue = Queue::new(&config).map_err(|e| e.to_string())?;
         queue.return_to_queue(&ticket).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())??;
+    push_kanban_transition(state, &ticket_for_push, KanbanTransition::Requeued);
     Ok(json!({ "id": id_str, "moved_to": "queue" }))
 }
 

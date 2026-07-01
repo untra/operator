@@ -176,14 +176,14 @@ impl StartupTicketOption {
             },
             StartupTicketOption {
                 key: "agent_setup",
-                name: "AGENT-SETUP tickets",
+                name: "AGENT_SETUP tickets",
                 description: "Configure Claude agents for each project",
                 enabled: false,
             },
             StartupTicketOption {
                 key: "project_init",
-                name: "PROJECT-INIT tickets",
-                description: "Run both ASSESS and AGENT-SETUP for each project",
+                name: "PROJECT_INIT tickets",
+                description: "Run both ASSESS and AGENT_SETUP for each project",
                 enabled: false,
             },
         ]

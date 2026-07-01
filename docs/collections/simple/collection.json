@@ -12,16 +12,30 @@
     "builtin"
   ],
   "compatibility": null,
+  "tier": "official",
+  "kanban_defaults": null,
   "issue_types": [
     {
       "key": "TASK",
       "schema_path": "TASK.json",
       "schema_checksum": "f654229454da050ca038c273cc74884c2dbe68f09b293eee3764f23d6771b939",
       "template_path": "TASK.md",
-      "template_checksum": "7a71bf692588af1d1ac5d9192edd64316353ada616e22019dfff7683ab5d09c4"
+      "template_checksum": "7a71bf692588af1d1ac5d9192edd64316353ada616e22019dfff7683ab5d09c4",
+      "workflow_preview_path": null
     }
   ],
-  "workflow_hints": null,
+  "workflow_hints": {
+    "loop_kind": "single_pass",
+    "memory_surfaces": [
+      "ticket"
+    ],
+    "review_gates": [],
+    "external_tools": [],
+    "stop_conditions": [
+      "task_complete"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
   "default_selected": [
     "TASK"
   ],

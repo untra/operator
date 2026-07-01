@@ -8,9 +8,29 @@
   "author": "Operator!",
   "url": "https://github.com/untra/operator",
   "license": "MIT",
-  "tags": ["builtin"],
-  "issue_types": [
-    { "key": "TASK", "schema_path": "TASK.json", "template_path": "TASK.md" }
+  "tags": [
+    "builtin"
   ],
-  "default_selected": ["TASK"]
+  "issue_types": [
+    {
+      "key": "TASK",
+      "schema_path": "TASK.json",
+      "template_path": "TASK.md"
+    }
+  ],
+  "workflow_hints": {
+    "loop_kind": "single_pass",
+    "memory_surfaces": [
+      "ticket"
+    ],
+    "review_gates": [],
+    "external_tools": [],
+    "stop_conditions": [
+      "task_complete"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": [
+    "TASK"
+  ]
 }

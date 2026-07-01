@@ -11,7 +11,9 @@
         "builtin"
       ],
       "manifest_path": "simple/collection.json",
-      "checksum": "fce81369f98e00ee6fe35194076055b59f4882d8d1613a914bbce660593a05b4"
+      "checksum": "a365a781cfa26378726fe0c381daaf95ba783898c78e315794940c0863e627dd",
+      "tier": "official",
+      "docs_path": null
     },
     {
       "id": "dev_kanban",
@@ -24,7 +26,9 @@
         "dev"
       ],
       "manifest_path": "dev_kanban/collection.json",
-      "checksum": "87460062d63068e9e96f6ee628cc466bec6951c0b766f338178b66cb5ac1d23f"
+      "checksum": "746173e1a6d6fd161a71e9a0d11d8d189bcea650b5ed0934ff45b33dbe6046c0",
+      "tier": "official",
+      "docs_path": null
     },
     {
       "id": "devops_kanban",
@@ -37,7 +41,9 @@
         "devops"
       ],
       "manifest_path": "devops_kanban/collection.json",
-      "checksum": "068c5112a615ccc4f9a1c11e0b90c1a193b07e5b07565100880750f1624edaa4"
+      "checksum": "dd214563b84e5cdac33a5f2fffa91a22cfe334cf5d26693a762ff7e27dc4f030",
+      "tier": "official",
+      "docs_path": null
     },
     {
       "id": "operator",
@@ -49,18 +55,9 @@
         "automation"
       ],
       "manifest_path": "operator/collection.json",
-      "checksum": "9a5aa2ac773bd4e445cb951f870b7e78ff3e0002be9a66bba05c14e9abe9c4f3"
-    },
-    {
-      "id": "full",
-      "name": "Full",
-      "description": "Full workflow: all issue types combined",
-      "version": "1.0.0",
-      "tags": [
-        "builtin"
-      ],
-      "manifest_path": "full/collection.json",
-      "checksum": "305830707c108a825bd5aab14aaf9e489e0d7b286e36c77269ad0da94420f2d4"
+      "checksum": "4fa68663b0346086879714210440d1f3893ffab29b182683fcb15d3c2789b546",
+      "tier": "official",
+      "docs_path": null
     },
     {
       "id": "ralph_loop",
@@ -74,7 +71,9 @@
         "ralph"
       ],
       "manifest_path": "ralph_loop/collection.json",
-      "checksum": "f37e1379c1ffea6208d25add591daa468b680c2a796b04fc490c0a4e30f96c39"
+      "checksum": "fd59584f70acc1c5e7aa3b03d36ea31f30316018457e3e866991bd7f70d76e9d",
+      "tier": "community",
+      "docs_path": null
     },
     {
       "id": "jr_orchestration",
@@ -88,7 +87,9 @@
         "jr"
       ],
       "manifest_path": "jr_orchestration/collection.json",
-      "checksum": "e89a9ec49af83f5c431fc95e0418943d7aedc3fd087b5b05ee12b339007c0f39"
+      "checksum": "d2aac0a3215aaaf96b28cb9960f56ef82ffd0c9fa834023ca69385ff29310ea7",
+      "tier": "community",
+      "docs_path": null
     },
     {
       "id": "elves_overnight",
@@ -102,7 +103,9 @@
         "elves"
       ],
       "manifest_path": "elves_overnight/collection.json",
-      "checksum": "1078479804ba0d581bff29d7e153904dee0d46cfb41d4f05841891814a9f62eb"
+      "checksum": "0edf6f1503fc13302ab616d1c681ebad53b3f5a8475c548c7c37760a341a475e",
+      "tier": "community",
+      "docs_path": null
     }
   ]
 }

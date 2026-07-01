@@ -23,7 +23,7 @@ pub struct KanbanCollectionInfo {
     /// User ID configured for sync (will be displayed when sync UI is expanded)
     #[allow(dead_code)]
     pub sync_user_id: String,
-    /// Number of statuses configured
+    /// Number of mapped todo/doing/done columns
     pub status_count: usize,
 }
 
@@ -34,7 +34,7 @@ impl From<&SyncableCollection> for KanbanCollectionInfo {
             project_key: collection.project_key.clone(),
             collection_name: collection.collection_name.clone(),
             sync_user_id: collection.sync_user_id.clone(),
-            status_count: collection.sync_statuses.len(),
+            status_count: collection.status_mapping.mapped_count(),
         }
     }
 }
@@ -288,14 +288,14 @@ impl KanbanView {
                     Style::default().fg(Color::DarkGray),
                 );
 
-                // Status count
+                // Mapped-column count
                 let status_info = if collection.status_count > 0 {
                     Span::styled(
-                        format!("({} statuses)", collection.status_count),
+                        format!("({}/3 columns mapped)", collection.status_count),
                         Style::default().fg(Color::DarkGray),
                     )
                 } else {
-                    Span::styled("(default)", Style::default().fg(Color::DarkGray))
+                    Span::styled("(no column mapping)", Style::default().fg(Color::DarkGray))
                 };
 
                 let line = Line::from(vec![provider_badge, project, collection_name, status_info]);
@@ -368,7 +368,10 @@ mod tests {
             project_key: "PROJ".to_string(),
             collection_name: Some("jira-proj".to_string()),
             sync_user_id: "user123".to_string(),
-            sync_statuses: vec!["To Do".to_string()],
+            status_mapping: crate::config::KanbanStatusMapping {
+                todo: Some("To Do".to_string()),
+                ..Default::default()
+            },
         }];
 
         view.show(collections);
@@ -390,14 +393,14 @@ mod tests {
                 project_key: "PROJ1".to_string(),
                 collection_name: Some("jira-proj1".to_string()),
                 sync_user_id: "user1".to_string(),
-                sync_statuses: vec![],
+                status_mapping: crate::config::KanbanStatusMapping::default(),
             },
             SyncableCollection {
                 provider: "linear".to_string(),
                 project_key: "ENG".to_string(),
                 collection_name: Some("linear-eng".to_string()),
                 sync_user_id: "user2".to_string(),
-                sync_statuses: vec![],
+                status_mapping: crate::config::KanbanStatusMapping::default(),
             },
         ];
 
@@ -428,7 +431,7 @@ mod tests {
             project_key: "PROJ".to_string(),
             collection_name: Some("jira-proj".to_string()),
             sync_user_id: "user123".to_string(),
-            sync_statuses: vec![],
+            status_mapping: crate::config::KanbanStatusMapping::default(),
         }];
 
         view.show(collections);

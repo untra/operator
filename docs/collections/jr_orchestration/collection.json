@@ -15,41 +15,48 @@
     "jr"
   ],
   "compatibility": null,
+  "tier": "community",
+  "kanban_defaults": null,
   "issue_types": [
     {
       "key": "JRPLAN",
       "schema_path": "JRPLAN.json",
       "schema_checksum": "f123c0fbf30095cfc0f42298789656bfccbc2a5bac12ce48a836820110c550ac",
       "template_path": "JRPLAN.md",
-      "template_checksum": "d6b07074e56971a6e451cb620fe4a478740d17882140d6ad58da3209874a19f2"
+      "template_checksum": "d6b07074e56971a6e451cb620fe4a478740d17882140d6ad58da3209874a19f2",
+      "workflow_preview_path": null
     },
     {
       "key": "JRFEAT",
       "schema_path": "JRFEAT.json",
       "schema_checksum": "8de197203daf3ba5635d4cd0bdee5665372a732f0b8110ad8a92615b36906c20",
       "template_path": "JRFEAT.md",
-      "template_checksum": "85da760b93724d4f7eb05c86ca6ae427c58c240a141a797091aa4b4bcf828160"
+      "template_checksum": "85da760b93724d4f7eb05c86ca6ae427c58c240a141a797091aa4b4bcf828160",
+      "workflow_preview_path": null
     },
     {
       "key": "JRTASK",
       "schema_path": "JRTASK.json",
       "schema_checksum": "48decac3204ad569f35c2b7603272db35d7084990d46d90483b326e1d718d6b6",
       "template_path": "JRTASK.md",
-      "template_checksum": "a3029a01c71f68d505d4c209eaa022ca8f3925797bb41173d5fe78c6d5c8a6fe"
+      "template_checksum": "a3029a01c71f68d505d4c209eaa022ca8f3925797bb41173d5fe78c6d5c8a6fe",
+      "workflow_preview_path": null
     },
     {
       "key": "JRREV",
       "schema_path": "JRREV.json",
       "schema_checksum": "e99767e4d217392b321118e3a7e7f016636437361ed94f8453667348ff1e9394",
       "template_path": "JRREV.md",
-      "template_checksum": "2ae11b478d2c87d68a729907037d67a56385bf9580748f278e1ce67166b51e14"
+      "template_checksum": "2ae11b478d2c87d68a729907037d67a56385bf9580748f278e1ce67166b51e14",
+      "workflow_preview_path": null
     },
     {
       "key": "JRREBASE",
       "schema_path": "JRREBASE.json",
       "schema_checksum": "08772fab7390c7c2bc88f37d2584975c76173aba1c4618493662632fcd2f0dc2",
       "template_path": "JRREBASE.md",
-      "template_checksum": "032e592b86ec4a40610e51a073af930e0aff5e34a920e0be9a2128b57c432afa"
+      "template_checksum": "032e592b86ec4a40610e51a073af930e0aff5e34a920e0be9a2128b57c432afa",
+      "workflow_preview_path": null
     }
   ],
   "workflow_hints": {

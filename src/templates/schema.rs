@@ -622,9 +622,17 @@ impl TemplateSchema {
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
-        // Check key format
-        if !self.key.chars().all(|c| c.is_ascii_uppercase()) {
-            errors.push(format!("Key '{}' must be uppercase letters only", self.key));
+        // Check key format: uppercase start, then uppercase/digit/underscore
+        // (mirrors IssueType::validate; hyphens conflict with ticket-id `-`)
+        let mut key_chars = self.key.chars();
+        let valid_start = key_chars.next().is_some_and(|c| c.is_ascii_uppercase());
+        let valid_rest =
+            key_chars.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
+        if !(valid_start && valid_rest) {
+            errors.push(format!(
+                "Key '{}' must start with an uppercase letter and contain only uppercase letters, digits, and underscores",
+                self.key
+            ));
         }
 
         // Check that all required fields (except 'id' with auto=id) have defaults

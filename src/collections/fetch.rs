@@ -333,6 +333,7 @@ mod tests {
             schema_checksum: schema_sum.to_string(),
             template_path: None,
             template_checksum: None,
+            workflow_preview_path: None,
         }
     }
 

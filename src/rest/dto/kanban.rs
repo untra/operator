@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use utoipa::ToSchema;
 
+use crate::config::kanban::KanbanStatusMapping;
+
 // =============================================================================
 // External Issue Type DTOs (from kanban providers)
 // =============================================================================
@@ -270,6 +272,9 @@ pub struct WriteJiraConfigBody {
     pub api_key_env: String,
     pub project_key: String,
     pub sync_user_id: String,
+    /// Mapping of operator todo/doing/done to external board columns
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_mapping: Option<KanbanStatusMapping>,
 }
 
 /// Body for writing a Linear project/team config section.
@@ -280,6 +285,9 @@ pub struct WriteLinearConfigBody {
     pub api_key_env: String,
     pub project_key: String,
     pub sync_user_id: String,
+    /// Mapping of operator todo/doing/done to external board columns
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_mapping: Option<KanbanStatusMapping>,
 }
 
 /// Body for writing a GitHub Projects v2 config section.
@@ -296,6 +304,33 @@ pub struct WriteGithubConfigBody {
     pub project_key: String,
     /// Numeric GitHub `databaseId` of the user whose items to sync
     pub sync_user_id: String,
+    /// Mapping of operator todo/doing/done to external board columns
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_mapping: Option<KanbanStatusMapping>,
+}
+
+/// Request to list workflow statuses/columns for a specific project using
+/// ephemeral creds (onboarding wizard — before any config is persisted).
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ListKanbanStatusesRequest {
+    pub provider: KanbanProviderKind,
+    /// Project/team key to list statuses for
+    pub project_key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jira: Option<JiraCredentials>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linear: Option<LinearCredentials>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github: Option<GithubCredentials>,
+}
+
+/// Response wrapper for list-statuses: the external board's column names,
+/// in board order, for populating todo/doing/done mapping dropdowns.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ListKanbanStatusesResponse {
+    pub statuses: Vec<String>,
 }
 
 /// Request to write or upsert a kanban config section.
@@ -465,6 +500,64 @@ mod tests {
     }
 
     #[test]
+    fn test_list_statuses_request_deserializes_with_one_provider_body() {
+        let json = r#"{
+            "provider": "jira",
+            "project_key": "PROJ",
+            "jira": { "domain": "acme.atlassian.net", "email": "a@b.com", "api_token": "t" }
+        }"#;
+        let req: ListKanbanStatusesRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.provider, KanbanProviderKind::Jira);
+        assert_eq!(req.project_key, "PROJ");
+        assert!(req.jira.is_some());
+        assert!(req.linear.is_none());
+        assert!(req.github.is_none());
+    }
+
+    #[test]
+    fn test_write_config_body_roundtrips_status_mapping() {
+        let body = WriteJiraConfigBody {
+            domain: "acme.atlassian.net".to_string(),
+            email: "a@b.com".to_string(),
+            api_key_env: "OPERATOR_JIRA_API_KEY".to_string(),
+            project_key: "PROJ".to_string(),
+            sync_user_id: "acct-1".to_string(),
+            status_mapping: Some(KanbanStatusMapping {
+                todo: Some("To Do".to_string()),
+                doing: Some("In Progress".to_string()),
+                done: Some("Done".to_string()),
+            }),
+        };
+        let json = serde_json::to_string(&body).unwrap();
+        assert!(json.contains("\"status_mapping\":{"));
+        let parsed: WriteJiraConfigBody = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.status_mapping, body.status_mapping);
+    }
+
+    #[test]
+    fn test_write_config_body_deserializes_without_status_mapping() {
+        // Older clients omit status_mapping — must default to None.
+        let json = r#"{
+            "domain": "acme.atlassian.net", "email": "a@b.com",
+            "api_key_env": "OPERATOR_JIRA_API_KEY",
+            "project_key": "PROJ", "sync_user_id": "acct-1"
+        }"#;
+        let parsed: WriteJiraConfigBody = serde_json::from_str(json).unwrap();
+        assert!(parsed.status_mapping.is_none());
+    }
+
+    #[test]
+    fn test_status_mapping_skips_none_columns_on_serialize() {
+        let mapping = KanbanStatusMapping {
+            todo: None,
+            doing: Some("In Progress".to_string()),
+            done: None,
+        };
+        let json = serde_json::to_string(&mapping).unwrap();
+        assert_eq!(json, r#"{"doing":"In Progress"}"#);
+    }
+
+    #[test]
     fn test_write_kanban_config_body_carries_env_name_not_secret() {
         // The config-write path stores only the env-var NAME (`api_key_env`) — it
         // must never carry the raw secret. (Contrast with the *SessionEnv bodies
@@ -475,6 +568,7 @@ mod tests {
             api_key_env: "OPERATOR_JIRA_TOKEN".to_string(),
             project_key: "PROJ".to_string(),
             sync_user_id: "acct-1".to_string(),
+            status_mapping: None,
         };
         let json = serde_json::to_string(&body).unwrap();
         assert!(json.contains("\"api_key_env\":\"OPERATOR_JIRA_TOKEN\""));
@@ -546,6 +640,7 @@ mod tests {
                 api_key_env: "OPERATOR_GITHUB_TOKEN".to_string(),
                 project_key: "PVT_kwDOABcdefg".to_string(),
                 sync_user_id: "123".to_string(),
+                status_mapping: None,
             }),
         };
         let json = serde_json::to_string(&req).unwrap();

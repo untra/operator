@@ -31,6 +31,7 @@ export function App() {
   const [issueTypes, setIssueTypes] = useState<IssueTypeSummary[]>([]);
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
   const [externalIssueTypes, setExternalIssueTypes] = useState<Map<string, ExternalIssueTypeSummary[]>>(new Map());
+  const [kanbanStatuses, setKanbanStatuses] = useState<Map<string, string[]>>(new Map());
 
   useEffect(() => {
     const cleanup = onMessage((msg: ExtensionToWebviewMessage) => {
@@ -86,6 +87,17 @@ export function App() {
         case 'externalIssueTypesError':
           // External issue type lookup failed; the mapping panel renders an
           // empty/unmapped state, so no extra handling is required here.
+          break;
+        case 'kanbanStatusesLoaded':
+          setKanbanStatuses(prev => {
+            const next = new Map(prev);
+            next.set(`${msg.provider}/${msg.projectKey}`, msg.statuses);
+            return next;
+          });
+          break;
+        case 'kanbanStatusesError':
+          // Status discovery failed; the dropdowns fall back to free-form
+          // entry of the current mapping values, so no extra handling here.
           break;
       }
     });
@@ -146,6 +158,10 @@ export function App() {
     postMessage({ type: 'getExternalIssueTypes', provider, domain, projectKey });
   }, []);
 
+  const handleGetKanbanStatuses = useCallback((provider: string, projectKey: string) => {
+    postMessage({ type: 'getKanbanStatuses', provider, projectKey });
+  }, []);
+
   const handleOpenOperatorUi = useCallback((route: 'issuetypes' | 'projects') => {
     postMessage({ type: 'openOperatorUi', route });
   }, []);
@@ -176,6 +192,8 @@ export function App() {
           collections={collections}
           externalIssueTypes={externalIssueTypes}
           onGetExternalIssueTypes={handleGetExternalIssueTypes}
+          kanbanStatuses={kanbanStatuses}
+          onGetKanbanStatuses={handleGetKanbanStatuses}
           onOpenOperatorUi={handleOpenOperatorUi}
         />
       ) : (
@@ -229,7 +247,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: T): T {
 
 const DEFAULT_JIRA: JiraConfig = { enabled: false, api_key_env: 'OPERATOR_JIRA_API_KEY', email: '', projects: {} };
 const DEFAULT_LINEAR: LinearConfig = { enabled: false, api_key_env: 'OPERATOR_LINEAR_API_KEY', projects: {} };
-const DEFAULT_PROJECT_SYNC: ProjectSyncConfig = { sync_user_id: '', sync_statuses: [], collection_name: null, type_mappings: {}, bidirectional: false };
+const DEFAULT_PROJECT_SYNC: ProjectSyncConfig = { sync_user_id: '', status_mapping: {}, collection_name: null, type_mappings: {}, bidirectional: false };
 
 /** Apply an update to the config object by section/key path */
 function applyUpdate(
@@ -271,7 +289,7 @@ function applyUpdate(
       } else if (key === 'domain' && typeof value === 'string' && value !== domain) {
         delete jiraMap[domain];
         jiraMap[value] = ws;
-      } else if (key === 'project_key' || key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id' || key === 'type_mappings') {
+      } else if (key === 'project_key' || key === 'status_mapping' || key === 'collection_name' || key === 'sync_user_id' || key === 'type_mappings') {
         const projects = { ...ws.projects };
         const pKeys = Object.keys(projects);
         const pKey = pKeys[0] ?? 'default';
@@ -316,7 +334,7 @@ function applyUpdate(
       } else if (key === 'team_id' && typeof value === 'string' && value !== teamId) {
         delete linearMap[teamId];
         linearMap[value] = ws;
-      } else if (key === 'sync_statuses' || key === 'collection_name' || key === 'sync_user_id' || key === 'type_mappings') {
+      } else if (key === 'status_mapping' || key === 'collection_name' || key === 'sync_user_id' || key === 'type_mappings') {
         const projects = { ...ws.projects };
         const pKeys = Object.keys(projects);
         const pKey = pKeys[0] ?? 'default';

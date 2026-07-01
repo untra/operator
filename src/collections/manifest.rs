@@ -11,10 +11,26 @@
 //! embedded in the binary.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Current manifest schema version. Manifests with an unknown version are
 /// rejected by the fetcher and fall back to the embedded copy.
 pub const SCHEMA_VERSION: u32 = 1;
+
+/// Provenance tier of a collection: who authored and maintains it.
+///
+/// Orthogonal to distribution — curated community-authored collections may
+/// ship embedded in the binary, while community submissions under
+/// `collections/community/` are hosted-only.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollectionTier {
+    /// Authored and maintained by the operator project.
+    #[default]
+    Official,
+    /// Community-authored (attribution via `author`/`url`/`license`).
+    Community,
+}
 
 /// Top-level index listing the available collections. This is what the
 /// configurable `collections_manifest_url` points at.
@@ -50,6 +66,13 @@ pub struct CollectionIndexEntry {
     pub manifest_path: String,
     /// SHA-256 (lowercase hex) of the referenced `collection.json` bytes.
     pub checksum: String,
+    /// Provenance tier (defaults to official for older indexes).
+    #[serde(default)]
+    pub tier: CollectionTier,
+    /// Path to the collection's docs page, relative to the site root
+    /// `/collections/` (e.g. `dev_kanban/`). Informational, for deep links.
+    #[serde(default)]
+    pub docs_path: Option<String>,
 }
 
 /// A single collection manifest (`collection.json`).
@@ -88,6 +111,12 @@ pub struct CollectionManifest {
     /// Compatibility constraints.
     #[serde(default)]
     pub compatibility: Option<Compatibility>,
+    /// Provenance tier (defaults to official for older manifests).
+    #[serde(default)]
+    pub tier: CollectionTier,
+    /// Descriptive kanban onboarding defaults (v1: metadata only).
+    #[serde(default)]
+    pub kanban_defaults: Option<KanbanDefaults>,
     /// Issue types in this collection (display order).
     pub issue_types: Vec<IssueTypeEntry>,
     /// Descriptive workflow hints (v1: metadata only, no execution behavior).
@@ -128,6 +157,22 @@ pub struct IssueTypeEntry {
     /// SHA-256 (lowercase hex) of the markdown template bytes, if present.
     #[serde(default)]
     pub template_checksum: Option<String>,
+    /// Path to a pre-generated workflow preview (`.js`), relative to the
+    /// manifest. Filled by the docs producer for visualization; excluded
+    /// from checksum derivation.
+    #[serde(default)]
+    pub workflow_preview_path: Option<String>,
+}
+
+/// Descriptive kanban onboarding defaults for a collection.
+///
+/// v1 is metadata only: suggestions seed the onboarding mapping UI but do
+/// not drive sync behavior.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct KanbanDefaults {
+    /// Suggested provider issue-type NAME -> collection issuetype key.
+    #[serde(default)]
+    pub suggested_type_mappings: HashMap<String, String>,
 }
 
 /// Descriptive metadata about a collection's intended agentic loop shape.
@@ -283,5 +328,116 @@ mod tests {
         let m2 = CollectionManifest::from_json(&json).unwrap();
         assert_eq!(m.id, m2.id);
         assert_eq!(m.type_keys(), m2.type_keys());
+    }
+
+    #[test]
+    fn test_manifest_tier_defaults_to_official() {
+        // Older manifests without a tier field stay valid and are official.
+        let m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        assert_eq!(m.tier, CollectionTier::Official);
+    }
+
+    #[test]
+    fn test_manifest_tier_community_round_trip() {
+        let json = r#"{
+            "schema_version": 1,
+            "id": "gastown",
+            "name": "Gastown",
+            "tier": "community",
+            "author": "someone",
+            "issue_types": [
+                {"key": "TASK", "schema_path": "TASK.json"}
+            ]
+        }"#;
+        let m = CollectionManifest::from_json(json).unwrap();
+        assert_eq!(m.tier, CollectionTier::Community);
+        let serialized = m.to_json().unwrap();
+        assert!(serialized.contains("\"tier\": \"community\""));
+        let m2 = CollectionManifest::from_json(&serialized).unwrap();
+        assert_eq!(m2.tier, CollectionTier::Community);
+    }
+
+    #[test]
+    fn test_index_entry_tier_and_docs_path_default() {
+        let json = r#"{
+            "schema_version": 1,
+            "collections": [
+                {"id": "simple", "name": "Simple", "manifest_path": "simple/collection.json", "checksum": "abc"}
+            ]
+        }"#;
+        let index: CollectionIndex = serde_json::from_str(json).unwrap();
+        let entry = &index.collections[0];
+        assert_eq!(entry.tier, CollectionTier::Official);
+        assert!(entry.docs_path.is_none());
+    }
+
+    #[test]
+    fn test_index_entry_tier_and_docs_path_round_trip() {
+        let json = r#"{
+            "schema_version": 1,
+            "collections": [
+                {"id": "gastown", "name": "Gastown", "manifest_path": "gastown/collection.json", "checksum": "abc", "tier": "community", "docs_path": "gastown/"}
+            ]
+        }"#;
+        let index: CollectionIndex = serde_json::from_str(json).unwrap();
+        let entry = &index.collections[0];
+        assert_eq!(entry.tier, CollectionTier::Community);
+        assert_eq!(entry.docs_path.as_deref(), Some("gastown/"));
+        let round: CollectionIndex =
+            serde_json::from_str(&serde_json::to_string(&index).unwrap()).unwrap();
+        assert_eq!(round.collections[0].tier, CollectionTier::Community);
+        assert_eq!(round.collections[0].docs_path.as_deref(), Some("gastown/"));
+    }
+
+    #[test]
+    fn test_issue_type_entry_workflow_preview_path_defaults_to_none() {
+        let m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        assert!(m.issue_types[0].workflow_preview_path.is_none());
+    }
+
+    #[test]
+    fn test_issue_type_entry_workflow_preview_path_round_trip() {
+        let json = r#"{
+            "key": "TASK",
+            "schema_path": "TASK.json",
+            "workflow_preview_path": "TASK.preview.workflow.js"
+        }"#;
+        let entry: IssueTypeEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            entry.workflow_preview_path.as_deref(),
+            Some("TASK.preview.workflow.js")
+        );
+        let round: IssueTypeEntry =
+            serde_json::from_str(&serde_json::to_string(&entry).unwrap()).unwrap();
+        assert_eq!(round.workflow_preview_path, entry.workflow_preview_path);
+    }
+
+    #[test]
+    fn test_kanban_defaults_default_to_none() {
+        let m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        assert!(m.kanban_defaults.is_none());
+    }
+
+    #[test]
+    fn test_kanban_defaults_round_trip() {
+        let json = r#"{
+            "schema_version": 1,
+            "id": "dev_kanban",
+            "name": "Dev Kanban",
+            "issue_types": [
+                {"key": "TASK", "schema_path": "TASK.json"}
+            ],
+            "kanban_defaults": {
+                "suggested_type_mappings": {"Story": "FEAT", "Bug": "FIX"}
+            }
+        }"#;
+        let m = CollectionManifest::from_json(json).unwrap();
+        let defaults = m.kanban_defaults.as_ref().expect("kanban_defaults");
+        assert_eq!(
+            defaults.suggested_type_mappings.get("Story"),
+            Some(&"FEAT".to_string())
+        );
+        let m2 = CollectionManifest::from_json(&m.to_json().unwrap()).unwrap();
+        assert_eq!(m2.kanban_defaults.unwrap().suggested_type_mappings.len(), 2);
     }
 }

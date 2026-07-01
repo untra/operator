@@ -198,8 +198,8 @@ The default criteria cover formatting, tests, and lint checks. You can customize
 
 Create startup tickets to help initialize your projects:
 - **ASSESS tickets**: Scan projects for catalog-info.yaml, create if missing
-- **AGENT-SETUP tickets**: Configure Claude agents for each project
-- **PROJECT-INIT tickets**: Run both ASSESS and AGENT-SETUP for each project
+- **AGENT_SETUP tickets**: Configure Claude agents for each project
+- **PROJECT_INIT tickets**: Run both ASSESS and AGENT_SETUP for each project
 
 These tickets are optional and help automate common setup tasks.
 

@@ -508,6 +508,32 @@ export class ConfigPanel {
         }
         break;
       }
+
+      case 'getKanbanStatuses': {
+        const provider = message.provider as string;
+        const projectKey = message.projectKey as string;
+        try {
+          const workDir = resolveWorkingDirectory();
+          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const apiUrl = await discoverApiUrl(ticketsDir);
+          const client = new OperatorApiClient(apiUrl);
+          const statuses = await client.getKanbanStatuses(provider, projectKey);
+          void this._panel.webview.postMessage({
+            type: 'kanbanStatusesLoaded',
+            provider,
+            projectKey,
+            statuses,
+          });
+        } catch (err) {
+          void this._panel.webview.postMessage({
+            type: 'kanbanStatusesError',
+            provider,
+            projectKey,
+            error: err instanceof Error ? err.message : 'Failed to load kanban statuses',
+          });
+        }
+        break;
+      }
     }
   }
 
@@ -600,7 +626,7 @@ export const KANBAN_PROVIDER_SLUGS: string[] = Object.keys(KANBAN_PROVIDERS);
 
 /** Project-level fields written into the first project sub-table by shorthand. */
 const KANBAN_PROJECT_LEVEL_KEYS = [
-  'sync_statuses',
+  'status_mapping',
   'collection_name',
   'sync_user_id',
   'type_mappings',

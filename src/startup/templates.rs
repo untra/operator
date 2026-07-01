@@ -261,21 +261,20 @@ mod tests {
 
         scaffold_all_collections(&templates_path).unwrap();
 
-        // All 5 collections should exist
+        // Every embedded collection should exist
         assert!(templates_path.join("simple").exists());
         assert!(templates_path.join("dev_kanban").exists());
         assert!(templates_path.join("devops_kanban").exists());
         assert!(templates_path.join("operator").exists());
-        assert!(templates_path.join("full").exists());
+        assert!(templates_path.join("ralph_loop").exists());
+        assert!(templates_path.join("jr_orchestration").exists());
+        assert!(templates_path.join("elves_overnight").exists());
 
-        // full should have all 8 issuetypes
-        assert!(templates_path.join("full/TASK.json").exists());
-        assert!(templates_path.join("full/FEAT.json").exists());
-        assert!(templates_path.join("full/FIX.json").exists());
-        assert!(templates_path.join("full/SPIKE.json").exists());
-        assert!(templates_path.join("full/INV.json").exists());
-        assert!(templates_path.join("full/ASSESS.json").exists());
-        assert!(templates_path.join("full/SYNC.json").exists());
-        assert!(templates_path.join("full/INIT.json").exists());
+        // `full` was demoted from the embedded set and must not scaffold
+        assert!(!templates_path.join("full").exists());
+
+        // Underscore-keyed operator types scaffold correctly
+        assert!(templates_path.join("operator/AGENT_SETUP.json").exists());
+        assert!(templates_path.join("operator/PROJECT_INIT.json").exists());
     }
 }

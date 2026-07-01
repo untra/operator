@@ -190,8 +190,8 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
         description: "Optionally create tickets to bootstrap your projects",
         help_text: "Create startup tickets to help initialize your projects:\n\
             - **ASSESS tickets**: Scan projects for catalog-info.yaml, create if missing\n\
-            - **AGENT-SETUP tickets**: Configure Claude agents for each project\n\
-            - **PROJECT-INIT tickets**: Run both ASSESS and AGENT-SETUP for each project\n\n\
+            - **AGENT_SETUP tickets**: Configure Claude agents for each project\n\
+            - **PROJECT_INIT tickets**: Run both ASSESS and AGENT_SETUP for each project\n\n\
             These tickets are optional and help automate common setup tasks.",
         navigation: "↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back",
     },

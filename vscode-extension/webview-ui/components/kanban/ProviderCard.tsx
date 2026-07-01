@@ -35,6 +35,8 @@ interface ProviderCardProps {
   issueTypes: IssueTypeSummary[];
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
+  kanbanStatuses: Map<string, string[]>;
+  onGetKanbanStatuses: (provider: string, projectKey: string) => void;
   onViewIssueType: () => void;
 }
 
@@ -50,6 +52,8 @@ export function ProviderCard({
   issueTypes,
   externalIssueTypes,
   onGetExternalIssueTypes,
+  kanbanStatuses,
+  onGetKanbanStatuses,
   onViewIssueType,
 }: ProviderCardProps) {
   const [apiToken, setApiToken] = useState('');
@@ -227,8 +231,10 @@ export function ProviderCard({
                   collections={collections}
                   issueTypes={issueTypes}
                   externalTypes={externalIssueTypes.get(`${type}/${key}`)}
+                  statuses={kanbanStatuses.get(`${type}/${key}`)}
                   onUpdate={onUpdate}
                   onGetExternalIssueTypes={onGetExternalIssueTypes}
+                  onGetKanbanStatuses={onGetKanbanStatuses}
                   onViewIssueType={onViewIssueType}
                   sectionKey={sectionKey}
                 />

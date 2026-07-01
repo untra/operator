@@ -94,6 +94,9 @@ fn build_index() -> Result<CollectionIndex> {
             tags: hosted.manifest.tags.clone(),
             manifest_path: format!("{}/collection.json", hosted.manifest.id),
             checksum: sha256_hex(json.as_bytes()),
+            tier: hosted.manifest.tier,
+            // Filled once per-collection docs pages are generated.
+            docs_path: None,
         });
     }
     Ok(CollectionIndex {

@@ -30,6 +30,8 @@ interface KanbanProvidersSectionProps {
   collections: CollectionResponse[];
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
+  kanbanStatuses: Map<string, string[]>;
+  onGetKanbanStatuses: (provider: string, projectKey: string) => void;
   onOpenOperatorUi: (route: 'issuetypes' | 'projects') => void;
 }
 
@@ -50,6 +52,8 @@ export function KanbanProvidersSection({
   collections,
   externalIssueTypes,
   onGetExternalIssueTypes,
+  kanbanStatuses,
+  onGetKanbanStatuses,
   onOpenOperatorUi,
 }: KanbanProvidersSectionProps) {
   // Iterate all Jira domains
@@ -92,6 +96,8 @@ export function KanbanProvidersSection({
               issueTypes={issueTypes}
               externalIssueTypes={externalIssueTypes}
               onGetExternalIssueTypes={onGetExternalIssueTypes}
+              kanbanStatuses={kanbanStatuses}
+              onGetKanbanStatuses={onGetKanbanStatuses}
               onViewIssueType={handleViewIssueType}
             />
           ))
@@ -108,6 +114,8 @@ export function KanbanProvidersSection({
             issueTypes={issueTypes}
             externalIssueTypes={externalIssueTypes}
             onGetExternalIssueTypes={onGetExternalIssueTypes}
+            kanbanStatuses={kanbanStatuses}
+            onGetKanbanStatuses={onGetKanbanStatuses}
             onViewIssueType={handleViewIssueType}
           />
         )}
@@ -128,6 +136,8 @@ export function KanbanProvidersSection({
               issueTypes={issueTypes}
               externalIssueTypes={externalIssueTypes}
               onGetExternalIssueTypes={onGetExternalIssueTypes}
+              kanbanStatuses={kanbanStatuses}
+              onGetKanbanStatuses={onGetKanbanStatuses}
               onViewIssueType={handleViewIssueType}
             />
           ))
@@ -144,6 +154,8 @@ export function KanbanProvidersSection({
             issueTypes={issueTypes}
             externalIssueTypes={externalIssueTypes}
             onGetExternalIssueTypes={onGetExternalIssueTypes}
+            kanbanStatuses={kanbanStatuses}
+            onGetKanbanStatuses={onGetKanbanStatuses}
             onViewIssueType={handleViewIssueType}
           />
         )}

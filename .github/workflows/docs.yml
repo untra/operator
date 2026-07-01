@@ -10,6 +10,7 @@ on:
       - 'src/taxonomy/taxonomy.toml'
       - 'src/templates/*.json'
       - 'src/collections/**'
+      - 'collections/**'
       - 'src/schemas/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:

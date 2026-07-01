@@ -14,9 +14,9 @@ use crate::config::Config;
 use crate::rest::dto::{
     GithubProjectInfoDto, GithubValidationDetailsDto, JiraValidationDetailsDto, KanbanProjectInfo,
     KanbanProviderKind, LinearTeamInfoDto, LinearValidationDetailsDto, ListKanbanProjectsRequest,
-    ListKanbanProjectsResponse, SetKanbanSessionEnvRequest, SetKanbanSessionEnvResponse,
-    ValidateKanbanCredentialsRequest, ValidateKanbanCredentialsResponse, WriteKanbanConfigRequest,
-    WriteKanbanConfigResponse,
+    ListKanbanProjectsResponse, ListKanbanStatusesRequest, ListKanbanStatusesResponse,
+    SetKanbanSessionEnvRequest, SetKanbanSessionEnvResponse, ValidateKanbanCredentialsRequest,
+    ValidateKanbanCredentialsResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
 };
 use crate::rest::error::ApiError;
 
@@ -218,6 +218,53 @@ pub async fn list_projects(
     })
 }
 
+// ─── list_statuses ──────────────────────────────────────────────────────────
+
+/// Fetch the workflow statuses/columns of a specific project using ephemeral
+/// creds, for populating the todo/doing/done mapping dropdowns during
+/// onboarding.
+pub async fn list_statuses(
+    req: ListKanbanStatusesRequest,
+) -> Result<ListKanbanStatusesResponse, ApiError> {
+    use crate::api::providers::kanban::KanbanProvider;
+
+    let statuses = match req.provider {
+        KanbanProviderKind::Jira => {
+            let creds = req.jira.ok_or_else(|| {
+                ApiError::BadRequest("Missing `jira` field for jira provider".to_string())
+            })?;
+            let provider = JiraProvider::new(creds.domain, creds.email, creds.api_token);
+            provider
+                .list_statuses(&req.project_key)
+                .await
+                .map_err(|e| ApiError::BadRequest(provider_error_message(&e)))?
+        }
+        KanbanProviderKind::Linear => {
+            let creds = req.linear.ok_or_else(|| {
+                ApiError::BadRequest("Missing `linear` field for linear provider".to_string())
+            })?;
+            let provider = LinearProvider::new(creds.api_key);
+            provider
+                .list_statuses(&req.project_key)
+                .await
+                .map_err(|e| ApiError::BadRequest(provider_error_message(&e)))?
+        }
+        KanbanProviderKind::Github => {
+            let creds = req.github.ok_or_else(|| {
+                ApiError::BadRequest("Missing `github` field for github provider".to_string())
+            })?;
+            let provider =
+                GithubProjectsProvider::new(creds.token, "OPERATOR_GITHUB_TOKEN".to_string());
+            provider
+                .list_statuses(&req.project_key)
+                .await
+                .map_err(|e| ApiError::BadRequest(provider_error_message(&e)))?
+        }
+    };
+
+    Ok(ListKanbanStatusesResponse { statuses })
+}
+
 // ─── write_config ───────────────────────────────────────────────────────────
 
 /// Write or upsert a kanban config section to `config.toml`.
@@ -249,6 +296,7 @@ pub fn write_config(
                 &body.api_key_env,
                 &body.project_key,
                 &body.sync_user_id,
+                body.status_mapping.unwrap_or_default(),
             );
             format!("[kanban.jira.\"{}\"]", body.domain)
         }
@@ -261,6 +309,7 @@ pub fn write_config(
                 &body.api_key_env,
                 &body.project_key,
                 &body.sync_user_id,
+                body.status_mapping.unwrap_or_default(),
             );
             format!("[kanban.linear.\"{}\"]", body.workspace_key)
         }
@@ -273,6 +322,7 @@ pub fn write_config(
                 &body.api_key_env,
                 &body.project_key,
                 &body.sync_user_id,
+                body.status_mapping.unwrap_or_default(),
             );
             format!("[kanban.github.\"{}\"]", body.owner)
         }
@@ -427,6 +477,7 @@ mod tests {
                 api_key_env: "OPERATOR_JIRA_API_KEY".to_string(),
                 project_key: "PROJ".to_string(),
                 sync_user_id: "acct-123".to_string(),
+                status_mapping: None,
             }),
             linear: None,
             github: None,
@@ -456,6 +507,7 @@ mod tests {
                 api_key_env: "OPERATOR_LINEAR_API_KEY".to_string(),
                 project_key: "ENG".to_string(),
                 sync_user_id: "user-uuid-42".to_string(),
+                status_mapping: None,
             }),
             github: None,
         };
@@ -485,6 +537,7 @@ mod tests {
                     api_key_env: "OPERATOR_JIRA_API_KEY".to_string(),
                     project_key: "FIRST".to_string(),
                     sync_user_id: "acct-1".to_string(),
+                    status_mapping: None,
                 }),
                 linear: None,
                 github: None,
@@ -503,6 +556,7 @@ mod tests {
                     api_key_env: "OPERATOR_JIRA_API_KEY".to_string(),
                     project_key: "SECOND".to_string(),
                     sync_user_id: "acct-2".to_string(),
+                    status_mapping: None,
                 }),
                 linear: None,
                 github: None,
@@ -561,6 +615,7 @@ mod tests {
                 api_key_env: "OPERATOR_GITHUB_TOKEN".to_string(),
                 project_key: "PVT_kwDOABcdefg".to_string(),
                 sync_user_id: "12345678".to_string(),
+                status_mapping: None,
             }),
         };
 
@@ -572,6 +627,54 @@ mod tests {
         assert!(contents.contains("OPERATOR_GITHUB_TOKEN"));
         assert!(contents.contains("PVT_kwDOABcdefg"));
         assert!(contents.contains("12345678"));
+    }
+
+    #[test]
+    fn test_write_config_persists_status_mapping() {
+        use crate::config::KanbanStatusMapping;
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+
+        let req = WriteKanbanConfigRequest {
+            provider: KanbanProviderKind::Jira,
+            jira: Some(WriteJiraConfigBody {
+                domain: "acme.atlassian.net".to_string(),
+                email: "user@acme.com".to_string(),
+                api_key_env: "OPERATOR_JIRA_API_KEY".to_string(),
+                project_key: "PROJ".to_string(),
+                sync_user_id: "acct-123".to_string(),
+                status_mapping: Some(KanbanStatusMapping {
+                    todo: Some("Backlog".to_string()),
+                    doing: Some("In Progress".to_string()),
+                    done: Some("Shipped".to_string()),
+                }),
+            }),
+            linear: None,
+            github: None,
+        };
+
+        write_config(req, Some(&path)).unwrap();
+
+        let reloaded: Config = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let project = &reloaded.kanban.jira["acme.atlassian.net"].projects["PROJ"];
+        assert_eq!(project.status_mapping.todo.as_deref(), Some("Backlog"));
+        assert_eq!(project.status_mapping.doing.as_deref(), Some("In Progress"));
+        assert_eq!(project.status_mapping.done.as_deref(), Some("Shipped"));
+    }
+
+    #[test]
+    fn test_list_statuses_missing_creds_returns_bad_request() {
+        let req = ListKanbanStatusesRequest {
+            provider: KanbanProviderKind::Jira,
+            project_key: "PROJ".to_string(),
+            jira: None,
+            linear: None,
+            github: None,
+        };
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(list_statuses(req));
+        assert!(matches!(result, Err(ApiError::BadRequest(_))));
     }
 
     #[test]

@@ -131,10 +131,12 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // Kanban provider endpoints
         .routes(routes!(routes::kanban::provider_catalog))
         .routes(routes!(routes::kanban::external_issue_types))
+        .routes(routes!(routes::kanban::project_statuses))
         .routes(routes!(routes::kanban::sync_issue_types))
-        // Kanban onboarding endpoints (validate, list projects, write config, set env)
+        // Kanban onboarding endpoints (validate, list projects/statuses, write config, set env)
         .routes(routes!(routes::kanban_onboarding::validate_credentials))
         .routes(routes!(routes::kanban_onboarding::list_projects))
+        .routes(routes!(routes::kanban_onboarding::list_statuses))
         .routes(routes!(routes::kanban_onboarding::write_config))
         .routes(routes!(routes::kanban_onboarding::set_session_env))
         // Skills endpoint

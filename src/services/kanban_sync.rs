@@ -16,7 +16,7 @@ use std::path::Path;
 use tracing::{debug, info, warn};
 
 use crate::api::providers::kanban::{get_provider, ExternalIssue};
-use crate::config::{Config, ProjectSyncConfig};
+use crate::config::{Config, KanbanStatusMapping, ProjectSyncConfig};
 use crate::issuetypes::kanban_type::KanbanIssueTypeRef;
 
 /// A collection that can be synced from a kanban provider
@@ -30,8 +30,8 @@ pub struct SyncableCollection {
     pub collection_name: Option<String>,
     /// User ID to sync issues for
     pub sync_user_id: String,
-    /// Statuses to sync (empty = default only)
-    pub sync_statuses: Vec<String>,
+    /// Mapping of operator todo/doing/done to external board columns
+    pub status_mapping: KanbanStatusMapping,
 }
 
 /// Result of a sync operation
@@ -90,7 +90,7 @@ impl KanbanSyncService {
                         project_key: project_key.clone(),
                         collection_name: project_config.collection_name.clone(),
                         sync_user_id: project_config.sync_user_id.clone(),
-                        sync_statuses: project_config.sync_statuses.clone(),
+                        status_mapping: project_config.status_mapping.clone(),
                     });
                 }
             }
@@ -105,7 +105,7 @@ impl KanbanSyncService {
                         project_key: project_key.clone(),
                         collection_name: project_config.collection_name.clone(),
                         sync_user_id: project_config.sync_user_id.clone(),
-                        sync_statuses: project_config.sync_statuses.clone(),
+                        status_mapping: project_config.status_mapping.clone(),
                     });
                 }
             }
@@ -120,7 +120,7 @@ impl KanbanSyncService {
                         project_key: project_key.clone(),
                         collection_name: project_config.collection_name.clone(),
                         sync_user_id: project_config.sync_user_id.clone(),
-                        sync_statuses: project_config.sync_statuses.clone(),
+                        status_mapping: project_config.status_mapping.clone(),
                     });
                 }
             }
@@ -157,7 +157,7 @@ impl KanbanSyncService {
             .list_issues(
                 project_key,
                 &project_config.sync_user_id,
-                &project_config.sync_statuses,
+                &project_config.pull_statuses(),
             )
             .await
             .context("Failed to fetch issues from provider")?;

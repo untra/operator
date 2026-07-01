@@ -155,7 +155,7 @@ impl App {
             for project in &discovered_projects {
                 let project_path = projects_path.join(project);
 
-                // ASSESS or PROJECT-INIT creates assess tickets
+                // ASSESS or PROJECT_INIT creates assess tickets
                 if startup_tickets.contains(&"assess".to_string())
                     || startup_tickets.contains(&"project_init".to_string())
                 {
@@ -189,7 +189,7 @@ impl App {
                     }
                 }
 
-                // AGENT-SETUP or PROJECT-INIT creates agent tickets
+                // AGENT_SETUP or PROJECT_INIT creates agent tickets
                 if startup_tickets.contains(&"agent_setup".to_string())
                     || startup_tickets.contains(&"project_init".to_string())
                 {
@@ -203,12 +203,12 @@ impl App {
                                 tracing::info!(
                                     created = ?result.created,
                                     project = %project,
-                                    "Created AGENT-SETUP startup tickets"
+                                    "Created AGENT_SETUP startup tickets"
                                 );
                             }
                         }
                         Err(e) => {
-                            tracing::warn!(project = %project, error = %e, "Failed to create AGENT-SETUP tickets");
+                            tracing::warn!(project = %project, error = %e, "Failed to create AGENT_SETUP tickets");
                         }
                     }
                 }

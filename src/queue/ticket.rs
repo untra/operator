@@ -789,7 +789,7 @@ fn extract_frontmatter(
 fn parse_filename(filename: &str) -> Result<(String, String, String)> {
     // YYYYMMDD-HHMM-TYPE-PROJECT-description.md
     // Project names don't contain hyphens (gamesvc, global, etc.)
-    let re = Regex::new(r"^(\d{8}-\d{4})-([A-Z]+)-([a-z0-9]+)-")?;
+    let re = Regex::new(r"^(\d{8}-\d{4})-([A-Z][A-Z0-9_]*)-([a-z0-9]+)-")?;
 
     if let Some(caps) = re.captures(filename) {
         Ok((
@@ -875,6 +875,15 @@ mod tests {
             parse_filename("20241221-1430-FEAT-gamesvc-add-leaderboard.md").unwrap();
         assert_eq!(ts, "20241221-1430");
         assert_eq!(tt, "FEAT");
+        assert_eq!(proj, "gamesvc");
+    }
+
+    #[test]
+    fn test_parse_filename_underscore_key() {
+        let (ts, tt, proj) =
+            parse_filename("20260701-0900-AGENT_SETUP-gamesvc-configure-agents.md").unwrap();
+        assert_eq!(ts, "20260701-0900");
+        assert_eq!(tt, "AGENT_SETUP");
         assert_eq!(proj, "gamesvc");
     }
 

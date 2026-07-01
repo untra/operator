@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "example_chores",
+  "name": "Example Chores",
+  "description": "Minimal example community collection demonstrating the shareable format.",
+  "version": "0.1.0",
+  "tier": "community",
+  "author": "untra",
+  "url": "https://github.com/untra/operator",
+  "tags": [
+    "example",
+    "starter"
+  ],
+  "issue_types": [
+    {
+      "key": "CHORE",
+      "schema_path": "CHORE.json",
+      "template_path": "CHORE.md"
+    }
+  ],
+  "workflow_hints": {
+    "loop_kind": "single_pass",
+    "memory_surfaces": [
+      "ticket"
+    ],
+    "review_gates": [
+      "test_suite"
+    ],
+    "external_tools": [
+      "git"
+    ],
+    "stop_conditions": [
+      "tests_green"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": [
+    "CHORE"
+  ],
+  "license": "MIT"
+}

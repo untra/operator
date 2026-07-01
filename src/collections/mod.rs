@@ -6,6 +6,11 @@
 
 pub mod fetch;
 pub mod manifest;
+// Community-collection validation: consumed by the community_collections
+// integration test today and the docs generator in an upcoming change;
+// nothing in the bin calls it, so its items read as dead there.
+#[allow(dead_code)]
+pub mod validate;
 
 /// A single embedded issuetype with JSON schema and markdown template
 #[derive(Debug, Clone)]
@@ -96,7 +101,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
             },
         ],
     },
-    // Operator collection: ASSESS, SYNC, INIT, AGENT-SETUP, PROJECT-INIT
+    // Operator collection: ASSESS, SYNC, INIT, AGENT_SETUP, PROJECT_INIT
     EmbeddedCollection {
         name: "operator",
         manifest: include_str!("operator/collection.json"),
@@ -117,64 +122,20 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
                 template_md: include_str!("operator/INIT.md"),
             },
             EmbeddedIssueType {
-                key: "AGENT-SETUP",
-                schema_json: include_str!("operator/AGENT-SETUP.json"),
-                template_md: include_str!("operator/AGENT-SETUP.md"),
+                key: "AGENT_SETUP",
+                schema_json: include_str!("operator/AGENT_SETUP.json"),
+                template_md: include_str!("operator/AGENT_SETUP.md"),
             },
             EmbeddedIssueType {
-                key: "PROJECT-INIT",
-                schema_json: include_str!("operator/PROJECT-INIT.json"),
-                template_md: include_str!("operator/PROJECT-INIT.md"),
+                key: "PROJECT_INIT",
+                schema_json: include_str!("operator/PROJECT_INIT.json"),
+                template_md: include_str!("operator/PROJECT_INIT.md"),
             },
         ],
     },
-    // Full collection: All 8 issuetypes
-    EmbeddedCollection {
-        name: "full",
-        manifest: include_str!("full/collection.json"),
-        issuetypes: &[
-            EmbeddedIssueType {
-                key: "TASK",
-                schema_json: include_str!("full/TASK.json"),
-                template_md: include_str!("full/TASK.md"),
-            },
-            EmbeddedIssueType {
-                key: "FEAT",
-                schema_json: include_str!("full/FEAT.json"),
-                template_md: include_str!("full/FEAT.md"),
-            },
-            EmbeddedIssueType {
-                key: "FIX",
-                schema_json: include_str!("full/FIX.json"),
-                template_md: include_str!("full/FIX.md"),
-            },
-            EmbeddedIssueType {
-                key: "SPIKE",
-                schema_json: include_str!("full/SPIKE.json"),
-                template_md: include_str!("full/SPIKE.md"),
-            },
-            EmbeddedIssueType {
-                key: "INV",
-                schema_json: include_str!("full/INV.json"),
-                template_md: include_str!("full/INV.md"),
-            },
-            EmbeddedIssueType {
-                key: "ASSESS",
-                schema_json: include_str!("full/ASSESS.json"),
-                template_md: include_str!("full/ASSESS.md"),
-            },
-            EmbeddedIssueType {
-                key: "SYNC",
-                schema_json: include_str!("full/SYNC.json"),
-                template_md: include_str!("full/SYNC.md"),
-            },
-            EmbeddedIssueType {
-                key: "INIT",
-                schema_json: include_str!("full/INIT.json"),
-                template_md: include_str!("full/INIT.md"),
-            },
-        ],
-    },
+    // NOTE: `full` is deliberately not embedded as a collection. Its files
+    // (src/collections/full/) remain the source for the builtin
+    // TemplateType glyph/color maps in src/templates/mod.rs.
     // Ralph Loop collection: PRD, STORY, RLOOP
     EmbeddedCollection {
         name: "ralph_loop",
@@ -309,7 +270,52 @@ mod tests {
 
     #[test]
     fn test_embedded_collections_count() {
-        assert_eq!(EMBEDDED_COLLECTIONS.len(), 8);
+        assert_eq!(EMBEDDED_COLLECTIONS.len(), 7);
+    }
+
+    #[test]
+    fn test_full_collection_not_embedded() {
+        // `full` was demoted: its files remain as the static glyph/color-map
+        // source (src/templates/mod.rs) but it is not offered as a collection.
+        assert!(get_embedded_collection("full").is_none());
+    }
+
+    #[test]
+    fn test_embedded_tiers_match_provenance() {
+        use manifest::CollectionTier;
+        for collection in EMBEDDED_COLLECTIONS {
+            let m = collection.manifest_parsed().unwrap();
+            let expected = match collection.name {
+                "ralph_loop" | "jr_orchestration" | "elves_overnight" => CollectionTier::Community,
+                _ => CollectionTier::Official,
+            };
+            assert_eq!(m.tier, expected, "tier mismatch for {}", collection.name);
+        }
+    }
+
+    #[test]
+    fn test_embedded_community_collections_have_attribution() {
+        use manifest::CollectionTier;
+        for collection in EMBEDDED_COLLECTIONS {
+            let m = collection.manifest_parsed().unwrap();
+            if m.tier == CollectionTier::Community {
+                assert!(m.author.is_some(), "{} needs an author", collection.name);
+                assert!(m.url.is_some(), "{} needs a url", collection.name);
+                assert!(m.license.is_some(), "{} needs a license", collection.name);
+            }
+        }
+    }
+
+    #[test]
+    fn test_all_embedded_collections_have_workflow_hints() {
+        for collection in EMBEDDED_COLLECTIONS {
+            let m = collection.manifest_parsed().unwrap();
+            assert!(
+                m.workflow_hints.is_some(),
+                "{} needs workflow_hints so the docs hints table renders",
+                collection.name
+            );
+        }
     }
 
     #[test]
@@ -329,10 +335,6 @@ mod tests {
         let operator = get_embedded_collection("operator").unwrap();
         assert_eq!(operator.name, "operator");
         assert_eq!(operator.issuetypes.len(), 5);
-
-        let full = get_embedded_collection("full").unwrap();
-        assert_eq!(full.name, "full");
-        assert_eq!(full.issuetypes.len(), 8);
 
         let ralph = get_embedded_collection("ralph_loop").unwrap();
         assert_eq!(ralph.name, "ralph_loop");
@@ -359,7 +361,7 @@ mod tests {
         assert!(names.contains(&"dev_kanban"));
         assert!(names.contains(&"devops_kanban"));
         assert!(names.contains(&"operator"));
-        assert!(names.contains(&"full"));
+        assert!(!names.contains(&"full"));
     }
 
     #[test]
@@ -391,9 +393,12 @@ mod tests {
     }
 
     #[test]
-    fn test_agentic_loop_collections_have_valid_issuetypes() {
-        for name in ["ralph_loop", "jr_orchestration", "elves_overnight"] {
-            let collection = get_embedded_collection(name).unwrap();
+    fn test_all_embedded_collections_have_valid_issuetypes() {
+        // Every embedded issuetype must pass validation, otherwise the disk
+        // loader silently drops it when the collection is scaffolded to
+        // .tickets/templates/ and reloaded.
+        for collection in EMBEDDED_COLLECTIONS {
+            let name = collection.name;
             for issue_type in collection.issuetypes {
                 let schema = TemplateSchema::from_json(issue_type.schema_json)
                     .unwrap_or_else(|e| panic!("{name}/{} schema must parse: {e}", issue_type.key));

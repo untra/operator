@@ -1,6 +1,6 @@
 {
   "$schema": "../../schemas/issuetype_schema.json",
-  "key": "AGENT-SETUP",
+  "key": "AGENT_SETUP",
   "name": "Agent Setup",
   "description": "Set up Claude agent configuration for a project",
   "mode": "paired",
@@ -32,7 +32,7 @@
       "name": "agent_tool",
       "description": "Target agent tool (claude, aider, etc.)",
       "type": "enum",
-      "values": ["claude", "aider", "gemini"],
+      "options": ["claude", "aider", "gemini"],
       "required": true,
       "default": "claude",
       "display_order": 2

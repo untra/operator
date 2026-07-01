@@ -72,8 +72,12 @@ api_key_env = "OPERATOR_GITHUB_TOKEN"  # default
 
 [kanban.github."my-org".projects.PVT_kwDOABcdefg]
 sync_user_id = "12345678"        # numeric GitHub `databaseId`
-sync_statuses = ["In Progress", "Todo"]
 collection_name = "dev_kanban"
+
+[kanban.github."my-org".projects.PVT_kwDOABcdefg.status_mapping]
+todo = "Todo"           # Status option pulled into operator's queue (and requeue target)
+doing = "In Progress"   # Status pushed when a ticket is launched/claimed
+done = "Done"           # Status pushed when a ticket completes
 ```
 
 The hashmap key under `[kanban.github."<owner>"]` is the GitHub owner login (user or org). Project keys inside `projects` are **GraphQL node IDs** (e.g. `PVT_kwDOABcdefg`) — not project numbers — because every Projects v2 mutation needs the node ID and storing it directly avoids an extra lookup per call.
@@ -171,14 +175,28 @@ Operator's `kanban_issuetype_service` syncs the available types into a local cat
 ```toml
 [kanban.github."my-org".projects.PVT_kwDOABcdefg]
 sync_user_id = "12345678"                  # your numeric GitHub databaseId
-sync_statuses = ["In Progress", "Todo"]    # Status field option names to sync
 collection_name = "dev_kanban"             # IssueTypeCollection to use
+
+[kanban.github."my-org".projects.PVT_kwDOABcdefg.status_mapping]
+todo = "Todo"           # Status option pulled into operator's queue (and requeue target)
+doing = "In Progress"   # Status pushed when a ticket is launched/claimed
+done = "Done"           # Status pushed when a ticket completes
 
 [kanban.github."my-org".projects.PVT_kwDOABcdefg.type_mappings]
 "L_bug"     = "FIX"
 "L_feature" = "FEAT"
 "L_spike"   = "SPIKE"
 ```
+
+`status_mapping` maps operator's strict todo/doing/done states to the project's
+`Status` single-select option names. Issues are pulled from the `todo` (and
+`doing`) columns; with `bidirectional = true`, ticket transitions push the card
+to the mapped column (requeue → `todo` only fires when `todo` is mapped;
+unmapped `doing`/`done` fall back to `"In Progress"`/`"Done"`). Discover the
+real option names via `GET /api/v1/kanban/github/PVT_kwDOABcdefg/statuses`.
+
+> **Migrating from `sync_statuses`:** the old list is no longer read (the key
+> is silently ignored). Re-express it as the `status_mapping` table above.
 
 The keys in `type_mappings` are the GraphQL label IDs (or issue type IDs) returned by `get_issue_types()` — they're persisted in the local issue type catalog after the first sync, and you can find them with:
 
@@ -194,7 +212,7 @@ Pull issues from GitHub Projects:
 operator sync
 ```
 
-The provider client-side filters by your `sync_user_id` (project items don't support server-side assignee filtering in the GraphQL API), so very large projects may pull a few extra pages before applying the filter. Status filtering uses the `Status` single-select field's option names — make sure the values in `sync_statuses` exactly match the names defined in your project (case-insensitive).
+The provider client-side filters by your `sync_user_id` (project items don't support server-side assignee filtering in the GraphQL API), so very large projects may pull a few extra pages before applying the filter. Status filtering uses the `Status` single-select field's option names — make sure the values in `status_mapping` exactly match the names defined in your project (case-insensitive).
 
 ### What gets synced
 
@@ -249,7 +267,7 @@ If `project` (or `read:project`) is missing, that's your problem.
 
 - Confirm `sync_user_id` is the numeric `databaseId`, **not** your login. `gh api user --jq .id` returns the right value.
 - Confirm the issue is actually assigned to that user. Operator filters client-side after fetching, so unassigned items are dropped silently.
-- Confirm the issue's Status field value appears in `sync_statuses`. Match is case-insensitive but must otherwise be exact.
+- Confirm the issue's Status field value matches the `status_mapping` `todo` (or `doing`) column. Match is case-insensitive but must otherwise be exact.
 - For huge projects (>500 items), check the operator logs for pagination warnings.
 
 ### "No GitHub Projects v2 found for this token"

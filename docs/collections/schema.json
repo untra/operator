@@ -21,6 +21,24 @@
     "url": { "type": ["string", "null"], "description": "Link to the collection's source (GitHub repo or project page)." },
     "license": { "type": ["string", "null"], "description": "SPDX license id." },
     "tags": { "type": "array", "items": { "type": "string" } },
+    "tier": {
+      "type": "string",
+      "enum": ["official", "community"],
+      "default": "official",
+      "description": "Provenance tier: who authored and maintains the collection. Orthogonal to distribution (curated community-authored collections may ship embedded)."
+    },
+    "kanban_defaults": {
+      "type": ["object", "null"],
+      "description": "Descriptive kanban onboarding defaults. v1 is metadata only: suggestions seed the onboarding mapping UI but do not drive sync behavior.",
+      "additionalProperties": false,
+      "properties": {
+        "suggested_type_mappings": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Suggested provider issue-type NAME -> collection issuetype key."
+        }
+      }
+    },
     "compatibility": {
       "type": ["object", "null"],
       "additionalProperties": false,
@@ -43,7 +61,8 @@
           "schema_path": { "type": "string", "description": "Path to the issuetype JSON, relative to the manifest." },
           "schema_checksum": { "type": "string", "description": "SHA-256 (lowercase hex) of the issuetype JSON bytes. Required for hosted manifests; omitted for embedded ones." },
           "template_path": { "type": ["string", "null"], "description": "Optional path to the markdown template, relative to the manifest." },
-          "template_checksum": { "type": ["string", "null"], "description": "SHA-256 (lowercase hex) of the markdown template bytes, if present." }
+          "template_checksum": { "type": ["string", "null"], "description": "SHA-256 (lowercase hex) of the markdown template bytes, if present." },
+          "workflow_preview_path": { "type": ["string", "null"], "description": "Path to a pre-generated workflow preview (.js), relative to the manifest. Filled by the docs producer for visualization; excluded from checksum derivation." }
         }
       }
     },

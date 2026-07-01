@@ -119,7 +119,7 @@ mod tests {
 
         let mut project_sync = ProjectSyncConfig {
             sync_user_id: String::new(),
-            sync_statuses: Vec::new(),
+            status_mapping: crate::config::KanbanStatusMapping::default(),
             collection_name: None,
             type_mappings: HashMap::new(),
             bidirectional: true,

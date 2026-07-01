@@ -152,6 +152,7 @@ impl KanbanConfig {
         api_key_env: &str,
         project_key: &str,
         sync_user_id: &str,
+        status_mapping: KanbanStatusMapping,
     ) {
         let entry = self.jira.entry(domain.to_string()).or_default();
         entry.enabled = true;
@@ -161,7 +162,7 @@ impl KanbanConfig {
             project_key.to_string(),
             ProjectSyncConfig {
                 sync_user_id: sync_user_id.to_string(),
-                sync_statuses: Vec::new(),
+                status_mapping,
                 collection_name: None,
                 type_mappings: std::collections::HashMap::new(),
                 bidirectional: false,
@@ -181,6 +182,7 @@ impl KanbanConfig {
         api_key_env: &str,
         project_key: &str,
         sync_user_id: &str,
+        status_mapping: KanbanStatusMapping,
     ) {
         let entry = self.linear.entry(workspace.to_string()).or_default();
         entry.enabled = true;
@@ -189,7 +191,7 @@ impl KanbanConfig {
             project_key.to_string(),
             ProjectSyncConfig {
                 sync_user_id: sync_user_id.to_string(),
-                sync_statuses: Vec::new(),
+                status_mapping,
                 collection_name: None,
                 type_mappings: std::collections::HashMap::new(),
                 bidirectional: false,
@@ -212,6 +214,7 @@ impl KanbanConfig {
         api_key_env: &str,
         project_key: &str,
         sync_user_id: &str,
+        status_mapping: KanbanStatusMapping,
     ) {
         let entry = self.github.entry(owner.to_string()).or_default();
         entry.enabled = true;
@@ -220,7 +223,7 @@ impl KanbanConfig {
             project_key.to_string(),
             ProjectSyncConfig {
                 sync_user_id: sync_user_id.to_string(),
-                sync_statuses: Vec::new(),
+                status_mapping,
                 collection_name: None,
                 type_mappings: std::collections::HashMap::new(),
                 bidirectional: false,
@@ -246,20 +249,62 @@ impl KanbanConfig {
                 &workspace.api_key_env,
                 &project.project_key,
                 &workspace.sync_user_id,
+                KanbanStatusMapping::default(),
             ),
             WorkspaceExtra::Linear => self.upsert_linear_project(
                 &workspace.workspace_key,
                 &workspace.api_key_env,
                 &project.project_key,
                 &workspace.sync_user_id,
+                KanbanStatusMapping::default(),
             ),
             WorkspaceExtra::Github => self.upsert_github_project(
                 &workspace.workspace_key,
                 &workspace.api_key_env,
                 &project.project_key,
                 &workspace.sync_user_id,
+                KanbanStatusMapping::default(),
             ),
         }
+    }
+}
+
+/// Explicit mapping from operator's strict todo/doing/done states to the
+/// external board's column/status names.
+///
+/// Drives bidirectional sync: issues are pulled from the `todo` column,
+/// pushed to `doing` when a ticket is claimed, to `done` when completed, and
+/// back to `todo` when requeued. Unset fields fall back per-transition
+/// (`doing` → "In Progress", `done` → "Done"); requeue only pushes when
+/// `todo` is explicitly mapped.
+#[derive(
+    Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema,
+)]
+#[ts(export)]
+pub struct KanbanStatusMapping {
+    /// External column for operator "todo" (queued work; also the pull source)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub todo: Option<String>,
+    /// External column for operator "doing" (claimed/launched tickets)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doing: Option<String>,
+    /// External column for operator "done" (completed tickets)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub done: Option<String>,
+}
+
+impl KanbanStatusMapping {
+    /// True when no column is mapped (used to omit the table from TOML).
+    pub fn is_empty(&self) -> bool {
+        self.todo.is_none() && self.doing.is_none() && self.done.is_none()
+    }
+
+    /// Number of mapped columns.
+    pub fn mapped_count(&self) -> usize {
+        [&self.todo, &self.doing, &self.done]
+            .iter()
+            .filter(|s| s.is_some())
+            .count()
     }
 }
 
@@ -273,9 +318,9 @@ pub struct ProjectSyncConfig {
     /// - GitHub Projects: numeric GitHub `databaseId` (e.g., "12345678")
     #[serde(default)]
     pub sync_user_id: String,
-    /// Workflow statuses to sync (empty = default/first status only)
-    #[serde(default)]
-    pub sync_statuses: Vec<String>,
+    /// Mapping of operator todo/doing/done to external board columns
+    #[serde(default, skip_serializing_if = "KanbanStatusMapping::is_empty")]
+    pub status_mapping: KanbanStatusMapping,
     /// Optional `IssueTypeCollection` name this project maps to.
     /// Not required for kanban onboarding or sync.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -289,4 +334,17 @@ pub struct ProjectSyncConfig {
     /// are reflected upstream. Default: false.
     #[serde(default)]
     pub bidirectional: bool,
+}
+
+impl ProjectSyncConfig {
+    /// Statuses to pull from the external board: the mapped `todo` column
+    /// (queued work) plus `doing` (resume in-flight). Empty when unmapped —
+    /// providers then fall back to their default status filter.
+    pub fn pull_statuses(&self) -> Vec<String> {
+        [&self.status_mapping.todo, &self.status_mapping.doing]
+            .into_iter()
+            .flatten()
+            .cloned()
+            .collect()
+    }
 }

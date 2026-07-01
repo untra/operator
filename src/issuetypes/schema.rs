@@ -192,9 +192,9 @@ impl IssueType {
 /// Validation errors for issue types
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValidationError {
-    /// Key format is invalid (must be uppercase letters only)
+    /// Key format is invalid (uppercase start, then uppercase/digits/underscores)
     InvalidKey(String),
-    /// Key length is invalid (must be 2-10 characters)
+    /// Key length is invalid (must be 2-16 characters)
     KeyLength(String),
     /// Glyph is invalid (must be 1-4 characters)
     InvalidGlyph(String),
@@ -212,10 +212,13 @@ impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ValidationError::InvalidKey(key) => {
-                write!(f, "Key '{key}' must be uppercase letters only")
+                write!(
+                    f,
+                    "Key '{key}' must start with an uppercase letter and contain only uppercase letters, digits, and underscores"
+                )
             }
             ValidationError::KeyLength(key) => {
-                write!(f, "Key '{key}' must be 2-10 characters")
+                write!(f, "Key '{key}' must be 2-16 characters")
             }
             ValidationError::InvalidGlyph(glyph) => {
                 write!(f, "Glyph '{glyph}' must be 1-4 characters")
@@ -243,13 +246,17 @@ impl IssueType {
     pub fn validate(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
 
-        // Check key format: uppercase letters only
-        if !self.key.chars().all(|c| c.is_ascii_uppercase()) {
+        // Check key format: uppercase start, then uppercase/digit/underscore.
+        // Hyphens are excluded: `-` separates key from number in ticket ids.
+        let mut chars = self.key.chars();
+        let valid_start = chars.next().is_some_and(|c| c.is_ascii_uppercase());
+        let valid_rest = chars.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
+        if !(valid_start && valid_rest) {
             errors.push(ValidationError::InvalidKey(self.key.clone()));
         }
 
-        // Check key length: 2-10 characters
-        if self.key.len() < 2 || self.key.len() > 10 {
+        // Check key length: 2-16 characters
+        if self.key.len() < 2 || self.key.len() > 16 {
             errors.push(ValidationError::KeyLength(self.key.clone()));
         }
 
@@ -399,13 +406,50 @@ mod tests {
     #[test]
     fn test_invalid_key_too_long() {
         let mut issue_type = create_valid_issuetype();
-        issue_type.key = "VERYLONGKEY".to_string();
+        issue_type.key = "ABCDEFGHIJKLMNOPQ".to_string(); // 17 chars
         let result = issue_type.validate();
         assert!(result.is_err());
         let errors = result.unwrap_err();
         assert!(errors
             .iter()
             .any(|e| matches!(e, ValidationError::KeyLength(_))));
+    }
+
+    #[test]
+    fn test_key_with_underscore_and_digits_valid() {
+        // Grammar ^[A-Z][A-Z0-9_]{1,15}$: shipped keys like AGENT_SETUP
+        // and PROJECT_INIT must validate.
+        for key in ["AGENT_SETUP", "PROJECT_INIT", "TASK2", "JR_REBASE_V2"] {
+            let mut issue_type = create_valid_issuetype();
+            issue_type.key = key.to_string();
+            assert!(issue_type.validate().is_ok(), "key '{key}' should be valid");
+        }
+    }
+
+    #[test]
+    fn test_key_must_start_with_uppercase_letter() {
+        for key in ["_TASK", "2TASK", "tASK"] {
+            let mut issue_type = create_valid_issuetype();
+            issue_type.key = key.to_string();
+            let errors = issue_type.validate().unwrap_err();
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, ValidationError::InvalidKey(_))),
+                "key '{key}' should be invalid"
+            );
+        }
+    }
+
+    #[test]
+    fn test_key_hyphen_invalid() {
+        // Hyphens conflict with the `{KEY}-{number}` ticket-id separator.
+        let mut issue_type = create_valid_issuetype();
+        issue_type.key = "AGENT-SETUP".to_string();
+        let errors = issue_type.validate().unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|e| matches!(e, ValidationError::InvalidKey(_))));
     }
 
     #[test]

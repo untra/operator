@@ -12,13 +12,14 @@ use crate::rest::dto::{
     FieldResponse, HealthResponse, IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary,
     KanbanBoardResponse, KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanSyncResponse,
     KanbanTicketCard, LaunchTicketRequest, LaunchTicketResponse, ListKanbanProjectsRequest,
-    ListKanbanProjectsResponse, ModelEntry, ModelServerKindEntry, ModelServerModelsResponse,
-    ModelServerResponse, ModelServersResponse, NextStepInfo, OperatorOutput, ProjectSummary,
-    QueueByType, QueueControlResponse, QueueStatusResponse, RejectReviewRequest, ReviewResponse,
-    SectionDto, SectionRowDto, SetDefaultLlmRequest, SetKanbanSessionEnvRequest,
-    SetKanbanSessionEnvResponse, SkillEntry, SkillsResponse, StatusResponse, StepCompleteRequest,
-    StepCompleteResponse, StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse,
-    UpdateIssueTypeRequest, UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
+    ListKanbanProjectsResponse, ListKanbanStatusesRequest, ListKanbanStatusesResponse, ModelEntry,
+    ModelServerKindEntry, ModelServerModelsResponse, ModelServerResponse, ModelServersResponse,
+    NextStepInfo, OperatorOutput, ProjectSummary, QueueByType, QueueControlResponse,
+    QueueStatusResponse, RejectReviewRequest, ReviewResponse, SectionDto, SectionRowDto,
+    SetDefaultLlmRequest, SetKanbanSessionEnvRequest, SetKanbanSessionEnvResponse, SkillEntry,
+    SkillsResponse, StatusResponse, StepCompleteRequest, StepCompleteResponse, StepResponse,
+    SyncKanbanIssueTypesResponse, TicketDetailResponse, UpdateIssueTypeRequest,
+    UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
     UpdateTicketStatusResponse, ValidateKanbanCredentialsRequest,
     ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto,
     WorkflowPreviewResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
@@ -142,6 +143,9 @@ use crate::rest::error::ErrorResponse;
             ValidateKanbanCredentialsResponse,
             ListKanbanProjectsRequest,
             ListKanbanProjectsResponse,
+            ListKanbanStatusesRequest,
+            ListKanbanStatusesResponse,
+            crate::config::kanban::KanbanStatusMapping,
             WriteKanbanConfigRequest,
             WriteKanbanConfigResponse,
             SetKanbanSessionEnvRequest,
@@ -269,6 +273,16 @@ mod tests {
                 "spec should document the mounted route {path}"
             );
         }
+    }
+
+    #[test]
+    fn test_openapi_documents_kanban_status_discovery_routes() {
+        // Both status-discovery surfaces must be mounted + documented: the
+        // ephemeral-creds onboarding POST and the stored-config GET.
+        let spec = ApiDoc::json().expect("generate spec");
+        assert!(spec.contains("/api/v1/kanban/statuses"));
+        assert!(spec.contains("/api/v1/kanban/{provider}/{project_key}/statuses"));
+        assert!(spec.contains("KanbanStatusMapping"));
     }
 
     #[test]

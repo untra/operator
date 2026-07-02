@@ -74,65 +74,6 @@ fn template_schema_to_issuetype(schema: TemplateSchema, source: IssueTypeSource)
     }
 }
 
-/// Load user-defined issue types from a directory
-///
-/// Scans for *.json files in the directory and attempts to parse each as an `IssueType`.
-/// Invalid files are logged as warnings and skipped.
-pub fn load_user_types(path: &Path) -> Result<HashMap<String, IssueType>> {
-    let mut types = HashMap::new();
-
-    if !path.exists() {
-        debug!(
-            "User issuetypes directory does not exist: {}",
-            path.display()
-        );
-        return Ok(types);
-    }
-
-    let entries = fs::read_dir(path)
-        .with_context(|| format!("Failed to read issuetypes directory: {}", path.display()))?;
-
-    for entry in entries {
-        let entry = entry?;
-        let file_path = entry.path();
-
-        // Skip directories and non-JSON files
-        if file_path.is_dir() || file_path.extension().is_none_or(|e| e != "json") {
-            continue;
-        }
-
-        // Skip imports directory
-        if file_path
-            .file_stem()
-            .is_some_and(|s| s == "imports" || s == "collections")
-        {
-            continue;
-        }
-
-        match load_issuetype_file(&file_path) {
-            Ok(mut issue_type) => {
-                // Ensure source is marked as User
-                issue_type.source = IssueTypeSource::User;
-                debug!(
-                    "Loaded user issue type: {} from {}",
-                    issue_type.key,
-                    file_path.display()
-                );
-                types.insert(issue_type.key.clone(), issue_type);
-            }
-            Err(e) => {
-                warn!(
-                    "Failed to load issue type from {}: {}",
-                    file_path.display(),
-                    e
-                );
-            }
-        }
-    }
-
-    Ok(types)
-}
-
 /// Load imported issue types from the imports subdirectory
 ///
 /// Structure: imports/{provider}/{project}/*.json
@@ -581,13 +522,6 @@ mod tests {
     }
 
     #[test]
-    fn test_load_user_types_empty_dir() {
-        let temp_dir = TempDir::new().unwrap();
-        let types = load_user_types(temp_dir.path()).unwrap();
-        assert!(types.is_empty());
-    }
-
-    #[test]
     fn test_load_collection_metadata_reads_collection_json() {
         let temp_dir = TempDir::new().unwrap();
         let dir = temp_dir.path();
@@ -622,78 +556,6 @@ mod tests {
         let meta = load_collection_metadata(dir, &HashMap::new());
         assert_eq!(meta.description, "Legacy collection");
         assert_eq!(meta.type_order, vec!["FIX", "INV"]);
-    }
-
-    #[test]
-    fn test_load_user_types_nonexistent_dir() {
-        let types = load_user_types(Path::new("/nonexistent/path")).unwrap();
-        assert!(types.is_empty());
-    }
-
-    #[test]
-    fn test_load_user_types_with_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let json = r#"{
-            "key": "STORY",
-            "name": "User Story",
-            "description": "A user story",
-            "mode": "autonomous",
-            "glyph": "S",
-            "fields": [
-                {"name": "id", "description": "ID", "type": "string", "required": true, "auto": "id"}
-            ],
-            "steps": [
-                {"name": "execute", "outputs": [], "prompt": "Execute", "allowed_tools": ["*"]}
-            ]
-        }"#;
-        fs::write(temp_dir.path().join("STORY.json"), json).unwrap();
-
-        let types = load_user_types(temp_dir.path()).unwrap();
-        assert_eq!(types.len(), 1);
-        assert!(types.contains_key("STORY"));
-
-        let story = types.get("STORY").unwrap();
-        assert_eq!(story.name, "User Story");
-        assert_eq!(story.source, IssueTypeSource::User);
-    }
-
-    #[test]
-    fn test_load_user_types_skips_invalid() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Valid file
-        let valid_json = r#"{
-            "key": "VALID",
-            "name": "Valid",
-            "description": "Valid type",
-            "mode": "autonomous",
-            "glyph": "V",
-            "fields": [
-                {"name": "id", "description": "ID", "type": "string", "required": true, "auto": "id"}
-            ],
-            "steps": [
-                {"name": "execute", "outputs": [], "prompt": "Execute", "allowed_tools": ["*"]}
-            ]
-        }"#;
-        fs::write(temp_dir.path().join("VALID.json"), valid_json).unwrap();
-
-        // Invalid file (lowercase key)
-        let invalid_json = r#"{
-            "key": "invalid",
-            "name": "Invalid",
-            "description": "Invalid type",
-            "mode": "autonomous",
-            "glyph": "I",
-            "fields": [],
-            "steps": [
-                {"name": "execute", "outputs": [], "prompt": "Execute", "allowed_tools": ["*"]}
-            ]
-        }"#;
-        fs::write(temp_dir.path().join("invalid.json"), invalid_json).unwrap();
-
-        let types = load_user_types(temp_dir.path()).unwrap();
-        assert_eq!(types.len(), 1);
-        assert!(types.contains_key("VALID"));
     }
 
     #[test]

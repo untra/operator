@@ -1,23 +1,14 @@
-//! # Partially Integrated Module: Dynamic Issue Type Registry
+//! # Dynamic Issue Type Registry
 //!
-//! **Status**: Complete implementation, partially integrated
+//! Registry for loading, managing, and querying issue types with support
+//! for collections and kanban-provider imports.
 //!
-//! **Purpose**: Dynamic registry system for loading, managing, and querying issue types
-//! with support for user-defined types, collections, and preset configurations.
-//!
-//! **Current Integration**:
-//! - Schema definitions used internally by `templates` module
-//! - Builtin collections (simple, `dev_kanban`, `devops_kanban`) defined
-//! - Registry loading and validation implemented
-//!
-//! **Not Yet Integrated**:
-//! - Dynamic registry not exposed to TUI for runtime switching
-//! - User-defined issue types from `.tickets/operator/issuetypes/` not loaded
-//! - Collection switching not available in UI
-//!
-//! **Integration Point**: `templates/mod.rs` for runtime loading, `ui/create_dialog.rs` for selection
-//!
-//! **Milestone**: TBD - When custom issue type workflows are prioritized
+//! Every surface (TUI, REST API, CLI) builds its registry through the single
+//! canonical loader `crate::startup::templates::load_registry`, which reads
+//! the collection-scoped `.tickets/templates/<collection>/` store, migrates
+//! legacy flat user types into a `custom` collection, loads kanban imports
+//! from `.tickets/operator/issuetypes/imports/`, and honors a legacy
+//! `collections.toml`.
 //!
 //! ## Components
 //!
@@ -26,13 +17,10 @@
 //! - [`IssueTypeRegistry`]: Central manager for all issue types and collections
 //! - [`BuiltinPreset`]: Predefined collection configurations
 //!
-//! ## Usage When Fully Integrated
+//! ## Usage
 //!
 //! ```rust,ignore
-//! use crate::issuetypes::IssueTypeRegistry;
-//!
-//! let mut registry = IssueTypeRegistry::new();
-//! registry.load_all(&tickets_path)?;
+//! let mut registry = crate::startup::templates::load_registry(&tickets_path);
 //! registry.activate_collection("devops_kanban")?;
 //!
 //! for issue_type in registry.active_types() {
@@ -99,24 +87,6 @@ impl IssueTypeRegistry {
         Ok(())
     }
 
-    /// Load user-defined issue types from a directory
-    pub fn load_user_types(&mut self, path: &Path) -> Result<()> {
-        let user_types = loader::load_user_types(path)?;
-        let count = user_types.len();
-
-        for (key, issue_type) in user_types {
-            if self.types.contains_key(&key) {
-                debug!("User type '{}' overrides builtin", key);
-            }
-            self.types.insert(key, issue_type);
-        }
-
-        if count > 0 {
-            info!("Loaded {} user-defined issue types", count);
-        }
-        Ok(())
-    }
-
     /// Load imported issue types from imports directory
     pub fn load_imports(&mut self, imports_path: &Path) -> Result<()> {
         let imported = loader::load_imported_types(imports_path)?;
@@ -161,37 +131,6 @@ impl IssueTypeRegistry {
         if count > 0 {
             info!("Loaded {} user-defined collections", count);
         }
-        Ok(())
-    }
-
-    /// Load all issue types and collections from standard paths
-    ///
-    /// Standard paths:
-    /// - `.tickets/operator/issuetypes/` for user types
-    /// - `.tickets/operator/issuetypes/imports/` for imported types
-    /// - `.tickets/operator/issuetypes/collections.toml` for collections
-    pub fn load_all(&mut self, tickets_path: &Path) -> Result<()> {
-        // First load builtins
-        self.load_builtins()?;
-
-        let issuetypes_path = tickets_path.join("operator/issuetypes");
-        if issuetypes_path.exists() {
-            // Load user types
-            self.load_user_types(&issuetypes_path)?;
-
-            // Load imports
-            let imports_path = issuetypes_path.join("imports");
-            if imports_path.exists() {
-                self.load_imports(&imports_path)?;
-            }
-
-            // Load collections
-            let collections_path = issuetypes_path.join("collections.toml");
-            if collections_path.exists() {
-                self.load_collections(&collections_path)?;
-            }
-        }
-
         Ok(())
     }
 

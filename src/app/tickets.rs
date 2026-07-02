@@ -97,18 +97,11 @@ impl App {
             })
             .unwrap_or_default();
         for (manifest, files) in &hosted {
-            let dir = tickets_path.join("templates").join(&manifest.id);
-            fs::create_dir_all(&dir)?;
-            fs::write(
-                dir.join("collection.json"),
-                format!("{}\n", manifest.to_json()?),
+            crate::startup::templates::write_fetched_collection(
+                &tickets_path.join("templates"),
+                manifest,
+                files,
             )?;
-            for (key, schema_json, template_md) in files {
-                fs::write(dir.join(format!("{key}.json")), schema_json)?;
-                if let Some(md) = template_md {
-                    fs::write(dir.join(format!("{key}.md")), md)?;
-                }
-            }
         }
         if let [single] = hosted.as_slice() {
             self.config.templates.active_collection = Some(single.0.id.clone());
@@ -129,10 +122,7 @@ impl App {
 
         // Reload the issue type registry so the chosen collection is active
         // without requiring a restart (mirrors App::new's load path).
-        let mut registry = crate::issuetypes::IssueTypeRegistry::new();
-        if let Err(e) = registry.load_all(&tickets_path) {
-            tracing::warn!("Failed to reload issue types after setup: {}", e);
-        }
+        let mut registry = crate::startup::templates::load_registry(&tickets_path);
         if let Some(ref active) = self.config.templates.active_collection {
             if let Err(e) = registry.activate_collection(active) {
                 tracing::warn!("Failed to activate collection '{}': {}", active, e);

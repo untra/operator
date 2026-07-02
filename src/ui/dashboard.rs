@@ -149,10 +149,9 @@ impl Dashboard {
     /// Load active issue types from the registry. Touches the filesystem, so the
     /// result is cached on the `Dashboard` rather than recomputed each render.
     fn load_issue_types(config: &Config) -> Vec<IssueTypeInfo> {
-        let mut registry = crate::issuetypes::IssueTypeRegistry::new();
-        // `load_all` always loads builtins first, so the list is non-empty even
-        // when no user types or templates are present.
-        let _ = registry.load_all(Path::new(&config.paths.tickets));
+        // The canonical loader scaffolds defaults / falls back to embedded
+        // builtins, so the list is non-empty even on a fresh workspace.
+        let registry = crate::startup::templates::load_registry(Path::new(&config.paths.tickets));
         registry
             .all_types()
             .map(|it| IssueTypeInfo {

@@ -27,7 +27,8 @@ impl StatusSection for WorkflowsSection {
     }
 
     fn prerequisites(&self) -> &[SectionId] {
-        &[SectionId::Connections]
+        // Info-only: export formats are always available, no connections needed.
+        &[]
     }
 
     fn health(&self, _snapshot: &StatusSnapshot) -> SectionHealth {

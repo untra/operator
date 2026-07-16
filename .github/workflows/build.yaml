@@ -35,15 +35,15 @@ jobs:
   lint-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
         with:
           components: rustfmt, clippy
 
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -95,7 +95,7 @@ jobs:
     outputs:
       version: ${{ steps.calc.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: calc
         run: |
           V=$(cat VERSION)
@@ -109,15 +109,15 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
         with:
           components: llvm-tools-preview
 
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -160,7 +160,7 @@ jobs:
           done
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: codecov.json
           flags: rust
@@ -170,16 +170,16 @@ jobs:
     needs: lint-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
 
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -206,13 +206,13 @@ jobs:
     needs: lint-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -250,15 +250,15 @@ jobs:
             artifact_name: operator-windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
         with:
           targets: ${{ matrix.target }}
 
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -350,13 +350,13 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo registry
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -439,7 +439,7 @@ jobs:
     outputs:
       version: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -564,7 +564,7 @@ jobs:
     needs: [build, release]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download linux binaries
         uses: actions/download-artifact@v8

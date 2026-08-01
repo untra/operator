@@ -7,7 +7,7 @@ yanked = "deny"
 ignore = [
   # instant: unmaintained, pulled in by notify-types → notify; no upgrade path available
   { id = "RUSTSEC-2024-0384" },
-  # paste: unmaintained, pulled in by ratatui; no upgrade path available
+  # paste: unmaintained, pulled in by utoipa-axum; no upgrade path available
   { id = "RUSTSEC-2024-0436" },
 ]
 

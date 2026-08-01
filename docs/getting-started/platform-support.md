@@ -35,7 +35,7 @@ This page is the authoritative reference for what Operator supports on each oper
 
 ## Windows
 
-Windows is a supported download target. The step-wrapper (`opr8r`), REST API, kanban sync, and VS Code extension all work. The following features are currently unavailable on Windows.
+Windows is a supported download target on both x86_64 and ARM64. The step-wrapper (`opr8r`), REST API, kanban sync, and VS Code extension all work. The following features are currently unavailable on Windows (both architectures).
 
 | Feature | Status | Reason | Workaround |
 |---------|--------|--------|------------|

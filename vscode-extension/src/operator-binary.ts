@@ -33,6 +33,7 @@ export function getExtensionVersion(): string {
  * - linux + arm64 -> operator-linux-arm64
  * - linux + x64 -> operator-linux-x86_64
  * - win32 + x64 -> operator-windows-x86_64.exe
+ * - win32 + arm64 -> operator-windows-arm64.exe
  *
  * Unsupported platforms fall back to system PATH lookup
  */

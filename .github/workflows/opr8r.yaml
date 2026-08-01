@@ -28,7 +28,7 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@1.95
@@ -36,7 +36,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo registry
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -71,7 +71,7 @@ jobs:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@1.95
@@ -79,7 +79,7 @@ jobs:
           components: llvm-tools-preview
 
       - name: Cache cargo registry
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -90,13 +90,15 @@ jobs:
             opr8r-${{ runner.os }}-cargo-coverage-
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: cargo-llvm-cov
 
       - name: Generate coverage
         run: cargo llvm-cov --locked --all-features --codecov --output-path codecov.json
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: opr8r/codecov.json
           flags: opr8r
@@ -123,18 +125,22 @@ jobs:
             os: windows-latest
             artifact: opr8r-windows-x86_64
             extension: .exe
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+            artifact: opr8r-windows-arm64
+            extension: .exe
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: opr8r
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@1.95
 
       - name: Cache cargo registry
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -179,9 +185,14 @@ jobs:
   sign-windows:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        artifact:
+          - opr8r-windows-x86_64
+          - opr8r-windows-arm64
     uses: ./.github/workflows/sign-windows.yaml
     with:
-      artifact-name: opr8r-windows-x86_64
+      artifact-name: ${{ matrix.artifact }}
     secrets:
       AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
       AZ_PIPELINES_PAT: ${{ secrets.AZ_PIPELINES_PAT }}

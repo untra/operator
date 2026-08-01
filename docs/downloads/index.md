@@ -34,6 +34,7 @@ For headless servers, CI/CD pipelines, or advanced workflows, download the CLI b
 | Linux | ARM64 | [operator-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-arm64)<br><small>sha256:<code>{{ site.data.checksums.operator.linux_arm64 }}</code></small> |
 | Linux | x86_64 | [operator-linux-x86_64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-x86_64)<br><small>sha256:<code>{{ site.data.checksums.operator.linux_x86_64 }}</code></small> |
 | Windows | x86_64 | [operator-windows-x86_64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-x86_64.exe)<br><small>sha256:<code>{{ site.data.checksums.operator.windows_x86_64 }}</code></small> |
+| Windows | ARM64 | [operator-windows-arm64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-arm64.exe)<br><small>sha256:<code>{{ site.data.checksums.operator.windows_arm64 }}</code></small> |
 
 ## All Releases
 

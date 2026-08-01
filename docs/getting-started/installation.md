@@ -48,7 +48,12 @@ sudo mv operator /usr/local/bin/
 ### Windows (PowerShell)
 
 ```powershell
+# x86_64
 Invoke-WebRequest -Uri "https://github.com/untra/operator/releases/latest/download/operator-windows-x86_64.exe" -OutFile "operator.exe"
+
+# ARM64
+Invoke-WebRequest -Uri "https://github.com/untra/operator/releases/latest/download/operator-windows-arm64.exe" -OutFile "operator.exe"
+
 # Add to PATH or move to desired location
 ```
 

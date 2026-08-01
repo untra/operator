@@ -108,8 +108,9 @@ cargo test          # Run tests
 opr8r is built for multiple platforms:
 - Linux x86_64
 - Linux ARM64
-- macOS Intel
 - macOS Apple Silicon
+- Windows x86_64
+- Windows ARM64
 
 Binaries are bundled with:
 - Operator releases (as separate file)

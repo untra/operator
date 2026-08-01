@@ -81,6 +81,15 @@ Create investigation from external alert
 | `--severity` | Severity (S0, S1, S2) (default: S1) |
 | `--project` | Affected project (optional) |
 
+### `import`
+
+Import tickets from configured kanban providers (jira, linear, github, openspec)
+
+| Argument/Option | Description |
+| --- | --- |
+| `<PROVIDER>` | Provider slug (e.g. openspec). Omit to sync every configured provider |
+| `<REFERENCE>` | Project/change reference (e.g. an `OpenSpec` change id, a Jira project key). Omit to sync all of the provider's configured collections |
+
 ### `create`
 
 Create a new ticket from template

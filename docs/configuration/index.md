@@ -155,6 +155,7 @@ LLM CLI tool detection and providers
 projects = []
 delegators = []
 model_servers = []
+hosts = []
 
 [agents]
 max_parallel = 5
@@ -292,6 +293,8 @@ token_env = ""
 [kanban.linear]
 
 [kanban.github]
+
+[kanban.openspec]
 
 [version_check]
 enabled = true

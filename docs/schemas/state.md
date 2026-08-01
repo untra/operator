@@ -69,6 +69,7 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `review_state` | `string` \| `null` | No | Review state for `awaiting_input` agents Values: "`pending_plan`", "`pending_visual`", "`pending_pr_creation`", "`pending_pr_merge`" |
 | `dev_server_pid` | `integer` \| `null` | No | Server process ID for visual review cleanup (if applicable) |
 | `worktree_path` | `string` \| `null` | No | Path to the git worktree for this ticket (per-ticket isolation) |
+| `remote_host` | `string` \| `null` | No | Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local) |
 
 ### CompletedTicket
 

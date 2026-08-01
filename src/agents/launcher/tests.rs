@@ -647,6 +647,74 @@ fn test_launch_in_tmux_sends_cd_command() {
 }
 
 #[test]
+fn test_launch_in_tmux_remote_host_sends_wrapper_and_skips_relay() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions {
+        remote_host: Some(crate::config::RemoteHost {
+            name: "gpu-vm".to_string(),
+            ssh_alias: "gpu-alias".to_string(),
+            workdir: "/srv/agents/proj".to_string(),
+            display_name: None,
+        }),
+        ..Default::default()
+    };
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+        &make_test_operator_env(),
+    );
+
+    assert!(result.is_ok(), "Remote launch failed: {:?}", result.err());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name).unwrap();
+
+    // Exactly one command typed into the pane: the remote wrapper. No relay
+    // export line — the relay unix socket is meaningless on a remote host.
+    assert_eq!(keys_sent.len(), 1, "got: {keys_sent:?}");
+    let sent_cmd = keys_sent[0].trim_end_matches(" [Enter]");
+    assert!(
+        sent_cmd.starts_with("bash ") && sent_cmd.ends_with("-remote.sh"),
+        "pane must run the remote wrapper, got: {sent_cmd}"
+    );
+
+    // The wrapper ships files then execs tunneled ssh into remote tmux.
+    let wrapper_content = read_command_file_content(sent_cmd).expect("wrapper script should exist");
+    assert!(wrapper_content.contains("exec ssh -t -R 7008:localhost:7008"));
+    assert!(wrapper_content.contains("gpu-alias"));
+    assert!(wrapper_content.contains("tmux new-session -A -s "));
+    assert!(wrapper_content.contains(&session_name));
+
+    // The shipped payload cds to the REMOTE workdir and exports the tunneled
+    // API URL; its llm command uses the bare tool name and the REMOTE prompt path.
+    let payload_path = sent_cmd
+        .trim_start_matches("bash ")
+        .replace("-remote.sh", ".sh");
+    let payload = std::fs::read_to_string(&payload_path).expect("payload script should exist");
+    assert!(
+        payload.contains("cd '/srv/agents/proj'"),
+        "payload must cd to remote workdir, got: {payload}"
+    );
+    assert!(payload.contains("export OPERATOR_API_URL='http://localhost:7008'"));
+    assert!(payload.contains("/srv/agents/proj/.tickets/operator/prompts/"));
+    assert!(payload.contains("exec claude "));
+}
+
+#[test]
 fn test_launch_in_tmux_sends_llm_command() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
@@ -1037,6 +1105,75 @@ fn test_relaunch_fresh_start_new_uuid() {
     assert!(result.is_ok());
     let session_name = result.unwrap();
     assert!(session_name.starts_with("op-"));
+}
+
+#[test]
+fn test_relaunch_remote_resume_reuses_session_and_adds_resume_flag() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_test_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+
+    // Pre-existing prompt file so resume mode is taken.
+    let prompts_dir = config.tickets_path().join("operator").join("prompts");
+    std::fs::create_dir_all(&prompts_dir).unwrap();
+    std::fs::write(prompts_dir.join("resume-uuid-1.txt"), "Old prompt").unwrap();
+
+    let options = RelaunchOptions {
+        launch_options: LaunchOptions {
+            remote_host: Some(crate::config::RemoteHost {
+                name: "gpu-vm".to_string(),
+                ssh_alias: "gpu-alias".to_string(),
+                workdir: "/srv/agents/proj".to_string(),
+                display_name: None,
+            }),
+            ..Default::default()
+        },
+        resume_session_id: Some("resume-uuid-1".to_string()),
+        retry_reason: None,
+    };
+
+    let result = launch_in_tmux_with_relaunch_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+        &make_test_operator_env(),
+    );
+
+    assert!(result.is_ok(), "Remote relaunch failed: {:?}", result.err());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name).unwrap();
+
+    // The pane runs the regenerated remote wrapper (same uuid → same remote
+    // session name → tmux new -A reattaches a surviving remote session).
+    assert_eq!(keys_sent.len(), 1, "got: {keys_sent:?}");
+    let sent_cmd = keys_sent[0].trim_end_matches(" [Enter]");
+    assert!(
+        sent_cmd.ends_with("resume-uuid-1-remote.sh"),
+        "wrapper keyed by resumed uuid, got: {sent_cmd}"
+    );
+
+    // The shipped payload resumes the existing agent session if the remote
+    // session died and the command actually runs fresh.
+    let payload_path = sent_cmd
+        .trim_start_matches("bash ")
+        .replace("-remote.sh", ".sh");
+    let payload = std::fs::read_to_string(&payload_path).unwrap();
+    assert!(
+        payload.contains("--resume resume-uuid-1"),
+        "payload must carry the resume flag, got: {payload}"
+    );
+    assert!(payload.contains("cd '/srv/agents/proj'"));
 }
 
 #[test]

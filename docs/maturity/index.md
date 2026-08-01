@@ -24,6 +24,7 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Jira | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Jira](https://operator.untra.io/getting-started/kanban/jira/) |
 | Linear | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Linear](https://operator.untra.io/getting-started/kanban/linear/) |
 | GitHub Projects | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [GitHub Projects](https://operator.untra.io/getting-started/kanban/github/) |
+| OpenSpec | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [OpenSpec](https://operator.untra.io/getting-started/kanban/openspec/) |
 
 ## Model Provider
 

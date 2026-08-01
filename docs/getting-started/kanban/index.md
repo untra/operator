@@ -14,6 +14,8 @@ Operator integrates with popular issue tracking systems to manage work items for
 |----------|--------|-------|
 | [Jira Cloud](/getting-started/kanban/jira/) | Supported | Full API integration |
 | [Linear](/getting-started/kanban/linear/) | Supported | Full API integration |
+| [GitHub Projects](/getting-started/kanban/github/) | Supported | Projects v2 GraphQL integration |
+| [OpenSpec](/getting-started/kanban/openspec/) | Experimental | Local spec-driven changes; pull-only |
 
 ## How It Works
 

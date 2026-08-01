@@ -15,7 +15,9 @@ use std::fs;
 use std::path::Path;
 use tracing::{debug, info, warn};
 
-use crate::api::providers::kanban::{get_provider, ExternalIssue};
+use crate::api::providers::kanban::{
+    get_provider, get_provider_from_config, ExternalIssue, OpenspecProvider,
+};
 use crate::config::{Config, KanbanStatusMapping, ProjectSyncConfig};
 use crate::issuetypes::kanban_type::KanbanIssueTypeRef;
 
@@ -126,6 +128,30 @@ impl KanbanSyncService {
             }
         }
 
+        // OpenSpec instances: each active change directory is a syncable collection
+        for (instance, openspec_config) in &self.config.kanban.openspec {
+            if !openspec_config.enabled {
+                continue;
+            }
+            let provider = OpenspecProvider::from_config(instance, openspec_config);
+            match provider.list_change_ids() {
+                Ok(change_ids) => {
+                    for change_id in change_ids {
+                        collections.push(SyncableCollection {
+                            provider: "openspec".to_string(),
+                            project_key: change_id,
+                            collection_name: None,
+                            sync_user_id: String::new(),
+                            status_mapping: openspec_status_mapping(),
+                        });
+                    }
+                }
+                Err(e) => {
+                    warn!("Cannot enumerate openspec changes for '{instance}': {e}");
+                }
+            }
+        }
+
         collections
     }
 
@@ -139,9 +165,13 @@ impl KanbanSyncService {
 
         let mut result = SyncResult::default();
 
-        // Get the provider
-        let provider = get_provider(provider_name)
-            .ok_or_else(|| anyhow::anyhow!("Provider '{provider_name}' not configured"))?;
+        // Get the provider: env-configured first, then config-backed
+        // (openspec has no env form and always resolves from config)
+        let provider = match get_provider(provider_name) {
+            Some(p) => p,
+            None => get_provider_from_config(&self.config.kanban, provider_name, project_key)
+                .map_err(|e| anyhow::anyhow!("Provider '{provider_name}' not configured: {e}"))?,
+        };
 
         // Get the project config
         let project_config = self
@@ -188,7 +218,7 @@ impl KanbanSyncService {
             match self.create_ticket_from_issue(
                 &issue,
                 provider_name,
-                project_key,
+                ticket_project(&project_config, project_key).as_str(),
                 type_mappings,
                 project_config.collection_name.as_deref(),
             ) {
@@ -280,6 +310,24 @@ impl KanbanSyncService {
                     }
                 }
                 None
+            }
+            "github" => {
+                for github_config in self.config.kanban.github.values() {
+                    if let Some(config) = github_config.projects.get(project_key) {
+                        return Some(config.clone());
+                    }
+                }
+                None
+            }
+            // OpenSpec has no per-change config; synthesize one from the
+            // enabled instance (pull unchecked groups only).
+            "openspec" => {
+                let cfg = self.config.kanban.openspec.values().find(|c| c.enabled)?;
+                Some(ProjectSyncConfig {
+                    status_mapping: openspec_status_mapping(),
+                    ticket_project: cfg.project.clone(),
+                    ..Default::default()
+                })
             }
             _ => None,
         }
@@ -393,7 +441,7 @@ external_url: {}
 external_provider: {}{}
 ---",
         ticket_type,
-        issue.key.replace('-', ""),
+        sanitize_external_key(&issue.key),
         map_priority(&issue.priority),
         collection_line,
         issue.key,
@@ -463,6 +511,33 @@ fn map_priority(priority: &Option<String>) -> &'static str {
         Some("lowest" | "trivial" | "p4") => "P4-trivial",
         _ => "P2-medium", // Default to medium
     }
+}
+
+/// Default status mapping for openspec: pull unchecked ("todo") groups only
+fn openspec_status_mapping() -> crate::config::KanbanStatusMapping {
+    crate::config::KanbanStatusMapping {
+        todo: Some(crate::api::providers::kanban::OPENSPEC_STATUS_TODO.to_string()),
+        doing: None,
+        done: None,
+    }
+}
+
+/// Effective operator project for tickets from this source. Filename parsing
+/// splits on hyphens, so the project component must not contain any.
+fn ticket_project(config: &ProjectSyncConfig, project_key: &str) -> String {
+    let raw = config.ticket_project.as_deref().unwrap_or(project_key);
+    let cleaned: String = raw.chars().filter(char::is_ascii_alphanumeric).collect();
+    if cleaned.is_empty() {
+        "external".to_string()
+    } else {
+        cleaned
+    }
+}
+
+/// External issue keys become the numeric-ish part of the ticket id; keep it
+/// to alphanumerics so ids stay one hyphen-delimited token.
+fn sanitize_external_key(key: &str) -> String {
+    key.chars().filter(char::is_ascii_alphanumeric).collect()
 }
 
 /// Convert a string to a URL-safe slug
@@ -666,5 +741,103 @@ status: queued
         result.errors.push("PROJ-1: Failed".to_string());
 
         assert!(!result.is_success());
+    }
+
+    // ── OpenSpec end-to-end sync ────────────────────────────────────────────
+
+    fn openspec_test_config(root: &std::path::Path) -> Config {
+        let mut config = Config::default();
+        config.paths.tickets = root.join(".tickets").to_string_lossy().into_owned();
+        config.kanban.openspec.insert(
+            "demo".to_string(),
+            crate::config::OpenspecConfig {
+                enabled: true,
+                root_path: root.join("openspec").to_string_lossy().into_owned(),
+                project: Some("myproj".to_string()),
+            },
+        );
+        config
+    }
+
+    fn write_openspec_fixture(root: &std::path::Path) {
+        let change = root.join("openspec/changes/add-dark-mode");
+        fs::create_dir_all(&change).unwrap();
+        fs::write(
+            change.join("proposal.md"),
+            "# Proposal: Add dark mode\n\n## Why\n\nUsers asked.\n",
+        )
+        .unwrap();
+        fs::write(
+            change.join("tasks.md"),
+            "# Tasks\n\n## 1. Theme Infrastructure\n- [ ] 1.1 Create ThemeContext\n\n## 2. UI Components\n- [ ] 2.1 Create toggle\n\n## 3. Done Already\n- [x] 3.1 finished\n",
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("openspec/changes/archive/2026-01-01-old")).unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_openspec_sync_creates_tickets_and_reimport_skips() {
+        let temp = tempfile::tempdir().unwrap();
+        write_openspec_fixture(temp.path());
+        let config = openspec_test_config(temp.path());
+        let service = KanbanSyncService::new(&config);
+
+        // Configured collections enumerate the active change (not the archive)
+        let collections = service.configured_collections();
+        let openspec: Vec<_> = collections
+            .iter()
+            .filter(|c| c.provider == "openspec")
+            .collect();
+        assert_eq!(openspec.len(), 1);
+        assert_eq!(openspec[0].project_key, "add-dark-mode");
+
+        let result = service
+            .sync_collection("openspec", "add-dark-mode")
+            .await
+            .unwrap();
+        // Group 3 is fully checked ("done") and filtered out by the pull statuses
+        assert_eq!(result.created.len(), 2, "errors: {:?}", result.errors);
+        assert!(result.created.contains(&"add-dark-mode#1".to_string()));
+
+        // Ticket files land in the queue with openspec provenance and the
+        // configured operator project (not the hyphenated change id)
+        let queue = temp.path().join(".tickets/queue");
+        let files: Vec<String> = fs::read_dir(&queue)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().all(|f| f.contains("-myproj-")), "{files:?}");
+
+        let content =
+            fs::read_to_string(queue.join(files.iter().find(|f| f.contains("theme")).unwrap()))
+                .unwrap();
+        assert!(content.contains("external_provider: openspec"));
+        assert!(content.contains("external_id: add-dark-mode#1"));
+        assert!(content.contains("- [ ] 1.1 Create ThemeContext"));
+        assert!(content.contains("Users asked."));
+
+        // Re-import is idempotent: everything skips, nothing new is created
+        let rerun = service
+            .sync_collection("openspec", "add-dark-mode")
+            .await
+            .unwrap();
+        assert!(rerun.created.is_empty());
+        assert_eq!(rerun.skipped.len(), 2);
+        assert_eq!(fs::read_dir(&queue).unwrap().count(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_openspec_sync_unknown_change_errors() {
+        let temp = tempfile::tempdir().unwrap();
+        write_openspec_fixture(temp.path());
+        let config = openspec_test_config(temp.path());
+        let service = KanbanSyncService::new(&config);
+
+        assert!(service
+            .sync_collection("openspec", "no-such-change")
+            .await
+            .is_err());
     }
 }

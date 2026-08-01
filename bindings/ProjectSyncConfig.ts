@@ -31,4 +31,9 @@ type_mappings: { [key in string]: string },
  * Ticket state changes (todo→doing, doing→done) and step completions with delegator info
  * are reflected upstream. Default: false.
  */
-bidirectional: boolean, };
+bidirectional: boolean, 
+/**
+ * Operator project name stamped on tickets created from this source.
+ * Defaults to the external project key when unset.
+ */
+ticket_project?: string | null, };

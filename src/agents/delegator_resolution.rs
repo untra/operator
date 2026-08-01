@@ -39,6 +39,12 @@ pub enum ResolutionError {
         platform: String,
         agent_id: String,
     },
+    #[error(
+        "Delegator launch_config references unknown host '{0}' (no [[hosts]] entry with that name)"
+    )]
+    UnknownRemoteHost(String),
+    #[error("Remote host '{host}' cannot be combined with {feature} in v1")]
+    RemoteHostConflict { host: String, feature: &'static str },
 }
 
 /// Resolve a delegator's `ModelServer`: named lookup if set, else implicit vendor default.
@@ -118,11 +124,17 @@ fn adhoc_model_server_env(
     Ok(crate::api::providers::model_server::env_for_server(&server))
 }
 
-/// Apply a delegator's launch config to launch options
+/// Apply a delegator's launch config to launch options.
+///
+/// Resolves `launch_config.host` against `config.hosts` and enforces the v1
+/// remote-launch constraints: worktrees and relay injection are forced off
+/// (both assume the local filesystem), and docker mode or a zellij session
+/// wrapper are hard conflicts rather than silent degradations.
 pub(crate) fn apply_delegator_launch_config(
     options: &mut LaunchOptions,
     launch_config: &Option<DelegatorLaunchConfig>,
-) {
+    config: &Config,
+) -> Result<(), ResolutionError> {
     if let Some(ref lc) = launch_config {
         options.yolo_mode = options.yolo_mode || lc.yolo;
         options.extra_flags.clone_from(&lc.flags);
@@ -134,7 +146,32 @@ pub(crate) fn apply_delegator_launch_config(
         options.prompt_prefix.clone_from(&lc.prompt_prefix);
         options.prompt_suffix.clone_from(&lc.prompt_suffix);
         options.operator_relay = lc.operator_relay;
+
+        if let Some(ref host_name) = lc.host {
+            let host = config
+                .hosts
+                .iter()
+                .find(|h| h.name == *host_name)
+                .cloned()
+                .ok_or_else(|| ResolutionError::UnknownRemoteHost(host_name.clone()))?;
+            if options.docker_mode {
+                return Err(ResolutionError::RemoteHostConflict {
+                    host: host.name,
+                    feature: "docker mode",
+                });
+            }
+            if config.sessions.wrapper == crate::config::SessionWrapperType::Zellij {
+                return Err(ResolutionError::RemoteHostConflict {
+                    host: host.name,
+                    feature: "the zellij session wrapper",
+                });
+            }
+            options.use_worktrees_override = Some(false);
+            options.operator_relay = Some(false);
+            options.remote_host = Some(host);
+        }
     }
+    Ok(())
 }
 
 /// Resolve a default delegator when none is explicitly specified.
@@ -200,7 +237,7 @@ pub fn resolve_launch_options(
 
         options.provider = Some(delegator_to_provider(config, delegator)?);
         options.delegator_name = Some(delegator.name.clone());
-        apply_delegator_launch_config(&mut options, &delegator.launch_config);
+        apply_delegator_launch_config(&mut options, &delegator.launch_config, config)?;
         return Ok(options);
     }
 
@@ -210,7 +247,7 @@ pub fn resolve_launch_options(
             if let Some(delegator) = resolve_delegator_by_name(config, step_agent) {
                 options.provider = Some(delegator_to_provider(config, delegator)?);
                 options.delegator_name = Some(delegator.name.clone());
-                apply_delegator_launch_config(&mut options, &delegator.launch_config);
+                apply_delegator_launch_config(&mut options, &delegator.launch_config, config)?;
                 return Ok(options);
             }
             // Step agent name doesn't match any delegator — fall through
@@ -221,7 +258,7 @@ pub fn resolve_launch_options(
             if let Some(delegator) = resolve_delegator_by_name(config, it_agent) {
                 options.provider = Some(delegator_to_provider(config, delegator)?);
                 options.delegator_name = Some(delegator.name.clone());
-                apply_delegator_launch_config(&mut options, &delegator.launch_config);
+                apply_delegator_launch_config(&mut options, &delegator.launch_config, config)?;
                 return Ok(options);
             }
         }
@@ -272,7 +309,7 @@ pub fn resolve_launch_options(
     if let Some(delegator) = resolve_default_delegator(config) {
         options.provider = Some(delegator_to_provider(config, delegator)?);
         options.delegator_name = Some(delegator.name.clone());
-        apply_delegator_launch_config(&mut options, &delegator.launch_config);
+        apply_delegator_launch_config(&mut options, &delegator.launch_config, config)?;
         return Ok(options);
     }
 
@@ -375,6 +412,124 @@ mod tests {
         d.model_server = Some("nonexistent".to_string());
         let err = resolve_model_server_for_delegator(&config, &d).unwrap_err();
         assert!(matches!(err, ResolutionError::UnknownModelServer(_)));
+    }
+
+    fn make_remote_config(host_name: &str) -> Config {
+        let mut config = Config::default();
+        config.hosts.push(crate::config::RemoteHost {
+            name: host_name.to_string(),
+            ssh_alias: "vm-alias".to_string(),
+            workdir: "/srv/agents".to_string(),
+            display_name: None,
+        });
+        let mut d = make_delegator("claude-remote", "claude", "opus");
+        d.launch_config = Some(DelegatorLaunchConfig {
+            host: Some(host_name.to_string()),
+            ..Default::default()
+        });
+        config.delegators.push(d);
+        config
+    }
+
+    #[test]
+    fn test_resolve_known_host_populates_remote_host() {
+        let config = make_remote_config("gpu-vm");
+        let options = resolve_launch_options(
+            &config,
+            Some("claude-remote"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap();
+        let host = options.remote_host.expect("remote host resolved");
+        assert_eq!(host.name, "gpu-vm");
+        assert_eq!(host.ssh_alias, "vm-alias");
+        assert_eq!(host.workdir, "/srv/agents");
+    }
+
+    #[test]
+    fn test_resolve_unknown_host_errors() {
+        let mut config = make_remote_config("gpu-vm");
+        config.hosts.clear();
+        let err = resolve_launch_options(
+            &config,
+            Some("claude-remote"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ResolutionError::UnknownRemoteHost(_)));
+    }
+
+    #[test]
+    fn test_resolve_no_host_leaves_remote_host_none() {
+        let mut config = Config::default();
+        config
+            .delegators
+            .push(make_delegator("local", "claude", "opus"));
+        let options =
+            resolve_launch_options(&config, Some("local"), None, None, None, false, None).unwrap();
+        assert!(options.remote_host.is_none());
+    }
+
+    #[test]
+    fn test_remote_host_forces_worktrees_and_relay_off() {
+        let mut config = make_remote_config("gpu-vm");
+        let lc = config.delegators[0].launch_config.as_mut().unwrap();
+        lc.use_worktrees = Some(true);
+        lc.operator_relay = Some(true);
+        let options = resolve_launch_options(
+            &config,
+            Some("claude-remote"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap();
+        assert_eq!(options.use_worktrees_override, Some(false));
+        assert_eq!(options.operator_relay, Some(false));
+    }
+
+    #[test]
+    fn test_remote_host_plus_docker_errors() {
+        let mut config = make_remote_config("gpu-vm");
+        config.delegators[0].launch_config.as_mut().unwrap().docker = Some(true);
+        let err = resolve_launch_options(
+            &config,
+            Some("claude-remote"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ResolutionError::RemoteHostConflict { .. }));
+    }
+
+    #[test]
+    fn test_remote_host_plus_zellij_errors() {
+        let mut config = make_remote_config("gpu-vm");
+        config.sessions.wrapper = crate::config::SessionWrapperType::Zellij;
+        let err = resolve_launch_options(
+            &config,
+            Some("claude-remote"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ResolutionError::RemoteHostConflict { .. }));
     }
 
     #[test]
@@ -494,6 +649,7 @@ mod tests {
                 prompt_prefix: Some("PREFIX".to_string()),
                 prompt_suffix: Some("SUFFIX".to_string()),
                 operator_relay: None,
+                host: None,
             }),
             remote_agent: None,
             x_agnt: None,

@@ -103,6 +103,7 @@ pub enum KanbanProviderKind {
     Jira,
     Linear,
     Github,
+    Openspec,
 }
 
 /// Ephemeral Jira credentials supplied by a client during onboarding.
@@ -141,6 +142,15 @@ pub struct GithubCredentials {
     pub token: String,
 }
 
+/// `OpenSpec` source location supplied during onboarding. Not a credential —
+/// `OpenSpec` reads local markdown; there is no secret to validate or store.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct OpenspecSourceDto {
+    /// Directory containing the `OpenSpec` `changes/` tree (e.g. "/repo/openspec")
+    pub root_path: String,
+}
+
 /// Request to validate kanban credentials without persisting them.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -152,6 +162,8 @@ pub struct ValidateKanbanCredentialsRequest {
     pub linear: Option<LinearCredentials>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github: Option<GithubCredentials>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub openspec: Option<OpenspecSourceDto>,
 }
 
 /// Jira-specific validation details (returned on success).
@@ -245,6 +257,8 @@ pub struct ListKanbanProjectsRequest {
     pub linear: Option<LinearCredentials>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github: Option<GithubCredentials>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub openspec: Option<OpenspecSourceDto>,
 }
 
 /// A project/team entry returned by `list_projects`.
@@ -309,6 +323,19 @@ pub struct WriteGithubConfigBody {
     pub status_mapping: Option<KanbanStatusMapping>,
 }
 
+/// Body for writing an `OpenSpec` instance config section.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct WriteOpenspecConfigBody {
+    /// Instance name, used as the `[kanban.openspec.<instance>]` key
+    pub instance: String,
+    /// Directory containing the `OpenSpec` `changes/` tree
+    pub root_path: String,
+    /// Operator project stamped on imported tickets (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+}
+
 /// Request to list workflow statuses/columns for a specific project using
 /// ephemeral creds (onboarding wizard — before any config is persisted).
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
@@ -323,6 +350,8 @@ pub struct ListKanbanStatusesRequest {
     pub linear: Option<LinearCredentials>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github: Option<GithubCredentials>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub openspec: Option<OpenspecSourceDto>,
 }
 
 /// Response wrapper for list-statuses: the external board's column names,
@@ -347,6 +376,8 @@ pub struct WriteKanbanConfigRequest {
     pub linear: Option<WriteLinearConfigBody>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github: Option<WriteGithubConfigBody>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub openspec: Option<WriteOpenspecConfigBody>,
 }
 
 /// Response after writing a kanban config section.
@@ -434,6 +465,10 @@ mod tests {
             serde_json::to_string(&KanbanProviderKind::Github).unwrap(),
             "\"github\""
         );
+        assert_eq!(
+            serde_json::to_string(&KanbanProviderKind::Openspec).unwrap(),
+            "\"openspec\""
+        );
     }
 
     #[test]
@@ -463,6 +498,7 @@ mod tests {
             }),
             linear: None,
             github: None,
+            openspec: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"provider\":\"jira\""));
@@ -642,6 +678,7 @@ mod tests {
                 sync_user_id: "123".to_string(),
                 status_mapping: None,
             }),
+            openspec: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"provider\":\"github\""));

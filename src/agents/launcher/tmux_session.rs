@@ -18,6 +18,7 @@ use super::prompt::{
     generate_session_uuid, get_agent_prompt, get_template_prompt, write_command_file,
     write_prompt_file, OperatorEnvVars,
 };
+use super::remote::launch_remote_in_session;
 use super::SESSION_PREFIX;
 
 /// Launch Claude in a tmux session with specific options
@@ -161,6 +162,30 @@ pub fn launch_in_tmux_with_options(
 
     // Write prompt to file (avoids newline issues with tmux send-keys)
     let prompt_file = write_prompt_file(config, &session_uuid, &full_prompt)?;
+
+    // Remote launch: the local pane runs a wrapper that ships the prompt and
+    // payload over SSH and execs into a remote tmux session through a reverse
+    // tunnel. Relay injection is skipped (unix socket is local-only).
+    if let Some(ref host) = options.remote_host {
+        return launch_remote_in_session(
+            config,
+            ticket,
+            &session_name,
+            &session_uuid,
+            &step_name,
+            host,
+            &tool_name,
+            &model,
+            &prompt_file,
+            options,
+            operator_env,
+            false,
+            |cmd| tmux.send_keys(&session_name, cmd, true).map_err(Into::into),
+            || {
+                let _ = tmux.kill_session(&session_name);
+            },
+        );
+    }
 
     // Build command using the detected tool's template (with permissions)
     let mut llm_cmd = build_llm_command_with_permissions_for_tool(
@@ -388,6 +413,29 @@ pub fn launch_in_tmux_with_relaunch_options(
         let default_model = get_default_model(config).unwrap_or_else(|| "sonnet".to_string());
         (default_tool, default_model)
     };
+
+    // Remote relaunch: regenerate the wrapper (idempotent, keyed by session
+    // uuid); `tmux new -A` on the remote host reattaches a surviving session.
+    if let Some(ref host) = options.launch_options.remote_host {
+        return launch_remote_in_session(
+            config,
+            ticket,
+            &session_name,
+            &session_uuid,
+            &step_name,
+            host,
+            &tool_name,
+            &model,
+            &prompt_file,
+            &options.launch_options,
+            operator_env,
+            is_resume,
+            |cmd| tmux.send_keys(&session_name, cmd, true).map_err(Into::into),
+            || {
+                let _ = tmux.kill_session(&session_name);
+            },
+        );
+    }
 
     // Build command using the detected tool's template (with permissions)
     let mut llm_cmd = build_llm_command_with_permissions_for_tool(

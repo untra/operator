@@ -141,6 +141,7 @@ fn provider_base_url(p: &DetectedKanbanProvider) -> String {
         }
         KanbanProviderType::Linear => "https://linear.app".to_string(),
         KanbanProviderType::Github => "https://github.com".to_string(),
+        KanbanProviderType::Openspec => p.provider_type.setup_url().to_string(),
     }
 }
 

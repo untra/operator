@@ -2,6 +2,7 @@
 import type { GithubProjectsConfig } from "./GithubProjectsConfig";
 import type { JiraConfig } from "./JiraConfig";
 import type { LinearConfig } from "./LinearConfig";
+import type { OpenspecConfig } from "./OpenspecConfig";
 
 /**
  * Kanban provider configuration for syncing issues from external systems
@@ -28,4 +29,10 @@ linear: { [key in string]: LinearConfig },
  * branches. The two use different env vars and different scopes — see
  * `docs/getting-started/kanban/github.md` for the full disambiguation.
  */
-github: { [key in string]: GithubProjectsConfig }, };
+github: { [key in string]: GithubProjectsConfig }, 
+/**
+ * `OpenSpec` roots keyed by a free-form instance name (e.g., a repo alias).
+ * Experimental, pull-only: each active change under `<root_path>/changes/`
+ * acts as a kanban "project" whose issues are the tasks.md task groups.
+ */
+openspec: { [key in string]: OpenspecConfig }, };

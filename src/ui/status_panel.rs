@@ -696,6 +696,12 @@ impl StatusSnapshot {
                 domain: owner.clone(),
             });
         }
+        for instance in config.kanban.openspec.keys() {
+            kanban_providers.push(KanbanProviderInfo {
+                provider_type: KanbanProviderType::Openspec.slug().to_string(),
+                domain: instance.clone(),
+            });
+        }
 
         let llm_tools: Vec<LlmToolInfo> = config
             .llm_tools
@@ -1573,7 +1579,7 @@ mod tests {
     fn test_build_section_dtos_kanban_configure_rows_have_link_actions() {
         // End-to-end projection: the Kanban section's TreeRows must survive
         // `web_actions` with populated, clickable links so the web `/#/kanban`
-        // view shows all three providers as actionable options. This guards the
+        // view shows every provider as an actionable option. This guards the
         // `children() -> web_actions -> SectionRowDto` composition, not just the
         // pieces in isolation.
         let snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
@@ -1583,8 +1589,8 @@ mod tests {
             .find(|d| d.id == "kanban")
             .expect("kanban section present");
 
-        // All three providers are offered when none are connected.
-        assert_eq!(kanban.children.len(), 3);
+        // Every supported provider is offered when none are connected.
+        assert_eq!(kanban.children.len(), 4);
 
         for (id, expected_url) in [
             ("configure-jira", "id.atlassian.com"),
@@ -1592,6 +1598,10 @@ mod tests {
             (
                 "configure-github",
                 "github.com/settings/personal-access-tokens",
+            ),
+            (
+                "configure-openspec",
+                "operator.untra.io/getting-started/kanban/openspec",
             ),
         ] {
             let row = kanban

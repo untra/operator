@@ -3,6 +3,7 @@ import type { KanbanProviderKind } from "./KanbanProviderKind";
 import type { WriteGithubConfigBody } from "./WriteGithubConfigBody";
 import type { WriteJiraConfigBody } from "./WriteJiraConfigBody";
 import type { WriteLinearConfigBody } from "./WriteLinearConfigBody";
+import type { WriteOpenspecConfigBody } from "./WriteOpenspecConfigBody";
 
 /**
  * Request to write or upsert a kanban config section.
@@ -10,4 +11,4 @@ import type { WriteLinearConfigBody } from "./WriteLinearConfigBody";
  * This endpoint does NOT take the secret — only the env var NAME
  * (`api_key_env`). The secret is set via `/api/v1/kanban/session-env`.
  */
-export type WriteKanbanConfigRequest = { provider: KanbanProviderKind, jira?: WriteJiraConfigBody | null, linear?: WriteLinearConfigBody | null, github?: WriteGithubConfigBody | null, };
+export type WriteKanbanConfigRequest = { provider: KanbanProviderKind, jira?: WriteJiraConfigBody | null, linear?: WriteLinearConfigBody | null, github?: WriteGithubConfigBody | null, openspec?: WriteOpenspecConfigBody | null, };

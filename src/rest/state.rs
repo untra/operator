@@ -101,6 +101,7 @@ mod tests {
             collection_name: None,
             type_mappings: HashMap::new(),
             bidirectional: true,
+            ticket_project: None,
         };
         let _ = &mut project_sync; // suppress unused_mut if needed
 
@@ -122,6 +123,7 @@ mod tests {
                 jira: jira_map,
                 linear: HashMap::new(),
                 github: HashMap::new(),
+                openspec: HashMap::new(),
             },
             ..Default::default()
         };

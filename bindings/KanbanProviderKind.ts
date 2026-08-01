@@ -3,4 +3,4 @@
 /**
  * Which kanban provider an onboarding request targets.
  */
-export type KanbanProviderKind = "jira" | "linear" | "github";
+export type KanbanProviderKind = "jira" | "linear" | "github" | "openspec";

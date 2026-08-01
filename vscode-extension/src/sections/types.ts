@@ -77,7 +77,7 @@ export interface ConfigState {
 
 /** Config-driven state for a single kanban provider */
 export interface KanbanProviderState {
-  provider: 'jira' | 'linear' | 'github';
+  provider: 'jira' | 'linear' | 'github' | 'openspec';
   key: string;
   enabled: boolean;
   displayName: string;

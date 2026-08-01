@@ -48,6 +48,7 @@ JSON Schema for the Operator configuration file (`config.toml`).
 | `version_check` | → `VersionCheckConfig` | No | Version check configuration for automatic update notifications |
 | `delegators` | `array` | No | Agent delegator configurations for autonomous ticket launching |
 | `model_servers` | `array` | No | User-declared model servers (ollama, lmstudio, any OpenAI-compat host). Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration. |
+| `hosts` | `array` | No | Remote machines agents can be launched on over SSH, referenced by name from `DelegatorLaunchConfig.host`. |
 | `relay` | → `RelayConfig` | No | Relay MCP injection configuration |
 | `mcp` | → `McpConfig` | No | Model Context Protocol (MCP) server configuration |
 | `acp` | → `AcpConfig` | No | Agent Client Protocol (ACP) agent configuration |
@@ -422,6 +423,7 @@ Providers are keyed by domain/workspace:
 | `jira` | `object` | No | Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net") |
 | `linear` | `object` | No | Linear instances keyed by workspace slug |
 | `github` | `object` | No | GitHub Projects v2 instances keyed by owner login (user or org)  NOTE: This is the *kanban* GitHub integration (Projects v2), distinct from `GitHubConfig` which is the *git provider* used for PRs and branches. The two use different env vars and different scopes — see `docs/getting-started/kanban/github.md` for the full disambiguation. |
+| `openspec` | `object` | No | OpenSpec roots keyed by a free-form instance name (e.g., a repo alias). Experimental, pull-only: each active change under `<root_path>/changes/` acts as a kanban "project" whose issues are the tasks.md task groups. |
 
 ### JiraConfig
 
@@ -447,6 +449,7 @@ Per-project/team sync configuration for a kanban provider
 | `collection_name` | `string` \| `null` | No | Optional `IssueTypeCollection` name this project maps to. Not required for kanban onboarding or sync. |
 | `type_mappings` | `object` | No | Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX). Multiple kanban types can map to the same operator template. |
 | `bidirectional` | `boolean` | No | When true, operator pushes status changes and activity logs back to this kanban project. Ticket state changes (todo→doing, doing→done) and step completions with delegator info are reflected upstream. Default: false. |
+| `ticket_project` | `string` \| `null` | No | Operator project name stamped on tickets created from this source. Defaults to the external project key when unset. |
 
 ### KanbanStatusMapping
 
@@ -498,6 +501,19 @@ require different OAuth scopes (`project` vs `repo`). See
 | `api_key_env` | `string` | No | Environment variable name containing the GitHub token (default: `OPERATOR_GITHUB_TOKEN`). The token must have `project` (or `read:project`) scope, NOT just `repo` — see the disambiguation guide in the kanban github docs. |
 | `projects` | `object` | No | Per-project sync configuration. Keys are `GraphQL` project node IDs. |
 
+### OpenspecConfig
+
+OpenSpec provider configuration (experimental, pull-only)
+
+The instance name is the `HashMap` key in `KanbanConfig.openspec`. There
+are no credentials — the provider reads local markdown under `root_path`.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No | Whether this provider is enabled |
+| `root_path` | `string` | No | Directory containing the OpenSpec `changes/` tree (typically `<repo>/openspec`) |
+| `project` | `string` \| `null` | No | Operator project stamped on imported tickets (defaults to the change id) |
+
 ### VersionCheckConfig
 
 Version check configuration for automatic update notifications
@@ -547,6 +563,7 @@ semantics: `None` = inherit from global config, `Some(true/false)` = override.
 | `prompt_prefix` | `string` \| `null` | No | Prompt text to prepend before the generated step prompt |
 | `prompt_suffix` | `string` \| `null` | No | Prompt text to append after the generated step prompt |
 | `operator_relay` | `boolean` \| `null` | No | Override global relay auto-inject MCP setting per-delegator (None = use global setting) |
+| `host` | `string` \| `null` | No | Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent CLI on over SSH. `None` = launch locally. |
 
 ### RemoteAgentRef
 
@@ -582,6 +599,22 @@ in config.
 | `base_url` | `string` \| `null` | No | Base URL of the inference endpoint (e.g., `http://localhost:11434`). `None` for implicit vendor servers means use the SDK default. |
 | `api_key_env` | `string` \| `null` | No | Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`) |
 | `extra_env` | `object` | No | Additional environment variables set when spawning agents that use this server |
+| `display_name` | `string` \| `null` | No | Optional display name for UI |
+
+### RemoteHost
+
+A named remote machine that agent CLI processes can be launched on over SSH.
+
+Distinct from [`ModelServer`] (where model *inference* lives) and from
+[`RemoteAgentRef`] (an export-only agent owned by another platform): a
+`RemoteHost` is where the agent *CLI process* runs. Referenced by name from
+[`DelegatorLaunchConfig::host`].
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Unique name referenced by `DelegatorLaunchConfig.host` (e.g., "gpu-vm") |
+| `ssh_alias` | `string` | Yes | SSH destination, resolved via the user's `~/.ssh/config` |
+| `workdir` | `string` | Yes | Absolute path to the project root on the remote host |
 | `display_name` | `string` \| `null` | No | Optional display name for UI |
 
 ### RelayConfig

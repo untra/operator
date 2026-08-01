@@ -189,6 +189,14 @@ impl InProgressPanel {
                     Span::styled(elapsed_display, Style::default().fg(Color::DarkGray)),
                 ];
 
+                // Remote-host annotation (agent CLI runs on another machine)
+                if let Some(ref host) = a.remote_host {
+                    line2_spans.push(Span::styled(
+                        format!(" @{host}"),
+                        Style::default().fg(Color::Cyan),
+                    ));
+                }
+
                 // Add cmux workspace/window refs (abbreviated to first 6 chars)
                 if a.session_wrapper.as_deref() == Some("cmux") {
                     if let Some(ref ws_ref) = a.session_context_ref {
@@ -345,6 +353,7 @@ mod tests {
             review_state: None,
             dev_server_pid: None,
             worktree_path: None,
+            remote_host: None,
         }
     }
 

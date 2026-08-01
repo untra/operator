@@ -247,6 +247,7 @@ mod tests {
         assert!(result.contains("### `resume`"));
         assert!(result.contains("### `stalled`"));
         assert!(result.contains("### `alert`"));
+        assert!(result.contains("### `import`"));
         assert!(result.contains("### `create`"));
         assert!(result.contains("### `docs`"));
     }

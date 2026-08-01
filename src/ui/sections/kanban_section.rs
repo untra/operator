@@ -180,13 +180,13 @@ mod tests {
     }
 
     #[test]
-    fn test_kanban_children_empty_shows_all_three_configure_options() {
+    fn test_kanban_children_empty_shows_all_configure_options() {
         let section = KanbanSection;
         let snap = base_snapshot();
         let children = section.children(&snap);
 
         // Every supported provider is offered when none are connected.
-        assert_eq!(children.len(), 3);
+        assert_eq!(children.len(), 4);
         assert_eq!(children[0].label, "Configure Jira Cloud");
         assert_eq!(children[0].description, "Connect to Jira Cloud");
         assert_eq!(
@@ -210,6 +210,13 @@ mod tests {
                 provider: "github".into()
             }
         );
+        assert_eq!(children[3].label, "Configure OpenSpec");
+        assert_eq!(
+            children[3].actions.primary,
+            StatusAction::ConfigureKanbanProvider {
+                provider: "openspec".into()
+            }
+        );
     }
 
     #[test]
@@ -222,8 +229,8 @@ mod tests {
         });
         let children = section.children(&snap);
 
-        // The connected provider row, plus "add" rows for the two not yet connected.
-        assert_eq!(children.len(), 3);
+        // The connected provider row, plus "add" rows for those not yet connected.
+        assert_eq!(children.len(), 4);
         assert_eq!(children[0].label, "jira");
         assert_eq!(children[0].description, "myteam.atlassian.net");
         assert_eq!(children[0].actions.primary, StatusAction::None);
@@ -235,6 +242,6 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(configure, vec!["linear", "github"]);
+        assert_eq!(configure, vec!["linear", "github", "openspec"]);
     }
 }

@@ -122,7 +122,7 @@ connect_timeout_ms = 5000
 # display_name = "Ollama (local)"
 #
 # # OpenRouter: one OpenAI-compatible key fronting 300+ models.
-# # Set OPENROUTER_API_KEY in your environment; it is referenced, never stored.
+# # Set OPENROUTER_API_KEY in the environment; it is referenced, never stored.
 # [[model_servers]]
 # name = "openrouter"
 # kind = "openrouter"
@@ -158,6 +158,28 @@ connect_timeout_ms = 5000
 # llm_tool = "codex"
 # model = "qwen2.5-coder"
 # model_server = "ollama-local"
+
+# Remote hosts (where agent CLI processes run, over SSH)
+# Distinct from model_servers (where model inference lives): a host is a
+# machine Operator launches the agent CLI on, via `ssh <ssh_alias>` resolved
+# through the ~/.ssh/config. Reference a host by name from a delegator's
+# launch_config to run that delegator's agents remotely. The remote host needs
+# tmux, the agent CLI on PATH, credentials in its own environment, and the
+# project checked out at `workdir`.
+#
+# [[hosts]]
+# name = "gpu-vm"
+# ssh_alias = "gpu-vm"
+# workdir = "/srv/agents/my-project"
+# display_name = "GPU VM"
+#
+# # A delegator whose agents run on gpu-vm:
+# [[delegators]]
+# name = "claude-remote"
+# llm_tool = "claude"
+# model = "opus"
+# [delegators.launch_config]
+# host = "gpu-vm"
 
 [version_check]
 # Enable automatic version checking on startup

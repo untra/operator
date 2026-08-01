@@ -29,7 +29,16 @@
             "type": "string",
             "inputType": "select",
             "description": "Template key for the ticket type",
-            "options": ["feat", "fix", "task", "spike", "inv", "assess", "sync", "init"],
+            "options": [
+              "feat",
+              "fix",
+              "task",
+              "spike",
+              "inv",
+              "assess",
+              "sync",
+              "init"
+            ],
             "required": true
           },
           "project": {
@@ -45,9 +54,18 @@
           }
         },
         "outputs": {
-          "success": { "type": "boolean", "description": "Whether the ticket was created" },
-          "result": { "type": "object", "description": "Created ticket: { id, filename, path }" },
-          "error": { "type": "string", "description": "Error message if the call failed" }
+          "success": {
+            "type": "boolean",
+            "description": "Whether the ticket was created"
+          },
+          "result": {
+            "type": "object",
+            "description": "Created ticket: { id, filename, path }"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if the call failed"
+          }
         }
       }
     },
@@ -91,13 +109,27 @@
             "type": "string",
             "inputType": "select",
             "description": "Session wrapper (optional)",
-            "options": ["vscode", "tmux", "cmux", "terminal"]
+            "options": [
+              "vscode",
+              "tmux",
+              "cmux",
+              "terminal"
+            ]
           }
         },
         "outputs": {
-          "success": { "type": "boolean", "description": "Whether the agent launched" },
-          "result": { "type": "object", "description": "Launch details: { agent_id, ticket_id, session_id, command, terminal_name, working_directory, branch }" },
-          "error": { "type": "string", "description": "Error message if the call failed" }
+          "success": {
+            "type": "boolean",
+            "description": "Whether the agent launched"
+          },
+          "result": {
+            "type": "object",
+            "description": "Launch details: { agent_id, ticket_id, session_id, command, terminal_name, working_directory, branch }"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if the call failed"
+          }
         }
       }
     },
@@ -139,9 +171,18 @@
           }
         },
         "outputs": {
-          "success": { "type": "boolean", "description": "Whether the ticket run launched" },
-          "result": { "type": "object", "description": "Launch details: { agent_id, ticket_id, session_id, command, terminal_name, working_directory, branch }" },
-          "error": { "type": "string", "description": "Error message if the call failed" }
+          "success": {
+            "type": "boolean",
+            "description": "Whether the ticket run launched"
+          },
+          "result": {
+            "type": "object",
+            "description": "Launch details: { agent_id, ticket_id, session_id, command, terminal_name, working_directory, branch }"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if the call failed"
+          }
         }
       }
     },
@@ -165,9 +206,18 @@
           }
         },
         "outputs": {
-          "success": { "type": "boolean", "description": "Whether the status was read" },
-          "result": { "type": "object", "description": "Queue counts: { queued, in_progress, awaiting, completed, by_type }" },
-          "error": { "type": "string", "description": "Error message if the call failed" }
+          "success": {
+            "type": "boolean",
+            "description": "Whether the status was read"
+          },
+          "result": {
+            "type": "object",
+            "description": "Queue counts: { queued, in_progress, awaiting, completed, by_type }"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if the call failed"
+          }
         }
       }
     },
@@ -200,14 +250,26 @@
             "type": "string",
             "inputType": "select",
             "description": "Output format",
-            "options": ["agnt", "claude"],
+            "options": [
+              "agnt",
+              "claude"
+            ],
             "default": "agnt"
           }
         },
         "outputs": {
-          "success": { "type": "boolean", "description": "Whether the export succeeded" },
-          "result": { "type": "object", "description": "Exported workflow: { ticket_id, issuetype_key, suggested_filename, contents }" },
-          "error": { "type": "string", "description": "Error message if the call failed" }
+          "success": {
+            "type": "boolean",
+            "description": "Whether the export succeeded"
+          },
+          "result": {
+            "type": "object",
+            "description": "Exported workflow: { ticket_id, issuetype_key, suggested_filename, contents }"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if the call failed"
+          }
         }
       }
     },
@@ -246,7 +308,11 @@
             "type": "string",
             "inputType": "select",
             "description": "Severity label",
-            "options": ["S1", "S2", "S3"],
+            "options": [
+              "S1",
+              "S2",
+              "S3"
+            ],
             "default": "S2"
           },
           "project": {
@@ -256,9 +322,18 @@
           }
         },
         "outputs": {
-          "success": { "type": "boolean", "description": "Whether the investigation was created" },
-          "result": { "type": "object", "description": "Created investigation: { id, filename }" },
-          "error": { "type": "string", "description": "Error message if the call failed" }
+          "success": {
+            "type": "boolean",
+            "description": "Whether the investigation was created"
+          },
+          "result": {
+            "type": "object",
+            "description": "Created investigation: { id, filename }"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if the call failed"
+          }
         }
       }
     }

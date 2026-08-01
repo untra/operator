@@ -95,6 +95,11 @@ chmod +x operator
 sudo mv operator /usr/local/bin/
 ```
 
+```powershell
+# Windows (PowerShell) — use operator-windows-arm64.exe on ARM64
+Invoke-WebRequest -Uri "https://github.com/untra/operator/releases/latest/download/operator-windows-x86_64.exe" -OutFile "operator.exe"
+```
+
 Or build from source:
 
 ```bash

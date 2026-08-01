@@ -125,6 +125,10 @@ jobs:
             os: windows-latest
             artifact: opr8r-windows-x86_64
             extension: .exe
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+            artifact: opr8r-windows-arm64
+            extension: .exe
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -181,9 +185,14 @@ jobs:
   sign-windows:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        artifact:
+          - opr8r-windows-x86_64
+          - opr8r-windows-arm64
     uses: ./.github/workflows/sign-windows.yaml
     with:
-      artifact-name: opr8r-windows-x86_64
+      artifact-name: ${{ matrix.artifact }}
     secrets:
       AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
       AZ_PIPELINES_PAT: ${{ secrets.AZ_PIPELINES_PAT }}

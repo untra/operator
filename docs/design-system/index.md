@@ -65,7 +65,7 @@ identically.
 | **Docs site** (Jekyll) | `docs/assets/css/main.css` | Links `tokens.css`; style with `var(--...)`, never raw hex. |
 | **Embedded SPA** (Vite/React) | `ui/src/index.css` + `*.module.css` | Imports `tokens.css`; uses semantic tokens, never raw hex. |
 | **Ratatui TUI** | `src/ui/*.rs` | Terminal can't render hex — map a semantic **role to ANSI** (danger→Red, success→Green, warning→Yellow, focus→Cyan). |
-| **VS Code webview** (MUI) | `vscode-extension/webview-ui/` | Defers to the VS Code host theme; brand only as accents via `OPERATOR_BRAND`. Never overrides the editor theme. |
+| **VS Code webview** | `vscode-extension/webview-ui/` | Defers to the VS Code host theme via raw `var(--vscode-*)` custom properties (`styles/webview.css`); brand only as `--op-*` accents. Never overrides the editor theme. No MUI/CSS-in-JS. |
 
 ## Concept icons (codicons)
 

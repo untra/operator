@@ -128,10 +128,11 @@ if [ -z "$MERGE_BASE" ]; then
   RUN_ALL=true
   CHANGED_FILES=""
 else
-  CHANGED_FILES=$(git diff --name-only "$MERGE_BASE"...HEAD 2>/dev/null || "")
-  UNSTAGED=$(git diff --name-only 2>/dev/null || "")
-  STAGED=$(git diff --name-only --cached 2>/dev/null || "")
-  CHANGED_FILES=$(echo -e "${CHANGED_FILES}\n${UNSTAGED}\n${STAGED}" | sort -u | grep -v '^$' || true)
+  CHANGED_FILES=$(git diff --name-only "$MERGE_BASE"...HEAD 2>/dev/null || true)
+  UNSTAGED=$(git diff --name-only 2>/dev/null || true)
+  STAGED=$(git diff --name-only --cached 2>/dev/null || true)
+  UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null || true)
+  CHANGED_FILES=$(echo -e "${CHANGED_FILES}\n${UNSTAGED}\n${STAGED}\n${UNTRACKED}" | sort -u | grep -v '^$' || true)
 fi
 
 if [ "$RUN_ALL" = true ]; then
@@ -201,21 +202,8 @@ if needs_operator; then
   require_tool cargo-deny "operator dependency audit"
 
   # The frontend is typed against types generated from Rust, so bindings come
-  # first — exactly the order .github/workflows/build.yaml uses.
-  step "Bindings up to date"
-  BINDINGS_BEFORE="$(find bindings -type f -name "*.ts" -exec shasum {} + 2>/dev/null | sort || true)"
-  if cargo test --locked export_bindings_ >/dev/null 2>&1; then
-    BINDINGS_AFTER="$(find bindings -type f -name "*.ts" -exec shasum {} + 2>/dev/null | sort || true)"
-    if [ "$BINDINGS_BEFORE" = "$BINDINGS_AFTER" ]; then
-      pass "Bindings up to date"
-    else
-      echo -e "  ${YELLOW}bindings/ was stale and has been regenerated — review and commit it${RESET}"
-      diff <(echo "$BINDINGS_BEFORE") <(echo "$BINDINGS_AFTER") | head -20 | sed 's/^/    /' || true
-      fail "Bindings up to date"
-    fi
-  else
-    fail "Bindings up to date (generation failed)"
-  fi
+  # first — the same script .github/workflows/build.yaml runs as its gate.
+  run_step "Bindings fresh" scripts/check-bindings-fresh.sh
 
   # CI additionally requires them committed; surface that here as a reminder
   BINDING_CHANGES="$(git status --porcelain --untracked-files=all bindings/ || true)"
@@ -318,14 +306,14 @@ if needs_docs; then
 
   require_tool bun "docs web components"
 
-  run_step "docs generate" cargo run --locked -- docs
-
-  # The site loads the shared components bundle; build it the way docs.yml does
+  # docs.yml order: bindings -> webcomponents -> generated docs -> Jekyll
   step "Docs web components"
   (
     cargo test --locked export_bindings_ >/dev/null
-    cd webcomponents && bun install --frozen-lockfile && bun run build
+    cd webcomponents && bun install --frozen-lockfile && bun run typecheck && bun test && bun run build
   ) && pass "Docs web components" || fail "Docs web components"
+
+  run_step "docs generate" cargo run --locked -- docs
 
   step "Jekyll build"
   (

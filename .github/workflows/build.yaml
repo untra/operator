@@ -53,21 +53,14 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       # The frontend is typed against these; generate before anything compiles.
-      - name: Generate TypeScript bindings
-        run: cargo test --locked export_bindings_
-
-      # bindings/ is committed, so a Rust change without a regeneration would
-      # otherwise leave TypeScript silently stale. `git status` rather than
-      # `git diff` because a newly exported type produces an *untracked* file,
-      # which `git diff` does not see.
-      - name: Verify generated bindings are committed
+      # bindings/ is committed — the script regenerates and fails on any
+      # checksum difference vs the checkout (modified or newly exported types).
+      - name: Generate TypeScript bindings and verify they are committed
         run: |
-          changes="$(git status --porcelain --untracked-files=all bindings/)"
-          if [ -n "$changes" ]; then
+          scripts/check-bindings-fresh.sh || {
             echo "::error::bindings/ is out of date. Run 'make bindings' and commit the result."
-            echo "$changes"
             exit 1
-          fi
+          }
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -78,12 +71,15 @@ jobs:
         run: |
           cd webcomponents
           bun install --frozen-lockfile
+          bun run typecheck
+          bun test
           bun run build
 
       - name: Build UI dist
         run: |
           cd ui
           bun install --frozen-lockfile
+          bun run typecheck
           bun run build
           DIST_SIZE=$(du -sb dist/ | cut -f1)
           echo "UI dist size: ${DIST_SIZE}B ($(echo "scale=1; $DIST_SIZE/1048576" | bc)MB uncompressed)"
@@ -497,7 +493,6 @@ jobs:
       - name: Update package.json versions
         run: |
           for f in vscode-extension/package.json \
-                   backstage-server/package.json \
                    agnt-plugin/package.json \
                    agnt-plugin/manifest.json; do
             jq --arg v "${{ needs.version.outputs.version }}" '.version = $v' "$f" > tmp.json && mv tmp.json "$f"
@@ -536,7 +531,6 @@ jobs:
             vscode-extension/src/webhook-server.ts \
             opr8r/Cargo.toml opr8r/Cargo.lock \
             zed-extension/Cargo.toml zed-extension/extension.toml zed-extension/Cargo.lock \
-            backstage-server/package.json \
             agnt-plugin/package.json agnt-plugin/manifest.json \
             docs/schemas/openapi.json
           git commit -m "chore: bump version to v${{ needs.version.outputs.version }} [skip ci]"

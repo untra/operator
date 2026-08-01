@@ -47,5 +47,4 @@ comment:
 
 ignore:
   - "tests/**"
-  - "backstage-server/**"
   - "vscode-extension/test/**"

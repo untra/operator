@@ -1,7 +1,4 @@
 import React from 'react';
-import Typography from '@mui/material/Typography';
-import Divider from '@mui/material/Divider';
-import Box from '@mui/material/Box';
 
 interface SectionHeaderProps {
   id: string;
@@ -10,11 +7,9 @@ interface SectionHeaderProps {
 
 export function SectionHeader({ id, title }: SectionHeaderProps) {
   return (
-    <Box id={id} sx={{ scrollMarginTop: '16px', mb: 2 }}>
-      <Typography variant="h6" sx={{ mb: 0.5 }}>
-        {title}
-      </Typography>
-      <Divider />
-    </Box>
+    <div id={id} className="op-mb-2" style={{ scrollMarginTop: '16px' }}>
+      <h2 className="op-h6 op-mb-05">{title}</h2>
+      <hr className="op-divider" />
+    </div>
   );
 }

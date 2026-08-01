@@ -87,12 +87,10 @@ async-trait = "0.1"
 
 # REST API
 axum = { version = "0.8", features = ["macros", "tokio", "tracing"] }
-# `Host` extractor moved out of axum core in 0.8; it now lives in axum-extra.
-axum-extra = "0.10"
 tokio-stream = "0.1"
 futures-util = "0.3"
 tower = "0.5"
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.7", features = ["cors", "trace"] }
 http-body-util = "0.1"
 
 # OpenAPI documentation
@@ -100,7 +98,7 @@ utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 
 # Agent Client Protocol (ACP) — JSON-RPC 2.0 over stdio for editor integration
-agent-client-protocol = "0.14"
+agent-client-protocol = "2.0"
 
 # Embedded web UI (behind embed-ui feature flag)
 rust-embed = { version = "8", optional = true }

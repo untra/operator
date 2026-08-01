@@ -45,6 +45,7 @@ const BANNED_LIBRARIES: &[&str] = &[
     "@emotion/styled",
     "tailwindcss",
     "@mui/material",
+    "@mui/icons-material",
     "chakra-ui",
 ];
 
@@ -112,6 +113,7 @@ fn test_webcomponents_package_json_dep_allowlist() {
 fn test_frontend_packages_have_no_css_in_js() {
     assert_no_banned_libraries("ui/package.json");
     assert_no_banned_libraries("webcomponents/package.json");
+    assert_no_banned_libraries("vscode-extension/package.json");
 }
 
 /// The SPA must not depend on the graph stack directly — that would let the

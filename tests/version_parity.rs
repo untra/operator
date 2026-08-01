@@ -75,7 +75,6 @@ const MANAGED: &[(&str, ExtractKind)] = &[
         "vscode-extension/src/webhook-server.ts",
         ExtractKind::TsConst,
     ),
-    ("backstage-server/package.json", ExtractKind::JsonDotVersion),
     ("agnt-plugin/package.json", ExtractKind::JsonDotVersion),
     ("agnt-plugin/manifest.json", ExtractKind::JsonDotVersion),
     ("docs/schemas/openapi.json", ExtractKind::JsonDotVersion),

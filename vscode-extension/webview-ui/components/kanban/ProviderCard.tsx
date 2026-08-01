@@ -1,16 +1,5 @@
 import React, { useState } from 'react';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
-import Switch from '@mui/material/Switch';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Alert from '@mui/material/Alert';
-import CircularProgress from '@mui/material/CircularProgress';
-import Collapse from '@mui/material/Collapse';
+import { Alert, Button, Card, CardContent, Chip, Spinner, TextInput, Toggle } from '../primitives';
 import { ProjectRow } from './ProjectRow';
 import type { JiraConfig } from '../../../src/generated/JiraConfig';
 import type { LinearConfig } from '../../../src/generated/LinearConfig';
@@ -70,61 +59,53 @@ export function ProviderCard({
   const projectCount = projectEntries.length;
 
   return (
-    <Card variant="outlined">
+    <Card accent="terracotta">
       <CardContent>
         {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <div className="op-row op-space-between op-mb-1">
+          <div className="op-row op-gap-1">
             <i
               className={type === 'jira' ? 'opi-atlassian' : 'opi-linear'}
               style={{ fontSize: '1.25rem', lineHeight: 1 }}
             />
-            <Typography variant="subtitle1" fontWeight={600}>
+            <span className="op-body1" style={{ fontWeight: 600 }}>
               {providerLabel}
-            </Typography>
+            </span>
             <Chip
               label={isConnected ? 'Connected' : 'Not validated'}
-              size="small"
               color={isConnected ? 'success' : 'default'}
               variant="outlined"
             />
             {projectCount > 0 && (
-              <Chip label={`${projectCount} project${projectCount !== 1 ? 's' : ''}`} size="small" variant="outlined" />
+              <Chip label={`${projectCount} project${projectCount !== 1 ? 's' : ''}`} variant="outlined" />
             )}
-          </Box>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={enabled}
-                onChange={(e) => onUpdate(sectionKey, 'enabled', e.target.checked)}
-                size="small"
-              />
-            }
+          </div>
+          <Toggle
+            checked={enabled}
+            onChange={(e) => onUpdate(sectionKey, 'enabled', e.target.checked)}
             label="Enabled"
           />
-        </Box>
+        </div>
 
-        <Box sx={{ opacity: enabled ? 1 : 0.5 }}>
+        <div style={{ opacity: enabled ? 1 : 0.5 }}>
           {/* Summary line */}
           {!showCredentials && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-              <Typography variant="body2" color="text.secondary">
+            <div className="op-row op-gap-2 op-mb-1">
+              <span className="op-body2 op-text-secondary">
                 {isJira ? `${domain} · ${jiraConfig?.email || 'no email'}` : domain}
-              </Typography>
+              </span>
               <Button size="small" onClick={() => setShowCredentials(true)} disabled={!enabled}>
                 Edit Credentials
               </Button>
-            </Box>
+            </div>
           )}
 
           {/* Credentials (collapsible) */}
-          <Collapse in={showCredentials}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+          {showCredentials && (
+            <div className="op-col op-gap-2 op-mb-2">
               {isJira ? (
                 <>
-                  <TextField
-                    fullWidth
-                    size="small"
+                  <TextInput
                     label="Domain"
                     value={domain}
                     onChange={(e) => onUpdate(sectionKey, 'domain', e.target.value)}
@@ -132,18 +113,14 @@ export function ProviderCard({
                     disabled={!enabled}
                     helperText="Jira Cloud instance domain"
                   />
-                  <TextField
-                    fullWidth
-                    size="small"
+                  <TextInput
                     label="Email"
                     value={jiraConfig?.email ?? ''}
                     onChange={(e) => onUpdate(sectionKey, 'email', e.target.value)}
                     placeholder="you@example.com"
                     disabled={!enabled}
                   />
-                  <TextField
-                    fullWidth
-                    size="small"
+                  <TextInput
                     label="API Key Env Var"
                     value={config.api_key_env}
                     onChange={(e) => onUpdate(sectionKey, 'api_key_env', e.target.value)}
@@ -152,17 +129,13 @@ export function ProviderCard({
                 </>
               ) : (
                 <>
-                  <TextField
-                    fullWidth
-                    size="small"
+                  <TextInput
                     label="Team ID"
                     value={domain}
                     onChange={(e) => onUpdate(sectionKey, 'team_id', e.target.value)}
                     disabled={!enabled}
                   />
-                  <TextField
-                    fullWidth
-                    size="small"
+                  <TextInput
                     label="API Key Env Var"
                     value={config.api_key_env}
                     onChange={(e) => onUpdate(sectionKey, 'api_key_env', e.target.value)}
@@ -171,16 +144,15 @@ export function ProviderCard({
                 </>
               )}
 
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <TextField
-                  size="small"
+              <div className="op-row op-gap-1">
+                <TextInput
                   type="password"
                   label={isJira ? 'API Token' : 'API Key'}
                   value={apiToken}
                   onChange={(e) => setApiToken(e.target.value)}
                   placeholder={isJira ? 'Paste token to validate' : 'lin_api_xxxxx'}
                   disabled={!enabled}
-                  sx={{ flexGrow: 1 }}
+                  style={{ flexGrow: 1 }}
                 />
                 <Button
                   variant="contained"
@@ -192,11 +164,11 @@ export function ProviderCard({
                     }
                   }}
                   disabled={!enabled || !apiToken || validating}
-                  sx={{ minWidth: 'auto', px: 2 }}
+                  style={{ minWidth: 'auto', paddingLeft: 16, paddingRight: 16 }}
                 >
-                  {validating ? <CircularProgress size={20} /> : 'Validate'}
+                  {validating ? <Spinner size={20} /> : 'Validate'}
                 </Button>
-              </Box>
+              </div>
 
               {validationResult && (
                 <Alert severity={validationResult.valid ? 'success' : 'error'}>
@@ -211,15 +183,15 @@ export function ProviderCard({
               <Button size="small" onClick={() => setShowCredentials(false)}>
                 Hide Credentials
               </Button>
-            </Box>
-          </Collapse>
+            </div>
+          )}
 
           {/* Project list */}
-          <Box sx={{ mt: 1 }}>
+          <div className="op-mt-1">
             {projectEntries.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+              <p className="op-body2 op-text-secondary" style={{ padding: '8px 0' }}>
                 No projects configured. Add a project key above to start syncing.
-              </Typography>
+              </p>
             ) : (
               projectEntries.map(([key, project]) => (
                 <ProjectRow
@@ -242,16 +214,16 @@ export function ProviderCard({
             )}
 
             {/* Add project shortcut */}
-            <Box sx={{ mt: 1 }}>
+            <div className="op-mt-1">
               <AddProjectInput
                 disabled={!enabled}
                 onAdd={(key) => {
                   onUpdate(sectionKey, `projects.${key}.collection_name`, '');
                 }}
               />
-            </Box>
-          </Box>
-        </Box>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -260,15 +232,14 @@ export function ProviderCard({
 function AddProjectInput({ disabled, onAdd }: { disabled: boolean; onAdd: (key: string) => void }) {
   const [value, setValue] = useState('');
   return (
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-      <TextField
-        size="small"
+    <div className="op-row op-gap-1">
+      <TextInput
         label="Add Project Key"
         value={value}
         onChange={(e) => setValue(e.target.value.toUpperCase())}
         placeholder="PROJ"
         disabled={disabled}
-        sx={{ flex: 1 }}
+        style={{ flex: 1 }}
       />
       <Button
         size="small"
@@ -281,6 +252,6 @@ function AddProjectInput({ disabled, onAdd }: { disabled: boolean; onAdd: (key: 
       >
         Add
       </Button>
-    </Box>
+    </div>
   );
 }

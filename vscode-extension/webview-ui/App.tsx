@@ -1,9 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Typography from '@mui/material/Typography';
-import Alert from '@mui/material/Alert';
-import { ThemeWrapper } from './theme/ThemeWrapper';
+import { Alert, Spinner } from './components/primitives';
 import { ConfigPage } from './components/ConfigPage';
 import { postMessage, onMessage } from './vscodeApi';
 import { DEFAULT_WEBVIEW_CONFIG } from './types/defaults';
@@ -167,9 +163,9 @@ export function App() {
   }, []);
 
   return (
-    <ThemeWrapper>
+    <>
       {error && (
-        <Alert severity="error" sx={{ m: 2 }}>
+        <Alert severity="error" style={{ margin: 16 }}>
           {error}
         </Alert>
       )}
@@ -197,14 +193,12 @@ export function App() {
           onOpenOperatorUi={handleOpenOperatorUi}
         />
       ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 2 }}>
-          <CircularProgress />
-          <Typography variant="body2" color="text.secondary">
-            Loading configuration...
-          </Typography>
-        </Box>
+        <div className="op-col op-gap-2" style={{ alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <Spinner />
+          <p className="op-body2 op-text-secondary">Loading configuration...</p>
+        </div>
       )}
-    </ThemeWrapper>
+    </>
   );
 }
 

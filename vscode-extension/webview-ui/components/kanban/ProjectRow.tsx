@@ -1,13 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Chip from '@mui/material/Chip';
-import Collapse from '@mui/material/Collapse';
+import { Chip, IconButton, SelectInput } from '../primitives';
 import { MappingPanel } from './MappingPanel';
 import type { ProjectSyncConfig } from '../../../src/generated/ProjectSyncConfig';
 import type { KanbanStatusMapping } from '../../../src/generated/KanbanStatusMapping';
@@ -34,6 +26,8 @@ const OPERATOR_STATES = [
   { field: 'doing', label: 'Doing', helper: 'Pushed when a ticket is launched/claimed' },
   { field: 'done', label: 'Done', helper: 'Pushed when a ticket completes' },
 ] as const;
+
+const DIVIDER_BORDER = '1px solid var(--vscode-sideBar-border, var(--vscode-widget-border, #45454580))';
 
 export function ProjectRow({
   provider,
@@ -92,94 +86,79 @@ export function ProjectRow({
   };
 
   return (
-    <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', py: 1 }}>
-      <Box
-        sx={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}
-        onClick={() => setExpanded(!expanded)}
-      >
-        <Typography variant="body2" fontWeight={600} sx={{ minWidth: 80 }}>
+    <div style={{ borderBottom: DIVIDER_BORDER, padding: '8px 0' }}>
+      <div className="op-row op-gap-2" style={{ cursor: 'pointer' }} onClick={() => setExpanded(!expanded)}>
+        <span className="op-body2" style={{ fontWeight: 600, minWidth: 80 }}>
           {projectKey}
-        </Typography>
+        </span>
 
-        <FormControl size="small" sx={{ minWidth: 160 }} onClick={(e) => e.stopPropagation()}>
-          <InputLabel sx={{ fontSize: '0.8rem' }}>Collection</InputLabel>
-          <Select
-            value={project.collection_name || ''}
+        <div style={{ minWidth: 160 }} onClick={(e) => e.stopPropagation()}>
+          <SelectInput
             label="Collection"
+            value={project.collection_name || ''}
             onChange={(e) => onUpdate(sectionKey, `projects.${projectKey}.collection_name`, e.target.value)}
-            sx={{ '& .MuiSelect-select': { py: 0.5, fontSize: '0.85rem' } }}
           >
-            <MenuItem value="">
-              <em>None</em>
-            </MenuItem>
+            <option value="">None</option>
             {collections.map((c) => (
-              <MenuItem key={c.name} value={c.name}>
+              <option key={c.name} value={c.name}>
                 {c.name}
                 {c.is_active && ' ✓'}
-              </MenuItem>
+              </option>
             ))}
-          </Select>
-        </FormControl>
+          </SelectInput>
+        </div>
 
-        <Box sx={{ display: 'flex', gap: 0.5, flex: 1 }} onClick={(e) => e.stopPropagation()}>
+        <div className="op-row op-gap-05" style={{ flex: 1 }} onClick={(e) => e.stopPropagation()}>
           {OPERATOR_STATES.filter(({ field }) => statusMapping[field]).map(({ field, label }) => (
-            <Chip
-              key={field}
-              label={`${label} → ${statusMapping[field]}`}
-              size="small"
-              variant="outlined"
-            />
+            <Chip key={field} label={`${label} → ${statusMapping[field]}`} variant="outlined" />
           ))}
-        </Box>
+        </div>
 
-        {mappingCount > 0 && (
-          <Chip
-            label={`${mappingCount} mapped`}
-            size="small"
-            color="info"
-            variant="outlined"
-          />
-        )}
+        {mappingCount > 0 && <Chip label={`${mappingCount} mapped`} variant="outlined" />}
 
-        <IconButton size="small" sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-          <Typography variant="body2">▾</Typography>
+        <IconButton>
+          <span
+            className="op-body2"
+            style={{
+              display: 'inline-block',
+              transform: expanded ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s',
+            }}
+          >
+            ▾
+          </span>
         </IconButton>
-      </Box>
+      </div>
 
-      <Collapse in={expanded}>
-        <Box sx={{ pl: 2, pt: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+      {expanded && (
+        <div style={{ paddingLeft: 16, paddingTop: 8 }}>
+          <span className="op-caption op-text-secondary op-mb-05" style={{ display: 'block' }}>
             Column Mapping — map operator's todo/doing/done to this board's columns
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+          </span>
+          <div className="op-row op-gap-1 op-mb-1">
             {OPERATOR_STATES.map(({ field, label, helper }) => (
-              <FormControl key={field} size="small" sx={{ minWidth: 160, flex: 1 }}>
-                <InputLabel sx={{ fontSize: '0.8rem' }}>{label}</InputLabel>
-                <Select
-                  value={statusMapping[field] ?? ''}
+              <div key={field} title={helper} style={{ minWidth: 160, flex: 1 }}>
+                <SelectInput
                   label={label}
+                  value={statusMapping[field] ?? ''}
                   onChange={(e) => handleStatusMappingChange(field, e.target.value)}
-                  sx={{ '& .MuiSelect-select': { py: 0.5, fontSize: '0.85rem' } }}
-                  title={helper}
                 >
-                  <MenuItem value="">
-                    <em>Unmapped</em>
-                  </MenuItem>
+                  <option value="">Unmapped</option>
                   {optionsFor(statusMapping[field]).map((column) => (
-                    <MenuItem key={column} value={column}>
+                    <option key={column} value={column}>
                       {column}
-                    </MenuItem>
+                    </option>
                   ))}
-                </Select>
-              </FormControl>
+                </SelectInput>
+              </div>
             ))}
-          </Box>
+          </div>
 
           <MappingPanel
             provider={provider}
             domain={domain}
             projectKey={projectKey}
-            collectionName={project.collection_name||''}
+            collectionName={project.collection_name || ''}
             typeMappings={project.type_mappings ?? {}}
             issueTypes={issueTypes}
             externalTypes={externalTypes}
@@ -187,8 +166,8 @@ export function ProjectRow({
             onMappingChange={handleMappingChange}
             onViewIssueType={onViewIssueType}
           />
-        </Box>
-      </Collapse>
-    </Box>
+        </div>
+      )}
+    </div>
   );
 }

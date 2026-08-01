@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
+import { Alert, Spinner } from '../primitives';
 import { MappingRow } from './MappingRow';
 import type { ExternalIssueTypeSummary, IssueTypeSummary } from '../../types/messages';
 
@@ -75,29 +72,29 @@ export function MappingPanel({
 
   if (loading || !externalTypes) {
     return (
-      <Box sx={{ py: 2, display: 'flex', justifyContent: 'center' }}>
-        <CircularProgress size={20} />
-        <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+      <div className="op-row" style={{ padding: '16px 0', justifyContent: 'center' }}>
+        <Spinner size={20} />
+        <span className="op-body2 op-text-secondary" style={{ marginLeft: 8 }}>
           Loading issue types from {provider}...
-        </Typography>
-      </Box>
+        </span>
+      </div>
     );
   }
 
   if (externalTypes.length === 0) {
     return (
-      <Alert severity="info" sx={{ mt: 1 }}>
+      <Alert severity="info" className="op-mt-1">
         No issue types found in {provider} project {projectKey}
       </Alert>
     );
   }
 
   return (
-    <Box sx={{ mt: 1 }}>
-      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+    <div className="op-mt-1">
+      <span className="op-caption op-text-secondary op-mb-1" style={{ display: 'block' }}>
         Issue Type Mappings for {projectKey}
         {collectionName && ` (collection: ${collectionName})`}
-      </Typography>
+      </span>
       {externalTypes.map((et) => {
         const autoKey = autoMappings.get(et.name) ?? null;
         const overrideKey = typeMappings[et.name] ?? null;
@@ -113,6 +110,6 @@ export function MappingPanel({
           />
         );
       })}
-    </Box>
+    </div>
   );
 }

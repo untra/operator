@@ -1,8 +1,8 @@
 # Operator developer tasks.
 #
 # `make check` mirrors the CI `lint-test` job exactly so a clean local run means
-# a clean CI run. `make install-hooks` wires the committed pre-push hook so the
-# same gate runs automatically before every push.
+# a clean CI run. `make install-hooks` wires the committed pre-push hook, which
+# runs the fast lint gate (fmt + clippy, no tests) before every push.
 
 .PHONY: check fmt clippy test build run install-hooks bindings webcomponents ui docs
 
@@ -60,4 +60,4 @@ docs: webcomponents
 # One-time per clone: route git hooks at the committed .githooks/ directory.
 install-hooks:
 	git config core.hooksPath .githooks
-	@echo "pre-push hook installed (runs 'make check')"
+	@echo "pre-push hook installed (runs 'make fmt clippy')"

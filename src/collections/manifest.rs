@@ -11,7 +11,7 @@
 //! embedded in the binary.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Current manifest schema version. Manifests with an unknown version are
 /// rejected by the fetcher and fall back to the embedded copy.
@@ -114,6 +114,16 @@ pub struct CollectionManifest {
     /// Provenance tier (defaults to official for older manifests).
     #[serde(default)]
     pub tier: CollectionTier,
+    /// Bare filename of the collection's Simple Icons-shaped SVG, next to the
+    /// manifest. Deliberately not checksummed; icon must pass standards.
+    #[serde(default)]
+    pub icon_path: Option<String>,
+    /// ISO-8601 date (`YYYY-MM-DD`) the collection was first published.
+    #[serde(default)]
+    pub created: Option<String>,
+    /// ISO-8601 date (`YYYY-MM-DD`) of the last substantive revision.
+    #[serde(default)]
+    pub updated: Option<String>,
     /// Descriptive kanban onboarding defaults (v1: metadata only).
     #[serde(default)]
     pub kanban_defaults: Option<KanbanDefaults>,
@@ -157,11 +167,6 @@ pub struct IssueTypeEntry {
     /// SHA-256 (lowercase hex) of the markdown template bytes, if present.
     #[serde(default)]
     pub template_checksum: Option<String>,
-    /// Path to a pre-generated workflow preview (`.js`), relative to the
-    /// manifest. Filled by the docs producer for visualization; excluded
-    /// from checksum derivation.
-    #[serde(default)]
-    pub workflow_preview_path: Option<String>,
 }
 
 /// Descriptive kanban onboarding defaults for a collection.
@@ -171,8 +176,10 @@ pub struct IssueTypeEntry {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct KanbanDefaults {
     /// Suggested provider issue-type NAME -> collection issuetype key.
+    /// `BTreeMap` keeps serialization order deterministic so the hosted
+    /// bundle's manifest checksum is stable across generation runs.
     #[serde(default)]
-    pub suggested_type_mappings: HashMap<String, String>,
+    pub suggested_type_mappings: BTreeMap<String, String>,
 }
 
 /// Descriptive metadata about a collection's intended agentic loop shape.
@@ -390,26 +397,141 @@ mod tests {
     }
 
     #[test]
-    fn test_issue_type_entry_workflow_preview_path_defaults_to_none() {
+    fn test_manifest_icon_and_dates_default_to_none() {
+        // Older manifests without icon/date fields stay valid.
         let m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
-        assert!(m.issue_types[0].workflow_preview_path.is_none());
+        assert!(m.icon_path.is_none());
+        assert!(m.created.is_none());
+        assert!(m.updated.is_none());
     }
 
     #[test]
-    fn test_issue_type_entry_workflow_preview_path_round_trip() {
+    fn test_manifest_icon_and_dates_round_trip() {
         let json = r#"{
-            "key": "TASK",
-            "schema_path": "TASK.json",
-            "workflow_preview_path": "TASK.preview.workflow.js"
+            "schema_version": 1,
+            "id": "ralph_loop",
+            "name": "Ralph Loop",
+            "icon_path": "icon.svg",
+            "created": "2026-05-01",
+            "updated": "2026-08-01",
+            "issue_types": [
+                {"key": "PRD", "schema_path": "PRD.json"}
+            ]
         }"#;
-        let entry: IssueTypeEntry = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            entry.workflow_preview_path.as_deref(),
-            Some("TASK.preview.workflow.js")
-        );
-        let round: IssueTypeEntry =
-            serde_json::from_str(&serde_json::to_string(&entry).unwrap()).unwrap();
-        assert_eq!(round.workflow_preview_path, entry.workflow_preview_path);
+        let m = CollectionManifest::from_json(json).unwrap();
+        assert_eq!(m.icon_path.as_deref(), Some("icon.svg"));
+        assert_eq!(m.created.as_deref(), Some("2026-05-01"));
+        assert_eq!(m.updated.as_deref(), Some("2026-08-01"));
+        let m2 = CollectionManifest::from_json(&m.to_json().unwrap()).unwrap();
+        assert_eq!(m2.icon_path, m.icon_path);
+        assert_eq!(m2.created, m.created);
+        assert_eq!(m2.updated, m.updated);
+    }
+
+    #[test]
+    fn test_icon_and_dates_are_outside_the_manifest_checksum() {
+        // The checksum derives from issue-type file checksums only, so changing
+        // presentational metadata must not invalidate a hosted collection.
+        let mut m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        let before = crate::collections::fetch::derive_manifest_checksum(&m.issue_types);
+
+        m.icon_path = Some("icon.svg".to_string());
+        m.created = Some("2026-05-01".to_string());
+        m.updated = Some("2026-08-01".to_string());
+        let after = crate::collections::fetch::derive_manifest_checksum(&m.issue_types);
+
+        assert_eq!(before, after);
+    }
+
+    /// Every field of a fully-populated manifest, so the parity tests below
+    /// compare complete key sets rather than whatever `DEV_KANBAN_JSON` happens
+    /// to set.
+    fn fully_populated() -> CollectionManifest {
+        let mut m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        m.author = Some("Operator!".to_string());
+        m.url = Some("https://github.com/untra/operator".to_string());
+        m.license = Some("MIT".to_string());
+        m.compatibility = Some(Compatibility {
+            operator_version: Some(">=0.2.0".to_string()),
+        });
+        m.icon_path = Some("icon.svg".to_string());
+        m.created = Some("2026-01-15".to_string());
+        m.updated = Some("2026-08-01".to_string());
+        m.kanban_defaults = Some(KanbanDefaults::default());
+        m.checksum = Some("deadbeef".to_string());
+        m
+    }
+
+    fn schema_properties(pointer: &str) -> serde_json::Map<String, serde_json::Value> {
+        let schema: serde_json::Value =
+            serde_json::from_str(include_str!("../schemas/issuetype_collection_schema.json"))
+                .expect("schema parses");
+        schema
+            .pointer(pointer)
+            .and_then(|v| v.as_object())
+            .cloned()
+            .unwrap_or_else(|| panic!("schema has no properties at {pointer}"))
+    }
+
+    /// The published schema sets `additionalProperties: false`, so a Rust-side
+    /// field addition that is not mirrored there silently breaks validation of
+    /// every hosted manifest. Compare the key sets in both directions.
+    #[test]
+    fn test_manifest_fields_match_published_json_schema() {
+        let serialized = serde_json::to_value(fully_populated()).unwrap();
+        let rust_keys: Vec<&str> = serialized
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(|k| &**k)
+            .collect();
+        let schema_props = schema_properties("/properties");
+
+        for key in &rust_keys {
+            assert!(
+                schema_props.contains_key(*key),
+                "CollectionManifest field '{key}' is missing from \
+                 src/schemas/issuetype_collection_schema.json"
+            );
+        }
+        for key in schema_props.keys() {
+            assert!(
+                rust_keys.contains(&&**key),
+                "schema property '{key}' has no CollectionManifest field"
+            );
+        }
+    }
+
+    #[test]
+    fn test_issue_type_entry_fields_match_published_json_schema() {
+        let entry = IssueTypeEntry {
+            key: "TASK".to_string(),
+            schema_path: "TASK.json".to_string(),
+            schema_checksum: "aaa".to_string(),
+            template_path: Some("TASK.md".to_string()),
+            template_checksum: Some("bbb".to_string()),
+        };
+        let serialized = serde_json::to_value(&entry).unwrap();
+        let rust_keys: Vec<&str> = serialized
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(|k| &**k)
+            .collect();
+        let schema_props = schema_properties("/properties/issue_types/items/properties");
+
+        for key in &rust_keys {
+            assert!(
+                schema_props.contains_key(*key),
+                "IssueTypeEntry field '{key}' is missing from the published schema"
+            );
+        }
+        for key in schema_props.keys() {
+            assert!(
+                rust_keys.contains(&&**key),
+                "schema property '{key}' has no IssueTypeEntry field"
+            );
+        }
     }
 
     #[test]

@@ -93,6 +93,45 @@ pub async fn get_one(
     Ok(Json(IssueTypeResponse::with_collection(issue_type, owner)))
 }
 
+/// Get an issue type's Operator workflow document
+///
+/// Returns the issue type verbatim, in the same shape as the `<KEY>.json` files
+/// in a hosted collection bundle (`/schemas/issuetype.json`). This is the
+/// *native* Operator workflow — the ordered step graph every export format is
+/// derived from — so the web UI and the docs site render identical graphs from
+/// identical bytes. Prefer [`get_one`] for display metadata; use this when you
+/// need the full step structure including step types, reject edges, and
+/// per-type fan-out configuration.
+#[utoipa::path(
+    operation_id = "issuetypes_get_document",
+    get,
+    path = "/api/v1/issuetypes/{key}/document",
+    tag = "Issue Types",
+    params(
+        ("key" = String, Path, description = "Issue type key (e.g., FEAT, FIX)"),
+        CollectionQuery
+    ),
+    responses(
+        (status = 200, description = "Operator workflow document", body = serde_json::Value),
+        (status = 404, description = "Issue type not found", body = ErrorResponse)
+    )
+)]
+pub async fn get_document(
+    State(state): State<ApiState>,
+    Path(key): Path<String>,
+    Query(query): Query<CollectionQuery>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let key = key.to_uppercase();
+    let registry = state.registry.read().await;
+    let issue_type = registry
+        .resolve(query.collection.as_deref(), &key)
+        .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?;
+
+    serde_json::to_value(issue_type)
+        .map(Json)
+        .map_err(|e| ApiError::InternalError(e.to_string()))
+}
+
 /// Create a new issue type
 #[utoipa::path(
     operation_id = "issuetypes_create",

@@ -41,7 +41,7 @@ export const CONCEPTS: Record<string, Concept> = {
     icon: 'list-ordered',
     label: 'Queue',
     route: '/queue',
-    docsUrl: `${DOCS_BASE}/tickets/`,
+    docsUrl: `${DOCS_BASE}/getting-started/tickets/`,
     summary: 'The full kanban board of tickets across todo, in-progress, and done.',
   },
 
@@ -67,7 +67,7 @@ export const CONCEPTS: Record<string, Concept> = {
     icon: 'layout',
     label: 'Kanban',
     route: '/kanban',
-    docsUrl: `${DOCS_BASE}/kanban/`,
+    docsUrl: `${DOCS_BASE}/getting-started/kanban/`,
     summary: 'Kanban provider wiring that backs the ticket board.',
   },
   llm: {
@@ -99,7 +99,7 @@ export const CONCEPTS: Record<string, Concept> = {
     icon: 'issues',
     label: 'Issue Types',
     route: '/issuetypes',
-    docsUrl: `${DOCS_BASE}/issue-types/`,
+    docsUrl: `${DOCS_BASE}/workflows/`,
     summary: 'The catalog of issue types, their modes, and workflow steps.',
   },
   delegators: {

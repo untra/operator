@@ -15,6 +15,8 @@
 
 pub mod cli;
 pub mod collections_manifest;
+pub mod collections_pages;
+pub mod collections_search;
 pub mod config;
 pub mod config_schema;
 pub mod integrations;
@@ -82,34 +84,102 @@ pub trait DocGenerator {
     }
 }
 
+/// Every generator `operator docs` runs, paired with its `--only` key.
+///
+/// **Single source of truth.** [`generate_all`], the `docs` CLI command, its
+/// `--only` filter, and the CLI help text all read this one list, so a new
+/// generator cannot be registered in one place and silently missed by another.
+///
+/// A few keys differ from the generator's `name()` for historical reasons; the
+/// keys are the documented CLI contract and are what belongs here.
+///
+/// `LlmToolsDocGenerator` is deliberately **not** listed: `docs/llm-tools/index.md`
+/// is hand-written, and running the generator would overwrite it. It stays
+/// reachable by key for a deliberate regeneration.
+pub fn all_generators() -> Vec<(&'static str, Box<dyn DocGenerator>)> {
+    vec![
+        ("taxonomy", Box::new(taxonomy::TaxonomyDocGenerator)),
+        (
+            "issuetype",
+            Box::new(issuetype::IssuetypeSchemaDocGenerator),
+        ),
+        ("metadata", Box::new(metadata::MetadataSchemaDocGenerator)),
+        ("shortcuts", Box::new(shortcuts::ShortcutsDocGenerator)),
+        ("cli", Box::new(cli::CliDocGenerator)),
+        ("config", Box::new(config::ConfigDocGenerator)),
+        ("openapi", Box::new(openapi::OpenApiDocGenerator)),
+        ("startup", Box::new(startup::StartupDocGenerator)),
+        (
+            "config-schema",
+            Box::new(config_schema::ConfigSchemaDocGenerator),
+        ),
+        (
+            "state-schema",
+            Box::new(state_schema::StateSchemaDocGenerator),
+        ),
+        (
+            "schema-index",
+            Box::new(schema_index::SchemaIndexDocGenerator),
+        ),
+        ("jira-api", Box::new(jira_api::JiraApiDocGenerator)),
+        (
+            "operator-output-schema",
+            Box::new(operator_output_schema::OperatorOutputSchemaDocGenerator),
+        ),
+        (
+            "issuetype-json-schema",
+            Box::new(issuetype_json_schema::IssuetypeJsonSchemaDocGenerator),
+        ),
+        (
+            "project-analysis-schema",
+            Box::new(project_analysis_schema::ProjectAnalysisSchemaDocGenerator),
+        ),
+        ("llms", Box::new(llms::LlmsTxtDocGenerator)),
+        (
+            "collections-manifest",
+            Box::new(collections_manifest::CollectionsManifestGenerator),
+        ),
+        (
+            "collections-search",
+            Box::new(collections_search::CollectionsSearchGenerator),
+        ),
+        (
+            "collections-pages",
+            Box::new(collections_pages::CollectionsPagesGenerator),
+        ),
+        ("maturity", Box::new(integrations::MaturityDocGenerator)),
+    ]
+}
+
+/// Generators reachable by `--only` but excluded from a full run, because they
+/// would overwrite a page that is currently maintained by hand.
+fn opt_in_generators() -> Vec<(&'static str, Box<dyn DocGenerator>)> {
+    vec![("llm-tools", Box::new(llm_tools::LlmToolsDocGenerator))]
+}
+
+/// Resolve a `--only` key to its generator.
+pub fn generator_for_key(key: &str) -> Option<Box<dyn DocGenerator>> {
+    all_generators()
+        .into_iter()
+        .chain(opt_in_generators())
+        .find(|(k, _)| *k == key)
+        .map(|(_, generator)| generator)
+}
+
+/// Every valid `--only` key, for CLI help.
+pub fn generator_keys() -> Vec<&'static str> {
+    all_generators()
+        .into_iter()
+        .chain(opt_in_generators())
+        .map(|(key, _)| key)
+        .collect()
+}
+
 /// Generate all documentation
 pub fn generate_all(docs_dir: &Path) -> Result<()> {
-    let generators: Vec<Box<dyn DocGenerator>> = vec![
-        Box::new(taxonomy::TaxonomyDocGenerator),
-        Box::new(issuetype::IssuetypeSchemaDocGenerator),
-        Box::new(metadata::MetadataSchemaDocGenerator),
-        Box::new(shortcuts::ShortcutsDocGenerator),
-        Box::new(cli::CliDocGenerator),
-        Box::new(config::ConfigDocGenerator),
-        Box::new(openapi::OpenApiDocGenerator),
-        Box::new(llm_tools::LlmToolsDocGenerator),
-        Box::new(startup::StartupDocGenerator),
-        Box::new(collections_manifest::CollectionsManifestGenerator),
-        Box::new(integrations::MaturityDocGenerator),
-        Box::new(config_schema::ConfigSchemaDocGenerator),
-        Box::new(state_schema::StateSchemaDocGenerator),
-        Box::new(schema_index::SchemaIndexDocGenerator),
-        Box::new(jira_api::JiraApiDocGenerator),
-        Box::new(operator_output_schema::OperatorOutputSchemaDocGenerator),
-        Box::new(issuetype_json_schema::IssuetypeJsonSchemaDocGenerator),
-        Box::new(project_analysis_schema::ProjectAnalysisSchemaDocGenerator),
-        Box::new(llms::LlmsTxtDocGenerator),
-    ];
-
-    for generator in generators {
+    for (_, generator) in all_generators() {
         generator.write(docs_dir)?;
     }
-
     Ok(())
 }
 

@@ -34,7 +34,7 @@ pub mod kanban_type;
 pub mod loader;
 pub mod schema;
 
-pub use collection::IssueTypeCollection;
+pub use collection::{CollectionMetadata, IssueTypeCollection};
 pub use schema::IssueType;
 
 use anyhow::Result;
@@ -113,13 +113,7 @@ impl IssueTypeRegistry {
             }
             let meta = IssueTypeCollection::new(&manifest.id, &manifest.description)
                 .with_types(manifest.type_keys().iter().map(String::as_str))
-                .with_manifest_metadata(
-                    manifest.workflow_hints.clone(),
-                    (!manifest.version.is_empty()).then(|| manifest.version.clone()),
-                    manifest.publisher.clone(),
-                    manifest.author.clone(),
-                    manifest.tier,
-                );
+                .with_manifest_metadata(CollectionMetadata::from(&manifest));
             let entry = self.entry_mut(&manifest.id);
             entry.meta = meta;
             entry.types = types;
@@ -207,13 +201,7 @@ impl IssueTypeRegistry {
                         .iter()
                         .map(std::string::String::as_str),
                 )
-                .with_manifest_metadata(
-                    loaded_collection.workflow_hints,
-                    loaded_collection.version,
-                    loaded_collection.publisher,
-                    loaded_collection.author,
-                    loaded_collection.tier,
-                );
+                .with_manifest_metadata(loaded_collection.metadata);
 
             let entry = self.entry_mut(&name);
             entry.meta = meta;
@@ -646,6 +634,7 @@ mod tests {
             "ralph_loop",
             "jr_orchestration",
             "elves_overnight",
+            "coder",
         ] {
             assert!(registry.get_collection(name).is_some(), "missing {name}");
         }

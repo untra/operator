@@ -8,13 +8,16 @@
   "author": "snarktank",
   "url": "https://github.com/snarktank/ralph",
   "license": "MIT",
-  "tier": "community",
   "tags": [
     "agentic-loop",
     "prd",
     "stories",
     "ralph"
   ],
+  "tier": "community",
+  "icon_path": "icon.svg",
+  "created": "2026-06-16",
+  "updated": "2026-07-01",
   "issue_types": [
     {
       "key": "PRD",

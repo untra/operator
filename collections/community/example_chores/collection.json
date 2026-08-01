@@ -4,13 +4,17 @@
   "name": "Example Chores",
   "description": "Minimal example community collection demonstrating the shareable format.",
   "version": "0.1.0",
-  "tier": "community",
   "author": "untra",
   "url": "https://github.com/untra/operator",
+  "license": "MIT",
   "tags": [
     "example",
     "starter"
   ],
+  "tier": "community",
+  "icon_path": "icon.svg",
+  "created": "2026-07-01",
+  "updated": "2026-07-01",
   "issue_types": [
     {
       "key": "CHORE",
@@ -36,6 +40,5 @@
   },
   "default_selected": [
     "CHORE"
-  ],
-  "license": "MIT"
+  ]
 }

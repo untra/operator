@@ -50,6 +50,18 @@ const SECTIONS: &[Section] = &[
                 fallback_desc: "",
             },
             Link {
+                slug: "getting-started/tickets",
+                fallback_desc: "Ticket format, naming, and lifecycle.",
+            },
+            Link {
+                slug: "getting-started/kanban",
+                fallback_desc: "Sync work from Jira, Linear, or GitHub Projects.",
+            },
+            Link {
+                slug: "getting-started/agents",
+                fallback_desc: "Supported coding agents, lifecycle, and modes.",
+            },
+            Link {
                 slug: "downloads",
                 fallback_desc: "",
             },
@@ -57,23 +69,15 @@ const SECTIONS: &[Section] = &[
         extra: &[],
     },
     Section {
-        heading: "Core Concepts",
+        heading: "Workflows",
         links: &[
             Link {
-                slug: "kanban",
-                fallback_desc: "",
+                slug: "workflows",
+                fallback_desc: "Shareable collections of Operator workflows.",
             },
             Link {
-                slug: "tickets",
-                fallback_desc: "",
-            },
-            Link {
-                slug: "issue-types",
-                fallback_desc: "",
-            },
-            Link {
-                slug: "agents",
-                fallback_desc: "",
+                slug: "getting-started/workflows",
+                fallback_desc: "Export a workflow to another runner's format.",
             },
             Link {
                 slug: "delegators",
@@ -119,15 +123,19 @@ const SECTIONS: &[Section] = &[
                 slug: "taxonomy",
                 fallback_desc: "Project Kinds across five tiers.",
             },
+            Link {
+                slug: "artifact-detection",
+                fallback_desc: "Using produced files as step-completion signals.",
+            },
         ],
         extra: &[],
     },
     Section {
         heading: "Optional",
-        links: &[Link {
-            slug: "architecture",
-            fallback_desc: "System design overview.",
-        }],
+        // `docs/architecture/index.md` is `published: false`, so Jekyll never
+        // builds it — listing it here produced a live link to a 404. Re-add it
+        // when the page is published.
+        links: &[],
         extra: &[(
             "GitHub Repository",
             "https://github.com/untra/operator",
@@ -253,6 +261,38 @@ fn title_case(slug: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    /// `read_front_matter` swallows a missing file, so a slug pointing at a
+    /// deleted or renamed page yields a title-cased slug and a live link to a
+    /// 404 with no error anywhere. Assert every listed page actually exists.
+    #[test]
+    fn test_every_listed_slug_resolves_to_a_real_page() {
+        let docs_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs");
+        for section in super::SECTIONS {
+            for link in section.links {
+                let path = docs_root.join(link.slug).join("index.md");
+                assert!(
+                    path.is_file(),
+                    "llms.txt lists '{}' under '{}', but {} does not exist. The generator \
+                     requires docs/<slug>/index.md specifically — a flat <slug>.md yields \
+                     empty output and a broken link.",
+                    link.slug,
+                    section.heading,
+                    path.display()
+                );
+                // Existing on disk is not enough: Jekyll skips `published: false`
+                // pages entirely, so the link would still 404.
+                let content = std::fs::read_to_string(&path).expect("page reads");
+                assert!(
+                    !content.contains("published: false"),
+                    "llms.txt lists '{}', but {} is `published: false` — Jekyll will not \
+                     build it and the link will 404.",
+                    link.slug,
+                    path.display()
+                );
+            }
+        }
+    }
+
     use super::*;
 
     #[test]

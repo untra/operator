@@ -1,0 +1,43 @@
+{
+  "name": "@operator/webcomponents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared UI components rendered by both the operator SPA (ui/) and the Jekyll docs site (docs/).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/index.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run copy-types && vite build -c vite.react.config.ts && tsc -p tsconfig.build.json && vite build -c vite.elements.config.ts",
+    "typecheck": "npm run copy-types && tsc --noEmit",
+    "test": "npm run copy-types && bun test",
+    "copy-types": "node scripts/copy-types.mjs"
+  },
+  "dependencies": {
+    "@untra/naiveworkflow-react": "0.0.3",
+    "@xyflow/react": "^12.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  }
+}

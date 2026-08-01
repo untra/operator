@@ -21,6 +21,7 @@ import type { Config } from '@operator/bindings/Config';
 import type { AgentDetailResponse } from '@operator/bindings/AgentDetailResponse';
 import type { WorkflowExportResponse } from '@operator/bindings/WorkflowExportResponse';
 import type { WorkflowPreviewResponse } from '@operator/bindings/WorkflowPreviewResponse';
+import type { IssueType } from '@operator/bindings/IssueType';
 import type { ModelServerKindEntry } from '@operator/bindings/ModelServerKindEntry';
 import type { ModelServerModelsResponse } from '@operator/bindings/ModelServerModelsResponse';
 import type { ModelServersResponse } from '@operator/bindings/ModelServersResponse';
@@ -282,7 +283,18 @@ export class OperatorApi {
     });
   }
 
-  // --- Workflow export ---
+  // --- Operator workflows ---
+
+  /**
+   * Fetch an issue type's Operator workflow document — the native step graph,
+   * in the same shape as a hosted collection's `<KEY>.json`. The export endpoints 
+   * below produce *other* runners' lossy formats from this same source.
+   */
+  getIssueTypeDocument(key: string): Promise<IssueType> {
+    return request(this.base, `/api/v1/issuetypes/${encodeURIComponent(key)}/document`);
+  }
+
+  // --- Workflow export formats ---
 
   /** Export a ticket (rendered against its issue type) to a Claude dynamic workflow (.js). */
   exportWorkflow(ticketId: string): Promise<WorkflowExportResponse> {

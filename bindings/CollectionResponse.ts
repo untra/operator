@@ -14,6 +14,34 @@ version?: string | null,
  */
 publisher?: string | null, 
 /**
+ * Human author/attribution (present for hosted collections).
+ */
+author?: string | null, 
+/**
+ * Link to the collection's source repository or project page.
+ */
+url?: string | null, 
+/**
+ * SPDX license id.
+ */
+license?: string | null, 
+/**
+ * Provenance tier: `official` or `community`.
+ */
+tier: string, 
+/**
+ * Bare filename of the collection's SVG icon, next to its manifest.
+ */
+icon_path?: string | null, 
+/**
+ * ISO-8601 date the collection was first published.
+ */
+created?: string | null, 
+/**
+ * ISO-8601 date of the last substantive revision.
+ */
+updated?: string | null, 
+/**
  * Descriptive workflow hints (present for hosted collections).
  */
 workflow_hints?: WorkflowHintsDto | null, };

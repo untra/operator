@@ -236,6 +236,9 @@ Operator uses a schema-driven, code-derived documentation strategy to reduce mai
 | `src/config.rs` | `docs/configuration/index.md` | Config structure (via schemars) |
 | `src/rest/` | `docs/schemas/openapi.json` | REST API spec (via utoipa) |
 | `src/docs_gen/llms.rs` + `docs/*/index.md` | `docs/llms.txt` | llms.txt site map for LLMs (no front matter; served verbatim) |
+| `src/collections/*/collection.json` + `collections/community/*/` | `docs/collections/` | Hosted collection bundle: `index.json`, per-collection manifests, issuetype schemas, templates, icons |
+| the same collection sources | `docs/collections/search.json` | Machine-readable collection catalog (also feeds the `/workflows/` page) |
+| the same collection sources | `docs/workflows/` | The workflow catalog page + one page per collection |
 
 ### Regenerating Documentation
 
@@ -248,7 +251,9 @@ cargo run -- docs --only taxonomy
 cargo run -- docs --only openapi
 cargo run -- docs --only config
 
-# Available generators: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi
+# `--only` accepts any key from docs_gen::all_generators(); an unknown key
+# prints the full list. `llm-tools` is opt-in only: it is excluded from a full
+# run because docs/llm-tools/index.md is currently maintained by hand.
 ```
 
 ### Auto-Generated File Headers
@@ -264,8 +269,9 @@ All generated files include a header warning:
 
 1. Create a struct implementing `DocGenerator` trait in `src/docs_gen/`
 2. Implement `name()`, `source()`, `output_path()`, and `generate()`
-3. Register in `src/docs_gen/mod.rs` `generate_all()` function
-4. Add to CLI match in `src/main.rs` `cmd_docs()`
+3. Register it in `src/docs_gen/mod.rs` `all_generators()` — that one list drives
+   the full run, the `--only` filter, and the CLI help text, so there is nothing
+   to add in `src/main.rs`
 
 ## Design & UI Consistency
 
@@ -288,3 +294,11 @@ it; never re-declare a brand color elsewhere.
 When adding or changing UI: change a brand color in `tokens.css` (web surfaces
 follow automatically); reference semantic tokens in new web CSS; map a role to
 ANSI in the TUI; and leave the webview deferring to the editor theme.
+
+**Icons.** Every SVG icon follows the Operator icon standard — a single
+monochrome `<path>` on a 24×24 canvas with no `fill`/`stroke`/`width`/`height`,
+so it tints from `currentColor` and sizes to its container on all four
+surfaces. Governed directories: `icons/`, `docs/assets/icons/`,
+`ui/public/icons/`, and each collection's `icon.svg`. Enforced by
+`cargo test --test svg_icon_standard`; the rules and rationale are in
+`docs/design-system/`.

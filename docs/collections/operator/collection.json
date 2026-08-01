@@ -14,6 +14,9 @@
   ],
   "compatibility": null,
   "tier": "official",
+  "icon_path": "icon.svg",
+  "created": "2026-01-08",
+  "updated": "2026-07-01",
   "kanban_defaults": null,
   "issue_types": [
     {
@@ -21,40 +24,35 @@
       "schema_path": "ASSESS.json",
       "schema_checksum": "63d218368c58df22606fbd654920edeb304ebc1bc7282501be38ae14027aa9e1",
       "template_path": "ASSESS.md",
-      "template_checksum": "e2fb41d771ccf37af6189cdc0ef9b2752d3e1ddb1fa193f0264fbbdd432e7e0f",
-      "workflow_preview_path": null
+      "template_checksum": "e2fb41d771ccf37af6189cdc0ef9b2752d3e1ddb1fa193f0264fbbdd432e7e0f"
     },
     {
       "key": "SYNC",
       "schema_path": "SYNC.json",
       "schema_checksum": "6e52fb05db6e09cd723becb8ffe0388957c639b39fb81efe38d7e9cb8d725e55",
       "template_path": "SYNC.md",
-      "template_checksum": "fc5cf44f553720b44ef328c560155fda137102cee28d60505b289d35e45d79cf",
-      "workflow_preview_path": null
+      "template_checksum": "fc5cf44f553720b44ef328c560155fda137102cee28d60505b289d35e45d79cf"
     },
     {
       "key": "INIT",
       "schema_path": "INIT.json",
       "schema_checksum": "bd7387742f9d81e49dcbe05cf25d3db0544e2f48843fb855df881d7ab094a0d6",
       "template_path": "INIT.md",
-      "template_checksum": "ff54445fb446a8ba8155e00259ebf44860c2e8d1865df6943ceec648fe3650e8",
-      "workflow_preview_path": null
+      "template_checksum": "ff54445fb446a8ba8155e00259ebf44860c2e8d1865df6943ceec648fe3650e8"
     },
     {
       "key": "AGENT_SETUP",
       "schema_path": "AGENT_SETUP.json",
       "schema_checksum": "6f934f8a688058d85453cf97c39a79a83f71ddce2a1493b9fcfe441ded485d5e",
       "template_path": "AGENT_SETUP.md",
-      "template_checksum": "528f9437434e5ed8f8ca2f8e09c3acb04d021e8fa2fbb978cb6aed5c005aa8f7",
-      "workflow_preview_path": null
+      "template_checksum": "528f9437434e5ed8f8ca2f8e09c3acb04d021e8fa2fbb978cb6aed5c005aa8f7"
     },
     {
       "key": "PROJECT_INIT",
       "schema_path": "PROJECT_INIT.json",
       "schema_checksum": "3d942d60f658e477043ae294ed8006e5d7d4964771c47470c409ce4ab114b684",
       "template_path": "PROJECT_INIT.md",
-      "template_checksum": "767a9a6481908826809222e87a36c840f759047170b0ff9d917ffa2846a19805",
-      "workflow_preview_path": null
+      "template_checksum": "767a9a6481908826809222e87a36c840f759047170b0ff9d917ffa2846a19805"
     }
   ],
   "workflow_hints": {

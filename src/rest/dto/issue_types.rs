@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use utoipa::ToSchema;
 
+use crate::collections::manifest::CollectionTier;
 use crate::issuetypes::schema::IssueTypeSource;
 use crate::issuetypes::{IssueType, IssueTypeCollection};
 use crate::templates::schema::{
@@ -513,6 +514,26 @@ pub struct CollectionResponse {
     /// Publisher identifier (present for hosted collections).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub publisher: Option<String>,
+    /// Human author/attribution (present for hosted collections).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    /// Link to the collection's source repository or project page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// SPDX license id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
+    /// Provenance tier: `official` or `community`.
+    pub tier: String,
+    /// Bare filename of the collection's SVG icon, next to its manifest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_path: Option<String>,
+    /// ISO-8601 date the collection was first published.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created: Option<String>,
+    /// ISO-8601 date of the last substantive revision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated: Option<String>,
     /// Descriptive workflow hints (present for hosted collections).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow_hints: Option<WorkflowHintsDto>,
@@ -520,14 +541,25 @@ pub struct CollectionResponse {
 
 impl CollectionResponse {
     pub fn from_collection(c: &IssueTypeCollection, is_active: bool) -> Self {
+        let meta = &c.metadata;
         Self {
             name: c.name.clone(),
             description: c.description.clone(),
             types: c.types.clone(),
             is_active,
-            version: c.version.clone(),
-            publisher: c.publisher.clone(),
-            workflow_hints: c.workflow_hints.as_ref().map(WorkflowHintsDto::from),
+            version: meta.version.clone(),
+            publisher: meta.publisher.clone(),
+            author: meta.author.clone(),
+            url: meta.url.clone(),
+            license: meta.license.clone(),
+            tier: match meta.tier {
+                CollectionTier::Official => "official".to_string(),
+                CollectionTier::Community => "community".to_string(),
+            },
+            icon_path: meta.icon_path.clone(),
+            created: meta.created.clone(),
+            updated: meta.updated.clone(),
+            workflow_hints: meta.workflow_hints.as_ref().map(WorkflowHintsDto::from),
         }
     }
 }
@@ -535,6 +567,7 @@ impl CollectionResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::issuetypes::CollectionMetadata;
 
     #[test]
     fn test_issue_type_summary_serializes_step_count_as_camel_case() {
@@ -689,6 +722,13 @@ mod tests {
             is_active: true,
             version: None,
             publisher: None,
+            author: None,
+            url: None,
+            license: None,
+            tier: "official".to_string(),
+            icon_path: None,
+            created: None,
+            updated: None,
             workflow_hints: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
@@ -700,23 +740,41 @@ mod tests {
     }
 
     #[test]
-    fn test_collection_response_includes_workflow_hints() {
-        let collection = IssueTypeCollection::new("dev_kanban", "Dev")
-            .with_types(["TASK"])
-            .with_manifest_metadata(
-                Some(crate::collections::manifest::WorkflowHints {
+    fn test_collection_response_surfaces_full_manifest_metadata() {
+        let collection = IssueTypeCollection::new("ralph_loop", "Ralph")
+            .with_types(["PRD"])
+            .with_manifest_metadata(CollectionMetadata {
+                version: Some("1.0.0".to_string()),
+                publisher: Some("untra".to_string()),
+                author: Some("snarktank".to_string()),
+                url: Some("https://github.com/snarktank/ralph".to_string()),
+                license: Some("MIT".to_string()),
+                tier: CollectionTier::Community,
+                icon_path: Some("icon.svg".to_string()),
+                created: Some("2026-06-16".to_string()),
+                updated: Some("2026-07-01".to_string()),
+                workflow_hints: Some(crate::collections::manifest::WorkflowHints {
                     loop_kind: Some("single_pass".to_string()),
                     review_gates: vec!["test_suite".to_string()],
                     ..Default::default()
                 }),
-                Some("1.0.0".to_string()),
-                Some("untra".to_string()),
-                None,
-                crate::collections::manifest::CollectionTier::Official,
-            );
+            });
         let resp = CollectionResponse::from_collection(&collection, true);
+
+        // Everything the collection catalog renders must reach the wire.
         assert_eq!(resp.version.as_deref(), Some("1.0.0"));
         assert_eq!(resp.publisher.as_deref(), Some("untra"));
+        assert_eq!(resp.author.as_deref(), Some("snarktank"));
+        assert_eq!(
+            resp.url.as_deref(),
+            Some("https://github.com/snarktank/ralph")
+        );
+        assert_eq!(resp.license.as_deref(), Some("MIT"));
+        assert_eq!(resp.tier, "community");
+        assert_eq!(resp.icon_path.as_deref(), Some("icon.svg"));
+        assert_eq!(resp.created.as_deref(), Some("2026-06-16"));
+        assert_eq!(resp.updated.as_deref(), Some("2026-07-01"));
+
         let hints = resp.workflow_hints.expect("hints surfaced");
         assert_eq!(hints.loop_kind.as_deref(), Some("single_pass"));
         assert_eq!(hints.runner_semantics, "prompt_driven");

@@ -302,6 +302,28 @@ summary.nav-item-row::-webkit-details-marker {
   color: inherit;
 }
 
+/* Workflows nav button — the collection catalog.
+ * A shade apart from both the sage (--color-green-l1) used by every ordinary
+ * nav link and the salmon Downloads button below it, so the two read as a pair
+ * of distinct calls to action rather than one repeated. */
+.sidebar-nav .workflows-link {
+  margin-top: 16px;
+}
+
+.sidebar-nav .workflows-link a {
+  background: var(--color-green-l2);
+  color: var(--color-cream);
+  font-weight: 600;
+}
+
+.sidebar-nav .workflows-link a:hover {
+  background: var(--color-cornflower);
+}
+
+.sidebar-nav .workflows-link a.active {
+  background: var(--color-green-l3);
+}
+
 /* Downloads nav link - highlighted */
 .sidebar-nav .downloads-link {
   margin-top: 16px;
@@ -593,5 +615,166 @@ tr:hover {
     width: 100px;
     height: 100px;
     background-size: 92px 92px;
+  }
+}
+
+/* ── Collection catalog (/workflows/) ─────────────────────────────────────────
+ * Cards and the table are both rendered statically by the collections-pages
+ * generator; `data-view` on the container decides which one is shown, and
+ * <operator-collection-search> flips it. Without JavaScript the default view
+ * still renders in full. */
+
+.collection-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 24px 0 16px;
+}
+
+.collection-search input[type="search"] {
+  flex: 1 1 18rem;
+  min-width: 0;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--color-teal);
+  background: var(--color-white);
+  border: 1px solid var(--color-cornflower);
+  border-radius: 4px;
+}
+
+.collection-search input[type="search"]:focus {
+  outline: 2px solid var(--color-green-l2);
+  outline-offset: 1px;
+}
+
+.collection-view-toggle {
+  padding: 8px 14px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-cream);
+  cursor: pointer;
+  background: var(--color-green-l1);
+  border: none;
+  border-radius: 4px;
+}
+
+.collection-view-toggle:hover {
+  background: var(--color-green-l2);
+}
+
+.collection-search-count {
+  font-size: 0.85rem;
+  color: var(--color-cornflower);
+}
+
+/* One view at a time. Both are in the DOM so filtering keeps them in sync. */
+[data-view="cards"] > .collection-table,
+[data-view="table"] > .collection-grid {
+  display: none;
+}
+
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 16px;
+}
+
+.collection-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--color-white);
+  border: 1px solid var(--color-cornflower);
+  border-radius: 8px;
+}
+
+.collection-card:hover {
+  border-color: var(--color-salmon);
+}
+
+.collection-card-link {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* Inlined SVG, so it tints from the link color in both themes. */
+.collection-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  color: var(--color-salmon);
+  fill: currentColor;
+}
+
+.collection-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-green-l3);
+}
+
+.collection-card-description,
+.collection-card-types,
+.collection-card-meta {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.collection-card-description {
+  flex: 1;
+  color: var(--color-teal);
+}
+
+.collection-card-types code {
+  font-size: 0.75rem;
+}
+
+.collection-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--color-cornflower);
+}
+
+/* The table is wide by design; let it scroll rather than the page. */
+.collection-table {
+  display: table;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.collection-table .collection-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  vertical-align: -3px;
+}
+
+#collection-catalog[data-empty="true"]::after {
+  display: block;
+  padding: 24px 0;
+  color: var(--color-cornflower);
+  content: "No collections match that filter.";
+}
+
+/* Split view on a collection page: issue-type rail beside the graph. The
+ * component owns its internal layout; this only bounds it on the page. */
+.workflow-explorer {
+  margin: 16px 0 24px;
+}
+
+[data-theme="dark"] .collection-card,
+[data-theme="dark"] .collection-search input[type="search"] {
+  background-color: #1a2426;
+}
+
+@media (max-width: 768px) {
+  .collection-grid {
+    grid-template-columns: 1fr;
   }
 }

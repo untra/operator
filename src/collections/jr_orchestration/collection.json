@@ -8,13 +8,16 @@
   "author": "snapwich",
   "url": "https://github.com/snapwich/jr",
   "license": "MIT",
-  "tier": "community",
   "tags": [
     "agentic-loop",
     "feature-graph",
     "review",
     "jr"
   ],
+  "tier": "community",
+  "icon_path": "icon.svg",
+  "created": "2026-06-16",
+  "updated": "2026-07-01",
   "issue_types": [
     {
       "key": "JRPLAN",

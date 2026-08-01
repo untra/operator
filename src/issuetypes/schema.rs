@@ -2,13 +2,15 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::templates::schema::{
     AutoGenStrategy, ExecutionMode, FieldSchema, FieldType, PermissionMode, ReviewType, StepSchema,
 };
 
 /// Source of an issue type definition
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum IssueTypeSource {
     /// Built-in to operator binary
@@ -27,7 +29,8 @@ pub enum IssueTypeSource {
 }
 
 /// An issue type definition (dynamic version of `TemplateSchema`)
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct IssueType {
     /// Unique issuetype key (e.g., FEAT, FIX, STORY, BUG)
     pub key: String,

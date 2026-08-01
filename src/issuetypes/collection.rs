@@ -19,6 +19,63 @@ pub struct CollectionSyncSource {
     pub last_synced_at: Option<DateTime<Utc>>,
 }
 
+/// Descriptive metadata a collection carries from its `collection.json`.
+///
+/// Grouped rather than spread across [`IssueTypeCollection`] and
+/// `LoadedCollection` as parallel fields: every one of these travels together
+/// from the manifest through the loader to the registry and out to the REST,
+/// TUI, and docs surfaces, so adding one should mean touching one type.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CollectionMetadata {
+    /// Collection semver.
+    #[serde(default)]
+    pub version: Option<String>,
+    /// Publisher identifier (e.g. `untra`).
+    #[serde(default)]
+    pub publisher: Option<String>,
+    /// Human author/attribution.
+    #[serde(default)]
+    pub author: Option<String>,
+    /// Link to the collection's source.
+    #[serde(default)]
+    pub url: Option<String>,
+    /// SPDX license id.
+    #[serde(default)]
+    pub license: Option<String>,
+    /// Provenance tier (official when absent).
+    #[serde(default)]
+    pub tier: crate::collections::manifest::CollectionTier,
+    /// Bare filename of the collection's SVG icon, next to the manifest.
+    #[serde(default)]
+    pub icon_path: Option<String>,
+    /// ISO-8601 date the collection was first published.
+    #[serde(default)]
+    pub created: Option<String>,
+    /// ISO-8601 date of the last substantive revision.
+    #[serde(default)]
+    pub updated: Option<String>,
+    /// Descriptive workflow hints (v1: metadata only).
+    #[serde(default)]
+    pub workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
+}
+
+impl From<&crate::collections::manifest::CollectionManifest> for CollectionMetadata {
+    fn from(m: &crate::collections::manifest::CollectionManifest) -> Self {
+        Self {
+            version: (!m.version.is_empty()).then(|| m.version.clone()),
+            publisher: m.publisher.clone(),
+            author: m.author.clone(),
+            url: m.url.clone(),
+            license: m.license.clone(),
+            tier: m.tier,
+            icon_path: m.icon_path.clone(),
+            created: m.created.clone(),
+            updated: m.updated.clone(),
+            workflow_hints: m.workflow_hints.clone(),
+        }
+    }
+}
+
 /// A named collection of issue types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueTypeCollection {
@@ -32,21 +89,9 @@ pub struct IssueTypeCollection {
     /// Sync source metadata (if collection was synced from external provider)
     #[serde(default)]
     pub sync_source: Option<CollectionSyncSource>,
-    /// Descriptive workflow hints (v1: metadata only, from a hosted manifest)
-    #[serde(default)]
-    pub workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
-    /// Collection semver (from a hosted manifest)
-    #[serde(default)]
-    pub version: Option<String>,
-    /// Publisher identifier (from a hosted manifest)
-    #[serde(default)]
-    pub publisher: Option<String>,
-    /// Author attribution (from a hosted manifest)
-    #[serde(default)]
-    pub author: Option<String>,
-    /// Provenance tier (official when absent)
-    #[serde(default)]
-    pub tier: crate::collections::manifest::CollectionTier,
+    /// Descriptive metadata carried from a hosted manifest.
+    #[serde(default, flatten)]
+    pub metadata: CollectionMetadata,
 }
 
 impl IssueTypeCollection {
@@ -57,28 +102,13 @@ impl IssueTypeCollection {
             description: description.into(),
             types: vec![],
             sync_source: None,
-            workflow_hints: None,
-            version: None,
-            publisher: None,
-            author: None,
-            tier: crate::collections::manifest::CollectionTier::default(),
+            metadata: CollectionMetadata::default(),
         }
     }
 
-    /// Attach manifest metadata (workflow hints, version, publisher, author, tier).
-    pub fn with_manifest_metadata(
-        mut self,
-        workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
-        version: Option<String>,
-        publisher: Option<String>,
-        author: Option<String>,
-        tier: crate::collections::manifest::CollectionTier,
-    ) -> Self {
-        self.workflow_hints = workflow_hints;
-        self.version = version;
-        self.publisher = publisher;
-        self.author = author;
-        self.tier = tier;
+    /// Attach the descriptive metadata read from a `collection.json`.
+    pub fn with_manifest_metadata(mut self, metadata: CollectionMetadata) -> Self {
+        self.metadata = metadata;
         self
     }
 

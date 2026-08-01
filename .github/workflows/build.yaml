@@ -52,10 +52,33 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      # The frontend is typed against these; generate before anything compiles.
+      - name: Generate TypeScript bindings
+        run: cargo test --locked export_bindings_
+
+      # bindings/ is committed, so a Rust change without a regeneration would
+      # otherwise leave TypeScript silently stale. `git status` rather than
+      # `git diff` because a newly exported type produces an *untracked* file,
+      # which `git diff` does not see.
+      - name: Verify generated bindings are committed
+        run: |
+          changes="$(git status --porcelain --untracked-files=all bindings/)"
+          if [ -n "$changes" ]; then
+            echo "::error::bindings/ is out of date. Run 'make bindings' and commit the result."
+            echo "$changes"
+            exit 1
+          fi
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+
+      - name: Build shared web components
+        run: |
+          cd webcomponents
+          bun install --frozen-lockfile
+          bun run build
 
       - name: Build UI dist
         run: |
@@ -273,6 +296,13 @@ jobs:
         with:
           # Pinned to match .tool-versions
           bun-version: 1.3.14
+
+      # Shared components first: ui/ imports @operator/webcomponents from its dist.
+      - name: Build shared web components
+        run: |
+          cd webcomponents
+          bun install --frozen-lockfile
+          bun run build
 
       # Build embedded web UI for operator binary
       - name: Build UI for embedding

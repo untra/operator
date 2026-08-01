@@ -29,6 +29,10 @@ zed-extension/target/
 dist/
 node_modules/
 
+# Shared web-component bundle copied into the docs site by `make docs`.
+# Built from webcomponents/ ahead of the Jekyll build; never committed.
+docs/assets/js/
+
 # Test coverage
 coverage/
 *.lcov
@@ -42,8 +46,9 @@ docs/_site/
 # built zed extension
 *.wasm
 
-# vscode-extension generated types (copied from bindings/)
+# generated types copied from bindings/ (bindings/ itself is committed)
 vscode-extension/src/generated/
+webcomponents/src/generated/
 vscode-extension/out/
 vscode-extension/.vscode-test/
 test-output.txt

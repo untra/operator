@@ -9,6 +9,9 @@
   "url": "https://github.com/untra/operator",
   "license": "MIT",
   "tags": ["builtin"],
+  "icon_path": "icon.svg",
+  "created": "2026-05-27",
+  "updated": "2026-06-16",
   "issue_types": [
     { "key": "TASK", "schema_path": "TASK.json", "template_path": "TASK.md" },
     { "key": "FEAT", "schema_path": "FEAT.json", "template_path": "FEAT.md" },

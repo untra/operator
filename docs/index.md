@@ -29,11 +29,12 @@ Welcome friend! <span class="operator-brand">Operator!</span> is an application 
 
 ## Quick Links
 
-- [Kanban](/kanban/) - Understand the kanban workflow
+- [Workflows](/workflows/) - Browse shareable collections of AI composed workflows
+- [Supported Kanban Providers](/getting-started/kanban/) - Sync work from Jira, Linear, or GitHub Projects
+- [Tickets](/getting-started/tickets/) - Create and manage work tickets
+- [Supported Coding Agents](/getting-started/agents/) - Agent lifecycle and modes
 - [LLM Tools](/llm-tools/) - Configure LLM integration
-- [Tickets](/tickets/) - Create and manage work tickets
-- [Agents](/agents/) - Agent lifecycle and modes
-- [Tmux](/tmux/) - Terminal session management
+- [Session Management](/getting-started/sessions/) - tmux, cmux, Zellij, and editors
 
 ## Similar
 

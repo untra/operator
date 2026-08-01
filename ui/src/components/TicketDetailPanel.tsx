@@ -7,7 +7,8 @@ import { OperatorApi } from '../api-client';
 import { useHost } from '../host';
 import { useRightPanel } from '../right-panel';
 import { wrapperSessionLink } from '../session-links';
-import { WorkflowGraphView } from './WorkflowGraphView';
+import { WorkflowGraph } from '@operator/webcomponents';
+import type { IssueType } from '@operator/bindings/IssueType';
 import styles from './TicketDetailPanel.module.css';
 
 /**
@@ -29,7 +30,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
   const [yolo, setYolo] = useState(false);
 
   const [config, setConfig] = useState<Config | null>(null);
-  const [workflow, setWorkflow] = useState<string | null>(null);
+  const [workflow, setWorkflow] = useState<IssueType | null>(null);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
 
   const [launching, setLaunching] = useState(false);
@@ -53,19 +54,20 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
     };
   }, [api]);
 
-  // The issue-type workflow graph for this ticket (same source the modal used).
+  // The Operator workflow this ticket's issue type defines. Rendered from the
+  // native document, so this graph matches the one on the docs site exactly.
   useEffect(() => {
     let cancelled = false;
     api
-      .exportWorkflow(ticket.id)
-      .then((r) => !cancelled && setWorkflow(r.contents))
+      .getIssueTypeDocument(ticket.ticket_type)
+      .then((doc) => !cancelled && setWorkflow(doc))
       .catch((e) => {
         if (!cancelled) setWorkflowError(e instanceof Error ? e.message : 'Failed to load workflow');
       });
     return () => {
       cancelled = true;
     };
-  }, [api, ticket.id]);
+  }, [api, ticket.ticket_type]);
 
   const defaultWrapperLabel = config?.sessions.wrapper ?? 'configured';
   const delegators = useMemo(() => config?.delegators ?? [], [config]);
@@ -217,7 +219,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
         <div className={styles.graphLabel}>Workflow steps</div>
         {workflowError && <div className={styles.error}>{workflowError}</div>}
         {!workflowError && !workflow && <div className={styles.loading}>Loading workflow…</div>}
-        {workflow && <WorkflowGraphView contents={workflow} />}
+        {workflow && <WorkflowGraph issueType={workflow} />}
       </div>
     </div>
   );

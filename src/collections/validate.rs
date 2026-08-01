@@ -26,6 +26,12 @@ fn key_regex() -> &'static Regex {
     RE.get_or_init(|| Regex::new(r"^[A-Z][A-Z0-9_]{1,15}$").expect("valid regex"))
 }
 
+/// Publication dates: ISO-8601 calendar dates, `YYYY-MM-DD`.
+fn date_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"^\d{4}-\d{2}-\d{2}$").expect("valid regex"))
+}
+
 /// Validate a manifest against the shareable-collection rules.
 ///
 /// `dir_name` is the name of the directory holding `collection.json`; the
@@ -77,8 +83,27 @@ pub fn validate_manifest(manifest: &CollectionManifest, dir_name: &str) -> Resul
         if let Some(template) = &entry.template_path {
             validate_path(template)?;
         }
-        if let Some(preview) = &entry.workflow_preview_path {
-            validate_path(preview)?;
+    }
+
+    if let Some(icon) = &manifest.icon_path {
+        validate_path(icon)?;
+        // Extensions are matched exactly: hosted paths are served verbatim, so
+        // `icon.SVG` would 404 against the manifest's own reference.
+        if std::path::Path::new(icon)
+            .extension()
+            .is_none_or(|e| e != "svg")
+        {
+            bail!("icon_path '{icon}' must be an .svg file");
+        }
+    }
+    for (value, field) in [
+        (&manifest.created, "created"),
+        (&manifest.updated, "updated"),
+    ] {
+        if let Some(date) = value {
+            if !date_regex().is_match(date) {
+                bail!("invalid {field} date '{date}': must be YYYY-MM-DD");
+            }
         }
     }
 
@@ -87,6 +112,9 @@ pub fn validate_manifest(manifest: &CollectionManifest, dir_name: &str) -> Resul
             (&manifest.license, "license"),
             (&manifest.author, "author"),
             (&manifest.url, "url"),
+            // Every hosted card needs an icon; community submissions are
+            // hosted-only, so this is where the requirement bites.
+            (&manifest.icon_path, "icon_path"),
         ] {
             if value.as_deref().is_none_or(|v| v.trim().is_empty()) {
                 bail!("community collections require a {field}");
@@ -178,6 +206,9 @@ mod tests {
                 "author": "someone",
                 "url": "https://example.com/repo",
                 "license": "MIT",
+                "icon_path": "icon.svg",
+                "created": "2026-01-15",
+                "updated": "2026-08-01",
                 "issue_types": [
                     {{"key": "TASK", "schema_path": "TASK.json", "template_path": "TASK.md"}}
                 ]
@@ -295,12 +326,13 @@ mod tests {
     }
 
     #[test]
-    fn test_community_requires_license_author_url() {
-        for field in ["license", "author", "url"] {
+    fn test_community_requires_license_author_url_and_icon() {
+        for field in ["license", "author", "url", "icon_path"] {
             let mut m = parse(&manifest_json("example_loop"));
             match field {
                 "license" => m.license = None,
                 "author" => m.author = Some("  ".to_string()),
+                "icon_path" => m.icon_path = None,
                 _ => m.url = None,
             }
             let err = validate_manifest(&m, "example_loop").unwrap_err();
@@ -319,6 +351,53 @@ mod tests {
         m.license = None;
         m.author = None;
         m.url = None;
+        m.icon_path = None;
+        assert!(validate_manifest(&m, "example_loop").is_ok());
+    }
+
+    #[test]
+    fn test_unsafe_icon_path_rejected() {
+        for bad in ["../icon.svg", "/etc/icon.svg", "sub/icon.svg", ".icon.svg"] {
+            let mut m = parse(&manifest_json("example_loop"));
+            m.icon_path = Some(bad.to_string());
+            let err = validate_manifest(&m, "example_loop").unwrap_err();
+            assert!(
+                err.to_string().contains("unsafe path"),
+                "icon path '{bad}' should be rejected, got: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_non_svg_icon_path_rejected() {
+        let mut m = parse(&manifest_json("example_loop"));
+        m.icon_path = Some("icon.png".to_string());
+        let err = validate_manifest(&m, "example_loop").unwrap_err();
+        assert!(err.to_string().contains("must be an .svg file"));
+    }
+
+    #[test]
+    fn test_malformed_dates_rejected() {
+        for (field, bad) in [("created", "2026-1-5"), ("updated", "01/15/2026")] {
+            let mut m = parse(&manifest_json("example_loop"));
+            match field {
+                "created" => m.created = Some(bad.to_string()),
+                _ => m.updated = Some(bad.to_string()),
+            }
+            let err = validate_manifest(&m, "example_loop").unwrap_err();
+            assert!(
+                err.to_string()
+                    .contains(&format!("invalid {field} date '{bad}'")),
+                "date '{bad}' should be rejected, got: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_dates_are_optional() {
+        let mut m = parse(&manifest_json("example_loop"));
+        m.created = None;
+        m.updated = None;
         assert!(validate_manifest(&m, "example_loop").is_ok());
     }
 

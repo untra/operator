@@ -92,15 +92,16 @@ impl App {
             .map(|s| {
                 s.selected_hosted_collections()
                     .into_iter()
-                    .map(|r| (r.manifest.clone(), r.files.clone()))
+                    .map(|r| (r.manifest.clone(), r.files.clone(), r.icon_svg.clone()))
                     .collect()
             })
             .unwrap_or_default();
-        for (manifest, files) in &hosted {
+        for (manifest, files, icon_svg) in &hosted {
             crate::startup::templates::write_fetched_collection(
                 &tickets_path.join("templates"),
                 manifest,
                 files,
+                icon_svg.as_deref(),
             )?;
         }
         if let [single] = hosted.as_slice() {

@@ -32,8 +32,8 @@ impl CollectionInfo {
             name: collection.name.clone(),
             description: collection.description.clone(),
             type_count: collection.types.len(),
-            tier: collection.tier,
-            author: collection.author.clone(),
+            tier: collection.metadata.tier,
+            author: collection.metadata.author.clone(),
             sync_source: collection.sync_source.as_ref().map(|s| s.provider.clone()),
         }
     }
@@ -355,11 +355,11 @@ mod tests {
         use crate::issuetypes::IssueTypeCollection;
 
         let community = IssueTypeCollection::new("ralph_loop", "Ralph").with_manifest_metadata(
-            None,
-            None,
-            None,
-            Some("snarktank".to_string()),
-            CollectionTier::Community,
+            crate::issuetypes::collection::CollectionMetadata {
+                author: Some("snarktank".to_string()),
+                tier: CollectionTier::Community,
+                ..Default::default()
+            },
         );
         let info = CollectionInfo::from_collection(&community);
         assert_eq!(info.tier, CollectionTier::Community);

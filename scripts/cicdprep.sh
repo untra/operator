@@ -164,12 +164,13 @@ needs_operator() {
 needs_opr8r()      { has_changes '^opr8r/'; }
 needs_vscode()     { has_changes '^(vscode-extension/|icons/)'; }
 needs_zed()        { has_changes '^zed-extension/'; }
-needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/taxonomy/taxonomy\.toml|src/templates/.*\.json)'; }
+needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/taxonomy/taxonomy\.toml|src/templates/.*\.json|src/collections/|collections/|src/schemas/|webcomponents/|src/workflow_gen/)'; }
 
 # A bun project needs a lockfile check whenever its package.json or bun.lock
 # changed. Root project lives at the repo root; others under their dir.
 needs_bun_root()       { has_changes '^(package\.json|bun\.lock)$'; }
 needs_bun_ui()         { has_changes '^ui/(package\.json|bun\.lock)$'; }
+needs_bun_webcomp()    { has_changes '^webcomponents/(package\.json|bun\.lock)$'; }
 needs_bun_backstage()  { has_changes '^backstage-server/(.*/)?(package\.json|bun\.lock)$'; }
 
 # --- 0. Bun lockfiles ---
@@ -179,12 +180,13 @@ needs_bun_backstage()  { has_changes '^backstage-server/(.*/)?(package\.json|bun
 # `bun install --frozen-lockfile`, and additionally covers the root and
 # backstage-server lockfiles that CI does not currently enforce.
 
-if needs_bun_root || needs_bun_ui || needs_bun_backstage; then
+if needs_bun_root || needs_bun_ui || needs_bun_webcomp || needs_bun_backstage; then
   section "Bun lockfiles"
   require_tool bun "bun lockfile sync"
 
   if needs_bun_root;      then check_bun_lockfile ".";                else skip "Lockfile sync: . (no changes)"; fi
   if needs_bun_ui;        then check_bun_lockfile "ui";               else skip "Lockfile sync: ui (no changes)"; fi
+  if needs_bun_webcomp;   then check_bun_lockfile "webcomponents";    else skip "Lockfile sync: webcomponents (no changes)"; fi
   if needs_bun_backstage; then check_bun_lockfile "backstage-server"; else skip "Lockfile sync: backstage-server (no changes)"; fi
 else
   skip "Bun lockfiles"
@@ -198,10 +200,44 @@ if needs_operator; then
   require_tool bun "operator UI build"
   require_tool cargo-deny "operator dependency audit"
 
+  # The frontend is typed against types generated from Rust, so bindings come
+  # first — exactly the order .github/workflows/build.yaml uses.
+  step "Bindings up to date"
+  BINDINGS_BEFORE="$(find bindings -type f -name "*.ts" -exec shasum {} + 2>/dev/null | sort || true)"
+  if cargo test --locked export_bindings_ >/dev/null 2>&1; then
+    BINDINGS_AFTER="$(find bindings -type f -name "*.ts" -exec shasum {} + 2>/dev/null | sort || true)"
+    if [ "$BINDINGS_BEFORE" = "$BINDINGS_AFTER" ]; then
+      pass "Bindings up to date"
+    else
+      echo -e "  ${YELLOW}bindings/ was stale and has been regenerated — review and commit it${RESET}"
+      diff <(echo "$BINDINGS_BEFORE") <(echo "$BINDINGS_AFTER") | head -20 | sed 's/^/    /' || true
+      fail "Bindings up to date"
+    fi
+  else
+    fail "Bindings up to date (generation failed)"
+  fi
+
+  # CI additionally requires them committed; surface that here as a reminder
+  BINDING_CHANGES="$(git status --porcelain --untracked-files=all bindings/ || true)"
+  if [ -n "$BINDING_CHANGES" ]; then
+    echo -e "  ${YELLOW}note: bindings/ has uncommitted changes — CI requires them committed:${RESET}"
+    echo "$BINDING_CHANGES" | sed 's/^/    /'
+  fi
+
+  step "Web components build"
+  (
+    cd webcomponents
+    bun install --frozen-lockfile
+    bun run typecheck
+    bun test
+    bun run build
+  ) && pass "Web components build" || fail "Web components build"
+
   step "UI build"
   (
     cd ui
     bun install --frozen-lockfile
+    bun run typecheck
     bun run build
     DIST_SIZE=$(du -sk dist/ | awk '{print $1 * 1024}')
     echo "  UI dist size: ${DIST_SIZE}B ($(echo "scale=1; $DIST_SIZE/1048576" | bc)MB)"
@@ -280,9 +316,30 @@ if needs_docs; then
   require_tool cargo "docs generation"
   require_tool bundle "docs Jekyll build"
 
+  require_tool bun "docs web components"
+
   run_step "docs generate" cargo run --locked -- docs
+
+  # The site loads the shared components bundle; build it the way docs.yml does
+  step "Docs web components"
+  (
+    cargo test --locked export_bindings_ >/dev/null
+    cd webcomponents && bun install --frozen-lockfile && bun run build
+  ) && pass "Docs web components" || fail "Docs web components"
+
   step "Jekyll build"
-  (cd docs && bundle install && bundle exec jekyll build) && pass "Jekyll build" || fail "Jekyll build"
+  (
+    mkdir -p docs/assets/js
+    cp webcomponents/dist/elements.js webcomponents/dist/elements.css docs/assets/js/
+    cd docs && bundle install && bundle exec jekyll build
+  ) && pass "Jekyll build" || fail "Jekyll build"
+
+  # The hosted collection bundle is excluded from Jekyll and copied in verbatim
+  step "Collection bundle served verbatim"
+  (
+    cp -R docs/collections docs/_site/
+    diff -r docs/collections docs/_site/collections
+  ) && pass "Collection bundle served verbatim" || fail "Collection bundle served verbatim"
 else
   skip "docs"
 fi

@@ -64,14 +64,15 @@
       </details>
     </li>
     {% endfor %}
+    <li class="workflows-link"><a href="{{ '/workflows/' | relative_url }}" {% if page.section == 'workflows'
+        %}class="active" {% endif %}>Workflows</a></li>
     <li class="downloads-link"><a href="{{ '/downloads/' | relative_url }}" {% if page.url contains '/downloads/'
         %}class="active" {% endif %}>Downloads</a></li>
   </ul>
 
   <div class="sidebar-footer">
     <p><div><a class="sidebar-nav-item" href="{{ site.github.repo }}"><span class="operator-brand">Operator!</span> GitHub
-        project</a></div><div><a class="sidebar-nav-item" href="{{ site.github.repo }}/tree/main/docs/{{ page.path }}"><small>View this page
-          source on Github</small></a></div></p>
+        project</a></div><div><a class="sidebar-nav-item" href="{{ site.github.repo }}/tree/main/docs/{{ page.path }}"><small>View this page source on Github</small></a></div></p>
     <p></p>
     <div><small class="sidebar-nav-item">Currently v{{ site.version }}</small> |
     <div id="theme-toggle" aria-label="Toggle theme">

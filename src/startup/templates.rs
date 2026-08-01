@@ -100,6 +100,29 @@ fn load_legacy_extras(registry: &mut IssueTypeRegistry, tickets_path: &Path) {
     }
 }
 
+/// Write a collection's icon under the filename its manifest declares.
+///
+/// Best-effort and non-fatal by design: the icon is presentational and never
+/// executed, so a collection without one still installs cleanly. The bare
+/// filename check mirrors `collections::validate::validate_path`, so a hostile
+/// manifest cannot escape the collection directory.
+fn write_collection_icon(dir: &Path, manifest: &CollectionManifest, icon_svg: Option<&str>) {
+    let (Some(icon_path), Some(svg)) = (manifest.icon_path.as_deref(), icon_svg) else {
+        return;
+    };
+    if icon_path.contains('/') || icon_path.contains('\\') || icon_path.starts_with('.') {
+        tracing::warn!(
+            collection = %manifest.id,
+            icon_path,
+            "ignoring collection icon with an unsafe path"
+        );
+        return;
+    }
+    if let Err(e) = fs::write(dir.join(icon_path), svg) {
+        tracing::warn!(collection = %manifest.id, error = %e, "failed to write collection icon");
+    }
+}
+
 /// Write a fetched (or synthesized) collection into its collection-scoped
 /// directory: `templates/<id>/collection.json` + `<KEY>.json`/`<KEY>.md`.
 ///
@@ -109,6 +132,7 @@ pub fn write_fetched_collection(
     templates_path: &Path,
     manifest: &CollectionManifest,
     files: &[(String, String, Option<String>)],
+    icon_svg: Option<&str>,
 ) -> Result<()> {
     let dir = templates_path.join(&manifest.id);
     fs::create_dir_all(&dir)
@@ -118,6 +142,8 @@ pub fn write_fetched_collection(
         dir.join("collection.json"),
         format!("{}\n", manifest.to_json()?),
     )?;
+
+    write_collection_icon(&dir, manifest, icon_svg);
 
     for (key, schema_json, template_md) in files {
         fs::write(dir.join(format!("{key}.json")), schema_json)?;
@@ -198,6 +224,9 @@ fn migrate_legacy_user_types(tickets_path: &Path, templates_path: &Path) -> Resu
         tags: vec!["custom".to_string()],
         compatibility: None,
         tier: CollectionTier::default(),
+        icon_path: None,
+        created: None,
+        updated: None,
         kanban_defaults: None,
         issue_types: files
             .iter()
@@ -207,7 +236,6 @@ fn migrate_legacy_user_types(tickets_path: &Path, templates_path: &Path) -> Resu
                 schema_checksum: String::new(),
                 template_path: md.as_ref().map(|_| format!("{key}.md")),
                 template_checksum: None,
-                workflow_preview_path: None,
             })
             .collect(),
         workflow_hints: None,
@@ -215,7 +243,7 @@ fn migrate_legacy_user_types(tickets_path: &Path, templates_path: &Path) -> Resu
         checksum: None,
     };
 
-    write_fetched_collection(templates_path, &manifest, &files)?;
+    write_fetched_collection(templates_path, &manifest, &files, None)?;
 
     fs::write(
         legacy.join(MIGRATION_MARKER),
@@ -290,6 +318,12 @@ pub fn scaffold_collection(templates_path: &Path, collection: &EmbeddedCollectio
 
     // Write collection manifest
     fs::write(collection_path.join("collection.json"), collection.manifest)?;
+
+    // A scaffolded collection should be byte-identical to its hosted counterpart,
+    // icon included.
+    if let Ok(manifest) = collection.manifest_parsed() {
+        write_collection_icon(&collection_path, &manifest, Some(collection.icon_svg));
+    }
 
     // Write issuetype JSON and markdown files
     for issuetype in collection.issuetypes {
@@ -403,7 +437,7 @@ mod tests {
             CUSTOM_TYPE_JSON.to_string(),
             Some("# Gastown: {{ summary }}\n".to_string()),
         )];
-        write_fetched_collection(&templates_path, &manifest, &files).unwrap();
+        write_fetched_collection(&templates_path, &manifest, &files, None).unwrap();
 
         assert!(templates_path.join("fetched_loop/collection.json").exists());
         assert!(templates_path.join("fetched_loop/GAST.json").exists());
@@ -428,10 +462,9 @@ mod tests {
             schema_checksum: String::new(),
             template_path: None,
             template_checksum: None,
-            workflow_preview_path: None,
         }];
         let files = vec![("GAST".to_string(), CUSTOM_TYPE_JSON.to_string(), None)];
-        write_fetched_collection(&templates_path, &manifest, &files).unwrap();
+        write_fetched_collection(&templates_path, &manifest, &files, None).unwrap();
 
         assert!(templates_path.join("fetched_loop/GAST.json").exists());
         assert!(!templates_path.join("fetched_loop/GAST.md").exists());
@@ -637,6 +670,7 @@ types = ["TASK", "FEAT"]
         assert!(templates_path.join("ralph_loop").exists());
         assert!(templates_path.join("jr_orchestration").exists());
         assert!(templates_path.join("elves_overnight").exists());
+        assert!(templates_path.join("coder").exists());
 
         // `full` was demoted from the embedded set and must not scaffold
         assert!(!templates_path.join("full").exists());
@@ -644,5 +678,71 @@ types = ["TASK", "FEAT"]
         // Underscore-keyed operator types scaffold correctly
         assert!(templates_path.join("operator/AGENT_SETUP.json").exists());
         assert!(templates_path.join("operator/PROJECT_INIT.json").exists());
+    }
+
+    #[test]
+    fn test_write_fetched_collection_persists_the_icon() {
+        let temp_dir = TempDir::new().unwrap();
+        let templates_path = temp_dir.path().join("templates");
+
+        let mut manifest = fetched_manifest("fetched_loop");
+        manifest.icon_path = Some("icon.svg".to_string());
+        let files = vec![(
+            "GAST".to_string(),
+            CUSTOM_TYPE_JSON.to_string(),
+            Some("# Gastown\n".to_string()),
+        )];
+        let svg = r#"<svg role="img" viewBox="0 0 24 24"><title>Fetched</title><path d="M0 0h24v24H0z"/></svg>"#;
+        write_fetched_collection(&templates_path, &manifest, &files, Some(svg)).unwrap();
+
+        let written = templates_path.join("fetched_loop/icon.svg");
+        assert_eq!(std::fs::read_to_string(written).unwrap(), svg);
+    }
+
+    #[test]
+    fn test_write_fetched_collection_survives_a_missing_or_unsafe_icon() {
+        let temp_dir = TempDir::new().unwrap();
+        let templates_path = temp_dir.path().join("templates");
+        let files = vec![("GAST".to_string(), CUSTOM_TYPE_JSON.to_string(), None)];
+
+        // No icon at all: the collection still installs.
+        let manifest = fetched_manifest("no_icon");
+        write_fetched_collection(&templates_path, &manifest, &files, None).unwrap();
+        assert!(templates_path.join("no_icon/GAST.json").exists());
+
+        // A traversal attempt is dropped, not written outside the collection.
+        let mut hostile = fetched_manifest("hostile");
+        hostile.icon_path = Some("../escaped.svg".to_string());
+        write_fetched_collection(&templates_path, &hostile, &files, Some("<svg/>")).unwrap();
+        assert!(templates_path.join("hostile/GAST.json").exists());
+        assert!(!templates_path.join("escaped.svg").exists());
+    }
+
+    #[test]
+    fn test_scaffold_writes_collection_icon_byte_identical_to_embedded() {
+        let temp_dir = TempDir::new().unwrap();
+        let templates_path = temp_dir.path().join("templates");
+
+        scaffold_all_collections(&templates_path).unwrap();
+
+        for collection in EMBEDDED_COLLECTIONS {
+            let icon_path = collection
+                .manifest_parsed()
+                .unwrap()
+                .icon_path
+                .unwrap_or_else(|| panic!("{} declares no icon_path", collection.name));
+            let written = templates_path.join(collection.name).join(&icon_path);
+            assert!(
+                written.is_file(),
+                "{} did not scaffold {icon_path}",
+                collection.name
+            );
+            assert_eq!(
+                std::fs::read_to_string(&written).unwrap(),
+                collection.icon_svg,
+                "{} scaffolded an icon that differs from the embedded bytes",
+                collection.name
+            );
+        }
     }
 }

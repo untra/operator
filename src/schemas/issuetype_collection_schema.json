@@ -27,6 +27,20 @@
       "default": "official",
       "description": "Provenance tier: who authored and maintains the collection. Orthogonal to distribution (curated community-authored collections may ship embedded)."
     },
+    "icon_path": {
+      "type": ["string", "null"],
+      "description": "Bare filename of the collection's SVG icon, next to the manifest. Must satisfy the Simple Icons shape (24x24 viewBox, single path, no fill/stroke so it inherits currentColor). Deliberately not checksummed: presentational, never executed. Required for community-tier collections."
+    },
+    "created": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO-8601 date (YYYY-MM-DD) the collection was first published."
+    },
+    "updated": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO-8601 date (YYYY-MM-DD) of the last substantive revision."
+    },
     "kanban_defaults": {
       "type": ["object", "null"],
       "description": "Descriptive kanban onboarding defaults. v1 is metadata only: suggestions seed the onboarding mapping UI but do not drive sync behavior.",
@@ -61,8 +75,7 @@
           "schema_path": { "type": "string", "description": "Path to the issuetype JSON, relative to the manifest." },
           "schema_checksum": { "type": "string", "description": "SHA-256 (lowercase hex) of the issuetype JSON bytes. Required for hosted manifests; omitted for embedded ones." },
           "template_path": { "type": ["string", "null"], "description": "Optional path to the markdown template, relative to the manifest." },
-          "template_checksum": { "type": ["string", "null"], "description": "SHA-256 (lowercase hex) of the markdown template bytes, if present." },
-          "workflow_preview_path": { "type": ["string", "null"], "description": "Path to a pre-generated workflow preview (.js), relative to the manifest. Filled by the docs producer for visualization; excluded from checksum derivation." }
+          "template_checksum": { "type": ["string", "null"], "description": "SHA-256 (lowercase hex) of the markdown template bytes, if present." }
         }
       }
     },

@@ -811,12 +811,6 @@ fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {
 }
 
 fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> Result<()> {
-    use docs_gen::{
-        cli, collections_manifest, config, config_schema, integrations, issuetype,
-        issuetype_json_schema, jira_api, llms, metadata, openapi, operator_output_schema,
-        project_analysis_schema, schema_index, shortcuts, startup, state_schema, taxonomy,
-        DocGenerator,
-    };
     use std::path::PathBuf;
 
     // Determine output directory (default: ./docs relative to current directory)
@@ -827,97 +821,23 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
 
     println!("Generating documentation to: {}", docs_dir.display());
 
-    // Build list of generators based on --only filter
-    let generators: Vec<Box<dyn DocGenerator>> = match only.as_deref() {
-        Some("taxonomy") => {
-            vec![Box::new(taxonomy::TaxonomyDocGenerator)]
+    // The generator registry lives in docs_gen so the full run, the --only
+    // filter, and this help text can never disagree about what exists.
+    let generators: Vec<Box<dyn docs_gen::DocGenerator>> = match only.as_deref() {
+        Some(key) => {
+            let Some(generator) = docs_gen::generator_for_key(key) else {
+                println!(
+                    "Unknown generator: {key}. Available: {}",
+                    docs_gen::generator_keys().join(", ")
+                );
+                return Ok(());
+            };
+            vec![generator]
         }
-        Some("issuetype") => {
-            vec![Box::new(issuetype::IssuetypeSchemaDocGenerator)]
-        }
-        Some("metadata") => {
-            vec![Box::new(metadata::MetadataSchemaDocGenerator)]
-        }
-        Some("shortcuts") => {
-            vec![Box::new(shortcuts::ShortcutsDocGenerator)]
-        }
-        Some("cli") => {
-            vec![Box::new(cli::CliDocGenerator)]
-        }
-        Some("config") => {
-            vec![Box::new(config::ConfigDocGenerator)]
-        }
-        Some("openapi") => {
-            vec![Box::new(openapi::OpenApiDocGenerator)]
-        }
-        Some("startup") => {
-            vec![Box::new(startup::StartupDocGenerator)]
-        }
-        Some("config-schema") => {
-            vec![Box::new(config_schema::ConfigSchemaDocGenerator)]
-        }
-        Some("state-schema") => {
-            vec![Box::new(state_schema::StateSchemaDocGenerator)]
-        }
-        Some("schema-index") => {
-            vec![Box::new(schema_index::SchemaIndexDocGenerator)]
-        }
-        Some("jira-api") => {
-            vec![Box::new(jira_api::JiraApiDocGenerator)]
-        }
-        Some("operator-output-schema") => {
-            vec![Box::new(
-                operator_output_schema::OperatorOutputSchemaDocGenerator,
-            )]
-        }
-        Some("issuetype-json-schema") => {
-            vec![Box::new(
-                issuetype_json_schema::IssuetypeJsonSchemaDocGenerator,
-            )]
-        }
-        Some("project-analysis-schema") => {
-            vec![Box::new(
-                project_analysis_schema::ProjectAnalysisSchemaDocGenerator,
-            )]
-        }
-        Some("llms") => {
-            vec![Box::new(llms::LlmsTxtDocGenerator)]
-        }
-        Some("collections-manifest") => {
-            vec![Box::new(collections_manifest::CollectionsManifestGenerator)]
-        }
-        Some("maturity") => {
-            vec![Box::new(integrations::MaturityDocGenerator)]
-        }
-        Some(other) => {
-            println!(
-                "Unknown generator: {other}. Available: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi, startup, config-schema, state-schema, schema-index, jira-api, operator-output-schema, issuetype-json-schema, project-analysis-schema, llms, collections-manifest, maturity"
-            );
-            return Ok(());
-        }
-        None => {
-            // Generate all
-            vec![
-                Box::new(taxonomy::TaxonomyDocGenerator),
-                Box::new(issuetype::IssuetypeSchemaDocGenerator),
-                Box::new(metadata::MetadataSchemaDocGenerator),
-                Box::new(shortcuts::ShortcutsDocGenerator),
-                Box::new(cli::CliDocGenerator),
-                Box::new(config::ConfigDocGenerator),
-                Box::new(openapi::OpenApiDocGenerator),
-                Box::new(startup::StartupDocGenerator),
-                Box::new(config_schema::ConfigSchemaDocGenerator),
-                Box::new(state_schema::StateSchemaDocGenerator),
-                Box::new(schema_index::SchemaIndexDocGenerator),
-                Box::new(jira_api::JiraApiDocGenerator),
-                Box::new(operator_output_schema::OperatorOutputSchemaDocGenerator),
-                Box::new(issuetype_json_schema::IssuetypeJsonSchemaDocGenerator),
-                Box::new(project_analysis_schema::ProjectAnalysisSchemaDocGenerator),
-                Box::new(llms::LlmsTxtDocGenerator),
-                Box::new(collections_manifest::CollectionsManifestGenerator),
-                Box::new(integrations::MaturityDocGenerator),
-            ]
-        }
+        None => docs_gen::all_generators()
+            .into_iter()
+            .map(|(_, generator)| generator)
+            .collect(),
     };
 
     for generator in generators {

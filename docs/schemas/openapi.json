@@ -997,6 +997,59 @@
         }
       }
     },
+    "/api/v1/issuetypes/{key}/document": {
+      "get": {
+        "tags": [
+          "Issue Types"
+        ],
+        "summary": "Get an issue type's Operator workflow document",
+        "description": "Returns the issue type verbatim, in the same shape as the `<KEY>.json` files\nin a hosted collection bundle (`/schemas/issuetype.json`). This is the\n*native* Operator workflow — the ordered step graph every export format is\nderived from — so the web UI and the docs site render identical graphs from\nidentical bytes. Prefer [`get_one`] for display metadata; use this when you\nneed the full step structure including step types, reject edges, and\nper-type fan-out configuration.",
+        "operationId": "issuetypes_get_document",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key (e.g., FEAT, FIX)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "description": "Collection to scope the lookup to (defaults to resolution-order lookup)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator workflow document",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/issuetypes/{key}/steps": {
       "get": {
         "tags": [
@@ -2842,14 +2895,43 @@
           "name",
           "description",
           "types",
-          "is_active"
+          "is_active",
+          "tier"
         ],
         "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Human author/attribution (present for hosted collections)."
+          },
+          "created": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO-8601 date the collection was first published."
+          },
           "description": {
             "type": "string"
           },
+          "icon_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Bare filename of the collection's SVG icon, next to its manifest."
+          },
           "is_active": {
             "type": "boolean"
+          },
+          "license": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPDX license id."
           },
           "name": {
             "type": "string"
@@ -2861,11 +2943,29 @@
             ],
             "description": "Publisher identifier (present for hosted collections)."
           },
+          "tier": {
+            "type": "string",
+            "description": "Provenance tier: `official` or `community`."
+          },
           "types": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "updated": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO-8601 date of the last substantive revision."
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Link to the collection's source repository or project page."
           },
           "version": {
             "type": [

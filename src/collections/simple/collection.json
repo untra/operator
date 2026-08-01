@@ -11,6 +11,9 @@
   "tags": [
     "builtin"
   ],
+  "icon_path": "icon.svg",
+  "created": "2026-01-08",
+  "updated": "2026-07-01",
   "issue_types": [
     {
       "key": "TASK",

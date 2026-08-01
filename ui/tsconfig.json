@@ -12,7 +12,8 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@operator/bindings/*": ["../bindings/*"]
+      "@operator/bindings/*": ["../bindings/*"],
+      "@operator/webcomponents": ["../webcomponents/dist/index.d.ts"]
     }
   },
   "include": ["src"]

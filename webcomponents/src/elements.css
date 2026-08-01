@@ -1,0 +1,94 @@
+/*
+ * Styles owned by the custom elements themselves.
+ *
+ * Only the DOM these components create is styled here. The card grid, table,
+ * and search input live in the host page's stylesheet, because that markup is
+ * rendered by the docs generator rather than by this bundle.
+ *
+ * Colors come from the shared brand tokens (docs/assets/css/tokens.css), which
+ * both the docs site and the SPA already load — never raw hex.
+ */
+
+operator-workflow-explorer {
+  display: block;
+}
+
+.workflow-explorer-body {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .workflow-explorer-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.workflow-explorer-rail ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.workflow-explorer-rail button {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--color-green-l1);
+  color: var(--color-cream);
+}
+
+.workflow-explorer-rail button:hover {
+  background: var(--color-green-l2);
+}
+
+.workflow-explorer-rail button.is-selected {
+  background: var(--color-green-l3);
+}
+
+.workflow-explorer-canvas {
+  min-width: 0;
+}
+
+.workflow-explorer-title {
+  margin: 0 0 0.25rem;
+}
+
+.workflow-explorer-title code {
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+
+.workflow-explorer-description {
+  margin: 0 0 0.75rem;
+  color: var(--color-cornflower);
+}
+
+.operator-workflow-canvas {
+  width: 100%;
+  border: 1px solid var(--color-cornflower);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.workflow-explorer-loading,
+.workflow-explorer-error,
+.operator-workflow-empty {
+  padding: 1rem;
+  border-radius: 6px;
+  color: var(--color-cornflower);
+}
+
+.workflow-explorer-error {
+  color: var(--color-salmon);
+}

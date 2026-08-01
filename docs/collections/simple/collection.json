@@ -13,6 +13,9 @@
   ],
   "compatibility": null,
   "tier": "official",
+  "icon_path": "icon.svg",
+  "created": "2026-01-08",
+  "updated": "2026-07-01",
   "kanban_defaults": null,
   "issue_types": [
     {
@@ -20,8 +23,7 @@
       "schema_path": "TASK.json",
       "schema_checksum": "f654229454da050ca038c273cc74884c2dbe68f09b293eee3764f23d6771b939",
       "template_path": "TASK.md",
-      "template_checksum": "7a71bf692588af1d1ac5d9192edd64316353ada616e22019dfff7683ab5d09c4",
-      "workflow_preview_path": null
+      "template_checksum": "7a71bf692588af1d1ac5d9192edd64316353ada616e22019dfff7683ab5d09c4"
     }
   ],
   "workflow_hints": {

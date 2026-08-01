@@ -88,6 +88,9 @@ fn documented_router() -> OpenApiRouter<ApiState> {
             routes::issuetypes::update,
             routes::issuetypes::delete
         ))
+        // The native Operator workflow document, byte-shaped like a hosted
+        // collection's `<KEY>.json` so every surface renders the same graph.
+        .routes(routes!(routes::issuetypes::get_document))
         // Step endpoints
         .routes(routes!(routes::steps::list))
         .routes(routes!(routes::steps::get_one, routes::steps::update))

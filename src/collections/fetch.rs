@@ -100,6 +100,11 @@ pub struct FetchedCollection {
     pub manifest: CollectionManifest,
     /// (key, `schema_json`, `template_md`) for each issue type, in manifest order.
     pub files: Vec<(String, String, Option<String>)>,
+    /// The collection's SVG icon, if it declared one and the fetch succeeded.
+    ///
+    /// Best-effort and unverified by design: the icon is presentational and
+    /// never executed, so a missing or malformed one must not fail an install.
+    pub icon_svg: Option<String>,
 }
 
 fn http_client(timeout_secs: u64) -> Result<reqwest::Client> {
@@ -212,7 +217,27 @@ pub async fn fetch_collection(
         files.push((it.key.clone(), schema_json, template_md));
     }
 
-    Ok(FetchedCollection { manifest, files })
+    // 5. The icon, best-effort. Deliberately after verification and outside it:
+    //    a collection that renders without its glyph is still a good install.
+    let icon_svg = match &manifest.icon_path {
+        Some(path) => {
+            let url = resolve_url(&manifest_url, path);
+            match get_bytes(&client, &url).await {
+                Ok(bytes) => String::from_utf8(bytes).ok(),
+                Err(e) => {
+                    tracing::debug!(error = %e, collection = %entry.id, "collection icon fetch failed");
+                    None
+                }
+            }
+        }
+        None => None,
+    };
+
+    Ok(FetchedCollection {
+        manifest,
+        files,
+        icon_svg,
+    })
 }
 
 /// Where a resolved collection's definition came from.
@@ -232,6 +257,8 @@ pub struct ResolvedCollection {
     pub origin: CollectionOrigin,
     /// Why we fell back to embedded, if applicable (e.g. checksum failure).
     pub note: Option<String>,
+    /// The collection's SVG icon, if available (best-effort, unverified).
+    pub icon_svg: Option<String>,
 }
 
 /// Build a [`FetchedCollection`] from an embedded collection, computing
@@ -256,7 +283,11 @@ pub fn embedded_fetched(embedded: &EmbeddedCollection) -> Result<FetchedCollecti
         files.push((entry.key.clone(), it.schema_json.to_string(), template));
     }
     manifest.checksum = Some(derive_manifest_checksum(&manifest.issue_types));
-    Ok(FetchedCollection { manifest, files })
+    Ok(FetchedCollection {
+        manifest,
+        files,
+        icon_svg: Some(embedded.icon_svg.to_string()),
+    })
 }
 
 /// Resolve the collections to offer in the setup picker.
@@ -283,6 +314,7 @@ pub async fn resolve_for_setup(
                             files: fc.files,
                             origin: CollectionOrigin::Hosted,
                             note: None,
+                            icon_svg: fc.icon_svg,
                         });
                     }
                     Err(e) => {
@@ -295,6 +327,7 @@ pub async fn resolve_for_setup(
                                     files: fc.files,
                                     origin: CollectionOrigin::Embedded,
                                     note: Some(e.to_string()),
+                                    icon_svg: fc.icon_svg,
                                 });
                             }
                         }
@@ -315,6 +348,7 @@ pub async fn resolve_for_setup(
                 files: fc.files,
                 origin: CollectionOrigin::Embedded,
                 note: None,
+                icon_svg: fc.icon_svg,
             });
         }
     }
@@ -333,7 +367,6 @@ mod tests {
             schema_checksum: schema_sum.to_string(),
             template_path: None,
             template_checksum: None,
-            workflow_preview_path: None,
         }
     }
 

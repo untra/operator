@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 use tracing::{debug, info, warn};
 
-use super::collection::{CollectionsFile, IssueTypeCollection};
+use super::collection::{CollectionMetadata, CollectionsFile, IssueTypeCollection};
 use super::schema::{IssueType, IssueTypeSource};
 
 /// A loaded collection with its issue types
@@ -20,16 +20,8 @@ pub struct LoadedCollection {
     pub types: HashMap<String, IssueType>,
     /// Ordered list of type keys (from collection.toml types field, or derived)
     pub type_order: Vec<String>,
-    /// Descriptive workflow hints (from collection.json, if present)
-    pub workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
-    /// Collection semver (from collection.json, if present)
-    pub version: Option<String>,
-    /// Publisher (from collection.json, if present)
-    pub publisher: Option<String>,
-    /// Author attribution (from collection.json, if present)
-    pub author: Option<String>,
-    /// Provenance tier (from collection.json; official when absent)
-    pub tier: crate::collections::manifest::CollectionTier,
+    /// Descriptive metadata from collection.json (empty for legacy collections)
+    pub metadata: CollectionMetadata,
 }
 
 /// Load imported issue types from the imports subdirectory
@@ -271,11 +263,7 @@ pub fn load_collections_from_dir(
                 description: meta.description,
                 types,
                 type_order: meta.type_order,
-                workflow_hints: meta.workflow_hints,
-                version: meta.version,
-                publisher: meta.publisher,
-                author: meta.author,
-                tier: meta.tier,
+                metadata: meta.metadata,
             },
         );
     }
@@ -341,14 +329,12 @@ fn load_types_from_collection_dir(
 
 /// Metadata for a loaded collection, sourced from `collection.json` (preferred)
 /// or the legacy `collection.toml`.
-struct CollectionMetadata {
+struct LoadedMetadata {
     description: String,
     type_order: Vec<String>,
-    workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
-    version: Option<String>,
-    publisher: Option<String>,
-    author: Option<String>,
-    tier: crate::collections::manifest::CollectionTier,
+    /// Descriptive metadata; empty for legacy `collection.toml` collections,
+    /// which predate the manifest format.
+    metadata: CollectionMetadata,
 }
 
 /// Load optional collection metadata from `collection.json` (preferred) or the
@@ -356,7 +342,7 @@ struct CollectionMetadata {
 fn load_collection_metadata(
     collection_path: &Path,
     types: &HashMap<String, IssueType>,
-) -> CollectionMetadata {
+) -> LoadedMetadata {
     // Preferred: collection.json (current format).
     let json_path = collection_path.join("collection.json");
     if json_path.exists() {
@@ -369,14 +355,10 @@ fn load_collection_metadata(
                 } else {
                     manifest.type_keys()
                 };
-                return CollectionMetadata {
+                return LoadedMetadata {
+                    metadata: CollectionMetadata::from(&manifest),
                     description: manifest.description,
                     type_order,
-                    workflow_hints: manifest.workflow_hints,
-                    version: (!manifest.version.is_empty()).then_some(manifest.version),
-                    publisher: manifest.publisher,
-                    author: manifest.author,
-                    tier: manifest.tier,
                 };
             }
         }
@@ -406,14 +388,10 @@ fn load_collection_metadata(
                     })
                     .unwrap_or_else(|| derive_type_order(types));
 
-                return CollectionMetadata {
+                return LoadedMetadata {
                     description,
                     type_order,
-                    workflow_hints: None,
-                    version: None,
-                    publisher: None,
-                    author: None,
-                    tier: crate::collections::manifest::CollectionTier::default(),
+                    metadata: CollectionMetadata::default(),
                 };
             }
         }
@@ -431,14 +409,10 @@ fn load_collection_metadata(
         types.len()
     );
 
-    CollectionMetadata {
+    LoadedMetadata {
         description,
         type_order: derive_type_order(types),
-        workflow_hints: None,
-        version: None,
-        publisher: None,
-        author: None,
-        tier: crate::collections::manifest::CollectionTier::default(),
+        metadata: CollectionMetadata::default(),
     }
 }
 

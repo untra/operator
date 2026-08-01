@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "coder",
+  "name": "Coder",
+  "description": "Linear-synced engineering flow: Feature, Improvement, and Bug work delegated to coding agents.",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "untra",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": [
+    "community",
+    "linear",
+    "kanban",
+    "engineering"
+  ],
+  "compatibility": null,
+  "tier": "community",
+  "icon_path": "icon.svg",
+  "created": "2026-08-01",
+  "updated": "2026-08-01",
+  "kanban_defaults": {
+    "suggested_type_mappings": {
+      "Bug": "BUG",
+      "Feature": "FEATURE",
+      "Improvement": "IMPROVEMENT"
+    }
+  },
+  "issue_types": [
+    {
+      "key": "FEATURE",
+      "schema_path": "FEATURE.json",
+      "schema_checksum": "1d8146f05bacf6db3c568eebb040c2082a3f64b71e7b6c2eb8d0895357ed99a4",
+      "template_path": "FEATURE.md",
+      "template_checksum": "57bd76a8423725e27520a89ed8704f47e7a620a5d6d8c044058f492311027786"
+    },
+    {
+      "key": "IMPROVEMENT",
+      "schema_path": "IMPROVEMENT.json",
+      "schema_checksum": "810c73ac51239e6f7327529b9b48ca0ba0522a0fdeadff76cdc6835d074ee440",
+      "template_path": "IMPROVEMENT.md",
+      "template_checksum": "9140c8c2ee7833c0158596a43f8e492cff24f5400631c161b5e8226699a7268a"
+    },
+    {
+      "key": "BUG",
+      "schema_path": "BUG.json",
+      "schema_checksum": "7f5b5d4682893d9f6ba4da2f461893bafa8e93d88eace3f5f068caf32589c37e",
+      "template_path": "BUG.md",
+      "template_checksum": "f03d4a2fc843553d42d281c6af9054348f42e0ebf11c0562e37c97a0b7261467"
+    }
+  ],
+  "workflow_hints": {
+    "loop_kind": "kanban_synced_single_pass",
+    "memory_surfaces": [
+      "ticket",
+      ".tickets/plans/{{ id }}.md"
+    ],
+    "review_gates": [
+      "plan_review",
+      "test_suite",
+      "pr_review"
+    ],
+    "external_tools": [
+      "git",
+      "gh",
+      "linear"
+    ],
+    "stop_conditions": [
+      "tests_green",
+      "pr_created"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": [
+    "FEATURE",
+    "IMPROVEMENT",
+    "BUG"
+  ],
+  "checksum": "b677f89b72755cc2314622bb8148065527f83b7a31c83859b043f8bbb18bda38"
+}

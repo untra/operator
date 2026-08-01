@@ -8,13 +8,16 @@
   "author": "Aigora",
   "url": "https://github.com/aigorahub/elves",
   "license": "MIT",
-  "tier": "community",
   "tags": [
     "agentic-loop",
     "overnight",
     "batch",
     "elves"
   ],
+  "tier": "community",
+  "icon_path": "icon.svg",
+  "created": "2026-06-16",
+  "updated": "2026-07-01",
   "issue_types": [
     {
       "key": "ELVSTAGE",

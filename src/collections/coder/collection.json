@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "coder",
+  "name": "Coder",
+  "description": "Linear-synced engineering flow: Feature, Improvement, and Bug work delegated to coding agents.",
+  "version": "1.0.0",
+  "publisher": "untra",
+  "author": "untra",
+  "url": "https://github.com/untra/operator",
+  "license": "MIT",
+  "tags": [
+    "community",
+    "linear",
+    "kanban",
+    "engineering"
+  ],
+  "tier": "community",
+  "icon_path": "icon.svg",
+  "created": "2026-08-01",
+  "updated": "2026-08-01",
+  "kanban_defaults": {
+    "suggested_type_mappings": {
+      "Feature": "FEATURE",
+      "Improvement": "IMPROVEMENT",
+      "Bug": "BUG"
+    }
+  },
+  "issue_types": [
+    {
+      "key": "FEATURE",
+      "schema_path": "FEATURE.json",
+      "template_path": "FEATURE.md"
+    },
+    {
+      "key": "IMPROVEMENT",
+      "schema_path": "IMPROVEMENT.json",
+      "template_path": "IMPROVEMENT.md"
+    },
+    {
+      "key": "BUG",
+      "schema_path": "BUG.json",
+      "template_path": "BUG.md"
+    }
+  ],
+  "workflow_hints": {
+    "loop_kind": "kanban_synced_single_pass",
+    "memory_surfaces": [
+      "ticket",
+      ".tickets/plans/{{ id }}.md"
+    ],
+    "review_gates": [
+      "plan_review",
+      "test_suite",
+      "pr_review"
+    ],
+    "external_tools": [
+      "git",
+      "gh",
+      "linear"
+    ],
+    "stop_conditions": [
+      "tests_green",
+      "pr_created"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
+  "default_selected": [
+    "FEATURE",
+    "IMPROVEMENT",
+    "BUG"
+  ]
+}

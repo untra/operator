@@ -12,6 +12,10 @@ on:
       - 'src/collections/**'
       - 'collections/**'
       - 'src/schemas/**'
+      # The shared components bundle ships with the site, and the workflow
+      # exporter's ordering rule is mirrored by the graph mapper.
+      - 'webcomponents/**'
+      - 'src/workflow_gen/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -54,6 +58,30 @@ jobs:
       - name: Generate reference docs
         run: cargo run --locked -- docs
 
+      # The components are typed against these; generate before they compile.
+      - name: Generate TypeScript bindings
+        run: cargo test --locked export_bindings_
+
+      # Shared components, built before Jekyll so the site never needs a
+      # prebuilt bundle committed to the repo.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Build shared web components
+        working-directory: webcomponents
+        run: |
+          bun install --frozen-lockfile
+          bun run typecheck
+          bun test
+          bun run build
+
+      - name: Stage web components into the site
+        run: |
+          mkdir -p docs/assets/js
+          cp webcomponents/dist/elements.js webcomponents/dist/elements.css docs/assets/js/
+
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -68,6 +96,16 @@ jobs:
       - name: Build Jekyll site
         run: bundle exec jekyll build
         working-directory: docs
+
+      # The hosted collection bundle is excluded from Jekyll processing (see
+      # docs/_config.yml) and copied in verbatim, so every file operator fetches
+      # matches the SHA-256 recorded in its manifest.
+      - name: Stage the collection bundle verbatim
+        run: cp -R docs/collections docs/_site/
+
+      - name: Verify the served bundle is byte-identical
+        run: |
+          diff -r docs/collections docs/_site/collections
 
       - name: Deploy to gh-pages
         if: github.event_name == 'workflow_dispatch'

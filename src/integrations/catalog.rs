@@ -74,7 +74,7 @@ impl Vertical {
             Vertical::LlmTool => "LLM Tool",
             Vertical::Platform => "Platform",
             Vertical::Integration => "Integration",
-            Vertical::Workflows => "Workflow Format",
+            Vertical::Workflows => "Workflow Export Format",
         }
     }
 }

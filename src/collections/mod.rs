@@ -20,11 +20,14 @@ pub struct EmbeddedIssueType {
     pub template_md: &'static str,
 }
 
-/// An embedded collection with manifest and issuetypes
+/// An embedded collection with manifest, icon, and issuetypes
 #[derive(Debug, Clone)]
 pub struct EmbeddedCollection {
     pub name: &'static str,
     pub manifest: &'static str,
+    /// Simple Icons-shaped SVG identifying the collection, matching the
+    /// manifest's `icon_path`. Shape is enforced by `tests/collection_icons.rs`.
+    pub icon_svg: &'static str,
     pub issuetypes: &'static [EmbeddedIssueType],
 }
 
@@ -41,6 +44,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     EmbeddedCollection {
         name: "simple",
         manifest: include_str!("simple/collection.json"),
+        icon_svg: include_str!("simple/icon.svg"),
         issuetypes: &[EmbeddedIssueType {
             key: "TASK",
             schema_json: include_str!("simple/TASK.json"),
@@ -51,6 +55,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     EmbeddedCollection {
         name: "dev_kanban",
         manifest: include_str!("dev_kanban/collection.json"),
+        icon_svg: include_str!("dev_kanban/icon.svg"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "TASK",
@@ -73,6 +78,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     EmbeddedCollection {
         name: "devops_kanban",
         manifest: include_str!("devops_kanban/collection.json"),
+        icon_svg: include_str!("devops_kanban/icon.svg"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "TASK",
@@ -105,6 +111,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     EmbeddedCollection {
         name: "operator",
         manifest: include_str!("operator/collection.json"),
+        icon_svg: include_str!("operator/icon.svg"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "ASSESS",
@@ -140,6 +147,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     EmbeddedCollection {
         name: "ralph_loop",
         manifest: include_str!("ralph_loop/collection.json"),
+        icon_svg: include_str!("ralph_loop/icon.svg"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "PRD",
@@ -162,6 +170,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     EmbeddedCollection {
         name: "jr_orchestration",
         manifest: include_str!("jr_orchestration/collection.json"),
+        icon_svg: include_str!("jr_orchestration/icon.svg"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "JRPLAN",
@@ -194,6 +203,7 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
     EmbeddedCollection {
         name: "elves_overnight",
         manifest: include_str!("elves_overnight/collection.json"),
+        icon_svg: include_str!("elves_overnight/icon.svg"),
         issuetypes: &[
             EmbeddedIssueType {
                 key: "ELVSTAGE",
@@ -214,6 +224,29 @@ pub static EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
                 key: "ELVRPT",
                 schema_json: include_str!("elves_overnight/ELVRPT.json"),
                 template_md: include_str!("elves_overnight/ELVRPT.md"),
+            },
+        ],
+    },
+    // Coder collection: Linear-synced FEATURE, IMPROVEMENT, BUG
+    EmbeddedCollection {
+        name: "coder",
+        manifest: include_str!("coder/collection.json"),
+        icon_svg: include_str!("coder/icon.svg"),
+        issuetypes: &[
+            EmbeddedIssueType {
+                key: "FEATURE",
+                schema_json: include_str!("coder/FEATURE.json"),
+                template_md: include_str!("coder/FEATURE.md"),
+            },
+            EmbeddedIssueType {
+                key: "IMPROVEMENT",
+                schema_json: include_str!("coder/IMPROVEMENT.json"),
+                template_md: include_str!("coder/IMPROVEMENT.md"),
+            },
+            EmbeddedIssueType {
+                key: "BUG",
+                schema_json: include_str!("coder/BUG.json"),
+                template_md: include_str!("coder/BUG.md"),
             },
         ],
     },
@@ -270,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_embedded_collections_count() {
-        assert_eq!(EMBEDDED_COLLECTIONS.len(), 7);
+        assert_eq!(EMBEDDED_COLLECTIONS.len(), 8);
     }
 
     #[test]
@@ -286,7 +319,9 @@ mod tests {
         for collection in EMBEDDED_COLLECTIONS {
             let m = collection.manifest_parsed().unwrap();
             let expected = match collection.name {
-                "ralph_loop" | "jr_orchestration" | "elves_overnight" => CollectionTier::Community,
+                "ralph_loop" | "jr_orchestration" | "elves_overnight" | "coder" => {
+                    CollectionTier::Community
+                }
                 _ => CollectionTier::Official,
             };
             assert_eq!(m.tier, expected, "tier mismatch for {}", collection.name);
@@ -347,6 +382,10 @@ mod tests {
         let elves = get_embedded_collection("elves_overnight").unwrap();
         assert_eq!(elves.name, "elves_overnight");
         assert_eq!(elves.issuetypes.len(), 4);
+
+        let coder = get_embedded_collection("coder").unwrap();
+        assert_eq!(coder.name, "coder");
+        assert_eq!(coder.issuetypes.len(), 3);
     }
 
     #[test]

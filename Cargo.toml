@@ -30,8 +30,8 @@ operator-relay = { path = "crates/relay" }
 # Bumping either here pulls a second ratatui/crossterm into the tree and the
 # `Style`/`KeyEvent` types stop unifying in `form_field.rs`. Revisit when
 # upstream `tui-textarea` supports ratatui 0.30.
-ratatui = "0.29"
-crossterm = "0.28"
+ratatui = "0.30"
+crossterm = "0.29"
 tui-textarea = "0.7"
 
 # Templating

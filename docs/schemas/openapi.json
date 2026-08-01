@@ -3461,6 +3461,13 @@
             },
             "description": "Additional CLI flags"
           },
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent\nCLI on over SSH. `None` = launch locally."
+          },
           "operator_relay": {
             "type": [
               "boolean",
@@ -3526,6 +3533,13 @@
               "type": "string"
             },
             "description": "Additional CLI flags"
+          },
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local)"
           },
           "operator_relay": {
             "type": [
@@ -4327,7 +4341,8 @@
         "enum": [
           "jira",
           "linear",
-          "github"
+          "github",
+          "openspec"
         ]
       },
       "KanbanStatusMapping": {
@@ -4699,6 +4714,16 @@
               }
             ]
           },
+          "openspec": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OpenspecSourceDto"
+              }
+            ]
+          },
           "provider": {
             "$ref": "#/components/schemas/KanbanProviderKind"
           }
@@ -4754,6 +4779,16 @@
               },
               {
                 "$ref": "#/components/schemas/LinearCredentials"
+              }
+            ]
+          },
+          "openspec": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OpenspecSourceDto"
               }
             ]
           },
@@ -5085,6 +5120,19 @@
           "review_type": {
             "type": "string",
             "description": "Review type: \"none\", \"plan\", \"visual\", \"pr\""
+          }
+        }
+      },
+      "OpenspecSourceDto": {
+        "type": "object",
+        "description": "OpenSpec source location supplied during onboarding. Not a credential —\nOpenSpec reads local markdown; there is no secret to validate or store.",
+        "required": [
+          "root_path"
+        ],
+        "properties": {
+          "root_path": {
+            "type": "string",
+            "description": "Directory containing the OpenSpec `changes/` tree (e.g. \"/repo/openspec\")"
           }
         }
       },
@@ -6357,6 +6405,16 @@
               }
             ]
           },
+          "openspec": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OpenspecSourceDto"
+              }
+            ]
+          },
           "provider": {
             "$ref": "#/components/schemas/KanbanProviderKind"
           }
@@ -6661,6 +6719,16 @@
               }
             ]
           },
+          "openspec": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WriteOpenspecConfigBody"
+              }
+            ]
+          },
           "provider": {
             "$ref": "#/components/schemas/KanbanProviderKind"
           }
@@ -6716,6 +6784,31 @@
           },
           "workspace_key": {
             "type": "string"
+          }
+        }
+      },
+      "WriteOpenspecConfigBody": {
+        "type": "object",
+        "description": "Body for writing an OpenSpec instance config section.",
+        "required": [
+          "instance",
+          "root_path"
+        ],
+        "properties": {
+          "instance": {
+            "type": "string",
+            "description": "Instance name, used as the `[kanban.openspec.<instance>]` key"
+          },
+          "project": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Operator project stamped on imported tickets (optional)"
+          },
+          "root_path": {
+            "type": "string",
+            "description": "Directory containing the OpenSpec `changes/` tree"
           }
         }
       },

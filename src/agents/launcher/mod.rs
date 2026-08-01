@@ -10,6 +10,7 @@ pub mod interpolation;
 pub(crate) mod llm_command;
 mod options;
 pub(crate) mod prompt;
+pub(crate) mod remote;
 mod step_config;
 mod tmux_session;
 pub mod worktree_setup;
@@ -341,6 +342,16 @@ impl Launcher {
             ui_port: self.config.rest_api.port,
         };
 
+        // Remote launches: verify the host is reachable and provisioned before
+        // any session or workspace is created.
+        if let Some(ref host) = options.remote_host {
+            let tool = options
+                .provider
+                .as_ref()
+                .map_or("claude", |p| p.tool.as_str());
+            remote::run_preflight(host, tool)?;
+        }
+
         // Dispatch based on session wrapper type
         let (session_name, wrapper_name, cmux_refs) =
             if self.config.sessions.wrapper == SessionWrapperType::Cmux {
@@ -436,6 +447,11 @@ impl Launcher {
             state.update_agent_worktree_path(&agent_id, worktree_path)?;
         }
 
+        // Store remote host so the dashboard can annotate the agent
+        if let Some(ref host) = options.remote_host {
+            state.update_agent_remote_host(&agent_id, &host.name)?;
+        }
+
         // Set the current step in state
         if !ticket.step.is_empty() {
             state.update_agent_step(&agent_id, &ticket.step)?;
@@ -504,7 +520,9 @@ impl Launcher {
         crate::agents::delegator_resolution::apply_delegator_launch_config(
             &mut opts,
             &delegator.launch_config,
-        );
+            &self.config,
+        )
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
         opts.session_suffix = Some(variant_key.to_string());
         Ok(opts)
     }
@@ -1341,6 +1359,17 @@ impl Launcher {
             ui_port: self.config.rest_api.port,
         };
 
+        // Remote relaunches preflight too: the wrapper is regenerated and the
+        // remote session reattached, so the host must still be reachable.
+        if let Some(ref host) = options.launch_options.remote_host {
+            let tool = options
+                .launch_options
+                .provider
+                .as_ref()
+                .map_or("claude", |p| p.tool.as_str());
+            remote::run_preflight(host, tool)?;
+        }
+
         // Dispatch based on session wrapper type
         let (session_name, wrapper_name, cmux_refs) =
             if self.config.sessions.wrapper == SessionWrapperType::Cmux {
@@ -1434,6 +1463,11 @@ impl Launcher {
         // Store worktree path in state (if one was created)
         if let Some(ref worktree_path) = ticket.worktree_path {
             state.update_agent_worktree_path(&agent_id, worktree_path)?;
+        }
+
+        // Store remote host so the dashboard can annotate the agent
+        if let Some(ref host) = options.launch_options.remote_host {
+            state.update_agent_remote_host(&agent_id, &host.name)?;
         }
 
         // Set the current step in state

@@ -211,6 +211,16 @@ enum Commands {
         project: Option<String>,
     },
 
+    /// Import tickets from configured kanban providers (jira, linear, github, openspec)
+    Import {
+        /// Provider slug (e.g. openspec). Omit to sync every configured provider.
+        provider: Option<String>,
+
+        /// Project/change reference (e.g. an `OpenSpec` change id, a Jira project key).
+        /// Omit to sync all of the provider's configured collections.
+        reference: Option<String>,
+    },
+
     /// Create a new ticket from template
     Create {
         /// Template type (feature, fix, spike, investigation)
@@ -391,6 +401,12 @@ async fn main() -> Result<()> {
             project,
         }) => {
             cmd_alert(&config, source, message, severity, project).await?;
+        }
+        Some(Commands::Import {
+            provider,
+            reference,
+        }) => {
+            cmd_import(&config, provider, reference).await?;
         }
         Some(Commands::Create { template, project }) => {
             cmd_create(&config, template, project).await?;
@@ -727,6 +743,72 @@ async fn cmd_alert(
     Ok(())
 }
 
+async fn cmd_import(
+    config: &Config,
+    provider: Option<String>,
+    reference: Option<String>,
+) -> Result<()> {
+    use api::providers::kanban::KanbanProviderType;
+    use services::kanban_sync::KanbanSyncService;
+
+    let service = KanbanSyncService::new(config);
+
+    let provider = match provider {
+        None => {
+            let result = service.sync_all().await?;
+            println!("{}", result.summary());
+            print_sync_details(&result);
+            return Ok(());
+        }
+        Some(p) => p.to_lowercase(),
+    };
+
+    if KanbanProviderType::from_slug(&provider).is_none() {
+        anyhow::bail!(
+            "Unknown kanban provider: {provider}. Use 'jira', 'linear', 'github', or 'openspec'."
+        );
+    }
+
+    let collections: Vec<(String, String)> = if let Some(reference) = reference {
+        vec![(provider.clone(), reference)]
+    } else {
+        let configured: Vec<(String, String)> = service
+            .configured_collections()
+            .into_iter()
+            .filter(|c| c.provider == provider)
+            .map(|c| (c.provider, c.project_key))
+            .collect();
+        if configured.is_empty() {
+            anyhow::bail!(
+                "No {provider} collections configured. Add a [kanban.{provider}.<name>] entry to operator.toml."
+            );
+        }
+        configured
+    };
+
+    for (provider_name, project_key) in collections {
+        match service.sync_collection(&provider_name, &project_key).await {
+            Ok(result) => {
+                println!("{provider_name}/{project_key}: {}", result.summary());
+                print_sync_details(&result);
+            }
+            Err(e) => {
+                eprintln!("{provider_name}/{project_key}: sync failed: {e}");
+            }
+        }
+    }
+    Ok(())
+}
+
+fn print_sync_details(result: &services::kanban_sync::SyncResult) {
+    for key in &result.created {
+        println!("  created  {key}");
+    }
+    for error in &result.errors {
+        eprintln!("  error    {error}");
+    }
+}
+
 async fn cmd_create(
     config: &Config,
     template: Option<String>,
@@ -933,11 +1015,11 @@ fn cmd_setup(
 
     // Validate kanban provider if specified
     if let Some(ref provider) = kanban_provider {
-        match provider.to_lowercase().as_str() {
-            "jira" | "linear" => {}
-            other => {
-                anyhow::bail!("Unknown kanban provider: {other}. Use 'jira' or 'linear'.");
-            }
+        if api::providers::kanban::KanbanProviderType::from_slug(&provider.to_lowercase()).is_none()
+        {
+            anyhow::bail!(
+                "Unknown kanban provider: {provider}. Use 'jira', 'linear', 'github', or 'openspec'."
+            );
         }
     }
 

@@ -16,7 +16,7 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 /** Kanban provider types */
-export type KanbanProviderType = 'jira' | 'linear' | 'github';
+export type KanbanProviderType = 'jira' | 'linear' | 'github' | 'openspec';
 
 /** Detected kanban workspace with connection details */
 export interface KanbanWorkspace {

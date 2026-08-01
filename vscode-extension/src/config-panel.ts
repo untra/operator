@@ -619,6 +619,7 @@ export const KANBAN_PROVIDERS: Record<string, KanbanProviderMeta> = {
   jira: { instanceKeyField: 'domain', defaultInstanceKey: 'your-org.atlassian.net' },
   linear: { instanceKeyField: 'team_id', defaultInstanceKey: 'default-team' },
   github: { instanceKeyField: 'owner', defaultInstanceKey: 'your-org' },
+  openspec: { instanceKeyField: 'instance', defaultInstanceKey: 'my-repo' },
 };
 
 /** Slugs of every supported kanban provider, in catalog order. */

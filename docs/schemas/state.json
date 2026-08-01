@@ -253,6 +253,14 @@
             "null"
           ],
           "default": null
+        },
+        "remote_host": {
+          "description": "Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [

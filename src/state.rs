@@ -114,6 +114,9 @@ pub struct AgentState {
     /// Path to the git worktree for this ticket (per-ticket isolation)
     #[serde(default)]
     pub worktree_path: Option<String>,
+    /// Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local)
+    #[serde(default)]
+    pub remote_host: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -328,6 +331,7 @@ impl State {
             review_state: None,
             dev_server_pid: None,
             worktree_path: None,
+            remote_host: None,
         });
 
         self.save()?;
@@ -382,6 +386,7 @@ impl State {
             review_state: None,
             dev_server_pid: None,
             worktree_path: None,
+            remote_host: None,
         });
 
         self.save()?;
@@ -496,6 +501,14 @@ impl State {
     ) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             agent.worktree_path = Some(worktree_path.to_string());
+        }
+        self.save()
+    }
+
+    /// Record which remote host an agent's CLI process runs on
+    pub fn update_agent_remote_host(&mut self, agent_id: &str, host_name: &str) -> Result<()> {
+        if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
+            agent.remote_host = Some(host_name.to_string());
         }
         self.save()
     }
@@ -1048,6 +1061,42 @@ mod tests {
     }
 
     // ─── Load/Save Tests ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_agent_remote_host_roundtrip_and_legacy_default() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        let id = state
+            .add_agent_with_full_options(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "proj".to_string(),
+                false,
+                Some("claude".to_string()),
+                None,
+                None,
+            )
+            .unwrap();
+        state.update_agent_remote_host(&id, "gpu-vm").unwrap();
+
+        let reloaded = State::load(&config).unwrap();
+        assert_eq!(
+            reloaded.agents[0].remote_host.as_deref(),
+            Some("gpu-vm"),
+            "remote_host persists across save/load"
+        );
+
+        // Legacy state JSON without the field still deserializes to None.
+        let mut v = serde_json::to_value(&reloaded).unwrap();
+        v["agents"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("remote_host");
+        let legacy: State = serde_json::from_value(v).unwrap();
+        assert!(legacy.agents[0].remote_host.is_none());
+    }
 
     #[test]
     fn test_state_load_missing_file() {

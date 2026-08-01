@@ -81,4 +81,8 @@ dev_server_pid: number | null,
 /**
  * Path to the git worktree for this ticket (per-ticket isolation)
  */
-worktree_path: string | null, };
+worktree_path: string | null, 
+/**
+ * Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local)
+ */
+remote_host: string | null, };

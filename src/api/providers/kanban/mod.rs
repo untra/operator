@@ -8,11 +8,16 @@ mod github_projects;
 mod jira;
 mod linear;
 pub mod onboarding;
+mod openspec;
 
 pub use github_projects::{GithubProjectInfo, GithubProjectsProvider, GithubValidationDetails};
 pub use jira::{JiraProvider, JiraValidationDetails};
 pub use linear::{LinearProvider, LinearTeamInfo, LinearValidationDetails};
 pub use onboarding::{DiscoveredProject, KanbanOnboarding, ValidatedWorkspace, WorkspaceExtra};
+pub use openspec::{
+    parse_proposal, parse_tasks_md, OpenspecProvider, ProposalMeta, TaskGroup, TaskItem,
+    OPENSPEC_STATUS_DONE, OPENSPEC_STATUS_TODO,
+};
 
 // Re-export Jira API response types for schema/binding generation
 pub use jira::{
@@ -269,6 +274,7 @@ pub enum KanbanProviderType {
     Jira,
     Linear,
     Github,
+    Openspec,
 }
 
 impl KanbanProviderType {
@@ -278,10 +284,11 @@ impl KanbanProviderType {
     /// surface (TUI status section, web `/#/kanban`, the REST provider catalog
     /// endpoint, and the VS Code onboarding picker) derives its list from here
     /// so the options can't drift apart.
-    pub const ALL: [KanbanProviderType; 3] = [
+    pub const ALL: [KanbanProviderType; 4] = [
         KanbanProviderType::Jira,
         KanbanProviderType::Linear,
         KanbanProviderType::Github,
+        KanbanProviderType::Openspec,
     ];
 
     /// Get the display name
@@ -290,6 +297,7 @@ impl KanbanProviderType {
             KanbanProviderType::Jira => "Jira Cloud",
             KanbanProviderType::Linear => "Linear",
             KanbanProviderType::Github => "GitHub Projects",
+            KanbanProviderType::Openspec => "OpenSpec",
         }
     }
 
@@ -300,6 +308,7 @@ impl KanbanProviderType {
             KanbanProviderType::Jira => "jira",
             KanbanProviderType::Linear => "linear",
             KanbanProviderType::Github => "github",
+            KanbanProviderType::Openspec => "openspec",
         }
     }
 
@@ -316,6 +325,7 @@ impl KanbanProviderType {
             KanbanProviderType::Jira => "Connect to Jira Cloud",
             KanbanProviderType::Linear => "Connect to Linear",
             KanbanProviderType::Github => "Connect to GitHub Projects",
+            KanbanProviderType::Openspec => "Import OpenSpec changes (experimental)",
         }
     }
 
@@ -329,6 +339,10 @@ impl KanbanProviderType {
             }
             KanbanProviderType::Linear => "https://linear.app/settings/api",
             KanbanProviderType::Github => "https://github.com/settings/personal-access-tokens",
+            // No token page exists — OpenSpec is local files; link the docs.
+            KanbanProviderType::Openspec => {
+                "https://operator.untra.io/getting-started/kanban/openspec/"
+            }
         }
     }
 
@@ -338,6 +352,7 @@ impl KanbanProviderType {
             KanbanProviderType::Jira => "operator-atlassian",
             KanbanProviderType::Linear => "operator-linear",
             KanbanProviderType::Github => "github",
+            KanbanProviderType::Openspec => "checklist",
         }
     }
 
@@ -347,6 +362,8 @@ impl KanbanProviderType {
             KanbanProviderType::Jira => "OPERATOR_JIRA_API_KEY",
             KanbanProviderType::Linear => "OPERATOR_LINEAR_API_KEY",
             KanbanProviderType::Github => "OPERATOR_GITHUB_TOKEN",
+            // OpenSpec reads local files; there is no credential to name.
+            KanbanProviderType::Openspec => "",
         }
     }
 }
@@ -409,6 +426,8 @@ impl DetectedKanbanProvider {
                     .iter()
                     .any(|v| v.contains("TOKEN") || v.contains("API_KEY"))
             }
+            // OpenSpec needs no env vars — configuration is a local path.
+            KanbanProviderType::Openspec => true,
         }
     }
 }
@@ -661,6 +680,10 @@ pub async fn test_provider_credentials(provider: &DetectedKanbanProvider) -> Res
 
             Ok(())
         }
+        KanbanProviderType::Openspec => Err(
+            "OpenSpec has no credentials to test; configure [kanban.openspec.<name>] root_path"
+                .to_string(),
+        ),
     }
 }
 
@@ -676,6 +699,7 @@ pub fn get_provider(name: &str) -> Option<Box<dyn KanbanProvider>> {
         "github" => GithubProjectsProvider::from_env()
             .ok()
             .map(|p| Box::new(p) as Box<dyn KanbanProvider>),
+        // openspec cannot be built from env — use get_provider_from_config
         _ => None,
     }
 }
@@ -720,8 +744,25 @@ pub fn get_provider_from_config(
             GithubProjectsProvider::from_config(owner, cfg)
                 .map(|p| Box::new(p) as Box<dyn KanbanProvider>)
         }
+        "openspec" => {
+            let (instance, cfg) = kanban
+                .openspec
+                .iter()
+                .find(|(_, cfg)| {
+                    cfg.enabled
+                        && std::path::Path::new(&cfg.root_path)
+                            .join("changes")
+                            .join(project_key)
+                            .is_dir()
+                })
+                .or_else(|| kanban.openspec.iter().find(|(_, cfg)| cfg.enabled))
+                .ok_or_else(|| {
+                    ApiError::not_configured("No enabled OpenSpec provider configured")
+                })?;
+            Ok(Box::new(OpenspecProvider::from_config(instance, cfg)) as Box<dyn KanbanProvider>)
+        }
         _ => Err(ApiError::not_configured(format!(
-            "Unknown provider: '{provider_name}'. Supported: jira, linear, github"
+            "Unknown provider: '{provider_name}'. Supported: jira, linear, github, openspec"
         ))),
     }
 }
@@ -981,14 +1022,15 @@ mod tests {
     }
 
     #[test]
-    fn test_provider_type_all_covers_three_providers() {
-        assert_eq!(KanbanProviderType::ALL.len(), 3);
+    fn test_provider_type_all_covers_four_providers() {
+        assert_eq!(KanbanProviderType::ALL.len(), 4);
         assert_eq!(
             KanbanProviderType::ALL,
             [
                 KanbanProviderType::Jira,
                 KanbanProviderType::Linear,
                 KanbanProviderType::Github,
+                KanbanProviderType::Openspec,
             ]
         );
     }

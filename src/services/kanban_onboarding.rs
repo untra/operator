@@ -9,7 +9,9 @@ use std::path::PathBuf;
 
 use tracing::info;
 
-use crate::api::providers::kanban::{GithubProjectsProvider, JiraProvider, LinearProvider};
+use crate::api::providers::kanban::{
+    GithubProjectsProvider, JiraProvider, LinearProvider, OpenspecProvider,
+};
 use crate::config::Config;
 use crate::rest::dto::{
     GithubProjectInfoDto, GithubValidationDetailsDto, JiraValidationDetailsDto, KanbanProjectInfo,
@@ -161,6 +163,32 @@ pub async fn validate_credentials(
                 }),
             }
         }
+        KanbanProviderKind::Openspec => {
+            let source = req.openspec.ok_or_else(|| {
+                ApiError::BadRequest("Missing `openspec` field for openspec provider".to_string())
+            })?;
+            let changes = std::path::Path::new(&source.root_path).join("changes");
+            if changes.is_dir() {
+                Ok(ValidateKanbanCredentialsResponse {
+                    valid: true,
+                    error: None,
+                    jira: None,
+                    linear: None,
+                    github: None,
+                })
+            } else {
+                Ok(ValidateKanbanCredentialsResponse {
+                    valid: false,
+                    error: Some(format!(
+                        "No OpenSpec changes directory at {}",
+                        changes.display()
+                    )),
+                    jira: None,
+                    linear: None,
+                    github: None,
+                })
+            }
+        }
     }
 }
 
@@ -199,6 +227,16 @@ pub async fn list_projects(
             })?;
             let provider =
                 GithubProjectsProvider::new(creds.token, "OPERATOR_GITHUB_TOKEN".to_string());
+            provider
+                .list_projects()
+                .await
+                .map_err(|e| ApiError::BadRequest(provider_error_message(&e)))?
+        }
+        KanbanProviderKind::Openspec => {
+            let source = req.openspec.ok_or_else(|| {
+                ApiError::BadRequest("Missing `openspec` field for openspec provider".to_string())
+            })?;
+            let provider = OpenspecProvider::new("onboarding", source.root_path);
             provider
                 .list_projects()
                 .await
@@ -255,6 +293,16 @@ pub async fn list_statuses(
             })?;
             let provider =
                 GithubProjectsProvider::new(creds.token, "OPERATOR_GITHUB_TOKEN".to_string());
+            provider
+                .list_statuses(&req.project_key)
+                .await
+                .map_err(|e| ApiError::BadRequest(provider_error_message(&e)))?
+        }
+        KanbanProviderKind::Openspec => {
+            let source = req.openspec.ok_or_else(|| {
+                ApiError::BadRequest("Missing `openspec` field for openspec provider".to_string())
+            })?;
+            let provider = OpenspecProvider::new("onboarding", source.root_path);
             provider
                 .list_statuses(&req.project_key)
                 .await
@@ -325,6 +373,17 @@ pub fn write_config(
                 body.status_mapping.unwrap_or_default(),
             );
             format!("[kanban.github.\"{}\"]", body.owner)
+        }
+        KanbanProviderKind::Openspec => {
+            let body = req.openspec.ok_or_else(|| {
+                ApiError::BadRequest("Missing `openspec` field for openspec provider".to_string())
+            })?;
+            config.kanban.upsert_openspec_root(
+                &body.instance,
+                &body.root_path,
+                body.project.as_deref(),
+            );
+            format!("[kanban.openspec.\"{}\"]", body.instance)
         }
     };
 
@@ -422,6 +481,9 @@ pub fn set_session_env(req: SetKanbanSessionEnvRequest) -> SetKanbanSessionEnvRe
                 };
             }
         }
+        // OpenSpec has no secrets — nothing to set; fall through to the
+        // empty envelope below.
+        KanbanProviderKind::Openspec => {}
     }
 
     // No body supplied for the selected provider — return empty envelope.
@@ -481,6 +543,7 @@ mod tests {
             }),
             linear: None,
             github: None,
+            openspec: None,
         };
 
         let resp = write_config(req, Some(&path)).unwrap();
@@ -510,6 +573,7 @@ mod tests {
                 status_mapping: None,
             }),
             github: None,
+            openspec: None,
         };
 
         let resp = write_config(req, Some(&path)).unwrap();
@@ -541,6 +605,7 @@ mod tests {
                 }),
                 linear: None,
                 github: None,
+                openspec: None,
             },
             Some(&path),
         )
@@ -560,6 +625,7 @@ mod tests {
                 }),
                 linear: None,
                 github: None,
+                openspec: None,
             },
             Some(&path),
         )
@@ -617,6 +683,7 @@ mod tests {
                 sync_user_id: "12345678".to_string(),
                 status_mapping: None,
             }),
+            openspec: None,
         };
 
         let resp = write_config(req, Some(&path)).unwrap();
@@ -652,6 +719,7 @@ mod tests {
             }),
             linear: None,
             github: None,
+            openspec: None,
         };
 
         write_config(req, Some(&path)).unwrap();
@@ -671,6 +739,7 @@ mod tests {
             jira: None,
             linear: None,
             github: None,
+            openspec: None,
         };
         let rt = tokio::runtime::Runtime::new().unwrap();
         let result = rt.block_on(list_statuses(req));
@@ -684,6 +753,7 @@ mod tests {
             jira: None,
             linear: None,
             github: None,
+            openspec: None,
         };
         let rt = tokio::runtime::Runtime::new().unwrap();
         let result = rt.block_on(validate_credentials(req));
@@ -697,6 +767,7 @@ mod tests {
             jira: None,
             linear: None,
             github: None,
+            openspec: None,
         };
         let rt = tokio::runtime::Runtime::new().unwrap();
         let result = rt.block_on(validate_credentials(req));

@@ -3,8 +3,9 @@ import type { GithubCredentials } from "./GithubCredentials";
 import type { JiraCredentials } from "./JiraCredentials";
 import type { KanbanProviderKind } from "./KanbanProviderKind";
 import type { LinearCredentials } from "./LinearCredentials";
+import type { OpenspecSourceDto } from "./OpenspecSourceDto";
 
 /**
  * Request to validate kanban credentials without persisting them.
  */
-export type ValidateKanbanCredentialsRequest = { provider: KanbanProviderKind, jira?: JiraCredentials | null, linear?: LinearCredentials | null, github?: GithubCredentials | null, };
+export type ValidateKanbanCredentialsRequest = { provider: KanbanProviderKind, jira?: JiraCredentials | null, linear?: LinearCredentials | null, github?: GithubCredentials | null, openspec?: OpenspecSourceDto | null, };

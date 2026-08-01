@@ -231,6 +231,26 @@ pub struct ModelServer {
     pub display_name: Option<String>,
 }
 
+/// A named remote machine that agent CLI processes can be launched on over SSH.
+///
+/// Distinct from [`ModelServer`] (where model *inference* lives) and from
+/// [`RemoteAgentRef`] (an export-only agent owned by another platform): a
+/// `RemoteHost` is where the agent *CLI process* runs. Referenced by name from
+/// [`DelegatorLaunchConfig::host`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema)]
+#[ts(export)]
+pub struct RemoteHost {
+    /// Unique name referenced by `DelegatorLaunchConfig.host` (e.g., "gpu-vm")
+    pub name: String,
+    /// SSH destination, resolved via the user's `~/.ssh/config`
+    pub ssh_alias: String,
+    /// Absolute path to the project root on the remote host
+    pub workdir: String,
+    /// Optional display name for UI
+    #[serde(default)]
+    pub display_name: Option<String>,
+}
+
 /// Returns the implicit builtin `ModelServer` associated with a given `llm_tool`.
 ///
 /// Used when a `Delegator` has no explicit `model_server`. Unknown tools
@@ -270,6 +290,36 @@ mod tests {
         assert!(d.x_agnt.is_none());
         assert!(d.x_openai.is_none());
         assert!(d.unmapped_core.is_none());
+    }
+
+    #[test]
+    fn remote_host_deserializes_from_toml() {
+        let toml = r#"
+            name = "gpu-vm"
+            ssh_alias = "gpu-vm"
+            workdir = "/srv/agents/project"
+        "#;
+        let h: RemoteHost = toml::from_str(toml).expect("remote host deserializes");
+        assert_eq!(h.name, "gpu-vm");
+        assert_eq!(h.ssh_alias, "gpu-vm");
+        assert_eq!(h.workdir, "/srv/agents/project");
+        assert!(h.display_name.is_none());
+    }
+
+    #[test]
+    fn delegator_launch_config_host_default_none() {
+        // Pre-existing launch config JSON without the host field still parses.
+        let json = r#"{ "yolo": true }"#;
+        let lc: DelegatorLaunchConfig =
+            serde_json::from_str(json).expect("legacy launch config still deserializes");
+        assert!(lc.host.is_none());
+    }
+
+    #[test]
+    fn delegator_launch_config_serializes_omits_none_host() {
+        let lc = DelegatorLaunchConfig::default();
+        let v = serde_json::to_value(&lc).unwrap();
+        assert!(v.get("host").is_none(), "None host is omitted");
     }
 
     #[test]
@@ -335,4 +385,8 @@ pub struct DelegatorLaunchConfig {
     /// Override global relay auto-inject MCP setting per-delegator (None = use global setting)
     #[serde(default)]
     pub operator_relay: Option<bool>,
+    /// Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent
+    /// CLI on over SSH. `None` = launch locally.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
 }

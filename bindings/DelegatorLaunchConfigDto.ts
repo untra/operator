@@ -42,4 +42,8 @@ prompt_suffix?: string | null,
 /**
  * Override global relay auto-inject MCP setting per-delegator (None = use global setting)
  */
-operator_relay?: boolean | null, };
+operator_relay?: boolean | null, 
+/**
+ * Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local)
+ */
+host?: string | null, };

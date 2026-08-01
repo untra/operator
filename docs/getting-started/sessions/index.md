@@ -18,6 +18,7 @@ Operator supports multiple session management backends for running AI coding age
 | [cmux](/getting-started/sessions/cmux/) | Supported | macOS terminal multiplexer, manages workspaces within cmux |
 | [Zellij](/getting-started/sessions/zellij/) | Supported | Terminal workspace manager, tab-per-agent model (macOS/Linux) |
 | [Zed](/getting-started/sessions/zed/) | Supported | Zed editor extension; MCP context server, ACP agent, slash commands |
+| [Remote Hosts (SSH)](/getting-started/sessions/remote-hosts/) | Supported | Run agent CLIs on a remote machine over SSH; dashboard stays local |
 
 ## How It Works
 

@@ -32,7 +32,7 @@ impl SetupScreen {
                 Constraint::Length(2), // Description
                 Constraint::Length(1), // Spacer
                 Constraint::Length(3), // Supported providers header
-                Constraint::Length(5), // Supported providers list (3 providers)
+                Constraint::Length(6), // Supported providers list (4 providers)
                 Constraint::Length(1), // Spacer
                 Constraint::Length(2), // Detected header
                 Constraint::Min(6),    // Detected providers list
@@ -98,6 +98,16 @@ impl SetupScreen {
                 ),
                 Span::raw(")"),
             ]),
+            Line::from(vec![
+                Span::raw("  • "),
+                Span::styled("OpenSpec", Style::default().fg(Color::White)),
+                Span::raw(" ("),
+                Span::styled(
+                    "local files, experimental",
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::raw(")"),
+            ]),
         ]);
         frame.render_widget(supported, chunks[4]);
 
@@ -129,6 +139,7 @@ impl SetupScreen {
                     KanbanProviderType::Jira => "Jira",
                     KanbanProviderType::Linear => "Linear",
                     KanbanProviderType::Github => "GitHub",
+                    KanbanProviderType::Openspec => "OpenSpec",
                 };
 
                 let status_text = match &provider.status {
@@ -206,6 +217,7 @@ impl SetupScreen {
                 KanbanProviderType::Jira => "Jira",
                 KanbanProviderType::Linear => "Linear",
                 KanbanProviderType::Github => "GitHub",
+                KanbanProviderType::Openspec => "OpenSpec",
             };
             format!(" Setup: {} - {} ", provider_name, p.domain)
         } else {

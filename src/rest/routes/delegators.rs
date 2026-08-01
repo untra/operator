@@ -165,6 +165,7 @@ fn dto_to_launch_config(lc: DelegatorLaunchConfigDto) -> DelegatorLaunchConfig {
         prompt_prefix: lc.prompt_prefix,
         prompt_suffix: lc.prompt_suffix,
         operator_relay: lc.operator_relay,
+        host: lc.host,
     }
 }
 
@@ -180,6 +181,7 @@ fn launch_config_to_dto(lc: &DelegatorLaunchConfig) -> DelegatorLaunchConfigDto 
         prompt_prefix: lc.prompt_prefix.clone(),
         prompt_suffix: lc.prompt_suffix.clone(),
         operator_relay: lc.operator_relay,
+        host: lc.host.clone(),
     }
 }
 
@@ -497,6 +499,7 @@ mod tests {
                 prompt_prefix: Some("Always follow TDD.".to_string()),
                 prompt_suffix: Some("Run tests before finishing.".to_string()),
                 operator_relay: None,
+                host: None,
             }),
             remote_agent: None,
             x_agnt: None,
@@ -626,10 +629,23 @@ mod tests {
             prompt_prefix: None,
             prompt_suffix: None,
             operator_relay: Some(true),
+            host: None,
         };
         let dto = launch_config_to_dto(&config);
         assert_eq!(dto.operator_relay, Some(true));
         let round_tripped = dto_to_launch_config(dto);
         assert_eq!(round_tripped.operator_relay, Some(true));
+    }
+
+    #[test]
+    fn test_dto_round_trips_host() {
+        let config = DelegatorLaunchConfig {
+            host: Some("gpu-vm".to_string()),
+            ..Default::default()
+        };
+        let dto = launch_config_to_dto(&config);
+        assert_eq!(dto.host.as_deref(), Some("gpu-vm"));
+        let round_tripped = dto_to_launch_config(dto);
+        assert_eq!(round_tripped.host.as_deref(), Some("gpu-vm"));
     }
 }

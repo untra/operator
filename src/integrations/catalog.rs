@@ -143,6 +143,14 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             true,
             Beta,
         ),
+        entry(
+            Kanban,
+            "openspec",
+            "OpenSpec",
+            Some("getting-started/kanban/openspec"),
+            false,
+            Alpha,
+        ),
         // --- Model providers (mirror ModelServerKind::ALL; slug == kind slug) ---
         entry(
             Model,

@@ -78,6 +78,7 @@ impl App {
                     }),
                     linear: None,
                     github: None,
+                    openspec: None,
                 };
                 let resp = match kanban_onboarding::validate_credentials(req).await {
                     Ok(r) => r,
@@ -112,6 +113,7 @@ impl App {
                     }),
                     linear: None,
                     github: None,
+                    openspec: None,
                 };
                 let projects = match kanban_onboarding::list_projects(list_req).await {
                     Ok(r) => r.projects,
@@ -149,6 +151,7 @@ impl App {
                         api_key: api_key.clone(),
                     }),
                     github: None,
+                    openspec: None,
                 };
                 let resp = match kanban_onboarding::validate_credentials(req).await {
                     Ok(r) => r,
@@ -253,6 +256,7 @@ impl App {
                     }),
                     linear: None,
                     github: None,
+                    openspec: None,
                 };
                 kanban_onboarding::write_config(write_req, None)
                     .map_err(|e| anyhow::anyhow!("write_config failed: {e:?}"))?;
@@ -302,6 +306,7 @@ impl App {
                         status_mapping: None,
                     }),
                     github: None,
+                    openspec: None,
                 };
                 kanban_onboarding::write_config(write_req, None)
                     .map_err(|e| anyhow::anyhow!("write_config failed: {e:?}"))?;

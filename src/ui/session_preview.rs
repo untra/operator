@@ -344,6 +344,7 @@ mod tests {
             review_state: None,
             dev_server_pid: None,
             worktree_path: None,
+            remote_host: None,
             session_wrapper: None,
             session_window_ref: None,
             session_context_ref: None,

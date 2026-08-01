@@ -3,6 +3,7 @@ import type { GithubCredentials } from "./GithubCredentials";
 import type { JiraCredentials } from "./JiraCredentials";
 import type { KanbanProviderKind } from "./KanbanProviderKind";
 import type { LinearCredentials } from "./LinearCredentials";
+import type { OpenspecSourceDto } from "./OpenspecSourceDto";
 
 /**
  * Request to list workflow statuses/columns for a specific project using
@@ -12,4 +13,4 @@ export type ListKanbanStatusesRequest = { provider: KanbanProviderKind,
 /**
  * Project/team key to list statuses for
  */
-project_key: string, jira?: JiraCredentials | null, linear?: LinearCredentials | null, github?: GithubCredentials | null, };
+project_key: string, jira?: JiraCredentials | null, linear?: LinearCredentials | null, github?: GithubCredentials | null, openspec?: OpenspecSourceDto | null, };

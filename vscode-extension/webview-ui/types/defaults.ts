@@ -119,6 +119,7 @@ const DEFAULT_CONFIG: Config = {
     jira: {},
     linear: {},
     github: {},
+    openspec: {},
   },
   version_check: {
     enabled: true,

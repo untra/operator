@@ -31,6 +31,8 @@ pub struct LaunchOptions {
     pub session_suffix: Option<String>,
     /// Enable relay MCP server injection for this launch (None = use global config)
     pub operator_relay: Option<bool>,
+    /// Resolved remote host to launch the agent CLI on over SSH (None = local).
+    pub remote_host: Option<crate::config::RemoteHost>,
 }
 
 impl LaunchOptions {
@@ -64,6 +66,7 @@ mod tests {
             prompt_suffix: None,
             session_suffix: None,
             operator_relay: Some(false),
+            remote_host: None,
         };
         assert_eq!(opts.operator_relay, Some(false));
     }

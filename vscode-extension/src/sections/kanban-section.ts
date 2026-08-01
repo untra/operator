@@ -113,6 +113,24 @@ export class KanbanSection implements StatusSection {
           });
         }
       }
+
+      // Parse OpenSpec roots from config.toml (experimental, pull-only;
+      // no per-project sub-tables — the instance itself is the source)
+      const openspecSection = kanbanSection.openspec as Record<string, unknown> | undefined;
+      if (openspecSection) {
+        for (const [instance, wsConfig] of Object.entries(openspecSection)) {
+          const ws = wsConfig as Record<string, unknown>;
+          if (ws.enabled === false) { continue; }
+          providers.push({
+            provider: 'openspec',
+            key: instance,
+            enabled: ws.enabled !== false,
+            displayName: (ws.root_path as string) || instance,
+            url: 'https://operator.untra.io/getting-started/kanban/openspec/',
+            projects: [],
+          });
+        }
+      }
     }
 
     // Fall back to env-var-based detection if config.toml has no kanban section
@@ -169,11 +187,13 @@ export class KanbanSection implements StatusSection {
         const providerLabel =
           prov.provider === 'jira' ? 'Jira'
             : prov.provider === 'linear' ? 'Linear'
-              : 'GitHub Projects';
+              : prov.provider === 'openspec' ? 'OpenSpec'
+                : 'GitHub Projects';
         const providerIcon =
           prov.provider === 'jira' ? 'operator-atlassian'
             : prov.provider === 'linear' ? 'operator-linear'
-              : 'github';
+              : prov.provider === 'openspec' ? 'checklist'
+                : 'github';
         items.push(new StatusItem({
           label: providerLabel,
           description: prov.displayName,

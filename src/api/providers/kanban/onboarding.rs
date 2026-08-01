@@ -41,6 +41,8 @@ pub enum WorkspaceExtra {
     Linear,
     /// GitHub Projects needs no extra data beyond what's in `ValidatedWorkspace`.
     Github,
+    /// `OpenSpec` carries its root path (no credentials exist).
+    Openspec { root_path: String },
 }
 
 /// A project discovered from a kanban provider.

@@ -148,6 +148,39 @@ pub fn launch_in_cmux_with_options(
     // Write prompt to file
     let prompt_file = write_prompt_file(config, &session_uuid, &full_prompt)?;
 
+    // Remote launch: the local workspace runs a wrapper that ships the prompt
+    // and payload over SSH and execs into a remote tmux session through a
+    // reverse tunnel. Relay injection is skipped (unix socket is local-only).
+    if let Some(ref host) = options.remote_host {
+        let session_name = super::remote::launch_remote_in_session(
+            config,
+            ticket,
+            &session_name,
+            &session_uuid,
+            &step_name,
+            host,
+            &tool_name,
+            &model,
+            &prompt_file,
+            options,
+            operator_env,
+            false,
+            |cmd| {
+                cmux.send_text(&workspace_ref, &format!("{cmd}\r"))
+                    .map_err(|e| anyhow::anyhow!("{e}"))
+            },
+            || {
+                let _ = cmux.close_workspace(&workspace_ref);
+            },
+        )?;
+        return Ok(CmuxLaunchResult {
+            session_name,
+            window_ref,
+            workspace_ref,
+            session_uuid,
+        });
+    }
+
     // Build LLM command
     let mut llm_cmd = build_llm_command_with_permissions_for_tool(
         config,

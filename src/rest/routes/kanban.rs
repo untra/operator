@@ -25,6 +25,7 @@ fn build_provider_catalog(kanban: &KanbanConfig) -> Vec<KanbanProviderCatalogEnt
                 KanbanProviderType::Jira => !kanban.jira.is_empty(),
                 KanbanProviderType::Linear => !kanban.linear.is_empty(),
                 KanbanProviderType::Github => !kanban.github.is_empty(),
+                KanbanProviderType::Openspec => !kanban.openspec.is_empty(),
             };
             KanbanProviderCatalogEntry {
                 slug: p.slug().to_string(),
@@ -262,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_provider_catalog_lists_all_three_with_configured_flags() {
+    fn test_build_provider_catalog_lists_all_providers_with_configured_flags() {
         let mut kanban = crate::config::kanban::KanbanConfig::default();
         kanban.github.insert(
             "my-org".into(),
@@ -272,7 +273,7 @@ mod tests {
         let catalog = build_provider_catalog(&kanban);
 
         let slugs: Vec<&str> = catalog.iter().map(|e| e.slug.as_str()).collect();
-        assert_eq!(slugs, vec!["jira", "linear", "github"]);
+        assert_eq!(slugs, vec!["jira", "linear", "github", "openspec"]);
 
         let github = catalog.iter().find(|e| e.slug == "github").unwrap();
         assert!(github.configured);
@@ -285,6 +286,10 @@ mod tests {
 
         let jira = catalog.iter().find(|e| e.slug == "jira").unwrap();
         assert!(!jira.configured);
+
+        let openspec = catalog.iter().find(|e| e.slug == "openspec").unwrap();
+        assert!(!openspec.configured);
+        assert_eq!(openspec.display_name, "OpenSpec");
     }
 
     #[test]

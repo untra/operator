@@ -190,6 +190,23 @@ impl std::fmt::Display for ApiError {
 
 impl std::error::Error for ApiError {}
 
+/// Resolve the API base URL by precedence:
+/// explicit flag > `OPERATOR_API_URL` env > session-file port > default port.
+fn resolve_base_url(
+    api_url: Option<&str>,
+    env_url: Option<String>,
+    session_port: Option<u16>,
+) -> String {
+    if let Some(url) = api_url {
+        return url.to_string();
+    }
+    if let Some(url) = env_url {
+        return url;
+    }
+    let port = session_port.unwrap_or(DEFAULT_API_PORT);
+    format!("http://localhost:{port}")
+}
+
 impl ApiClient {
     /// Create a new API client with the given base URL
     pub fn new(base_url: &str) -> Self {
@@ -204,23 +221,19 @@ impl ApiClient {
         }
     }
 
-    /// Discover API endpoint from api-session.json or use default
+    /// Discover the API endpoint: explicit `--api-url`, then the
+    /// `OPERATOR_API_URL` env var (set by remote launches so callbacks route
+    /// through the SSH reverse tunnel), then api-session.json, then default.
     pub async fn discover(api_url: Option<&str>) -> Result<Self, ApiError> {
-        if let Some(url) = api_url {
-            return Ok(Self::new(url));
-        }
+        let env_url = std::env::var("OPERATOR_API_URL").ok();
 
         // Try to read api-session.json (sync is fine for a tiny JSON file)
-        if let Ok(content) = std::fs::read_to_string(API_SESSION_FILE) {
-            if let Ok(session) = serde_json::from_str::<ApiSession>(&content) {
-                let url = format!("http://localhost:{}", session.port);
-                return Ok(Self::new(&url));
-            }
-        }
+        let session_port = std::fs::read_to_string(API_SESSION_FILE)
+            .ok()
+            .and_then(|content| serde_json::from_str::<ApiSession>(&content).ok())
+            .map(|session| session.port);
 
-        // Fall back to default
-        let url = format!("http://localhost:{}", DEFAULT_API_PORT);
-        Ok(Self::new(&url))
+        Ok(Self::new(&resolve_base_url(api_url, env_url, session_port)))
     }
 
     /// Report step completion to the API with retry logic
@@ -281,6 +294,34 @@ impl ApiClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_resolve_base_url_explicit_wins() {
+        let url = resolve_base_url(
+            Some("http://example.com:9000/"),
+            Some("http://tunnel:7008".to_string()),
+            Some(7010),
+        );
+        assert_eq!(url, "http://example.com:9000/");
+    }
+
+    #[test]
+    fn test_resolve_base_url_env_beats_session_file() {
+        let url = resolve_base_url(None, Some("http://localhost:7008".to_string()), Some(7010));
+        assert_eq!(url, "http://localhost:7008");
+    }
+
+    #[test]
+    fn test_resolve_base_url_session_port_beats_default() {
+        let url = resolve_base_url(None, None, Some(7010));
+        assert_eq!(url, "http://localhost:7010");
+    }
+
+    #[test]
+    fn test_resolve_base_url_default() {
+        let url = resolve_base_url(None, None, None);
+        assert_eq!(url, "http://localhost:7008");
+    }
 
     #[test]
     fn test_step_complete_request_serialization() {

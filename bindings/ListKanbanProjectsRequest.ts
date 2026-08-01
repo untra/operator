@@ -3,8 +3,9 @@ import type { GithubCredentials } from "./GithubCredentials";
 import type { JiraCredentials } from "./JiraCredentials";
 import type { KanbanProviderKind } from "./KanbanProviderKind";
 import type { LinearCredentials } from "./LinearCredentials";
+import type { OpenspecSourceDto } from "./OpenspecSourceDto";
 
 /**
  * Request to list projects/teams from a provider using ephemeral creds.
  */
-export type ListKanbanProjectsRequest = { provider: KanbanProviderKind, jira?: JiraCredentials | null, linear?: LinearCredentials | null, github?: GithubCredentials | null, };
+export type ListKanbanProjectsRequest = { provider: KanbanProviderKind, jira?: JiraCredentials | null, linear?: LinearCredentials | null, github?: GithubCredentials | null, openspec?: OpenspecSourceDto | null, };

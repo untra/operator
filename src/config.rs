@@ -66,6 +66,10 @@ pub struct Config {
     /// Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.
     #[serde(default)]
     pub model_servers: Vec<ModelServer>,
+    /// Remote machines agents can be launched on over SSH, referenced by name
+    /// from `DelegatorLaunchConfig.host`.
+    #[serde(default)]
+    pub hosts: Vec<RemoteHost>,
     /// Relay MCP injection configuration
     #[serde(default)]
     pub relay: RelayConfig,
@@ -897,6 +901,7 @@ impl Default for Config {
             version_check: VersionCheckConfig::default(),
             delegators: Vec::new(),
             model_servers: Vec::new(),
+            hosts: Vec::new(),
             relay: RelayConfig::default(),
             mcp: McpConfig::default(),
             acp: AcpConfig::default(),

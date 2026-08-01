@@ -14,6 +14,7 @@ import type { NotificationsConfig } from "./NotificationsConfig";
 import type { PathsConfig } from "./PathsConfig";
 import type { QueueConfig } from "./QueueConfig";
 import type { RelayConfig } from "./RelayConfig";
+import type { RemoteHost } from "./RemoteHost";
 import type { RestApiConfig } from "./RestApiConfig";
 import type { SessionsConfig } from "./SessionsConfig";
 import type { TemplatesConfig } from "./TemplatesConfig";
@@ -47,6 +48,11 @@ delegators: Array<Delegator>,
  * Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration.
  */
 model_servers: Array<ModelServer>, 
+/**
+ * Remote machines agents can be launched on over SSH, referenced by name
+ * from `DelegatorLaunchConfig.host`.
+ */
+hosts: Array<RemoteHost>, 
 /**
  * Relay MCP injection configuration
  */

@@ -51,6 +51,34 @@ fn test_delegator_serde_roundtrip() {
 }
 
 #[test]
+fn test_config_hosts_default_empty() {
+    assert!(Config::default().hosts.is_empty());
+
+    // Legacy config serialized before the hosts field existed still deserializes.
+    let mut v = serde_json::to_value(Config::default()).unwrap();
+    v.as_object_mut().unwrap().remove("hosts");
+    let config: Config = serde_json::from_value(v).unwrap();
+    assert!(config.hosts.is_empty());
+}
+
+#[test]
+fn test_config_hosts_roundtrip() {
+    let mut config = Config::default();
+    config.hosts.push(RemoteHost {
+        name: "gpu-vm".to_string(),
+        ssh_alias: "gpu-vm-alias".to_string(),
+        workdir: "/srv/agents".to_string(),
+        display_name: None,
+    });
+    let json = serde_json::to_string(&config).unwrap();
+    let parsed: Config = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.hosts.len(), 1);
+    assert_eq!(parsed.hosts[0].name, "gpu-vm");
+    assert_eq!(parsed.hosts[0].ssh_alias, "gpu-vm-alias");
+    assert_eq!(parsed.hosts[0].workdir, "/srv/agents");
+}
+
+#[test]
 fn test_model_server_toml_roundtrip() {
     let toml_str = r#"
         name = "ollama-local"

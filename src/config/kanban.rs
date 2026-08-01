@@ -27,6 +27,11 @@ pub struct KanbanConfig {
     /// `docs/getting-started/kanban/github.md` for the full disambiguation.
     #[serde(default)]
     pub github: std::collections::HashMap<String, GithubProjectsConfig>,
+    /// `OpenSpec` roots keyed by a free-form instance name (e.g., a repo alias).
+    /// Experimental, pull-only: each active change under `<root_path>/changes/`
+    /// acts as a kanban "project" whose issues are the tasks.md task groups.
+    #[serde(default)]
+    pub openspec: std::collections::HashMap<String, OpenspecConfig>,
 }
 
 /// Jira Cloud provider configuration
@@ -138,6 +143,24 @@ impl Default for GithubProjectsConfig {
     }
 }
 
+/// `OpenSpec` provider configuration (experimental, pull-only)
+///
+/// The instance name is the `HashMap` key in `KanbanConfig.openspec`. There
+/// are no credentials — the provider reads local markdown under `root_path`.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, Default)]
+#[ts(export)]
+pub struct OpenspecConfig {
+    /// Whether this provider is enabled
+    #[serde(default)]
+    pub enabled: bool,
+    /// Directory containing the `OpenSpec` `changes/` tree (typically `<repo>/openspec`)
+    #[serde(default)]
+    pub root_path: String,
+    /// Operator project stamped on imported tickets (defaults to the change id)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+}
+
 impl KanbanConfig {
     /// Insert or update a Jira project entry in the config.
     ///
@@ -166,6 +189,7 @@ impl KanbanConfig {
                 collection_name: None,
                 type_mappings: std::collections::HashMap::new(),
                 bidirectional: false,
+                ticket_project: None,
             },
         );
     }
@@ -195,6 +219,7 @@ impl KanbanConfig {
                 collection_name: None,
                 type_mappings: std::collections::HashMap::new(),
                 bidirectional: false,
+                ticket_project: None,
             },
         );
     }
@@ -227,6 +252,7 @@ impl KanbanConfig {
                 collection_name: None,
                 type_mappings: std::collections::HashMap::new(),
                 bidirectional: false,
+                ticket_project: None,
             },
         );
     }
@@ -265,6 +291,21 @@ impl KanbanConfig {
                 &workspace.sync_user_id,
                 KanbanStatusMapping::default(),
             ),
+            // OpenSpec has no credentials or per-project sync entries; the
+            // instance itself is the whole configuration.
+            WorkspaceExtra::Openspec { root_path } => {
+                self.upsert_openspec_root(&workspace.workspace_key, root_path, None);
+            }
+        }
+    }
+
+    /// Insert or update an `OpenSpec` root entry (no credentials, just a path).
+    pub fn upsert_openspec_root(&mut self, instance: &str, root_path: &str, project: Option<&str>) {
+        let entry = self.openspec.entry(instance.to_string()).or_default();
+        entry.enabled = true;
+        entry.root_path = root_path.to_string();
+        if project.is_some() {
+            entry.project = project.map(ToString::to_string);
         }
     }
 }
@@ -334,6 +375,10 @@ pub struct ProjectSyncConfig {
     /// are reflected upstream. Default: false.
     #[serde(default)]
     pub bidirectional: bool,
+    /// Operator project name stamped on tickets created from this source.
+    /// Defaults to the external project key when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ticket_project: Option<String>,
 }
 
 impl ProjectSyncConfig {

@@ -10,7 +10,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
-use tui_textarea::TextArea;
+use ratatui_textarea::TextArea;
 
 use crate::templates::schema::{FieldSchema, FieldType};
 
@@ -23,7 +23,7 @@ pub enum FormField {
         placeholder: String,
         max_length: Option<usize>,
     },
-    /// Multi-line text input using tui-textarea
+    /// Multi-line text input using ratatui-textarea
     TextArea {
         textarea: Box<TextArea<'static>>,
         placeholder: String,
@@ -588,6 +588,47 @@ mod tests {
             display_order: None,
             user_editable: true,
         }
+    }
+
+    fn make_text_schema(default: Option<&str>) -> FieldSchema {
+        FieldSchema {
+            name: "notes".to_string(),
+            description: "Notes".to_string(),
+            field_type: FieldType::Text,
+            required: true,
+            default: default.map(str::to_string),
+            auto: None,
+            options: vec![],
+            placeholder: Some("Enter notes".to_string()),
+            max_length: None,
+            display_order: None,
+            user_editable: true,
+        }
+    }
+
+    #[test]
+    fn test_textarea_from_schema_with_default() {
+        let field = FormField::from_schema(&make_text_schema(Some("line one\nline two")));
+        assert_eq!(field.value(), "line one\nline two");
+    }
+
+    #[test]
+    fn test_textarea_set_value_roundtrip() {
+        let mut field = FormField::from_schema(&make_text_schema(None));
+        field.set_value("a\nb\nc");
+        assert_eq!(field.value(), "a\nb\nc");
+        field.set_value("replaced");
+        assert_eq!(field.value(), "replaced");
+    }
+
+    #[test]
+    fn test_textarea_whitespace_only_is_invalid() {
+        let mut field = FormField::from_schema(&make_text_schema(None));
+        assert!(!field.is_valid(true));
+        field.set_value("  \n\t ");
+        assert!(!field.is_valid(true));
+        field.set_value("content");
+        assert!(field.is_valid(true));
     }
 
     #[test]

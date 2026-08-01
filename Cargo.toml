@@ -1,6 +1,6 @@
 [package]
 name = "operator"
-version = "0.2.2"
+version = "0.2.5"
 edition = "2021"
 rust-version = "1.95"
 description = "Multi-agent orchestration dashboard for kanban shaped software development"
@@ -25,14 +25,9 @@ path = "src/bin/generate_types.rs"
 operator-relay = { path = "crates/relay" }
 
 # TUI
-# NOTE: ratatui is held at 0.29 and crossterm at 0.28 because the official
-# `tui-textarea` 0.7 depends on ratatui 0.29 / crossterm 0.28.
-# Bumping either here pulls a second ratatui/crossterm into the tree and the
-# `Style`/`KeyEvent` types stop unifying in `form_field.rs`. Revisit when
-# upstream `tui-textarea` supports ratatui 0.30.
-ratatui = "0.29"
-crossterm = "0.28"
-tui-textarea = "0.7"
+ratatui = "0.30"
+crossterm = "0.29"
+ratatui-textarea = "0.9"
 
 # Templating
 handlebars = "6"

@@ -92,23 +92,17 @@ impl App {
             .map(|s| {
                 s.selected_hosted_collections()
                     .into_iter()
-                    .map(|r| (r.manifest.clone(), r.files.clone()))
+                    .map(|r| (r.manifest.clone(), r.files.clone(), r.icon_svg.clone()))
                     .collect()
             })
             .unwrap_or_default();
-        for (manifest, files) in &hosted {
-            let dir = tickets_path.join("templates").join(&manifest.id);
-            fs::create_dir_all(&dir)?;
-            fs::write(
-                dir.join("collection.json"),
-                format!("{}\n", manifest.to_json()?),
+        for (manifest, files, icon_svg) in &hosted {
+            crate::startup::templates::write_fetched_collection(
+                &tickets_path.join("templates"),
+                manifest,
+                files,
+                icon_svg.as_deref(),
             )?;
-            for (key, schema_json, template_md) in files {
-                fs::write(dir.join(format!("{key}.json")), schema_json)?;
-                if let Some(md) = template_md {
-                    fs::write(dir.join(format!("{key}.md")), md)?;
-                }
-            }
         }
         if let [single] = hosted.as_slice() {
             self.config.templates.active_collection = Some(single.0.id.clone());
@@ -129,10 +123,7 @@ impl App {
 
         // Reload the issue type registry so the chosen collection is active
         // without requiring a restart (mirrors App::new's load path).
-        let mut registry = crate::issuetypes::IssueTypeRegistry::new();
-        if let Err(e) = registry.load_all(&tickets_path) {
-            tracing::warn!("Failed to reload issue types after setup: {}", e);
-        }
+        let mut registry = crate::startup::templates::load_registry(&tickets_path);
         if let Some(ref active) = self.config.templates.active_collection {
             if let Err(e) = registry.activate_collection(active) {
                 tracing::warn!("Failed to activate collection '{}': {}", active, e);
@@ -155,7 +146,7 @@ impl App {
             for project in &discovered_projects {
                 let project_path = projects_path.join(project);
 
-                // ASSESS or PROJECT-INIT creates assess tickets
+                // ASSESS or PROJECT_INIT creates assess tickets
                 if startup_tickets.contains(&"assess".to_string())
                     || startup_tickets.contains(&"project_init".to_string())
                 {
@@ -189,7 +180,7 @@ impl App {
                     }
                 }
 
-                // AGENT-SETUP or PROJECT-INIT creates agent tickets
+                // AGENT_SETUP or PROJECT_INIT creates agent tickets
                 if startup_tickets.contains(&"agent_setup".to_string())
                     || startup_tickets.contains(&"project_init".to_string())
                 {
@@ -203,12 +194,12 @@ impl App {
                                 tracing::info!(
                                     created = ?result.created,
                                     project = %project,
-                                    "Created AGENT-SETUP startup tickets"
+                                    "Created AGENT_SETUP startup tickets"
                                 );
                             }
                         }
                         Err(e) => {
-                            tracing::warn!(project = %project, error = %e, "Failed to create AGENT-SETUP tickets");
+                            tracing::warn!(project = %project, error = %e, "Failed to create AGENT_SETUP tickets");
                         }
                     }
                 }

@@ -4,11 +4,13 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::permissions::{ProviderCliArgs, StepPermissions};
 
 /// Schema definition for an issuetype template
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct TemplateSchema {
     /// Unique issuetype key (e.g., FEAT, FIX, SPIKE, INV, TASK)
     pub key: String,
@@ -46,7 +48,8 @@ fn default_true() -> bool {
 }
 
 /// Execution mode for an issuetype
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum ExecutionMode {
     /// Runs without human interaction
@@ -56,7 +59,8 @@ pub enum ExecutionMode {
 }
 
 /// Schema definition for a single field in a template
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct FieldSchema {
     /// Field identifier (matches handlebar variable name)
     pub name: String,
@@ -92,7 +96,8 @@ pub struct FieldSchema {
 }
 
 /// Auto-generation strategies for fields
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum AutoGenStrategy {
     /// Generate ID from timestamp (e.g., FEAT-1234)
@@ -106,7 +111,8 @@ pub enum AutoGenStrategy {
 }
 
 /// Types of fields supported in template schemas
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum FieldType {
     /// Single-line text input
@@ -124,7 +130,8 @@ pub enum FieldType {
 }
 
 /// Schema definition for a lifecycle step
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct StepSchema {
     // ── Common base (all step types) ────────────────────────────────
     /// Step identifier (lowercase)
@@ -215,7 +222,8 @@ pub enum StepStatus {
 }
 
 /// Types of outputs a step can produce
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum StepOutput {
     /// Implementation plan
@@ -237,7 +245,8 @@ pub enum StepOutput {
 }
 
 /// Action to take when a step is rejected
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct OnReject {
     /// Step name to return to on rejection
     pub goto_step: String,
@@ -246,7 +255,8 @@ pub struct OnReject {
 }
 
 /// Permission mode for LLM interaction
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub enum PermissionMode {
     /// Default permission mode - standard interactive behavior
@@ -261,7 +271,8 @@ pub enum PermissionMode {
 }
 
 /// Type of review required for a step
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum ReviewType {
     /// No review required - proceed automatically
@@ -276,7 +287,8 @@ pub enum ReviewType {
 }
 
 /// Configuration for visual review steps
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct VisualReviewConfig {
     /// URL to open for visual check (supports handlebars templates)
     pub url: String,
@@ -289,7 +301,8 @@ pub struct VisualReviewConfig {
 }
 
 /// Discriminator tag for step types
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum StepTypeTag {
     /// Default pass-through task step
@@ -320,7 +333,8 @@ fn default_step_type() -> StepTypeTag {
 // ── Classifier ──────────────────────────────────────────────────────────
 
 /// Configuration for classifier steps that return structured typed output
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct ClassifierConfig {
     /// What type of answer the classifier returns
     pub output_type: ClassifierOutputType,
@@ -336,7 +350,8 @@ pub struct ClassifierConfig {
 }
 
 /// Output types for classifier steps
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum ClassifierOutputType {
     /// true/false answer
@@ -354,7 +369,8 @@ pub enum ClassifierOutputType {
 // ── RAG ─────────────────────────────────────────────────────────────────
 
 /// Configuration for RAG (retrieval-augmented generation) steps
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct RagConfig {
     /// Context sources to retrieve before running the prompt
     pub sources: Vec<RagSource>,
@@ -370,7 +386,8 @@ pub struct RagConfig {
 }
 
 /// A source of context for RAG steps
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RagSource {
     /// Match files by glob pattern
@@ -398,7 +415,8 @@ pub enum RagSource {
 // ── Delegator Step ──────────────────────────────────────────────────────
 
 /// Configuration for delegator steps that run with a specific model+flavor
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct DelegatorStepConfig {
     /// Named delegator reference (from config.delegators)
     pub delegator: String,
@@ -416,7 +434,8 @@ pub struct DelegatorStepConfig {
 // ── MCP Step ────────────────────────────────────────────────────────────
 
 /// Configuration for MCP steps that require specific MCP tools
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct McpStepConfig {
     /// MCP tools that MUST be available (step fails if missing)
     pub required_tools: Vec<McpToolRef>,
@@ -432,7 +451,8 @@ pub struct McpStepConfig {
 }
 
 /// Reference to a specific MCP server tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct McpToolRef {
     /// MCP server name
     pub server: String,
@@ -444,7 +464,8 @@ pub struct McpToolRef {
 // ── Multi-Model ─────────────────────────────────────────────────────────
 
 /// Configuration for multi-model delegation steps (fan-out + vote)
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct MultiModelConfig {
     /// Named delegator references (from config.delegators), minimum 2
     pub delegators: Vec<String>,
@@ -462,7 +483,8 @@ pub struct MultiModelConfig {
 }
 
 /// Voting strategy for multi-model steps
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum VotingStrategy {
     /// Simple majority vote
@@ -474,7 +496,8 @@ pub enum VotingStrategy {
 }
 
 /// How the voting round is executed in multi-model steps
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum VotingMode {
     /// One agent reviews all answers and picks winner (uses 1 slot)
@@ -487,7 +510,8 @@ pub enum VotingMode {
 // ── Multi-Prompt ────────────────────────────────────────────────────────
 
 /// Configuration for multi-prompt interrogation steps (N variations, select best)
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct MultiPromptConfig {
     /// Prompt variations (Handlebars templates), minimum 2
     pub prompt_variations: Vec<String>,
@@ -502,7 +526,8 @@ pub struct MultiPromptConfig {
 }
 
 /// Selection strategy for multi-prompt steps
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum SelectionStrategy {
     /// Model reviews all outputs and picks the best
@@ -514,7 +539,8 @@ pub enum SelectionStrategy {
 // ── Matrixed ────────────────────────────────────────────────────────────
 
 /// Configuration for matrixed work output steps (N x M delegators x prompts)
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct MatrixedConfig {
     /// Named delegator references (N), minimum 2
     pub delegators: Vec<String>,
@@ -528,7 +554,8 @@ pub struct MatrixedConfig {
 }
 
 /// Output format for matrixed steps
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum MatrixedOutputFormat {
     /// Each cell's output in `temp_dir/{delegator}/{prompt_index}/`
@@ -545,7 +572,8 @@ pub enum MatrixedOutputFormat {
 /// The step graph stays linear — a pipeline step still has exactly one
 /// `next_step`. The fan-out (N items x M stages) lives entirely inside this one
 /// step; iteration is an intra-step concern, never a step-to-step edge.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct PipelineConfig {
     /// Where the iterated items come from.
     pub item_source: ItemSource,
@@ -557,7 +585,8 @@ pub struct PipelineConfig {
 /// `StepSchema`): "prompt + optional agent/model/schema" only. It has no
 /// `next_step`/`review_type`/`on_reject`, so a stage cannot reopen the
 /// step-graph linearity question.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct PipelineStage {
     /// Handlebars prompt. The per-item value is appended as a JS binding at
     /// export time (see `workflow_gen::export`), not via a Handlebars variable.
@@ -579,7 +608,8 @@ pub struct PipelineStage {
 /// Where a pipeline's iterated items come from. The variant determines *when*
 /// the list resolves: export-time (a literal array → static fan-out width in
 /// the compiled graph) vs runtime (an identifier → symbolic width).
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ItemSource {
     /// The configured/relevant projects (`config.discover_projects()`),
@@ -622,9 +652,17 @@ impl TemplateSchema {
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
-        // Check key format
-        if !self.key.chars().all(|c| c.is_ascii_uppercase()) {
-            errors.push(format!("Key '{}' must be uppercase letters only", self.key));
+        // Check key format: uppercase start, then uppercase/digit/underscore
+        // (mirrors IssueType::validate; hyphens conflict with ticket-id `-`)
+        let mut key_chars = self.key.chars();
+        let valid_start = key_chars.next().is_some_and(|c| c.is_ascii_uppercase());
+        let valid_rest =
+            key_chars.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
+        if !(valid_start && valid_rest) {
+            errors.push(format!(
+                "Key '{}' must start with an uppercase letter and contain only uppercase letters, digits, and underscores",
+                self.key
+            ));
         }
 
         // Check that all required fields (except 'id' with auto=id) have defaults

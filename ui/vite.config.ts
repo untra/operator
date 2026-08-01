@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@operator/bindings': path.resolve(__dirname, '../bindings'),
+      // Built by `make webcomponents` before any ui build.
+      '@operator/webcomponents': path.resolve(__dirname, '../webcomponents/dist/index.js'),
     },
   },
   server: {

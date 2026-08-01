@@ -4,7 +4,8 @@ import type { IssueTypeSummary, IssueTypeResponse } from '../api-client';
 import { useHost } from '../host';
 import { CONCEPTS } from '../concepts';
 import { PageHeader } from '../components/PageHeader';
-import { WorkflowGraphView } from '../components/WorkflowGraphView';
+import { WorkflowGraph } from '@operator/webcomponents';
+import type { IssueType } from '@operator/bindings/IssueType';
 import styles from './IssueTypesPage.module.css';
 
 const ISSUE_TYPES = CONCEPTS.issuetypes;
@@ -17,7 +18,7 @@ export function IssueTypesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'steps' | 'graph'>('steps');
-  const [preview, setPreview] = useState<{ key: string; contents: string } | null>(null);
+  const [document_, setDocument] = useState<IssueType | null>(null);
 
   useEffect(() => {
     api
@@ -27,23 +28,24 @@ export function IssueTypesPage() {
       .finally(() => setLoading(false));
   }, [api]);
 
-  // Lazily fetch the workflow preview when the graph view is open.
+  // Lazily fetch the native Operator workflow document when the graph opens.
+  // Same bytes the docs site renders, so the two graphs cannot disagree.
   useEffect(() => {
     if (view !== 'graph' || !selected) return;
-    if (preview?.key === selected.key) return;
+    if (document_?.key === selected.key) return;
     let cancelled = false;
     api
-      .previewWorkflow(selected.key)
-      .then((r) => {
-        if (!cancelled) setPreview({ key: selected.key, contents: r.contents });
+      .getIssueTypeDocument(selected.key)
+      .then((doc) => {
+        if (!cancelled) setDocument(doc);
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load workflow preview');
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load workflow');
       });
     return () => {
       cancelled = true;
     };
-  }, [api, view, selected, preview]);
+  }, [api, view, selected, document_]);
 
   const handleSelect = async (key: string) => {
     try {
@@ -132,8 +134,8 @@ export function IssueTypesPage() {
                         </li>
                       ))}
                     </ol>
-                  ) : preview?.key === selected.key ? (
-                    <WorkflowGraphView contents={preview.contents} />
+                  ) : document_?.key === selected.key ? (
+                    <WorkflowGraph issueType={document_} />
                   ) : (
                     <div className={styles.placeholder}>Loading workflow graph…</div>
                   )}

@@ -23,5 +23,11 @@
   <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
   <link rel="stylesheet" href="{{ '/assets/css/syntax.css' | relative_url }}">
 
+
+  {% if page.section == 'workflows' %}
+  <link rel="stylesheet" href="{{ '/assets/js/elements.css' | relative_url }}">
+  <script type="module" src="{{ '/assets/js/elements.js' | relative_url }}"></script>
+  {% endif %}
+
   {% seo %}
 </head>

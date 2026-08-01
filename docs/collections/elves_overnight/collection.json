@@ -15,6 +15,11 @@
     "elves"
   ],
   "compatibility": null,
+  "tier": "community",
+  "icon_path": "icon.svg",
+  "created": "2026-06-16",
+  "updated": "2026-07-01",
+  "kanban_defaults": null,
   "issue_types": [
     {
       "key": "ELVSTAGE",

@@ -14,6 +14,11 @@
     "dev"
   ],
   "compatibility": null,
+  "tier": "official",
+  "icon_path": "icon.svg",
+  "created": "2026-01-08",
+  "updated": "2026-06-16",
+  "kanban_defaults": null,
   "issue_types": [
     {
       "key": "TASK",

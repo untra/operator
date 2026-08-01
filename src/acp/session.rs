@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use agent_client_protocol::schema::SessionId;
+use agent_client_protocol::schema::v1::SessionId;
 use anyhow::{anyhow, Context, Result};
 use tokio::sync::oneshot;
 

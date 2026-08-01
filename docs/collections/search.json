@@ -1,0 +1,592 @@
+{
+  "schema_version": 1,
+  "collections": [
+    {
+      "id": "simple",
+      "name": "Simple",
+      "description": "Simple workflow with TASK only",
+      "version": "1.0.0",
+      "tier": "official",
+      "author": "Operator!",
+      "publisher": "untra",
+      "url": "https://github.com/untra/operator",
+      "license": "MIT",
+      "tags": [
+        "builtin"
+      ],
+      "created": "2026-01-08",
+      "updated": "2026-07-01",
+      "icon_path": "simple/icon.svg",
+      "docs_path": "/workflows/simple/",
+      "manifest_path": "simple/collection.json",
+      "issue_type_count": 1,
+      "issue_types": [
+        {
+          "key": "TASK",
+          "name": "Task",
+          "mode": "autonomous",
+          "glyph": ">",
+          "step_count": 1,
+          "schema_path": "TASK.json"
+        }
+      ],
+      "loop_kind": "single_pass",
+      "review_gates": [],
+      "stop_conditions": [
+        "task_complete"
+      ],
+      "memory_surfaces": [
+        "ticket"
+      ],
+      "search_text": "autonomous builtin mit official only operator simple single_pass task untra with workflow"
+    },
+    {
+      "id": "dev_kanban",
+      "name": "Dev Kanban",
+      "description": "Developer kanban with TASK, FEAT, FIX",
+      "version": "1.0.0",
+      "tier": "official",
+      "author": "Operator!",
+      "publisher": "untra",
+      "url": "https://github.com/untra/operator",
+      "license": "MIT",
+      "tags": [
+        "builtin",
+        "kanban",
+        "dev"
+      ],
+      "created": "2026-01-08",
+      "updated": "2026-06-16",
+      "icon_path": "dev_kanban/icon.svg",
+      "docs_path": "/workflows/dev_kanban/",
+      "manifest_path": "dev_kanban/collection.json",
+      "issue_type_count": 3,
+      "issue_types": [
+        {
+          "key": "TASK",
+          "name": "Task",
+          "mode": "autonomous",
+          "glyph": ">",
+          "step_count": 1,
+          "schema_path": "TASK.json"
+        },
+        {
+          "key": "FEAT",
+          "name": "Feature",
+          "mode": "autonomous",
+          "glyph": "*",
+          "step_count": 5,
+          "schema_path": "FEAT.json"
+        },
+        {
+          "key": "FIX",
+          "name": "Fix",
+          "mode": "autonomous",
+          "glyph": "#",
+          "step_count": 5,
+          "schema_path": "FIX.json"
+        }
+      ],
+      "loop_kind": "single_pass",
+      "review_gates": [
+        "test_suite"
+      ],
+      "stop_conditions": [
+        "tests_green"
+      ],
+      "memory_surfaces": [
+        "ticket"
+      ],
+      "search_text": "autonomous builtin dev dev_kanban developer feat feature fix kanban mit official operator single_pass task test_suite untra with"
+    },
+    {
+      "id": "devops_kanban",
+      "name": "DevOps Kanban",
+      "description": "DevOps kanban with TASK, FEAT, FIX, SPIKE, INV",
+      "version": "1.0.0",
+      "tier": "official",
+      "author": "Operator!",
+      "publisher": "untra",
+      "url": "https://github.com/untra/operator",
+      "license": "MIT",
+      "tags": [
+        "builtin",
+        "kanban",
+        "devops"
+      ],
+      "created": "2026-01-08",
+      "updated": "2026-06-16",
+      "icon_path": "devops_kanban/icon.svg",
+      "docs_path": "/workflows/devops_kanban/",
+      "manifest_path": "devops_kanban/collection.json",
+      "issue_type_count": 5,
+      "issue_types": [
+        {
+          "key": "TASK",
+          "name": "Task",
+          "mode": "autonomous",
+          "glyph": ">",
+          "step_count": 1,
+          "schema_path": "TASK.json"
+        },
+        {
+          "key": "FEAT",
+          "name": "Feature",
+          "mode": "autonomous",
+          "glyph": "*",
+          "step_count": 5,
+          "schema_path": "FEAT.json"
+        },
+        {
+          "key": "FIX",
+          "name": "Fix",
+          "mode": "autonomous",
+          "glyph": "#",
+          "step_count": 5,
+          "schema_path": "FIX.json"
+        },
+        {
+          "key": "SPIKE",
+          "name": "Spike",
+          "mode": "paired",
+          "glyph": "?",
+          "step_count": 3,
+          "schema_path": "SPIKE.json"
+        },
+        {
+          "key": "INV",
+          "name": "Investigation",
+          "mode": "paired",
+          "glyph": "!",
+          "step_count": 5,
+          "schema_path": "INV.json"
+        }
+      ],
+      "loop_kind": "review_loop",
+      "review_gates": [
+        "human",
+        "test_suite"
+      ],
+      "stop_conditions": [
+        "tests_green",
+        "review_approved"
+      ],
+      "memory_surfaces": [
+        "ticket",
+        "scratchpad"
+      ],
+      "search_text": "autonomous builtin devops devops_kanban feat feature fix human inv investigation kanban mit official operator paired review_loop spike task test_suite untra with"
+    },
+    {
+      "id": "operator",
+      "name": "Operator",
+      "description": "Operator automation tasks: ASSESS, SYNC, INIT",
+      "version": "1.0.0",
+      "tier": "official",
+      "author": "Operator!",
+      "publisher": "untra",
+      "url": "https://github.com/untra/operator",
+      "license": "MIT",
+      "tags": [
+        "builtin",
+        "automation"
+      ],
+      "created": "2026-01-08",
+      "updated": "2026-07-01",
+      "icon_path": "operator/icon.svg",
+      "docs_path": "/workflows/operator/",
+      "manifest_path": "operator/collection.json",
+      "issue_type_count": 5,
+      "issue_types": [
+        {
+          "key": "ASSESS",
+          "name": "Project Assessment",
+          "mode": "autonomous",
+          "glyph": "~",
+          "step_count": 2,
+          "schema_path": "ASSESS.json"
+        },
+        {
+          "key": "SYNC",
+          "name": "Catalog Sync",
+          "mode": "autonomous",
+          "glyph": "@",
+          "step_count": 3,
+          "schema_path": "SYNC.json"
+        },
+        {
+          "key": "INIT",
+          "name": "Workspace Init",
+          "mode": "paired",
+          "glyph": "%",
+          "step_count": 3,
+          "schema_path": "INIT.json"
+        },
+        {
+          "key": "AGENT_SETUP",
+          "name": "Agent Setup",
+          "mode": "paired",
+          "glyph": "@",
+          "step_count": 3,
+          "schema_path": "AGENT_SETUP.json"
+        },
+        {
+          "key": "PROJECT_INIT",
+          "name": "Project Initialization",
+          "mode": "autonomous",
+          "glyph": "*",
+          "step_count": 2,
+          "schema_path": "PROJECT_INIT.json"
+        }
+      ],
+      "loop_kind": "single_pass",
+      "review_gates": [
+        "human"
+      ],
+      "stop_conditions": [
+        "setup_artifacts_written"
+      ],
+      "memory_surfaces": [
+        "ticket",
+        "catalog-info.yaml",
+        ".claude/agents/"
+      ],
+      "search_text": "agent agent_setup assess assessment automation autonomous builtin catalog human init initialization mit official operator paired project project_init setup single_pass sync tasks untra workspace"
+    },
+    {
+      "id": "ralph_loop",
+      "name": "Ralph Loop",
+      "description": "PRD-to-story loop for completing one right-sized story per fresh agent context.",
+      "version": "1.0.0",
+      "tier": "community",
+      "author": "snarktank",
+      "publisher": "untra",
+      "url": "https://github.com/snarktank/ralph",
+      "license": "MIT",
+      "tags": [
+        "agentic-loop",
+        "prd",
+        "stories",
+        "ralph"
+      ],
+      "created": "2026-06-16",
+      "updated": "2026-07-01",
+      "icon_path": "ralph_loop/icon.svg",
+      "docs_path": "/workflows/ralph_loop/",
+      "manifest_path": "ralph_loop/collection.json",
+      "issue_type_count": 3,
+      "issue_types": [
+        {
+          "key": "PRD",
+          "name": "Product Requirements Document",
+          "mode": "paired",
+          "glyph": "P",
+          "step_count": 4,
+          "schema_path": "PRD.json"
+        },
+        {
+          "key": "STORY",
+          "name": "Ralph Story",
+          "mode": "autonomous",
+          "glyph": "S",
+          "step_count": 5,
+          "schema_path": "STORY.json"
+        },
+        {
+          "key": "RLOOP",
+          "name": "Ralph Loop Coordinator",
+          "mode": "paired",
+          "glyph": "R",
+          "step_count": 4,
+          "schema_path": "RLOOP.json"
+        }
+      ],
+      "loop_kind": "fresh_context_story_loop",
+      "review_gates": [
+        "plan_review",
+        "test_suite",
+        "story_completion_check"
+      ],
+      "stop_conditions": [
+        "all stories have passes=true",
+        "blocked story documented",
+        "quality gates fail repeatedly",
+        "max_iterations reached (advisory; outer story loop is operator-queue-driven)"
+      ],
+      "memory_surfaces": [
+        ".tickets/workflows/{{ id }}/prd.json",
+        ".tickets/workflows/{{ id }}/progress.txt",
+        "AGENTS.md"
+      ],
+      "search_text": "agent agentic-loop autonomous community completing context coordinator document for fresh fresh_context_story_loop loop mit one paired per plan_review prd prd-to-story product ralph ralph_loop requirements right-sized rloop snarktank stories story story_completion_check test_suite untra"
+    },
+    {
+      "id": "jr_orchestration",
+      "name": "JR Orchestration",
+      "description": "Feature/task orchestration with coder, reviewer, architect, and rebase work units.",
+      "version": "1.0.0",
+      "tier": "community",
+      "author": "snapwich",
+      "publisher": "untra",
+      "url": "https://github.com/snapwich/jr",
+      "license": "MIT",
+      "tags": [
+        "agentic-loop",
+        "feature-graph",
+        "review",
+        "jr"
+      ],
+      "created": "2026-06-16",
+      "updated": "2026-07-01",
+      "icon_path": "jr_orchestration/icon.svg",
+      "docs_path": "/workflows/jr_orchestration/",
+      "manifest_path": "jr_orchestration/collection.json",
+      "issue_type_count": 5,
+      "issue_types": [
+        {
+          "key": "JRPLAN",
+          "name": "JR Plan",
+          "mode": "paired",
+          "glyph": "J",
+          "step_count": 4,
+          "schema_path": "JRPLAN.json"
+        },
+        {
+          "key": "JRFEAT",
+          "name": "JR Feature",
+          "mode": "paired",
+          "glyph": "F",
+          "step_count": 4,
+          "schema_path": "JRFEAT.json"
+        },
+        {
+          "key": "JRTASK",
+          "name": "JR Task",
+          "mode": "autonomous",
+          "glyph": "T",
+          "step_count": 5,
+          "schema_path": "JRTASK.json"
+        },
+        {
+          "key": "JRREV",
+          "name": "JR Review",
+          "mode": "paired",
+          "glyph": "V",
+          "step_count": 4,
+          "schema_path": "JRREV.json"
+        },
+        {
+          "key": "JRREBASE",
+          "name": "JR Rebase",
+          "mode": "autonomous",
+          "glyph": "B",
+          "step_count": 4,
+          "schema_path": "JRREBASE.json"
+        }
+      ],
+      "loop_kind": "feature_task_review_graph",
+      "review_gates": [
+        "code_review",
+        "architect_review",
+        "human_pr_review"
+      ],
+      "stop_conditions": [
+        "feature PR ready for human review",
+        "review changes requested",
+        "blocked dependency documented",
+        "review escalated to human after repeated changes (operator stops; no auto-handoff)"
+      ],
+      "memory_surfaces": [
+        ".tickets/jr/{{ id }}/plan.md",
+        ".tickets/jr/{{ feature_id }}/handoff.md",
+        "ticket parent/dependency notes"
+      ],
+      "search_text": "agentic-loop and architect architect_review autonomous code_review coder community feature feature-graph feature/task feature_task_review_graph human_pr_review jr jr_orchestration jrfeat jrplan jrrebase jrrev jrtask mit orchestration paired plan rebase review reviewer snapwich task units untra with work"
+    },
+    {
+      "id": "elves_overnight",
+      "name": "Elves Overnight",
+      "description": "Long-running staged batch workflow with durable memory, validation, PR review, and reporting.",
+      "version": "1.0.0",
+      "tier": "community",
+      "author": "Aigora",
+      "publisher": "untra",
+      "url": "https://github.com/aigorahub/elves",
+      "license": "MIT",
+      "tags": [
+        "agentic-loop",
+        "overnight",
+        "batch",
+        "elves"
+      ],
+      "created": "2026-06-16",
+      "updated": "2026-07-01",
+      "icon_path": "elves_overnight/icon.svg",
+      "docs_path": "/workflows/elves_overnight/",
+      "manifest_path": "elves_overnight/collection.json",
+      "issue_type_count": 4,
+      "issue_types": [
+        {
+          "key": "ELVSTAGE",
+          "name": "Elves Stage",
+          "mode": "paired",
+          "glyph": "E",
+          "step_count": 4,
+          "schema_path": "ELVSTAGE.json"
+        },
+        {
+          "key": "ELVBATCH",
+          "name": "Elves Batch",
+          "mode": "autonomous",
+          "glyph": "B",
+          "step_count": 9,
+          "schema_path": "ELVBATCH.json"
+        },
+        {
+          "key": "LANDPR",
+          "name": "Land Pull Request",
+          "mode": "paired",
+          "glyph": "L",
+          "step_count": 6,
+          "schema_path": "LANDPR.json"
+        },
+        {
+          "key": "ELVRPT",
+          "name": "Elves Report",
+          "mode": "paired",
+          "glyph": "R",
+          "step_count": 3,
+          "schema_path": "ELVRPT.json"
+        }
+      ],
+      "loop_kind": "staged_long_running_batch_loop",
+      "review_gates": [
+        "stage_review",
+        "batch_validation",
+        "fresh_review",
+        "judge_verdict",
+        "human_land_gate"
+      ],
+      "stop_conditions": [
+        "batch complete and checkpointed",
+        "validation cannot be repaired safely",
+        "PR has unresolved requested changes",
+        "time/risk budget exhausted"
+      ],
+      "memory_surfaces": [
+        "docs/elves/survival-guide.md",
+        "docs/elves/execution-log.md",
+        "docs/elves/learnings.md",
+        ".elves-session.json",
+        "PR comments and checks"
+      ],
+      "search_text": "agentic-loop aigora and autonomous batch batch_validation community durable elvbatch elves elves_overnight elvrpt elvstage fresh_review human_land_gate judge_verdict land landpr long-running memory mit overnight paired pr pull report reporting request review stage stage_review staged staged_long_running_batch_loop untra validation with workflow"
+    },
+    {
+      "id": "coder",
+      "name": "Coder",
+      "description": "Linear-synced engineering flow: Feature, Improvement, and Bug work delegated to coding agents.",
+      "version": "1.0.0",
+      "tier": "community",
+      "author": "untra",
+      "publisher": "untra",
+      "url": "https://github.com/untra/operator",
+      "license": "MIT",
+      "tags": [
+        "community",
+        "linear",
+        "kanban",
+        "engineering"
+      ],
+      "created": "2026-08-01",
+      "updated": "2026-08-01",
+      "icon_path": "coder/icon.svg",
+      "docs_path": "/workflows/coder/",
+      "manifest_path": "coder/collection.json",
+      "issue_type_count": 3,
+      "issue_types": [
+        {
+          "key": "FEATURE",
+          "name": "Feature",
+          "mode": "autonomous",
+          "glyph": "+",
+          "step_count": 5,
+          "schema_path": "FEATURE.json"
+        },
+        {
+          "key": "IMPROVEMENT",
+          "name": "Improvement",
+          "mode": "autonomous",
+          "glyph": "^",
+          "step_count": 4,
+          "schema_path": "IMPROVEMENT.json"
+        },
+        {
+          "key": "BUG",
+          "name": "Bug",
+          "mode": "autonomous",
+          "glyph": "x",
+          "step_count": 5,
+          "schema_path": "BUG.json"
+        }
+      ],
+      "loop_kind": "kanban_synced_single_pass",
+      "review_gates": [
+        "plan_review",
+        "test_suite",
+        "pr_review"
+      ],
+      "stop_conditions": [
+        "tests_green",
+        "pr_created"
+      ],
+      "memory_surfaces": [
+        "ticket",
+        ".tickets/plans/{{ id }}.md"
+      ],
+      "search_text": "agents and autonomous bug coder coding community delegated engineering feature flow improvement kanban kanban_synced_single_pass linear linear-synced mit plan_review pr_review test_suite to untra work"
+    },
+    {
+      "id": "example_chores",
+      "name": "Example Chores",
+      "description": "Minimal example community collection demonstrating the shareable format.",
+      "version": "0.1.0",
+      "tier": "community",
+      "author": "untra",
+      "publisher": null,
+      "url": "https://github.com/untra/operator",
+      "license": "MIT",
+      "tags": [
+        "example",
+        "starter"
+      ],
+      "created": "2026-07-01",
+      "updated": "2026-07-01",
+      "icon_path": "example_chores/icon.svg",
+      "docs_path": "/workflows/example_chores/",
+      "manifest_path": "example_chores/collection.json",
+      "issue_type_count": 1,
+      "issue_types": [
+        {
+          "key": "CHORE",
+          "name": "Chore",
+          "mode": "autonomous",
+          "glyph": "*",
+          "step_count": 2,
+          "schema_path": "CHORE.json"
+        }
+      ],
+      "loop_kind": "single_pass",
+      "review_gates": [
+        "test_suite"
+      ],
+      "stop_conditions": [
+        "tests_green"
+      ],
+      "memory_surfaces": [
+        "ticket"
+      ],
+      "search_text": "autonomous chore chores collection community demonstrating example example_chores format minimal mit shareable single_pass starter test_suite the untra"
+    }
+  ]
+}

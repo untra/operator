@@ -9,15 +9,21 @@
   "properties": {
     "id": {
       "type": "string",
-      "description": "Kanban ticket ID (e.g., FEAT-1234). Also used for tmux session name derivation.",
-      "pattern": "^[A-Z]+-\\d+$",
-      "examples": ["FEAT-1234", "FIX-5678", "SPIKE-0001", "INV-0042", "TASK-9999"]
+      "description": "Kanban ticket ID (e.g., FEAT-1234). Also used for tmux session name derivation. Key grammar: uppercase start, then uppercase letters, digits, or underscores (hyphen is reserved as the key/number separator).",
+      "pattern": "^[A-Z][A-Z0-9_]*-\\d+$",
+      "examples": ["FEAT-1234", "FIX-5678", "SPIKE-0001", "INV-0042", "TASK-9999", "AGENT_SETUP-0001"]
     },
     "status": {
       "type": "string",
       "enum": ["queued", "running", "awaiting", "completed"],
       "description": "Operator workflow status",
       "default": "queued"
+    },
+    "collection": {
+      "type": "string",
+      "description": "Issuetype collection the ticket's type resolves within. Stamped at creation (active collection) or kanban sync (the project sync's collection). Absent on legacy tickets — resolution falls back to the active collection, then a deterministic search.",
+      "pattern": "^[a-z0-9_]{3,64}$",
+      "examples": ["dev_kanban", "ralph_loop", "custom"]
     },
     "step": {
       "type": "string",
@@ -121,7 +127,7 @@
       "properties": {
         "tmux_session_name": {
           "description": "Derived as: op-{id} (e.g., op-FEAT-1234)",
-          "pattern": "^op-[A-Z]+-\\d+$"
+          "pattern": "^op-[A-Z][A-Z0-9_]*-\\d+$"
         },
         "git_branch": {
           "description": "Derived as: {key.lowercase}/{id}-{summary-slug} (e.g., feat/FEAT-1234-add-auth)"

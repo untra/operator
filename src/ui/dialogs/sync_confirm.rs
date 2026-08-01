@@ -25,7 +25,7 @@ impl From<&crate::services::SyncableCollection> for SyncableCollectionDisplay {
             provider: collection.provider.clone(),
             project_key: collection.project_key.clone(),
             collection_name: collection.collection_name.clone(),
-            status_count: collection.sync_statuses.len(),
+            status_count: collection.status_mapping.mapped_count(),
         }
     }
 }
@@ -223,11 +223,11 @@ impl SyncConfirmDialog {
                 ),
             };
 
-            // Status count suffix
+            // Mapped-column suffix
             let status_suffix = if collection.status_count > 0 {
-                format!(" ({} statuses)", collection.status_count)
+                format!(" ({}/3 columns mapped)", collection.status_count)
             } else {
-                " (default)".to_string()
+                " (no column mapping)".to_string()
             };
 
             lines.push(Line::from(vec![
@@ -302,7 +302,10 @@ mod tests {
             project_key: "PROJ".to_string(),
             collection_name: Some("jira-proj".to_string()),
             sync_user_id: "user123".to_string(),
-            sync_statuses: vec!["To Do".to_string()],
+            status_mapping: crate::config::KanbanStatusMapping {
+                todo: Some("To Do".to_string()),
+                ..Default::default()
+            },
         }];
 
         dialog.show(collections);

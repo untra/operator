@@ -871,6 +871,7 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            collection: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
@@ -908,6 +909,7 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            collection: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
@@ -945,6 +947,7 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            collection: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-456", &health);
@@ -984,6 +987,7 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            collection: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-789", &health);
@@ -1023,6 +1027,7 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            collection: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);
@@ -1061,6 +1066,7 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            collection: None,
         };
 
         let action = sync.determine_action(&ticket, "op-FEAT-123", &health);

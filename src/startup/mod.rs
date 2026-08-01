@@ -65,7 +65,7 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
         help_text: "Choose how Operator will manage coding agent sessions:\n\
             - **tmux**: Terminal multiplexer, recommended for most setups\n\
             - **VS Code**: Launch agents as VS Code tasks (requires extension)\n\
-            - **cmux**: Lightweight tmux wrapper with operator defaults pre-applied\n\
+            - **cmux**: Native macOS terminal for AI agents, organized into windows and workspaces\n\
             - **Zellij**: Modern terminal workspace with built-in layouts\n\n\
             Your choice determines which setup steps follow.",
         navigation: "↑/↓ or j/k to navigate, Enter to select, Esc to go back",
@@ -103,9 +103,11 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
     SetupStepInfo {
         name: "Cmux Setup",
         description: "cmux session wrapper setup (shown if cmux selected)",
-        help_text: "cmux is a lightweight tmux wrapper that pre-applies Operator's preferred \
-            session defaults.\n\n\
-            This step verifies cmux is installed and accessible in your PATH.",
+        help_text: "cmux is a native macOS terminal that organizes AI agent sessions into \
+            windows and workspaces.\n\n\
+            This step verifies the cmux app's CLI binary exists at the configured \
+            binary_path (by default inside /Applications/cmux.app) and meets the \
+            minimum supported version.",
         navigation: "Enter to continue, Esc to go back",
     },
     SetupStepInfo {
@@ -190,8 +192,8 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
         description: "Optionally create tickets to bootstrap your projects",
         help_text: "Create startup tickets to help initialize your projects:\n\
             - **ASSESS tickets**: Scan projects for catalog-info.yaml, create if missing\n\
-            - **AGENT-SETUP tickets**: Configure Claude agents for each project\n\
-            - **PROJECT-INIT tickets**: Run both ASSESS and AGENT-SETUP for each project\n\n\
+            - **AGENT_SETUP tickets**: Configure Claude agents for each project\n\
+            - **PROJECT_INIT tickets**: Run both ASSESS and AGENT_SETUP for each project\n\n\
             These tickets are optional and help automate common setup tasks.",
         navigation: "↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back",
     },

@@ -295,7 +295,7 @@ suite('Status Provider Test Suite', () => {
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.deepStrictEqual(labels, ['Configuration']);
+      assert.deepStrictEqual(labels, ['Configuration', 'Workflows']);
     });
 
     test('tier 1: Configuration + Connections when config ready but no connections', async () => {
@@ -308,7 +308,7 @@ suite('Status Provider Test Suite', () => {
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.deepStrictEqual(labels, ['Configuration', 'Connections']);
+      assert.deepStrictEqual(labels, ['Configuration', 'Connections', 'Workflows']);
     });
 
     test('tier 2: adds Kanban, LLM Tools, Model Servers, Git when connections ready', async () => {
@@ -465,8 +465,8 @@ suite('Status Provider Test Suite', () => {
       const labels = getSectionLabels(provider.getChildren());
       assert.deepStrictEqual(
         labels,
-        ['Configuration', 'Connections'],
-        'Should only show tier 0+1 when connections not ready'
+        ['Configuration', 'Connections', 'Workflows'],
+        'Should only show tier 0+1 (plus the prerequisite-free Workflows) when connections not ready'
       );
     });
   });

@@ -248,6 +248,8 @@ impl App {
                         api_key_env: api_key_env.clone(),
                         project_key: project_key.clone(),
                         sync_user_id: account_id,
+                        // TUI wizard has no column-mapping step; map via web/VS Code config UI.
+                        status_mapping: None,
                     }),
                     linear: None,
                     github: None,
@@ -297,6 +299,7 @@ impl App {
                         api_key_env: api_key_env.clone(),
                         project_key: project_key.clone(),
                         sync_user_id: user_id,
+                        status_mapping: None,
                     }),
                     github: None,
                 };

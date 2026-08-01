@@ -1,7 +1,4 @@
 import React from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Link from '@mui/material/Link';
 import { SectionHeader } from '../SectionHeader';
 import { LinkOutCard } from '../LinkOutCard';
 import { ProviderCard } from '../kanban/ProviderCard';
@@ -30,6 +27,8 @@ interface KanbanProvidersSectionProps {
   collections: CollectionResponse[];
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
+  kanbanStatuses: Map<string, string[]>;
+  onGetKanbanStatuses: (provider: string, projectKey: string) => void;
   onOpenOperatorUi: (route: 'issuetypes' | 'projects') => void;
 }
 
@@ -50,6 +49,8 @@ export function KanbanProvidersSection({
   collections,
   externalIssueTypes,
   onGetExternalIssueTypes,
+  kanbanStatuses,
+  onGetKanbanStatuses,
   onOpenOperatorUi,
 }: KanbanProvidersSectionProps) {
   // Iterate all Jira domains
@@ -68,14 +69,14 @@ export function KanbanProvidersSection({
   };
 
   return (
-    <Box sx={{ mb: 4 }}>
+    <div className="op-mb-4">
       <SectionHeader id="section-kanban" title="Kanban Providers" />
-      <Typography color="text.secondary" gutterBottom>
+      <p className="op-body1 op-text-secondary op-mb-1">
         Configure kanban board integrations for ticket management. For more details see the{' '}
-        <Link href="https://operator.untra.io/getting-started/kanban/">kanban documentation</Link>
-      </Typography>
+        <a href="https://operator.untra.io/getting-started/kanban/">kanban documentation</a>
+      </p>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div className="op-col op-gap-3">
         {/* Jira providers */}
         {hasJira ? (
           jiraEntries.map(([domain, config]) => (
@@ -92,6 +93,8 @@ export function KanbanProvidersSection({
               issueTypes={issueTypes}
               externalIssueTypes={externalIssueTypes}
               onGetExternalIssueTypes={onGetExternalIssueTypes}
+              kanbanStatuses={kanbanStatuses}
+              onGetKanbanStatuses={onGetKanbanStatuses}
               onViewIssueType={handleViewIssueType}
             />
           ))
@@ -108,6 +111,8 @@ export function KanbanProvidersSection({
             issueTypes={issueTypes}
             externalIssueTypes={externalIssueTypes}
             onGetExternalIssueTypes={onGetExternalIssueTypes}
+            kanbanStatuses={kanbanStatuses}
+            onGetKanbanStatuses={onGetKanbanStatuses}
             onViewIssueType={handleViewIssueType}
           />
         )}
@@ -128,6 +133,8 @@ export function KanbanProvidersSection({
               issueTypes={issueTypes}
               externalIssueTypes={externalIssueTypes}
               onGetExternalIssueTypes={onGetExternalIssueTypes}
+              kanbanStatuses={kanbanStatuses}
+              onGetKanbanStatuses={onGetKanbanStatuses}
               onViewIssueType={handleViewIssueType}
             />
           ))
@@ -144,22 +151,24 @@ export function KanbanProvidersSection({
             issueTypes={issueTypes}
             externalIssueTypes={externalIssueTypes}
             onGetExternalIssueTypes={onGetExternalIssueTypes}
+            kanbanStatuses={kanbanStatuses}
+            onGetKanbanStatuses={onGetKanbanStatuses}
             onViewIssueType={handleViewIssueType}
           />
         )}
-      </Box>
+      </div>
 
       {/* Issue types & collections now live in the hosted Operator UI */}
       {apiReachable && (
-        <Box sx={{ mt: 3 }}>
+        <div style={{ marginTop: 24 }}>
           <LinkOutCard
             id="section-issuetypes"
             title="Issue Types & Collections"
             description="Create and manage issue types and collections in the Operator UI."
             onOpen={() => onOpenOperatorUi('issuetypes')}
           />
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }

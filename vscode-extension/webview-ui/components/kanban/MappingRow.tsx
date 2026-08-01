@@ -1,10 +1,5 @@
 import React from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Link from '@mui/material/Link';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
+import { SelectInput } from '../primitives';
 import type { ExternalIssueTypeSummary, IssueTypeSummary } from '../../types/messages';
 
 interface MappingRowProps {
@@ -15,6 +10,9 @@ interface MappingRowProps {
   onSelect: (externalName: string, operatorKey: string | '') => void;
   onViewIssueType: () => void;
 }
+
+const DIVIDER_BORDER = '1px solid var(--vscode-sideBar-border, var(--vscode-widget-border, #45454580))';
+const INFO_COLOR = 'var(--vscode-textLink-foreground, #3794ff)';
 
 export function MappingRow({
   external,
@@ -28,80 +26,58 @@ export function MappingRow({
   const isOverride = selectedKey !== null && selectedKey !== autoMatchedKey;
 
   return (
-    <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+    <div style={{ padding: '8px 0', borderBottom: DIVIDER_BORDER }}>
+      <div className="op-row op-gap-2">
         {/* External type */}
-        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-          {external.icon_url && (
-            <Box
-              component="img"
-              src={external.icon_url}
-              alt=""
-              sx={{ width: 16, height: 16 }}
-            />
-          )}
-          <Typography variant="body2" fontWeight={500}>
+        <div className="op-row op-gap-1" style={{ flex: 1 }}>
+          {external.icon_url && <img src={external.icon_url} alt="" style={{ width: 16, height: 16 }} />}
+          <span className="op-body2" style={{ fontWeight: 500 }}>
             {external.name}
-          </Typography>
-        </Box>
+          </span>
+        </div>
 
         {/* Arrow */}
-        <Typography color="text.secondary" sx={{ px: 1 }}>→</Typography>
+        <span className="op-text-secondary" style={{ padding: '0 8px' }}>→</span>
 
         {/* Operator type selector */}
-        <Box sx={{ flex: 1 }}>
-          <FormControl size="small" fullWidth>
-            <Select
-              value={effectiveKey ?? ''}
-              onChange={(e) => onSelect(external.name, e.target.value as string)}
-              displayEmpty
-              sx={{
-                '& .MuiSelect-select': { py: 0.5 },
-                ...(isOverride ? { borderColor: 'info.main' } : {}),
-              }}
-            >
-              <MenuItem value="">
-                <em>Unmapped</em>
-              </MenuItem>
-              {operatorTypes.map((ot) => (
-                <MenuItem key={ot.key} value={ot.key}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2">{ot.glyph}</Typography>
-                    <Typography variant="body2">{ot.key}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {ot.name}
-                    </Typography>
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        <div style={{ flex: 1 }}>
+          <SelectInput
+            value={effectiveKey ?? ''}
+            onChange={(e) => onSelect(external.name, e.target.value)}
+          >
+            <option value="">Unmapped</option>
+            {operatorTypes.map((ot) => (
+              <option key={ot.key} value={ot.key}>
+                {ot.glyph} {ot.key} — {ot.name}
+              </option>
+            ))}
+          </SelectInput>
           {autoMatchedKey && !isOverride && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: 'block' }}>
+            <span className="op-caption op-text-secondary" style={{ marginTop: 2, display: 'block' }}>
               auto-matched
-            </Typography>
+            </span>
           )}
           {isOverride && (
-            <Typography variant="caption" color="info.main" sx={{ mt: 0.25, display: 'block' }}>
+            <span className="op-caption" style={{ marginTop: 2, display: 'block', color: INFO_COLOR }}>
               custom override
-            </Typography>
+            </span>
           )}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* View the mapped issue type in the hosted Operator UI */}
       {effectiveKey && (
-        <Box sx={{ mt: 0.5, ml: 4 }}>
-          <Link
-            component="button"
-            variant="caption"
+        <div style={{ marginTop: 4, marginLeft: 32 }}>
+          <button
+            type="button"
+            className="op-link op-caption"
             onClick={onViewIssueType}
-            sx={{ textAlign: 'left' }}
+            style={{ textAlign: 'left' }}
           >
             view issue type →
-          </Link>
-        </Box>
+          </button>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }

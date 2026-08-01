@@ -6,10 +6,8 @@ use std::fs;
 use std::path::Path;
 use tracing::{debug, info, warn};
 
-use super::collection::{CollectionsFile, IssueTypeCollection};
+use super::collection::{CollectionMetadata, CollectionsFile, IssueTypeCollection};
 use super::schema::{IssueType, IssueTypeSource};
-use crate::templates::schema::TemplateSchema;
-use crate::templates::TemplateType;
 
 /// A loaded collection with its issue types
 #[derive(Debug, Clone)]
@@ -22,115 +20,8 @@ pub struct LoadedCollection {
     pub types: HashMap<String, IssueType>,
     /// Ordered list of type keys (from collection.toml types field, or derived)
     pub type_order: Vec<String>,
-    /// Descriptive workflow hints (from collection.json, if present)
-    pub workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
-    /// Collection semver (from collection.json, if present)
-    pub version: Option<String>,
-    /// Publisher (from collection.json, if present)
-    pub publisher: Option<String>,
-}
-
-/// Load all built-in issue types
-pub fn load_builtins() -> Result<HashMap<String, IssueType>> {
-    let mut types = HashMap::new();
-
-    for template_type in TemplateType::all() {
-        let schema_json = template_type.schema();
-        match TemplateSchema::from_json(schema_json) {
-            Ok(schema) => {
-                let issue_type = template_schema_to_issuetype(schema, IssueTypeSource::Builtin);
-                debug!("Loaded builtin issue type: {}", issue_type.key);
-                types.insert(issue_type.key.clone(), issue_type);
-            }
-            Err(e) => {
-                warn!(
-                    "Failed to parse builtin template {}: {}",
-                    template_type.as_str(),
-                    e
-                );
-            }
-        }
-    }
-
-    Ok(types)
-}
-
-/// Convert a `TemplateSchema` to an `IssueType`
-fn template_schema_to_issuetype(schema: TemplateSchema, source: IssueTypeSource) -> IssueType {
-    IssueType {
-        key: schema.key,
-        name: schema.name,
-        description: schema.description,
-        mode: schema.mode,
-        glyph: schema.glyph,
-        color: schema.color,
-        project_required: schema.project_required,
-        fields: schema.fields,
-        steps: schema.steps,
-        agent_prompt: schema.agent_prompt,
-        agent: schema.agent,
-        source,
-        external_id: None,
-    }
-}
-
-/// Load user-defined issue types from a directory
-///
-/// Scans for *.json files in the directory and attempts to parse each as an `IssueType`.
-/// Invalid files are logged as warnings and skipped.
-pub fn load_user_types(path: &Path) -> Result<HashMap<String, IssueType>> {
-    let mut types = HashMap::new();
-
-    if !path.exists() {
-        debug!(
-            "User issuetypes directory does not exist: {}",
-            path.display()
-        );
-        return Ok(types);
-    }
-
-    let entries = fs::read_dir(path)
-        .with_context(|| format!("Failed to read issuetypes directory: {}", path.display()))?;
-
-    for entry in entries {
-        let entry = entry?;
-        let file_path = entry.path();
-
-        // Skip directories and non-JSON files
-        if file_path.is_dir() || file_path.extension().is_none_or(|e| e != "json") {
-            continue;
-        }
-
-        // Skip imports directory
-        if file_path
-            .file_stem()
-            .is_some_and(|s| s == "imports" || s == "collections")
-        {
-            continue;
-        }
-
-        match load_issuetype_file(&file_path) {
-            Ok(mut issue_type) => {
-                // Ensure source is marked as User
-                issue_type.source = IssueTypeSource::User;
-                debug!(
-                    "Loaded user issue type: {} from {}",
-                    issue_type.key,
-                    file_path.display()
-                );
-                types.insert(issue_type.key.clone(), issue_type);
-            }
-            Err(e) => {
-                warn!(
-                    "Failed to load issue type from {}: {}",
-                    file_path.display(),
-                    e
-                );
-            }
-        }
-    }
-
-    Ok(types)
+    /// Descriptive metadata from collection.json (empty for legacy collections)
+    pub metadata: CollectionMetadata,
 }
 
 /// Load imported issue types from the imports subdirectory
@@ -284,27 +175,6 @@ pub fn load_collections(path: &Path) -> Result<HashMap<String, IssueTypeCollecti
     Ok(file.collections)
 }
 
-/// Validate a collection against available types, returning types that are missing
-///
-/// Returns a tuple of (`valid_types`, `missing_types`)
-pub fn validate_collection_types(
-    collection: &IssueTypeCollection,
-    available_types: &HashMap<String, IssueType>,
-) -> (Vec<String>, Vec<String>) {
-    let mut valid = Vec::new();
-    let mut missing = Vec::new();
-
-    for type_key in &collection.types {
-        if available_types.contains_key(type_key) {
-            valid.push(type_key.clone());
-        } else {
-            missing.push(type_key.clone());
-        }
-    }
-
-    (valid, missing)
-}
-
 /// Load collections from directory structure
 ///
 /// Structure (flattened - no issues/ subfolder):
@@ -393,9 +263,7 @@ pub fn load_collections_from_dir(
                 description: meta.description,
                 types,
                 type_order: meta.type_order,
-                workflow_hints: meta.workflow_hints,
-                version: meta.version,
-                publisher: meta.publisher,
+                metadata: meta.metadata,
             },
         );
     }
@@ -461,12 +329,12 @@ fn load_types_from_collection_dir(
 
 /// Metadata for a loaded collection, sourced from `collection.json` (preferred)
 /// or the legacy `collection.toml`.
-struct CollectionMetadata {
+struct LoadedMetadata {
     description: String,
     type_order: Vec<String>,
-    workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
-    version: Option<String>,
-    publisher: Option<String>,
+    /// Descriptive metadata; empty for legacy `collection.toml` collections,
+    /// which predate the manifest format.
+    metadata: CollectionMetadata,
 }
 
 /// Load optional collection metadata from `collection.json` (preferred) or the
@@ -474,7 +342,7 @@ struct CollectionMetadata {
 fn load_collection_metadata(
     collection_path: &Path,
     types: &HashMap<String, IssueType>,
-) -> CollectionMetadata {
+) -> LoadedMetadata {
     // Preferred: collection.json (current format).
     let json_path = collection_path.join("collection.json");
     if json_path.exists() {
@@ -487,12 +355,10 @@ fn load_collection_metadata(
                 } else {
                     manifest.type_keys()
                 };
-                return CollectionMetadata {
+                return LoadedMetadata {
+                    metadata: CollectionMetadata::from(&manifest),
                     description: manifest.description,
                     type_order,
-                    workflow_hints: manifest.workflow_hints,
-                    version: (!manifest.version.is_empty()).then_some(manifest.version),
-                    publisher: manifest.publisher,
                 };
             }
         }
@@ -522,12 +388,10 @@ fn load_collection_metadata(
                     })
                     .unwrap_or_else(|| derive_type_order(types));
 
-                return CollectionMetadata {
+                return LoadedMetadata {
                     description,
                     type_order,
-                    workflow_hints: None,
-                    version: None,
-                    publisher: None,
+                    metadata: CollectionMetadata::default(),
                 };
             }
         }
@@ -545,12 +409,10 @@ fn load_collection_metadata(
         types.len()
     );
 
-    CollectionMetadata {
+    LoadedMetadata {
         description,
         type_order: derive_type_order(types),
-        workflow_hints: None,
-        version: None,
-        publisher: None,
+        metadata: CollectionMetadata::default(),
     }
 }
 
@@ -565,27 +427,6 @@ fn derive_type_order(types: &HashMap<String, IssueType>) -> Vec<String> {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-
-    #[test]
-    fn test_load_builtins() {
-        let types = load_builtins().unwrap();
-        assert!(types.contains_key("FEAT"));
-        assert!(types.contains_key("FIX"));
-        assert!(types.contains_key("TASK"));
-        assert!(types.contains_key("SPIKE"));
-        assert!(types.contains_key("INV"));
-
-        // Verify source is set correctly
-        let feat = types.get("FEAT").unwrap();
-        assert_eq!(feat.source, IssueTypeSource::Builtin);
-    }
-
-    #[test]
-    fn test_load_user_types_empty_dir() {
-        let temp_dir = TempDir::new().unwrap();
-        let types = load_user_types(temp_dir.path()).unwrap();
-        assert!(types.is_empty());
-    }
 
     #[test]
     fn test_load_collection_metadata_reads_collection_json() {
@@ -625,78 +466,6 @@ mod tests {
     }
 
     #[test]
-    fn test_load_user_types_nonexistent_dir() {
-        let types = load_user_types(Path::new("/nonexistent/path")).unwrap();
-        assert!(types.is_empty());
-    }
-
-    #[test]
-    fn test_load_user_types_with_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let json = r#"{
-            "key": "STORY",
-            "name": "User Story",
-            "description": "A user story",
-            "mode": "autonomous",
-            "glyph": "S",
-            "fields": [
-                {"name": "id", "description": "ID", "type": "string", "required": true, "auto": "id"}
-            ],
-            "steps": [
-                {"name": "execute", "outputs": [], "prompt": "Execute", "allowed_tools": ["*"]}
-            ]
-        }"#;
-        fs::write(temp_dir.path().join("STORY.json"), json).unwrap();
-
-        let types = load_user_types(temp_dir.path()).unwrap();
-        assert_eq!(types.len(), 1);
-        assert!(types.contains_key("STORY"));
-
-        let story = types.get("STORY").unwrap();
-        assert_eq!(story.name, "User Story");
-        assert_eq!(story.source, IssueTypeSource::User);
-    }
-
-    #[test]
-    fn test_load_user_types_skips_invalid() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Valid file
-        let valid_json = r#"{
-            "key": "VALID",
-            "name": "Valid",
-            "description": "Valid type",
-            "mode": "autonomous",
-            "glyph": "V",
-            "fields": [
-                {"name": "id", "description": "ID", "type": "string", "required": true, "auto": "id"}
-            ],
-            "steps": [
-                {"name": "execute", "outputs": [], "prompt": "Execute", "allowed_tools": ["*"]}
-            ]
-        }"#;
-        fs::write(temp_dir.path().join("VALID.json"), valid_json).unwrap();
-
-        // Invalid file (lowercase key)
-        let invalid_json = r#"{
-            "key": "invalid",
-            "name": "Invalid",
-            "description": "Invalid type",
-            "mode": "autonomous",
-            "glyph": "I",
-            "fields": [],
-            "steps": [
-                {"name": "execute", "outputs": [], "prompt": "Execute", "allowed_tools": ["*"]}
-            ]
-        }"#;
-        fs::write(temp_dir.path().join("invalid.json"), invalid_json).unwrap();
-
-        let types = load_user_types(temp_dir.path()).unwrap();
-        assert_eq!(types.len(), 1);
-        assert!(types.contains_key("VALID"));
-    }
-
-    #[test]
     fn test_load_collections() {
         let temp_dir = TempDir::new().unwrap();
         let toml = r#"
@@ -719,40 +488,6 @@ types = ["FEAT", "FIX"]
     fn test_load_collections_nonexistent() {
         let collections = load_collections(Path::new("/nonexistent/collections.toml")).unwrap();
         assert!(collections.is_empty());
-    }
-
-    #[test]
-    fn test_validate_collection_types() {
-        let mut available = HashMap::new();
-        available.insert(
-            "FEAT".to_string(),
-            IssueType::new_imported(
-                "FEAT".to_string(),
-                "Feature".to_string(),
-                String::new(),
-                "builtin".to_string(),
-                String::new(),
-                None,
-            ),
-        );
-        available.insert(
-            "FIX".to_string(),
-            IssueType::new_imported(
-                "FIX".to_string(),
-                "Fix".to_string(),
-                String::new(),
-                "builtin".to_string(),
-                String::new(),
-                None,
-            ),
-        );
-
-        let collection =
-            IssueTypeCollection::new("test", "").with_types(["FEAT", "STORY", "FIX", "MISSING"]);
-
-        let (valid, missing) = validate_collection_types(&collection, &available);
-        assert_eq!(valid, vec!["FEAT", "FIX"]);
-        assert_eq!(missing, vec!["STORY", "MISSING"]);
     }
 
     #[test]

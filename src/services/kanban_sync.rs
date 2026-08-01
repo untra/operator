@@ -16,7 +16,7 @@ use std::path::Path;
 use tracing::{debug, info, warn};
 
 use crate::api::providers::kanban::{get_provider, ExternalIssue};
-use crate::config::{Config, ProjectSyncConfig};
+use crate::config::{Config, KanbanStatusMapping, ProjectSyncConfig};
 use crate::issuetypes::kanban_type::KanbanIssueTypeRef;
 
 /// A collection that can be synced from a kanban provider
@@ -30,8 +30,8 @@ pub struct SyncableCollection {
     pub collection_name: Option<String>,
     /// User ID to sync issues for
     pub sync_user_id: String,
-    /// Statuses to sync (empty = default only)
-    pub sync_statuses: Vec<String>,
+    /// Mapping of operator todo/doing/done to external board columns
+    pub status_mapping: KanbanStatusMapping,
 }
 
 /// Result of a sync operation
@@ -90,7 +90,7 @@ impl KanbanSyncService {
                         project_key: project_key.clone(),
                         collection_name: project_config.collection_name.clone(),
                         sync_user_id: project_config.sync_user_id.clone(),
-                        sync_statuses: project_config.sync_statuses.clone(),
+                        status_mapping: project_config.status_mapping.clone(),
                     });
                 }
             }
@@ -105,7 +105,7 @@ impl KanbanSyncService {
                         project_key: project_key.clone(),
                         collection_name: project_config.collection_name.clone(),
                         sync_user_id: project_config.sync_user_id.clone(),
-                        sync_statuses: project_config.sync_statuses.clone(),
+                        status_mapping: project_config.status_mapping.clone(),
                     });
                 }
             }
@@ -120,7 +120,7 @@ impl KanbanSyncService {
                         project_key: project_key.clone(),
                         collection_name: project_config.collection_name.clone(),
                         sync_user_id: project_config.sync_user_id.clone(),
-                        sync_statuses: project_config.sync_statuses.clone(),
+                        status_mapping: project_config.status_mapping.clone(),
                     });
                 }
             }
@@ -157,7 +157,7 @@ impl KanbanSyncService {
             .list_issues(
                 project_key,
                 &project_config.sync_user_id,
-                &project_config.sync_statuses,
+                &project_config.pull_statuses(),
             )
             .await
             .context("Failed to fetch issues from provider")?;
@@ -185,7 +185,13 @@ impl KanbanSyncService {
             } else {
                 Some(&project_config.type_mappings)
             };
-            match self.create_ticket_from_issue(&issue, provider_name, project_key, type_mappings) {
+            match self.create_ticket_from_issue(
+                &issue,
+                provider_name,
+                project_key,
+                type_mappings,
+                project_config.collection_name.as_deref(),
+            ) {
                 Ok(filename) => {
                     info!("Created ticket: {}", filename);
                     result.created.push(issue.key.clone());
@@ -311,6 +317,7 @@ impl KanbanSyncService {
         provider: &str,
         project_key: &str,
         type_mappings: Option<&std::collections::HashMap<String, String>>,
+        collection: Option<&str>,
     ) -> Result<String> {
         let queue_path = Path::new(&self.config.paths.tickets).join("queue");
         fs::create_dir_all(&queue_path)?;
@@ -325,30 +332,8 @@ impl KanbanSyncService {
         let slug = slugify(&issue.summary, 50);
         let filename = format!("{timestamp}-{ticket_type}-{project_key}-{slug}.md");
 
-        // Build frontmatter
-        let needs_mapping_line = if needs_mapping {
-            "\nneeds_issuetype_mapping: true"
-        } else {
-            ""
-        };
-        let frontmatter = format!(
-            r"---
-id: {}-{}
-status: queued
-priority: {}
-step: plan
-external_id: {}
-external_url: {}
-external_provider: {}{}
----",
-            ticket_type,
-            issue.key.replace('-', ""),
-            map_priority(&issue.priority),
-            issue.key,
-            issue.url,
-            provider,
-            needs_mapping_line,
-        );
+        let frontmatter =
+            ticket_frontmatter(ticket_type, issue, provider, needs_mapping, collection);
 
         // Build content
         let description = issue
@@ -375,6 +360,47 @@ external_provider: {}{}
 
         Ok(filename)
     }
+}
+
+/// Build the YAML frontmatter for a ticket created from an external issue.
+///
+/// `collection` is the project sync's issuetype collection
+/// (`ProjectSyncConfig.collection_name`): when set, the ticket's type
+/// resolves within that collection.
+fn ticket_frontmatter(
+    ticket_type: &str,
+    issue: &ExternalIssue,
+    provider: &str,
+    needs_mapping: bool,
+    collection: Option<&str>,
+) -> String {
+    let needs_mapping_line = if needs_mapping {
+        "\nneeds_issuetype_mapping: true"
+    } else {
+        ""
+    };
+    let collection_line = collection
+        .map(|c| format!("\ncollection: {c}"))
+        .unwrap_or_default();
+    format!(
+        r"---
+id: {}-{}
+status: queued
+priority: {}
+step: plan{}
+external_id: {}
+external_url: {}
+external_provider: {}{}
+---",
+        ticket_type,
+        issue.key.replace('-', ""),
+        map_priority(&issue.priority),
+        collection_line,
+        issue.key,
+        issue.url,
+        provider,
+        needs_mapping_line,
+    )
 }
 
 /// Extract `external_id` from ticket content frontmatter
@@ -467,6 +493,34 @@ fn slugify(s: &str, max_len: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_issue() -> ExternalIssue {
+        ExternalIssue {
+            id: "10042".to_string(),
+            key: "PROJ-42".to_string(),
+            summary: "Fix the widget".to_string(),
+            description: None,
+            kanban_issue_types: vec![],
+            status: "To Do".to_string(),
+            assignee: None,
+            url: "https://example.atlassian.net/browse/PROJ-42".to_string(),
+            priority: Some("Medium".to_string()),
+        }
+    }
+
+    #[test]
+    fn test_frontmatter_stamps_sync_collection() {
+        let fm = ticket_frontmatter("FIX", &sample_issue(), "jira", false, Some("devops_kanban"));
+        assert!(fm.contains("collection: devops_kanban"));
+        assert!(fm.contains("external_provider: jira"));
+    }
+
+    #[test]
+    fn test_frontmatter_omits_collection_when_unset() {
+        let fm = ticket_frontmatter("FIX", &sample_issue(), "jira", true, None);
+        assert!(!fm.contains("collection:"));
+        assert!(fm.contains("needs_issuetype_mapping: true"));
+    }
 
     #[test]
     fn test_resolve_ticket_type_with_mapping() {

@@ -8,18 +8,29 @@ use std::fs;
 use std::path::Path;
 use tracing::info;
 
+use crate::collections::manifest::{
+    CollectionManifest, CollectionTier, IssueTypeEntry, SCHEMA_VERSION,
+};
 use crate::collections::{
     get_embedded_collection, EmbeddedCollection, EMBEDDED_COLLECTIONS, EMBEDDED_SCHEMAS,
 };
 use crate::issuetypes::IssueTypeRegistry;
 
+/// Marker file written into the legacy user-types directory once its
+/// contents have been migrated into `.tickets/templates/custom/`.
+const MIGRATION_MARKER: &str = "MIGRATED.md";
+
 /// Build an `IssueTypeRegistry` for a workspace using the canonical loading
 /// priority, so every surface (REST API, CLI, TUI) resolves the same issue
 /// types from the same place:
 ///
-/// 1. Load from `.tickets/templates/` (collection-scoped structure).
-/// 2. If empty, initialize default templates from embedded files, then reload.
-/// 3. Fall back to embedded builtins if filesystem loading fails or yields none.
+/// 1. Initialize default templates from embedded files if `.tickets/templates/`
+///    is missing or empty.
+/// 2. Migrate legacy user types (`.tickets/operator/issuetypes/*.json`) into a
+///    `custom` collection, once (non-destructive, marker-guarded).
+/// 3. Load from `.tickets/templates/` (collection-scoped structure), falling
+///    back to embedded builtins if that fails or yields nothing.
+/// 4. Load kanban-provider imports and honor a legacy `collections.toml`.
 pub fn load_registry(tickets_path: &Path) -> IssueTypeRegistry {
     let mut registry = IssueTypeRegistry::new();
     let templates_path = tickets_path.join("templates");
@@ -29,7 +40,24 @@ pub fn load_registry(tickets_path: &Path) -> IssueTypeRegistry {
         tracing::warn!("Failed to ensure schema files: {}", e);
     }
 
-    match registry.load_from_templates_dir(&templates_path) {
+    if let Err(e) = init_default_templates(&templates_path) {
+        tracing::warn!("Failed to initialize default templates: {}", e);
+    }
+
+    if let Err(e) = migrate_legacy_user_types(tickets_path, &templates_path) {
+        tracing::warn!("Failed to migrate legacy user types: {}", e);
+    }
+
+    load_templates_or_builtins(&mut registry, &templates_path);
+    load_legacy_extras(&mut registry, tickets_path);
+
+    registry
+}
+
+/// Load the collection-scoped templates directory, falling back to embedded
+/// builtins when it fails or yields nothing.
+fn load_templates_or_builtins(registry: &mut IssueTypeRegistry, templates_path: &Path) {
+    match registry.load_from_templates_dir(templates_path) {
         Ok(()) if registry.type_count() > 0 => {
             info!(
                 "Loaded {} issue types from templates directory",
@@ -37,19 +65,9 @@ pub fn load_registry(tickets_path: &Path) -> IssueTypeRegistry {
             );
         }
         Ok(()) => {
-            // Templates directory empty or absent — initialize defaults.
-            info!("Templates directory empty, initializing defaults...");
-            if let Err(e) = init_default_templates(&templates_path) {
-                tracing::warn!("Failed to initialize default templates: {}", e);
-            } else if let Err(e) = registry.load_from_templates_dir(&templates_path) {
-                tracing::warn!("Failed to load initialized templates: {}", e);
-            }
-
-            if registry.type_count() == 0 {
-                info!("Falling back to embedded builtin types");
-                if let Err(e) = registry.load_builtins() {
-                    tracing::warn!("Failed to load builtin issue types: {}", e);
-                }
+            info!("Falling back to embedded builtin types");
+            if let Err(e) = registry.load_builtins() {
+                tracing::warn!("Failed to load builtin issue types: {}", e);
             }
         }
         Err(e) => {
@@ -59,8 +77,188 @@ pub fn load_registry(tickets_path: &Path) -> IssueTypeRegistry {
             }
         }
     }
+}
 
-    registry
+/// Load the legacy extras that live outside the collection store: kanban
+/// imports (provider/project-scoped, deliberately not shareable) and the
+/// deprecated key-grouping `collections.toml`.
+fn load_legacy_extras(registry: &mut IssueTypeRegistry, tickets_path: &Path) {
+    let legacy_path = tickets_path.join("operator/issuetypes");
+
+    let imports_path = legacy_path.join("imports");
+    if imports_path.is_dir() {
+        if let Err(e) = registry.load_imports(&imports_path) {
+            tracing::warn!("Failed to load imported issue types: {}", e);
+        }
+    }
+
+    let collections_toml = legacy_path.join("collections.toml");
+    if collections_toml.is_file() {
+        if let Err(e) = registry.load_collections(&collections_toml) {
+            tracing::warn!("Failed to load collections.toml: {}", e);
+        }
+    }
+}
+
+/// Write a collection's icon under the filename its manifest declares.
+///
+/// Best-effort and non-fatal by design: the icon is presentational and never
+/// executed, so a collection without one still installs cleanly. The bare
+/// filename check mirrors `collections::validate::validate_path`, so a hostile
+/// manifest cannot escape the collection directory.
+fn write_collection_icon(dir: &Path, manifest: &CollectionManifest, icon_svg: Option<&str>) {
+    let (Some(icon_path), Some(svg)) = (manifest.icon_path.as_deref(), icon_svg) else {
+        return;
+    };
+    if icon_path.contains('/') || icon_path.contains('\\') || icon_path.starts_with('.') {
+        tracing::warn!(
+            collection = %manifest.id,
+            icon_path,
+            "ignoring collection icon with an unsafe path"
+        );
+        return;
+    }
+    if let Err(e) = fs::write(dir.join(icon_path), svg) {
+        tracing::warn!(collection = %manifest.id, error = %e, "failed to write collection icon");
+    }
+}
+
+/// Write a fetched (or synthesized) collection into its collection-scoped
+/// directory: `templates/<id>/collection.json` + `<KEY>.json`/`<KEY>.md`.
+///
+/// `files` entries are `(key, schema_json, optional template_md)` — the shape
+/// hosted fetches produce.
+pub fn write_fetched_collection(
+    templates_path: &Path,
+    manifest: &CollectionManifest,
+    files: &[(String, String, Option<String>)],
+    icon_svg: Option<&str>,
+) -> Result<()> {
+    let dir = templates_path.join(&manifest.id);
+    fs::create_dir_all(&dir)
+        .with_context(|| format!("Failed to create collection directory: {}", dir.display()))?;
+
+    fs::write(
+        dir.join("collection.json"),
+        format!("{}\n", manifest.to_json()?),
+    )?;
+
+    write_collection_icon(&dir, manifest, icon_svg);
+
+    for (key, schema_json, template_md) in files {
+        fs::write(dir.join(format!("{key}.json")), schema_json)?;
+        if let Some(md) = template_md {
+            fs::write(dir.join(format!("{key}.md")), md)?;
+        }
+    }
+
+    info!(
+        "Wrote collection '{}' with {} issue types",
+        manifest.id,
+        files.len()
+    );
+    Ok(())
+}
+
+/// One-time, non-destructive migration of legacy flat user types
+/// (`.tickets/operator/issuetypes/*.json`) into a collection-scoped
+/// `templates/custom/` collection.
+///
+/// Skipped when the marker file exists or `templates/custom/` is already
+/// present. Originals are kept; a `MIGRATED.md` marker records the move.
+fn migrate_legacy_user_types(tickets_path: &Path, templates_path: &Path) -> Result<()> {
+    let legacy = tickets_path.join("operator/issuetypes");
+    if !legacy.is_dir() || legacy.join(MIGRATION_MARKER).exists() {
+        return Ok(());
+    }
+    let custom_dir = templates_path.join("custom");
+    if custom_dir.exists() {
+        // Never overwrite an existing custom collection.
+        return Ok(());
+    }
+
+    let mut files: Vec<(String, String, Option<String>)> = Vec::new();
+    for entry in fs::read_dir(&legacy)? {
+        let path = entry?.path();
+        if path.is_dir() || path.extension().is_none_or(|e| e != "json") {
+            continue;
+        }
+        if path
+            .file_stem()
+            .is_some_and(|s| s == "collection" || s == "issuetype_schema")
+        {
+            continue;
+        }
+        match crate::issuetypes::loader::load_issuetype_file(&path) {
+            Ok(issue_type) => {
+                let schema_json = fs::read_to_string(&path)?;
+                let template_md = fs::read_to_string(path.with_extension("md")).ok();
+                files.push((issue_type.key, schema_json, template_md));
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Skipping legacy user type {} during migration: {}",
+                    path.display(),
+                    e
+                );
+            }
+        }
+    }
+
+    if files.is_empty() {
+        return Ok(());
+    }
+    files.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let manifest = CollectionManifest {
+        schema_version: SCHEMA_VERSION,
+        id: "custom".to_string(),
+        name: "Custom".to_string(),
+        description: "User-defined issue types migrated from .tickets/operator/issuetypes/"
+            .to_string(),
+        version: "1.0.0".to_string(),
+        publisher: None,
+        author: None,
+        url: None,
+        license: None,
+        tags: vec!["custom".to_string()],
+        compatibility: None,
+        tier: CollectionTier::default(),
+        icon_path: None,
+        created: None,
+        updated: None,
+        kanban_defaults: None,
+        issue_types: files
+            .iter()
+            .map(|(key, _, md)| IssueTypeEntry {
+                key: key.clone(),
+                schema_path: format!("{key}.json"),
+                schema_checksum: String::new(),
+                template_path: md.as_ref().map(|_| format!("{key}.md")),
+                template_checksum: None,
+            })
+            .collect(),
+        workflow_hints: None,
+        default_selected: files.iter().map(|(key, _, _)| key.clone()).collect(),
+        checksum: None,
+    };
+
+    write_fetched_collection(templates_path, &manifest, &files, None)?;
+
+    fs::write(
+        legacy.join(MIGRATION_MARKER),
+        "# Migrated\n\nThe issue types in this directory were copied into\n\
+         `.tickets/templates/custom/` (the collection-scoped store that all\n\
+         operator surfaces read). Edit them there; these originals are kept\n\
+         for reference and are no longer loaded. Delete this file to re-run\n\
+         the migration.\n",
+    )?;
+
+    info!(
+        "Migrated {} legacy user type(s) into templates/custom/",
+        files.len()
+    );
+    Ok(())
 }
 
 /// Initialize the templates directory with default collections
@@ -79,7 +277,9 @@ pub fn load_registry(tickets_path: &Path) -> IssueTypeRegistry {
 /// └── ...
 /// ```
 pub fn init_default_templates(templates_path: &Path) -> Result<()> {
-    if templates_path.exists() {
+    let has_entries = templates_path.exists()
+        && fs::read_dir(templates_path).is_ok_and(|mut d| d.next().is_some());
+    if has_entries {
         info!(
             "Templates directory already exists: {}",
             templates_path.display()
@@ -118,6 +318,12 @@ pub fn scaffold_collection(templates_path: &Path, collection: &EmbeddedCollectio
 
     // Write collection manifest
     fs::write(collection_path.join("collection.json"), collection.manifest)?;
+
+    // A scaffolded collection should be byte-identical to its hosted counterpart,
+    // icon included.
+    if let Ok(manifest) = collection.manifest_parsed() {
+        write_collection_icon(&collection_path, &manifest, Some(collection.icon_svg));
+    }
 
     // Write issuetype JSON and markdown files
     for issuetype in collection.issuetypes {
@@ -187,7 +393,202 @@ pub fn ensure_schemas(tickets_path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::collections::manifest::{CollectionManifest, IssueTypeEntry};
+    use std::path::PathBuf;
     use tempfile::TempDir;
+
+    const CUSTOM_TYPE_JSON: &str = r#"{
+        "key": "GAST",
+        "name": "Gastown",
+        "description": "A custom user type",
+        "mode": "autonomous",
+        "glyph": "g",
+        "fields": [],
+        "steps": [{"name": "execute", "outputs": ["report"], "prompt": "Do it."}]
+    }"#;
+
+    fn fetched_manifest(id: &str) -> CollectionManifest {
+        CollectionManifest::from_json(&format!(
+            r#"{{
+                "schema_version": 1,
+                "id": "{id}",
+                "name": "Fetched",
+                "description": "A fetched collection",
+                "issue_types": [
+                    {{"key": "GAST", "schema_path": "GAST.json", "template_path": "GAST.md"}}
+                ]
+            }}"#
+        ))
+        .unwrap()
+    }
+
+    fn legacy_dir(tickets_path: &std::path::Path) -> PathBuf {
+        tickets_path.join("operator/issuetypes")
+    }
+
+    #[test]
+    fn test_write_fetched_collection_round_trips_through_loader() {
+        let temp_dir = TempDir::new().unwrap();
+        let templates_path = temp_dir.path().join("templates");
+
+        let manifest = fetched_manifest("fetched_loop");
+        let files = vec![(
+            "GAST".to_string(),
+            CUSTOM_TYPE_JSON.to_string(),
+            Some("# Gastown: {{ summary }}\n".to_string()),
+        )];
+        write_fetched_collection(&templates_path, &manifest, &files, None).unwrap();
+
+        assert!(templates_path.join("fetched_loop/collection.json").exists());
+        assert!(templates_path.join("fetched_loop/GAST.json").exists());
+        assert!(templates_path.join("fetched_loop/GAST.md").exists());
+
+        // The written layout must load through the canonical loader.
+        let mut registry = IssueTypeRegistry::new();
+        registry.load_from_templates_dir(&templates_path).unwrap();
+        assert!(registry.get("GAST").is_some());
+        assert!(registry.get_collection("fetched_loop").is_some());
+    }
+
+    #[test]
+    fn test_write_fetched_collection_without_template_md() {
+        let temp_dir = TempDir::new().unwrap();
+        let templates_path = temp_dir.path().join("templates");
+
+        let mut manifest = fetched_manifest("fetched_loop");
+        manifest.issue_types = vec![IssueTypeEntry {
+            key: "GAST".to_string(),
+            schema_path: "GAST.json".to_string(),
+            schema_checksum: String::new(),
+            template_path: None,
+            template_checksum: None,
+        }];
+        let files = vec![("GAST".to_string(), CUSTOM_TYPE_JSON.to_string(), None)];
+        write_fetched_collection(&templates_path, &manifest, &files, None).unwrap();
+
+        assert!(templates_path.join("fetched_loop/GAST.json").exists());
+        assert!(!templates_path.join("fetched_loop/GAST.md").exists());
+    }
+
+    #[test]
+    fn test_load_registry_migrates_legacy_user_types() {
+        let temp_dir = TempDir::new().unwrap();
+        let tickets_path = temp_dir.path();
+        let legacy = legacy_dir(tickets_path);
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("gast.json"), CUSTOM_TYPE_JSON).unwrap();
+        std::fs::write(legacy.join("gast.md"), "# Gastown\n").unwrap();
+
+        let registry = load_registry(tickets_path);
+
+        // Migrated into a collection-scoped `custom` collection, canonical names.
+        let custom = tickets_path.join("templates/custom");
+        assert!(custom.join("collection.json").exists());
+        assert!(custom.join("GAST.json").exists());
+        assert!(custom.join("GAST.md").exists());
+        // Non-destructive: originals stay, marker written.
+        assert!(legacy.join("gast.json").exists());
+        assert!(legacy.join("MIGRATED.md").exists());
+        // And the type is served by the unified registry.
+        assert!(registry.get("GAST").is_some());
+        assert!(registry.get_collection("custom").is_some());
+    }
+
+    #[test]
+    fn test_load_registry_migration_is_idempotent() {
+        let temp_dir = TempDir::new().unwrap();
+        let tickets_path = temp_dir.path();
+        let legacy = legacy_dir(tickets_path);
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("gast.json"), CUSTOM_TYPE_JSON).unwrap();
+
+        let _ = load_registry(tickets_path);
+        let first =
+            std::fs::read_to_string(tickets_path.join("templates/custom/GAST.json")).unwrap();
+
+        // Second run: no error, no re-write.
+        let registry = load_registry(tickets_path);
+        assert!(registry.get("GAST").is_some());
+
+        // Marker blocks re-migration even if the migrated copy is deleted.
+        std::fs::remove_dir_all(tickets_path.join("templates/custom")).unwrap();
+        let registry = load_registry(tickets_path);
+        assert!(!tickets_path.join("templates/custom").exists());
+        assert!(registry.get("GAST").is_none());
+        let _ = first;
+    }
+
+    #[test]
+    fn test_migration_skips_invalid_legacy_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let tickets_path = temp_dir.path();
+        let legacy = legacy_dir(tickets_path);
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("gast.json"), CUSTOM_TYPE_JSON).unwrap();
+        std::fs::write(legacy.join("broken.json"), "{not valid json").unwrap();
+
+        let registry = load_registry(tickets_path);
+
+        // Valid type migrated; broken file skipped without aborting.
+        assert!(tickets_path.join("templates/custom/GAST.json").exists());
+        assert!(registry.get("GAST").is_some());
+        assert!(legacy.join(MIGRATION_MARKER).exists());
+    }
+
+    #[test]
+    fn test_load_registry_skips_migration_when_custom_exists() {
+        let temp_dir = TempDir::new().unwrap();
+        let tickets_path = temp_dir.path();
+        let legacy = legacy_dir(tickets_path);
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("gast.json"), CUSTOM_TYPE_JSON).unwrap();
+
+        // A pre-existing custom collection must not be overwritten.
+        let custom = tickets_path.join("templates/custom");
+        std::fs::create_dir_all(&custom).unwrap();
+        std::fs::write(
+            custom.join("collection.json"),
+            r#"{"schema_version": 1, "id": "custom", "name": "Custom", "issue_types": []}"#,
+        )
+        .unwrap();
+
+        let _ = load_registry(tickets_path);
+        assert!(!custom.join("GAST.json").exists());
+    }
+
+    #[test]
+    fn test_load_registry_loads_kanban_imports() {
+        let temp_dir = TempDir::new().unwrap();
+        let tickets_path = temp_dir.path();
+        let imports = legacy_dir(tickets_path).join("imports/jira/myproj");
+        std::fs::create_dir_all(&imports).unwrap();
+        std::fs::write(imports.join("GAST.json"), CUSTOM_TYPE_JSON).unwrap();
+
+        let registry = load_registry(tickets_path);
+        // Imports register under {PROJECT}_{KEY} and stay out of collections.
+        assert!(registry.get("MYPROJ_GAST").is_some());
+    }
+
+    #[test]
+    fn test_load_registry_honors_legacy_collections_toml() {
+        let temp_dir = TempDir::new().unwrap();
+        let tickets_path = temp_dir.path();
+        let legacy = legacy_dir(tickets_path);
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(
+            legacy.join("collections.toml"),
+            r#"
+[collections.mygroup]
+name = "mygroup"
+description = "Legacy grouping"
+types = ["TASK", "FEAT"]
+"#,
+        )
+        .unwrap();
+
+        let registry = load_registry(tickets_path);
+        assert!(registry.get_collection("mygroup").is_some());
+    }
 
     #[test]
     fn test_init_default_templates() {
@@ -261,21 +662,87 @@ mod tests {
 
         scaffold_all_collections(&templates_path).unwrap();
 
-        // All 5 collections should exist
+        // Every embedded collection should exist
         assert!(templates_path.join("simple").exists());
         assert!(templates_path.join("dev_kanban").exists());
         assert!(templates_path.join("devops_kanban").exists());
         assert!(templates_path.join("operator").exists());
-        assert!(templates_path.join("full").exists());
+        assert!(templates_path.join("ralph_loop").exists());
+        assert!(templates_path.join("jr_orchestration").exists());
+        assert!(templates_path.join("elves_overnight").exists());
+        assert!(templates_path.join("coder").exists());
 
-        // full should have all 8 issuetypes
-        assert!(templates_path.join("full/TASK.json").exists());
-        assert!(templates_path.join("full/FEAT.json").exists());
-        assert!(templates_path.join("full/FIX.json").exists());
-        assert!(templates_path.join("full/SPIKE.json").exists());
-        assert!(templates_path.join("full/INV.json").exists());
-        assert!(templates_path.join("full/ASSESS.json").exists());
-        assert!(templates_path.join("full/SYNC.json").exists());
-        assert!(templates_path.join("full/INIT.json").exists());
+        // `full` was demoted from the embedded set and must not scaffold
+        assert!(!templates_path.join("full").exists());
+
+        // Underscore-keyed operator types scaffold correctly
+        assert!(templates_path.join("operator/AGENT_SETUP.json").exists());
+        assert!(templates_path.join("operator/PROJECT_INIT.json").exists());
+    }
+
+    #[test]
+    fn test_write_fetched_collection_persists_the_icon() {
+        let temp_dir = TempDir::new().unwrap();
+        let templates_path = temp_dir.path().join("templates");
+
+        let mut manifest = fetched_manifest("fetched_loop");
+        manifest.icon_path = Some("icon.svg".to_string());
+        let files = vec![(
+            "GAST".to_string(),
+            CUSTOM_TYPE_JSON.to_string(),
+            Some("# Gastown\n".to_string()),
+        )];
+        let svg = r#"<svg role="img" viewBox="0 0 24 24"><title>Fetched</title><path d="M0 0h24v24H0z"/></svg>"#;
+        write_fetched_collection(&templates_path, &manifest, &files, Some(svg)).unwrap();
+
+        let written = templates_path.join("fetched_loop/icon.svg");
+        assert_eq!(std::fs::read_to_string(written).unwrap(), svg);
+    }
+
+    #[test]
+    fn test_write_fetched_collection_survives_a_missing_or_unsafe_icon() {
+        let temp_dir = TempDir::new().unwrap();
+        let templates_path = temp_dir.path().join("templates");
+        let files = vec![("GAST".to_string(), CUSTOM_TYPE_JSON.to_string(), None)];
+
+        // No icon at all: the collection still installs.
+        let manifest = fetched_manifest("no_icon");
+        write_fetched_collection(&templates_path, &manifest, &files, None).unwrap();
+        assert!(templates_path.join("no_icon/GAST.json").exists());
+
+        // A traversal attempt is dropped, not written outside the collection.
+        let mut hostile = fetched_manifest("hostile");
+        hostile.icon_path = Some("../escaped.svg".to_string());
+        write_fetched_collection(&templates_path, &hostile, &files, Some("<svg/>")).unwrap();
+        assert!(templates_path.join("hostile/GAST.json").exists());
+        assert!(!templates_path.join("escaped.svg").exists());
+    }
+
+    #[test]
+    fn test_scaffold_writes_collection_icon_byte_identical_to_embedded() {
+        let temp_dir = TempDir::new().unwrap();
+        let templates_path = temp_dir.path().join("templates");
+
+        scaffold_all_collections(&templates_path).unwrap();
+
+        for collection in EMBEDDED_COLLECTIONS {
+            let icon_path = collection
+                .manifest_parsed()
+                .unwrap()
+                .icon_path
+                .unwrap_or_else(|| panic!("{} declares no icon_path", collection.name));
+            let written = templates_path.join(collection.name).join(&icon_path);
+            assert!(
+                written.is_file(),
+                "{} did not scaffold {icon_path}",
+                collection.name
+            );
+            assert_eq!(
+                std::fs::read_to_string(&written).unwrap(),
+                collection.icon_svg,
+                "{} scaffolded an icon that differs from the embedded bytes",
+                collection.name
+            );
+        }
     }
 }

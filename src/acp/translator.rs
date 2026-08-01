@@ -5,7 +5,7 @@
 //! stream-json`) and plain text (fallback). `line_to_update` tries JSON
 //! first, falls back to plain text on parse failure.
 
-use agent_client_protocol::schema::{ContentBlock, ContentChunk, SessionUpdate, TextContent};
+use agent_client_protocol::schema::v1::{ContentBlock, ContentChunk, SessionUpdate, TextContent};
 
 /// Map a single line of delegator stdout to an optional ACP `SessionUpdate`.
 ///

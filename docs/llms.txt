@@ -9,13 +9,14 @@ Operator runs from the root of your work directory, discovers projects by LLM ma
 
 ## Getting Started
 - [Getting Started](https://operator.untra.io/getting-started/): Install and configure Operator! for managing AI-assisted development workflows.
+- [Tickets](https://operator.untra.io/getting-started/tickets/): Create and manage tickets with markdown format, naming conventions, and best practices for LLM agents.
+- [Supported Kanban Providers](https://operator.untra.io/getting-started/kanban/): Kanban and issue tracking integrations for Operator.
+- [Supported Coding Agents](https://operator.untra.io/getting-started/agents/): AI coding agents compatible with Operator.
 - [Downloads](https://operator.untra.io/downloads/): Download Operator! binaries for macOS, Linux, and Windows.
 
-## Core Concepts
-- [Kanban Workflow](https://operator.untra.io/kanban/): Understand the kanban-style workflow for managing tickets through queue, in-progress, and completed stages.
-- [Tickets](https://operator.untra.io/tickets/): Create and manage tickets with markdown format, naming conventions, and best practices for LLM agents.
-- [Issue Types](https://operator.untra.io/issue-types/): Learn about INV, FIX, FEAT, SPIKE, and TASK issue types, custom definitions, and Jira imports.
-- [Agents](https://operator.untra.io/agents/): Understand agent lifecycle, states, autonomous vs paired modes, parallelism rules, and session tracking.
+## Workflows
+- [Workflows](https://operator.untra.io/workflows/): Shareable collections of Operator workflows.
+- [Workflow Export Formats](https://operator.untra.io/getting-started/workflows/): Export an Operator workflow into a format another LLM tool or model can run.
 - [Delegators](https://operator.untra.io/delegators/): Named LLM tool + model pairings for autonomous ticket launching.
 
 ## Integrations
@@ -28,7 +29,7 @@ Operator runs from the root of your work directory, discovers projects by LLM ma
 - [Schema Reference](https://operator.untra.io/schemas/): Ticket metadata, issue type, and OpenAPI schema reference.
 - [Keyboard Shortcuts](https://operator.untra.io/shortcuts/): TUI keyboard shortcuts by context.
 - [Project Taxonomy](https://operator.untra.io/taxonomy/): Project Kinds across five tiers.
+- [Artifact Detection](https://operator.untra.io/artifact-detection/): How Operator uses file artifacts as positive signals for step completion.
 
 ## Optional
-- [Architecture](https://operator.untra.io/architecture/): System design overview.
 - [GitHub Repository](https://github.com/untra/operator): Source code (Rust, MIT).

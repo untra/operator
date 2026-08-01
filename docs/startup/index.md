@@ -53,7 +53,7 @@ This gives you an overview of your development environment before proceeding.
 Choose how Operator will manage coding agent sessions:
 - **tmux**: Terminal multiplexer, recommended for most setups
 - **VS Code**: Launch agents as VS Code tasks (requires extension)
-- **cmux**: Lightweight tmux wrapper with operator defaults pre-applied
+- **cmux**: Native macOS terminal for AI agents, organized into windows and workspaces
 - **Zellij**: Modern terminal workspace with built-in layouts
 
 Your choice determines which setup steps follow.
@@ -101,9 +101,9 @@ Install the extension from the VS Code marketplace if prompted.
 
 *cmux session wrapper setup (shown if cmux selected)*
 
-cmux is a lightweight tmux wrapper that pre-applies Operator's preferred session defaults.
+cmux is a native macOS terminal that organizes AI agent sessions into windows and workspaces.
 
-This step verifies cmux is installed and accessible in your PATH.
+This step verifies the cmux app's CLI binary exists at the configured binary_path (by default inside /Applications/cmux.app) and meets the minimum supported version.
 
 **Navigation**: Enter to continue, Esc to go back
 
@@ -198,8 +198,8 @@ The default criteria cover formatting, tests, and lint checks. You can customize
 
 Create startup tickets to help initialize your projects:
 - **ASSESS tickets**: Scan projects for catalog-info.yaml, create if missing
-- **AGENT-SETUP tickets**: Configure Claude agents for each project
-- **PROJECT-INIT tickets**: Run both ASSESS and AGENT-SETUP for each project
+- **AGENT_SETUP tickets**: Configure Claude agents for each project
+- **PROJECT_INIT tickets**: Run both ASSESS and AGENT_SETUP for each project
 
 These tickets are optional and help automate common setup tasks.
 

@@ -74,13 +74,15 @@ pub fn export_workflow_for_ticket(
     config: &Config,
     format: WorkflowFormat,
 ) -> Result<ExportedWorkflow> {
-    let issuetype = registry.get(&ticket.ticket_type).ok_or_else(|| {
-        anyhow!(
-            "No issue type '{}' registered for ticket {}",
-            ticket.ticket_type,
-            ticket.id
-        )
-    })?;
+    let issuetype = registry
+        .resolve(ticket.collection.as_deref(), &ticket.ticket_type)
+        .ok_or_else(|| {
+            anyhow!(
+                "No issue type '{}' registered for ticket {}",
+                ticket.ticket_type,
+                ticket.id
+            )
+        })?;
 
     let env = pipeline_env_for(config, ticket, issuetype);
     let contents = render(ticket, issuetype, pr_config, &env, config, format)?;
@@ -171,6 +173,7 @@ fn preview_ticket(issuetype: &IssueType) -> Ticket {
         external_id: None,
         external_url: None,
         external_provider: None,
+        collection: None,
     }
 }
 
@@ -205,6 +208,7 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            collection: None,
         }
     }
 
@@ -250,6 +254,49 @@ mod tests {
             v["nodes"][0]["type"], "operator-run-step",
             "AGNT export uses operator-run-step nodes"
         );
+    }
+
+    #[test]
+    fn ticket_collection_scopes_issuetype_resolution() {
+        // Same key, different step shapes, in two collections.
+        let mut r = IssueTypeRegistry::new();
+        let mut alpha = crate::issuetypes::IssueType::new_imported(
+            "TASK".to_string(),
+            "Alpha Task".to_string(),
+            "d".to_string(),
+            "p".to_string(),
+            "j".to_string(),
+            None,
+        );
+        alpha.steps[0].name = "alpha_step".to_string();
+        let mut beta = alpha.clone();
+        beta.name = "Beta Task".to_string();
+        beta.steps[0].name = "beta_step".to_string();
+        r.register_in("alpha", alpha).unwrap();
+        r.register_in("beta", beta).unwrap();
+        r.activate_collection("alpha").unwrap();
+
+        let mut t = ticket("TASK");
+        t.collection = Some("beta".to_string());
+        let exported =
+            export_workflow_for_ticket(&t, &r, None, &Config::default(), WorkflowFormat::Claude)
+                .unwrap();
+        assert!(
+            exported.contents.contains("beta_step"),
+            "ticket.collection should pick the beta definition: {}",
+            exported.contents
+        );
+
+        // Without a collection, the active collection's definition wins.
+        let exported = export_workflow_for_ticket(
+            &ticket("TASK"),
+            &r,
+            None,
+            &Config::default(),
+            WorkflowFormat::Claude,
+        )
+        .unwrap();
+        assert!(exported.contents.contains("alpha_step"));
     }
 
     #[test]

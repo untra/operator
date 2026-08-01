@@ -66,6 +66,8 @@ pub struct Ticket {
     pub external_url: Option<String>,
     /// Provider name for the external issue (e.g., "jira", "linear")
     pub external_provider: Option<String>,
+    /// Issuetype collection this ticket's type resolves within
+    pub collection: Option<String>,
     /// Delegator name used per completed step (`step_name` → `delegator_name`).
     /// Populated when a step is launched; used for bidirectional kanban activity logs.
     pub step_delegators: HashMap<String, String>,
@@ -100,6 +102,7 @@ impl Ticket {
             external_id,
             external_url,
             external_provider,
+            collection,
         ) = if let Some((frontmatter, sessions, step_delegators, llm_task, body)) =
             extract_frontmatter(&content)
         {
@@ -123,6 +126,7 @@ impl Ticket {
             let external_id = frontmatter.get("external_id").cloned();
             let external_url = frontmatter.get("external_url").cloned();
             let external_provider = frontmatter.get("external_provider").cloned();
+            let collection = frontmatter.get("collection").cloned();
             // Extract summary from body (after frontmatter)
             let summary = extract_summary(body);
             (
@@ -139,6 +143,7 @@ impl Ticket {
                 external_id,
                 external_url,
                 external_provider,
+                collection,
             )
         } else {
             // Legacy parsing using regex for inline metadata
@@ -158,6 +163,7 @@ impl Ticket {
                 HashMap::new(),
                 HashMap::new(),
                 LlmTask::default(),
+                None,
                 None,
                 None,
                 None,
@@ -186,6 +192,7 @@ impl Ticket {
             external_id,
             external_url,
             external_provider,
+            collection,
         })
     }
 
@@ -789,7 +796,7 @@ fn extract_frontmatter(
 fn parse_filename(filename: &str) -> Result<(String, String, String)> {
     // YYYYMMDD-HHMM-TYPE-PROJECT-description.md
     // Project names don't contain hyphens (gamesvc, global, etc.)
-    let re = Regex::new(r"^(\d{8}-\d{4})-([A-Z]+)-([a-z0-9]+)-")?;
+    let re = Regex::new(r"^(\d{8}-\d{4})-([A-Z][A-Z0-9_]*)-([a-z0-9]+)-")?;
 
     if let Some(caps) = re.captures(filename) {
         Ok((
@@ -875,6 +882,15 @@ mod tests {
             parse_filename("20241221-1430-FEAT-gamesvc-add-leaderboard.md").unwrap();
         assert_eq!(ts, "20241221-1430");
         assert_eq!(tt, "FEAT");
+        assert_eq!(proj, "gamesvc");
+    }
+
+    #[test]
+    fn test_parse_filename_underscore_key() {
+        let (ts, tt, proj) =
+            parse_filename("20260701-0900-AGENT_SETUP-gamesvc-configure-agents.md").unwrap();
+        assert_eq!(ts, "20260701-0900");
+        assert_eq!(tt, "AGENT_SETUP");
         assert_eq!(proj, "gamesvc");
     }
 
@@ -1016,6 +1032,43 @@ status: queued
             step.is_empty(),
             "Missing step should default to empty string"
         );
+    }
+
+    #[test]
+    fn test_ticket_parses_collection_frontmatter() {
+        let content = r"---
+id: RLOOP-0001
+status: queued
+collection: ralph_loop
+---
+
+# Ralph Loop: iterate
+";
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir
+            .path()
+            .join("20260701-0900-RLOOP-operator-iterate.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let ticket = Ticket::from_file(&ticket_path).unwrap();
+        assert_eq!(ticket.collection.as_deref(), Some("ralph_loop"));
+    }
+
+    #[test]
+    fn test_ticket_collection_defaults_to_none() {
+        let content = r"---
+id: TASK-0001
+status: queued
+---
+
+# Task: no collection
+";
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir.path().join("20260701-0900-TASK-operator-none.md");
+        std::fs::write(&ticket_path, content).unwrap();
+
+        let ticket = Ticket::from_file(&ticket_path).unwrap();
+        assert!(ticket.collection.is_none());
     }
 
     #[test]

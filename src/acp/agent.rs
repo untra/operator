@@ -7,7 +7,7 @@
 use std::process::Stdio as ProcStdio;
 use std::sync::Arc;
 
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     AgentCapabilities, CancelNotification, ContentBlock, Implementation, InitializeRequest,
     InitializeResponse, NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse,
     SessionId, SessionNotification, StopReason,
@@ -106,14 +106,16 @@ pub async fn run_stdio(config: Config) -> agent_client_protocol::Result<()> {
             agent_client_protocol::on_receive_notification!(),
         )
         .on_receive_dispatch(
-            async move |message: Dispatch, cx: ConnectionTo<Client>| {
+            async move |message: Dispatch, _cx: ConnectionTo<Client>| {
                 let method = message.method().to_string();
-                message.respond_with_error(
-                    agent_client_protocol::util::internal_error(format!(
-                        "ACP method not implemented: {method}"
-                    )),
-                    cx,
-                )
+                match message {
+                    Dispatch::Request(_, responder) => responder.respond_with_error(
+                        agent_client_protocol::util::internal_error(format!(
+                            "ACP method not implemented: {method}"
+                        )),
+                    ),
+                    Dispatch::Notification(_) | Dispatch::Response(_, _) => Ok(()),
+                }
             },
             agent_client_protocol::on_receive_dispatch!(),
         )

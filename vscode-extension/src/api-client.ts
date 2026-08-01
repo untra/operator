@@ -611,6 +611,27 @@ export class OperatorApiClient {
   }
 
   /**
+   * Get the external board's workflow statuses/columns for a configured
+   * provider/project — populates the todo/doing/done mapping dropdowns.
+   */
+  async getKanbanStatuses(provider: string, projectKey: string): Promise<string[]> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/kanban/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}/statuses`
+    );
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({
+        error: 'unknown',
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      }))) as ApiError;
+      throw new Error(error.message);
+    }
+
+    const body = (await response.json()) as { statuses: string[] };
+    return body.statuses;
+  }
+
+  /**
    * Sync kanban issue types from a provider for a project.
    * Triggers a fresh fetch from the external provider and persists to the local catalog.
    */

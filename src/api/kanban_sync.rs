@@ -58,6 +58,18 @@ impl KanbanBidirectionalSync {
         }
     }
 
+    /// Called when a ticket is returned to the queue (doing → todo). Pushes the
+    /// mapped "todo" status to the provider — no-op unless `status_mapping.todo`
+    /// is explicitly configured (there is no safe universal default column).
+    pub async fn on_ticket_requeued(&self, ticket: &Ticket) {
+        if let Some((provider, sync_cfg)) = self.resolve(ticket) {
+            if let Some(status) = todo_status(&sync_cfg) {
+                let status = status.to_string();
+                self.push_status(ticket, &*provider, &status).await;
+            }
+        }
+    }
+
     /// Called when a step completes. Appends an activity log entry to the upstream issue.
     pub async fn on_step_completed(
         &self,
@@ -235,20 +247,20 @@ impl KanbanBidirectionalSync {
     }
 }
 
+fn todo_status(sync_cfg: &ProjectSyncConfig) -> Option<&str> {
+    sync_cfg.status_mapping.todo.as_deref()
+}
+
 fn doing_status(sync_cfg: &ProjectSyncConfig) -> &str {
     sync_cfg
-        .sync_statuses
-        .first()
-        .map(String::as_str)
+        .status_mapping
+        .doing
+        .as_deref()
         .unwrap_or("In Progress")
 }
 
 fn done_status(sync_cfg: &ProjectSyncConfig) -> &str {
-    sync_cfg
-        .sync_statuses
-        .last()
-        .map(String::as_str)
-        .unwrap_or("Done")
+    sync_cfg.status_mapping.done.as_deref().unwrap_or("Done")
 }
 
 fn build_create_request(ticket: &Ticket, sync_cfg: &ProjectSyncConfig) -> CreateIssueRequest {
@@ -268,46 +280,98 @@ fn build_create_request(ticket: &Ticket, sync_cfg: &ProjectSyncConfig) -> Create
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::KanbanStatusMapping;
 
-    fn make_sync_cfg(statuses: Vec<&str>) -> ProjectSyncConfig {
+    fn make_sync_cfg(
+        todo: Option<&str>,
+        doing: Option<&str>,
+        done: Option<&str>,
+    ) -> ProjectSyncConfig {
         ProjectSyncConfig {
-            sync_statuses: statuses.into_iter().map(ToString::to_string).collect(),
+            status_mapping: KanbanStatusMapping {
+                todo: todo.map(ToString::to_string),
+                doing: doing.map(ToString::to_string),
+                done: done.map(ToString::to_string),
+            },
             bidirectional: true,
             ..Default::default()
         }
     }
 
     #[test]
-    fn test_doing_status_from_sync_statuses() {
-        let cfg = make_sync_cfg(vec!["Started", "In Review", "Completed"]);
+    fn test_doing_status_from_mapping() {
+        let cfg = make_sync_cfg(Some("Backlog"), Some("Started"), Some("Completed"));
         assert_eq!(doing_status(&cfg), "Started");
     }
 
     #[test]
-    fn test_done_status_from_sync_statuses() {
-        let cfg = make_sync_cfg(vec!["Started", "In Review", "Completed"]);
+    fn test_done_status_from_mapping() {
+        let cfg = make_sync_cfg(Some("Backlog"), Some("Started"), Some("Completed"));
         assert_eq!(done_status(&cfg), "Completed");
     }
 
     #[test]
-    fn test_doing_status_default() {
-        let cfg = make_sync_cfg(vec![]);
+    fn test_doing_status_default_when_unmapped() {
+        let cfg = make_sync_cfg(None, None, None);
         assert_eq!(doing_status(&cfg), "In Progress");
     }
 
     #[test]
-    fn test_done_status_default() {
-        let cfg = make_sync_cfg(vec![]);
+    fn test_done_status_default_when_unmapped() {
+        let cfg = make_sync_cfg(None, None, None);
         assert_eq!(done_status(&cfg), "Done");
     }
 
     #[test]
+    fn test_todo_status_none_without_mapping() {
+        // No fallback: requeue push must stay silent when todo is unmapped.
+        let cfg = make_sync_cfg(None, Some("Started"), Some("Completed"));
+        assert_eq!(todo_status(&cfg), None);
+    }
+
+    #[test]
+    fn test_todo_status_some_with_mapping() {
+        let cfg = make_sync_cfg(Some("Backlog"), None, None);
+        assert_eq!(todo_status(&cfg), Some("Backlog"));
+    }
+
+    #[test]
     fn test_skips_non_bidirectional_projects() {
-        let mut cfg = make_sync_cfg(vec!["In Progress", "Done"]);
+        let mut cfg = make_sync_cfg(Some("To Do"), Some("In Progress"), Some("Done"));
         cfg.bidirectional = false;
         // sync service would not resolve a provider for this config
         // (we test the flag is respected by verifying bidirectional=false
         //  is explicitly handled in resolve())
         assert!(!cfg.bidirectional);
+    }
+
+    #[tokio::test]
+    async fn test_on_ticket_requeued_noop_without_todo_mapping() {
+        // Ticket without external linkage + empty config: resolve() returns
+        // None and the call must be a silent no-op.
+        let sync = KanbanBidirectionalSync::new(Arc::new(crate::config::Config::default()));
+        let ticket = Ticket {
+            filename: String::new(),
+            filepath: String::new(),
+            timestamp: String::new(),
+            ticket_type: "FIX".to_string(),
+            project: "demo".to_string(),
+            id: "FIX-1".to_string(),
+            summary: String::new(),
+            priority: String::new(),
+            status: "queued".to_string(),
+            step: String::new(),
+            content: String::new(),
+            sessions: std::collections::HashMap::default(),
+            llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
+            collection: None,
+            step_delegators: std::collections::HashMap::default(),
+        };
+        sync.on_ticket_requeued(&ticket).await;
     }
 }

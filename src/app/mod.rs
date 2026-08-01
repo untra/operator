@@ -212,11 +212,10 @@ impl App {
         // Initialize REST API server lifecycle manager
         let rest_api_server = RestApiServer::new(config.clone(), config.rest_api.port);
 
-        // Initialize issue type registry
-        let mut issue_type_registry = IssueTypeRegistry::new();
-        if let Err(e) = issue_type_registry.load_all(&config.tickets_path()) {
-            tracing::warn!("Failed to load issue types: {}", e);
-        }
+        // Initialize issue type registry via the canonical loader shared with
+        // the REST API and CLI (collection-scoped .tickets/templates/ store).
+        let mut issue_type_registry =
+            crate::startup::templates::load_registry(&config.tickets_path());
 
         // Activate configured collection if specified
         if let Some(ref active) = config.templates.active_collection {

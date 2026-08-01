@@ -65,7 +65,7 @@ identically.
 | **Docs site** (Jekyll) | `docs/assets/css/main.css` | Links `tokens.css`; style with `var(--...)`, never raw hex. |
 | **Embedded SPA** (Vite/React) | `ui/src/index.css` + `*.module.css` | Imports `tokens.css`; uses semantic tokens, never raw hex. |
 | **Ratatui TUI** | `src/ui/*.rs` | Terminal can't render hex — map a semantic **role to ANSI** (danger→Red, success→Green, warning→Yellow, focus→Cyan). |
-| **VS Code webview** (MUI) | `vscode-extension/webview-ui/` | Defers to the VS Code host theme; brand only as accents via `OPERATOR_BRAND`. Never overrides the editor theme. |
+| **VS Code webview** | `vscode-extension/webview-ui/` | Defers to the VS Code host theme via raw `var(--vscode-*)` custom properties (`styles/webview.css`); brand only as `--op-*` accents. Never overrides the editor theme. No MUI/CSS-in-JS. |
 
 ## Concept icons (codicons)
 
@@ -117,6 +117,46 @@ was resolved as kanban→`layout`, projects→`project`.
 > **Attribution:** codicon **icons** are licensed [CC-BY-4.0](https://github.com/microsoft/vscode-codicons/blob/main/LICENSE);
 > the font/CSS **code** is MIT, © Microsoft. The webfont is vendored under
 > `docs/assets/` and bundled into the SPA via `@vscode/codicons`.
+
+## Brand & collection icons (SVG)
+
+Codicons cover concepts. Everything else — provider logos, collection glyphs — is a hand-shipped SVG, and every one of them follows the **Operator icon standard**: a single monochrome `<path>` on a 24×24 canvas carrying no color or
+size of its own.
+
+That shape is what makes one file work on all four surfaces at once. The docs
+site inlines collection icons directly into generated HTML, the SPA loads them
+through `<img>`, and both themes recolor them from context.
+
+| Rule | Why |
+|------|-----|
+| `viewBox="0 0 24 24"` | One coordinate space, so icons are interchangeable and align optically when mixed |
+| `role="img"` + exactly one `<title>` | The glyph is content, not decoration; assistive tech needs a name |
+| Exactly one `<path>` | A single shape can be recolored, masked, or inlined as a unit |
+| No other elements | `<text>` depends on per-surface fonts; `<image>`/`<use>` pull in external documents; `<style>`/`<script>` do not survive inlining |
+| No `fill` / `stroke` / `style` | Color comes from `currentColor`, so the icon follows the theme. A hardcoded fill is invisible in light or dark |
+| No `width` / `height` | Size is the container's decision |
+| No `on*` handlers or external refs | These files are inlined verbatim into generated pages |
+
+```svg
+<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Ralph Loop</title><path d="M12 4V1L8 5l4 4V6a6 6 0 11-6 6H4a8 8 0 108-8z"/></svg>
+```
+
+**Where icons live.** `icons/` is the canonical set; `docs/assets/icons/` and
+`ui/public/icons/` are the per-surface copies; each collection ships its own
+`icon.svg` beside its `collection.json`, titled with the collection's display
+name.
+
+**Adding one.** Copy the shape from [Simple Icons](https://simpleicons.org)
+where one exists, or draw a single path on a 24×24 grid. Then:
+
+```bash
+cargo test --test svg_icon_standard
+```
+
+That test governs every directory above and catches a missing title, a stray
+`fill`, a second `<path>`, a wrong viewBox, or embedded script. The only
+exemption is `docs/assets/img/operator_logo.svg` — a full-color wordmark, not a
+glyph — and the test also asserts that exemption is still needed.
 
 ## Issue type glyphs & colors
 

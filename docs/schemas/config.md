@@ -443,10 +443,27 @@ Per-project/team sync configuration for a kanban provider
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `sync_user_id` | `string` | No | User ID to sync issues for (provider-specific format) - Jira: accountId (e.g., "5e3f7acd9876543210abcdef") - Linear: user ID (e.g., "abc12345-6789-0abc-def0-123456789abc") - GitHub Projects: numeric GitHub `databaseId` (e.g., "12345678") |
-| `sync_statuses` | `array` | No | Workflow statuses to sync (empty = default/first status only) |
+| `status_mapping` | → `KanbanStatusMapping` | No | Mapping of operator todo/doing/done to external board columns |
 | `collection_name` | `string` \| `null` | No | Optional `IssueTypeCollection` name this project maps to. Not required for kanban onboarding or sync. |
 | `type_mappings` | `object` | No | Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX). Multiple kanban types can map to the same operator template. |
 | `bidirectional` | `boolean` | No | When true, operator pushes status changes and activity logs back to this kanban project. Ticket state changes (todo→doing, doing→done) and step completions with delegator info are reflected upstream. Default: false. |
+
+### KanbanStatusMapping
+
+Explicit mapping from operator's strict todo/doing/done states to the
+external board's column/status names.
+
+Drives bidirectional sync: issues are pulled from the `todo` column,
+pushed to `doing` when a ticket is claimed, to `done` when completed, and
+back to `todo` when requeued. Unset fields fall back per-transition
+(`doing` → "In Progress", `done` → "Done"); requeue only pushes when
+`todo` is explicitly mapped.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `todo` | `string` \| `null` | No | External column for operator "todo" (queued work; also the pull source) |
+| `doing` | `string` \| `null` | No | External column for operator "doing" (claimed/launched tickets) |
+| `done` | `string` \| `null` | No | External column for operator "done" (completed tickets) |
 
 ### LinearConfig
 

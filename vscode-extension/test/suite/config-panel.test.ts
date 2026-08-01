@@ -132,6 +132,28 @@ suite('Config Panel Kanban Providers', () => {
         assert.ok(proj, `Expected project "PROJ" sub-table for ${slug}`);
         assert.strictEqual(proj.sync_user_id, 'user-123');
       });
+
+      test(`${slug}: status_mapping object round-trips via projects path and shorthand`, () => {
+        const mapping = { todo: 'To Do', doing: 'In Progress', done: 'Done' };
+
+        // Explicit projects.<key>.status_mapping path (ProjectRow write path)
+        const kanban: Record<string, unknown> = {};
+        applyKanbanProviderField(kanban, slug, 'projects.PROJ.status_mapping', mapping);
+        let providerMap = kanban[slug] as Record<string, unknown>;
+        let instance = providerMap[meta.defaultInstanceKey] as Record<string, unknown>;
+        let proj = (instance.projects as Record<string, unknown>).PROJ as Record<string, unknown>;
+        assert.deepStrictEqual(proj.status_mapping, mapping);
+
+        // Shorthand project-level key (single-project config forms)
+        const kanban2: Record<string, unknown> = {};
+        applyKanbanProviderField(kanban2, slug, 'status_mapping', mapping);
+        providerMap = kanban2[slug] as Record<string, unknown>;
+        instance = providerMap[meta.defaultInstanceKey] as Record<string, unknown>;
+        const projects = instance.projects as Record<string, unknown>;
+        const firstKey = Object.keys(projects)[0]!;
+        proj = projects[firstKey] as Record<string, unknown>;
+        assert.deepStrictEqual(proj.status_mapping, mapping);
+      });
     }
   });
 

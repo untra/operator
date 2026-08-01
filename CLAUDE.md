@@ -18,6 +18,12 @@ Aim for functional software development with a focus on stateless, single respon
 
 ## Development Standards
 
+1. Ask, don't assume. If something is unclear, ask before writing into a corner. Never make silent assumptions about intent, architecture or requirements.
+2. Consider the simplest solution first. First attempt the simplest approach that could work, then consider abstractions and flexibility with regards to similar implementations.
+3. Avoid changing unrelated code. If a file or function is not part of the current task, do not modify it.
+4. Flag uncertainty explicitly. If you are not confident about an approach or technical detail, say so before proceeding.
+5. I am open to ideas on better approaches or strategies. Speak up and suggest a better course if I am off-course from a better solution.
+
 ### Mandatory Before Committing
 
 All changes MUST pass these checks before committing. Run them with `make check`,
@@ -37,8 +43,9 @@ cargo test --locked                                          # Run all tests
 > deprecation that only surfaces under `--all-targets`), which is how a clippy
 > failure can pass locally yet break CI. Always use the full command above.
 
-Install the pre-push hook once per clone so this gate runs automatically before
-every push:
+Install the pre-push hook once per clone so the fast lint gate (fmt + clippy,
+no tests) runs automatically before every push; the full `make check` remains
+the expectation before opening a PR:
 
 ```bash
 make install-hooks   # sets core.hooksPath=.githooks
@@ -94,7 +101,7 @@ make check
 
 ```bash
 make check                     # Full CI-parity gate (fmt + clippy + test)
-make install-hooks             # Install the pre-push hook (once per clone)
+make install-hooks             # Install the lint-only pre-push hook (once per clone)
 cargo fmt                      # Format code
 cargo clippy --locked --all-targets --all-features -- -D warnings  # Lint (CI parity)
 cargo test                     # Run all tests
@@ -230,6 +237,9 @@ Operator uses a schema-driven, code-derived documentation strategy to reduce mai
 | `src/config.rs` | `docs/configuration/index.md` | Config structure (via schemars) |
 | `src/rest/` | `docs/schemas/openapi.json` | REST API spec (via utoipa) |
 | `src/docs_gen/llms.rs` + `docs/*/index.md` | `docs/llms.txt` | llms.txt site map for LLMs (no front matter; served verbatim) |
+| `src/collections/*/collection.json` + `collections/community/*/` | `docs/collections/` | Hosted collection bundle: `index.json`, per-collection manifests, issuetype schemas, templates, icons |
+| the same collection sources | `docs/collections/search.json` | Machine-readable collection catalog (also feeds the `/workflows/` page) |
+| the same collection sources | `docs/workflows/` | The workflow catalog page + one page per collection |
 
 ### Regenerating Documentation
 
@@ -242,7 +252,9 @@ cargo run -- docs --only taxonomy
 cargo run -- docs --only openapi
 cargo run -- docs --only config
 
-# Available generators: taxonomy, issuetype, metadata, shortcuts, cli, config, openapi
+# `--only` accepts any key from docs_gen::all_generators(); an unknown key
+# prints the full list. `llm-tools` is opt-in only: it is excluded from a full
+# run because docs/llm-tools/index.md is currently maintained by hand.
 ```
 
 ### Auto-Generated File Headers
@@ -258,8 +270,9 @@ All generated files include a header warning:
 
 1. Create a struct implementing `DocGenerator` trait in `src/docs_gen/`
 2. Implement `name()`, `source()`, `output_path()`, and `generate()`
-3. Register in `src/docs_gen/mod.rs` `generate_all()` function
-4. Add to CLI match in `src/main.rs` `cmd_docs()`
+3. Register it in `src/docs_gen/mod.rs` `all_generators()` — that one list drives
+   the full run, the `--only` filter, and the CLI help text, so there is nothing
+   to add in `src/main.rs`
 
 ## Design & UI Consistency
 
@@ -277,8 +290,16 @@ it; never re-declare a brand color elsewhere.
 | Docs site (Jekyll) | `docs/assets/css/main.css` | Links `tokens.css` (via `_includes/head.html`); style components with `var(--...)`, never raw hex. |
 | Embedded SPA (Vite/React) | `ui/src/index.css` + `*.module.css` | Imports `tokens.css`; layers app-only semantic tokens (`--surface`, `--border`, `--danger`, …) on top. Components reference semantic tokens, not raw hex. |
 | Ratatui TUI | `src/ui/*.rs` | Terminal can't render hex — match a **semantic role to ANSI** (danger→Red, success→Green, warning→Yellow, focus→Cyan). Reuse `color_for_key`/`glyph_for_key` from `src/templates/mod.rs`; don't re-hardcode issuetype/priority colors. |
-| VS Code webview (MUI) | `vscode-extension/webview-ui/` | **Defer to the VS Code host theme** (`computeStyles.ts` → `createVSCodeTheme.ts`). Apply brand only as accents via `OPERATOR_BRAND`; never override the user's editor theme wholesale. |
+| VS Code webview | `vscode-extension/webview-ui/` | **Defer to the VS Code host theme**: style with raw `var(--vscode-*)` custom properties (`styles/webview.css` + `components/primitives/`). Apply brand only as accents via the `--op-*` variables; never override the user's editor theme wholesale. No MUI/CSS-in-JS — enforced by `tests/ui_packaging.rs`. |
 
 When adding or changing UI: change a brand color in `tokens.css` (web surfaces
 follow automatically); reference semantic tokens in new web CSS; map a role to
 ANSI in the TUI; and leave the webview deferring to the editor theme.
+
+**Icons.** Every SVG icon follows the Operator icon standard — a single
+monochrome `<path>` on a 24×24 canvas with no `fill`/`stroke`/`width`/`height`,
+so it tints from `currentColor` and sizes to its container on all four
+surfaces. Governed directories: `icons/`, `docs/assets/icons/`,
+`ui/public/icons/`, and each collection's `icon.svg`. Enforced by
+`cargo test --test svg_icon_standard`; the rules and rationale are in
+`docs/design-system/`.

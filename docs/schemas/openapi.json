@@ -738,11 +738,25 @@
         "tags": [
           "Issue Types"
         ],
-        "summary": "List all issue types",
+        "summary": "List issue types (all collections deduped, or one collection via `?collection=`)",
         "operationId": "issuetypes_list",
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "query",
+            "description": "Collection to scope the lookup to (defaults to resolution-order lookup)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "List of all issue types",
+            "description": "List of issue types",
             "content": {
               "application/json": {
                 "schema": {
@@ -750,6 +764,16 @@
                   "items": {
                     "$ref": "#/components/schemas/IssueTypeSummary"
                   }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -821,6 +845,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "description": "Collection to scope the lookup to (defaults to resolution-order lookup)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -945,6 +981,59 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/issuetypes/{key}/document": {
+      "get": {
+        "tags": [
+          "Issue Types"
+        ],
+        "summary": "Get an issue type's Operator workflow document",
+        "description": "Returns the issue type verbatim, in the same shape as the `<KEY>.json` files\nin a hosted collection bundle (`/schemas/issuetype.json`). This is the\n*native* Operator workflow — the ordered step graph every export format is\nderived from — so the web UI and the docs site render identical graphs from\nidentical bytes. Prefer [`get_one`] for display metadata; use this when you\nneed the full step structure including step types, reject edges, and\nper-type fan-out configuration.",
+        "operationId": "issuetypes_get_document",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Issue type key (e.g., FEAT, FIX)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "description": "Collection to scope the lookup to (defaults to resolution-order lookup)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator workflow document",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -1309,6 +1398,38 @@
         }
       }
     },
+    "/api/v1/kanban/statuses": {
+      "post": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "POST /`api/v1/kanban/statuses`",
+        "description": "List the workflow statuses/columns of a specific project using ephemeral\ncredentials, so onboarding UIs can offer real column names in the\ntodo/doing/done mapping dropdowns. No persistence side effects.",
+        "operationId": "kanban_list_statuses",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListKanbanStatusesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow statuses/columns for the project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListKanbanStatusesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/kanban/validate": {
       "post": {
         "tags": [
@@ -1436,6 +1557,54 @@
           },
           "500": {
             "description": "Failed to sync from provider"
+          }
+        }
+      }
+    },
+    "/api/v1/kanban/{provider}/{project_key}/statuses": {
+      "get": {
+        "tags": [
+          "Kanban"
+        ],
+        "summary": "GET /`api/v1/kanban/:provider/:project_key/statuses`",
+        "description": "Returns the external board's workflow statuses/columns for an\nalready-configured provider/project, using the stored config's\ncredentials. Used by config UIs (e.g. the VS Code `ProjectRow`) to populate\nthe todo/doing/done mapping dropdowns after onboarding.",
+        "operationId": "kanban_project_statuses",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "description": "Kanban provider name (e.g. jira, linear, github)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_key",
+            "in": "path",
+            "description": "Provider project/team key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow statuses/columns for the project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListKanbanStatusesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown provider/project"
+          },
+          "500": {
+            "description": "Failed to fetch statuses from provider"
           }
         }
       }
@@ -2726,14 +2895,43 @@
           "name",
           "description",
           "types",
-          "is_active"
+          "is_active",
+          "tier"
         ],
         "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Human author/attribution (present for hosted collections)."
+          },
+          "created": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO-8601 date the collection was first published."
+          },
           "description": {
             "type": "string"
           },
+          "icon_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Bare filename of the collection's SVG icon, next to its manifest."
+          },
           "is_active": {
             "type": "boolean"
+          },
+          "license": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPDX license id."
           },
           "name": {
             "type": "string"
@@ -2745,11 +2943,29 @@
             ],
             "description": "Publisher identifier (present for hosted collections)."
           },
+          "tier": {
+            "type": "string",
+            "description": "Provenance tier: `official` or `community`."
+          },
           "types": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "updated": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO-8601 date of the last substantive revision."
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Link to the collection's source repository or project page."
           },
           "version": {
             "type": [
@@ -3001,6 +3217,13 @@
           "steps"
         ],
         "properties": {
+          "collection": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Target collection (defaults to the active collection)"
+          },
           "color": {
             "type": [
               "string",
@@ -3774,6 +3997,13 @@
           "steps"
         ],
         "properties": {
+          "collection": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Owning collection under resolution-order lookup"
+          },
           "color": {
             "type": [
               "string",
@@ -3828,6 +4058,13 @@
           "stepCount"
         ],
         "properties": {
+          "collection": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Owning collection under resolution-order lookup"
+          },
           "color": {
             "type": [
               "string",
@@ -4092,6 +4329,33 @@
           "linear",
           "github"
         ]
+      },
+      "KanbanStatusMapping": {
+        "type": "object",
+        "description": "Explicit mapping from operator's strict todo/doing/done states to the\nexternal board's column/status names.\n\nDrives bidirectional sync: issues are pulled from the `todo` column,\npushed to `doing` when a ticket is claimed, to `done` when completed, and\nback to `todo` when requeued. Unset fields fall back per-transition\n(`doing` → \"In Progress\", `done` → \"Done\"); requeue only pushes when\n`todo` is explicitly mapped.",
+        "properties": {
+          "doing": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "External column for operator \"doing\" (claimed/launched tickets)"
+          },
+          "done": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "External column for operator \"done\" (completed tickets)"
+          },
+          "todo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "External column for operator \"todo\" (queued work; also the pull source)"
+          }
+        }
       },
       "KanbanSyncResponse": {
         "type": "object",
@@ -4451,6 +4715,68 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/KanbanProjectInfo"
+            }
+          }
+        }
+      },
+      "ListKanbanStatusesRequest": {
+        "type": "object",
+        "description": "Request to list workflow statuses/columns for a specific project using\nephemeral creds (onboarding wizard — before any config is persisted).",
+        "required": [
+          "provider",
+          "project_key"
+        ],
+        "properties": {
+          "github": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GithubCredentials"
+              }
+            ]
+          },
+          "jira": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JiraCredentials"
+              }
+            ]
+          },
+          "linear": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinearCredentials"
+              }
+            ]
+          },
+          "project_key": {
+            "type": "string",
+            "description": "Project/team key to list statuses for"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/KanbanProviderKind"
+          }
+        }
+      },
+      "ListKanbanStatusesResponse": {
+        "type": "object",
+        "description": "Response wrapper for list-statuses: the external board's column names,\nin board order, for populating todo/doing/done mapping dropdowns.",
+        "required": [
+          "statuses"
+        ],
+        "properties": {
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -6242,6 +6568,17 @@
             "type": "string",
             "description": "`GraphQL` project node ID (e.g., `PVT_kwDOABcdefg`)"
           },
+          "status_mapping": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KanbanStatusMapping",
+                "description": "Mapping of operator todo/doing/done to external board columns"
+              }
+            ]
+          },
           "sync_user_id": {
             "type": "string",
             "description": "Numeric GitHub `databaseId` of the user whose items to sync"
@@ -6270,6 +6607,17 @@
           },
           "project_key": {
             "type": "string"
+          },
+          "status_mapping": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KanbanStatusMapping",
+                "description": "Mapping of operator todo/doing/done to external board columns"
+              }
+            ]
           },
           "sync_user_id": {
             "type": "string"
@@ -6351,6 +6699,17 @@
           },
           "project_key": {
             "type": "string"
+          },
+          "status_mapping": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KanbanStatusMapping",
+                "description": "Mapping of operator todo/doing/done to external board columns"
+              }
+            ]
           },
           "sync_user_id": {
             "type": "string"

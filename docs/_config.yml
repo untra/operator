@@ -27,6 +27,7 @@ exclude:
   - Gemfile.lock
   - vendor
   - typescript
+  - collections
 
 # Plugins
 plugins:

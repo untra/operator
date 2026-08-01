@@ -1,7 +1,5 @@
 import React, { useMemo, useRef } from 'react';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
+import { Button } from './primitives';
 import { SidebarNav, type NavItem } from './SidebarNav';
 import { OperatorBrand } from './OperatorBrand';
 import { LinkOutCard } from './LinkOutCard';
@@ -37,6 +35,8 @@ interface ConfigPageProps {
   collections: CollectionResponse[];
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
+  kanbanStatuses: Map<string, string[]>;
+  onGetKanbanStatuses: (provider: string, projectKey: string) => void;
   onOpenOperatorUi: (route: 'issuetypes' | 'projects') => void;
 }
 
@@ -58,6 +58,8 @@ export function ConfigPage({
   collections,
   externalIssueTypes,
   onGetExternalIssueTypes,
+  kanbanStatuses,
+  onGetKanbanStatuses,
   onOpenOperatorUi,
 }: ConfigPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -76,54 +78,29 @@ export function ConfigPage({
   ], [hasWorkDir, apiReachable]);
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <SidebarNav items={navItems} scrollContainerRef={scrollRef} />
 
-      <Box
-        ref={scrollRef}
-        sx={{
-          flexGrow: 1,
-          overflow: 'auto',
-          px: 3,
-          py: 2,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="h6">
+      <div ref={scrollRef} style={{ flexGrow: 1, overflow: 'auto', padding: '16px 24px' }}>
+        <div className="op-row op-space-between op-mb-2">
+          <h1 className="op-h6">
             <OperatorBrand /> Settings
-          </Typography>
+          </h1>
           {needsSetup ? (
-            <Button
-              variant="contained"
-              onClick={onStartSetup}
-              sx={{
-                backgroundColor: '#66AA99',
-                color: '#fff',
-                '&:hover': {
-                  backgroundColor: '#5A998A',
-                },
-              }}
-            >
+            <Button variant="contained" accent="sage" onClick={onStartSetup}>
               start operator setup
             </Button>
           ) : (
             <Button
               variant="outlined"
+              accent="sage"
               onClick={() => onOpenFile(config.config_path)}
               disabled={!config.working_directory}
-              sx={{
-                borderColor: '#66AA99',
-                color: '#66AA99',
-                '&:hover': {
-                  borderColor: '#66AA99',
-                  backgroundColor: 'rgba(102, 170, 153, 0.08)',
-                },
-              }}
             >
               edit config.toml
             </Button>
           )}
-        </Box>
+        </div>
         <PrimaryConfigSection
           working_directory={config.working_directory}
           sessions_wrapper={config.config.sessions.wrapper ?? 'vscode'}
@@ -144,6 +121,8 @@ export function ConfigPage({
           collections={collections}
           externalIssueTypes={externalIssueTypes}
           onGetExternalIssueTypes={onGetExternalIssueTypes}
+          kanbanStatuses={kanbanStatuses}
+          onGetKanbanStatuses={onGetKanbanStatuses}
           onOpenOperatorUi={onOpenOperatorUi}
         />
         <CodingAgentsSection
@@ -166,7 +145,7 @@ export function ConfigPage({
           description="Browse, assess, and open managed projects in the Operator UI."
           onOpen={() => onOpenOperatorUi('projects')}
         />
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

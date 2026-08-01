@@ -8,9 +8,10 @@ use axum::extract::State;
 use axum::Json;
 
 use crate::rest::dto::{
-    ListKanbanProjectsRequest, ListKanbanProjectsResponse, SetKanbanSessionEnvRequest,
-    SetKanbanSessionEnvResponse, ValidateKanbanCredentialsRequest,
-    ValidateKanbanCredentialsResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
+    ListKanbanProjectsRequest, ListKanbanProjectsResponse, ListKanbanStatusesRequest,
+    ListKanbanStatusesResponse, SetKanbanSessionEnvRequest, SetKanbanSessionEnvResponse,
+    ValidateKanbanCredentialsRequest, ValidateKanbanCredentialsResponse, WriteKanbanConfigRequest,
+    WriteKanbanConfigResponse,
 };
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
@@ -58,6 +59,29 @@ pub async fn list_projects(
     Json(req): Json<ListKanbanProjectsRequest>,
 ) -> Result<Json<ListKanbanProjectsResponse>, ApiError> {
     let resp = kanban_onboarding::list_projects(req).await?;
+    Ok(Json(resp))
+}
+
+/// POST /`api/v1/kanban/statuses`
+///
+/// List the workflow statuses/columns of a specific project using ephemeral
+/// credentials, so onboarding UIs can offer real column names in the
+/// todo/doing/done mapping dropdowns. No persistence side effects.
+#[utoipa::path(
+    post,
+    path = "/api/v1/kanban/statuses",
+    tag = "Kanban",
+    operation_id = "kanban_list_statuses",
+    request_body = ListKanbanStatusesRequest,
+    responses(
+        (status = 200, description = "Workflow statuses/columns for the project", body = ListKanbanStatusesResponse)
+    )
+)]
+pub async fn list_statuses(
+    State(_state): State<ApiState>,
+    Json(req): Json<ListKanbanStatusesRequest>,
+) -> Result<Json<ListKanbanStatusesResponse>, ApiError> {
+    let resp = kanban_onboarding::list_statuses(req).await?;
     Ok(Json(resp))
 }
 

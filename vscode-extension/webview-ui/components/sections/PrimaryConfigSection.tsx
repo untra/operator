@@ -1,14 +1,6 @@
 import React from 'react';
-import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import Typography from '@mui/material/Typography';
+import { Button, TextInput, SelectInput } from '../primitives';
 import { SectionHeader } from '../SectionHeader';
-import Link from '@mui/material/Link';
 import { OperatorBrand } from '../OperatorBrand';
 
 interface PrimaryConfigSectionProps {
@@ -25,20 +17,19 @@ export function PrimaryConfigSection({
   onBrowseFolder,
 }: PrimaryConfigSectionProps) {
   return (
-    <Box sx={{ mb: 4 }}>
+    <div className="op-mb-4">
       <SectionHeader id="section-primary" title="Workspace Configuration" />
-      <Typography color="text.secondary" gutterBottom>
-        These are settings for <b>Operator!</b> configuration for the VS Code extension. For more details see the <Link href="https://operator.untra.io/configuration/">configuration documentation</Link>
-      </Typography>
+      <p className="op-body1 op-text-secondary op-mb-1">
+        These are settings for <b>Operator!</b> configuration for the VS Code extension. For more details see the <a href="https://operator.untra.io/configuration/">configuration documentation</a>
+      </p>
 
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+      <div className="op-mb-2">
+        <p className="op-body2 op-text-secondary op-mb-05">
           <OperatorBrand /> Working Directory
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <TextField
-            fullWidth
-            size="small"
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <TextInput
+            style={{ flex: 1 }}
             value={working_directory}
             onChange={(e) =>
               onUpdate('primary', 'working_directory', e.target.value)
@@ -49,43 +40,31 @@ export function PrimaryConfigSection({
           <Button
             variant="outlined"
             onClick={() => onBrowseFolder('workingDirectory')}
-            sx={{
-              minWidth: 'auto',
-              px: 2,
+            style={{
               alignSelf: 'flex-start',
-              mt: 1,
-              borderColor: '#E05D44',
-              color: '#E05D44',
-              '&:hover': {
-                borderColor: '#E05D44',
-                backgroundColor: 'rgba(224, 93, 68, 0.08)',
-              },
+              marginTop: 8,
+              borderColor: 'var(--op-terracotta)',
+              color: 'var(--op-terracotta)',
             }}
           >
             change
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <FormControl fullWidth size="small" margin="dense">
-        <InputLabel margin='dense'>Session Wrapper</InputLabel>
-        <Select
-          value={sessions_wrapper || 'vscode'}
-          label="Session Wrapper"
-          onChange={(e) =>
-            onUpdate('sessions', 'wrapper', e.target.value)
-          }
-        >
-          <MenuItem value="vscode">VS Code Terminal</MenuItem>
-          <MenuItem value="tmux" disabled>tmux</MenuItem>
-          <MenuItem value="cmux" disabled>cmux</MenuItem>
-          <MenuItem value="zellij" disabled>zellij</MenuItem>
-        </Select>
-        <Typography variant="caption" color="text.secondary">
-          Only VS Code Terminal is available when running from the extension.
-          Other wrappers require running Operator from the CLI.
-        </Typography>
-      </FormControl>
-    </Box>
+      <SelectInput
+        label="Session Wrapper"
+        value={sessions_wrapper || 'vscode'}
+        onChange={(e) =>
+          onUpdate('sessions', 'wrapper', e.target.value)
+        }
+        helperText="Only VS Code Terminal is available when running from the extension. Other wrappers require running Operator from the CLI."
+      >
+        <option value="vscode">VS Code Terminal</option>
+        <option value="tmux" disabled>tmux</option>
+        <option value="cmux" disabled>cmux</option>
+        <option value="zellij" disabled>zellij</option>
+      </SelectInput>
+    </div>
   );
 }

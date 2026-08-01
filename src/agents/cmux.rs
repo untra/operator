@@ -24,6 +24,14 @@ use crate::agents::terminal_wrapper::{
 };
 use crate::config::{CmuxPlacementPolicy, SessionsCmuxConfig};
 
+/// Minimum cmux version operator supports: `new-workspace --window` landed in 0.64.8.
+pub const MIN_SUPPORTED_CMUX_VERSION: (u32, u32, u32) = (0, 64, 8);
+
+fn min_supported_version_string() -> String {
+    let (major, minor, patch) = MIN_SUPPORTED_CMUX_VERSION;
+    format!("{major}.{minor}.{patch}")
+}
+
 /// Errors specific to cmux operations
 #[derive(Error, Debug)]
 pub enum CmuxError {
@@ -32,6 +40,11 @@ pub enum CmuxError {
 
     #[error("not running inside cmux (CMUX_WORKSPACE_ID not set)")]
     NotInCmux,
+
+    #[error(
+        "cmux {found} is not supported; operator requires cmux >= {minimum} — please update cmux"
+    )]
+    UnsupportedVersion { found: String, minimum: String },
 
     #[error("cmux command failed: {0}")]
     CommandFailed(String),
@@ -44,6 +57,77 @@ pub enum CmuxError {
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+}
+
+/// Parsed cmux version, from `cmux --version` output like `cmux 0.64.20 (77) [6c203b5]`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CmuxVersion {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+    pub raw: String,
+}
+
+impl CmuxVersion {
+    /// Parse the second whitespace token as `major.minor.patch`, tolerating
+    /// non-numeric suffixes per component (mirrors `TmuxVersion::parse`).
+    pub fn parse(output: &str) -> Option<Self> {
+        let token = output.split_whitespace().nth(1)?;
+        let mut parts = token.split('.');
+        let component = |part: Option<&str>| -> Option<u32> {
+            let digits: String = part?.chars().take_while(char::is_ascii_digit).collect();
+            digits.parse().ok()
+        };
+        let major = component(parts.next())?;
+        let minor = component(parts.next())?;
+        let patch = component(parts.next()).unwrap_or(0);
+        Some(Self {
+            major,
+            minor,
+            patch,
+            raw: token.to_string(),
+        })
+    }
+
+    pub fn meets_minimum(&self, min: (u32, u32, u32)) -> bool {
+        (self.major, self.minor, self.patch) >= min
+    }
+}
+
+/// Parse `new-workspace` stdout (`OK workspace:3` or `OK <uuid>`) into the ref.
+fn parse_ok_ref(stdout: &str) -> Result<String, CmuxError> {
+    let trimmed = stdout.trim();
+    let reference = trimmed.strip_prefix("OK ").unwrap_or(trimmed).trim();
+    if reference.is_empty() || reference == "OK" {
+        return Err(CmuxError::CommandFailed(format!(
+            "cmux did not return a workspace ref (got '{trimmed}')"
+        )));
+    }
+    Ok(reference.to_string())
+}
+
+/// Parse `list-windows --json` output: a JSON array of window objects.
+fn parse_windows_json(stdout: &str) -> Result<Vec<CmuxWindow>, CmuxError> {
+    let value: serde_json::Value = serde_json::from_str(stdout.trim())
+        .map_err(|e| CmuxError::CommandFailed(format!("failed to parse list-windows JSON: {e}")))?;
+    let items = value
+        .as_array()
+        .ok_or_else(|| CmuxError::CommandFailed("list-windows JSON is not an array".to_string()))?;
+    items
+        .iter()
+        .map(|item| {
+            let id = match item.get("id") {
+                Some(serde_json::Value::String(s)) => s.clone(),
+                Some(serde_json::Value::Number(n)) => n.to_string(),
+                _ => {
+                    return Err(CmuxError::CommandFailed(
+                        "list-windows entry missing 'id'".to_string(),
+                    ))
+                }
+            };
+            Ok(CmuxWindow { id, name: None })
+        })
+        .collect()
 }
 
 /// Information about a cmux window
@@ -63,8 +147,8 @@ pub struct CmuxWorkspace {
 
 /// Trait abstracting cmux operations for testability
 pub trait CmuxClient: Send + Sync {
-    /// Check if cmux is available (binary exists and can run)
-    fn check_available(&self) -> Result<(), CmuxError>;
+    /// Check cmux is available and meets [`MIN_SUPPORTED_CMUX_VERSION`]
+    fn check_available(&self) -> Result<CmuxVersion, CmuxError>;
 
     /// Check if we're running inside cmux (env vars present)
     fn check_in_cmux(&self) -> Result<(), CmuxError>;
@@ -83,8 +167,8 @@ pub trait CmuxClient: Send + Sync {
         name: Option<&str>,
     ) -> Result<String, CmuxError>;
 
-    /// Create a new window
-    fn create_window(&self, name: Option<&str>) -> Result<String, CmuxError>;
+    /// Create a new window (cmux `new-window` supports no name)
+    fn create_window(&self) -> Result<String, CmuxError>;
 
     /// Send text to a workspace
     fn send_text(&self, workspace_ref: &str, text: &str) -> Result<(), CmuxError>;
@@ -103,15 +187,6 @@ pub trait CmuxClient: Send + Sync {
 
     /// Get the active window ID
     fn active_window_id(&self) -> Result<String, CmuxError>;
-
-    /// Rename a workspace
-    fn rename_workspace(&self, workspace_ref: &str, name: &str) -> Result<(), CmuxError>;
-
-    /// Rename a window
-    fn rename_window(&self, window_ref: &str, name: &str) -> Result<(), CmuxError>;
-
-    /// Set the subtitle/metadata for a workspace (shown in cmux sidebar)
-    fn set_workspace_subtitle(&self, workspace_ref: &str, subtitle: &str) -> Result<(), CmuxError>;
 }
 
 // ============================================================================
@@ -137,6 +212,8 @@ impl SystemCmuxClient {
     fn run_cmux(&self, args: &[&str]) -> Result<Output, CmuxError> {
         Command::new(&self.binary_path)
             .args(args)
+            // Silence cmux's legacy-verb deprecation notice on stderr
+            .env("CMUX_QUIET", "1")
             .output()
             .map_err(|e| {
                 if e.kind() == std::io::ErrorKind::NotFound {
@@ -162,13 +239,25 @@ impl SystemCmuxClient {
 }
 
 impl CmuxClient for SystemCmuxClient {
-    fn check_available(&self) -> Result<(), CmuxError> {
-        // Check binary exists and runs
+    fn check_available(&self) -> Result<CmuxVersion, CmuxError> {
         let output = self.run_cmux(&["--version"])?;
         if !output.status.success() {
             return Err(CmuxError::NotInstalled(self.binary_path.clone()));
         }
-        Ok(())
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let version = CmuxVersion::parse(&stdout).ok_or_else(|| {
+            CmuxError::CommandFailed(format!(
+                "could not parse cmux version from '{}'",
+                stdout.trim()
+            ))
+        })?;
+        if !version.meets_minimum(MIN_SUPPORTED_CMUX_VERSION) {
+            return Err(CmuxError::UnsupportedVersion {
+                found: version.raw,
+                minimum: min_supported_version_string(),
+            });
+        }
+        Ok(version)
     }
 
     fn check_in_cmux(&self) -> Result<(), CmuxError> {
@@ -180,17 +269,7 @@ impl CmuxClient for SystemCmuxClient {
 
     fn list_windows(&self) -> Result<Vec<CmuxWindow>, CmuxError> {
         let output = self.run_cmux_success(&["list-windows", "--json"])?;
-        // Parse JSON output — each line is a window
-        // For now, parse simple newline-delimited IDs
-        let windows = output
-            .lines()
-            .filter(|l| !l.is_empty())
-            .map(|line| CmuxWindow {
-                id: line.trim().to_string(),
-                name: None,
-            })
-            .collect();
-        Ok(windows)
+        parse_windows_json(&output)
     }
 
     fn window_count(&self) -> Result<usize, CmuxError> {
@@ -204,7 +283,7 @@ impl CmuxClient for SystemCmuxClient {
         name: Option<&str>,
     ) -> Result<String, CmuxError> {
         let mut args = vec![
-            "create-workspace",
+            "new-workspace",
             "--window",
             window_ref,
             "--cwd",
@@ -214,20 +293,16 @@ impl CmuxClient for SystemCmuxClient {
             args.push("--name");
             args.push(n);
         }
-        self.run_cmux_success(&args)
+        let output = self.run_cmux_success(&args)?;
+        parse_ok_ref(&output)
     }
 
-    fn create_window(&self, name: Option<&str>) -> Result<String, CmuxError> {
-        let mut args = vec!["create-window"];
-        if let Some(n) = name {
-            args.push("--name");
-            args.push(n);
-        }
-        self.run_cmux_success(&args)
+    fn create_window(&self) -> Result<String, CmuxError> {
+        self.run_cmux_success(&["new-window"])
     }
 
     fn send_text(&self, workspace_ref: &str, text: &str) -> Result<(), CmuxError> {
-        self.run_cmux_success(&["send-text", "--workspace", workspace_ref, text])?;
+        self.run_cmux_success(&["send", "--workspace", workspace_ref, text])?;
         Ok(())
     }
 
@@ -240,7 +315,7 @@ impl CmuxClient for SystemCmuxClient {
     }
 
     fn focus_workspace(&self, workspace_ref: &str) -> Result<(), CmuxError> {
-        self.run_cmux_success(&["focus-workspace", "--workspace", workspace_ref])?;
+        self.run_cmux_success(&["select-workspace", "--workspace", workspace_ref])?;
         Ok(())
     }
 
@@ -255,45 +330,7 @@ impl CmuxClient for SystemCmuxClient {
     }
 
     fn active_window_id(&self) -> Result<String, CmuxError> {
-        self.run_cmux_success(&["active-window-id"])
-    }
-
-    fn rename_workspace(&self, workspace_ref: &str, name: &str) -> Result<(), CmuxError> {
-        self.run_cmux_success(&[
-            "rename-workspace",
-            "--workspace",
-            workspace_ref,
-            "--name",
-            name,
-        ])?;
-        Ok(())
-    }
-
-    fn rename_window(&self, window_ref: &str, name: &str) -> Result<(), CmuxError> {
-        self.run_cmux_success(&["rename-window", "--window", window_ref, "--name", name])?;
-        Ok(())
-    }
-
-    fn set_workspace_subtitle(&self, workspace_ref: &str, subtitle: &str) -> Result<(), CmuxError> {
-        let output = std::process::Command::new(&self.binary_path)
-            .args([
-                "set-workspace-subtitle",
-                "--workspace",
-                workspace_ref,
-                "--subtitle",
-                subtitle,
-            ])
-            .output()
-            .map_err(|e| CmuxError::CommandFailed(format!("failed to run cmux: {e}")))?;
-
-        if !output.status.success() {
-            // cmux may not support this command yet — log and continue
-            tracing::debug!(
-                "cmux set-workspace-subtitle not supported or failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-        Ok(())
+        self.run_cmux_success(&["current-window"])
     }
 }
 
@@ -325,13 +362,13 @@ struct MockWindow {
 struct MockState {
     available: bool,
     in_cmux: bool,
+    version: CmuxVersion,
     windows: Vec<MockWindow>,
     workspaces: Vec<MockWorkspace>,
     next_workspace_id: u32,
     next_window_id: u32,
     active_window_id: String,
     sent_texts: Vec<(String, String)>, // (workspace_ref, text)
-    subtitles: HashMap<String, String>,
 }
 
 /// Mock implementation for testing
@@ -346,6 +383,12 @@ impl MockCmuxClient {
             state: Mutex::new(MockState {
                 available: true,
                 in_cmux: true,
+                version: CmuxVersion {
+                    major: 0,
+                    minor: 64,
+                    patch: 20,
+                    raw: "0.64.20".to_string(),
+                },
                 windows: vec![MockWindow {
                     id: "win-1".to_string(),
                     name: Some("Main".to_string()),
@@ -356,7 +399,6 @@ impl MockCmuxClient {
                 next_window_id: 2,
                 active_window_id: "win-1".to_string(),
                 sent_texts: vec![],
-                subtitles: HashMap::new(),
             }),
         }
     }
@@ -425,10 +467,16 @@ impl MockCmuxClient {
         })
     }
 
-    /// Get the subtitle set for a workspace (for test assertions)
-    pub fn get_subtitle(&self, workspace_ref: &str) -> Option<String> {
-        let state = self.state.lock().unwrap();
-        state.subtitles.get(workspace_ref).cloned()
+    /// Set the reported cmux version (for version-gate tests)
+    pub fn set_version(&self, major: u32, minor: u32, patch: u32) {
+        if let Ok(mut state) = self.state.lock() {
+            state.version = CmuxVersion {
+                major,
+                minor,
+                patch,
+                raw: format!("{major}.{minor}.{patch}"),
+            };
+        }
     }
 }
 
@@ -439,7 +487,7 @@ impl Default for MockCmuxClient {
 }
 
 impl CmuxClient for MockCmuxClient {
-    fn check_available(&self) -> Result<(), CmuxError> {
+    fn check_available(&self) -> Result<CmuxVersion, CmuxError> {
         let state = self
             .state
             .lock()
@@ -447,7 +495,13 @@ impl CmuxClient for MockCmuxClient {
         if !state.available {
             return Err(CmuxError::NotInstalled("mock".to_string()));
         }
-        Ok(())
+        if !state.version.meets_minimum(MIN_SUPPORTED_CMUX_VERSION) {
+            return Err(CmuxError::UnsupportedVersion {
+                found: state.version.raw.clone(),
+                minimum: min_supported_version_string(),
+            });
+        }
+        Ok(state.version.clone())
     }
 
     fn check_in_cmux(&self) -> Result<(), CmuxError> {
@@ -513,7 +567,7 @@ impl CmuxClient for MockCmuxClient {
         Ok(id)
     }
 
-    fn create_window(&self, name: Option<&str>) -> Result<String, CmuxError> {
+    fn create_window(&self) -> Result<String, CmuxError> {
         let mut state = self
             .state
             .lock()
@@ -523,7 +577,7 @@ impl CmuxClient for MockCmuxClient {
         state.next_window_id += 1;
         state.windows.push(MockWindow {
             id: id.clone(),
-            name: name.map(std::string::ToString::to_string),
+            name: None,
             focused: false,
         });
         Ok(id)
@@ -615,46 +669,6 @@ impl CmuxClient for MockCmuxClient {
             .map_err(|e| CmuxError::CommandFailed(format!("lock poisoned: {e}")))?;
         Ok(state.active_window_id.clone())
     }
-
-    fn rename_workspace(&self, workspace_ref: &str, name: &str) -> Result<(), CmuxError> {
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|e| CmuxError::CommandFailed(format!("lock poisoned: {e}")))?;
-
-        let ws = state
-            .workspaces
-            .iter_mut()
-            .find(|ws| ws.id == workspace_ref)
-            .ok_or_else(|| CmuxError::WorkspaceNotFound(workspace_ref.to_string()))?;
-
-        ws.name = Some(name.to_string());
-        Ok(())
-    }
-
-    fn rename_window(&self, window_ref: &str, name: &str) -> Result<(), CmuxError> {
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|e| CmuxError::CommandFailed(format!("lock poisoned: {e}")))?;
-
-        let w = state
-            .windows
-            .iter_mut()
-            .find(|w| w.id == window_ref)
-            .ok_or_else(|| CmuxError::WindowNotFound(window_ref.to_string()))?;
-
-        w.name = Some(name.to_string());
-        Ok(())
-    }
-
-    fn set_workspace_subtitle(&self, workspace_ref: &str, subtitle: &str) -> Result<(), CmuxError> {
-        let mut state = self.state.lock().unwrap();
-        state
-            .subtitles
-            .insert(workspace_ref.to_string(), subtitle.to_string());
-        Ok(())
-    }
 }
 
 // ============================================================================
@@ -724,7 +738,7 @@ impl CmuxWrapper {
             }
             CmuxPlacementPolicy::Window => {
                 // Always create a new window
-                let window_id = self.client.create_window(None)?;
+                let window_id = self.client.create_window()?;
                 Ok((window_id, true))
             }
             CmuxPlacementPolicy::Auto => {
@@ -734,7 +748,7 @@ impl CmuxWrapper {
                     let window_id = self.client.active_window_id()?;
                     Ok((window_id, false))
                 } else {
-                    let window_id = self.client.create_window(None)?;
+                    let window_id = self.client.create_window()?;
                     Ok((window_id, true))
                 }
             }
@@ -915,13 +929,98 @@ mod tests {
     use super::*;
 
     // ========================================================================
+    // Pure helper tests
+    // ========================================================================
+
+    #[test]
+    fn test_cmux_version_parse_full_output() {
+        let v = CmuxVersion::parse("cmux 0.64.20 (77) [6c203b514]").unwrap();
+        assert_eq!((v.major, v.minor, v.patch), (0, 64, 20));
+        assert_eq!(v.raw, "0.64.20");
+    }
+
+    #[test]
+    fn test_cmux_version_parse_tolerates_component_suffix() {
+        let v = CmuxVersion::parse("cmux 0.65.1-beta").unwrap();
+        assert_eq!((v.major, v.minor, v.patch), (0, 65, 1));
+    }
+
+    #[test]
+    fn test_cmux_version_parse_missing_patch_defaults_zero() {
+        let v = CmuxVersion::parse("cmux 1.2").unwrap();
+        assert_eq!((v.major, v.minor, v.patch), (1, 2, 0));
+    }
+
+    #[test]
+    fn test_cmux_version_parse_garbage_returns_none() {
+        assert!(CmuxVersion::parse("").is_none());
+        assert!(CmuxVersion::parse("cmux").is_none());
+        assert!(CmuxVersion::parse("cmux beta").is_none());
+    }
+
+    #[test]
+    fn test_cmux_version_meets_minimum_boundaries() {
+        let parse = |s: &str| CmuxVersion::parse(s).unwrap();
+        assert!(parse("cmux 0.64.8").meets_minimum(MIN_SUPPORTED_CMUX_VERSION));
+        assert!(parse("cmux 0.64.20").meets_minimum(MIN_SUPPORTED_CMUX_VERSION));
+        assert!(parse("cmux 1.0.0").meets_minimum(MIN_SUPPORTED_CMUX_VERSION));
+        assert!(!parse("cmux 0.64.7").meets_minimum(MIN_SUPPORTED_CMUX_VERSION));
+        assert!(!parse("cmux 0.62.2").meets_minimum(MIN_SUPPORTED_CMUX_VERSION));
+    }
+
+    #[test]
+    fn test_parse_ok_ref_strips_prefix() {
+        assert_eq!(parse_ok_ref("OK workspace:3\n").unwrap(), "workspace:3");
+        assert_eq!(parse_ok_ref("workspace:3").unwrap(), "workspace:3");
+    }
+
+    #[test]
+    fn test_parse_ok_ref_rejects_empty() {
+        assert!(parse_ok_ref("OK ").is_err());
+        assert!(parse_ok_ref("OK").is_err());
+        assert!(parse_ok_ref("  \n").is_err());
+    }
+
+    #[test]
+    fn test_parse_windows_json_array() {
+        let json = r#"[{"index":0,"id":"win-uuid-1","key":"window:1","workspace_count":2,"selected_workspace_id":null},{"index":1,"id":42,"key":"window:2","workspace_count":0}]"#;
+        let windows = parse_windows_json(json).unwrap();
+        assert_eq!(windows.len(), 2);
+        assert_eq!(windows[0].id, "win-uuid-1");
+        assert_eq!(windows[1].id, "42");
+    }
+
+    #[test]
+    fn test_parse_windows_json_empty_array() {
+        assert!(parse_windows_json("[]").unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_parse_windows_json_invalid() {
+        assert!(parse_windows_json("win-1\nwin-2").is_err());
+        assert!(parse_windows_json(r#"{"id":"x"}"#).is_err());
+        assert!(parse_windows_json(r#"[{"index":0}]"#).is_err());
+    }
+
+    // ========================================================================
     // CmuxClient trait tests (via MockCmuxClient)
     // ========================================================================
 
     #[test]
     fn test_cmux_check_available_success() {
         let client = MockCmuxClient::new();
-        assert!(client.check_available().is_ok());
+        let version = client.check_available().unwrap();
+        assert!(version.meets_minimum(MIN_SUPPORTED_CMUX_VERSION));
+    }
+
+    #[test]
+    fn test_cmux_check_available_unsupported_version() {
+        let client = MockCmuxClient::new();
+        client.set_version(0, 62, 2);
+        let err = client.check_available().unwrap_err();
+        assert!(matches!(err, CmuxError::UnsupportedVersion { .. }));
+        assert!(err.to_string().contains("0.62.2"));
+        assert!(err.to_string().contains("0.64.8"));
     }
 
     #[test]
@@ -947,7 +1046,7 @@ mod tests {
         assert_eq!(client.window_count().unwrap(), 1);
 
         // Create another
-        let win_id = client.create_window(Some("Second")).unwrap();
+        let win_id = client.create_window().unwrap();
         assert!(win_id.starts_with("win-"));
         assert_eq!(client.window_count().unwrap(), 2);
 
@@ -986,9 +1085,6 @@ mod tests {
         // Focus workspace
         assert!(client.focus_workspace(&ws_id).is_ok());
 
-        // Rename workspace
-        assert!(client.rename_workspace(&ws_id, "renamed").is_ok());
-
         // Close workspace
         assert!(client.close_workspace(&ws_id).is_ok());
 
@@ -1012,34 +1108,6 @@ mod tests {
         assert!(client.read_screen("ws-999", false).is_err());
         assert!(client.focus_workspace("ws-999").is_err());
         assert!(client.close_workspace("ws-999").is_err());
-        assert!(client.rename_workspace("ws-999", "x").is_err());
-    }
-
-    #[tokio::test]
-    async fn test_cmux_set_workspace_subtitle() {
-        let client = MockCmuxClient::new();
-        let client_arc: Arc<MockCmuxClient> = Arc::new(client);
-        let config = SessionsCmuxConfig {
-            binary_path: "/mock/cmux".to_string(),
-            require_in_cmux: true,
-            placement: CmuxPlacementPolicy::Auto,
-        };
-        let wrapper = CmuxWrapper::new(client_arc.clone(), &config);
-
-        wrapper
-            .create_session("op-TASK-030", "/tmp/project")
-            .await
-            .unwrap();
-
-        let ws_ref = wrapper.workspace_ref("op-TASK-030").unwrap();
-        client_arc
-            .set_workspace_subtitle(&ws_ref, "implement | ▶")
-            .unwrap();
-
-        assert_eq!(
-            client_arc.get_subtitle(&ws_ref).as_deref(),
-            Some("implement | ▶")
-        );
     }
 
     // ========================================================================

@@ -11,10 +11,26 @@
 //! embedded in the binary.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// Current manifest schema version. Manifests with an unknown version are
 /// rejected by the fetcher and fall back to the embedded copy.
 pub const SCHEMA_VERSION: u32 = 1;
+
+/// Provenance tier of a collection: who authored and maintains it.
+///
+/// Orthogonal to distribution — curated community-authored collections may
+/// ship embedded in the binary, while community submissions under
+/// `collections/community/` are hosted-only.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollectionTier {
+    /// Authored and maintained by the operator project.
+    #[default]
+    Official,
+    /// Community-authored (attribution via `author`/`url`/`license`).
+    Community,
+}
 
 /// Top-level index listing the available collections. This is what the
 /// configurable `collections_manifest_url` points at.
@@ -50,6 +66,13 @@ pub struct CollectionIndexEntry {
     pub manifest_path: String,
     /// SHA-256 (lowercase hex) of the referenced `collection.json` bytes.
     pub checksum: String,
+    /// Provenance tier (defaults to official for older indexes).
+    #[serde(default)]
+    pub tier: CollectionTier,
+    /// Path to the collection's docs page, relative to the site root
+    /// `/collections/` (e.g. `dev_kanban/`). Informational, for deep links.
+    #[serde(default)]
+    pub docs_path: Option<String>,
 }
 
 /// A single collection manifest (`collection.json`).
@@ -88,6 +111,22 @@ pub struct CollectionManifest {
     /// Compatibility constraints.
     #[serde(default)]
     pub compatibility: Option<Compatibility>,
+    /// Provenance tier (defaults to official for older manifests).
+    #[serde(default)]
+    pub tier: CollectionTier,
+    /// Bare filename of the collection's Simple Icons-shaped SVG, next to the
+    /// manifest. Deliberately not checksummed; icon must pass standards.
+    #[serde(default)]
+    pub icon_path: Option<String>,
+    /// ISO-8601 date (`YYYY-MM-DD`) the collection was first published.
+    #[serde(default)]
+    pub created: Option<String>,
+    /// ISO-8601 date (`YYYY-MM-DD`) of the last substantive revision.
+    #[serde(default)]
+    pub updated: Option<String>,
+    /// Descriptive kanban onboarding defaults (v1: metadata only).
+    #[serde(default)]
+    pub kanban_defaults: Option<KanbanDefaults>,
     /// Issue types in this collection (display order).
     pub issue_types: Vec<IssueTypeEntry>,
     /// Descriptive workflow hints (v1: metadata only, no execution behavior).
@@ -128,6 +167,19 @@ pub struct IssueTypeEntry {
     /// SHA-256 (lowercase hex) of the markdown template bytes, if present.
     #[serde(default)]
     pub template_checksum: Option<String>,
+}
+
+/// Descriptive kanban onboarding defaults for a collection.
+///
+/// v1 is metadata only: suggestions seed the onboarding mapping UI but do
+/// not drive sync behavior.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct KanbanDefaults {
+    /// Suggested provider issue-type NAME -> collection issuetype key.
+    /// `BTreeMap` keeps serialization order deterministic so the hosted
+    /// bundle's manifest checksum is stable across generation runs.
+    #[serde(default)]
+    pub suggested_type_mappings: BTreeMap<String, String>,
 }
 
 /// Descriptive metadata about a collection's intended agentic loop shape.
@@ -283,5 +335,231 @@ mod tests {
         let m2 = CollectionManifest::from_json(&json).unwrap();
         assert_eq!(m.id, m2.id);
         assert_eq!(m.type_keys(), m2.type_keys());
+    }
+
+    #[test]
+    fn test_manifest_tier_defaults_to_official() {
+        // Older manifests without a tier field stay valid and are official.
+        let m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        assert_eq!(m.tier, CollectionTier::Official);
+    }
+
+    #[test]
+    fn test_manifest_tier_community_round_trip() {
+        let json = r#"{
+            "schema_version": 1,
+            "id": "gastown",
+            "name": "Gastown",
+            "tier": "community",
+            "author": "someone",
+            "issue_types": [
+                {"key": "TASK", "schema_path": "TASK.json"}
+            ]
+        }"#;
+        let m = CollectionManifest::from_json(json).unwrap();
+        assert_eq!(m.tier, CollectionTier::Community);
+        let serialized = m.to_json().unwrap();
+        assert!(serialized.contains("\"tier\": \"community\""));
+        let m2 = CollectionManifest::from_json(&serialized).unwrap();
+        assert_eq!(m2.tier, CollectionTier::Community);
+    }
+
+    #[test]
+    fn test_index_entry_tier_and_docs_path_default() {
+        let json = r#"{
+            "schema_version": 1,
+            "collections": [
+                {"id": "simple", "name": "Simple", "manifest_path": "simple/collection.json", "checksum": "abc"}
+            ]
+        }"#;
+        let index: CollectionIndex = serde_json::from_str(json).unwrap();
+        let entry = &index.collections[0];
+        assert_eq!(entry.tier, CollectionTier::Official);
+        assert!(entry.docs_path.is_none());
+    }
+
+    #[test]
+    fn test_index_entry_tier_and_docs_path_round_trip() {
+        let json = r#"{
+            "schema_version": 1,
+            "collections": [
+                {"id": "gastown", "name": "Gastown", "manifest_path": "gastown/collection.json", "checksum": "abc", "tier": "community", "docs_path": "gastown/"}
+            ]
+        }"#;
+        let index: CollectionIndex = serde_json::from_str(json).unwrap();
+        let entry = &index.collections[0];
+        assert_eq!(entry.tier, CollectionTier::Community);
+        assert_eq!(entry.docs_path.as_deref(), Some("gastown/"));
+        let round: CollectionIndex =
+            serde_json::from_str(&serde_json::to_string(&index).unwrap()).unwrap();
+        assert_eq!(round.collections[0].tier, CollectionTier::Community);
+        assert_eq!(round.collections[0].docs_path.as_deref(), Some("gastown/"));
+    }
+
+    #[test]
+    fn test_manifest_icon_and_dates_default_to_none() {
+        // Older manifests without icon/date fields stay valid.
+        let m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        assert!(m.icon_path.is_none());
+        assert!(m.created.is_none());
+        assert!(m.updated.is_none());
+    }
+
+    #[test]
+    fn test_manifest_icon_and_dates_round_trip() {
+        let json = r#"{
+            "schema_version": 1,
+            "id": "ralph_loop",
+            "name": "Ralph Loop",
+            "icon_path": "icon.svg",
+            "created": "2026-05-01",
+            "updated": "2026-08-01",
+            "issue_types": [
+                {"key": "PRD", "schema_path": "PRD.json"}
+            ]
+        }"#;
+        let m = CollectionManifest::from_json(json).unwrap();
+        assert_eq!(m.icon_path.as_deref(), Some("icon.svg"));
+        assert_eq!(m.created.as_deref(), Some("2026-05-01"));
+        assert_eq!(m.updated.as_deref(), Some("2026-08-01"));
+        let m2 = CollectionManifest::from_json(&m.to_json().unwrap()).unwrap();
+        assert_eq!(m2.icon_path, m.icon_path);
+        assert_eq!(m2.created, m.created);
+        assert_eq!(m2.updated, m.updated);
+    }
+
+    #[test]
+    fn test_icon_and_dates_are_outside_the_manifest_checksum() {
+        // The checksum derives from issue-type file checksums only, so changing
+        // presentational metadata must not invalidate a hosted collection.
+        let mut m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        let before = crate::collections::fetch::derive_manifest_checksum(&m.issue_types);
+
+        m.icon_path = Some("icon.svg".to_string());
+        m.created = Some("2026-05-01".to_string());
+        m.updated = Some("2026-08-01".to_string());
+        let after = crate::collections::fetch::derive_manifest_checksum(&m.issue_types);
+
+        assert_eq!(before, after);
+    }
+
+    /// Every field of a fully-populated manifest, so the parity tests below
+    /// compare complete key sets rather than whatever `DEV_KANBAN_JSON` happens
+    /// to set.
+    fn fully_populated() -> CollectionManifest {
+        let mut m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        m.author = Some("Operator!".to_string());
+        m.url = Some("https://github.com/untra/operator".to_string());
+        m.license = Some("MIT".to_string());
+        m.compatibility = Some(Compatibility {
+            operator_version: Some(">=0.2.0".to_string()),
+        });
+        m.icon_path = Some("icon.svg".to_string());
+        m.created = Some("2026-01-15".to_string());
+        m.updated = Some("2026-08-01".to_string());
+        m.kanban_defaults = Some(KanbanDefaults::default());
+        m.checksum = Some("deadbeef".to_string());
+        m
+    }
+
+    fn schema_properties(pointer: &str) -> serde_json::Map<String, serde_json::Value> {
+        let schema: serde_json::Value =
+            serde_json::from_str(include_str!("../schemas/issuetype_collection_schema.json"))
+                .expect("schema parses");
+        schema
+            .pointer(pointer)
+            .and_then(|v| v.as_object())
+            .cloned()
+            .unwrap_or_else(|| panic!("schema has no properties at {pointer}"))
+    }
+
+    /// The published schema sets `additionalProperties: false`, so a Rust-side
+    /// field addition that is not mirrored there silently breaks validation of
+    /// every hosted manifest. Compare the key sets in both directions.
+    #[test]
+    fn test_manifest_fields_match_published_json_schema() {
+        let serialized = serde_json::to_value(fully_populated()).unwrap();
+        let rust_keys: Vec<&str> = serialized
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(|k| &**k)
+            .collect();
+        let schema_props = schema_properties("/properties");
+
+        for key in &rust_keys {
+            assert!(
+                schema_props.contains_key(*key),
+                "CollectionManifest field '{key}' is missing from \
+                 src/schemas/issuetype_collection_schema.json"
+            );
+        }
+        for key in schema_props.keys() {
+            assert!(
+                rust_keys.contains(&&**key),
+                "schema property '{key}' has no CollectionManifest field"
+            );
+        }
+    }
+
+    #[test]
+    fn test_issue_type_entry_fields_match_published_json_schema() {
+        let entry = IssueTypeEntry {
+            key: "TASK".to_string(),
+            schema_path: "TASK.json".to_string(),
+            schema_checksum: "aaa".to_string(),
+            template_path: Some("TASK.md".to_string()),
+            template_checksum: Some("bbb".to_string()),
+        };
+        let serialized = serde_json::to_value(&entry).unwrap();
+        let rust_keys: Vec<&str> = serialized
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(|k| &**k)
+            .collect();
+        let schema_props = schema_properties("/properties/issue_types/items/properties");
+
+        for key in &rust_keys {
+            assert!(
+                schema_props.contains_key(*key),
+                "IssueTypeEntry field '{key}' is missing from the published schema"
+            );
+        }
+        for key in schema_props.keys() {
+            assert!(
+                rust_keys.contains(&&**key),
+                "schema property '{key}' has no IssueTypeEntry field"
+            );
+        }
+    }
+
+    #[test]
+    fn test_kanban_defaults_default_to_none() {
+        let m = CollectionManifest::from_json(DEV_KANBAN_JSON).unwrap();
+        assert!(m.kanban_defaults.is_none());
+    }
+
+    #[test]
+    fn test_kanban_defaults_round_trip() {
+        let json = r#"{
+            "schema_version": 1,
+            "id": "dev_kanban",
+            "name": "Dev Kanban",
+            "issue_types": [
+                {"key": "TASK", "schema_path": "TASK.json"}
+            ],
+            "kanban_defaults": {
+                "suggested_type_mappings": {"Story": "FEAT", "Bug": "FIX"}
+            }
+        }"#;
+        let m = CollectionManifest::from_json(json).unwrap();
+        let defaults = m.kanban_defaults.as_ref().expect("kanban_defaults");
+        assert_eq!(
+            defaults.suggested_type_mappings.get("Story"),
+            Some(&"FEAT".to_string())
+        );
+        let m2 = CollectionManifest::from_json(&m.to_json().unwrap()).unwrap();
+        assert_eq!(m2.kanban_defaults.unwrap().suggested_type_mappings.len(), 2);
     }
 }

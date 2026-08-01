@@ -11,7 +11,9 @@
         "builtin"
       ],
       "manifest_path": "simple/collection.json",
-      "checksum": "fce81369f98e00ee6fe35194076055b59f4882d8d1613a914bbce660593a05b4"
+      "checksum": "355275423b6acfa32690263fe566ae11641b406db2802c48ac95afdf5733ae0e",
+      "tier": "official",
+      "docs_path": "/workflows/simple/"
     },
     {
       "id": "dev_kanban",
@@ -24,7 +26,9 @@
         "dev"
       ],
       "manifest_path": "dev_kanban/collection.json",
-      "checksum": "87460062d63068e9e96f6ee628cc466bec6951c0b766f338178b66cb5ac1d23f"
+      "checksum": "62de8ec80b4355bf598df21ab11fabf9c4eb96b0a59b0cb9b188666ab70fa7f0",
+      "tier": "official",
+      "docs_path": "/workflows/dev_kanban/"
     },
     {
       "id": "devops_kanban",
@@ -37,7 +41,9 @@
         "devops"
       ],
       "manifest_path": "devops_kanban/collection.json",
-      "checksum": "068c5112a615ccc4f9a1c11e0b90c1a193b07e5b07565100880750f1624edaa4"
+      "checksum": "a22d7aabb3f038e9fec83a2559b4f2aead1499abc12419678387a2e47124db1a",
+      "tier": "official",
+      "docs_path": "/workflows/devops_kanban/"
     },
     {
       "id": "operator",
@@ -49,18 +55,9 @@
         "automation"
       ],
       "manifest_path": "operator/collection.json",
-      "checksum": "9a5aa2ac773bd4e445cb951f870b7e78ff3e0002be9a66bba05c14e9abe9c4f3"
-    },
-    {
-      "id": "full",
-      "name": "Full",
-      "description": "Full workflow: all issue types combined",
-      "version": "1.0.0",
-      "tags": [
-        "builtin"
-      ],
-      "manifest_path": "full/collection.json",
-      "checksum": "305830707c108a825bd5aab14aaf9e489e0d7b286e36c77269ad0da94420f2d4"
+      "checksum": "af7b34cd0103edd1b3d4d47ca26e9721f7374b4b8d3d94d77b23dc8de19bcf71",
+      "tier": "official",
+      "docs_path": "/workflows/operator/"
     },
     {
       "id": "ralph_loop",
@@ -74,7 +71,9 @@
         "ralph"
       ],
       "manifest_path": "ralph_loop/collection.json",
-      "checksum": "f37e1379c1ffea6208d25add591daa468b680c2a796b04fc490c0a4e30f96c39"
+      "checksum": "09276da66290f1faf69bc658a050c2f166e831510ac90800e59654f62aee4da4",
+      "tier": "community",
+      "docs_path": "/workflows/ralph_loop/"
     },
     {
       "id": "jr_orchestration",
@@ -88,7 +87,9 @@
         "jr"
       ],
       "manifest_path": "jr_orchestration/collection.json",
-      "checksum": "e89a9ec49af83f5c431fc95e0418943d7aedc3fd087b5b05ee12b339007c0f39"
+      "checksum": "7deebf57f6542592c30cd633577cdb6ebcee1227dab9adcf9cc0980e155eeaea",
+      "tier": "community",
+      "docs_path": "/workflows/jr_orchestration/"
     },
     {
       "id": "elves_overnight",
@@ -102,7 +103,39 @@
         "elves"
       ],
       "manifest_path": "elves_overnight/collection.json",
-      "checksum": "1078479804ba0d581bff29d7e153904dee0d46cfb41d4f05841891814a9f62eb"
+      "checksum": "c005292f4779fab887c23bcaf5095cd19ad5aebba221d1ddf41b3895e33143cf",
+      "tier": "community",
+      "docs_path": "/workflows/elves_overnight/"
+    },
+    {
+      "id": "coder",
+      "name": "Coder",
+      "description": "Linear-synced engineering flow: Feature, Improvement, and Bug work delegated to coding agents.",
+      "version": "1.0.0",
+      "tags": [
+        "community",
+        "linear",
+        "kanban",
+        "engineering"
+      ],
+      "manifest_path": "coder/collection.json",
+      "checksum": "27d0ec62188589d54326a913128217b14431b810e8280923d9bf2c4193207284",
+      "tier": "community",
+      "docs_path": "/workflows/coder/"
+    },
+    {
+      "id": "example_chores",
+      "name": "Example Chores",
+      "description": "Minimal example community collection demonstrating the shareable format.",
+      "version": "0.1.0",
+      "tags": [
+        "example",
+        "starter"
+      ],
+      "manifest_path": "example_chores/collection.json",
+      "checksum": "648c10ee77d24be1c2589538663ef4ff30173f74b91fcaa4b4b12adaa90eed46",
+      "tier": "community",
+      "docs_path": "/workflows/example_chores/"
     }
   ]
 }

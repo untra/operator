@@ -12,6 +12,11 @@
     "builtin"
   ],
   "compatibility": null,
+  "tier": "official",
+  "icon_path": "icon.svg",
+  "created": "2026-01-08",
+  "updated": "2026-07-01",
+  "kanban_defaults": null,
   "issue_types": [
     {
       "key": "TASK",
@@ -21,7 +26,18 @@
       "template_checksum": "7a71bf692588af1d1ac5d9192edd64316353ada616e22019dfff7683ab5d09c4"
     }
   ],
-  "workflow_hints": null,
+  "workflow_hints": {
+    "loop_kind": "single_pass",
+    "memory_surfaces": [
+      "ticket"
+    ],
+    "review_gates": [],
+    "external_tools": [],
+    "stop_conditions": [
+      "task_complete"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
   "default_selected": [
     "TASK"
   ],

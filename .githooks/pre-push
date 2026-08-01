@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Committed pre-push hook. Runs the fast lint gate (`make fmt clippy`) before
+# any push so formatting/clippy failures are caught locally instead of on CI.
+# Tests are deliberately excluded — they are too slow for a push gate; run
+# `make check` or `scripts/cicdprep.sh` before opening a PR.
+#
+# Enable once per clone:  make install-hooks   (sets core.hooksPath=.githooks)
+# Bypass in an emergency:  git push --no-verify
+set -euo pipefail
+
+# Resolve the repo root so the hook works regardless of the cwd at push time.
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "pre-push: running lint checks (fmt + clippy)…"
+if ! make fmt clippy; then
+	echo
+	echo "pre-push: lint checks failed — push aborted." >&2
+	echo "Fix the issues above, or bypass with 'git push --no-verify' (not recommended)." >&2
+	exit 1
+fi

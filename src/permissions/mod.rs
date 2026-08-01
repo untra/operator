@@ -51,9 +51,11 @@ pub use translator::TranslatorManager;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use ts_rs::TS;
 
 /// Provider-agnostic tool pattern
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct ToolPattern {
     /// Tool name: Read, Write, Edit, Bash, Glob, Grep, `WebFetch`, etc.
     pub tool: String,
@@ -81,7 +83,8 @@ impl ToolPattern {
 }
 
 /// Tool-level permissions (allow/deny lists)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct ToolPermissions {
     /// Tools/patterns to allow
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -92,7 +95,8 @@ pub struct ToolPermissions {
 }
 
 /// Directory-level permissions
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct DirectoryPermissions {
     /// Additional directories to allow access to (glob patterns)
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -103,7 +107,8 @@ pub struct DirectoryPermissions {
 }
 
 /// MCP server permissions (server-level enable/disable only)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct McpServerPermissions {
     /// MCP servers to enable for this step
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -114,7 +119,8 @@ pub struct McpServerPermissions {
 }
 
 /// Per-provider custom configuration flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct CustomFlags {
     /// Claude-specific configuration flags
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -128,7 +134,8 @@ pub struct CustomFlags {
 }
 
 /// Complete permission set for a step (as defined in issuetype schema)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct StepPermissions {
     /// Tool-level allow/deny lists
     #[serde(default, skip_serializing_if = "is_default")]
@@ -145,7 +152,8 @@ pub struct StepPermissions {
 }
 
 /// Arbitrary CLI arguments per provider
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
 pub struct ProviderCliArgs {
     /// CLI arguments for Claude
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

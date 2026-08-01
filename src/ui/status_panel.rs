@@ -485,6 +485,10 @@ pub enum WrapperConnectionStatus {
     Cmux {
         binary_available: bool,
         in_cmux: bool,
+        /// Detected cmux version, when the binary ran
+        version: Option<String>,
+        /// False when a detected version is below the supported minimum
+        version_ok: bool,
     },
     Zellij {
         binary_available: bool,
@@ -506,7 +510,9 @@ impl WrapperConnectionStatus {
             Self::Cmux {
                 binary_available,
                 in_cmux,
-            } => *binary_available && *in_cmux,
+                version_ok,
+                ..
+            } => *binary_available && *in_cmux && *version_ok,
             Self::Zellij {
                 binary_available,
                 in_zellij,
@@ -553,10 +559,25 @@ impl WrapperConnectionStatus {
             Self::Cmux {
                 binary_available,
                 in_cmux,
-            } => match (binary_available, in_cmux) {
-                (true, true) => "Connected".into(),
-                (true, false) => "Not in cmux session".into(),
-                (false, _) => "Binary not found".into(),
+                version,
+                version_ok,
+            } => match (binary_available, version_ok, in_cmux) {
+                (false, _, _) => "Binary not found".into(),
+                (true, false, _) => format!(
+                    "Unsupported version{}",
+                    version
+                        .as_ref()
+                        .map(|v| format!(" ({v})"))
+                        .unwrap_or_default()
+                ),
+                (true, true, false) => "Not in cmux session".into(),
+                (true, true, true) => format!(
+                    "Connected{}",
+                    version
+                        .as_ref()
+                        .map(|v| format!(" ({v})"))
+                        .unwrap_or_default()
+                ),
             },
             Self::Zellij {
                 binary_available,
@@ -757,6 +778,8 @@ impl StatusSnapshot {
             SessionWrapperType::Cmux => WrapperConnectionStatus::Cmux {
                 binary_available: false,
                 in_cmux: std::env::var("CMUX_WORKSPACE_ID").is_ok(),
+                version: None,
+                version_ok: true,
             },
             SessionWrapperType::Zellij => WrapperConnectionStatus::Zellij {
                 binary_available: false,
@@ -1899,16 +1922,30 @@ mod tests {
         let status = WrapperConnectionStatus::Cmux {
             binary_available: true,
             in_cmux: true,
+            version: Some("0.64.20".to_string()),
+            version_ok: true,
         };
         assert!(status.is_connected());
         assert_eq!(status.label(), "cmux");
+        assert_eq!(status.description(), "Connected (0.64.20)");
 
         let not_in = WrapperConnectionStatus::Cmux {
             binary_available: true,
             in_cmux: false,
+            version: None,
+            version_ok: true,
         };
         assert!(!not_in.is_connected());
         assert_eq!(not_in.description(), "Not in cmux session");
+
+        let unsupported = WrapperConnectionStatus::Cmux {
+            binary_available: true,
+            in_cmux: true,
+            version: Some("0.62.2".to_string()),
+            version_ok: false,
+        };
+        assert!(!unsupported.is_connected());
+        assert_eq!(unsupported.description(), "Unsupported version (0.62.2)");
     }
 
     #[test]

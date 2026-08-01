@@ -1,10 +1,8 @@
 //! The **Workflows** status section: the export formats a ticket + issuetype can
 //! be rendered into (Claude dynamic workflow `.js`, AGNT graph `.json`).
 //!
-//! Info-only — formats carry no credentials, so the section is `Gray`. It gates
-//! on `Connections`: preview/export run against the hosted API, so the section
-//! only appears once connections are ready. Each row names a format, its support
-//! status + file extension, and
+//! Info-only — formats are always available (no credentials), so the section is
+//! `Gray`. Each row names a format, its support status + file extension, and
 //! links to its docs. The primary action opens the web UI's Workflows page where
 //! per-issuetype preview / per-ticket export run against the existing endpoints.
 //! The format list is the same source of truth the REST `workflow-formats`
@@ -29,7 +27,8 @@ impl StatusSection for WorkflowsSection {
     }
 
     fn prerequisites(&self) -> &[SectionId] {
-        &[SectionId::Connections]
+        // Info-only: export formats are always available, no connections needed.
+        &[]
     }
 
     fn health(&self, _snapshot: &StatusSnapshot) -> SectionHealth {
@@ -100,8 +99,7 @@ mod tests {
     fn workflows_section_is_info_only() {
         let snap = StatusSnapshot::from_config(&crate::config::Config::default(), vec![]);
         assert_eq!(WorkflowsSection.health(&snap), SectionHealth::Gray);
-        // Gated on Connections: preview/export run against the hosted API.
-        assert_eq!(WorkflowsSection.prerequisites(), &[SectionId::Connections]);
+        assert!(WorkflowsSection.prerequisites().is_empty());
     }
 
     #[test]

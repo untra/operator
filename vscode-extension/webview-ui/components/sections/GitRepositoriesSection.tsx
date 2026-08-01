@@ -1,14 +1,5 @@
 import React from 'react';
-import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import Switch from '@mui/material/Switch';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Typography from '@mui/material/Typography';
-import Link from '@mui/material/Link';
+import { TextInput, SelectInput, Toggle } from '../primitives';
 import { SectionHeader } from '../SectionHeader';
 import type { GitConfig } from '../../../src/generated/GitConfig';
 
@@ -28,40 +19,31 @@ export function GitRepositoriesSection({
   const useWorktrees = git.use_worktrees;
 
   return (
-    <Box sx={{ mb: 4 }}>
+    <div className="op-mb-4">
       <SectionHeader id="section-git" title="Git Repositories" />
-      <Typography color="text.secondary" gutterBottom>
-        Configure workspace git provider and branch settings. For more details see the <Link href="https://operator.untra.io/getting-started/git/">git documentation</Link>
-      </Typography>
+      <p className="op-body1 op-text-secondary op-mb-1">
+        Configure workspace git provider and branch settings. For more details see the <a href="https://operator.untra.io/getting-started/git/">git documentation</a>
+      </p>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-        <FormControl fullWidth size="small" margin="dense">
-          <InputLabel margin='dense'>Git Provider</InputLabel>
-          <Select
-            value={provider || 'github'}
-            label="Git Provider"
-            onChange={(e) => onUpdate('git', 'provider', e.target.value)}
-          >
-            <MenuItem value="github">GitHub</MenuItem>
-            <MenuItem value="gitlab">GitLab</MenuItem>
-            <MenuItem value="bitbucket">Bitbucket</MenuItem>
-            <MenuItem value="azuredevops">Azure DevOps</MenuItem>
-          </Select>
-        </FormControl>
+      <div className="op-col" style={{ gap: 20 }}>
+        <SelectInput
+          label="Git Provider"
+          value={provider || 'github'}
+          onChange={(e) => onUpdate('git', 'provider', e.target.value)}
+        >
+          <option value="github">GitHub</option>
+          <option value="gitlab">GitLab</option>
+          <option value="bitbucket">Bitbucket</option>
+          <option value="azuredevops">Azure DevOps</option>
+        </SelectInput>
 
-        <FormControlLabel
-          control={
-            <Switch
-              checked={githubEnabled}
-              onChange={(e) => onUpdate('git.github', 'enabled', e.target.checked)}
-            />
-          }
+        <Toggle
+          checked={githubEnabled}
+          onChange={(e) => onUpdate('git.github', 'enabled', e.target.checked)}
           label="GitHub integration enabled"
         />
 
-        <TextField
-          fullWidth
-          size="small"
+        <TextInput
           label="GitHub Token Environment Variable"
           value={githubTokenEnv}
           onChange={(e) => onUpdate('git.github', 'token_env', e.target.value)}
@@ -70,9 +52,7 @@ export function GitRepositoriesSection({
           disabled={!githubEnabled}
         />
 
-        <TextField
-          fullWidth
-          size="small"
+        <TextInput
           label="Branch Format"
           value={branchFormat}
           onChange={(e) => onUpdate('git', 'branch_format', e.target.value)}
@@ -80,16 +60,12 @@ export function GitRepositoriesSection({
           helperText="Template for branch names. Variables: {type}, {ticket_id}, {slug}"
         />
 
-        <FormControlLabel
-          control={
-            <Switch
-              checked={useWorktrees}
-              onChange={(e) => onUpdate('git', 'use_worktrees', e.target.checked)}
-            />
-          }
+        <Toggle
+          checked={useWorktrees}
+          onChange={(e) => onUpdate('git', 'use_worktrees', e.target.checked)}
           label="Use git worktrees for parallel agent branches"
         />
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

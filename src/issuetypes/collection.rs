@@ -19,6 +19,63 @@ pub struct CollectionSyncSource {
     pub last_synced_at: Option<DateTime<Utc>>,
 }
 
+/// Descriptive metadata a collection carries from its `collection.json`.
+///
+/// Grouped rather than spread across [`IssueTypeCollection`] and
+/// `LoadedCollection` as parallel fields: every one of these travels together
+/// from the manifest through the loader to the registry and out to the REST,
+/// TUI, and docs surfaces, so adding one should mean touching one type.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CollectionMetadata {
+    /// Collection semver.
+    #[serde(default)]
+    pub version: Option<String>,
+    /// Publisher identifier (e.g. `untra`).
+    #[serde(default)]
+    pub publisher: Option<String>,
+    /// Human author/attribution.
+    #[serde(default)]
+    pub author: Option<String>,
+    /// Link to the collection's source.
+    #[serde(default)]
+    pub url: Option<String>,
+    /// SPDX license id.
+    #[serde(default)]
+    pub license: Option<String>,
+    /// Provenance tier (official when absent).
+    #[serde(default)]
+    pub tier: crate::collections::manifest::CollectionTier,
+    /// Bare filename of the collection's SVG icon, next to the manifest.
+    #[serde(default)]
+    pub icon_path: Option<String>,
+    /// ISO-8601 date the collection was first published.
+    #[serde(default)]
+    pub created: Option<String>,
+    /// ISO-8601 date of the last substantive revision.
+    #[serde(default)]
+    pub updated: Option<String>,
+    /// Descriptive workflow hints (v1: metadata only).
+    #[serde(default)]
+    pub workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
+}
+
+impl From<&crate::collections::manifest::CollectionManifest> for CollectionMetadata {
+    fn from(m: &crate::collections::manifest::CollectionManifest) -> Self {
+        Self {
+            version: (!m.version.is_empty()).then(|| m.version.clone()),
+            publisher: m.publisher.clone(),
+            author: m.author.clone(),
+            url: m.url.clone(),
+            license: m.license.clone(),
+            tier: m.tier,
+            icon_path: m.icon_path.clone(),
+            created: m.created.clone(),
+            updated: m.updated.clone(),
+            workflow_hints: m.workflow_hints.clone(),
+        }
+    }
+}
+
 /// A named collection of issue types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueTypeCollection {
@@ -32,15 +89,9 @@ pub struct IssueTypeCollection {
     /// Sync source metadata (if collection was synced from external provider)
     #[serde(default)]
     pub sync_source: Option<CollectionSyncSource>,
-    /// Descriptive workflow hints (v1: metadata only, from a hosted manifest)
-    #[serde(default)]
-    pub workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
-    /// Collection semver (from a hosted manifest)
-    #[serde(default)]
-    pub version: Option<String>,
-    /// Publisher identifier (from a hosted manifest)
-    #[serde(default)]
-    pub publisher: Option<String>,
+    /// Descriptive metadata carried from a hosted manifest.
+    #[serde(default, flatten)]
+    pub metadata: CollectionMetadata,
 }
 
 impl IssueTypeCollection {
@@ -51,22 +102,13 @@ impl IssueTypeCollection {
             description: description.into(),
             types: vec![],
             sync_source: None,
-            workflow_hints: None,
-            version: None,
-            publisher: None,
+            metadata: CollectionMetadata::default(),
         }
     }
 
-    /// Attach manifest metadata (workflow hints, version, publisher).
-    pub fn with_manifest_metadata(
-        mut self,
-        workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
-        version: Option<String>,
-        publisher: Option<String>,
-    ) -> Self {
-        self.workflow_hints = workflow_hints;
-        self.version = version;
-        self.publisher = publisher;
+    /// Attach the descriptive metadata read from a `collection.json`.
+    pub fn with_manifest_metadata(mut self, metadata: CollectionMetadata) -> Self {
+        self.metadata = metadata;
         self
     }
 
@@ -111,90 +153,6 @@ impl IssueTypeCollection {
     /// Check if the collection is empty
     pub fn is_empty(&self) -> bool {
         self.types.is_empty()
-    }
-}
-
-/// Built-in collection presets
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BuiltinPreset {
-    /// Simple: TASK only
-    Simple,
-    /// Dev Kanban: TASK, FEAT, FIX
-    DevKanban,
-    /// DevOps Kanban: TASK, SPIKE, INV, FEAT, FIX
-    DevopsKanban,
-    /// Operator: ASSESS, SYNC, INIT (automation operations)
-    Operator,
-    /// Full: DevOps + Operator types
-    Full,
-}
-
-impl BuiltinPreset {
-    /// Get all builtin presets
-    pub fn all() -> &'static [BuiltinPreset] {
-        &[
-            BuiltinPreset::Simple,
-            BuiltinPreset::DevKanban,
-            BuiltinPreset::DevopsKanban,
-            BuiltinPreset::Operator,
-            BuiltinPreset::Full,
-        ]
-    }
-
-    /// Get the collection name for this preset
-    pub fn name(&self) -> &'static str {
-        match self {
-            BuiltinPreset::Simple => "simple",
-            BuiltinPreset::DevKanban => "dev_kanban",
-            BuiltinPreset::DevopsKanban => "devops_kanban",
-            BuiltinPreset::Operator => "operator",
-            BuiltinPreset::Full => "full",
-        }
-    }
-
-    /// Get the description for this preset
-    pub fn description(&self) -> &'static str {
-        match self {
-            BuiltinPreset::Simple => "Simple workflow with TASK only",
-            BuiltinPreset::DevKanban => "Developer kanban with TASK, FEAT, FIX",
-            BuiltinPreset::DevopsKanban => "DevOps kanban with TASK, SPIKE, INV, FEAT, FIX",
-            BuiltinPreset::Operator => "Operator automation tasks: ASSESS, SYNC, INIT",
-            BuiltinPreset::Full => "Full workflow: all types combined",
-        }
-    }
-
-    /// Convert to an `IssueTypeCollection`
-    pub fn into_collection(self) -> IssueTypeCollection {
-        match self {
-            BuiltinPreset::Simple => {
-                IssueTypeCollection::new("simple", self.description()).with_types(["TASK"])
-            }
-            BuiltinPreset::DevKanban => IssueTypeCollection::new("dev_kanban", self.description())
-                .with_types(["TASK", "FEAT", "FIX"]),
-            BuiltinPreset::DevopsKanban => {
-                IssueTypeCollection::new("devops_kanban", self.description())
-                    .with_types(["TASK", "FEAT", "FIX", "SPIKE", "INV"])
-            }
-            BuiltinPreset::Operator => IssueTypeCollection::new("operator", self.description())
-                .with_types(["ASSESS", "SYNC", "INIT"]),
-            BuiltinPreset::Full => {
-                IssueTypeCollection::new("full", self.description()).with_types([
-                    "TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT",
-                ])
-            }
-        }
-    }
-
-    /// Parse preset name to variant
-    pub fn from_name(name: &str) -> Option<BuiltinPreset> {
-        match name.to_lowercase().as_str() {
-            "simple" => Some(BuiltinPreset::Simple),
-            "dev_kanban" | "devkanban" => Some(BuiltinPreset::DevKanban),
-            "devops_kanban" | "devopskanban" => Some(BuiltinPreset::DevopsKanban),
-            "operator" => Some(BuiltinPreset::Operator),
-            "full" => Some(BuiltinPreset::Full),
-            _ => None,
-        }
     }
 }
 
@@ -248,69 +206,6 @@ mod tests {
         assert_eq!(collection.priority_index("FIX"), 1);
         assert_eq!(collection.priority_index("TASK"), 2);
         assert_eq!(collection.priority_index("SPIKE"), usize::MAX);
-    }
-
-    #[test]
-    fn test_builtin_simple() {
-        let collection = BuiltinPreset::Simple.into_collection();
-        assert_eq!(collection.name, "simple");
-        assert_eq!(collection.types, vec!["TASK"]);
-    }
-
-    #[test]
-    fn test_builtin_dev_kanban() {
-        let collection = BuiltinPreset::DevKanban.into_collection();
-        assert_eq!(collection.name, "dev_kanban");
-        assert_eq!(collection.types, vec!["TASK", "FEAT", "FIX"]);
-    }
-
-    #[test]
-    fn test_builtin_devops_kanban() {
-        let collection = BuiltinPreset::DevopsKanban.into_collection();
-        assert_eq!(collection.name, "devops_kanban");
-        assert_eq!(
-            collection.types,
-            vec!["TASK", "FEAT", "FIX", "SPIKE", "INV"]
-        );
-    }
-
-    #[test]
-    fn test_builtin_from_name() {
-        assert_eq!(
-            BuiltinPreset::from_name("simple"),
-            Some(BuiltinPreset::Simple)
-        );
-        assert_eq!(
-            BuiltinPreset::from_name("dev_kanban"),
-            Some(BuiltinPreset::DevKanban)
-        );
-        assert_eq!(
-            BuiltinPreset::from_name("devops_kanban"),
-            Some(BuiltinPreset::DevopsKanban)
-        );
-        assert_eq!(
-            BuiltinPreset::from_name("operator"),
-            Some(BuiltinPreset::Operator)
-        );
-        assert_eq!(BuiltinPreset::from_name("full"), Some(BuiltinPreset::Full));
-        assert_eq!(BuiltinPreset::from_name("unknown"), None);
-    }
-
-    #[test]
-    fn test_builtin_operator() {
-        let collection = BuiltinPreset::Operator.into_collection();
-        assert_eq!(collection.name, "operator");
-        assert_eq!(collection.types, vec!["ASSESS", "SYNC", "INIT"]);
-    }
-
-    #[test]
-    fn test_builtin_full() {
-        let collection = BuiltinPreset::Full.into_collection();
-        assert_eq!(collection.name, "full");
-        assert_eq!(
-            collection.types,
-            vec!["TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT"]
-        );
     }
 
     #[test]

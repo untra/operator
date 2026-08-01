@@ -5,4 +5,8 @@ import type { CreateStepRequest } from "./CreateStepRequest";
 /**
  * Request to create a new issue type
  */
-export type CreateIssueTypeRequest = { key: string, name: string, description: string, mode: string, glyph: string, color: string | null, project_required: boolean, fields: Array<CreateFieldRequest>, steps: Array<CreateStepRequest>, };
+export type CreateIssueTypeRequest = { key: string, name: string, description: string, mode: string, glyph: string, color: string | null, project_required: boolean, fields: Array<CreateFieldRequest>, steps: Array<CreateStepRequest>, 
+/**
+ * Target collection (defaults to the active collection)
+ */
+collection?: string, };

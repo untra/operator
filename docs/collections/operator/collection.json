@@ -13,6 +13,11 @@
     "automation"
   ],
   "compatibility": null,
+  "tier": "official",
+  "icon_path": "icon.svg",
+  "created": "2026-01-08",
+  "updated": "2026-07-01",
+  "kanban_defaults": null,
   "issue_types": [
     {
       "key": "ASSESS",
@@ -36,25 +41,42 @@
       "template_checksum": "ff54445fb446a8ba8155e00259ebf44860c2e8d1865df6943ceec648fe3650e8"
     },
     {
-      "key": "AGENT-SETUP",
-      "schema_path": "AGENT-SETUP.json",
-      "schema_checksum": "c611e58617b180838b286ec0907ef11d17e25581f56699cedef4d31c1223b15a",
-      "template_path": "AGENT-SETUP.md",
+      "key": "AGENT_SETUP",
+      "schema_path": "AGENT_SETUP.json",
+      "schema_checksum": "6f934f8a688058d85453cf97c39a79a83f71ddce2a1493b9fcfe441ded485d5e",
+      "template_path": "AGENT_SETUP.md",
       "template_checksum": "528f9437434e5ed8f8ca2f8e09c3acb04d021e8fa2fbb978cb6aed5c005aa8f7"
     },
     {
-      "key": "PROJECT-INIT",
-      "schema_path": "PROJECT-INIT.json",
-      "schema_checksum": "0fa43b3dbb839b0a440c2e702a9fd499ebd172bfcaaa4266a20aed7db7c90072",
-      "template_path": "PROJECT-INIT.md",
+      "key": "PROJECT_INIT",
+      "schema_path": "PROJECT_INIT.json",
+      "schema_checksum": "3d942d60f658e477043ae294ed8006e5d7d4964771c47470c409ce4ab114b684",
+      "template_path": "PROJECT_INIT.md",
       "template_checksum": "767a9a6481908826809222e87a36c840f759047170b0ff9d917ffa2846a19805"
     }
   ],
-  "workflow_hints": null,
+  "workflow_hints": {
+    "loop_kind": "single_pass",
+    "memory_surfaces": [
+      "ticket",
+      "catalog-info.yaml",
+      ".claude/agents/"
+    ],
+    "review_gates": [
+      "human"
+    ],
+    "external_tools": [
+      "git"
+    ],
+    "stop_conditions": [
+      "setup_artifacts_written"
+    ],
+    "runner_semantics": "prompt_driven"
+  },
   "default_selected": [
     "ASSESS",
     "SYNC",
     "INIT"
   ],
-  "checksum": "4f8f40dde1b85d01d5da929ff4329ea126ffbf9da94c5e5de60154101d1881bd"
+  "checksum": "ec34f16fbf1571e7662b85074f857f19656ae704569a5be083e49d1c5f741069"
 }

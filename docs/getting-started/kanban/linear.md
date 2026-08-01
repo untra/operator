@@ -92,9 +92,27 @@ Configure sync settings for each team:
 ```toml
 [kanban.linear."team-uuid-here".projects.default]
 sync_user_id = "user-uuid-here"           # Your Linear user ID
-sync_statuses = ["Todo", "In Progress"]   # Statuses to sync (empty = default only)
 collection_name = "dev_kanban"            # IssueTypeCollection to use
+
+[kanban.linear."team-uuid-here".projects.default.status_mapping]
+todo = "Todo"           # Workflow state pulled into operator's queue (and requeue target)
+doing = "In Progress"   # State pushed when a ticket is launched/claimed
+done = "Done"           # State pushed when a ticket completes
 ```
+
+### Column Mapping (todo / doing / done)
+
+`status_mapping` declares which Linear workflow state corresponds to each of
+operator's strict todo/doing/done states. Issues are pulled from the `todo`
+(and `doing`) states; with `bidirectional = true`, ticket transitions are
+pushed back to the mapped states (requeue → `todo` only fires when `todo` is
+mapped; unmapped `doing`/`done` fall back to `"In Progress"`/`"Done"`).
+
+Discover the team's real state names via `POST /api/v1/kanban/statuses`
+(onboarding) or `GET /api/v1/kanban/linear/TEAM/statuses` (configured team).
+
+> **Migrating from `sync_statuses`:** the old list is no longer read (the key
+> is silently ignored). Re-express it as the `status_mapping` table above.
 
 ## Troubleshooting
 

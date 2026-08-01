@@ -8,7 +8,7 @@ use crate::config::kanban::KanbanConfig;
 use crate::config::Config;
 use crate::rest::dto::{
     ExternalIssueTypeSummary, KanbanIssueTypeResponse, KanbanProviderCatalogEntry,
-    SyncKanbanIssueTypesResponse,
+    ListKanbanStatusesResponse, SyncKanbanIssueTypesResponse,
 };
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
@@ -128,6 +128,45 @@ pub async fn external_issue_types(
         .collect();
 
     Ok(Json(summaries))
+}
+
+/// GET /`api/v1/kanban/:provider/:project_key/statuses`
+///
+/// Returns the external board's workflow statuses/columns for an
+/// already-configured provider/project, using the stored config's
+/// credentials. Used by config UIs (e.g. the VS Code `ProjectRow`) to populate
+/// the todo/doing/done mapping dropdowns after onboarding.
+#[utoipa::path(
+    get,
+    path = "/api/v1/kanban/{provider}/{project_key}/statuses",
+    tag = "Kanban",
+    operation_id = "kanban_project_statuses",
+    params(
+        ("provider" = String, Path, description = "Kanban provider name (e.g. jira, linear, github)"),
+        ("project_key" = String, Path, description = "Provider project/team key")
+    ),
+    responses(
+        (status = 200, description = "Workflow statuses/columns for the project", body = ListKanbanStatusesResponse),
+        (status = 400, description = "Unknown provider/project"),
+        (status = 500, description = "Failed to fetch statuses from provider")
+    )
+)]
+pub async fn project_statuses(
+    State(state): State<ApiState>,
+    Path((provider_name, project_key)): Path<(String, String)>,
+) -> Result<Json<ListKanbanStatusesResponse>, ApiError> {
+    // Reload config from disk so freshly onboarded providers are visible
+    // without requiring a server restart.
+    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    let provider = get_provider_from_config(&fresh_config.kanban, &provider_name, &project_key)
+        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+
+    let statuses = provider
+        .list_statuses(&project_key)
+        .await
+        .map_err(|e| ApiError::InternalError(format!("Failed to fetch statuses: {e}")))?;
+
+    Ok(Json(ListKanbanStatusesResponse { statuses }))
 }
 
 /// POST /`api/v1/kanban/:provider/:project_key/issuetypes/sync`

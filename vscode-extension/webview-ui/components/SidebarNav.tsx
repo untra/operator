@@ -1,9 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import { OperatorBrand } from './OperatorBrand';
 
 export interface NavItem {
@@ -61,48 +56,22 @@ export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
   }, [items, scrollContainerRef]);
 
   return (
-    <Box
-      sx={{
-        width: 200,
-        flexShrink: 0,
-        borderRight: 1,
-        borderColor: 'divider',
-        position: 'sticky',
-        top: 0,
-        alignSelf: 'flex-start',
-        py: 1,
-      }}
-    >
-      <Typography
-        variant="body2"
-        sx={{
-          px: 2,
-          py: 1,
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: 0.5,
-          color: 'text.secondary',
-          fontSize: '0.7rem',
-        }}
-      >
+    <nav className="op-nav">
+      <div className="op-nav-title">
         <OperatorBrand /> Settings
-      </Typography>
-      <List dense disablePadding>
-        {items.map((item) => (
-          <ListItemButton
-            key={item.id}
-            selected={activeId === item.id && !item.disabled}
-            disabled={item.disabled}
-            onClick={() => handleClick(item)}
-            sx={{ py: 0.5, px: 2 }}
-          >
-            <ListItemText
-              primary={item.label}
-              primaryTypographyProps={{ variant: 'body2' }}
-            />
-          </ListItemButton>
-        ))}
-      </List>
-    </Box>
+      </div>
+      {items.map((item) => (
+        <button
+          type="button"
+          key={item.id}
+          className="op-nav-item"
+          data-selected={activeId === item.id && !item.disabled ? 'true' : undefined}
+          disabled={item.disabled}
+          onClick={() => handleClick(item)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </nav>
   );
 }

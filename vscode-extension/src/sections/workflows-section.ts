@@ -7,9 +7,8 @@ import type { WorkflowFormatDto } from '../generated/WorkflowFormatDto';
 
 /**
  * Workflows section — the export formats a ticket + issue type can be rendered
- * into (Claude `.js`, AGNT `.json`). Info-only (`Gray`), gated on `connections`:
- * preview/export run against the hosted API (`/api/v1/workflow-formats`), so the
- * section only appears once connections are ready. Rows link out to the hosted
+ * into (Claude `.js`, AGNT `.json`). Info-only and always visible (no
+ * prerequisites): formats need no configuration. Rows link out to the hosted
  * Operator UI's Workflows page, where preview/export run — the extension does
  * not reimplement that surface.
  */
@@ -20,7 +19,7 @@ interface WorkflowsState {
 
 export class WorkflowsSection implements StatusSection {
   readonly sectionId: SectionId = 'workflows';
-  readonly prerequisites: SectionId[] = ['connections'];
+  readonly prerequisites: SectionId[] = [];
 
   private state: WorkflowsState = { apiAvailable: false, formats: [] };
 

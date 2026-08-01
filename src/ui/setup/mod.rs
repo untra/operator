@@ -56,7 +56,7 @@ pub struct SetupScreen {
     pub task_optional_fields: Vec<String>,
     /// List state for field configuration selection
     pub(crate) field_state: ListState,
-    /// Startup ticket options (ASSESS, AGENT-SETUP, PROJECT-INIT)
+    /// Startup ticket options (ASSESS, `AGENT_SETUP`, `PROJECT_INIT`)
     pub startup_ticket_options: Vec<StartupTicketOption>,
     /// List state for startup ticket selection
     pub(crate) startup_state: ListState,

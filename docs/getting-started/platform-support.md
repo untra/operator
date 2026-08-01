@@ -72,7 +72,7 @@ These gaps apply on every operating system because the integration itself is not
 | Kanban: GitHub Issues | ⚠️ Detection only | GitHub Issues is detected as a provider but full two-way sync (create, update, close) is not implemented. Only Jira Cloud and Linear have full sync. |
 | Git: GitLab (`glab`) | ⚠️ Detection only | GitLab is detected via the `glab` CLI for branch and PR metadata, but PR creation and status webhooks are not implemented. |
 | Git: Bitbucket, Azure DevOps | ⚠️ Detection only | Detected via their respective CLIs; no PR workflow integration. |
-| Agent: Gemini CLI | ⚠️ Experimental | Session detection and artifact parsing are less battle-tested than Claude Code. Some multi-step issue-type flows may behave unexpectedly. |
+| Agent: Gemini CLI | ⚠️ Experimental | Session detection and artifact parsing are less tested than Claude Code. Some multi-step issue-type flows may behave unexpectedly. |
 
 ---
 

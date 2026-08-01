@@ -60,19 +60,8 @@ impl ApiState {
     }
 
     /// Get the templates directory path
-    #[allow(dead_code)] // Reserved for future use in REST API
     pub fn templates_path(&self) -> PathBuf {
         self.tickets_path.join("templates")
-    }
-
-    /// Get the issuetypes directory path (legacy)
-    pub fn issuetypes_path(&self) -> PathBuf {
-        self.tickets_path.join("operator/issuetypes")
-    }
-
-    /// Ensure the issuetypes directory exists
-    pub async fn ensure_issuetypes_dir(&self) -> std::io::Result<()> {
-        tokio::fs::create_dir_all(self.issuetypes_path()).await
     }
 }
 
@@ -88,17 +77,6 @@ mod tests {
         // Registry should have builtins loaded
         let registry = state.registry.blocking_read();
         assert!(registry.type_count() >= 5); // At least builtin types
-    }
-
-    #[test]
-    fn test_issuetypes_path() {
-        let config = Config::default();
-        let state = ApiState::new(config, PathBuf::from("/tmp/tickets"));
-
-        assert_eq!(
-            state.issuetypes_path(),
-            PathBuf::from("/tmp/tickets/operator/issuetypes")
-        );
     }
 
     #[test]
@@ -119,7 +97,7 @@ mod tests {
 
         let mut project_sync = ProjectSyncConfig {
             sync_user_id: String::new(),
-            sync_statuses: Vec::new(),
+            status_mapping: crate::config::KanbanStatusMapping::default(),
             collection_name: None,
             type_mappings: HashMap::new(),
             bidirectional: true,

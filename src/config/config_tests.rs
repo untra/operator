@@ -319,6 +319,7 @@ fn test_upsert_jira_project_inserts_new_workspace() {
         "OPERATOR_JIRA_API_KEY",
         "PROJ",
         "acct-123",
+        KanbanStatusMapping::default(),
     );
 
     let ws = kanban
@@ -343,6 +344,7 @@ fn test_upsert_jira_project_adds_to_existing_workspace_without_clobber() {
         "OPERATOR_JIRA_API_KEY",
         "EXISTING",
         "acct-existing",
+        KanbanStatusMapping::default(),
     );
 
     // Add a second project to the same workspace
@@ -352,6 +354,7 @@ fn test_upsert_jira_project_adds_to_existing_workspace_without_clobber() {
         "OPERATOR_JIRA_API_KEY",
         "NEWONE",
         "acct-new",
+        KanbanStatusMapping::default(),
     );
 
     let ws = kanban.jira.get("acme.atlassian.net").unwrap();
@@ -369,6 +372,7 @@ fn test_upsert_jira_project_replaces_existing_project_entry() {
         "OPERATOR_JIRA_API_KEY",
         "PROJ",
         "acct-old",
+        KanbanStatusMapping::default(),
     );
     // Upsert same project with new sync_user_id
     kanban.upsert_jira_project(
@@ -377,6 +381,7 @@ fn test_upsert_jira_project_replaces_existing_project_entry() {
         "OPERATOR_JIRA_API_KEY",
         "PROJ",
         "acct-new",
+        KanbanStatusMapping::default(),
     );
 
     let ws = kanban.jira.get("acme.atlassian.net").unwrap();
@@ -392,6 +397,7 @@ fn test_upsert_linear_project_inserts_new_workspace() {
         "OPERATOR_LINEAR_API_KEY",
         "ENG",
         "user-uuid-1",
+        KanbanStatusMapping::default(),
     );
 
     let ws = kanban.linear.get("myworkspace").unwrap();
@@ -403,8 +409,20 @@ fn test_upsert_linear_project_inserts_new_workspace() {
 #[test]
 fn test_upsert_linear_project_adds_to_existing_workspace_without_clobber() {
     let mut kanban = KanbanConfig::default();
-    kanban.upsert_linear_project("myworkspace", "OPERATOR_LINEAR_API_KEY", "ENG", "user-a");
-    kanban.upsert_linear_project("myworkspace", "OPERATOR_LINEAR_API_KEY", "DESIGN", "user-b");
+    kanban.upsert_linear_project(
+        "myworkspace",
+        "OPERATOR_LINEAR_API_KEY",
+        "ENG",
+        "user-a",
+        KanbanStatusMapping::default(),
+    );
+    kanban.upsert_linear_project(
+        "myworkspace",
+        "OPERATOR_LINEAR_API_KEY",
+        "DESIGN",
+        "user-b",
+        KanbanStatusMapping::default(),
+    );
 
     let ws = kanban.linear.get("myworkspace").unwrap();
     assert_eq!(ws.projects.len(), 2);
@@ -421,6 +439,7 @@ fn test_upsert_jira_does_not_touch_other_workspaces() {
         "OPERATOR_JIRA_API_KEY",
         "FIRST",
         "acct-1",
+        KanbanStatusMapping::default(),
     );
     kanban.upsert_jira_project(
         "second.atlassian.net",
@@ -428,6 +447,7 @@ fn test_upsert_jira_does_not_touch_other_workspaces() {
         "OPERATOR_JIRA_SECOND_API_KEY",
         "SECOND",
         "acct-2",
+        KanbanStatusMapping::default(),
     );
 
     assert_eq!(kanban.jira.len(), 2);
@@ -550,6 +570,106 @@ fn test_upsert_project_github() {
     assert_eq!(entry.api_key_env, "OPERATOR_GITHUB_TOKEN");
     let proj = entry.projects.get("PVT_abc").expect("project should exist");
     assert_eq!(proj.sync_user_id, "12345678");
+}
+
+#[test]
+fn test_status_mapping_defaults_all_none_from_legacy_toml() {
+    // Legacy configs carry a `sync_statuses` list; serde must ignore the
+    // unknown key and leave the new mapping empty.
+    let toml_str = r#"
+        sync_user_id = "acct-1"
+        sync_statuses = ["To Do", "In Progress", "Done"]
+    "#;
+    let cfg: ProjectSyncConfig = toml::from_str(toml_str).unwrap();
+    assert!(cfg.status_mapping.is_empty());
+    assert_eq!(cfg.sync_user_id, "acct-1");
+}
+
+#[test]
+fn test_status_mapping_is_empty_and_mapped_count() {
+    let mut mapping = KanbanStatusMapping::default();
+    assert!(mapping.is_empty());
+    assert_eq!(mapping.mapped_count(), 0);
+
+    mapping.doing = Some("In Progress".to_string());
+    assert!(!mapping.is_empty());
+    assert_eq!(mapping.mapped_count(), 1);
+
+    mapping.todo = Some("To Do".to_string());
+    mapping.done = Some("Done".to_string());
+    assert_eq!(mapping.mapped_count(), 3);
+}
+
+#[test]
+fn test_project_sync_config_omits_empty_status_mapping_on_serialize() {
+    let cfg = ProjectSyncConfig {
+        sync_user_id: "acct-1".to_string(),
+        ..Default::default()
+    };
+    let toml_str = toml::to_string(&cfg).unwrap();
+    assert!(!toml_str.contains("status_mapping"));
+}
+
+#[test]
+fn test_project_sync_config_status_mapping_roundtrip() {
+    let cfg = ProjectSyncConfig {
+        sync_user_id: "acct-1".to_string(),
+        status_mapping: KanbanStatusMapping {
+            todo: Some("Backlog".to_string()),
+            doing: Some("In Progress".to_string()),
+            done: Some("Shipped".to_string()),
+        },
+        ..Default::default()
+    };
+    let toml_str = toml::to_string(&cfg).unwrap();
+    let parsed: ProjectSyncConfig = toml::from_str(&toml_str).unwrap();
+    assert_eq!(parsed.status_mapping, cfg.status_mapping);
+}
+
+#[test]
+fn test_pull_statuses_returns_todo_and_doing_some_values() {
+    let cfg = ProjectSyncConfig {
+        status_mapping: KanbanStatusMapping {
+            todo: Some("Backlog".to_string()),
+            doing: Some("In Progress".to_string()),
+            done: Some("Shipped".to_string()),
+        },
+        ..Default::default()
+    };
+    assert_eq!(cfg.pull_statuses(), vec!["Backlog", "In Progress"]);
+
+    let partial = ProjectSyncConfig {
+        status_mapping: KanbanStatusMapping {
+            todo: Some("Backlog".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(partial.pull_statuses(), vec!["Backlog"]);
+
+    assert!(ProjectSyncConfig::default().pull_statuses().is_empty());
+}
+
+#[test]
+fn test_upsert_jira_project_persists_status_mapping() {
+    let mut kanban = KanbanConfig::default();
+    kanban.upsert_jira_project(
+        "acme.atlassian.net",
+        "user@acme.com",
+        "OPERATOR_JIRA_API_KEY",
+        "PROJ",
+        "acct-123",
+        KanbanStatusMapping {
+            todo: Some("To Do".to_string()),
+            doing: Some("In Progress".to_string()),
+            done: Some("Done".to_string()),
+        },
+    );
+
+    let project = &kanban.jira["acme.atlassian.net"].projects["PROJ"];
+    assert_eq!(project.status_mapping.todo.as_deref(), Some("To Do"));
+    assert_eq!(project.status_mapping.doing.as_deref(), Some("In Progress"));
+    assert_eq!(project.status_mapping.done.as_deref(), Some("Done"));
 }
 
 #[test]

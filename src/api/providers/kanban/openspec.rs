@@ -289,7 +289,7 @@ impl OpenspecProvider {
             description.push_str(&format!("- [{mark}] {}\n", item.text));
         }
         description.push_str(&format!(
-            "\n## Source\n\nRead the full change (proposal, design, spec deltas) at `{}` before starting.\n",
+            "\n## Spec Context\n\nRead the full change (proposal, design, spec deltas) at `{}` before starting.\n",
             change_dir.display()
         ));
 
@@ -538,7 +538,7 @@ Some prose without checkboxes.
         let desc = issues[0].description.as_deref().unwrap();
         assert!(desc.contains("Users asked."));
         assert!(desc.contains("- [ ] 1.1 Create ThemeContext"));
-        assert!(desc.contains("## Source"));
+        assert!(desc.contains("## Spec Context"));
         assert!(issues[0].url.starts_with("file://"));
     }
 

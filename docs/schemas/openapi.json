@@ -5125,14 +5125,14 @@
       },
       "OpenspecSourceDto": {
         "type": "object",
-        "description": "OpenSpec source location supplied during onboarding. Not a credential —\nOpenSpec reads local markdown; there is no secret to validate or store.",
+        "description": "`OpenSpec` source location supplied during onboarding. Not a credential —\n`OpenSpec` reads local markdown; there is no secret to validate or store.",
         "required": [
           "root_path"
         ],
         "properties": {
           "root_path": {
             "type": "string",
-            "description": "Directory containing the OpenSpec `changes/` tree (e.g. \"/repo/openspec\")"
+            "description": "Directory containing the `OpenSpec` `changes/` tree (e.g. \"/repo/openspec\")"
           }
         }
       },
@@ -6789,7 +6789,7 @@
       },
       "WriteOpenspecConfigBody": {
         "type": "object",
-        "description": "Body for writing an OpenSpec instance config section.",
+        "description": "Body for writing an `OpenSpec` instance config section.",
         "required": [
           "instance",
           "root_path"
@@ -6808,7 +6808,7 @@
           },
           "root_path": {
             "type": "string",
-            "description": "Directory containing the OpenSpec `changes/` tree"
+            "description": "Directory containing the `OpenSpec` `changes/` tree"
           }
         }
       },

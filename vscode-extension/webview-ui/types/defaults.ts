@@ -128,6 +128,7 @@ const DEFAULT_CONFIG: Config = {
   },
   delegators: [],
   model_servers: [],
+  hosts: [],
   relay: { auto_inject_mcp: false },
   mcp: {
     http_enabled: true,

@@ -88,7 +88,7 @@ Import tickets from configured kanban providers (jira, linear, github, openspec)
 | Argument/Option | Description |
 | --- | --- |
 | `<PROVIDER>` | Provider slug (e.g. openspec). Omit to sync every configured provider |
-| `<REFERENCE>` | Project/change reference (e.g. an OpenSpec change id, a Jira project key). Omit to sync all of the provider's configured collections |
+| `<REFERENCE>` | Project/change reference (e.g. an `OpenSpec` change id, a Jira project key). Omit to sync all of the provider's configured collections |
 
 ### `create`
 

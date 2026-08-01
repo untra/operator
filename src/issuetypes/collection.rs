@@ -41,6 +41,12 @@ pub struct IssueTypeCollection {
     /// Publisher identifier (from a hosted manifest)
     #[serde(default)]
     pub publisher: Option<String>,
+    /// Author attribution (from a hosted manifest)
+    #[serde(default)]
+    pub author: Option<String>,
+    /// Provenance tier (official when absent)
+    #[serde(default)]
+    pub tier: crate::collections::manifest::CollectionTier,
 }
 
 impl IssueTypeCollection {
@@ -54,19 +60,25 @@ impl IssueTypeCollection {
             workflow_hints: None,
             version: None,
             publisher: None,
+            author: None,
+            tier: crate::collections::manifest::CollectionTier::default(),
         }
     }
 
-    /// Attach manifest metadata (workflow hints, version, publisher).
+    /// Attach manifest metadata (workflow hints, version, publisher, author, tier).
     pub fn with_manifest_metadata(
         mut self,
         workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
         version: Option<String>,
         publisher: Option<String>,
+        author: Option<String>,
+        tier: crate::collections::manifest::CollectionTier,
     ) -> Self {
         self.workflow_hints = workflow_hints;
         self.version = version;
         self.publisher = publisher;
+        self.author = author;
+        self.tier = tier;
         self
     }
 
@@ -111,90 +123,6 @@ impl IssueTypeCollection {
     /// Check if the collection is empty
     pub fn is_empty(&self) -> bool {
         self.types.is_empty()
-    }
-}
-
-/// Built-in collection presets
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BuiltinPreset {
-    /// Simple: TASK only
-    Simple,
-    /// Dev Kanban: TASK, FEAT, FIX
-    DevKanban,
-    /// DevOps Kanban: TASK, SPIKE, INV, FEAT, FIX
-    DevopsKanban,
-    /// Operator: ASSESS, SYNC, INIT (automation operations)
-    Operator,
-    /// Full: DevOps + Operator types
-    Full,
-}
-
-impl BuiltinPreset {
-    /// Get all builtin presets
-    pub fn all() -> &'static [BuiltinPreset] {
-        &[
-            BuiltinPreset::Simple,
-            BuiltinPreset::DevKanban,
-            BuiltinPreset::DevopsKanban,
-            BuiltinPreset::Operator,
-            BuiltinPreset::Full,
-        ]
-    }
-
-    /// Get the collection name for this preset
-    pub fn name(&self) -> &'static str {
-        match self {
-            BuiltinPreset::Simple => "simple",
-            BuiltinPreset::DevKanban => "dev_kanban",
-            BuiltinPreset::DevopsKanban => "devops_kanban",
-            BuiltinPreset::Operator => "operator",
-            BuiltinPreset::Full => "full",
-        }
-    }
-
-    /// Get the description for this preset
-    pub fn description(&self) -> &'static str {
-        match self {
-            BuiltinPreset::Simple => "Simple workflow with TASK only",
-            BuiltinPreset::DevKanban => "Developer kanban with TASK, FEAT, FIX",
-            BuiltinPreset::DevopsKanban => "DevOps kanban with TASK, SPIKE, INV, FEAT, FIX",
-            BuiltinPreset::Operator => "Operator automation tasks: ASSESS, SYNC, INIT",
-            BuiltinPreset::Full => "Full workflow: all types combined",
-        }
-    }
-
-    /// Convert to an `IssueTypeCollection`
-    pub fn into_collection(self) -> IssueTypeCollection {
-        match self {
-            BuiltinPreset::Simple => {
-                IssueTypeCollection::new("simple", self.description()).with_types(["TASK"])
-            }
-            BuiltinPreset::DevKanban => IssueTypeCollection::new("dev_kanban", self.description())
-                .with_types(["TASK", "FEAT", "FIX"]),
-            BuiltinPreset::DevopsKanban => {
-                IssueTypeCollection::new("devops_kanban", self.description())
-                    .with_types(["TASK", "FEAT", "FIX", "SPIKE", "INV"])
-            }
-            BuiltinPreset::Operator => IssueTypeCollection::new("operator", self.description())
-                .with_types(["ASSESS", "SYNC", "INIT"]),
-            BuiltinPreset::Full => {
-                IssueTypeCollection::new("full", self.description()).with_types([
-                    "TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT",
-                ])
-            }
-        }
-    }
-
-    /// Parse preset name to variant
-    pub fn from_name(name: &str) -> Option<BuiltinPreset> {
-        match name.to_lowercase().as_str() {
-            "simple" => Some(BuiltinPreset::Simple),
-            "dev_kanban" | "devkanban" => Some(BuiltinPreset::DevKanban),
-            "devops_kanban" | "devopskanban" => Some(BuiltinPreset::DevopsKanban),
-            "operator" => Some(BuiltinPreset::Operator),
-            "full" => Some(BuiltinPreset::Full),
-            _ => None,
-        }
     }
 }
 
@@ -248,69 +176,6 @@ mod tests {
         assert_eq!(collection.priority_index("FIX"), 1);
         assert_eq!(collection.priority_index("TASK"), 2);
         assert_eq!(collection.priority_index("SPIKE"), usize::MAX);
-    }
-
-    #[test]
-    fn test_builtin_simple() {
-        let collection = BuiltinPreset::Simple.into_collection();
-        assert_eq!(collection.name, "simple");
-        assert_eq!(collection.types, vec!["TASK"]);
-    }
-
-    #[test]
-    fn test_builtin_dev_kanban() {
-        let collection = BuiltinPreset::DevKanban.into_collection();
-        assert_eq!(collection.name, "dev_kanban");
-        assert_eq!(collection.types, vec!["TASK", "FEAT", "FIX"]);
-    }
-
-    #[test]
-    fn test_builtin_devops_kanban() {
-        let collection = BuiltinPreset::DevopsKanban.into_collection();
-        assert_eq!(collection.name, "devops_kanban");
-        assert_eq!(
-            collection.types,
-            vec!["TASK", "FEAT", "FIX", "SPIKE", "INV"]
-        );
-    }
-
-    #[test]
-    fn test_builtin_from_name() {
-        assert_eq!(
-            BuiltinPreset::from_name("simple"),
-            Some(BuiltinPreset::Simple)
-        );
-        assert_eq!(
-            BuiltinPreset::from_name("dev_kanban"),
-            Some(BuiltinPreset::DevKanban)
-        );
-        assert_eq!(
-            BuiltinPreset::from_name("devops_kanban"),
-            Some(BuiltinPreset::DevopsKanban)
-        );
-        assert_eq!(
-            BuiltinPreset::from_name("operator"),
-            Some(BuiltinPreset::Operator)
-        );
-        assert_eq!(BuiltinPreset::from_name("full"), Some(BuiltinPreset::Full));
-        assert_eq!(BuiltinPreset::from_name("unknown"), None);
-    }
-
-    #[test]
-    fn test_builtin_operator() {
-        let collection = BuiltinPreset::Operator.into_collection();
-        assert_eq!(collection.name, "operator");
-        assert_eq!(collection.types, vec!["ASSESS", "SYNC", "INIT"]);
-    }
-
-    #[test]
-    fn test_builtin_full() {
-        let collection = BuiltinPreset::Full.into_collection();
-        assert_eq!(collection.name, "full");
-        assert_eq!(
-            collection.types,
-            vec!["TASK", "FEAT", "FIX", "SPIKE", "INV", "ASSESS", "SYNC", "INIT"]
-        );
     }
 
     #[test]

@@ -4,7 +4,7 @@
 //! Each tool calls the handler directly (no internal HTTP round-trip).
 //! Write tools are gated behind `[mcp].expose_ticket_write_tools`.
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -274,16 +274,35 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
             serde_json::to_value(&*resp).map_err(|e| e.to_string())
         }
         "operator_list_issue_types" => {
-            let resp = routes::issuetypes::list(State(state.clone())).await;
-            serde_json::to_value(&*resp).map_err(|e| e.to_string())
+            let collection = args
+                .get("collection")
+                .and_then(|v| v.as_str())
+                .map(std::string::ToString::to_string);
+            let result = routes::issuetypes::list(
+                State(state.clone()),
+                Query(routes::issuetypes::CollectionQuery { collection }),
+            )
+            .await;
+            match result {
+                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
+                Err(_e) => Err("Unknown collection".to_string()),
+            }
         }
         "operator_get_issue_type" => {
             let key = args
                 .get("key")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| "Missing required parameter: key".to_string())?;
-            let result =
-                routes::issuetypes::get_one(State(state.clone()), Path(key.to_string())).await;
+            let collection = args
+                .get("collection")
+                .and_then(|v| v.as_str())
+                .map(std::string::ToString::to_string);
+            let result = routes::issuetypes::get_one(
+                State(state.clone()),
+                Path(key.to_string()),
+                Query(routes::issuetypes::CollectionQuery { collection }),
+            )
+            .await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
                 Err(_e) => Err(format!("Issue type '{key}' not found")),

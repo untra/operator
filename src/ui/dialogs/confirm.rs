@@ -655,6 +655,7 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            collection: None,
         }
     }
 

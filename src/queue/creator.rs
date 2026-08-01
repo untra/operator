@@ -15,6 +15,8 @@ use crate::templates::TemplateType;
 /// Creates new tickets from templates
 pub struct TicketCreator {
     queue_path: PathBuf,
+    /// Active issuetype collection, stamped into created tickets' frontmatter
+    collection: Option<String>,
 }
 
 impl TicketCreator {
@@ -23,6 +25,7 @@ impl TicketCreator {
         let tickets_path = config.tickets_path();
         Self {
             queue_path: tickets_path.join("queue"),
+            collection: config.templates.active_collection.clone(),
         }
     }
 
@@ -48,6 +51,7 @@ impl TicketCreator {
 
         let template = template_type.template_content();
         let content = render_template(template, values)?;
+        let content = stamp_collection(&content, self.collection.as_deref());
 
         fs::create_dir_all(&self.queue_path).context("Failed to create queue directory")?;
         fs::write(&filepath, &content).context("Failed to write ticket file")?;
@@ -176,9 +180,81 @@ pub fn split_required_optional(
     (required, optional)
 }
 
+/// Inject `collection: <name>` into a rendered ticket's YAML frontmatter.
+///
+/// No-op when no collection is set, the content has no frontmatter, or the
+/// template already writes its own `collection:` field.
+fn stamp_collection(content: &str, collection: Option<&str>) -> String {
+    let Some(collection) = collection else {
+        return content.to_string();
+    };
+    let Some(rest) = content.strip_prefix("---\n") else {
+        return content.to_string();
+    };
+    let Some(end) = rest.find("\n---") else {
+        return content.to_string();
+    };
+    let has_field = rest[..end]
+        .lines()
+        .any(|line| line.starts_with("collection:"));
+    if has_field {
+        return content.to_string();
+    }
+    format!("---\ncollection: {collection}\n{rest}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_stamp_collection_injects_into_frontmatter() {
+        let content = "---\nid: TASK-0001\nstatus: queued\n---\n\n# Task: hello\n";
+        let stamped = stamp_collection(content, Some("ralph_loop"));
+        assert!(stamped.starts_with("---\ncollection: ralph_loop\nid: TASK-0001\n"));
+        assert!(stamped.ends_with("# Task: hello\n"));
+    }
+
+    #[test]
+    fn test_stamp_collection_none_is_noop() {
+        let content = "---\nid: TASK-0001\n---\n\n# Task\n";
+        assert_eq!(stamp_collection(content, None), content);
+    }
+
+    #[test]
+    fn test_stamp_collection_respects_existing_field() {
+        let content = "---\nid: TASK-0001\ncollection: custom\n---\n\n# Task\n";
+        assert_eq!(stamp_collection(content, Some("ralph_loop")), content);
+    }
+
+    #[test]
+    fn test_stamp_collection_no_frontmatter_is_noop() {
+        let content = "# Task: no frontmatter\n";
+        assert_eq!(stamp_collection(content, Some("ralph_loop")), content);
+    }
+
+    #[test]
+    fn test_create_ticket_headless_stamps_collection() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let creator = TicketCreator {
+            queue_path: temp_dir.path().join("queue"),
+            collection: Some("dev_kanban".to_string()),
+        };
+        let mut values = HashMap::new();
+        values.insert("id".to_string(), "TASK-0001".to_string());
+        values.insert("status".to_string(), "queued".to_string());
+        values.insert("project".to_string(), "operator".to_string());
+        values.insert("summary".to_string(), "stamp me".to_string());
+
+        let path = creator
+            .create_ticket_headless(TemplateType::Task, &values)
+            .unwrap();
+        let written = fs::read_to_string(path).unwrap();
+        assert!(
+            written.contains("collection: dev_kanban"),
+            "created ticket should carry the active collection: {written}"
+        );
+    }
 
     #[test]
     fn test_render_template() {
@@ -212,6 +288,7 @@ mod tests {
     fn test_generate_default_values() {
         let creator = TicketCreator {
             queue_path: PathBuf::from("/tmp"),
+            collection: None,
         };
 
         let values = creator.generate_default_values(TemplateType::Feature, "myproject");

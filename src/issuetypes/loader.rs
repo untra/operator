@@ -8,8 +8,6 @@ use tracing::{debug, info, warn};
 
 use super::collection::{CollectionsFile, IssueTypeCollection};
 use super::schema::{IssueType, IssueTypeSource};
-use crate::templates::schema::TemplateSchema;
-use crate::templates::TemplateType;
 
 /// A loaded collection with its issue types
 #[derive(Debug, Clone)]
@@ -28,50 +26,10 @@ pub struct LoadedCollection {
     pub version: Option<String>,
     /// Publisher (from collection.json, if present)
     pub publisher: Option<String>,
-}
-
-/// Load all built-in issue types
-pub fn load_builtins() -> Result<HashMap<String, IssueType>> {
-    let mut types = HashMap::new();
-
-    for template_type in TemplateType::all() {
-        let schema_json = template_type.schema();
-        match TemplateSchema::from_json(schema_json) {
-            Ok(schema) => {
-                let issue_type = template_schema_to_issuetype(schema, IssueTypeSource::Builtin);
-                debug!("Loaded builtin issue type: {}", issue_type.key);
-                types.insert(issue_type.key.clone(), issue_type);
-            }
-            Err(e) => {
-                warn!(
-                    "Failed to parse builtin template {}: {}",
-                    template_type.as_str(),
-                    e
-                );
-            }
-        }
-    }
-
-    Ok(types)
-}
-
-/// Convert a `TemplateSchema` to an `IssueType`
-fn template_schema_to_issuetype(schema: TemplateSchema, source: IssueTypeSource) -> IssueType {
-    IssueType {
-        key: schema.key,
-        name: schema.name,
-        description: schema.description,
-        mode: schema.mode,
-        glyph: schema.glyph,
-        color: schema.color,
-        project_required: schema.project_required,
-        fields: schema.fields,
-        steps: schema.steps,
-        agent_prompt: schema.agent_prompt,
-        agent: schema.agent,
-        source,
-        external_id: None,
-    }
+    /// Author attribution (from collection.json, if present)
+    pub author: Option<String>,
+    /// Provenance tier (from collection.json; official when absent)
+    pub tier: crate::collections::manifest::CollectionTier,
 }
 
 /// Load imported issue types from the imports subdirectory
@@ -225,27 +183,6 @@ pub fn load_collections(path: &Path) -> Result<HashMap<String, IssueTypeCollecti
     Ok(file.collections)
 }
 
-/// Validate a collection against available types, returning types that are missing
-///
-/// Returns a tuple of (`valid_types`, `missing_types`)
-pub fn validate_collection_types(
-    collection: &IssueTypeCollection,
-    available_types: &HashMap<String, IssueType>,
-) -> (Vec<String>, Vec<String>) {
-    let mut valid = Vec::new();
-    let mut missing = Vec::new();
-
-    for type_key in &collection.types {
-        if available_types.contains_key(type_key) {
-            valid.push(type_key.clone());
-        } else {
-            missing.push(type_key.clone());
-        }
-    }
-
-    (valid, missing)
-}
-
 /// Load collections from directory structure
 ///
 /// Structure (flattened - no issues/ subfolder):
@@ -337,6 +274,8 @@ pub fn load_collections_from_dir(
                 workflow_hints: meta.workflow_hints,
                 version: meta.version,
                 publisher: meta.publisher,
+                author: meta.author,
+                tier: meta.tier,
             },
         );
     }
@@ -408,6 +347,8 @@ struct CollectionMetadata {
     workflow_hints: Option<crate::collections::manifest::WorkflowHints>,
     version: Option<String>,
     publisher: Option<String>,
+    author: Option<String>,
+    tier: crate::collections::manifest::CollectionTier,
 }
 
 /// Load optional collection metadata from `collection.json` (preferred) or the
@@ -434,6 +375,8 @@ fn load_collection_metadata(
                     workflow_hints: manifest.workflow_hints,
                     version: (!manifest.version.is_empty()).then_some(manifest.version),
                     publisher: manifest.publisher,
+                    author: manifest.author,
+                    tier: manifest.tier,
                 };
             }
         }
@@ -469,6 +412,8 @@ fn load_collection_metadata(
                     workflow_hints: None,
                     version: None,
                     publisher: None,
+                    author: None,
+                    tier: crate::collections::manifest::CollectionTier::default(),
                 };
             }
         }
@@ -492,6 +437,8 @@ fn load_collection_metadata(
         workflow_hints: None,
         version: None,
         publisher: None,
+        author: None,
+        tier: crate::collections::manifest::CollectionTier::default(),
     }
 }
 
@@ -506,20 +453,6 @@ fn derive_type_order(types: &HashMap<String, IssueType>) -> Vec<String> {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-
-    #[test]
-    fn test_load_builtins() {
-        let types = load_builtins().unwrap();
-        assert!(types.contains_key("FEAT"));
-        assert!(types.contains_key("FIX"));
-        assert!(types.contains_key("TASK"));
-        assert!(types.contains_key("SPIKE"));
-        assert!(types.contains_key("INV"));
-
-        // Verify source is set correctly
-        let feat = types.get("FEAT").unwrap();
-        assert_eq!(feat.source, IssueTypeSource::Builtin);
-    }
 
     #[test]
     fn test_load_collection_metadata_reads_collection_json() {
@@ -581,40 +514,6 @@ types = ["FEAT", "FIX"]
     fn test_load_collections_nonexistent() {
         let collections = load_collections(Path::new("/nonexistent/collections.toml")).unwrap();
         assert!(collections.is_empty());
-    }
-
-    #[test]
-    fn test_validate_collection_types() {
-        let mut available = HashMap::new();
-        available.insert(
-            "FEAT".to_string(),
-            IssueType::new_imported(
-                "FEAT".to_string(),
-                "Feature".to_string(),
-                String::new(),
-                "builtin".to_string(),
-                String::new(),
-                None,
-            ),
-        );
-        available.insert(
-            "FIX".to_string(),
-            IssueType::new_imported(
-                "FIX".to_string(),
-                "Fix".to_string(),
-                String::new(),
-                "builtin".to_string(),
-                String::new(),
-                None,
-            ),
-        );
-
-        let collection =
-            IssueTypeCollection::new("test", "").with_types(["FEAT", "STORY", "FIX", "MISSING"]);
-
-        let (valid, missing) = validate_collection_types(&collection, &available);
-        assert_eq!(valid, vec!["FEAT", "FIX"]);
-        assert_eq!(missing, vec!["STORY", "MISSING"]);
     }
 
     #[test]

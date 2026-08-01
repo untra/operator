@@ -9,7 +9,8 @@ use ratatui::{
     Frame,
 };
 
-use crate::issuetypes::{BuiltinPreset, IssueTypeCollection, IssueTypeRegistry};
+use crate::collections::manifest::CollectionTier;
+use crate::issuetypes::{IssueTypeCollection, IssueTypeRegistry};
 
 /// Information about a collection for display
 #[derive(Debug, Clone)]
@@ -17,7 +18,10 @@ pub struct CollectionInfo {
     pub name: String,
     pub description: String,
     pub type_count: usize,
-    pub is_builtin: bool,
+    /// Provenance tier from the collection manifest
+    pub tier: CollectionTier,
+    /// Author attribution from the collection manifest
+    pub author: Option<String>,
     /// Provider name if collection was synced from external source
     pub sync_source: Option<String>,
 }
@@ -28,7 +32,8 @@ impl CollectionInfo {
             name: collection.name.clone(),
             description: collection.description.clone(),
             type_count: collection.types.len(),
-            is_builtin: BuiltinPreset::from_name(&collection.name).is_some(),
+            tier: collection.tier,
+            author: collection.author.clone(),
             sync_source: collection.sync_source.as_ref().map(|s| s.provider.clone()),
         }
     }
@@ -90,13 +95,11 @@ impl CollectionSwitchDialog {
             .map(CollectionInfo::from_collection)
             .collect();
 
-        // Sort: builtins first, then by name
-        self.collections
-            .sort_by(|a, b| match (a.is_builtin, b.is_builtin) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
-                _ => a.name.cmp(&b.name),
-            });
+        // Sort: official tier first, then by name
+        self.collections.sort_by(|a, b| {
+            let rank = |t: CollectionTier| matches!(t, CollectionTier::Community);
+            rank(a.tier).cmp(&rank(b.tier)).then(a.name.cmp(&b.name))
+        });
 
         // Select the currently active collection
         let selected = self
@@ -239,14 +242,23 @@ impl CollectionSwitchDialog {
                     .map(|s| format!(" [{s}]"))
                     .unwrap_or_default();
 
-                let builtin_badge = if c.is_builtin { "" } else { " (custom)" };
+                let tier_badge = match c.tier {
+                    CollectionTier::Community => " [community]",
+                    CollectionTier::Official => "",
+                };
+                let author_badge = c
+                    .author
+                    .as_ref()
+                    .map(|a| format!(" by {a}"))
+                    .unwrap_or_default();
 
                 ListItem::new(vec![
                     Line::from(vec![
                         Span::raw(marker),
                         Span::styled(&c.name, Style::default().add_modifier(Modifier::BOLD)),
                         Span::styled(sync_badge, Style::default().fg(Color::Cyan)),
-                        Span::styled(builtin_badge, Style::default().fg(Color::DarkGray)),
+                        Span::styled(tier_badge, Style::default().fg(Color::Cyan)),
+                        Span::styled(author_badge, Style::default().fg(Color::DarkGray)),
                         Span::styled(
                             format!(" ({} types)", c.type_count),
                             Style::default().fg(Color::DarkGray),
@@ -333,21 +345,25 @@ mod tests {
         assert_eq!(info.name, "test");
         assert_eq!(info.description, "Test collection");
         assert_eq!(info.type_count, 2);
-        assert!(!info.is_builtin);
+        assert_eq!(info.tier, CollectionTier::Official);
+        assert!(info.author.is_none());
         assert!(info.sync_source.is_none());
     }
 
     #[test]
-    fn test_collection_info_builtin_detection() {
+    fn test_collection_info_carries_tier_and_author() {
         use crate::issuetypes::IssueTypeCollection;
 
-        let builtin = IssueTypeCollection::new("dev_kanban", "Dev Kanban");
-        let info = CollectionInfo::from_collection(&builtin);
-        assert!(info.is_builtin);
-
-        let custom = IssueTypeCollection::new("my_workflow", "Custom");
-        let info = CollectionInfo::from_collection(&custom);
-        assert!(!info.is_builtin);
+        let community = IssueTypeCollection::new("ralph_loop", "Ralph").with_manifest_metadata(
+            None,
+            None,
+            None,
+            Some("snarktank".to_string()),
+            CollectionTier::Community,
+        );
+        let info = CollectionInfo::from_collection(&community);
+        assert_eq!(info.tier, CollectionTier::Community);
+        assert_eq!(info.author.as_deref(), Some("snarktank"));
     }
 
     #[test]
@@ -358,14 +374,16 @@ mod tests {
                 name: "a".to_string(),
                 description: String::new(),
                 type_count: 1,
-                is_builtin: true,
+                tier: CollectionTier::Official,
+                author: None,
                 sync_source: None,
             },
             CollectionInfo {
                 name: "b".to_string(),
                 description: String::new(),
                 type_count: 2,
-                is_builtin: false,
+                tier: CollectionTier::Community,
+                author: None,
                 sync_source: None,
             },
         ];
@@ -392,7 +410,8 @@ mod tests {
             name: "test".to_string(),
             description: String::new(),
             type_count: 1,
-            is_builtin: false,
+            tier: CollectionTier::Official,
+            author: None,
             sync_source: None,
         }];
         dialog.list_state.select(Some(0));
@@ -414,7 +433,8 @@ mod tests {
             name: "test".to_string(),
             description: String::new(),
             type_count: 1,
-            is_builtin: false,
+            tier: CollectionTier::Official,
+            author: None,
             sync_source: None,
         }];
         dialog.list_state.select(Some(0));

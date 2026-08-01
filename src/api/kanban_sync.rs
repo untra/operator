@@ -369,6 +369,7 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            collection: None,
             step_delegators: std::collections::HashMap::default(),
         };
         sync.on_ticket_requeued(&ticket).await;

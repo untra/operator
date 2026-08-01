@@ -94,13 +94,18 @@ pub async fn update(
 ) -> Result<Json<StepResponse>, ApiError> {
     let key = key.to_uppercase();
 
-    // Get existing issue type
-    let mut issue_type = {
+    // Get existing issue type and its owning collection
+    let (mut issue_type, owner) = {
         let registry = state.registry.read().await;
-        registry
-            .get(&key)
+        let owner = registry
+            .collection_of(&key)
             .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?
-            .clone()
+            .to_string();
+        let issue_type = registry
+            .get_in(&owner, &key)
+            .ok_or_else(|| ApiError::NotFound(format!("Issue type '{key}' not found")))?
+            .clone();
+        (issue_type, owner)
     };
 
     // Check if it's a builtin
@@ -178,15 +183,17 @@ pub async fn update(
         ApiError::ValidationError(msgs.join("; "))
     })?;
 
-    // Persist to filesystem
-    let filepath = state.issuetypes_path().join(format!("{key}.json"));
+    // Persist to the collection-scoped store
+    let dir = state.templates_path().join(&owner);
+    tokio::fs::create_dir_all(&dir).await?;
+    let filepath = dir.join(format!("{key}.json"));
     let json = issue_type.to_json()?;
     tokio::fs::write(&filepath, json).await?;
 
     // Update in memory
     let mut registry = state.registry.write().await;
     registry
-        .register(issue_type)
+        .register_in(&owner, issue_type)
         .map_err(|e| ApiError::InternalError(format!("Failed to update issue type: {e}")))?;
 
     Ok(Json(StepResponse::from(&updated_step)))

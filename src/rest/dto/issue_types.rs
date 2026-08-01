@@ -26,8 +26,21 @@ pub struct IssueTypeResponse {
     pub color: Option<String>,
     pub project_required: bool,
     pub source: String,
+    /// Owning collection under resolution-order lookup
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub collection: Option<String>,
     pub fields: Vec<FieldResponse>,
     pub steps: Vec<StepResponse>,
+}
+
+impl IssueTypeResponse {
+    /// Build from an issue type plus its owning collection.
+    pub fn with_collection(it: &IssueType, collection: Option<&str>) -> Self {
+        let mut resp = Self::from(it);
+        resp.collection = collection.map(std::string::ToString::to_string);
+        resp
+    }
 }
 
 impl From<&IssueType> for IssueTypeResponse {
@@ -44,6 +57,7 @@ impl From<&IssueType> for IssueTypeResponse {
             color: it.color.clone(),
             project_required: it.project_required,
             source: it.source_display(),
+            collection: None,
             fields: it.fields.iter().map(FieldResponse::from).collect(),
             steps: it.steps.iter().map(StepResponse::from).collect(),
         }
@@ -65,7 +79,20 @@ pub struct IssueTypeSummary {
     #[ts(optional)]
     pub color: Option<String>,
     pub source: String,
+    /// Owning collection under resolution-order lookup
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub collection: Option<String>,
     pub step_count: usize,
+}
+
+impl IssueTypeSummary {
+    /// Build from an issue type plus its owning collection.
+    pub fn with_collection(it: &IssueType, collection: Option<&str>) -> Self {
+        let mut resp = Self::from(it);
+        resp.collection = collection.map(std::string::ToString::to_string);
+        resp
+    }
 }
 
 impl From<&IssueType> for IssueTypeSummary {
@@ -81,6 +108,7 @@ impl From<&IssueType> for IssueTypeSummary {
             glyph: it.glyph.clone(),
             color: it.color.clone(),
             source: it.source_display(),
+            collection: None,
             step_count: it.steps.len(),
         }
     }
@@ -103,6 +131,10 @@ pub struct CreateIssueTypeRequest {
     #[serde(default)]
     pub fields: Vec<CreateFieldRequest>,
     pub steps: Vec<CreateStepRequest>,
+    /// Target collection (defaults to the active collection)
+    #[serde(default)]
+    #[ts(optional)]
+    pub collection: Option<String>,
 }
 
 fn default_mode() -> String {
@@ -516,6 +548,7 @@ mod tests {
             glyph: "F".to_string(),
             color: Some("cyan".to_string()),
             source: "user".to_string(),
+            collection: None,
             step_count: 3,
         };
         let json = serde_json::to_string(&summary).unwrap();
@@ -533,6 +566,7 @@ mod tests {
             glyph: "F".to_string(),
             color: None,
             source: "user".to_string(),
+            collection: None,
             step_count: 0,
         };
         let json = serde_json::to_string(&summary).unwrap();
@@ -677,6 +711,8 @@ mod tests {
                 }),
                 Some("1.0.0".to_string()),
                 Some("untra".to_string()),
+                None,
+                crate::collections::manifest::CollectionTier::Official,
             );
         let resp = CollectionResponse::from_collection(&collection, true);
         assert_eq!(resp.version.as_deref(), Some("1.0.0"));

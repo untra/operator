@@ -38,6 +38,7 @@ mod tests {
             glyph: "T".to_string(),
             color: None,
             project_required: true,
+            collection: None,
             fields: vec![],
             steps: vec![CreateStepRequest {
                 name: "execute".to_string(),

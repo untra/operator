@@ -5,4 +5,8 @@ import type { StepResponse } from "./StepResponse";
 /**
  * Response for a single issue type
  */
-export type IssueTypeResponse = { key: string, name: string, description: string, mode: string, glyph: string, color: string | null, project_required: boolean, source: string, fields: Array<FieldResponse>, steps: Array<StepResponse>, };
+export type IssueTypeResponse = { key: string, name: string, description: string, mode: string, glyph: string, color: string | null, project_required: boolean, source: string, 
+/**
+ * Owning collection under resolution-order lookup
+ */
+collection?: string, fields: Array<FieldResponse>, steps: Array<StepResponse>, };

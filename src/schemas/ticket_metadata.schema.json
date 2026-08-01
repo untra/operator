@@ -19,6 +19,12 @@
       "description": "Operator workflow status",
       "default": "queued"
     },
+    "collection": {
+      "type": "string",
+      "description": "Issuetype collection the ticket's type resolves within. Stamped at creation (active collection) or kanban sync (the project sync's collection). Absent on legacy tickets — resolution falls back to the active collection, then a deterministic search.",
+      "pattern": "^[a-z0-9_]{3,64}$",
+      "examples": ["dev_kanban", "ralph_loop", "custom"]
+    },
     "step": {
       "type": "string",
       "description": "Current workflow step name (e.g., plan, build, code, test, deploy)",

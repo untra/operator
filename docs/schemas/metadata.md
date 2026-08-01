@@ -27,6 +27,7 @@ Schema for operator-tracked ticket metadata in YAML frontmatter. This schema doc
 | --- | --- | --- | --- |
 | `id` | `string` | Yes | Kanban ticket ID (e.g., FEAT-1234). Also used for tmux session name derivation. Key grammar: uppercase start, then uppercase letters, digits, or underscores (hyphen is reserved as the key/number separator). |
 | `status` | `string` | Yes | Operator workflow status |
+| `collection` | `string` | No | Issuetype collection the ticket's type resolves within. Stamped at creation (active collection) or kanban sync (the project sync's collection). Absent on legacy tickets — resolution falls back to the active collection, then a deterministic search. |
 | `step` | `string` | No | Current workflow step name (e.g., plan, build, code, test, deploy) |
 | `priority` | `string` | No | Ticket priority level |
 | `project` | `string` | No | Target project name (subdirectory in projects root) |
@@ -52,6 +53,13 @@ Schema for operator-tracked ticket metadata in YAML frontmatter. This schema doc
 - **Type**: `string`
 - **Default**: `"queued"`
 - **Allowed Values**: `queued`, `running`, `awaiting`, `completed`
+
+### collection
+
+- **Description**: Issuetype collection the ticket's type resolves within. Stamped at creation (active collection) or kanban sync (the project sync's collection). Absent on legacy tickets — resolution falls back to the active collection, then a deterministic search.
+- **Type**: `string`
+- **Pattern**: `^[a-z0-9_]{3,64}$`
+- **Examples**: `dev_kanban`, `ralph_loop`, `custom`
 
 ### step
 

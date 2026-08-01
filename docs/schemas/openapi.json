@@ -738,11 +738,25 @@
         "tags": [
           "Issue Types"
         ],
-        "summary": "List all issue types",
+        "summary": "List issue types (all collections deduped, or one collection via `?collection=`)",
         "operationId": "issuetypes_list",
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "query",
+            "description": "Collection to scope the lookup to (defaults to resolution-order lookup)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "List of all issue types",
+            "description": "List of issue types",
             "content": {
               "application/json": {
                 "schema": {
@@ -750,6 +764,16 @@
                   "items": {
                     "$ref": "#/components/schemas/IssueTypeSummary"
                   }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -821,6 +845,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "description": "Collection to scope the lookup to (defaults to resolution-order lookup)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -3081,6 +3117,13 @@
           "steps"
         ],
         "properties": {
+          "collection": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Target collection (defaults to the active collection)"
+          },
           "color": {
             "type": [
               "string",
@@ -3854,6 +3897,13 @@
           "steps"
         ],
         "properties": {
+          "collection": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Owning collection under resolution-order lookup"
+          },
           "color": {
             "type": [
               "string",
@@ -3908,6 +3958,13 @@
           "stepCount"
         ],
         "properties": {
+          "collection": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Owning collection under resolution-order lookup"
+          },
           "color": {
             "type": [
               "string",

@@ -65,7 +65,7 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
         help_text: "Choose how Operator will manage coding agent sessions:\n\
             - **tmux**: Terminal multiplexer, recommended for most setups\n\
             - **VS Code**: Launch agents as VS Code tasks (requires extension)\n\
-            - **cmux**: Lightweight tmux wrapper with operator defaults pre-applied\n\
+            - **cmux**: Native macOS terminal for AI agents, organized into windows and workspaces\n\
             - **Zellij**: Modern terminal workspace with built-in layouts\n\n\
             Your choice determines which setup steps follow.",
         navigation: "↑/↓ or j/k to navigate, Enter to select, Esc to go back",
@@ -103,9 +103,11 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
     SetupStepInfo {
         name: "Cmux Setup",
         description: "cmux session wrapper setup (shown if cmux selected)",
-        help_text: "cmux is a lightweight tmux wrapper that pre-applies Operator's preferred \
-            session defaults.\n\n\
-            This step verifies cmux is installed and accessible in your PATH.",
+        help_text: "cmux is a native macOS terminal that organizes AI agent sessions into \
+            windows and workspaces.\n\n\
+            This step verifies the cmux app's CLI binary exists at the configured \
+            binary_path (by default inside /Applications/cmux.app) and meets the \
+            minimum supported version.",
         navigation: "Enter to continue, Esc to go back",
     },
     SetupStepInfo {

@@ -306,7 +306,7 @@ if needs_docs; then
 
   require_tool bun "docs web components"
 
-  # docs.yml order: bindings -> webcomponents -> generated docs -> Jekyll
+  # docs.yml order: bindings -> webcomponents -> generated docs -> gem audit -> Jekyll
   step "Docs web components"
   (
     cargo test --locked export_bindings_ >/dev/null
@@ -314,6 +314,17 @@ if needs_docs; then
   ) && pass "Docs web components" || fail "Docs web components"
 
   run_step "docs generate" cargo run --locked -- docs
+
+  # Same advisory gate docs.yml runs against docs/Gemfile.lock ("Audit gems")
+  step "Gem audit"
+  (
+    cd docs
+    bundle install >/dev/null
+    if ! command -v bundle-audit &>/dev/null; then
+      gem install bundler-audit >/dev/null
+    fi
+    bundle-audit check --update
+  ) && pass "Gem audit" || fail "Gem audit"
 
   step "Jekyll build"
   (

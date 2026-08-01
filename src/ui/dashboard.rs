@@ -214,6 +214,8 @@ impl Dashboard {
             SessionWrapperType::Cmux => WrapperConnectionStatus::Cmux {
                 binary_available: false,
                 in_cmux: std::env::var("CMUX_WORKSPACE_ID").is_ok(),
+                version: None,
+                version_ok: true,
             },
             SessionWrapperType::Zellij => WrapperConnectionStatus::Zellij {
                 binary_available: false,

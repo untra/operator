@@ -22,7 +22,8 @@ Operator uses cmux workspaces to run LLM agent sessions, allowing you to focus a
 
 1. **macOS** — cmux is a macOS-only application
 2. **cmux installed** — by default, Operator looks for the binary at `/Applications/cmux.app/Contents/Resources/bin/cmux`
-3. **Running inside cmux** — Operator must be launched from within a cmux session (the `CMUX_WORKSPACE_ID` environment variable must be present)
+3. **cmux 0.64.8 or newer** — Operator's placement policies rely on `new-workspace --window`, which landed in cmux 0.64.8. Older versions are rejected at startup with an explicit `Unsupported version` error — update cmux to resolve it.
+4. **Running inside cmux** — Operator must be launched from within a cmux session (the `CMUX_WORKSPACE_ID` environment variable must be present)
 
 ## Configuration
 

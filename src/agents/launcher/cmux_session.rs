@@ -47,7 +47,7 @@ fn resolve_placement(
         }
         CmuxPlacementPolicy::Window => {
             let window_id = cmux
-                .create_window(None)
+                .create_window()
                 .map_err(|e| anyhow::anyhow!("Failed to create window: {e}"))?;
             Ok((window_id, true))
         }
@@ -62,7 +62,7 @@ fn resolve_placement(
                 Ok((window_id, false))
             } else {
                 let window_id = cmux
-                    .create_window(None)
+                    .create_window()
                     .map_err(|e| anyhow::anyhow!("Failed to create window: {e}"))?;
                 Ok((window_id, true))
             }
@@ -186,14 +186,14 @@ pub fn launch_in_cmux_with_options(
     // Inject relay env vars so agents can find the hub and register with their ticket ID
     if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
         let export_cmd = format!(
-            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}\n",
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}\r",
             ticket.id
         );
         let _ = cmux.send_text(&workspace_ref, &export_cmd);
     }
 
     // Send the command to the cmux workspace
-    let bash_cmd = format!("bash {}\n", command_file.display());
+    let bash_cmd = format!("bash {}\r", command_file.display());
     if let Err(e) = cmux.send_text(&workspace_ref, &bash_cmd) {
         // Clean up workspace on failure
         let _ = cmux.close_workspace(&workspace_ref);
@@ -353,12 +353,12 @@ pub fn launch_in_cmux_with_relaunch_options(
     )?;
     if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
         let export_cmd = format!(
-            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}\n",
+            "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}\r",
             ticket.id
         );
         let _ = cmux.send_text(&workspace_ref, &export_cmd);
     }
-    let bash_cmd = format!("bash {}\n", command_file.display());
+    let bash_cmd = format!("bash {}\r", command_file.display());
     if let Err(e) = cmux.send_text(&workspace_ref, &bash_cmd) {
         let _ = cmux.close_workspace(&workspace_ref);
         anyhow::bail!("Failed to start LLM agent in cmux workspace: {e}");

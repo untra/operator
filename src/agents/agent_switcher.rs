@@ -54,8 +54,9 @@ struct CmuxOps(Arc<dyn CmuxClient>);
 
 impl TerminalOps for CmuxOps {
     fn send_text(&self, workspace_ref: &str, text: &str, press_enter: bool) -> Result<()> {
+        // cmux passes text raw to the PTY; \r is Enter for raw-mode REPLs
         let text_to_send = if press_enter {
-            format!("{text}\n")
+            format!("{text}\r")
         } else {
             text.to_string()
         };

@@ -59,12 +59,22 @@ impl App {
                 }
             }
             SessionWrapperType::Cmux => {
-                let binary_path = &self.config.sessions.cmux.binary_path;
-                let binary_available = std::path::Path::new(binary_path).exists();
+                use crate::agents::CmuxClient as _;
+                let client =
+                    crate::agents::SystemCmuxClient::from_config(&self.config.sessions.cmux);
                 let in_cmux = std::env::var("CMUX_WORKSPACE_ID").is_ok();
+                let (binary_available, version, version_ok) = match client.check_available() {
+                    Ok(v) => (true, Some(v.raw), true),
+                    Err(crate::agents::CmuxError::UnsupportedVersion { found, .. }) => {
+                        (true, Some(found), false)
+                    }
+                    Err(_) => (false, None, true),
+                };
                 WrapperConnectionStatus::Cmux {
                     binary_available,
                     in_cmux,
+                    version,
+                    version_ok,
                 }
             }
             SessionWrapperType::Zellij => {

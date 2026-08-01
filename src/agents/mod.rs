@@ -64,7 +64,8 @@ pub use tmux::{
 
 // Cmux implementation
 pub use cmux::{
-    CmuxClient, CmuxError, CmuxWindow, CmuxWorkspace, CmuxWrapper, MockCmuxClient, SystemCmuxClient,
+    CmuxClient, CmuxError, CmuxVersion, CmuxWindow, CmuxWorkspace, CmuxWrapper, MockCmuxClient,
+    SystemCmuxClient, MIN_SUPPORTED_CMUX_VERSION,
 };
 
 /// Lowercase-hex encode bytes (e.g. a SHA-256 digest) without pulling in a

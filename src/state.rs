@@ -80,16 +80,16 @@ pub struct AgentState {
     #[serde(default)]
     #[ts(type = "string | null")]
     pub last_content_change: Option<DateTime<Utc>>,
-    /// PR URL if created during "pr" step
+    /// PR/MR URL if created during the "pr" step
     #[serde(default)]
     pub pr_url: Option<String>,
-    /// PR number for GitHub API tracking
+    /// Code review request (PR/MR) number
     #[serde(default)]
     pub pr_number: Option<u64>,
-    /// GitHub repo in format "owner/repo"
-    #[serde(default)]
-    pub github_repo: Option<String>,
-    /// Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed")
+    /// Repository in "owner/repo" format on the configured git provider
+    #[serde(default, alias = "github_repo")]
+    pub repo: Option<String>,
+    /// Last known PR/MR status ("open", "approved", "`changes_requested`", "merged", "closed")
     #[serde(default)]
     pub pr_status: Option<String>,
     /// Completed steps for this ticket
@@ -101,7 +101,8 @@ pub struct AgentState {
     /// LLM model alias (e.g., "opus", "sonnet", "gpt-4o")
     #[serde(default)]
     pub llm_model: Option<String>,
-    /// Launch mode: "default", "yolo", "docker", "docker-yolo"
+    /// Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`
+    /// (derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match)
     #[serde(default)]
     pub launch_mode: Option<String>,
     /// Review state for `awaiting_input` agents
@@ -117,6 +118,12 @@ pub struct AgentState {
     /// Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local)
     #[serde(default)]
     pub remote_host: Option<String>,
+    /// Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model.
+    #[serde(default)]
+    pub step_launch_context: Option<crate::agents::launcher::step_command::StepLaunchContext>,
+    /// Name of the resolved execution target this agent launched on
+    #[serde(default)]
+    pub target_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -322,7 +329,7 @@ impl State {
             last_content_change: Some(now),
             pr_url: None,
             pr_number: None,
-            github_repo: None,
+            repo: None,
             pr_status: None,
             completed_steps: Vec::new(),
             llm_tool,
@@ -332,6 +339,8 @@ impl State {
             dev_server_pid: None,
             worktree_path: None,
             remote_host: None,
+            step_launch_context: None,
+            target_name: None,
         });
 
         self.save()?;
@@ -377,7 +386,7 @@ impl State {
             last_content_change: Some(now),
             pr_url: None,
             pr_number: None,
-            github_repo: None,
+            repo: None,
             pr_status: None,
             completed_steps: Vec::new(),
             llm_tool,
@@ -387,6 +396,8 @@ impl State {
             dev_server_pid: None,
             worktree_path: None,
             remote_host: None,
+            step_launch_context: None,
+            target_name: None,
         });
 
         self.save()?;
@@ -509,6 +520,26 @@ impl State {
     pub fn update_agent_remote_host(&mut self, agent_id: &str, host_name: &str) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             agent.remote_host = Some(host_name.to_string());
+        }
+        self.save()
+    }
+
+    /// Record which execution target the agent launched on
+    pub fn update_agent_target_name(&mut self, agent_id: &str, target_name: &str) -> Result<()> {
+        if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
+            agent.target_name = Some(target_name.to_string());
+        }
+        self.save()
+    }
+
+    /// Persist the launch context used for multi-step exec-chain transitions
+    pub fn update_agent_step_launch_context(
+        &mut self,
+        agent_id: &str,
+        ctx: crate::agents::launcher::step_command::StepLaunchContext,
+    ) -> Result<()> {
+        if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
+            agent.step_launch_context = Some(ctx);
         }
         self.save()
     }
@@ -651,25 +682,25 @@ impl State {
         self.save()
     }
 
-    /// Update PR information for an agent
+    /// Update PR/MR information for an agent
     pub fn update_agent_pr(
         &mut self,
         agent_id: &str,
         pr_url: &str,
         pr_number: u64,
-        github_repo: &str,
+        repo: &str,
     ) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             agent.pr_url = Some(pr_url.to_string());
             agent.pr_number = Some(pr_number);
-            agent.github_repo = Some(github_repo.to_string());
+            agent.repo = Some(repo.to_string());
             agent.pr_status = Some("open".to_string());
             agent.last_activity = Utc::now();
         }
         self.save()
     }
 
-    /// Update PR status for an agent
+    /// Update PR/MR status for an agent
     pub fn update_pr_status(&mut self, agent_id: &str, status: &str) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             agent.pr_status = Some(status.to_string());
@@ -678,7 +709,7 @@ impl State {
         self.save()
     }
 
-    /// Get all agents that are waiting for PR approval
+    /// Get all agents that are waiting for PR/MR approval
     pub fn agents_awaiting_pr_approval(&self) -> Vec<&AgentState> {
         self.agents
             .iter()
@@ -691,11 +722,11 @@ impl State {
             .collect()
     }
 
-    /// Get all agents with active PRs (for status polling)
+    /// Get all agents with active PRs/MRs (for status polling)
     pub fn agents_with_prs(&self) -> Vec<&AgentState> {
         self.agents
             .iter()
-            .filter(|a| a.pr_number.is_some() && a.github_repo.is_some())
+            .filter(|a| a.pr_number.is_some() && a.repo.is_some())
             .collect()
     }
 
@@ -751,7 +782,7 @@ impl State {
             .collect()
     }
 
-    /// Get all agents awaiting PR merge
+    /// Get all agents awaiting PR/MR merge
     pub fn agents_awaiting_pr_merge(&self) -> Vec<&AgentState> {
         self.agents
             .iter()
@@ -1906,5 +1937,98 @@ mod tests {
         assert_eq!(agent.llm_tool, Some("claude".to_string()));
         assert_eq!(agent.llm_model, Some("sonnet".to_string()));
         assert_eq!(agent.status, "running");
+    }
+
+    // ─── Step Launch Context Tests ───────────────────────────────────────────
+
+    #[test]
+    fn test_step_launch_context_roundtrip() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let agent_id = state
+            .add_agent(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let ctx = crate::agents::launcher::step_command::StepLaunchContext {
+            delegator: Some("my-delegator".into()),
+            tool: "claude".to_string(),
+            model: "opus".to_string(),
+            yolo: true,
+            session_id: Some("abc-123".into()),
+            opr8r: "/usr/local/bin/opr8r".to_string(),
+            operator_relay: Some(true),
+            extra_flags: vec!["--verbose".into()],
+        };
+
+        state
+            .update_agent_step_launch_context(&agent_id, ctx)
+            .unwrap();
+
+        let reloaded = State::load(&config).unwrap();
+        let agent = reloaded.agents.iter().find(|a| a.id == agent_id).unwrap();
+        let loaded_ctx = agent.step_launch_context.as_ref().unwrap();
+
+        assert_eq!(loaded_ctx.delegator, Some("my-delegator".into()));
+        assert_eq!(loaded_ctx.tool, "claude");
+        assert_eq!(loaded_ctx.model, "opus");
+        assert!(loaded_ctx.yolo);
+        assert_eq!(loaded_ctx.session_id, Some("abc-123".into()));
+        assert_eq!(loaded_ctx.opr8r, "/usr/local/bin/opr8r");
+        assert_eq!(loaded_ctx.operator_relay, Some(true));
+        assert_eq!(loaded_ctx.extra_flags, vec!["--verbose".to_string()]);
+    }
+
+    #[test]
+    fn test_agent_state_without_step_launch_context_loads() {
+        let json = r#"{
+            "id": "test-agent-id",
+            "ticket_id": "FEAT-001",
+            "ticket_type": "FEAT",
+            "project": "test",
+            "status": "running",
+            "started_at": "2024-01-01T00:00:00Z",
+            "last_activity": "2024-01-01T00:00:00Z",
+            "last_message": null,
+            "paired": false,
+            "completed_steps": []
+        }"#;
+
+        let agent: AgentState = serde_json::from_str(json).unwrap();
+
+        assert_eq!(agent.id, "test-agent-id");
+        assert_eq!(agent.ticket_id, "FEAT-001");
+        assert_eq!(agent.ticket_type, "FEAT");
+        assert_eq!(agent.project, "test");
+        assert_eq!(agent.status, "running");
+        assert!(!agent.paired);
+        assert!(agent.step_launch_context.is_none());
+    }
+
+    #[test]
+    fn test_agent_state_github_repo_alias_deserializes_to_repo() {
+        let json = r#"{
+            "id": "test-agent-id",
+            "ticket_id": "FEAT-001",
+            "ticket_type": "FEAT",
+            "project": "test",
+            "status": "running",
+            "started_at": "2024-01-01T00:00:00Z",
+            "last_activity": "2024-01-01T00:00:00Z",
+            "last_message": null,
+            "paired": false,
+            "github_repo": "owner/name",
+            "completed_steps": []
+        }"#;
+
+        let agent: AgentState = serde_json::from_str(json).unwrap();
+
+        assert_eq!(agent.repo, Some("owner/name".to_string()));
     }
 }

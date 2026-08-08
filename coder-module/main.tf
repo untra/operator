@@ -32,10 +32,13 @@ variable "slug" {
   default     = "operator"
 }
 
+# `default` is revved by bump-version.sh and pinned to the VERSION file by
+# tests/version_parity.rs -- an unbumped tag points workspaces at a
+# nonexistent GitHub release.
 variable "install_version" {
   type        = string
   description = "The version of operator to install (must match a GitHub release tag)."
-  default     = "0.2.0"
+  default     = "0.2.6"
 }
 
 variable "install_prefix" {
@@ -99,6 +102,27 @@ variable "offline" {
   default     = false
 }
 
+# Child-workspace spawning: when set, the generated config gains a coder [[targets]] entry so tickets launched from this workspace create
+# sibling agent workspaces from this template. PREREQUISITE: a user session token `coder_token_env must be present
+# that token can create, delete, and SSH into every workspace its user owns.
+variable "agent_template" {
+  type        = string
+  description = "Coder template child agent workspaces are created from. Empty disables the coder target."
+  default     = ""
+}
+
+variable "coder_token_env" {
+  type        = string
+  description = "Name of the env var holding the Coder session token used to spawn agent workspaces."
+  default     = "CODER_SESSION_TOKEN"
+}
+
+variable "callback_url" {
+  type        = string
+  description = "Control-plane-reachable OPERATOR_API_URL override written into the coder target, so detached multi-step survives SSH tunnel loss. Empty keeps the reverse-tunnel default."
+  default     = ""
+}
+
 variable "use_cached" {
   type        = bool
   description = "Use a cached operator binary if present, otherwise download from GitHub."
@@ -119,6 +143,9 @@ resource "coder_script" "operator" {
     SESSION_WRAPPER = var.session_wrapper,
     OFFLINE         = var.offline,
     USE_CACHED      = var.use_cached,
+    AGENT_TEMPLATE  = var.agent_template,
+    CODER_TOKEN_ENV = var.coder_token_env,
+    CALLBACK_URL    = var.callback_url,
   })
   run_on_start = true
 

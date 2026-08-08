@@ -148,8 +148,9 @@ Schema definition for a lifecycle step
 | `type` | → `StepTypeTag` | No | Step type discriminator (defaults to "task" for backward compatibility) |
 | `outputs` | `array` | Yes | Types of outputs this step produces |
 | `prompt` | `string` | Yes | Initial prompt template for the Claude agent |
-| `review_type` | → `ReviewType` | No | Type of review required for this step (none, plan, visual, pr) |
+| `review_type` | → `ReviewType` | No | Type of review required for this step (none, plan, visual, pr, proof) |
 | `visual_config` | object | No | Configuration for visual review (required when `review_type` is "visual") |
+| `proof_config` | object | No | Configuration for proof review (required when `review_type` is "proof") |
 | `on_reject` | object | No | What to do if step output is rejected |
 | `next_step` | `string` \| `null` | No | Name of the next step (None for final step) |
 | `allowed_tools` | `array` | No | Claude Code tools allowed in this step |
@@ -190,6 +191,17 @@ Configuration for visual review steps
 | `url` | `string` | Yes | URL to open for visual check (supports handlebars templates) |
 | `startup_command` | `string` \| `null` | No | Optional startup command (e.g., dev server) to run before opening browser |
 | `startup_timeout_secs` | `integer` \| `null` | No | Timeout in seconds for server startup (default: 30) |
+
+### Definition: ProofReviewConfig
+
+Configuration for proof review steps
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `assertion_command` | `string` | Yes | Assertion command run via `sh -c` in the worktree root; exit code 0 = pass. Supports handlebars: {{ticket_id}}, {{step}}, {{proof_dir}} |
+| `artifact_command` | `string` \| `null` | No | Artifact-producing command (e.g. screenshot capture), run after the assertion regardless of its result |
+| `artifact_patterns` | `array` | No | Glob patterns (relative to worktree root) copied into .proof/{ticket_id}/{step}/ |
+| `timeout_secs` | `integer` \| `null` | No | Per-command timeout in seconds (default 120) |
 
 ### Definition: OnReject
 

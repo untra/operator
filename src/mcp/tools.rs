@@ -361,6 +361,7 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
                 .and_then(|v| v.as_str())
                 .unwrap_or("terminal");
             let request = LaunchTicketRequest {
+                target: None,
                 delegator: None,
                 provider: None,
                 model: Some(model.to_string()),

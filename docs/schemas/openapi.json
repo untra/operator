@@ -3354,7 +3354,7 @@
           },
           "review_type": {
             "type": "string",
-            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
           }
         }
       },
@@ -3452,7 +3452,7 @@
               "boolean",
               "null"
             ],
-            "description": "Run in docker container (None = use global `launch.docker.enabled`)"
+            "description": "DEPRECATED: prefer `target`. Run in docker container\n(None = fall back to `launch.docker.enabled`, then local)."
           },
           "flags": {
             "type": "array",
@@ -3466,7 +3466,7 @@
               "string",
               "null"
             ],
-            "description": "Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent\nCLI on over SSH. `None` = launch locally."
+            "description": "DEPRECATED: prefer `target`. Name of a declared `RemoteHost` (from\n`Config.hosts`) to launch the agent CLI on over SSH. `None` = local."
           },
           "operator_relay": {
             "type": [
@@ -3495,6 +3495,13 @@
               "null"
             ],
             "description": "Prompt text to append after the generated step prompt"
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of an execution target: an explicit `[[targets]]` entry, the\nsynthesized `local`/`docker` targets, or a `[[hosts]]` name.\nSupersedes `docker` and `host`."
           },
           "use_worktrees": {
             "type": [
@@ -3539,7 +3546,7 @@
               "string",
               "null"
             ],
-            "description": "Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local)"
+            "description": "Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local).\nDEPRECATED: prefer `target`."
           },
           "operator_relay": {
             "type": [
@@ -3568,6 +3575,13 @@
               "null"
             ],
             "description": "Prompt text to append after the generated step prompt"
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of an execution target (explicit `[[targets]]` entry, synthesized\n`local`/`docker`, or a `[[hosts]]` name). Supersedes `docker`/`host`."
           },
           "use_worktrees": {
             "type": [
@@ -3690,6 +3704,10 @@
           "command_template": {
             "type": "string",
             "description": "Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders"
+          },
+          "health_ok": {
+            "type": "boolean",
+            "description": "Whether the tool's health command succeeded"
           },
           "min_version": {
             "type": [
@@ -4424,6 +4442,10 @@
           "timestamp"
         ],
         "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Ticket markdown filename (joins with the tickets dir + status folder\nfor co-located clients; remote clients treat tickets as API-only)"
+          },
           "id": {
             "type": "string",
             "description": "Ticket ID (e.g., \"FEAT-7598\")"
@@ -4511,6 +4533,13 @@
             ],
             "description": "Feedback for relaunch (what went wrong on previous attempt)"
           },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Execution-target override by name (explicit `[[targets]]` entry,\nsynthesized `local`/`docker`, or a `[[hosts]]` name). Overrides the\ndelegator's launch config for this launch only."
+          },
           "wrapper": {
             "type": [
               "string",
@@ -4552,6 +4581,10 @@
           "command": {
             "type": "string",
             "description": "Command to execute in terminal"
+          },
+          "executed_server_side": {
+            "type": "boolean",
+            "description": "True when the server executed the launch itself (non-local targets:\ndocker/coder/ssh orchestration is server-side); `command` is then\nempty and the client must NOT run anything."
           },
           "session_context_ref": {
             "type": [
@@ -5119,7 +5152,7 @@
           },
           "review_type": {
             "type": "string",
-            "description": "Review type: \"none\", \"plan\", \"visual\", \"pr\""
+            "description": "Review type: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
           }
         }
       },
@@ -5991,7 +6024,7 @@
           },
           "review_type": {
             "type": "string",
-            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
           }
         }
       },
@@ -6323,7 +6356,7 @@
               "string",
               "null"
             ],
-            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\""
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
           }
         }
       },

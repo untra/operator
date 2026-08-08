@@ -209,6 +209,10 @@ impl TicketSessionSync {
                                     "Step requires PR review - awaiting PR creation"
                                 );
                             }
+                            ReviewType::Proof => {
+                                // treat as a standard awaiting_input
+                                state.update_agent_status(&agent_id, "awaiting_input", None)?;
+                            }
                         }
 
                         // Add history entry to ticket
@@ -303,6 +307,16 @@ impl TicketSessionSync {
                                     "completing",
                                     Some("All steps completed".to_string()),
                                 )?;
+                                // Coder targets: stop the finished workspace
+                                // (never delete). Best-effort by design.
+                                if let Some(agent) =
+                                    state.agents.iter().find(|a| a.id == agent_id).cloned()
+                                {
+                                    crate::agents::launcher::coder::stop_on_complete_for_agent(
+                                        &self.config,
+                                        &agent,
+                                    );
+                                }
                                 result.completed.push(ticket.id.clone());
                                 tracing::info!(
                                     ticket_id = %ticket.id,
@@ -492,7 +506,15 @@ impl TicketSessionSync {
                         }
 
                         // Remove all sub-agent records now that the group is done.
+                        // Coder targets: stop each finished workspace first.
                         for aid in &agent_ids {
+                            if let Some(agent) = state.agents.iter().find(|a| &a.id == aid).cloned()
+                            {
+                                crate::agents::launcher::coder::stop_on_complete_for_agent(
+                                    &self.config,
+                                    &agent,
+                                );
+                            }
                             state.remove_agent(aid)?;
                         }
                         state.cleanup_finished_groups()?;

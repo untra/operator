@@ -20,7 +20,7 @@
     },
     "tool_name": {
       "type": "string",
-      "description": "The binary/command name used to invoke this tool. Must match the executable name in PATH.",
+      "description": "The binary/command name used to invoke this tool. Must match the executable name in PATH (unless detection.mode is \"always\", where it is used verbatim as the invocation path).",
       "examples": ["claude", "gemini", "codex"]
     },
     "display_name": {
@@ -151,6 +151,66 @@
         ["--auto-approve", "-y"],
         ["--full-auto"]
       ]
+    },
+    "detection": {
+      "type": "object",
+      "description": "Detection behavior overrides. Omit for the default: gate detection on a successful `which <tool_name>` lookup, which also serves as the tool's health proof.",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["which", "always"],
+          "default": "which",
+          "description": "\"which\" gates detection on the binary being found in PATH, and that verified presence earns the tool its health. \"always\" skips the PATH lookup and uses tool_name verbatim as the invocation path — for tools not installed locally (e.g. invoked over SSH) or binaries without a stable PATH entry; because nothing is locally verifiable, an always-mode tool is unhealthy until a health_command passes."
+        },
+        "health_command": {
+          "type": "string",
+          "description": "Health check run at every startup. Health is earned, never assumed: which-mode tools must still be on PATH and pass this command if set; always-mode tools require this command to be set and pass. An unhealthy tool stays listed but cannot be launched locally.",
+          "examples": ["agy ping", "ssh gpu-vm command -v agy"]
+        }
+      }
+    },
+    "idle_detection": {
+      "type": "object",
+      "description": "Configuration for idle/awaiting-input state detection in the tool's terminal output.",
+      "additionalProperties": false,
+      "properties": {
+        "idle_patterns": {
+          "type": "array",
+          "description": "Regex patterns that indicate the tool is idle/waiting for input (e.g. prompt characters).",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "activity_patterns": {
+          "type": "array",
+          "description": "Regex patterns that indicate the tool is actively working (spinners, status messages).",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "hook_config": {
+          "type": "object",
+          "description": "Hook configuration for tools that support completion hooks.",
+          "required": ["event_name", "script_path", "settings_path"],
+          "additionalProperties": false,
+          "properties": {
+            "event_name": {
+              "type": "string",
+              "description": "Hook event name.",
+              "examples": ["Stop", "AfterAgent"]
+            },
+            "script_path": {
+              "type": "string",
+              "description": "Path to the hook script.",
+              "examples": ["~/.claude/hooks/operator-stop.sh"]
+            },
+            "settings_path": {
+              "type": "string",
+              "description": "Settings file path for this tool.",
+              "examples": ["~/.claude/settings.json"]
+            }
+          }
+        }
+      }
     },
     "skill_directories": {
       "type": "object",

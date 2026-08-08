@@ -165,6 +165,7 @@ needs_operator() {
 needs_opr8r()      { has_changes '^opr8r/'; }
 needs_vscode()     { has_changes '^(vscode-extension/|icons/)'; }
 needs_zed()        { has_changes '^zed-extension/'; }
+needs_coder()      { has_changes '^(coder-module/|\.github/workflows/coder-module\.yaml$|scripts/ci/check-coder-module\.sh$)'; }
 needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/taxonomy/taxonomy\.toml|src/templates/.*\.json|src/collections/|collections/|src/schemas/|webcomponents/|src/workflow_gen/)'; }
 
 # A bun project needs a lockfile check whenever its package.json or bun.lock
@@ -297,7 +298,27 @@ else
   skip "zed-extension"
 fi
 
-# --- 5. docs ---
+# --- 5. coder-module ---
+
+if needs_coder; then
+  section "coder-module"
+  require_tool shellcheck "coder-module rendered script"
+  require_tool bun "coder-module tests"
+  if ! command -v terraform &>/dev/null && ! command -v tofu &>/dev/null; then
+    echo -e "${RED}Missing required tool: ${BOLD}terraform or tofu${RESET}${RED} (needed for coder-module)${RESET}"
+    exit 1
+  fi
+  TF_BIN=$(command -v terraform >/dev/null && echo terraform || echo tofu)
+
+  run_step "coder-module fmt" "$TF_BIN" -chdir=coder-module fmt -check -diff
+  run_step "coder-module validate" bash -c "$TF_BIN -chdir=coder-module init -input=false -backend=false >/dev/null && $TF_BIN -chdir=coder-module validate"
+  run_step "coder-module rendered shellcheck" scripts/ci/check-coder-module.sh
+  run_step "coder-module test" bash -c "cd coder-module && bun test"
+else
+  skip "coder-module"
+fi
+
+# --- 6. docs ---
 
 if needs_docs; then
   section "docs"

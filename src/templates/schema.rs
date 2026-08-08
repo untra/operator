@@ -146,12 +146,15 @@ pub struct StepSchema {
     pub outputs: Vec<StepOutput>,
     /// Initial prompt template for the Claude agent
     pub prompt: String,
-    /// Type of review required for this step (none, plan, visual, pr)
+    /// Type of review required for this step (none, plan, visual, pr, proof)
     #[serde(default)]
     pub review_type: ReviewType,
     /// Configuration for visual review (required when `review_type` is "visual")
     #[serde(default)]
     pub visual_config: Option<VisualReviewConfig>,
+    /// Configuration for proof review (required when `review_type` is "proof")
+    #[serde(default)]
+    pub proof_config: Option<ProofReviewConfig>,
     /// What to do if step output is rejected
     #[serde(default)]
     pub on_reject: Option<OnReject>,
@@ -284,6 +287,8 @@ pub enum ReviewType {
     Visual,
     /// Git interface PR review workflow
     Pr,
+    /// Assertion command gate, then human confirmation
+    Proof,
 }
 
 /// Configuration for visual review steps
@@ -298,6 +303,24 @@ pub struct VisualReviewConfig {
     /// Timeout in seconds for server startup (default: 30)
     #[serde(default)]
     pub startup_timeout_secs: Option<u32>,
+}
+
+/// Configuration for proof review steps
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
+pub struct ProofReviewConfig {
+    /// Assertion command run via `sh -c` in the worktree root; exit code 0 = pass.
+    /// Supports handlebars: `{{ticket_id}}`, `{{step}}`, `{{proof_dir}}`
+    pub assertion_command: String,
+    /// Artifact-producing command (e.g. screenshot capture), run after the assertion regardless of its result
+    #[serde(default)]
+    pub artifact_command: Option<String>,
+    /// Glob patterns (relative to worktree root) copied into `.proof/{ticket_id}/{step}/`
+    #[serde(default)]
+    pub artifact_patterns: Vec<String>,
+    /// Per-command timeout in seconds (default 120)
+    #[serde(default)]
+    pub timeout_secs: Option<u32>,
 }
 
 /// Discriminator tag for step types
@@ -717,6 +740,32 @@ impl TemplateSchema {
                         ));
                     }
                 }
+            }
+
+            // Validate review_type config presence and constraints
+            match step.review_type {
+                ReviewType::Visual if step.visual_config.is_none() => {
+                    errors.push(format!(
+                        "Step '{}': review_type 'visual' requires visual_config",
+                        step.name
+                    ));
+                }
+                ReviewType::Proof => match &step.proof_config {
+                    None => {
+                        errors.push(format!(
+                            "Step '{}': review_type 'proof' requires proof_config",
+                            step.name
+                        ));
+                    }
+                    Some(cfg) if cfg.assertion_command.trim().is_empty() => {
+                        errors.push(format!(
+                            "Step '{}': proof_config.assertion_command must not be empty",
+                            step.name
+                        ));
+                    }
+                    Some(_) => {}
+                },
+                _ => {}
             }
 
             // Validate step type config presence and constraints
@@ -2153,5 +2202,157 @@ mod tests {
                 .any(|e| e.contains("glob") && e.contains("pattern")),
             "got {errs:?}"
         );
+    }
+
+    #[test]
+    fn test_proof_step_round_trips_and_validates() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "verify",
+                    "outputs": ["report"],
+                    "prompt": "Verify the change",
+                    "allowed_tools": [],
+                    "review_type": "proof",
+                    "proof_config": {
+                        "assertion_command": "cargo test",
+                        "artifact_command": "cargo test -- --format json",
+                        "artifact_patterns": ["target/proof/*.json"],
+                        "timeout_secs": 300
+                    }
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        assert_eq!(schema.steps[0].review_type, ReviewType::Proof);
+        let cfg = schema.steps[0].proof_config.as_ref().unwrap();
+        assert_eq!(cfg.assertion_command, "cargo test");
+        assert_eq!(
+            cfg.artifact_command.as_deref(),
+            Some("cargo test -- --format json")
+        );
+        assert_eq!(cfg.artifact_patterns, vec!["target/proof/*.json"]);
+        assert_eq!(cfg.timeout_secs, Some(300));
+        assert!(schema.validate().is_ok());
+    }
+
+    #[test]
+    fn test_proof_missing_config_fails_validation() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "verify",
+                    "outputs": ["report"],
+                    "prompt": "Verify the change",
+                    "allowed_tools": [],
+                    "review_type": "proof"
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        let result = schema.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err()[0].contains("proof_config"));
+    }
+
+    #[test]
+    fn test_proof_empty_assertion_command_fails_validation() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "verify",
+                    "outputs": ["report"],
+                    "prompt": "Verify the change",
+                    "allowed_tools": [],
+                    "review_type": "proof",
+                    "proof_config": {
+                        "assertion_command": "   "
+                    }
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        let result = schema.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err()[0].contains("assertion_command"));
+    }
+
+    #[test]
+    fn test_visual_missing_config_fails_validation() {
+        let json = r#"{
+            "key": "TEST",
+            "name": "Test",
+            "description": "Test template",
+            "mode": "autonomous",
+            "glyph": "*",
+            "fields": [
+                {
+                    "name": "id",
+                    "description": "ID",
+                    "type": "string",
+                    "required": true,
+                    "auto": "id"
+                }
+            ],
+            "steps": [
+                {
+                    "name": "check",
+                    "outputs": ["report"],
+                    "prompt": "Check it looks right",
+                    "allowed_tools": [],
+                    "review_type": "visual"
+                }
+            ]
+        }"#;
+
+        let schema = TemplateSchema::from_json(json).unwrap();
+        let result = schema.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err()[0].contains("visual_config"));
     }
 }

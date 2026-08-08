@@ -232,6 +232,7 @@ mod tests {
                 prompt_suffix: Some("SUFFIX".to_string()),
                 operator_relay: Some(true),
                 host: Some("gpu-vm".to_string()),
+                target: None,
             }),
             model_server: Some("anthropic-api".to_string()),
             remote_agent: None,

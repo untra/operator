@@ -202,6 +202,10 @@ pub struct VsCodeLaunchOptions {
     pub yolo_mode: bool,
     /// Resume from existing session (uses `session_id` from ticket)
     pub resume_session: bool,
+    /// Execution-target override by name (None = delegator/default resolution)
+    #[serde(default)]
+    #[ts(optional)]
+    pub target: Option<String>,
 }
 
 /// Parsed ticket metadata from YAML frontmatter

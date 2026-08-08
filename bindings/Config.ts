@@ -17,6 +17,7 @@ import type { RelayConfig } from "./RelayConfig";
 import type { RemoteHost } from "./RemoteHost";
 import type { RestApiConfig } from "./RestApiConfig";
 import type { SessionsConfig } from "./SessionsConfig";
+import type { TargetDef } from "./TargetDef";
 import type { TemplatesConfig } from "./TemplatesConfig";
 import type { TmuxConfig } from "./TmuxConfig";
 import type { UiConfig } from "./UiConfig";
@@ -53,6 +54,10 @@ model_servers: Array<ModelServer>,
  * from `DelegatorLaunchConfig.host`.
  */
 hosts: Array<RemoteHost>, 
+/**
+ * Named execution targets (docker/coder/ssh/local) referenced by `DelegatorLaunchConfig.target`.
+ */
+targets: Array<TargetDef>, 
 /**
  * Relay MCP injection configuration
  */

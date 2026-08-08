@@ -129,6 +129,7 @@ mod tests {
             command_template: String::new(),
             capabilities: ToolCapabilities::default(),
             yolo_flags: vec![],
+            health_ok: true,
         });
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 

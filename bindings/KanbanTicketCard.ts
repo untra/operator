@@ -39,4 +39,9 @@ priority: string,
 /**
  * Timestamp for sorting (YYYYMMDD-HHMM format)
  */
-timestamp: string, };
+timestamp: string, 
+/**
+ * Ticket markdown filename (joins with the tickets dir + status folder
+ * for co-located clients; remote clients treat tickets as API-only)
+ */
+filename: string, };

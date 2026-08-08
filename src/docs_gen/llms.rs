@@ -83,6 +83,11 @@ const SECTIONS: &[Section] = &[
                 slug: "delegators",
                 fallback_desc: "",
             },
+            Link {
+                slug: "getting-started/sessions/remote-hosts",
+                fallback_desc:
+                    "Run launched agents on remote machines over SSH (execution targets).",
+            },
         ],
         extra: &[],
     },

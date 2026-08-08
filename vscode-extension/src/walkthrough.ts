@@ -86,6 +86,7 @@ export interface DetectedToolResult {
   path: string;
   version: string;
   version_ok: boolean;
+  health_ok: boolean;
 }
 
 /** Tool metadata for version detection (mirrors src/llm/tools/*.json) */
@@ -144,7 +145,8 @@ async function detectSingleTool(tool: string): Promise<DetectedToolResult | null
     }
   }
 
-  return { name: tool, path: toolPath, version, version_ok: versionOk };
+  // The `which` gate above succeeded, so presence verified.
+  return { name: tool, path: toolPath, version, version_ok: versionOk, health_ok: true };
 }
 
 /**

@@ -37,6 +37,8 @@ docs:
           - title: Zed
             url: /getting-started/sessions/zed/
             icon: zed
+          - title: Remote Hosts (SSH)
+            url: /getting-started/sessions/remote-hosts/
       - title: Supported Kanban Providers
         url: /getting-started/kanban/
         children:

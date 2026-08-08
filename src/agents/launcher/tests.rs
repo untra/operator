@@ -51,6 +51,7 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
             supports_headless: true,
         },
         yolo_flags: vec!["--dangerously-skip-permissions".to_string()],
+        health_ok: true,
     };
 
     Config {
@@ -660,11 +661,12 @@ fn test_launch_in_tmux_remote_host_sends_wrapper_and_skips_relay() {
         .to_string_lossy()
         .to_string();
     let options = LaunchOptions {
-        remote_host: Some(crate::config::RemoteHost {
+        target: crate::config::TargetDef::from_host(&crate::config::RemoteHost {
             name: "gpu-vm".to_string(),
             ssh_alias: "gpu-alias".to_string(),
             workdir: "/srv/agents/proj".to_string(),
             display_name: None,
+            ssh_config_path: None,
         }),
         ..Default::default()
     };
@@ -855,7 +857,7 @@ fn test_launch_in_tmux_docker_mode_wraps() {
         .to_string_lossy()
         .to_string();
     let options = LaunchOptions {
-        docker_mode: true,
+        target: crate::config::TargetDef::docker(config.launch.docker.clone()),
         ..Default::default()
     };
 
@@ -883,6 +885,227 @@ fn test_launch_in_tmux_docker_mode_wraps() {
     );
 }
 
+/// FEAT ticket positioned on "plan", the first step of the embedded FEAT
+/// schema — satisfies `step_command::chain_step` so the launch wraps in opr8r.
+fn make_chain_ticket(project: &str) -> Ticket {
+    Ticket {
+        ticket_type: "FEAT".to_string(),
+        step: "plan".to_string(),
+        ..make_test_ticket(project)
+    }
+}
+
+#[test]
+fn test_launch_in_tmux_wraps_command_in_opr8r() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_chain_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions::default();
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+        &make_test_operator_env(),
+    );
+
+    assert!(result.is_ok(), "Launch failed: {:?}", result.err());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
+    assert!(
+        script_content.contains("--ticket-id="),
+        "Command file should carry the opr8r ticket id flag, got: {script_content}"
+    );
+    assert!(
+        script_content.contains("--step="),
+        "Command file should carry the opr8r step flag, got: {script_content}"
+    );
+    assert!(
+        script_content.contains("--session-id="),
+        "Command file should carry the opr8r session id flag, got: {script_content}"
+    );
+    assert!(
+        script_content.contains("-- claude"),
+        "Command file should separate the opr8r wrapper from the LLM command, got: {script_content}"
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_docker_wrap_is_outermost() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config_with_docker(&temp_dir, "my-claude:latest");
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_chain_ticket("test-project");
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions {
+        target: crate::config::TargetDef::docker(config.launch.docker.clone()),
+        ..Default::default()
+    };
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+        &make_test_operator_env(),
+    );
+
+    assert!(result.is_ok(), "Launch failed: {:?}", result.err());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
+    let docker_idx = script_content
+        .find("docker run")
+        .expect("Command file should contain docker run");
+    let opr8r_idx = script_content
+        .find("opr8r --ticket-id=")
+        .expect("Command file should contain the containerized opr8r invocation");
+    assert!(
+        docker_idx < opr8r_idx,
+        "docker run must wrap OUTSIDE the opr8r invocation, got: {script_content}"
+    );
+
+    // The token immediately preceding "--ticket-id=" must be the bare literal
+    // "opr8r" (per resolve_opr8r_invocation(true)), not an absolute host path
+    // like "/Users/x/operator/opr8r" — `contains("opr8r --ticket-id=")` alone
+    // would match either, since a path only has safe characters and isn't
+    // quoted by escape_if_needed.
+    let before_ticket_id = script_content
+        .split(" --ticket-id=")
+        .next()
+        .expect("script should contain --ticket-id=");
+    let opr8r_token = before_ticket_id
+        .rsplit(char::is_whitespace)
+        .next()
+        .unwrap_or("")
+        .trim_matches('\'');
+    assert_eq!(
+        opr8r_token, "opr8r",
+        "containerized opr8r invocation must be the literal bare command, not an absolute host path: {script_content}"
+    );
+}
+
+/// The launch context persisted for a new agent must carry the session uuid
+/// the backend actually minted, so `complete_step` can match this agent by
+/// session id on the very first transition.
+#[test]
+fn test_launched_session_uuid_returns_backend_minted_uuid() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = make_chain_ticket("test-project");
+
+    // The backend records the uuid on the in-progress ticket file.
+    let in_progress = config
+        .tickets_path()
+        .join("in-progress")
+        .join(&ticket.filename);
+    std::fs::write(
+        &in_progress,
+        "---\nid: TASK-1234\nstatus: running\nstep: plan\n---\n\n# Chain ticket\n",
+    )
+    .unwrap();
+    assert!(
+        super::launched_session_uuid(&config, &ticket).is_none(),
+        "nothing minted before the launch"
+    );
+
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let session_name = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &LaunchOptions::default(),
+        &make_test_operator_env(),
+    )
+    .expect("launch should succeed");
+
+    let keys_sent = mock.get_session_keys_sent(&session_name).unwrap();
+    let script_content = read_command_file_content(&keys_sent[0]).expect("command file readable");
+
+    let uuid = super::launched_session_uuid(&config, &ticket)
+        .expect("the minted session uuid must be readable after launch");
+    assert!(
+        script_content.contains(&format!("--session-id={uuid}")),
+        "readback uuid must be the one the backend wrapped the step with: {script_content}"
+    );
+}
+
+#[test]
+fn test_launch_in_tmux_no_wrap_for_unknown_ticket_type() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = make_test_config(&temp_dir);
+    let mock = Arc::new(MockTmuxClient::new());
+    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let ticket = Ticket {
+        ticket_type: "UNKNOWNTYPE".to_string(),
+        ..make_test_ticket("test-project")
+    };
+    let project_path = temp_dir
+        .path()
+        .join("projects")
+        .join("test-project")
+        .to_string_lossy()
+        .to_string();
+    let options = LaunchOptions::default();
+
+    let result = launch_in_tmux_with_options(
+        &config,
+        &tmux,
+        &ticket,
+        &project_path,
+        "Test prompt",
+        &options,
+        &make_test_operator_env(),
+    );
+
+    assert!(result.is_ok(), "Launch failed: {:?}", result.err());
+    let session_name = result.unwrap();
+    let keys_sent = mock.get_session_keys_sent(&session_name);
+    let sent_cmd = &keys_sent.unwrap()[0];
+
+    let script_content =
+        read_command_file_content(sent_cmd).expect("Should be able to read command file content");
+    assert!(
+        !script_content.contains("--ticket-id="),
+        "Unknown ticket type must launch unwrapped (legacy path), got: {script_content}"
+    );
+}
+
 #[test]
 fn test_launch_in_tmux_both_modes() {
     let temp_dir = TempDir::new().unwrap();
@@ -898,7 +1121,7 @@ fn test_launch_in_tmux_both_modes() {
         .to_string();
     let options = LaunchOptions {
         yolo_mode: true,
-        docker_mode: true,
+        target: crate::config::TargetDef::docker(config.launch.docker.clone()),
         ..Default::default()
     };
 
@@ -947,6 +1170,7 @@ fn test_launch_in_tmux_uses_provider_from_options() {
                 .to_string(),
         capabilities: crate::config::ToolCapabilities::default(),
         yolo_flags: vec![],
+        health_ok: true,
     });
     let mock = Arc::new(MockTmuxClient::new());
     let tmux: Arc<dyn TmuxClient> = mock.clone();
@@ -1128,11 +1352,12 @@ fn test_relaunch_remote_resume_reuses_session_and_adds_resume_flag() {
 
     let options = RelaunchOptions {
         launch_options: LaunchOptions {
-            remote_host: Some(crate::config::RemoteHost {
+            target: crate::config::TargetDef::from_host(&crate::config::RemoteHost {
                 name: "gpu-vm".to_string(),
                 ssh_alias: "gpu-alias".to_string(),
                 workdir: "/srv/agents/proj".to_string(),
                 display_name: None,
+                ssh_config_path: None,
             }),
             ..Default::default()
         },
@@ -1237,7 +1462,7 @@ fn test_relaunch_inherits_docker_mode() {
         .to_string();
     let options = RelaunchOptions {
         launch_options: LaunchOptions {
-            docker_mode: true,
+            target: crate::config::TargetDef::docker(config.launch.docker.clone()),
             ..Default::default()
         },
         resume_session_id: None,
@@ -1528,6 +1753,7 @@ fn test_launch_provider_from_delegator_determines_tool() {
                 .to_string(),
         capabilities: crate::config::ToolCapabilities::default(),
         yolo_flags: vec!["--full-auto".to_string()],
+        health_ok: true,
     });
 
     let mock = Arc::new(MockTmuxClient::new());

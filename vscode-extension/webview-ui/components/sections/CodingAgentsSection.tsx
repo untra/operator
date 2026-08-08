@@ -66,7 +66,10 @@ export function CodingAgentsSection({
           <div className="op-row op-gap-1 op-wrap op-mb-1">
             {detected.length > 0 ? (
               detected.map((tool) => (
-                <span key={tool.name} title={tool.path}>
+                <span
+                  key={tool.name}
+                  title={tool.health_ok ? tool.path : `${tool.path} — health check failed; cannot launch`}
+                >
                   <Chip
                     label={
                       <>
@@ -76,7 +79,7 @@ export function CodingAgentsSection({
                         {`${tool.name} ${tool.version}`}
                       </>
                     }
-                    color={tool.version_ok ? 'default' : 'warning'}
+                    color={!tool.health_ok ? 'error' : tool.version_ok ? 'default' : 'warning'}
                   />
                 </span>
               ))

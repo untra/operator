@@ -11,6 +11,8 @@ import * as fs from 'fs/promises';
 import { TerminalManager } from './terminal-manager';
 import { IssueTypeService } from './issuetype-service';
 import { TicketInfo } from './types';
+import { OperatorApiClient } from './api-client';
+import type { KanbanTicketCard } from './generated';
 
 /**
  * TreeDataProvider for ticket lists
@@ -25,6 +27,7 @@ export class TicketTreeProvider
 
   private tickets: TicketInfo[] = [];
   private ticketsDir: string | undefined;
+  private apiClient: OperatorApiClient | undefined;
 
   constructor(
     private readonly status: 'in-progress' | 'queue' | 'completed',
@@ -36,12 +39,38 @@ export class TicketTreeProvider
     this.terminalManager = manager;
   }
 
+  /** Attach an API client: the tree becomes API-backed (disk is the fallback). */
+  setApiClient(client: OperatorApiClient | undefined): void {
+    this.apiClient = client;
+  }
+
   async setTicketsDir(dir: string | undefined): Promise<void> {
     this.ticketsDir = dir;
     await this.refresh();
   }
 
   async refresh(): Promise<void> {
+    // API-backed first: against a genuinely remote server, disk reads would
+    // show an empty tree despite a healthy connection. Disk remains the
+    // fallback when no server is reachable.
+    if (this.apiClient) {
+      try {
+        const board = await this.apiClient.getKanban();
+        const cards =
+          this.status === 'queue'
+            ? board.queue
+            : this.status === 'in-progress'
+              ? [...board.running, ...board.awaiting]
+              : board.done;
+        this.tickets = cards.map((c) => this.cardToTicket(c));
+        this.tickets.sort((a, b) => a.id.localeCompare(b.id));
+        this._onDidChangeTreeData.fire(undefined);
+        return;
+      } catch {
+        // Server went away — fall through to disk.
+      }
+    }
+
     if (!this.ticketsDir) {
       this.tickets = [];
       this._onDidChangeTreeData.fire(undefined);
@@ -68,6 +97,23 @@ export class TicketTreeProvider
     }
 
     this._onDidChangeTreeData.fire(undefined);
+  }
+
+  /** Map an API kanban card onto the same TicketInfo shape disk parsing yields. */
+  private cardToTicket(card: KanbanTicketCard): TicketInfo {
+    // Co-located servers share the filesystem, so file opening still works;
+    // genuinely remote tickets have no local path.
+    const filePath =
+      this.ticketsDir && card.filename
+        ? path.join(this.ticketsDir, this.status, card.filename)
+        : '';
+    return {
+      id: card.id,
+      title: card.summary,
+      type: card.ticket_type,
+      status: this.status,
+      filePath,
+    };
   }
 
   private parseTicket(

@@ -168,7 +168,7 @@ impl App {
                         self.confirm_dialog.cycle_project();
                     }
                     KeyCode::Char('d' | 'D') => {
-                        self.confirm_dialog.toggle_docker();
+                        self.confirm_dialog.cycle_target();
                     }
                     KeyCode::Char('a' | 'A') => {
                         self.confirm_dialog.toggle_yolo();
@@ -202,7 +202,7 @@ impl App {
                         self.confirm_dialog.cycle_project();
                     }
                     KeyCode::Char('d' | 'D') => {
-                        self.confirm_dialog.toggle_docker();
+                        self.confirm_dialog.cycle_target();
                     }
                     KeyCode::Char('a' | 'A') => {
                         self.confirm_dialog.toggle_yolo();

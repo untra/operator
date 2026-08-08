@@ -46,13 +46,15 @@ use app::App;
 use config::Config;
 use templates::glyph_for_key;
 
-/// Detect installed LLM tools in PATH
+/// Detect installed LLM tools from the loaded tool configs
 fn detect_llm_tools() -> Vec<String> {
-    let tools = ["claude", "codex", "gemini"];
-    tools
-        .iter()
-        .filter(|tool| which::which(tool).is_ok())
-        .map(|s| (*s).to_string())
+    use llm::tool_config::DetectionMode;
+    llm::tool_config::load_all_tool_configs()
+        .into_iter()
+        .filter(|t| {
+            t.detection_mode() == DetectionMode::Always || which::which(&t.tool_name).is_ok()
+        })
+        .map(|t| t.tool_name)
         .collect()
 }
 
@@ -161,7 +163,7 @@ enum Commands {
         #[arg(long)]
         delegator: Option<String>,
 
-        /// LLM tool override: claude, codex, gemini
+        /// LLM tool override (e.g., claude, codex, gemini, or configured tool)
         #[arg(long = "llm-tool")]
         llm_tool: Option<String>,
 
@@ -289,7 +291,7 @@ enum Commands {
         #[arg(short = 'k', long)]
         kanban_provider: Option<String>,
 
-        /// Preferred LLM tool: claude, codex, gemini
+        /// Preferred LLM tool (e.g., claude, codex, gemini, or any configured tool)
         #[arg(short = 'l', long)]
         llm_tool: Option<String>,
 
@@ -1023,13 +1025,17 @@ fn cmd_setup(
         }
     }
 
-    // Validate LLM tool if specified
+    // Validate LLM tool against the loaded tool configs (builtin + user)
     if let Some(ref tool) = llm_tool {
-        match tool.to_lowercase().as_str() {
-            "claude" | "codex" | "gemini" => {}
-            other => {
-                anyhow::bail!("Unknown LLM tool: {other}. Use 'claude', 'codex', or 'gemini'.");
-            }
+        let known: Vec<String> = llm::tool_config::load_all_tool_configs()
+            .into_iter()
+            .map(|t| t.tool_name)
+            .collect();
+        if !known.contains(&tool.to_lowercase()) {
+            anyhow::bail!(
+                "Unknown LLM tool: {tool}. Known tools: {}.",
+                known.join(", ")
+            );
         }
     }
 

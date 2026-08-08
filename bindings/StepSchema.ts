@@ -8,6 +8,7 @@ import type { MultiPromptConfig } from "./MultiPromptConfig";
 import type { OnReject } from "./OnReject";
 import type { PermissionMode } from "./PermissionMode";
 import type { PipelineConfig } from "./PipelineConfig";
+import type { ProofReviewConfig } from "./ProofReviewConfig";
 import type { ProviderCliArgs } from "./ProviderCliArgs";
 import type { RagConfig } from "./RagConfig";
 import type { ReviewType } from "./ReviewType";
@@ -42,13 +43,17 @@ outputs: Array<StepOutput>,
  */
 prompt: string, 
 /**
- * Type of review required for this step (none, plan, visual, pr)
+ * Type of review required for this step (none, plan, visual, pr, proof)
  */
 review_type: ReviewType, 
 /**
  * Configuration for visual review (required when `review_type` is "visual")
  */
 visual_config?: VisualReviewConfig | null, 
+/**
+ * Configuration for proof review (required when `review_type` is "proof")
+ */
+proof_config?: ProofReviewConfig | null, 
 /**
  * What to do if step output is rejected
  */

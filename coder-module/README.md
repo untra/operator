@@ -10,7 +10,7 @@ tags: [ai, agents, orchestration, automation]
 
 Run [Operator](https://github.com/untra/operator) as a background REST API server inside your Coder workspace. Operator manages ticket queues, launches LLM-powered coding agents, and tracks their progress.
 
-The module downloads the operator binary from GitHub releases, generates configuration, starts the API server, and exposes the dashboard through the Coder workspace UI with automatic healthchecks.
+The module downloads the operator binary and the `opr8r` client from GitHub releases, generates configuration, starts the API server, and exposes the dashboard through the Coder workspace UI with automatic healthchecks.
 
 ## Usage
 

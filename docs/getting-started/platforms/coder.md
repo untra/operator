@@ -97,7 +97,7 @@ No Operator configuration is needed to access these — they are ambient in the 
 ## How It Works
 
 1. The module runs a startup script that detects the workspace architecture (`linux-x86_64` or `linux-arm64`)
-2. Downloads the Operator binary from GitHub releases (or uses a cached/pre-installed binary)
+2. Downloads the Operator binary from GitHub releases (or uses a cached/pre-installed binary), then the `opr8r` client binary that agent sessions call to report step completion for multi-step workflows.
 3. Generates a TOML configuration file (or uses the provided `config_toml`)
 4. Starts `operator api` as a background process
 5. Registers the Operator dashboard as a Coder app with healthchecks polling `/api/v1/health` every 5 seconds

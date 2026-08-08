@@ -10,8 +10,8 @@ use crate::queue::Ticket;
 
 use super::interpolation::PromptInterpolator;
 use super::llm_command::{
-    apply_yolo_flags, build_docker_command, build_llm_command_with_permissions_for_tool,
-    get_default_model,
+    apply_yolo_flags, build_llm_command_with_permissions_for_tool, get_default_model,
+    wrap_for_target,
 };
 use super::options::{LaunchOptions, RelaunchOptions};
 use super::prompt::{
@@ -19,6 +19,7 @@ use super::prompt::{
     write_prompt_file, OperatorEnvVars,
 };
 use super::remote::launch_remote_in_session;
+use super::step_command;
 use super::SESSION_PREFIX;
 
 /// Launch Claude in a tmux session with specific options
@@ -166,14 +167,14 @@ pub fn launch_in_tmux_with_options(
     // Remote launch: the local pane runs a wrapper that ships the prompt and
     // payload over SSH and execs into a remote tmux session through a reverse
     // tunnel. Relay injection is skipped (unix socket is local-only).
-    if let Some(ref host) = options.remote_host {
+    if let Some(host) = options.remote_host() {
         return launch_remote_in_session(
             config,
             ticket,
             &session_name,
             &session_uuid,
             &step_name,
-            host,
+            &host,
             &tool_name,
             &model,
             &prompt_file,
@@ -204,15 +205,21 @@ pub fn launch_in_tmux_with_options(
         llm_cmd = apply_yolo_flags(config, &llm_cmd, &tool_name);
     }
 
-    // Wrap in docker command if docker mode is enabled
-    if options.docker_mode {
-        llm_cmd = build_docker_command(
-            config,
-            &llm_cmd,
-            project_path,
-            options.provider.as_ref().map(|p| &p.env),
-        )?;
+    // Wrap in the opr8r step wrapper when the issuetype defines this step,
+    // so completion reporting and exec-chain transitions engage.
+    if step_command::chain_step(config, ticket, &step_name) {
+        let opr8r = step_command::resolve_opr8r_invocation(options.is_docker());
+        llm_cmd = step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
     }
+
+    // Wrap for the resolved execution target (local = identity)
+    llm_cmd = wrap_for_target(
+        config,
+        &llm_cmd,
+        project_path,
+        &options.target,
+        options.provider.as_ref().map(|p| &p.env),
+    )?;
 
     // Write the command to a shell script file to avoid issues with long commands
     // and special characters when using tmux send-keys
@@ -416,14 +423,14 @@ pub fn launch_in_tmux_with_relaunch_options(
 
     // Remote relaunch: regenerate the wrapper (idempotent, keyed by session
     // uuid); `tmux new -A` on the remote host reattaches a surviving session.
-    if let Some(ref host) = options.launch_options.remote_host {
+    if let Some(host) = options.launch_options.remote_host() {
         return launch_remote_in_session(
             config,
             ticket,
             &session_name,
             &session_uuid,
             &step_name,
-            host,
+            &host,
             &tool_name,
             &model,
             &prompt_file,
@@ -464,15 +471,21 @@ pub fn launch_in_tmux_with_relaunch_options(
         llm_cmd = apply_yolo_flags(config, &llm_cmd, &tool_name);
     }
 
-    // Wrap in docker command if docker mode is enabled
-    if options.launch_options.docker_mode {
-        llm_cmd = build_docker_command(
-            config,
-            &llm_cmd,
-            project_path,
-            options.launch_options.provider.as_ref().map(|p| &p.env),
-        )?;
+    // Wrap in the opr8r step wrapper when the issuetype defines this step,
+    // so completion reporting and exec-chain transitions engage.
+    if step_command::chain_step(config, ticket, &step_name) {
+        let opr8r = step_command::resolve_opr8r_invocation(options.launch_options.is_docker());
+        llm_cmd = step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
     }
+
+    // Wrap for the resolved execution target (local = identity)
+    llm_cmd = wrap_for_target(
+        config,
+        &llm_cmd,
+        project_path,
+        &options.launch_options.target,
+        options.launch_options.provider.as_ref().map(|p| &p.env),
+    )?;
 
     // Write the command to a shell script file to avoid issues with long commands
     // and special characters when using tmux send-keys

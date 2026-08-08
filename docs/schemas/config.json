@@ -160,6 +160,14 @@
       },
       "default": []
     },
+    "targets": {
+      "description": "Named execution targets (docker/coder/ssh/local) referenced by `DelegatorLaunchConfig.target`.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TargetDef"
+      },
+      "default": []
+    },
     "relay": {
       "description": "Relay MCP injection configuration",
       "$ref": "#/$defs/RelayConfig",
@@ -968,6 +976,11 @@
             "type": "string"
           },
           "default": []
+        },
+        "health_ok": {
+          "description": "Whether the tool's health command succeeded (true when none configured)",
+          "type": "boolean",
+          "default": true
         }
       },
       "required": [
@@ -1253,7 +1266,7 @@
           "default": {}
         },
         "openspec": {
-          "description": "OpenSpec roots keyed by a free-form instance name (e.g., a repo alias).\nExperimental, pull-only: each active change under `<root_path>/changes/`\nacts as a kanban \"project\" whose issues are the tasks.md task groups.",
+          "description": "`OpenSpec` roots keyed by a free-form instance name (e.g., a repo alias).\nExperimental, pull-only: each active change under `<root_path>/changes/`\nacts as a kanban \"project\" whose issues are the tasks.md task groups.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/OpenspecConfig"
@@ -1409,7 +1422,7 @@
       }
     },
     "OpenspecConfig": {
-      "description": "OpenSpec provider configuration (experimental, pull-only)\n\nThe instance name is the `HashMap` key in `KanbanConfig.openspec`. There\nare no credentials — the provider reads local markdown under `root_path`.",
+      "description": "`OpenSpec` provider configuration (experimental, pull-only)\n\nThe instance name is the `HashMap` key in `KanbanConfig.openspec`. There\nare no credentials — the provider reads local markdown under `root_path`.",
       "type": "object",
       "properties": {
         "enabled": {
@@ -1418,7 +1431,7 @@
           "default": false
         },
         "root_path": {
-          "description": "Directory containing the OpenSpec `changes/` tree (typically `<repo>/openspec`)",
+          "description": "Directory containing the `OpenSpec` `changes/` tree (typically `<repo>/openspec`)",
           "type": "string",
           "default": ""
         },
@@ -1578,7 +1591,7 @@
           "default": null
         },
         "docker": {
-          "description": "Run in docker container (None = use global `launch.docker.enabled`)",
+          "description": "DEPRECATED: prefer `target`. Run in docker container\n(None = fall back to `launch.docker.enabled`, then local).",
           "type": [
             "boolean",
             "null"
@@ -1610,7 +1623,14 @@
           "default": null
         },
         "host": {
-          "description": "Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent\nCLI on over SSH. `None` = launch locally.",
+          "description": "DEPRECATED: prefer `target`. Name of a declared `RemoteHost` (from\n`Config.hosts`) to launch the agent CLI on over SSH. `None` = local.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "description": "Name of an execution target: an explicit `[[targets]]` entry, the\nsynthesized `local`/`docker` targets, or a `[[hosts]]` name.\nSupersedes `docker` and `host`.",
           "type": [
             "string",
             "null"
@@ -1709,10 +1729,180 @@
             "null"
           ],
           "default": null
+        },
+        "ssh_config_path": {
+          "description": "SSH config fragment passed with `-F` (used by provisioned coder aliases)",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
         "name",
+        "ssh_alias",
+        "workdir"
+      ]
+    },
+    "TargetDef": {
+      "description": "A named execution target agents can be launched on.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Unique name, referenced by `DelegatorLaunchConfig.target`.\n`local` and `docker` are reserved for synthesized targets.",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Human-readable name for UI surfaces",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "oneOf": [
+        {
+          "description": "Run the agent process directly on this machine",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "local"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Wrap the agent command in a `docker run` container.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "docker"
+            }
+          },
+          "$ref": "#/$defs/DockerConfig",
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Run inside a Coder workspace over a provisioned SSH alias",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "coder"
+            }
+          },
+          "$ref": "#/$defs/CoderConfig",
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Run on a remote machine over SSH",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "ssh"
+            }
+          },
+          "$ref": "#/$defs/SshTarget",
+          "required": [
+            "kind"
+          ]
+        }
+      ]
+    },
+    "CoderConfig": {
+      "description": "Coder workspace target: lifecycle + alias provisioning around the shared\nSSH remote-launch path. There is no `enabled` field — presence in\n`[[targets]]` is the enablement.",
+      "type": "object",
+      "properties": {
+        "template": {
+          "description": "Coder template child workspaces are created from (an allowlist —\nnever per-ticket input)",
+          "type": "string"
+        },
+        "url_env": {
+          "description": "Env var NAME holding the Coder deployment URL",
+          "type": "string",
+          "default": "CODER_URL"
+        },
+        "token_env": {
+          "description": "Env var NAME holding the Coder session token. The variable is stripped\nfrom every agent's spawn environment on all target kinds.",
+          "type": "string",
+          "default": "CODER_SESSION_TOKEN"
+        },
+        "name_prefix": {
+          "description": "Workspace name prefix for deterministic per-ticket naming",
+          "type": "string",
+          "default": "op"
+        },
+        "workdir": {
+          "description": "Project root inside the workspace (None = workspace $HOME)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stop_on_complete": {
+          "description": "Stop the workspace when the ticket completes (never delete)",
+          "type": "boolean",
+          "default": true
+        },
+        "create_timeout_secs": {
+          "description": "Bound on workspace create + agent-ready wait",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 300
+        },
+        "callback_url": {
+          "description": "Control-plane-reachable `OPERATOR_API_URL` override for detached\nmulti-step (empty/None = reverse tunnel default)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parameters": {
+          "description": "Passthrough `-p` template parameters for `coder create`",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "template"
+      ]
+    },
+    "SshTarget": {
+      "description": "SSH target payload. Name and display name live on `TargetDef`; this is the\nconnection shape (`RemoteHost` minus identity).",
+      "type": "object",
+      "properties": {
+        "ssh_alias": {
+          "description": "Host alias resolved via the user's `~/.ssh/config` (or `ssh_config_path`)",
+          "type": "string"
+        },
+        "workdir": {
+          "description": "Absolute project root on the remote machine",
+          "type": "string"
+        },
+        "ssh_config_path": {
+          "description": "SSH config fragment passed with `-F` (used by provisioned coder aliases)",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
         "ssh_alias",
         "workdir"
       ]

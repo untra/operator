@@ -84,12 +84,12 @@ impl GhCli {
     ) -> Result<PullRequestInfo, CreatePrError> {
         // Check if gh is installed
         if !Self::is_installed().await {
-            return Err(CreatePrError::GithubCliNotInstalled);
+            return Err(CreatePrError::ProviderCliNotInstalled);
         }
 
         // Check if authenticated
         if !Self::check_auth().await.unwrap_or(false) {
-            return Err(CreatePrError::GithubCliNotLoggedIn);
+            return Err(CreatePrError::ProviderCliNotLoggedIn);
         }
 
         let repo_full_name = repo_info.full_name();
@@ -148,12 +148,12 @@ impl GhCli {
                 };
             }
 
-            CreatePrError::GithubApiError { message: err_str }
+            CreatePrError::ProviderApiError { message: err_str }
         })?;
 
         // Parse the JSON response
         let pr_response: GhPrCreateResponse =
-            serde_json::from_str(&output).map_err(|e| CreatePrError::GithubApiError {
+            serde_json::from_str(&output).map_err(|e| CreatePrError::ProviderApiError {
                 message: format!("Failed to parse PR response: {e}"),
             })?;
 

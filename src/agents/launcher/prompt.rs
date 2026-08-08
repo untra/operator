@@ -24,14 +24,19 @@ pub struct OperatorEnvVars {
 
 impl OperatorEnvVars {
     /// Render shell `export` lines for all operator env vars.
+    ///
+    /// `OPERATOR_API_URL` is set explicitly (rather than relying on opr8r's
+    /// `api-session.json` fallback) so local step-completion reporting never
+    /// depends on disk-based discovery.
     pub fn to_export_block(&self) -> String {
         format!(
-            "export OPERATOR_AGENT_ID={}\nexport OPERATOR_TICKET_ID={}\nexport OPERATOR_PROJECT={}\nexport OPERATOR_STEP={}\nexport OPERATOR_UI_URL={}\nexport OPERATOR_UI_PORT={}\n",
+            "export OPERATOR_AGENT_ID={}\nexport OPERATOR_TICKET_ID={}\nexport OPERATOR_PROJECT={}\nexport OPERATOR_STEP={}\nexport OPERATOR_UI_URL={}\nexport OPERATOR_UI_PORT={}\nexport OPERATOR_API_URL=http://127.0.0.1:{}\n",
             shell_escape(&self.agent_id),
             shell_escape(&self.ticket_id),
             shell_escape(&self.project),
             shell_escape(&self.step),
             shell_escape(&self.ui_url),
+            self.ui_port,
             self.ui_port,
         )
     }
@@ -213,8 +218,19 @@ pub fn write_command_file(
         .map(OperatorEnvVars::to_pane_title_line)
         .unwrap_or_default();
 
+    // Strip Coder session tokens from the agent's environment on every target
+    // kind — Operator needs them to drive the control plane; no agent CLI does.
+    let strip_block = {
+        let names = crate::config::coder_token_envs(config);
+        if names.is_empty() {
+            String::new()
+        } else {
+            format!("unset {}\n", names.join(" "))
+        }
+    };
+
     let script_content = format!(
-        "#!/bin/bash\n{env_block}{provider_block}{pane_title}cd {}\nexec {}\n",
+        "#!/bin/bash\n{env_block}{provider_block}{strip_block}{pane_title}cd {}\nexec {}\n",
         shell_escape(project_path),
         llm_command
     );
@@ -270,6 +286,21 @@ fn is_shell_var_reference(value: &str) -> bool {
             .all(|(i, c)| c == '_' || c.is_ascii_alphabetic() || (i > 0 && c.is_ascii_digit()))
 }
 
+/// Shell-escape only when the value contains characters outside a
+/// conservative safe set. Keeps common paths, mount specs, and KEY=VALUE
+/// pairs readable in generated command files.
+pub(crate) fn shell_escape_if_needed(s: &str) -> String {
+    let safe = !s.is_empty()
+        && s.chars().all(|c| {
+            c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/' | ':' | '=' | ',' | '@')
+        });
+    if safe {
+        s.to_string()
+    } else {
+        shell_escape(s)
+    }
+}
+
 /// Escape a string for safe use in shell command
 pub fn shell_escape(s: &str) -> String {
     // Use single quotes and escape any single quotes within
@@ -280,6 +311,41 @@ pub fn shell_escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_command_file_strips_coder_token_env_on_local_target() {
+        // The token variable is stripped from EVERY agent spawn environment,
+        // including Local launches — the likeliest exposure is a local agent
+        // inside the operator's own Coder workspace.
+        let temp = tempfile::tempdir().unwrap();
+        let mut config = Config::default();
+        config.paths.tickets = temp.path().to_string_lossy().to_string();
+        config.targets.push(crate::config::TargetDef {
+            name: "cloud".to_string(),
+            display_name: None,
+            kind: crate::config::TargetKind::Coder(crate::config::CoderConfig {
+                template: "t".to_string(),
+                url_env: "CODER_URL".to_string(),
+                token_env: "CODER_SESSION_TOKEN".to_string(),
+                name_prefix: "op".to_string(),
+                workdir: None,
+                stop_on_complete: true,
+                create_timeout_secs: 300,
+                callback_url: None,
+                parameters: std::collections::HashMap::new(),
+            }),
+        });
+
+        let path = write_command_file(&config, "uuid-1", "/proj", "claude", None, None).unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            content.contains("unset CODER_SESSION_TOKEN\n"),
+            "token env must be unset before exec: {content}"
+        );
+        let unset_pos = content.find("unset CODER_SESSION_TOKEN").unwrap();
+        let exec_pos = content.find("exec ").unwrap();
+        assert!(unset_pos < exec_pos, "unset must precede exec");
+    }
 
     #[test]
     fn test_shell_escape_simple() {

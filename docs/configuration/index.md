@@ -154,6 +154,7 @@ projects = []
 delegators = []
 model_servers = []
 hosts = []
+targets = []
 
 [agents]
 max_parallel = 5

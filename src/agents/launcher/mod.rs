@@ -6,11 +6,13 @@
 #![allow(dead_code)]
 
 mod cmux_session;
+pub(crate) mod coder;
 pub mod interpolation;
 pub(crate) mod llm_command;
 mod options;
 pub(crate) mod prompt;
 pub(crate) mod remote;
+pub(crate) mod step_command;
 mod step_config;
 mod tmux_session;
 pub mod worktree_setup;
@@ -36,7 +38,9 @@ use crate::queue::{Queue, Ticket};
 use crate::state::State;
 
 use cmux_session::{launch_in_cmux_with_options, launch_in_cmux_with_relaunch_options};
-pub use options::{LaunchOptions, RelaunchOptions};
+pub use options::{
+    parse_launch_mode, LaunchModeKind, LaunchOptions, ParsedLaunchMode, RelaunchOptions,
+};
 use prompt::generate_prompt;
 use tmux_session::{launch_in_tmux_with_options, launch_in_tmux_with_relaunch_options};
 use worktree_setup::setup_worktree_for_ticket;
@@ -44,8 +48,8 @@ use zellij_session::{launch_in_zellij_with_options, launch_in_zellij_with_relaun
 
 use self::interpolation::PromptInterpolator;
 use self::llm_command::{
-    apply_yolo_flags, build_docker_command, build_llm_command_with_permissions_for_tool,
-    get_default_model,
+    apply_yolo_flags, build_llm_command_with_permissions_for_tool, get_default_model,
+    wrap_for_target,
 };
 use self::prompt::{
     generate_session_uuid, get_agent_prompt, get_template_prompt, write_prompt_file,
@@ -62,6 +66,28 @@ fn apply_prompt_wrapping(prompt: String, options: &LaunchOptions) -> String {
         (None, Some(suf)) => format!("{prompt}\n\n{suf}"),
         (None, None) => prompt,
     }
+}
+
+/// Read back the session uuid a session backend minted for this launch.
+///
+/// tmux, cmux and zellij all record it on the in-progress ticket under the
+/// step being launched, so the ticket file is the one place every backend
+/// agrees on. Best-effort: `None` when the ticket was not (yet) written.
+fn launched_session_uuid(config: &Config, ticket: &Ticket) -> Option<String> {
+    let step_name = if ticket.step.is_empty() {
+        "initial"
+    } else {
+        &ticket.step
+    };
+    let path = config
+        .tickets_path()
+        .join("in-progress")
+        .join(&ticket.filename);
+    Ticket::from_file(&path)
+        .ok()?
+        .sessions
+        .get(step_name)
+        .cloned()
 }
 
 /// Result of preparing a launch without executing it
@@ -235,6 +261,7 @@ impl Launcher {
         ticket: &Ticket,
         options: LaunchOptions,
     ) -> Result<String> {
+        let mut options = options;
         // Clone ticket so we can update worktree info
         let mut ticket = ticket.clone();
 
@@ -306,6 +333,9 @@ impl Launcher {
         let initial_prompt = generate_prompt(&self.config, &ticket);
         let initial_prompt = apply_prompt_wrapping(initial_prompt, &options);
 
+        self.provision_target(&ticket, &working_dir_str, &mut options)
+            .await?;
+
         let (agent_id, _session) = self
             .launch_one_sub_agent(&ticket, &working_dir_str, &initial_prompt, &options)
             .await?;
@@ -315,6 +345,36 @@ impl Launcher {
     /// Dispatch a single sub-agent launch: wrapper dispatch, state registration,
     /// worktree-path persistence, step recording, and start-up notification.
     /// Returns `(agent_id, session_name)`.
+    /// Provision non-local infrastructure for the resolved target before any
+    /// session is created. Coder targets: create/start the workspace, write
+    /// the ssh fragment, prepare the checkout, and point the launch at the
+    /// provisioned alias (`callback_url` overrides the tunnel API URL).
+    async fn provision_target(
+        &self,
+        ticket: &Ticket,
+        working_dir_str: &str,
+        options: &mut LaunchOptions,
+    ) -> Result<()> {
+        if let crate::config::TargetKind::Coder(coder_cfg) = options.target.kind.clone() {
+            let remote_url =
+                crate::git::GitCli::get_remote_url(std::path::Path::new(working_dir_str))
+                    .await
+                    .ok();
+            let branch = ticket.branch_name();
+            let host = coder::provision_workspace(
+                &self.config,
+                &coder_cfg,
+                &ticket.project,
+                &ticket.id,
+                remote_url.as_deref(),
+                Some(&branch),
+            )?;
+            options.api_url_override = coder_cfg.callback_url.clone().filter(|u| !u.is_empty());
+            options.provisioned_host = Some(host);
+        }
+        Ok(())
+    }
+
     async fn launch_one_sub_agent(
         &self,
         ticket: &Ticket,
@@ -344,12 +404,12 @@ impl Launcher {
 
         // Remote launches: verify the host is reachable and provisioned before
         // any session or workspace is created.
-        if let Some(ref host) = options.remote_host {
+        if let Some(host) = options.remote_host() {
             let tool = options
                 .provider
                 .as_ref()
                 .map_or("claude", |p| p.tool.as_str());
-            remote::run_preflight(host, tool)?;
+            remote::run_preflight(&host, tool)?;
         }
 
         // Dispatch based on session wrapper type
@@ -448,7 +508,7 @@ impl Launcher {
         }
 
         // Store remote host so the dashboard can annotate the agent
-        if let Some(ref host) = options.remote_host {
+        if let Some(host) = options.remote_host() {
             state.update_agent_remote_host(&agent_id, &host.name)?;
         }
 
@@ -457,13 +517,24 @@ impl Launcher {
             state.update_agent_step(&agent_id, &ticket.step)?;
         }
 
+        state.update_agent_target_name(&agent_id, &options.target.name)?;
+
+        // Persist the launch context for multi-step exec-chain transitions.
+        // The session backends mint the uuid and record it on the ticket; read
+        // it back so `complete_step` can match this agent by session id.
+        let session_uuid = launched_session_uuid(&self.config, ticket);
+        state.update_agent_step_launch_context(
+            &agent_id,
+            self.step_launch_context_for(options, session_uuid.as_deref()),
+        )?;
+
         // Send notification
         if self.config.notifications.enabled && self.config.notifications.on_agent_start {
-            let mode_suffix = match (options.docker_mode, options.yolo_mode) {
-                (true, true) => " [docker-yolo]",
-                (true, false) => " [docker]",
-                (false, true) => " [yolo]",
-                (false, false) => "",
+            let mode = options.launch_mode_string();
+            let mode_suffix = if mode == "default" {
+                String::new()
+            } else {
+                format!(" [{mode}]")
             };
             let worktree_suffix = if ticket.worktree_path.is_some() {
                 " [worktree]"
@@ -776,6 +847,38 @@ impl Launcher {
     /// returns the command and details instead of executing in tmux.
     ///
     /// Use this for launching via VS Code terminals or other wrappers.
+    /// Build the persisted step launch context from resolved options.
+    /// Tool/model defaulting mirrors the session backends.
+    fn step_launch_context_for(
+        &self,
+        options: &LaunchOptions,
+        session_id: Option<&str>,
+    ) -> step_command::StepLaunchContext {
+        let (tool, model) = if let Some(ref provider) = options.provider {
+            (provider.tool.clone(), provider.model.clone())
+        } else {
+            let default_tool = self
+                .config
+                .llm_tools
+                .detected
+                .first()
+                .map_or_else(|| "claude".to_string(), |t| t.name.clone());
+            let default_model =
+                get_default_model(&self.config).unwrap_or_else(|| "sonnet".to_string());
+            (default_tool, default_model)
+        };
+        step_command::StepLaunchContext {
+            delegator: options.delegator_name.clone(),
+            tool,
+            model,
+            yolo: options.yolo_mode,
+            session_id: session_id.map(str::to_string),
+            opr8r: step_command::resolve_opr8r_invocation(options.is_docker()),
+            operator_relay: options.operator_relay,
+            extra_flags: options.extra_flags.clone(),
+        }
+    }
+
     pub async fn prepare_launch(
         &self,
         ticket: &Ticket,
@@ -854,6 +957,11 @@ impl Launcher {
         env_vars.insert(
             "OPERATOR_UI_PORT".to_string(),
             self.config.rest_api.port.to_string(),
+        );
+        // Explicit API URL so opr8r never depends on api-session.json discovery
+        env_vars.insert(
+            "OPERATOR_API_URL".to_string(),
+            format!("http://127.0.0.1:{}", self.config.rest_api.port),
         );
 
         // Store the session UUID in the ticket file (now in in-progress)
@@ -943,9 +1051,27 @@ impl Launcher {
             llm_cmd = format!("{} {}", llm_cmd, options.extra_flags.join(" "));
         }
 
-        // Wrap in docker command if docker mode is enabled
-        if options.docker_mode {
-            llm_cmd = build_docker_command(&self.config, &llm_cmd, &working_dir_str, None)?;
+        // Wrap in the opr8r step wrapper when the issuetype defines this step,
+        // so completion reporting and exec-chain transitions engage.
+        let opr8r = step_command::resolve_opr8r_invocation(options.is_docker());
+        if step_command::chain_step(&self.config, &ticket, &step_name) {
+            llm_cmd =
+                step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
+        }
+
+        // Wrap for the resolved execution target (local = identity)
+        llm_cmd = wrap_for_target(
+            &self.config,
+            &llm_cmd,
+            &working_dir_str,
+            &options.target,
+            options.provider.as_ref().map(|p| &p.env),
+        )?;
+
+        // Strip Coder session tokens from the client-executed command's env
+        let token_envs = crate::config::coder_token_envs(&self.config);
+        if !token_envs.is_empty() {
+            llm_cmd = format!("unset {}; {llm_cmd}", token_envs.join(" "));
         }
 
         // Determine tool name from options or default
@@ -986,6 +1112,23 @@ impl Launcher {
         if !ticket.step.is_empty() {
             state.update_agent_step(&agent_id, &ticket.step)?;
         }
+
+        state.update_agent_target_name(&agent_id, &options.target.name)?;
+
+        // Persist the launch context for multi-step exec-chain transitions
+        state.update_agent_step_launch_context(
+            &agent_id,
+            step_command::StepLaunchContext {
+                delegator: options.delegator_name.clone(),
+                tool: tool_name.clone(),
+                model,
+                yolo: options.yolo_mode,
+                session_id: Some(session_uuid.clone()),
+                opr8r,
+                operator_relay: options.operator_relay,
+                extra_flags: options.extra_flags.clone(),
+            },
+        )?;
 
         tracing::info!(
             terminal = %terminal_name,
@@ -1113,6 +1256,11 @@ impl Launcher {
             "OPERATOR_UI_PORT".to_string(),
             self.config.rest_api.port.to_string(),
         );
+        // Explicit API URL so opr8r never depends on api-session.json discovery
+        env_vars.insert(
+            "OPERATOR_API_URL".to_string(),
+            format!("http://127.0.0.1:{}", self.config.rest_api.port),
+        );
 
         // Store the session UUID in the ticket file
         let ticket_in_progress_path = self
@@ -1212,9 +1360,27 @@ impl Launcher {
             );
         }
 
-        // Wrap in docker command if docker mode is enabled
-        if options.launch_options.docker_mode {
-            llm_cmd = build_docker_command(&self.config, &llm_cmd, &working_dir_str, None)?;
+        // Wrap in the opr8r step wrapper when the issuetype defines this step,
+        // so completion reporting and exec-chain transitions engage.
+        let opr8r = step_command::resolve_opr8r_invocation(options.launch_options.is_docker());
+        if step_command::chain_step(&self.config, &ticket, &step_name) {
+            llm_cmd =
+                step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
+        }
+
+        // Wrap for the resolved execution target (local = identity)
+        llm_cmd = wrap_for_target(
+            &self.config,
+            &llm_cmd,
+            &working_dir_str,
+            &options.launch_options.target,
+            options.launch_options.provider.as_ref().map(|p| &p.env),
+        )?;
+
+        // Strip Coder session tokens from the client-executed command's env
+        let token_envs = crate::config::coder_token_envs(&self.config);
+        if !token_envs.is_empty() {
+            llm_cmd = format!("unset {}; {llm_cmd}", token_envs.join(" "));
         }
 
         // Determine tool name from options or default
@@ -1257,6 +1423,23 @@ impl Launcher {
             state.update_agent_step(&agent_id, &ticket.step)?;
         }
 
+        state.update_agent_target_name(&agent_id, &options.launch_options.target.name)?;
+
+        // Persist the launch context for multi-step exec-chain transitions
+        state.update_agent_step_launch_context(
+            &agent_id,
+            step_command::StepLaunchContext {
+                delegator: options.launch_options.delegator_name.clone(),
+                tool: tool_name.clone(),
+                model,
+                yolo: options.launch_options.yolo_mode,
+                session_id: Some(session_uuid.clone()),
+                opr8r,
+                operator_relay: options.launch_options.operator_relay,
+                extra_flags: options.launch_options.extra_flags.clone(),
+            },
+        )?;
+
         tracing::info!(
             terminal = %terminal_name,
             session_uuid = %session_uuid,
@@ -1292,6 +1475,7 @@ impl Launcher {
     /// Used when a tmux session died but the ticket is still in progress.
     /// Can optionally resume from an existing Claude session ID.
     pub async fn relaunch(&self, ticket: &Ticket, options: RelaunchOptions) -> Result<String> {
+        let mut options = options;
         // Clone ticket so we can update worktree info if needed
         let mut ticket = ticket.clone();
 
@@ -1361,13 +1545,16 @@ impl Launcher {
 
         // Remote relaunches preflight too: the wrapper is regenerated and the
         // remote session reattached, so the host must still be reachable.
-        if let Some(ref host) = options.launch_options.remote_host {
+        self.provision_target(&ticket, &working_dir_str, &mut options.launch_options)
+            .await?;
+
+        if let Some(host) = options.launch_options.remote_host() {
             let tool = options
                 .launch_options
                 .provider
                 .as_ref()
                 .map_or("claude", |p| p.tool.as_str());
-            remote::run_preflight(host, tool)?;
+            remote::run_preflight(&host, tool)?;
         }
 
         // Dispatch based on session wrapper type
@@ -1466,7 +1653,7 @@ impl Launcher {
         }
 
         // Store remote host so the dashboard can annotate the agent
-        if let Some(ref host) = options.launch_options.remote_host {
+        if let Some(host) = options.launch_options.remote_host() {
             state.update_agent_remote_host(&agent_id, &host.name)?;
         }
 
@@ -1474,6 +1661,17 @@ impl Launcher {
         if !ticket.step.is_empty() {
             state.update_agent_step(&agent_id, &ticket.step)?;
         }
+
+        state.update_agent_target_name(&agent_id, &options.launch_options.target.name)?;
+
+        // Persist the launch context for multi-step exec-chain transitions
+        state.update_agent_step_launch_context(
+            &agent_id,
+            self.step_launch_context_for(
+                &options.launch_options,
+                options.resume_session_id.as_deref(),
+            ),
+        )?;
 
         // Send notification
         if self.config.notifications.enabled && self.config.notifications.on_agent_start {

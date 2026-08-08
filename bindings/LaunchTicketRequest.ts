@@ -22,6 +22,12 @@ model: string | null,
  */
 model_server: string | null, 
 /**
+ * Execution-target override by name (explicit `[[targets]]` entry,
+ * synthesized `local`/`docker`, or a `[[hosts]]` name). Overrides the
+ * delegator's launch config for this launch only.
+ */
+target: string | null, 
+/**
  * Run in YOLO mode (auto-accept all prompts)
  */
 yolo_mode: boolean, 

@@ -10,6 +10,8 @@ pub mod llm_tools;
 pub mod notifications_config;
 #[path = "config/sessions.rs"]
 pub mod sessions;
+#[path = "config/targets.rs"]
+pub mod targets;
 
 pub use agent_profile::*;
 pub use git_config::*;
@@ -17,6 +19,7 @@ pub use kanban::*;
 pub use llm_tools::*;
 pub use notifications_config::*;
 pub use sessions::*;
+pub use targets::*;
 
 use anyhow::{Context, Result};
 use schemars::JsonSchema;
@@ -70,6 +73,9 @@ pub struct Config {
     /// from `DelegatorLaunchConfig.host`.
     #[serde(default)]
     pub hosts: Vec<RemoteHost>,
+    /// Named execution targets (docker/coder/ssh/local) referenced by `DelegatorLaunchConfig.target`.
+    #[serde(default)]
+    pub targets: Vec<TargetDef>,
     /// Relay MCP injection configuration
     #[serde(default)]
     pub relay: RelayConfig,
@@ -216,7 +222,7 @@ pub struct LaunchConfig {
 }
 
 /// Docker execution configuration for running agents in containers
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct DockerConfig {
     /// Whether docker mode option is available in launch dialog
@@ -733,6 +739,8 @@ impl Config {
             );
         }
 
+        validate_targets(&cfg)?;
+
         Ok(cfg)
     }
 
@@ -902,6 +910,7 @@ impl Default for Config {
             delegators: Vec::new(),
             model_servers: Vec::new(),
             hosts: Vec::new(),
+            targets: Vec::new(),
             relay: RelayConfig::default(),
             mcp: McpConfig::default(),
             acp: AcpConfig::default(),

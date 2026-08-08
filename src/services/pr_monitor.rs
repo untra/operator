@@ -12,7 +12,8 @@ use std::time::Duration;
 use tokio::sync::{mpsc, RwLock};
 use tracing::{debug, error, info, instrument, warn};
 
-use crate::api::{GitHubService, PrService};
+use crate::api::pr_service::PrServiceRouter;
+use crate::api::PrService;
 use crate::types::pr::{GitProvider, PrState, RepoInfo};
 
 /// Default poll interval (60 seconds, matching vibe-kanban)
@@ -73,9 +74,9 @@ pub struct PrMonitorService {
 }
 
 impl PrMonitorService {
-    /// Create a new PR monitor service with default GitHub provider
+    /// Create a new PR monitor service, routing per-PR by provider
     pub fn new(event_tx: mpsc::UnboundedSender<PrStatusEvent>) -> Self {
-        Self::with_service(Arc::new(GitHubService::new()), event_tx)
+        Self::with_service(Arc::new(PrServiceRouter::new()), event_tx)
     }
 
     /// Create a new PR monitor service with a custom provider

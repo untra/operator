@@ -38,6 +38,7 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
             supports_headless: true,
         },
         yolo_flags: vec!["--dangerously-skip-permissions".to_string()],
+        health_ok: true,
     };
 
     Config {

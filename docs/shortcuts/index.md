@@ -51,7 +51,7 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `E/e` | Edit ticket ($EDITOR) | Launch Dialog |
 | `N/n` | Cancel | Launch Dialog |
 | `M/m` | Cycle provider/model | Launch Dialog |
-| `D/d` | Toggle Docker mode | Launch Dialog |
+| `D/d` | Cycle execution target | Launch Dialog |
 | `Y/y` | Toggle Auto-accept (YOLO) | Launch Dialog |
 
 ## Dashboard
@@ -153,6 +153,6 @@ These shortcuts are available in the ticket launch confirmation dialog.
 | `E/e` | Edit ticket ($EDITOR) |
 | `N/n` | Cancel |
 | `M/m` | Cycle provider/model |
-| `D/d` | Toggle Docker mode |
+| `D/d` | Cycle execution target |
 | `Y/y` | Toggle Auto-accept (YOLO) |
 

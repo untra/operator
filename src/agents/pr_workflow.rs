@@ -1,24 +1,25 @@
-//! PR Workflow Handler - Manages PR creation and lifecycle.
+//! PR/MR Workflow Handler - Manages PR/MR creation and lifecycle.
 //!
 //! Follows vibe-kanban patterns:
 //! - Push branch to remote
-//! - Create PR via gh CLI
-//! - Open PR in browser
-//! - Track PR for merge detection
+//! - Create PR/MR via the provider's `PrService`
+//! - Open PR/MR in browser
+//! - Track PR/MR for merge detection
 //! - Cleanup on merge
 
 use anyhow::{Context, Result};
 use std::path::Path;
+use std::sync::Arc;
 use tracing::{info, instrument, warn};
 
-use crate::api::GitHubService;
+use crate::api::pr_service::{PrService, PrServiceRouter};
 use crate::git::GitCli;
 use crate::services::PrMonitorService;
-use crate::types::pr::{CreatePrError, CreatePrRequest, GitHubRepoInfo, PrState, PullRequestInfo};
+use crate::types::pr::{CreatePrError, CreatePrRequest, PrState, PullRequestInfo, RepoInfo};
 
-/// Handles the PR workflow for a step
+/// Handles the PR/MR workflow for a step
 pub struct PrWorkflow {
-    github: GitHubService,
+    service: Arc<dyn PrService>,
 }
 
 impl Default for PrWorkflow {
@@ -28,22 +29,22 @@ impl Default for PrWorkflow {
 }
 
 impl PrWorkflow {
-    /// Create a new PR workflow handler
+    /// Create a new PR workflow handler (routes per-call by provider)
     pub fn new() -> Self {
         Self {
-            github: GitHubService::new(),
+            service: Arc::new(PrServiceRouter::new()),
         }
     }
 
     /// Get repo info from a worktree path
     #[instrument(skip(self))]
-    pub async fn get_repo_info(&self, worktree_path: &Path) -> Result<GitHubRepoInfo> {
+    pub async fn get_repo_info(&self, worktree_path: &Path) -> Result<RepoInfo> {
         let remote_url = GitCli::get_remote_url(worktree_path)
             .await
             .context("Failed to get remote URL")?;
 
-        GitHubRepoInfo::from_remote_url(&remote_url)
-            .map_err(|e| anyhow::anyhow!("Failed to parse GitHub URL: {e}"))
+        RepoInfo::from_remote_url(&remote_url)
+            .map_err(|e| anyhow::anyhow!("Failed to parse repository URL: {e}"))
     }
 
     /// Push branch to remote
@@ -68,15 +69,14 @@ impl PrWorkflow {
         base_branch: &str,
         draft: bool,
     ) -> Result<PullRequestInfo, CreatePrError> {
-        let repo_info =
-            self.get_repo_info(worktree_path)
-                .await
-                .map_err(|e| CreatePrError::GithubApiError {
-                    message: e.to_string(),
-                })?;
+        let repo_info = self.get_repo_info(worktree_path).await.map_err(|e| {
+            CreatePrError::ProviderApiError {
+                message: e.to_string(),
+            }
+        })?;
 
         let current_branch = GitCli::current_branch(worktree_path).await.map_err(|e| {
-            CreatePrError::GithubApiError {
+            CreatePrError::ProviderApiError {
                 message: format!("Failed to get current branch: {e}"),
             }
         })?;
@@ -97,14 +97,14 @@ impl PrWorkflow {
         };
 
         let pr = self
-            .github
+            .service
             .create_pr(&repo_info, &request, worktree_path)
             .await?;
 
         info!("Created PR #{}: {}", pr.number, pr.url);
 
         // Open in browser
-        if let Err(e) = self.github.open_pr_in_browser(&repo_info, pr.number).await {
+        if let Err(e) = self.service.open_in_browser(&repo_info, pr.number).await {
             warn!("Failed to open PR in browser: {}", e);
         }
 
@@ -117,7 +117,7 @@ impl PrWorkflow {
         let repo_info = self.get_repo_info(worktree_path).await?;
         let current_branch = GitCli::current_branch(worktree_path).await?;
 
-        self.github
+        self.service
             .find_pr_for_branch(&repo_info, &current_branch)
             .await
     }
@@ -182,16 +182,14 @@ impl PrWorkflow {
         pr_number: i64,
     ) -> Result<PullRequestInfo> {
         let repo_info = self.get_repo_info(worktree_path).await?;
-        self.github.get_pr(&repo_info, pr_number).await
+        self.service.get_pr(&repo_info, pr_number).await
     }
 
-    /// Check if PR is ready to merge
+    /// Check if PR/MR is ready to merge
     #[instrument(skip(self))]
     pub async fn is_ready_to_merge(&self, worktree_path: &Path, pr_number: i64) -> Result<bool> {
         let repo_info = self.get_repo_info(worktree_path).await?;
-        self.github
-            .is_pr_ready_to_merge(&repo_info, pr_number)
-            .await
+        self.service.is_ready_to_merge(&repo_info, pr_number).await
     }
 
     /// Get new comments since last check
@@ -203,7 +201,7 @@ impl PrWorkflow {
         since: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<crate::types::pr::UnifiedPrComment>> {
         let repo_info = self.get_repo_info(worktree_path).await?;
-        self.github
+        self.service
             .get_comments_since(&repo_info, pr_number, since)
             .await
     }

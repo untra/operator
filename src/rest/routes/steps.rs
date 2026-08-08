@@ -153,6 +153,7 @@ pub async fn update(
             "plan" => ReviewType::Plan,
             "visual" => ReviewType::Visual,
             "pr" => ReviewType::Pr,
+            "proof" => ReviewType::Proof,
             _ => ReviewType::None,
         };
     }

@@ -24,4 +24,8 @@ workdir: string,
 /**
  * Optional display name for UI
  */
-display_name: string | null, };
+display_name: string | null, 
+/**
+ * SSH config fragment passed with `-F` (used by provisioned coder aliases)
+ */
+ssh_config_path?: string | null, };

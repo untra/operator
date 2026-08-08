@@ -44,6 +44,8 @@ Operator integrates with many providers and tools across several **verticals**. 
 | GitLab | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [GitLab](https://operator.untra.io/getting-started/git/gitlab/) |
 | Bitbucket | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
 | Azure DevOps | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
+| Forgejo | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
+| Gitea | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
 
 ## Session
 

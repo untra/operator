@@ -428,6 +428,8 @@ pub struct LlmToolInfo {
     pub name: String,
     pub version: String,
     pub model_aliases: Vec<String>,
+    /// Passed its startup health check; unhealthy tools cannot launch locally
+    pub health_ok: bool,
 }
 
 /// Information about a configured delegator.
@@ -661,8 +663,7 @@ impl StatusSnapshot {
     /// and the REST `/api/v1/sections` endpoint, which uses the config-derived
     /// result as-is. `issue_types` is passed in because the TUI and REST source
     /// it from different registries. Everything else here is derived purely from
-    /// config, so section *health* for the config-gated sections matches across
-    /// surfaces; only live runtime detail differs.
+    /// config, so section *health* for the config-gated sections matches across surfaces.
     pub fn from_config(config: &Config, issue_types: Vec<IssueTypeInfo>) -> StatusSnapshot {
         let working_dir = std::env::current_dir()
             .map(|p| p.to_string_lossy().into_owned())
@@ -711,6 +712,7 @@ impl StatusSnapshot {
                 name: t.name.clone(),
                 version: t.version.clone(),
                 model_aliases: t.model_aliases.clone(),
+                health_ok: t.health_ok,
             })
             .collect();
 
@@ -1636,6 +1638,7 @@ mod tests {
                 name: "Claude".into(),
                 version: "3.5".into(),
                 model_aliases: vec!["opus".into(), "sonnet".into(), "haiku".into()],
+                health_ok: true,
             }],
             default_llm_tool: None,
             default_llm_model: None,

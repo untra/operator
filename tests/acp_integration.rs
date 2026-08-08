@@ -82,6 +82,7 @@ name = "sleeper"
 path = "/bin/sleep"
 version = "noop"
 command_template = "sleep 60"
+health_ok = true
 
 [[delegators]]
 name = "test-sleeper"
@@ -120,6 +121,7 @@ name = "cat"
 path = "/bin/cat"
 version = "noop"
 command_template = "cat {{{{prompt_file}}}}"
+health_ok = true
 
 [[delegators]]
 name = "test-cat"

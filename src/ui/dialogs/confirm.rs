@@ -86,10 +86,10 @@ pub struct ConfirmDialog {
     pub provider_options: Vec<LlmProvider>,
     /// Currently selected provider index
     pub selected_provider: usize,
-    /// Whether docker mode option is available
-    pub docker_enabled: bool,
-    /// Whether docker mode is selected
-    pub docker_selected: bool,
+    /// Named execution targets to cycle through (always starts with "local")
+    pub target_options: Vec<String>,
+    /// Currently selected target index (0 = local)
+    pub selected_target: usize,
     /// Whether YOLO mode option is available
     pub yolo_enabled: bool,
     /// Whether YOLO mode is selected
@@ -128,8 +128,8 @@ impl ConfirmDialog {
             selected_option: SelectedOption::Provider,
             provider_options: Vec::new(),
             selected_provider: 0,
-            docker_enabled: false,
-            docker_selected: false,
+            target_options: vec!["local".to_string()],
+            selected_target: 0,
             yolo_enabled: false,
             yolo_selected: false,
             project_options: Vec::new(),
@@ -144,12 +144,12 @@ impl ConfirmDialog {
         &mut self,
         providers: Vec<LlmProvider>,
         projects: Vec<String>,
-        docker_enabled: bool,
+        targets: Vec<String>,
         yolo_enabled: bool,
     ) {
         self.provider_options = providers;
         self.project_options = projects;
-        self.docker_enabled = docker_enabled;
+        self.target_options = targets;
         self.yolo_enabled = yolo_enabled;
     }
 
@@ -170,7 +170,7 @@ impl ConfirmDialog {
         self.focus = ConfirmDialogFocus::Buttons; // Default to buttons
         self.selected_option = SelectedOption::Provider;
         // Reset mode selections but keep provider selection
-        self.docker_selected = false;
+        self.selected_target = 0;
         self.yolo_selected = false;
     }
 
@@ -181,11 +181,18 @@ impl ConfirmDialog {
         }
     }
 
-    /// Toggle docker mode
-    pub fn toggle_docker(&mut self) {
-        if self.docker_enabled {
-            self.docker_selected = !self.docker_selected;
+    /// Cycle to the next execution target (local -> docker -> named targets)
+    pub fn cycle_target(&mut self) {
+        if self.target_options.len() > 1 {
+            self.selected_target = (self.selected_target + 1) % self.target_options.len();
         }
+    }
+
+    /// The selected execution target name ("local" when nothing else is chosen)
+    pub fn selected_target_name(&self) -> &str {
+        self.target_options
+            .get(self.selected_target)
+            .map_or("local", String::as_str)
     }
 
     /// Toggle YOLO mode
@@ -204,7 +211,7 @@ impl ConfirmDialog {
     pub fn has_options(&self) -> bool {
         self.provider_options.len() > 1
             || self.project_options.len() > 1
-            || self.docker_enabled
+            || self.target_options.len() > 1
             || self.yolo_enabled
     }
 
@@ -583,21 +590,18 @@ impl ConfirmDialog {
         }
 
         // Docker option
-        if self.docker_enabled {
-            let (indicator, color) = if self.docker_selected {
-                ("●", Color::Green)
+        if self.target_options.len() > 1 {
+            let name = self.selected_target_name().to_string();
+            let color = if self.selected_target == 0 {
+                Color::DarkGray
             } else {
-                ("○", Color::DarkGray)
+                Color::Green
             };
             lines.push(Line::from(vec![
                 Span::styled("  ", Style::default()),
                 Span::styled("[D] ", Style::default().fg(Color::Yellow)),
-                Span::styled("Docker: ", Style::default().fg(Color::Gray)),
-                Span::styled(indicator, Style::default().fg(color)),
-                Span::styled(
-                    if self.docker_selected { " On" } else { " Off" },
-                    Style::default().fg(color),
-                ),
+                Span::styled("Target: ", Style::default().fg(Color::Gray)),
+                Span::styled(name, Style::default().fg(color)),
             ]));
         }
 
@@ -696,7 +700,7 @@ mod tests {
         assert_eq!(dialog.selection, ConfirmSelection::Yes);
         assert_eq!(dialog.focus, ConfirmDialogFocus::Buttons);
         assert!(dialog.provider_options.is_empty());
-        assert!(!dialog.docker_selected);
+        assert_eq!(dialog.selected_target_name(), "local");
         assert!(!dialog.yolo_selected);
     }
 
@@ -719,11 +723,16 @@ mod tests {
         ];
         let projects = vec!["project-a".to_string(), "project-b".to_string()];
 
-        dialog.configure(providers, projects, true, false);
+        dialog.configure(
+            providers,
+            projects,
+            vec!["local".to_string(), "docker".to_string()],
+            false,
+        );
 
         assert_eq!(dialog.provider_options.len(), 2);
         assert_eq!(dialog.project_options.len(), 2);
-        assert!(dialog.docker_enabled);
+        assert_eq!(dialog.target_options.len(), 2);
         assert!(!dialog.yolo_enabled);
     }
 
@@ -733,11 +742,11 @@ mod tests {
         dialog.configure(
             vec![],
             vec!["project-a".to_string(), "project-b".to_string()],
-            false,
+            vec!["local".to_string(), "docker".to_string()],
             false,
         );
         dialog.selection = ConfirmSelection::No;
-        dialog.docker_selected = true;
+        dialog.selected_target = 1;
 
         let ticket = make_test_ticket("project-b");
         dialog.show(ticket);
@@ -746,7 +755,7 @@ mod tests {
         assert!(dialog.ticket.is_some());
         assert_eq!(dialog.selection, ConfirmSelection::Yes);
         assert_eq!(dialog.selected_project, 1); // project-b is at index 1
-        assert!(!dialog.docker_selected); // Reset
+        assert_eq!(dialog.selected_target, 0); // Reset to local
     }
 
     #[test]
@@ -783,18 +792,23 @@ mod tests {
     }
 
     #[test]
-    fn test_confirm_dialog_toggle_docker_respects_enabled() {
+    fn test_confirm_dialog_cycle_target_wraps_and_noops_when_local_only() {
         let mut dialog = ConfirmDialog::new();
-        dialog.docker_enabled = false;
+        // Only "local": cycling is a no-op.
+        dialog.cycle_target();
+        assert_eq!(dialog.selected_target_name(), "local");
 
-        dialog.toggle_docker();
-        assert!(!dialog.docker_selected); // No-op when disabled
-
-        dialog.docker_enabled = true;
-        dialog.toggle_docker();
-        assert!(dialog.docker_selected);
-        dialog.toggle_docker();
-        assert!(!dialog.docker_selected);
+        dialog.target_options = vec![
+            "local".to_string(),
+            "docker".to_string(),
+            "gpu-vm".to_string(),
+        ];
+        dialog.cycle_target();
+        assert_eq!(dialog.selected_target_name(), "docker");
+        dialog.cycle_target();
+        assert_eq!(dialog.selected_target_name(), "gpu-vm");
+        dialog.cycle_target();
+        assert_eq!(dialog.selected_target_name(), "local"); // Wraps
     }
 
     #[test]
@@ -852,10 +866,10 @@ mod tests {
         let mut dialog = ConfirmDialog::new();
         assert!(!dialog.has_options());
 
-        dialog.docker_enabled = true;
+        dialog.target_options = vec!["local".to_string(), "docker".to_string()];
         assert!(dialog.has_options());
 
-        dialog.docker_enabled = false;
+        dialog.target_options = vec!["local".to_string()];
         dialog.yolo_enabled = true;
         assert!(dialog.has_options());
 
@@ -880,7 +894,7 @@ mod tests {
     #[test]
     fn test_confirm_dialog_focus_management() {
         let mut dialog = ConfirmDialog::new();
-        dialog.docker_enabled = true; // Enable options
+        dialog.target_options = vec!["local".to_string(), "docker".to_string()]; // Enable options
 
         assert!(!dialog.is_options_focused());
         dialog.focus_options();

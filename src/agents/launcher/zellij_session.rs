@@ -14,14 +14,15 @@ use crate::queue::Ticket;
 
 use super::interpolation::PromptInterpolator;
 use super::llm_command::{
-    apply_yolo_flags, build_docker_command, build_llm_command_with_permissions_for_tool,
-    get_default_model,
+    apply_yolo_flags, build_llm_command_with_permissions_for_tool, get_default_model,
+    wrap_for_target,
 };
 use super::options::{LaunchOptions, RelaunchOptions};
 use super::prompt::{
     generate_session_uuid, get_agent_prompt, get_template_prompt, write_command_file,
     write_prompt_file, OperatorEnvVars,
 };
+use super::step_command;
 /// Result of launching in zellij — includes tab name for state tracking
 #[derive(Debug, Clone)]
 pub struct ZellijLaunchResult {
@@ -132,14 +133,21 @@ pub fn launch_in_zellij_with_options(
         llm_cmd = apply_yolo_flags(config, &llm_cmd, &tool_name);
     }
 
-    if options.docker_mode {
-        llm_cmd = build_docker_command(
-            config,
-            &llm_cmd,
-            project_path,
-            options.provider.as_ref().map(|p| &p.env),
-        )?;
+    // Wrap in the opr8r step wrapper when the issuetype defines this step,
+    // so completion reporting and exec-chain transitions engage.
+    if step_command::chain_step(config, ticket, &step_name) {
+        let opr8r = step_command::resolve_opr8r_invocation(options.is_docker());
+        llm_cmd = step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
     }
+
+    // Wrap for the resolved execution target (local = identity)
+    llm_cmd = wrap_for_target(
+        config,
+        &llm_cmd,
+        project_path,
+        &options.target,
+        options.provider.as_ref().map(|p| &p.env),
+    )?;
 
     // Write the command to a shell script file
     let command_file = write_command_file(
@@ -305,14 +313,21 @@ pub fn launch_in_zellij_with_relaunch_options(
         llm_cmd = apply_yolo_flags(config, &llm_cmd, &tool_name);
     }
 
-    if options.launch_options.docker_mode {
-        llm_cmd = build_docker_command(
-            config,
-            &llm_cmd,
-            project_path,
-            options.launch_options.provider.as_ref().map(|p| &p.env),
-        )?;
+    // Wrap in the opr8r step wrapper when the issuetype defines this step,
+    // so completion reporting and exec-chain transitions engage.
+    if step_command::chain_step(config, ticket, &step_name) {
+        let opr8r = step_command::resolve_opr8r_invocation(options.launch_options.is_docker());
+        llm_cmd = step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
     }
+
+    // Wrap for the resolved execution target (local = identity)
+    llm_cmd = wrap_for_target(
+        config,
+        &llm_cmd,
+        project_path,
+        &options.launch_options.target,
+        options.launch_options.provider.as_ref().map(|p| &p.env),
+    )?;
 
     // Write and send command
     let command_file = write_command_file(

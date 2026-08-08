@@ -13,7 +13,7 @@ name: string,
  */
 display_name: string, 
 /**
- * Review type: "none", "plan", "visual", "pr"
+ * Review type: "none", "plan", "visual", "pr", "proof"
  */
 review_type: string, 
 /**

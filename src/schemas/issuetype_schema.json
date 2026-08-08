@@ -282,7 +282,7 @@
           "type": "string"
         },
         "review_type": {
-          "description": "Type of review required for this step (none, plan, visual, pr)",
+          "description": "Type of review required for this step (none, plan, visual, pr, proof)",
           "$ref": "#/$defs/ReviewType",
           "default": "none"
         },
@@ -291,6 +291,18 @@
           "anyOf": [
             {
               "$ref": "#/$defs/VisualReviewConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "proof_config": {
+          "description": "Configuration for proof review (required when `review_type` is \"proof\")",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProofReviewConfig"
             },
             {
               "type": "null"
@@ -603,6 +615,11 @@
           "description": "Git interface PR review workflow",
           "type": "string",
           "const": "pr"
+        },
+        {
+          "description": "Assertion command gate, then human confirmation",
+          "type": "string",
+          "const": "proof"
         }
       ]
     },
@@ -635,6 +652,45 @@
       },
       "required": [
         "url"
+      ]
+    },
+    "ProofReviewConfig": {
+      "description": "Configuration for proof review steps",
+      "type": "object",
+      "properties": {
+        "assertion_command": {
+          "description": "Assertion command run via `sh -c` in the worktree root; exit code 0 = pass.\nSupports handlebars: {{ticket_id}}, {{step}}, {{proof_dir}}",
+          "type": "string"
+        },
+        "artifact_command": {
+          "description": "Artifact-producing command (e.g. screenshot capture), run after the assertion regardless of its result",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "artifact_patterns": {
+          "description": "Glob patterns (relative to worktree root) copied into .proof/{ticket_id}/{step}/",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "timeout_secs": {
+          "description": "Per-command timeout in seconds (default 120)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0,
+          "default": null
+        }
+      },
+      "required": [
+        "assertion_command"
       ]
     },
     "OnReject": {

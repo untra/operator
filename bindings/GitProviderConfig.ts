@@ -3,4 +3,4 @@
 /**
  * Git provider selection
  */
-export type GitProviderConfig = "github" | "gitlab" | "bitbucket" | "azuredevops";
+export type GitProviderConfig = "github" | "gitlab" | "bitbucket" | "azuredevops" | "forgejo" | "gitea";

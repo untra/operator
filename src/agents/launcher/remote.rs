@@ -13,9 +13,18 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 
 use crate::config::{Config, RemoteHost};
-use crate::llm::tool_config::load_all_tool_configs;
+use crate::llm::tool_config::{load_all_tool_configs, user_tools_dir};
 
 use super::prompt::shell_escape;
+
+/// `-F <config> ` fragment for hosts carrying a provisioned ssh config
+/// (coder aliases); empty for plain `~/.ssh/config` hosts.
+fn ssh_config_flag(host: &RemoteHost) -> String {
+    host.ssh_config_path
+        .as_ref()
+        .map(|p| format!("-F {} ", shell_escape(p)))
+        .unwrap_or_default()
+}
 
 /// Remote path the prompt file is shipped to.
 pub(crate) fn remote_prompt_path(host: &RemoteHost, session_uuid: &str) -> String {
@@ -35,11 +44,11 @@ pub(crate) fn remote_payload_path(host: &RemoteHost, session_uuid: &str) -> Stri
 
 /// Build the agent CLI command executed on the remote host.
 ///
-/// Uses the *embedded* tool config template (bare tool name, resolved via the
-/// remote PATH) rather than the locally detected binary path, which would be
+/// Uses the *loaded* tool config template — builtin or user-provided (see
+/// `crate::llm::tool_config`) — with the bare tool name, resolved via the
+/// remote PATH, rather than the locally detected binary path, which would be
 /// wrong on the remote machine. `{{config_flags}}` is dropped: permission
-/// translation, MCP config, and statusline all write local files with local
-/// paths — an accepted v1 degradation.
+/// translation, MCP config, and statusline all write local files
 pub(crate) fn build_remote_llm_command(
     tool_name: &str,
     model: &str,
@@ -52,11 +61,34 @@ pub(crate) fn build_remote_llm_command(
         .into_iter()
         .find(|t| t.tool_name == tool_name)
         .ok_or_else(|| {
+            let tools_dir = user_tools_dir()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "~/.config/operator/tools".to_string());
             anyhow::anyhow!(
-                "LLM tool '{tool_name}' has no embedded tool config; remote launch supports claude/codex/gemini"
+                "LLM tool '{tool_name}' has no tool config; builtins are claude/codex/gemini — \
+                 add a JSON under {tools_dir} to support others"
             )
         })?;
 
+    Ok(build_remote_llm_command_from(
+        &tool,
+        model,
+        session_id,
+        remote_prompt,
+        yolo,
+        extra_flags,
+    ))
+}
+
+fn build_remote_llm_command_from(
+    tool: &crate::llm::tool_config::ToolConfig,
+    model: &str,
+    session_id: &str,
+    remote_prompt: &str,
+    yolo: bool,
+    extra_flags: &[String],
+) -> String {
+    let tool_name = tool.tool_name.as_str();
     let model_flag = if tool.arg_mapping.model.is_empty() {
         String::new()
     } else {
@@ -82,7 +114,7 @@ pub(crate) fn build_remote_llm_command(
         cmd = format!("{cmd} {}", extra_flags.join(" "));
     }
 
-    Ok(cmd)
+    cmd
 }
 
 /// Build the local wrapper script content: ship prompt + payload over SSH,
@@ -105,6 +137,7 @@ pub(crate) fn build_remote_wrapper_script(
     api_port: u16,
 ) -> String {
     let alias = shell_escape(&host.ssh_alias);
+    let f_flag = ssh_config_flag(host);
     let r_prompt = remote_prompt_path(host, session_uuid);
     let r_payload = remote_payload_path(host, session_uuid);
 
@@ -120,7 +153,8 @@ pub(crate) fn build_remote_wrapper_script(
     );
 
     format!(
-        "#!/bin/bash\nset -e\nssh {alias} {mkdir}\nssh {alias} {cat_prompt} < {local_prompt}\nssh {alias} {cat_payload} < {local_payload}\nexec ssh -t -R {port}:localhost:{port} -o ExitOnForwardFailure=yes {alias} {tmux}\n",
+        "#!/bin/bash\nset -e\nssh {f}{alias} {mkdir}\nssh {f}{alias} {cat_prompt} < {local_prompt}\nssh {f}{alias} {cat_payload} < {local_payload}\nexec ssh -t {f}-R {port}:localhost:{port} -o ExitOnForwardFailure=yes {alias} {tmux}\n",
+        f = f_flag,
         alias = alias,
         mkdir = shell_escape(&mkdir_cmd),
         cat_prompt = shell_escape(&format!("cat > {}", shell_escape(&r_prompt))),
@@ -201,10 +235,13 @@ pub(crate) fn launch_remote_in_session(
         .as_ref()
         .map(|p| p.env.clone())
         .unwrap_or_default();
-    provider_env.insert(
-        "OPERATOR_API_URL".to_string(),
-        format!("http://localhost:{}", operator_env.ui_port),
-    );
+    // Tunnel default; a coder target's control-plane-reachable callback_url
+    // overrides it so detached multi-step survives tunnel loss.
+    let api_url = options
+        .api_url_override
+        .clone()
+        .unwrap_or_else(|| format!("http://localhost:{}", operator_env.ui_port));
+    provider_env.insert("OPERATOR_API_URL".to_string(), api_url);
 
     let payload_file = super::prompt::write_command_file(
         config,
@@ -265,7 +302,11 @@ fn preflight_script(host: &RemoteHost, tool_name: &str) -> String {
 /// reachable over SSH (`BatchMode` so a password prompt can't wedge the TUI),
 /// tmux and the tool on the remote PATH, and the workdir present.
 pub(crate) fn run_preflight(host: &RemoteHost, tool_name: &str) -> Result<()> {
-    let status = std::process::Command::new("ssh")
+    let mut cmd = std::process::Command::new("ssh");
+    if let Some(ref frag) = host.ssh_config_path {
+        cmd.args(["-F", frag]);
+    }
+    let status = cmd
         .args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=5"])
         .arg(&host.ssh_alias)
         .arg(preflight_script(host, tool_name))
@@ -305,6 +346,7 @@ mod tests {
             ssh_alias: "gpu-alias".to_string(),
             workdir: "/srv/agents/proj".to_string(),
             display_name: None,
+            ssh_config_path: None,
         }
     }
 
@@ -358,8 +400,40 @@ mod tests {
 
     #[test]
     fn test_build_remote_llm_command_unknown_tool_errors() {
-        let err = build_remote_llm_command("agy", "m", "s", "/p", false, &[]).unwrap_err();
-        assert!(err.to_string().contains("no embedded tool config"));
+        let err =
+            build_remote_llm_command("op-test-tool-does-not-exist", "m", "s", "/p", false, &[])
+                .unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("no tool config"), "got: {msg}");
+        assert!(msg.contains("tools"), "points at the user tools dir: {msg}");
+    }
+
+    #[test]
+    fn test_build_remote_llm_command_runtime_tool() {
+        // A non-builtin tool config (as loaded from ~/.config/operator/tools)
+        let tool: crate::llm::tool_config::ToolConfig = serde_json::from_str(
+            r#"{
+                "tool_name": "mux",
+                "version_command": "mux --version",
+                "capabilities": { "supports_sessions": true, "supports_headless": true },
+                "model_aliases": ["default"],
+                "arg_mapping": { "prompt": "", "model": "--model" },
+                "command_template": "mux {{model_flag}}--resume {{session_id}} \"$(cat {{prompt_file}})\"",
+                "yolo_flags": ["--yes"]
+            }"#,
+        )
+        .unwrap();
+
+        let cmd = build_remote_llm_command_from(&tool, "m1", "uuid-1", "/remote/p.txt", true, &[]);
+        assert!(cmd.starts_with("mux "), "bare tool name, got: {cmd}");
+        assert!(cmd.contains("--model m1"));
+        assert!(cmd.contains("--resume uuid-1"));
+        assert!(cmd.contains("/remote/p.txt"));
+        assert!(cmd.contains("--yes"));
+        assert!(
+            !cmd.contains("{{"),
+            "all template variables substituted: {cmd}"
+        );
     }
 
     #[test]
@@ -407,6 +481,28 @@ mod tests {
         // The workdir must never appear unquoted (space-split) in any remote command.
         assert!(!script.contains(" /srv/agent workdir/proj/"));
         assert!(script.contains("agent workdir"));
+    }
+
+    #[test]
+    fn test_wrapper_passes_ssh_config_fragment_and_keeps_tunnel() {
+        let mut h = host();
+        h.ssh_config_path = Some("/local/.tickets/operator/ssh/ws.config".to_string());
+        let script = build_remote_wrapper_script(
+            &h,
+            "op-FEAT-1",
+            "u1",
+            Path::new("/l/p.txt"),
+            Path::new("/l/c.sh"),
+            7008,
+        );
+        assert!(
+            script.contains("-F '/local/.tickets/operator/ssh/ws.config'"),
+            "provisioned fragment must be passed with -F: {script}"
+        );
+        assert!(
+            script.contains("exec ssh -t -F '/local/.tickets/operator/ssh/ws.config' -R 7008:localhost:7008"),
+            "-R reverse tunnel must be preserved alongside -F (ProxyCommand is transport only): {script}"
+        );
     }
 
     #[test]

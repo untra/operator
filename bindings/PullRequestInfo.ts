@@ -2,7 +2,7 @@
 import type { PrState } from "./PrState";
 
 /**
- * PR info returned from GitHub
+ * PR/MR info returned from the git provider
  */
 export type PullRequestInfo = { 
 /**
@@ -10,7 +10,7 @@ export type PullRequestInfo = {
  */
 number: bigint, 
 /**
- * PR URL on GitHub
+ * PR URL on the provider
  */
 url: string, 
 /**

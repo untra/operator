@@ -60,6 +60,9 @@ pub struct DetectedTool {
     /// CLI flags for YOLO (auto-accept) mode
     #[serde(default)]
     pub yolo_flags: Vec<String>,
+    /// Whether the tool passed its health check at detection on startup
+    #[serde(default)]
+    pub health_ok: bool,
 }
 
 /// Tool capabilities
@@ -249,6 +252,9 @@ pub struct RemoteHost {
     /// Optional display name for UI
     #[serde(default)]
     pub display_name: Option<String>,
+    /// SSH config fragment passed with `-F` (used by provisioned coder aliases)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ssh_config_path: Option<String>,
 }
 
 /// Returns the implicit builtin `ModelServer` associated with a given `llm_tool`.
@@ -290,6 +296,19 @@ mod tests {
         assert!(d.x_agnt.is_none());
         assert!(d.x_openai.is_none());
         assert!(d.unmapped_core.is_none());
+    }
+
+    #[test]
+    fn detected_tool_defaults_unhealthy_without_health_ok() {
+        // Health is earned at detection, never assumed: an entry that was never
+        // health-checked reads unhealthy until the startup refresh verifies it.
+        let json = r#"{
+            "name": "claude",
+            "path": "/usr/local/bin/claude",
+            "version": "1.0.0"
+        }"#;
+        let t: DetectedTool = serde_json::from_str(json).expect("legacy tool deserializes");
+        assert!(!t.health_ok);
     }
 
     #[test]
@@ -373,7 +392,8 @@ pub struct DelegatorLaunchConfig {
     /// Whether to create a git branch for the ticket (None = default behavior)
     #[serde(default)]
     pub create_branch: Option<bool>,
-    /// Run in docker container (None = use global `launch.docker.enabled`)
+    /// DEPRECATED: prefer `target`. Run in docker container
+    /// (None = fall back to `launch.docker.enabled`, then local).
     #[serde(default)]
     pub docker: Option<bool>,
     /// Prompt text to prepend before the generated step prompt
@@ -385,8 +405,13 @@ pub struct DelegatorLaunchConfig {
     /// Override global relay auto-inject MCP setting per-delegator (None = use global setting)
     #[serde(default)]
     pub operator_relay: Option<bool>,
-    /// Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent
-    /// CLI on over SSH. `None` = launch locally.
+    /// DEPRECATED: prefer `target`. Name of a declared `RemoteHost` (from
+    /// `Config.hosts`) to launch the agent CLI on over SSH. `None` = local.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
+    /// Name of an execution target: an explicit `[[targets]]` entry, the
+    /// synthesized `local`/`docker` targets, or a `[[hosts]]` name.
+    /// Supersedes `docker` and `host`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
 }

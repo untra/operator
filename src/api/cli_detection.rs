@@ -6,6 +6,8 @@
 use std::process::Stdio;
 use tokio::process::Command;
 
+use crate::types::pr::GitProvider;
+
 /// CLI tool information
 #[derive(Debug, Clone)]
 pub struct CliInfo {
@@ -19,73 +21,75 @@ pub struct CliInfo {
     pub version: Option<String>,
 }
 
-/// Check if the `git` CLI is installed
-pub async fn detect_git() -> CliInfo {
-    let (installed, version) = check_cli_version("git", &["--version"]).await;
-    CliInfo {
+/// Static description of a provider CLI: display name and command to probe.
+/// `provider` is `None` for the provider-agnostic `git` binary.
+struct CliSpec {
+    provider: Option<GitProvider>,
+    name: &'static str,
+    command: &'static str,
+}
+
+const CLI_SPECS: &[CliSpec] = &[
+    CliSpec {
+        provider: None,
         name: "Git",
         command: "git",
-        installed,
-        version,
-    }
-}
-
-/// Check if the GitHub CLI (`gh`) is installed
-pub async fn detect_github_cli() -> CliInfo {
-    let (installed, version) = check_cli_version("gh", &["--version"]).await;
-    CliInfo {
+    },
+    CliSpec {
+        provider: Some(GitProvider::GitHub),
         name: "GitHub CLI",
         command: "gh",
-        installed,
-        version,
-    }
-}
-
-/// Check if the GitLab CLI (`glab`) is installed
-pub async fn detect_gitlab_cli() -> CliInfo {
-    let (installed, version) = check_cli_version("glab", &["--version"]).await;
-    CliInfo {
+    },
+    CliSpec {
+        provider: Some(GitProvider::GitLab),
         name: "GitLab CLI",
         command: "glab",
-        installed,
-        version,
-    }
-}
-
-/// Check if the Bitbucket CLI (`bb`) is installed
-pub async fn detect_bitbucket_cli() -> CliInfo {
-    let (installed, version) = check_cli_version("bb", &["--version"]).await;
-    CliInfo {
+    },
+    CliSpec {
+        provider: Some(GitProvider::Bitbucket),
         name: "Bitbucket CLI",
         command: "bb",
-        installed,
-        version,
-    }
-}
-
-/// Check if the Azure CLI (`az`) is installed with repos extension
-pub async fn detect_azure_cli() -> CliInfo {
-    let (installed, version) = check_cli_version("az", &["--version"]).await;
-    CliInfo {
+    },
+    CliSpec {
+        provider: Some(GitProvider::AzureDevOps),
         name: "Azure CLI",
         command: "az",
+    },
+    CliSpec {
+        provider: Some(GitProvider::Forgejo),
+        name: "Forgejo CLI",
+        command: "fj",
+    },
+    CliSpec {
+        provider: Some(GitProvider::Gitea),
+        name: "Gitea CLI",
+        command: "tea",
+    },
+];
+
+/// Detect all provider CLIs (and `git` itself), in table order.
+pub async fn detect_all_clis() -> Vec<CliInfo> {
+    let checks = CLI_SPECS.iter().map(probe);
+    futures_util::future::join_all(checks).await
+}
+
+/// Detect the CLI for a specific provider.
+pub async fn detect_for(provider: GitProvider) -> CliInfo {
+    let spec = CLI_SPECS
+        .iter()
+        .find(|s| s.provider == Some(provider))
+        .expect("CLI_SPECS covers every GitProvider variant");
+    probe(spec).await
+}
+
+async fn probe(spec: &CliSpec) -> CliInfo {
+    let (installed, version) = check_cli_version(spec.command, &["--version"]).await;
+    CliInfo {
+        name: spec.name,
+        command: spec.command,
         installed,
         version,
     }
-}
-
-/// Detect all available provider CLIs
-pub async fn detect_all_clis() -> Vec<CliInfo> {
-    // Run all detections in parallel
-    let (git, github, gitlab, bitbucket, azure) = tokio::join!(
-        detect_git(),
-        detect_github_cli(),
-        detect_gitlab_cli(),
-        detect_bitbucket_cli(),
-        detect_azure_cli(),
-    );
-
-    vec![git, github, gitlab, bitbucket, azure]
 }
 
 /// Helper to check if a CLI is installed and get its version
@@ -114,27 +118,53 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_detect_git() {
-        // git should be installed on most systems
-        let info = detect_git().await;
-        assert_eq!(info.name, "Git");
-        assert_eq!(info.command, "git");
-        // Don't assert installed=true as it depends on the system
-    }
-
-    #[tokio::test]
-    async fn test_detect_github_cli() {
-        let info = detect_github_cli().await;
-        assert_eq!(info.name, "GitHub CLI");
-        assert_eq!(info.command, "gh");
-    }
-
-    #[tokio::test]
     async fn test_detect_all_clis() {
         let clis = detect_all_clis().await;
-        assert_eq!(clis.len(), 5);
+        assert_eq!(clis.len(), 7);
         assert!(clis.iter().any(|c| c.command == "git"));
         assert!(clis.iter().any(|c| c.command == "gh"));
         assert!(clis.iter().any(|c| c.command == "glab"));
+        assert!(clis.iter().any(|c| c.command == "bb"));
+        assert!(clis.iter().any(|c| c.command == "az"));
+        assert!(clis.iter().any(|c| c.command == "fj"));
+        assert!(clis.iter().any(|c| c.command == "tea"));
+    }
+
+    #[test]
+    fn test_cli_specs_covers_all_providers() {
+        for provider in GitProvider::ALL {
+            assert!(
+                CLI_SPECS.iter().any(|s| s.provider == Some(provider)),
+                "no CliSpec for provider {provider}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_detect_for_github() {
+        let info = detect_for(GitProvider::GitHub).await;
+        assert_eq!(info.command, "gh");
+        assert_eq!(info.name, "GitHub CLI");
+    }
+
+    #[tokio::test]
+    async fn test_detect_for_gitlab() {
+        let info = detect_for(GitProvider::GitLab).await;
+        assert_eq!(info.command, "glab");
+        assert_eq!(info.name, "GitLab CLI");
+    }
+
+    #[tokio::test]
+    async fn test_detect_for_forgejo() {
+        let info = detect_for(GitProvider::Forgejo).await;
+        assert_eq!(info.command, "fj");
+        assert_eq!(info.name, "Forgejo CLI");
+    }
+
+    #[tokio::test]
+    async fn test_detect_for_gitea() {
+        let info = detect_for(GitProvider::Gitea).await;
+        assert_eq!(info.command, "tea");
+        assert_eq!(info.name, "Gitea CLI");
     }
 }

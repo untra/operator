@@ -311,7 +311,7 @@ pub struct StepResponse {
     pub prompt: String,
     pub outputs: Vec<String>,
     pub allowed_tools: Vec<String>,
-    /// Type of review required: "none", "plan", "visual", "pr"
+    /// Type of review required: "none", "plan", "visual", "pr", "proof"
     pub review_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_step: Option<String>,
@@ -344,6 +344,7 @@ impl From<&StepSchema> for StepResponse {
                 crate::templates::schema::ReviewType::Plan => "plan".to_string(),
                 crate::templates::schema::ReviewType::Visual => "visual".to_string(),
                 crate::templates::schema::ReviewType::Pr => "pr".to_string(),
+                crate::templates::schema::ReviewType::Proof => "proof".to_string(),
             },
             next_step: s.next_step.clone(),
             permission_mode: match s.permission_mode {
@@ -368,7 +369,7 @@ pub struct CreateStepRequest {
     pub outputs: Vec<String>,
     #[serde(default = "default_all_tools")]
     pub allowed_tools: Vec<String>,
-    /// Type of review required: "none", "plan", "visual", "pr"
+    /// Type of review required: "none", "plan", "visual", "pr", "proof"
     #[serde(default = "default_review_type")]
     pub review_type: String,
     #[serde(default)]
@@ -416,9 +417,11 @@ impl From<CreateStepRequest> for StepSchema {
                 "plan" => crate::templates::schema::ReviewType::Plan,
                 "visual" => crate::templates::schema::ReviewType::Visual,
                 "pr" => crate::templates::schema::ReviewType::Pr,
+                "proof" => crate::templates::schema::ReviewType::Proof,
                 _ => crate::templates::schema::ReviewType::None,
             },
             visual_config: None,
+            proof_config: None,
             on_reject: None,
             next_step: s.next_step,
             permissions: None,
@@ -457,7 +460,7 @@ pub struct UpdateStepRequest {
     pub outputs: Option<Vec<String>>,
     #[serde(default)]
     pub allowed_tools: Option<Vec<String>>,
-    /// Type of review required: "none", "plan", "visual", "pr"
+    /// Type of review required: "none", "plan", "visual", "pr", "proof"
     #[serde(default)]
     pub review_type: Option<String>,
     #[serde(default)]

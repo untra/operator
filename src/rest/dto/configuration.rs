@@ -185,9 +185,14 @@ pub struct DelegatorLaunchConfigDto {
     /// Override global relay auto-inject MCP setting per-delegator (None = use global setting)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub operator_relay: Option<bool>,
-    /// Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local)
+    /// Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local).
+    /// DEPRECATED: prefer `target`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
+    /// Name of an execution target (explicit `[[targets]]` entry, synthesized
+    /// `local`/`docker`, or a `[[hosts]]` name). Supersedes `docker`/`host`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
 }
 
 /// Response listing all delegators

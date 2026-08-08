@@ -12,15 +12,19 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates git tmux \
  && rm -rf /var/lib/apt/lists/*
 
-# CI stages the prebuilt release binary as operator-linux-${TARGETARCH}
-# (operator-linux-x86_64 is renamed to operator-linux-amd64; arm64 matches).
+# CI stages the prebuilt release binaries as {operator,opr8r}-linux-${TARGETARCH}
+# (the -linux-x86_64 artifacts are renamed to -linux-amd64; arm64 matches).
+# Both halves ship: agent sessions launched by the operator server call the
+# opr8r client to report step completion for multi-step ticket workflows.
 COPY operator-linux-${TARGETARCH} /usr/local/bin/operator
-RUN chmod +x /usr/local/bin/operator
+COPY opr8r-linux-${TARGETARCH} /usr/local/bin/opr8r
+RUN chmod +x /usr/local/bin/operator /usr/local/bin/opr8r
 
 # Fail the multi-arch build (incl. arm64 under QEMU binfmt from
-# setup-qemu-action) before push if the binary can't execute on this base.
+# setup-qemu-action) before push if a binary can't execute on this base.
 # --version short-circuits in clap before any config or tmux load.
 RUN ["/usr/local/bin/operator", "--version"]
+RUN ["/usr/local/bin/opr8r", "--version"]
 
 # Run as an unprivileged user with a writable HOME by default. A compromised
 # agent tool then can't act as root against the mounted workspace.

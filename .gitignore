@@ -53,3 +53,9 @@ vscode-extension/out/
 vscode-extension/.vscode-test/
 test-output.txt
 .tickets/
+.proof/
+
+# terraform working files left by `bun test` in coder-module/
+coder-module/.terraform/
+coder-module/.terraform.lock.hcl
+coder-module/terraform.tfstate*

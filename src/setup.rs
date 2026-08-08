@@ -28,7 +28,7 @@ pub struct SetupOptions {
     pub working_dir: Option<PathBuf>,
     /// Kanban provider to configure: jira, linear
     pub kanban_provider: Option<String>,
-    /// Preferred LLM tool: claude, codex, gemini
+    /// Preferred LLM tool (e.g., claude, codex, gemini, or any configured tool)
     pub llm_tool: Option<String>,
     /// Whether to use git worktrees for per-ticket isolation (default: false)
     pub use_worktrees: bool,

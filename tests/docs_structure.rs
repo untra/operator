@@ -22,20 +22,22 @@ use operator::integrations::{all_integrations, SupportStatus, Vertical};
 const NAV_DEFERRED: &[(&str, &str)] = &[("workflows", "claude"), ("workflows", "agnt")];
 
 /// Leaf URLs under a vertical section that are supporting pages rather than catalog integrations.
-const NAV_EXTRA_PAGES: &[&str] = &["/getting-started/git/provider-support/"];
+const NAV_EXTRA_PAGES: &[&str] = &[
+    "/getting-started/git/provider-support/",
+    "/getting-started/sessions/remote-hosts/", // execution-target concept page, not a session wrapper vertical
+];
 
 /// Published pages intentionally not linked from the sidebar.
 const NAV_ORPHAN_ALLOWLIST: &[&str] = &[
-    "index.md",                                 // site home, hardcoded in the header
-    "VERSION.md",                               // raw version endpoint
-    "privacy-policy.md",                        // footer link
-    "terms-of-service.md",                      // footer link
-    "downloads/index.md",                       // hardcoded sidebar link
-    "getting-started/kanban/jira-api.md",       // generated API appendix, linked from jira.md
-    "getting-started/sessions/remote-hosts.md", // deferred nav entry
-    "getting-started/workflows/index.md",       // deferred nav section
-    "getting-started/workflows/claude.md",      // deferred nav section
-    "getting-started/workflows/agnt.md",        // deferred nav section
+    "index.md",                            // site home, hardcoded in the header
+    "VERSION.md",                          // raw version endpoint
+    "privacy-policy.md",                   // footer link
+    "terms-of-service.md",                 // footer link
+    "downloads/index.md",                  // hardcoded sidebar link
+    "getting-started/kanban/jira-api.md",  // generated API appendix, linked from jira.md
+    "getting-started/workflows/index.md",  // deferred nav section
+    "getting-started/workflows/claude.md", // deferred nav section
+    "getting-started/workflows/agnt.md",   // deferred nav section
 ];
 
 /// Nav titles allowed to differ from the target page's front-matter title

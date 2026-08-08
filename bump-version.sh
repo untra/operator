@@ -34,6 +34,7 @@ TEXT_FILES=(
   "zed-extension/extension.toml"
   "vscode-extension/src/webhook-server.ts"
   "docs/_config.yml"
+  "coder-module/main.tf"
 )
 
 # JSON files: update .version via jq

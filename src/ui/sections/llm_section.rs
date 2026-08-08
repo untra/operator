@@ -19,7 +19,7 @@ impl StatusSection for LlmSection {
     }
 
     fn health(&self, snapshot: &StatusSnapshot) -> SectionHealth {
-        if snapshot.llm_tools.is_empty() {
+        if snapshot.llm_tools.is_empty() || !snapshot.llm_tools.iter().any(|t| t.health_ok) {
             SectionHealth::Yellow
         } else {
             SectionHealth::Green
@@ -48,7 +48,11 @@ impl StatusSection for LlmSection {
                 id: tool.name.clone(),
                 depth: 1,
                 label: tool.name.clone(),
-                description: tool.version.clone(),
+                description: if tool.health_ok {
+                    tool.version.clone()
+                } else {
+                    format!("{} (health check failed)", tool.version)
+                },
                 icon: StatusIcon::Tool,
                 brand_icon: None,
                 is_header: false,

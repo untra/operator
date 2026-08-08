@@ -143,14 +143,26 @@ export class LaunchManager {
         wrapper: 'vscode',
         retry_reason: null,
         resume_session_id: null,
+        target: options.target ?? null,
       }
     );
 
     this.log(
       `API response: terminal=${response.terminal_name}, ` +
       `workdir=${response.working_directory}, ` +
-      `worktree=${response.worktree_created}`
+      `worktree=${response.worktree_created}, ` +
+      `serverSide=${response.executed_server_side}`
     );
+
+    // Non-local targets (docker/coder/ssh) run SERVER-SIDE: the server owns
+    // the session and `command` is empty — nothing to execute here.
+    if (response.executed_server_side) {
+      void vscode.window.showInformationMessage(
+        `Launched ${ticket.id} on the Operator server` +
+          (response.terminal_name ? ` (session ${response.terminal_name})` : '')
+      );
+      return;
+    }
 
     // Create terminal with API response
     this.terminalManager.create({

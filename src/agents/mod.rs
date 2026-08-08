@@ -10,8 +10,10 @@ mod generator;
 pub mod hooks;
 pub mod idle_detector;
 pub(crate) mod launcher;
+pub use launcher::step_command::StepLaunchContext;
 mod monitor;
 mod pr_workflow;
+mod proof_review;
 mod session;
 mod sync;
 pub mod terminal_wrapper;
@@ -36,7 +38,10 @@ pub use generator::{
 };
 
 // Launcher
-pub use launcher::{LaunchOptions, Launcher, PreparedLaunch, RelaunchOptions};
+pub use launcher::{
+    parse_launch_mode, LaunchModeKind, LaunchOptions, Launcher, ParsedLaunchMode, PreparedLaunch,
+    RelaunchOptions,
+};
 
 // Artifact detection
 pub use artifact_detector::{ArtifactDetector, ArtifactStatus};
@@ -46,6 +51,7 @@ pub use monitor::{HealthCheckResult, ReconciliationResult, SessionMonitor};
 
 // Workflows
 pub use pr_workflow::PrWorkflow;
+pub use proof_review::{ProofResult, ProofRunner};
 pub use session::Session;
 pub use sync::{SyncAction, SyncResult, TicketSessionSync};
 pub use visual_review::{VisualReviewHandler, VisualReviewResult};

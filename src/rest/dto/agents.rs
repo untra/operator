@@ -61,6 +61,10 @@ pub struct KanbanTicketCard {
     pub priority: String,
     /// Timestamp for sorting (YYYYMMDD-HHMM format)
     pub timestamp: String,
+    /// Ticket markdown filename (joins with the tickets dir + status folder
+    /// for co-located clients; remote clients treat tickets as API-only)
+    #[serde(default)]
+    pub filename: String,
 }
 
 /// Kanban board response with tickets grouped by column
@@ -236,6 +240,11 @@ pub struct LaunchTicketRequest {
     /// no delegator. Injects the server's base URL / API key env at spawn.
     #[serde(default)]
     pub model_server: Option<String>,
+    /// Execution-target override by name (explicit `[[targets]]` entry,
+    /// synthesized `local`/`docker`, or a `[[hosts]]` name). Overrides the
+    /// delegator's launch config for this launch only.
+    #[serde(default)]
+    pub target: Option<String>,
     /// Run in YOLO mode (auto-accept all prompts)
     #[serde(default)]
     pub yolo_mode: bool,
@@ -254,6 +263,11 @@ pub struct LaunchTicketRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct LaunchTicketResponse {
+    /// True when the server executed the launch itself (non-local targets:
+    /// docker/coder/ssh orchestration is server-side); `command` is then
+    /// empty and the client must NOT run anything.
+    #[serde(default)]
+    pub executed_server_side: bool,
     /// Agent ID assigned to this launch
     pub agent_id: String,
     /// Ticket ID that was launched
@@ -417,7 +431,7 @@ pub struct NextStepInfo {
     pub name: String,
     /// Display name for the step
     pub display_name: String,
-    /// Review type: "none", "plan", "visual", "pr"
+    /// Review type: "none", "plan", "visual", "pr", "proof"
     pub review_type: String,
     /// Prompt template for the step
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -575,6 +589,7 @@ mod tests {
     #[test]
     fn test_kanban_ticket_card_step_display_name_absent_when_none() {
         let card = KanbanTicketCard {
+            filename: String::new(),
             id: "FEAT-1".to_string(),
             summary: "Add thing".to_string(),
             ticket_type: "FEAT".to_string(),
@@ -592,6 +607,7 @@ mod tests {
     #[test]
     fn test_kanban_ticket_card_step_display_name_present_when_set() {
         let card = KanbanTicketCard {
+            filename: String::new(),
             id: "FEAT-1".to_string(),
             summary: "Add thing".to_string(),
             ticket_type: "FEAT".to_string(),

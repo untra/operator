@@ -290,6 +290,7 @@ fn review_label(review: &ReviewType) -> &'static str {
         ReviewType::Plan => "plan",
         ReviewType::Visual => "visual",
         ReviewType::Pr => "pr",
+        ReviewType::Proof => "proof",
     }
 }
 

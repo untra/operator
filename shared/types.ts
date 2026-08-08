@@ -296,6 +296,10 @@ model_servers: Array<ModelServer>,
  */
 hosts: Array<RemoteHost>, 
 /**
+ * Named execution targets (docker/coder/ssh/local) referenced by `DelegatorLaunchConfig.target`.
+ */
+targets: Array<TargetDef>, 
+/**
  * Relay MCP injection configuration
  */
 relay: RelayConfig, 
@@ -488,7 +492,11 @@ capabilities: ToolCapabilities,
 /**
  * CLI flags for YOLO (auto-accept) mode
  */
-yolo_flags: Array<string>, };
+yolo_flags: Array<string>, 
+/**
+ * Whether the tool's health command succeeded (true when none configured)
+ */
+health_ok: boolean, };
 
 export type ToolCapabilities = { 
 /**
@@ -636,7 +644,8 @@ use_worktrees: boolean | null,
  */
 create_branch: boolean | null, 
 /**
- * Run in docker container (None = use global `launch.docker.enabled`)
+ * DEPRECATED: prefer `target`. Run in docker container
+ * (None = fall back to `launch.docker.enabled`, then local).
  */
 docker: boolean | null, 
 /**
@@ -652,10 +661,16 @@ prompt_suffix: string | null,
  */
 operator_relay: boolean | null, 
 /**
- * Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent
- * CLI on over SSH. `None` = launch locally.
+ * DEPRECATED: prefer `target`. Name of a declared `RemoteHost` (from
+ * `Config.hosts`) to launch the agent CLI on over SSH. `None` = local.
  */
-host?: string | null, };
+host?: string | null, 
+/**
+ * Name of an execution target: an explicit `[[targets]]` entry, the
+ * synthesized `local`/`docker` targets, or a `[[hosts]]` name.
+ * Supersedes `docker` and `host`.
+ */
+target?: string | null, };
 
 export type AgentProfile = { 
 /**
@@ -876,7 +891,9 @@ llm_tool: string | null,
  */
 llm_model: string | null, 
 /**
- * Launch mode: "default", "yolo", "docker", "docker-yolo"
+ * Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`
+ * (derived from the resolved execution target; parse with
+ * `agents::parse_launch_mode`, never substring-match)
  */
 launch_mode: string | null, 
 /**
@@ -895,7 +912,17 @@ worktree_path: string | null,
 /**
  * Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local)
  */
-remote_host: string | null, };
+remote_host: string | null, 
+/**
+ * Launch context fixed at launch time; `complete_step` reads it back to
+ * build subsequent step commands with the same delegator/tool/model.
+ */
+step_launch_context: StepLaunchContext | null, 
+/**
+ * Name of the resolved execution target this agent launched on
+ * (config lookup key for e.g. coder `stop_on_complete`)
+ */
+target_name: string | null, };
 
 export type CompletedTicket = { ticket_id: string, ticket_type: string, project: string, summary: string, completed_at: string, pr_url: string | null, output_tickets: Array<string>, };
 
@@ -1374,9 +1401,15 @@ prompt_suffix?: string | null,
  */
 operator_relay?: boolean | null, 
 /**
- * Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local)
+ * Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local).
+ * DEPRECATED: prefer `target`.
  */
-host?: string | null, };
+host?: string | null, 
+/**
+ * Name of an execution target (explicit `[[targets]]` entry, synthesized
+ * `local`/`docker`, or a `[[hosts]]` name). Supersedes `docker`/`host`.
+ */
+target?: string | null, };
 
 export type LlmTask = { 
 /**
@@ -1662,7 +1695,11 @@ yoloMode: boolean,
 /**
  * Resume from existing session (uses `session_id` from ticket)
  */
-resumeSession: boolean, };
+resumeSession: boolean, 
+/**
+ * Execution-target override by name (None = delegator/default resolution)
+ */
+target?: string, };
 
 export type VsCodeTicketMetadata = { 
 /**

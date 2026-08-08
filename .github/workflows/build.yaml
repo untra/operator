@@ -597,15 +597,24 @@ jobs:
           git push
 
   docker:
-    needs: [build, release]
+    needs: [build, build-opr8r, release]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
-      - name: Download linux binaries
+      - name: Download linux operator binaries
         uses: actions/download-artifact@v8
         with:
           pattern: operator-linux-*
+          path: bins
+          merge-multiple: true
+
+      # The image ships both halves of the server-client pair, so agent
+      # sessions inside the container can report step completion via opr8r.
+      - name: Download linux opr8r binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: opr8r-linux-*
           path: bins
           merge-multiple: true
 
@@ -614,7 +623,10 @@ jobs:
         run: |
           cp bins/operator-linux-x86_64 ./operator-linux-amd64
           cp bins/operator-linux-arm64  ./operator-linux-arm64
-          chmod +x operator-linux-amd64 operator-linux-arm64
+          cp bins/opr8r-linux-x86_64    ./opr8r-linux-amd64
+          cp bins/opr8r-linux-arm64     ./opr8r-linux-arm64
+          chmod +x operator-linux-amd64 operator-linux-arm64 \
+                   opr8r-linux-amd64 opr8r-linux-arm64
 
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4

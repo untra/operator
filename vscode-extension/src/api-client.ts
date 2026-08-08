@@ -11,6 +11,7 @@ import * as path from 'path';
 
 // Import generated types from Rust bindings (source of truth)
 import type {
+  KanbanBoardResponse,
   LaunchTicketRequest,
   LaunchTicketResponse,
   HealthResponse,
@@ -153,16 +154,27 @@ export interface ApiSessionInfo {
 }
 
 /**
- * Discover Operator API URL from session file or configuration
+ * Discover Operator API URL.
  *
  * Checks in order:
- * 1. .tickets/operator/api-session.json (written by running Operator)
- * 2. VSCode configuration operator.apiUrl
+ * 1. Explicitly-set operator.apiUrl (config.inspect distinguishes a user
+ *    setting from the default value)
+ * 2. .tickets/operator/api-session.json (written by a running Operator)
+ * 3. The default http://localhost:7008
  */
 export async function discoverApiUrl(
   ticketsDir: string | undefined
 ): Promise<string> {
-  // Try to read api-session.json from tickets directory
+  const config = vscode.workspace.getConfiguration('operator');
+  const inspected = config.inspect<string>('apiUrl');
+  const explicit =
+    inspected?.workspaceFolderValue ??
+    inspected?.workspaceValue ??
+    inspected?.globalValue;
+  if (explicit) {
+    return explicit;
+  }
+
   if (ticketsDir) {
     const sessionFile = path.join(ticketsDir, 'operator', 'api-session.json');
     try {
@@ -174,9 +186,7 @@ export async function discoverApiUrl(
     }
   }
 
-  // Fall back to configured URL
-  const config = vscode.workspace.getConfiguration('operator');
-  return config.get('apiUrl', 'http://localhost:7008');
+  return 'http://localhost:7008';
 }
 
 /**
@@ -808,6 +818,11 @@ export class OperatorApiClient {
   /** Connect a gateway provider by declaring an instance. */
   async createModelServer(req: CreateModelServerRequest): Promise<ModelServerResponse> {
     return this.postJson('/api/v1/model-servers', req);
+  }
+
+  /** Kanban board columns — the API-backed source for the ticket trees. */
+  async getKanban(): Promise<KanbanBoardResponse> {
+    return this.getJson<KanbanBoardResponse>('/api/v1/queue/kanban');
   }
 
   async listDelegators(): Promise<DelegatorsResponse> {

@@ -32,11 +32,12 @@ pub enum Vertical {
     Platform,
     Integration,
     Workflows,
+    Notification,
 }
 
 impl Vertical {
     /// All verticals, in README display order.
-    pub const ALL: [Vertical; 9] = [
+    pub const ALL: [Vertical; 10] = [
         Vertical::Kanban,
         Vertical::Model,
         Vertical::Git,
@@ -46,6 +47,7 @@ impl Vertical {
         Vertical::Platform,
         Vertical::Integration,
         Vertical::Workflows,
+        Vertical::Notification,
     ];
 
     /// Stable lowercase slug (wire id for the REST DTO).
@@ -60,6 +62,7 @@ impl Vertical {
             Vertical::Platform => "platform",
             Vertical::Integration => "integration",
             Vertical::Workflows => "workflows",
+            Vertical::Notification => "notification",
         }
     }
 
@@ -75,6 +78,24 @@ impl Vertical {
             Vertical::Platform => "Platform",
             Vertical::Integration => "Integration",
             Vertical::Workflows => "Workflow Export Format",
+            Vertical::Notification => "Notification Channel",
+        }
+    }
+
+    /// Docs section directory (site-root-relative) that hosts this vertical's
+    /// entry pages — the sidebar nav item URL and the section `index.md`.
+    /// `Session` and `Editor` deliberately share one section.
+    pub fn docs_section(&self) -> &'static str {
+        match self {
+            Vertical::Kanban => "getting-started/kanban",
+            Vertical::Model => "getting-started/model-servers",
+            Vertical::Git => "getting-started/git",
+            Vertical::Session | Vertical::Editor => "getting-started/sessions",
+            Vertical::LlmTool => "getting-started/agents",
+            Vertical::Platform => "getting-started/platforms",
+            Vertical::Integration => "getting-started/integrations",
+            Vertical::Workflows => "getting-started/workflows",
+            Vertical::Notification => "getting-started/notifications",
         }
     }
 }
@@ -93,6 +114,10 @@ pub struct CatalogEntry {
     /// `getting-started/kanban/jira`), or `None` if undocumented. Drives both
     /// the docs link and the expected README badge URL.
     pub docs_path: Option<&'static str>,
+    /// Brand icon filename stem in `docs/assets/icons/{icon}.svg`, or `None`
+    /// when no brand icon ships. Drives the sidebar nav `icon:` values
+    /// (enforced by `tests/docs_structure.rs`).
+    pub icon: Option<&'static str>,
     /// Whether this entry carries a curated README badge.
     pub readme_badge: bool,
     /// Official support / maturity status.
@@ -115,7 +140,8 @@ impl CatalogEntry {
 pub fn all_integrations() -> Vec<CatalogEntry> {
     use SupportStatus::{Alpha, Beta, Ga, Proto};
     use Vertical::{
-        Editor, Git, Integration, Kanban, LlmTool, Model, Platform, Session, Workflows,
+        Editor, Git, Integration, Kanban, LlmTool, Model, Notification, Platform, Session,
+        Workflows,
     };
     vec![
         // --- Kanban providers (mirror KanbanProviderType::ALL) ---
@@ -124,6 +150,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "jira",
             "Jira",
             Some("getting-started/kanban/jira"),
+            Some("jira"),
             true,
             Beta,
         ),
@@ -132,6 +159,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "linear",
             "Linear",
             Some("getting-started/kanban/linear"),
+            Some("linear"),
             true,
             Beta,
         ),
@@ -140,6 +168,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "github",
             "GitHub Projects",
             Some("getting-started/kanban/github"),
+            Some("github"),
             true,
             Beta,
         ),
@@ -148,6 +177,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "openspec",
             "OpenSpec",
             Some("getting-started/kanban/openspec"),
+            Some("openspec"),
             false,
             Alpha,
         ),
@@ -157,6 +187,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "anthropic-api",
             "Anthropic",
             Some("getting-started/model-servers/anthropic"),
+            Some("anthropic"),
             true,
             Beta,
         ),
@@ -165,6 +196,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "openai-api",
             "OpenAI",
             Some("getting-started/model-servers/openai"),
+            Some("openai"),
             true,
             Beta,
         ),
@@ -173,6 +205,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "google-api",
             "Google",
             Some("getting-started/model-servers/google"),
+            Some("google"),
             true,
             Alpha,
         ),
@@ -181,6 +214,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "ollama",
             "Ollama",
             Some("getting-started/model-servers/ollama"),
+            Some("ollama"),
             true,
             Beta,
         ),
@@ -189,6 +223,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "openrouter",
             "OpenRouter",
             Some("getting-started/model-servers/openrouter"),
+            Some("openrouter"),
             true,
             Beta,
         ),
@@ -197,16 +232,18 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "openai-compat",
             "OpenAI-compatible",
             None,
+            None,
             false,
             Proto,
         ),
-        entry(Model, "lmstudio", "LM Studio", None, false, Proto),
+        entry(Model, "lmstudio", "LM Studio", None, None, false, Proto),
         // --- Git providers (mirror GitProvider::ALL) ---
         entry(
             Git,
             "github",
             "GitHub",
             Some("getting-started/git/github"),
+            Some("github"),
             true,
             Beta,
         ),
@@ -215,17 +252,19 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "gitlab",
             "GitLab",
             Some("getting-started/git/gitlab"),
+            Some("gitlab"),
             true,
             Alpha,
         ),
-        entry(Git, "bitbucket", "Bitbucket", None, false, Proto),
-        entry(Git, "azure", "Azure DevOps", None, false, Proto),
+        entry(Git, "bitbucket", "Bitbucket", None, None, false, Proto),
+        entry(Git, "azure", "Azure DevOps", None, None, false, Proto),
         // --- Session wrappers (mirror SessionWrapperType::ALL; vscode lives under Editor) ---
         entry(
             Session,
             "tmux",
             "tmux",
             Some("getting-started/sessions/tmux"),
+            Some("tmux"),
             true,
             Beta,
         ),
@@ -234,6 +273,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "cmux",
             "cmux",
             Some("getting-started/sessions/cmux"),
+            Some("cmux"),
             true,
             Beta,
         ),
@@ -242,6 +282,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "zellij",
             "Zellij",
             Some("getting-started/sessions/zellij"),
+            Some("zellij"),
             true,
             Beta,
         ),
@@ -251,6 +292,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "vscode",
             "VS Code",
             Some("getting-started/sessions/vscode"),
+            Some("vscode"),
             true,
             Beta,
         ),
@@ -259,6 +301,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "zed",
             "Zed",
             Some("getting-started/sessions/zed"),
+            Some("zed"),
             true,
             Alpha,
         ),
@@ -267,6 +310,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "cursor",
             "Cursor",
             Some("getting-started/sessions/cursor"),
+            Some("cursor"),
             false,
             Proto,
         ),
@@ -276,6 +320,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "claude",
             "Claude",
             Some("getting-started/agents/claude"),
+            Some("claude"),
             true,
             Ga,
         ),
@@ -284,6 +329,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "codex",
             "Codex",
             Some("getting-started/agents/codex"),
+            Some("codex"),
             true,
             Beta,
         ),
@@ -292,6 +338,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "gemini-cli",
             "Gemini CLI",
             Some("getting-started/agents/gemini-cli"),
+            Some("gemini"),
             true,
             Alpha,
         ),
@@ -301,6 +348,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "docker",
             "Docker",
             Some("getting-started/platforms/docker"),
+            Some("docker"),
             true,
             Beta,
         ),
@@ -309,6 +357,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "coder",
             "Coder",
             Some("getting-started/platforms/coder"),
+            Some("coder"),
             true,
             Alpha,
         ),
@@ -318,6 +367,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "agnt",
             "AGNT",
             Some("getting-started/integrations/agnt"),
+            Some("agnt"),
             false,
             Alpha,
         ),
@@ -327,6 +377,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "claude",
             "Claude Workflow",
             Some("getting-started/workflows/claude"),
+            Some("claude"),
             true,
             Ga,
         ),
@@ -335,8 +386,28 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "agnt",
             "AGNT Workflow",
             Some("getting-started/workflows/agnt"),
+            Some("agnt"),
             true,
             Alpha,
+        ),
+        // --- Notification channels ---
+        entry(
+            Notification,
+            "os",
+            "Operating System",
+            Some("getting-started/notifications/os"),
+            Some("notification"),
+            true,
+            Beta,
+        ),
+        entry(
+            Notification,
+            "webhooks",
+            "Webhooks",
+            Some("getting-started/notifications/webhooks"),
+            Some("webhook"),
+            true,
+            Beta,
         ),
     ]
 }
@@ -354,6 +425,7 @@ fn entry(
     slug: &'static str,
     label: &'static str,
     docs_path: Option<&'static str>,
+    icon: Option<&'static str>,
     readme_badge: bool,
     status: SupportStatus,
 ) -> CatalogEntry {
@@ -362,6 +434,7 @@ fn entry(
         slug,
         label,
         docs_path,
+        icon,
         readme_badge,
         status,
     }

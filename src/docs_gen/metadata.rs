@@ -29,7 +29,6 @@ impl DocGenerator for MetadataSchemaDocGenerator {
         let mut output = format_header("Ticket Metadata Schema", self.source());
 
         // Title and description
-        output.push_str(&heading(1, "Ticket Metadata Schema"));
 
         if let Some(desc) = schema.get("description").and_then(|d| d.as_str()) {
             output.push_str(&format!("{desc}\n\n"));
@@ -315,7 +314,8 @@ mod tests {
         assert!(result.contains("ticket_metadata.schema.json"));
 
         // Should have the main heading
-        assert!(result.contains("# Ticket Metadata Schema"));
+        assert!(result.contains("title: \"Ticket Metadata Schema\""));
+        assert!(!result.contains("\n# Ticket Metadata Schema"));
 
         // Should have required fields section
         assert!(result.contains("## Required Fields"));

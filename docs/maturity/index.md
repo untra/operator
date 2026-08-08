@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM src/integrations/catalog.rs - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Feature Maturity
-
 Operator integrates with many providers and tools across several **verticals**. Each integration carries an official **support status** so you know what to expect before you depend on it. This page is generated from the same source of truth that drives the README badges and the `/api/v1/integrations` API, so it always reflects the current state.
 
 ## Support levels
@@ -90,3 +88,10 @@ Operator integrates with many providers and tools across several **verticals**. 
 |---|---|---|
 | Claude Workflow | ![GA](https://img.shields.io/badge/GA-1BB91F) | [Claude Workflow](https://operator.untra.io/getting-started/workflows/claude/) |
 | AGNT Workflow | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [AGNT Workflow](https://operator.untra.io/getting-started/workflows/agnt/) |
+
+## Notification Channel
+
+| Integration | Status | Docs |
+|---|---|---|
+| Operating System | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Operating System](https://operator.untra.io/getting-started/notifications/os/) |
+| Webhooks | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Webhooks](https://operator.untra.io/getting-started/notifications/webhooks/) |

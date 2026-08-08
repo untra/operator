@@ -4,8 +4,6 @@ description: "Session wrapper tools for managing AI agent terminals."
 layout: doc
 ---
 
-# Supported Session Management
-
 Operator supports multiple session management backends for running AI coding agents in persistent, manageable terminal sessions.
 
 ## Available Options

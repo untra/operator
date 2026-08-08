@@ -4,8 +4,6 @@ description: "Configure webhook notifications for Operator events."
 layout: doc
 ---
 
-# Webhook Notifications
-
 Send HTTP POST requests to external services when Operator events occur.
 
 ## Configuration

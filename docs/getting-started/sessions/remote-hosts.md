@@ -4,8 +4,6 @@ description: "Launch agent CLI processes on a remote machine over SSH while the 
 layout: doc
 ---
 
-# Remote Hosts (SSH)
-
 Operator can launch an agent's CLI process on a **remote machine** while the
 dashboard, queue, and tracking stay local. Declare a `[[hosts]]` entry and
 reference it from a delegator's `launch_config`:

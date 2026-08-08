@@ -25,7 +25,6 @@ impl DocGenerator for SchemaIndexDocGenerator {
     fn generate(&self) -> Result<String> {
         let mut output = format_header("Schema Reference", self.source());
 
-        output.push_str(&heading(1, "Schema Reference"));
         output.push_str(
             "This section documents all JSON schemas and type definitions used by Operator.\n\n",
         );
@@ -100,8 +99,8 @@ impl DocGenerator for SchemaIndexDocGenerator {
         output.push_str(&heading(2, "TypeScript Types"));
         output.push_str(
             "TypeScript type definitions are available for frontend integration:\n\n\
-            - [TypeScript API Documentation](/typescript/) - Generated via TypeDoc\n\
-            - Source: `shared/types.ts` (generated via ts-rs)\n\n",
+            - Source: `shared/types.ts` (generated via ts-rs)\n\
+            - API docs can be generated locally with `npm run docs:typescript`\n\n",
         );
 
         // Regeneration instructions
@@ -134,8 +133,9 @@ mod tests {
         // Should have the auto-generated header
         assert!(result.contains("AUTO-GENERATED FROM"));
 
-        // Should have the main heading
-        assert!(result.contains("# Schema Reference"));
+        // Title lives in front matter only; the doc layout renders it
+        assert!(result.contains("title: \"Schema Reference\""));
+        assert!(!result.contains("\n# Schema Reference"));
 
         // Should list all schema pages
         assert!(result.contains("[Configuration](config/)"));

@@ -4,8 +4,6 @@ description: "Configure Claude Code as your AI coding agent."
 layout: doc
 ---
 
-# Claude Code
-
 [Claude Code](https://code.claude.com) is Anthropic's AI coding assistant agent, available as Claude Code for command-line development workflows.
 
 ## Installation
@@ -60,5 +58,5 @@ To enable relay for a delegator, set `operator_relay = true` in its
 `launch_config`. The global default is `false` (opt-in), so single-agent
 workflows stay lean unless relay is explicitly requested.
 
-See [Relay](/docs/relay/) for the full architecture.
+See [Relay](/relay/) for the full architecture.
 

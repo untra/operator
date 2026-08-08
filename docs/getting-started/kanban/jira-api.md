@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM docs/schemas/jira-api.json - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Jira API Reference
-
 Auto-generated documentation of Jira Cloud REST API response types used by Operator.
 
 ## Overview

@@ -4,8 +4,6 @@ description: "Configure OpenAI Codex as your AI coding agent."
 layout: doc
 ---
 
-# Codex
-
 [Codex](https://developers.openai.com/codex/) is the [OpenAI](https://openai.com/) code-specialized CLI agent, available through the OpenAI API.
 
 ## Status
@@ -53,7 +51,7 @@ Or add it to your shell profile for persistence.
 
 Operator injects relay env vars (`RELAY_HUB_SOCKET`, `RELAY_AGENT_NAME`) into Codex sessions at launch so agents can discover each other by ticket ID. Full MCP tool support for Codex relay is planned for a future release.
 
-See [Relay](/docs/relay/) for details.
+See [Relay](/relay/) for details.
 
 ## API Usage
 

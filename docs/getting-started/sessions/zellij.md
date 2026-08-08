@@ -4,8 +4,6 @@ description: "Zellij terminal workspace manager integration for managing AI agen
 layout: doc
 ---
 
-# Zellij Sessions
-
 <span class="badge supported">Supported</span>
 
 <span class="operator-brand">Operator!</span> supports [**Zellij**](https://zellij.dev){:target="_blank"}, a terminal workspace manager, as a session management backend. When running inside Zellij, Operator can launch and manage AI coding agents in dedicated Zellij tabs.

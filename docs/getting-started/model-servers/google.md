@@ -4,8 +4,6 @@ description: "Connect Google (Gemini) as a first-party model provider and list i
 layout: doc
 ---
 
-# Google
-
 [**Google**](https://ai.google.dev/) is a first-party model provider — it
 produces the Gemini family and serves them from its own API. It is the
 zero-config default for the `gemini` llm tool, and a first-class

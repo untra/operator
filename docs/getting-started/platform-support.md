@@ -4,8 +4,6 @@ description: "What works on each operating system and which features are unavail
 layout: doc
 ---
 
-# Platform Support & Limitations
-
 This page is the authoritative reference for what Operator supports on each operating system. Each gap is tagged as one of: **not applicable** (the underlying tool doesn't exist on that OS), **blocked** (a dependency prevents support and a workaround is needed), or **planned** (the intent is to support it; no timeline committed).
 
 ## Quick Reference Matrix

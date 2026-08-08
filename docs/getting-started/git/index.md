@@ -4,8 +4,6 @@ description: "Git hosting integrations for Operator."
 layout: doc
 ---
 
-# Supported Git Repositories
-
 Operator integrates with Git hosting platforms to manage branches and pull/merge requests.
 
 ## Prerequisites

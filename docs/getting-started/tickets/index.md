@@ -4,8 +4,6 @@ description: "Create and manage tickets with markdown format, naming conventions
 layout: doc
 ---
 
-# Tickets
-
 Tickets are the unit of work in <span class="operator-brand">Operator!</span>. Each one describes a task for an agent to complete, and carries an **issue type** that decides *how* the work is done — see [Workflows](/workflows/) for the process behind the ticket.
 
 ## Ticket Format

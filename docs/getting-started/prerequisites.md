@@ -4,8 +4,6 @@ description: "System requirements and dependencies for running Operator."
 layout: doc
 ---
 
-# Prerequisites
-
 Before installing Operator, ensure your system meets the following requirements.
 
 ## System Requirements
@@ -47,13 +45,13 @@ Operator requires a session manager for launching and managing coding agents:
 
 | Platform | Recommended | Alternative |
 |----------|-------------|-------------|
-| macOS | [VS Code Extension](/getting-started/vscode-extension/) | tmux |
-| Linux | [VS Code Extension](/getting-started/vscode-extension/) | tmux |
-| Windows | [VS Code Extension](/getting-started/vscode-extension/) (required) | N/A |
+| macOS | [VS Code Extension](/getting-started/sessions/vscode/) | tmux |
+| Linux | [VS Code Extension](/getting-started/sessions/vscode/) | tmux |
+| Windows | [VS Code Extension](/getting-started/sessions/vscode/) (required) | N/A |
 
 #### VS Code Extension
 
-The VS Code Extension provides the best experience across all platforms and is **required on Windows**. See [VS Code Extension Setup](/getting-started/vscode-extension/) for installation instructions.
+The VS Code Extension provides the best experience across all platforms and is **required on Windows**. See [VS Code Extension Setup](/getting-started/sessions/vscode/) for installation instructions.
 
 #### tmux (macOS/Linux only)
 
@@ -92,7 +90,7 @@ At least one AI coding agent should be installed:
 
 - [Claude Code](/getting-started/agents/claude/) (recommended)
 - [Codex](/getting-started/agents/codex/)
-- [Gemini](/getting-started/agents/gemini/)
+- [Gemini](/getting-started/agents/gemini-cli/)
 
 ### Kanban Integration
 

@@ -4,8 +4,6 @@ description: "Cursor IDE integration via the operator-terminals VS Code extensio
 layout: doc
 ---
 
-# Cursor
-
 <span class="badge supported">Supported</span>
 
 <a href="https://open-vsx.org/extension/untra/operator-terminals" target="_blank" class="button">Install from OpenVSX</a>

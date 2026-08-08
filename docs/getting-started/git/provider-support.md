@@ -4,8 +4,6 @@ description: "Architecture guide for adding new Git provider integrations."
 layout: doc
 ---
 
-# Provider Support
-
 This guide explains how Operator integrates with Git hosting providers and how to add support for new providers.
 
 ## Architecture Overview

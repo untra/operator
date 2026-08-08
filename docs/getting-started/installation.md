@@ -4,8 +4,6 @@ description: "Download and install Operator on your system."
 layout: doc
 ---
 
-# Installation
-
 This guide covers installing Operator on macOS, Linux, and Windows.
 
 ## VS Code Extension (Recommended)

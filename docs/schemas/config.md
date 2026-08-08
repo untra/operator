@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM docs/schemas/config.json - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Configuration Schema
-
 JSON Schema for the Operator configuration file (`config.toml`).
 
 ## Schema Information

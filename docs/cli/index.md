@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM src/main.rs, src/env_vars.rs - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# CLI Reference
-
 Operator provides both a TUI dashboard and CLI commands for queue management.
 
 ## Global Options

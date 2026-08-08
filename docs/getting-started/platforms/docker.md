@@ -4,8 +4,6 @@ description: "Run Operator from an official multi-arch Docker image, mounting yo
 layout: doc
 ---
 
-# Docker
-
 <span class="badge supported">Supported</span>
 
 Run [Operator](https://operator.untra.io) from an official multi-arch container image. The image bundles the Operator binary (with the embedded web dashboard and REST API) on a slim Debian base, plus the `git` and `tmux` substrate Operator needs to launch agents. Mount your projects root into the container and Operator treats it as the workspace.

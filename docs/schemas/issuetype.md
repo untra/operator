@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM src/templates/schema.rs (TemplateSchema) - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Issue Type Schema
-
 Schema definition for an issuetype template
 
 ## Schema Information

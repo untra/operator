@@ -4,8 +4,6 @@ description: "VS Code terminal integration for Operator multi-agent orchestratio
 layout: doc
 ---
 
-# VS Code Extension
-
 <span class="badge recommended">Recommended</span>
 
 <a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank" class="button">Install from VS Code Marketplace</a>

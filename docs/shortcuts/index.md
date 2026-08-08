@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM src/ui/keybindings.rs - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Keyboard Shortcuts
-
 Operator uses vim-style keybindings for navigation and actions. This reference documents all available keyboard shortcuts.
 
 ## Quick Reference

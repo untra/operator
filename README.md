@@ -22,6 +22,8 @@
 
 * **Workflow Export Format** [![Claude Workflow](https://img.shields.io/badge/Claude_Workflow-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/workflows/claude/) [![AGNT Workflow](https://img.shields.io/badge/AGNT_Workflow-6E56CF)](https://operator.untra.io/getting-started/workflows/agnt/)
 
+* **Notification Channel** [![Operating System](https://img.shields.io/badge/Operating_System-333333)](https://operator.untra.io/getting-started/notifications/os/) [![Webhooks](https://img.shields.io/badge/Webhooks-2088FF?logo=webhook&logoColor=white)](https://operator.untra.io/getting-started/notifications/webhooks/)
+
 An orchestration tool for [**AI-assisted**](https://operator.untra.io/getting-started/agents/) [_kanban-shaped_](https://operator.untra.io/getting-started/kanban/) [git-versioned](https://operator.untra.io/getting-started/git/) software development.
 
 <a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank" class="button">Install <b>Operator! Terminals</b> extension from Visual Studio Code Marketplace</a>

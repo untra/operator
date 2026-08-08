@@ -4,8 +4,6 @@ description: "Install and configure Operator! for managing AI-assisted developme
 layout: doc
 ---
 
-# Getting Started
-
 Welcome to Operator! This guide will help you get up and running with AI-assisted kanban-shaped software development.
 
 ## Quick Start

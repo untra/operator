@@ -25,7 +25,6 @@ impl DocGenerator for StartupDocGenerator {
         let mut output = format_header("Setup Wizard", self.source());
 
         // Introduction
-        output.push_str(&heading(1, "Setup Wizard"));
         output.push_str("When Operator starts and no `.tickets/` directory exists, ");
         output.push_str("the setup wizard guides you through first-time initialization. ");
         output.push_str("This reference documents each step of the wizard.\n\n");
@@ -99,7 +98,8 @@ mod tests {
         assert!(result.contains("startup/mod.rs"));
 
         // Should have the main heading
-        assert!(result.contains("# Setup Wizard"));
+        assert!(result.contains("title: \"Setup Wizard\""));
+        assert!(!result.contains("\n# Setup Wizard"));
 
         // Should have overview section
         assert!(result.contains("## Steps Overview"));

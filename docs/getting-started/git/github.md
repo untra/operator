@@ -5,8 +5,6 @@ layout: doc
 published: true
 ---
 
-# GitHub
-
 Connect Operator to GitHub for repository management and pull requests.
 
 ## Prerequisites

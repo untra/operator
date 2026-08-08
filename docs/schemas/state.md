@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM docs/schemas/state.json - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Application State Schema
-
 JSON Schema for the Operator runtime state file (`state.json`).
 
 This file tracks the current state of agents, completed tickets, and system status.

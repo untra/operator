@@ -4,8 +4,6 @@ description: "Connect Operator! to agent OS and automation platforms like AGNT.g
 layout: doc
 ---
 
-# Automation Platform Integrations
-
 Operator is not just a standalone TUI — it exposes its ticket orchestration over
 a **REST API** and a **stdio MCP server**, so external *automation platforms* and
 *agent operating systems* can drive it, and Operator can hand work out to them.

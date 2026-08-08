@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM src/startup/mod.rs - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Setup Wizard
-
 When Operator starts and no `.tickets/` directory exists, the setup wizard guides you through first-time initialization. This reference documents each step of the wizard.
 
 ## Steps Overview

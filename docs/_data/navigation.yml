@@ -9,8 +9,13 @@ docs:
         url: /getting-started/platform-support/
       - title: Installation
         url: /getting-started/installation/
-      - title: Tickets
-        url: /getting-started/tickets/
+      - title: Operator Concepts
+        url: /getting-started/concepts/
+        children:
+          - title: Tickets
+            url: /getting-started/tickets/
+          - title: Kanban
+            url: /getting-started/concepts/kanban/
       - title: Supported Session Management
         url: /getting-started/sessions/
         children:
@@ -41,6 +46,12 @@ docs:
           - title: Linear
             url: /getting-started/kanban/linear/
             icon: linear
+          - title: GitHub Projects
+            url: /getting-started/kanban/github/
+            icon: github
+          - title: OpenSpec
+            url: /getting-started/kanban/openspec/
+            icon: openspec
       - title: Supported Coding Agents
         url: /getting-started/agents/
         children:
@@ -61,7 +72,7 @@ docs:
             icon: anthropic
           - title: OpenAI
             url: /getting-started/model-servers/openai/
-            icon: codex
+            icon: openai
           - title: Google
             url: /getting-started/model-servers/google/
             icon: google
@@ -80,6 +91,8 @@ docs:
           - title: GitLab
             url: /getting-started/git/gitlab/
             icon: gitlab
+          - title: Provider Support
+            url: /getting-started/git/provider-support/
       - title: Supported Notification Integrations
         url: /getting-started/notifications/
         children:
@@ -103,6 +116,7 @@ docs:
         children:
           - title: AGNT.gg
             url: /getting-started/integrations/agnt/
+            icon: agnt
   - title: Reference
     children:
       - title: CLI
@@ -123,6 +137,18 @@ docs:
       - title: Artifact Detection
         url: /artifact-detection/
         codicon: file-binary
+      - title: Setup Wizard
+        url: /startup/
+        codicon: rocket
+      - title: Feature Maturity
+        url: /maturity/
+        codicon: verified
+      - title: Delegators
+        url: /delegators/
+        codicon: organization
+      - title: Relay
+        url: /relay/
+        codicon: radio-tower
       - title: Taxonomy
         codicon: type-hierarchy
         children:
@@ -143,5 +169,3 @@ docs:
             url: /schemas/metadata/
           - title: REST API
             url: /schemas/api/
-          - title: TypeScript Types
-            url: /typescript/

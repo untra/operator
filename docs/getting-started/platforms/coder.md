@@ -4,8 +4,6 @@ description: "Run Operator as a background service in Coder workspaces via Terra
 layout: doc
 ---
 
-# Coder
-
 <span class="badge supported">Supported</span>
 
 Run [Operator](https://operator.untra.io) as a background REST API server inside your [Coder](https://coder.com) workspace. The module downloads the operator binary from GitHub releases, generates configuration, starts the API server, and exposes the dashboard through the Coder workspace UI with automatic healthchecks.

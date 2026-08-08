@@ -1,17 +1,13 @@
 ---
-layout: default
-title: Supported Model Providers
-parent: Getting Started
-nav_order: 5
-has_children: true
+title: "Supported Model Providers"
+description: "Model servers and inference providers for Operator delegators."
+layout: doc
 ---
-
-# Model Providers
 
 A **model server** is a named host that serves models via an inference API. It's orthogonal to the LLM tool that runs your coding agent:
 
 - **LLM tools** (claude, codex, gemini) are the agentic CLIs that drive the coding session — they use tools, edit files, resume sessions.
-- **Model servers** are where the model weights live — Anthropic's API, OpenAI's API, Google's API, or a many-model provider like [OpenRouter](openrouter/), a local [Ollama](ollama/) server, lmstudio, or vllm.
+- **Model servers** are where the model weights live — Anthropic's API, OpenAI's API, Google's API, or a many-model provider like [OpenRouter](/getting-started/model-servers/openrouter/), a local [Ollama](/getting-started/model-servers/ollama/) server, lmstudio, or vllm.
 
 A delegator pairs an LLM tool with a model (and, optionally, a model server).
 
@@ -21,14 +17,16 @@ Every kind is a **model provider**. They split into two classes — the grouping
 every surface (README badges, the status tree, the REST `/kinds` catalog) derives
 from `ModelServerKind::provider_class()`:
 
-- **First-party** — a single vendor's own API: [Anthropic](anthropic/)
-  (`anthropic-api`), [OpenAI](openai/) (`openai-api`), [Google](google/)
+- **First-party** — a single vendor's own API: [Anthropic](/getting-started/model-servers/anthropic/)
+  (`anthropic-api`), [OpenAI](/getting-started/model-servers/openai/) (`openai-api`),
+  [Google](/getting-started/model-servers/google/)
   (`google-api`). These double as the zero-config defaults for the
   claude/codex/gemini tools, so you rarely declare them — but they're first-class:
   operator lists each one's live models from its `/models` endpoint when the
   corresponding key env is set.
 - **Gateways** — a host or aggregator that fronts *many* models behind one
-  endpoint: [OpenRouter](openrouter/) (`openrouter`), a local [Ollama](ollama/)
+  endpoint: [OpenRouter](/getting-started/model-servers/openrouter/) (`openrouter`),
+  a local [Ollama](/getting-started/model-servers/ollama/)
   server (`ollama`), or any `openai-compat` / `lmstudio` server. Declare one to
   reach its whole catalog.
 
@@ -70,7 +68,7 @@ Delegators that omit `model_server` resolve to these builtins automatically. Exi
 | `openai-api`    | OpenAI / a compatible proxy                                              |
 | `google-api`    | Google Gemini API                                                        |
 | `ollama`        | Local ollama server (`ollama serve`, default `http://localhost:11434`)   |
-| `openrouter`    | [OpenRouter](openrouter/) hosted gateway to 300+ models (`https://openrouter.ai/api/v1`) |
+| `openrouter`    | [OpenRouter](/getting-started/model-servers/openrouter/) hosted gateway to 300+ models (`https://openrouter.ai/api/v1`) |
 | `openai-compat` | Any OpenAI-API-compatible server (vllm, lmstudio, together.ai, groq, …)  |
 | `lmstudio`      | LM Studio's local server                                                 |
 

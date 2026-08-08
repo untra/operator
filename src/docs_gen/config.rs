@@ -100,7 +100,6 @@ impl DocGenerator for ConfigDocGenerator {
         let mut output = format_header("Configuration", self.source());
 
         // Introduction
-        output.push_str(&heading(1, "Configuration"));
         output.push_str("Operator configuration is stored in `.tickets/operator/config.toml`.\n\n");
 
         // Quick reference table of all sections
@@ -388,7 +387,8 @@ mod tests {
         assert!(result.contains("config.rs"));
 
         // Should have the main heading
-        assert!(result.contains("# Configuration"));
+        assert!(result.contains("title: \"Configuration\""));
+        assert!(!result.contains("\n# Configuration\n"));
 
         // Should have sections overview
         assert!(result.contains("## Configuration Sections"));

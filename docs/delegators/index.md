@@ -151,7 +151,7 @@ id       = "a1b2c3d4-…"            # AGNT agent UUID, or an OpenAI asst_… id
 Remote agents are **export-only**: Operator has no runtime client for those platforms, so a
 delegator carrying a `remote_agent` cannot be launched locally — resolution returns a
 `RemoteOnlyDelegator` error on every launch path. When the platform is `agnt`, the reference is
-surfaced in the [`--format agnt` workflow export](/docs/) as a native AGNT `agnt-agent` node; other platforms
+surfaced in the [`--format agnt` workflow export](/getting-started/workflows/agnt/) as a native AGNT `agnt-agent` node; other platforms
 ride opaquely in the profile.
 
 > **Caveat:** a non-AGNT remote delegator (e.g. `platform = "openai"`) used as a step agent in an
@@ -179,10 +179,10 @@ The running Operator API exposes full CRUD for delegators, plus agent-profile in
 | `PUT` | `/api/v1/delegators/{name}` | Update a delegator |
 | `DELETE` | `/api/v1/delegators/{name}` | Delete a delegator |
 
-See the [OpenAPI reference](/docs/schemas/openapi.json) for request/response shapes.
+See the [OpenAPI reference](/schemas/openapi.json) for request/response shapes.
 
 ## See also
 
-- [Configuration reference](/docs/configuration/) — full `operator.toml` schema
-- [LLM Tools](/docs/llm-tools/) — which tools Operator can detect and launch
-- [Schema reference](/docs/schemas/config/) — type definitions for `Delegator` and `DelegatorLaunchConfig`
+- [Configuration reference](/configuration/) — full `operator.toml` schema
+- [LLM Tools](/llm-tools/) — which tools Operator can detect and launch
+- [Schema reference](/schemas/config/) — type definitions for `Delegator` and `DelegatorLaunchConfig`

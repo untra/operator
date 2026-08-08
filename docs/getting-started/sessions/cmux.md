@@ -4,8 +4,6 @@ description: "macOS terminal multiplexer integration for managing AI agent sessi
 layout: doc
 ---
 
-# cmux Sessions
-
 <span class="badge supported">Supported</span>
 
 <span class="operator-brand">Operator!</span> supports [**cmux**](https://cmux.app){:target="_blank"}, a macOS terminal multiplexer, as a session management backend. When running inside cmux, Operator can launch and manage AI coding agents directly in cmux workspaces.

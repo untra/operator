@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM src/taxonomy/taxonomy.toml - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Project Taxonomy
-
 This document defines the **25 project Kinds** organized into **5 tiers**.
 
 Each Kind represents a category of project that can be classified by Operator. The taxonomy is used by the `ASSESS` issue type to classify projects and generate `catalog-info.yaml` files.

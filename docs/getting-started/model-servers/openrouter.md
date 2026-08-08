@@ -4,8 +4,6 @@ description: "Reach hundreds of models through OpenRouter, one OpenAI-compatible
 layout: doc
 ---
 
-# OpenRouter
-
 [**OpenRouter**](https://openrouter.ai/) is a hosted gateway that fronts hundreds
 of models (Anthropic, OpenAI, Google, Meta, Mistral, and more) behind a single
 OpenAI-compatible endpoint and one API key. Declare it once as a

@@ -106,7 +106,7 @@ pub struct AgentState {
     #[serde(default)]
     pub launch_mode: Option<String>,
     /// Review state for `awaiting_input` agents
-    /// Values: "`pending_plan`", "`pending_visual`", "`pending_pr_creation`", "`pending_pr_merge`"
+    /// Values: "`pending_plan`", "`pending_visual`", "`pending_proof`", "`pending_pr_creation`", "`pending_pr_merge`"
     #[serde(default)]
     pub review_state: Option<String>,
     /// Server process ID for visual review cleanup (if applicable)
@@ -782,6 +782,17 @@ impl State {
             .collect()
     }
 
+    /// Get all agents awaiting proof review
+    pub fn agents_awaiting_proof_review(&self) -> Vec<&AgentState> {
+        self.agents
+            .iter()
+            .filter(|a| {
+                a.status == "awaiting_input"
+                    && a.review_state.as_ref().is_some_and(|s| s == "pending_proof")
+            })
+            .collect()
+    }
+
     /// Get all agents awaiting PR/MR merge
     pub fn agents_awaiting_pr_merge(&self) -> Vec<&AgentState> {
         self.agents
@@ -1337,6 +1348,47 @@ mod tests {
         // Should not error on nonexistent agent
         let result = state.update_agent_status("nonexistent-id", "running", None);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_agents_awaiting_proof_review() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+
+        let proof_id = state
+            .add_agent(
+                "FEAT-001".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_status(&proof_id, "awaiting_input", None)
+            .unwrap();
+        state
+            .set_agent_review_state(&proof_id, "pending_proof")
+            .unwrap();
+
+        let visual_id = state
+            .add_agent(
+                "FEAT-002".to_string(),
+                "FEAT".to_string(),
+                "test".to_string(),
+                false,
+            )
+            .unwrap();
+        state
+            .update_agent_status(&visual_id, "awaiting_input", None)
+            .unwrap();
+        state
+            .set_agent_review_state(&visual_id, "pending_visual")
+            .unwrap();
+
+        let awaiting = state.agents_awaiting_proof_review();
+        assert_eq!(awaiting.len(), 1);
+        assert_eq!(awaiting[0].id, proof_id);
     }
 
     // ─── Agent Query Tests ───────────────────────────────────────────────────────

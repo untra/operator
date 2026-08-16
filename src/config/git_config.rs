@@ -10,6 +10,13 @@ use crate::types::pr::GitProvider;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct GitConfig {
+    /// Default commit identity for delegated work.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity: Option<GitIdentityConfig>,
+    #[serde(default)]
+    pub gitea: GiteaConfig,
+    #[serde(default)]
+    pub forgejo: ForgejoConfig,
     /// Active provider (auto-detected from remote URL if not specified)
     #[serde(default)]
     pub provider: Option<GitProviderConfig>,
@@ -35,6 +42,9 @@ fn default_branch_format() -> String {
 impl Default for GitConfig {
     fn default() -> Self {
         Self {
+            identity: None,
+            gitea: GiteaConfig::default(),
+            forgejo: ForgejoConfig::default(),
             provider: None,
             github: GitHubConfig::default(),
             gitlab: GitLabConfig::default(),
@@ -113,6 +123,151 @@ pub struct GitLabConfig {
 
 fn default_gitlab_token_env() -> String {
     "GITLAB_TOKEN".to_string()
+}
+
+/// Commit identity template for delegated work.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
+#[ts(export)]
+pub struct GitIdentityConfig {
+    pub name: String,
+    pub email: String,
+}
+
+/// Supplied HTTPS credential, bound to a repository; contains no secret value.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
+#[ts(export)]
+pub struct GitCredentialConfig {
+    pub repository_url: String,
+    pub username: String,
+    pub token_env: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
+#[ts(export)]
+pub struct GitConfigEntry {
+    pub key: String,
+    pub value: String,
+}
+
+/// Git settings owned by a named delegator.
+#[derive(
+    Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq,
+)]
+#[ts(export)]
+pub struct GitExecutionConfig {
+    #[serde(default)]
+    pub identity: Option<GitIdentityConfig>,
+    #[serde(default)]
+    pub credentials: Option<GitCredentialConfig>,
+    #[serde(default)]
+    pub settings: Vec<GitConfigEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct GiteaConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_gitea_token_env")]
+    pub token_env: String,
+    /// HTTPS host or base URL; defaults to gitea.com.
+    #[serde(default)]
+    pub host: Option<String>,
+    #[serde(default = "default_wip_prefix")]
+    pub wip_prefix: String,
+}
+
+fn default_gitea_token_env() -> String {
+    "GITEA_TOKEN".into()
+}
+
+impl Default for GiteaConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            token_env: default_gitea_token_env(),
+            host: None,
+            wip_prefix: default_wip_prefix(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct ForgejoConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_forgejo_token_env")]
+    pub token_env: String,
+    /// HTTPS host or base URL; defaults to codeberg.org.
+    #[serde(default)]
+    pub host: Option<String>,
+    #[serde(default = "default_wip_prefix")]
+    pub wip_prefix: String,
+}
+
+fn default_forgejo_token_env() -> String {
+    "FORGEJO_TOKEN".into()
+}
+
+impl Default for ForgejoConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            token_env: default_forgejo_token_env(),
+            host: None,
+            wip_prefix: default_wip_prefix(),
+        }
+    }
+}
+
+fn default_wip_prefix() -> String {
+    "WIP: ".into()
+}
+
+#[cfg(test)]
+mod delegation_tests {
+    use super::*;
+    #[test]
+    fn git_defaults_have_no_identity_and_provider_defaults_agree() {
+        assert!(GitConfig::default().identity.is_none());
+        let gitea: GiteaConfig = serde_json::from_str("{}").unwrap();
+        assert_eq!(gitea.token_env, GiteaConfig::default().token_env);
+        assert!(!gitea.enabled);
+        let forgejo: ForgejoConfig = serde_json::from_str("{}").unwrap();
+        assert_eq!(forgejo.token_env, ForgejoConfig::default().token_env);
+        assert!(!forgejo.enabled);
+    }
+    #[test]
+    fn credentials_reject_embedded_tokens_and_managed_config_overrides() {
+        let credentials = GitCredentialConfig {
+            repository_url: "https://user:secret@git.example/a/b".into(),
+            username: "bot".into(),
+            token_env: "TOKEN".into(),
+        };
+        assert!(GitExecutionConfig {
+            credentials: Some(credentials),
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
+        for key in [
+            "credential.helper",
+            "user.name",
+            "http.extraHeader",
+            "include.path",
+        ] {
+            assert!(GitExecutionConfig {
+                settings: vec![GitConfigEntry {
+                    key: key.into(),
+                    value: "value".into()
+                }],
+                ..Default::default()
+            }
+            .validate()
+            .is_err());
+        }
+    }
 }
 
 #[cfg(test)]

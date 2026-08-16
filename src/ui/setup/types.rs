@@ -339,6 +339,8 @@ pub enum SetupStep {
     SessionWrapperChoice,
     /// Git worktree preference (use worktrees vs in-place branches)
     WorktreePreference,
+    /// Optional admin password for the web dashboard. Skipped entirely when an admin account already exists.
+    AdminPassword,
     /// Tmux onboarding/help (only shown if tmux selected)
     TmuxOnboarding,
     /// VS Code extension setup (only shown if vscode selected)
@@ -357,4 +359,22 @@ pub enum SetupStep {
     StartupTickets,
     /// Confirm initialization
     Confirm,
+}
+
+/// Which of the two password fields has focus.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PasswordField {
+    #[default]
+    Password,
+    Confirm,
+}
+
+impl PasswordField {
+    /// The other field — Tab toggles between exactly two.
+    pub fn toggled(self) -> Self {
+        match self {
+            PasswordField::Password => PasswordField::Confirm,
+            PasswordField::Confirm => PasswordField::Password,
+        }
+    }
 }

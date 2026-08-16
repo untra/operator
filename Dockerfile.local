@@ -1,0 +1,90 @@
+# --- Stage 1: embedded web UI ---------------------------------------------
+# Cargo.toml sets default = ["embed-ui"], and build.rs silently substitutes a
+# placeholder index.html when ui/dist is missing, which would produce an image
+# with no dashboard. Building the SPA here is required, not optional.
+FROM oven/bun:1.3.14 AS web
+
+# webcomponents' own build script shells out to `npm run copy-types`, which runs
+# `node scripts/copy-types.mjs`. The oven/bun image ships bun only; CI gets away
+# with `bun run build` because the GitHub runner already has node on PATH.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends nodejs npm \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+# bindings/ is committed (CI only verifies freshness), so `make bindings` --
+# i.e. a full cargo test run -- is not needed to type the frontend.
+COPY bindings/ ./bindings/
+
+# webcomponents first: ui/ resolves @operator/webcomponents to
+# ../webcomponents/dist/index.js by vite alias, a dist-artifact dependency
+# rather than a package dependency, so the order is load-bearing.
+COPY webcomponents/ ./webcomponents/
+RUN cd webcomponents && bun install --frozen-lockfile && bun run build
+
+# ui/src/index.css @imports the brand tokens from the docs site, which is the
+# single source of truth for them (docs/design-system/). The SPA build needs
+# that one file even though nothing else of docs/ is involved.
+COPY docs/assets/css/ ./docs/assets/css/
+COPY ui/ ./ui/
+RUN cd ui && bun install --frozen-lockfile && bun run build
+
+# --- Stage 2: Rust binaries -----------------------------------------------
+# The full image rather than -slim: rusqlite is features = ["bundled"], so a C
+# toolchain is required.
+FROM rust:1.95 AS build
+
+WORKDIR /src
+COPY . .
+COPY --from=web /src/ui/dist ./ui/dist
+
+RUN cargo build --release --locked --bin operator
+
+# opr8r is a separate cargo project with its own Cargo.lock, not a workspace
+# member, so it needs its own invocation.
+RUN cd opr8r && cargo build --release --locked
+
+# --- Stage 3: runtime ------------------------------------------------------
+# Mirrors Dockerfile; only the operator/opr8r binary source differs.
+# glibc 2.41 >= the ubuntu-24.04 build runners' 2.39, so the GNU binary runs.
+FROM debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132
+
+LABEL org.opencontainers.image.title="Operator" \
+      org.opencontainers.image.description="Agent orchestration server and CLI (local build)" \
+      org.opencontainers.image.url="https://operator.untra.io" \
+      org.opencontainers.image.source="https://github.com/untra/operator" \
+      org.opencontainers.image.licenses="MIT"
+
+# Substrate Operator needs to launch agents: git (VCS ops), tmux (session
+# wrapper), ca-certificates (TLS to LLM/kanban APIs). The LLM CLI (claude /
+# codex / gemini) and its auth are supplied by the user via a derived image or
+# a mount + env vars -- not baked in here.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates git tmux \
+ && rm -rf /var/lib/apt/lists/*
+
+# Both halves ship: agent sessions launched by the operator server call the
+# opr8r client to report step completion for multi-step ticket workflows.
+COPY --from=build --chown=0:0 --chmod=0755 /src/target/release/operator /usr/local/bin/operator
+COPY --from=build --chown=0:0 --chmod=0755 /src/opr8r/target/release/opr8r /usr/local/bin/opr8r
+
+# Fail the build before use if a binary can't execute on this base.
+# --version short-circuits in clap before any config or tmux load.
+RUN ["/usr/local/bin/operator", "--version"]
+RUN ["/usr/local/bin/opr8r", "--version"]
+
+# Run as an unprivileged user with a dedicated uid and gid.
+RUN groupdel operator \
+ && groupadd -g 10001 operator \
+ && useradd -u 10001 -g 10001 -m -d /home/operator operator \
+ && mkdir /op \
+ && chown operator:operator /op
+ENV HOME=/home/operator
+USER operator
+
+# Mount your projects root here: `docker run -v $(pwd):/op:rw ...`.
+# Operator auto-loads .tickets/operator/config.toml relative to the cwd.
+WORKDIR /op
+EXPOSE 7008
+ENTRYPOINT ["operator"]

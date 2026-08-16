@@ -19,7 +19,7 @@ use crate::rest::state::ApiState;
     )
 )]
 pub async fn list(State(state): State<ApiState>) -> Json<SkillsResponse> {
-    let config = state.config;
+    let config = state.config();
     let tool_configs = load_all_tool_configs();
     let mut skills = Vec::new();
 

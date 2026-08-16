@@ -14,12 +14,15 @@ use crate::templates::{schema::TemplateSchema, TemplateType};
 /// for branding (status line, pane title, UI deep-links).
 #[derive(Debug, Clone, Default)]
 pub struct OperatorEnvVars {
+    pub git_context: Option<crate::config::GitExecutionConfig>,
     pub agent_id: String,
     pub ticket_id: String,
     pub project: String,
     pub step: String,
     pub ui_url: String,
     pub ui_port: u16,
+    /// Single-purpose callback credential, pinned to this ticket and step.
+    pub callback_token: String,
 }
 
 impl OperatorEnvVars {
@@ -29,7 +32,7 @@ impl OperatorEnvVars {
     /// `api-session.json` fallback) so local step-completion reporting never
     /// depends on disk-based discovery.
     pub fn to_export_block(&self) -> String {
-        format!(
+        let mut block = format!(
             "export OPERATOR_AGENT_ID={}\nexport OPERATOR_TICKET_ID={}\nexport OPERATOR_PROJECT={}\nexport OPERATOR_STEP={}\nexport OPERATOR_UI_URL={}\nexport OPERATOR_UI_PORT={}\nexport OPERATOR_API_URL=http://127.0.0.1:{}\n",
             shell_escape(&self.agent_id),
             shell_escape(&self.ticket_id),
@@ -38,7 +41,17 @@ impl OperatorEnvVars {
             shell_escape(&self.ui_url),
             self.ui_port,
             self.ui_port,
-        )
+        );
+        if !self.callback_token.is_empty() {
+            block.push_str(&format!(
+                "export OPERATOR_API_TOKEN={}\n",
+                shell_escape(&self.callback_token)
+            ));
+        }
+        if let Some(git) = &self.git_context {
+            block.push_str(&crate::git::runtime::identity_exports(git));
+        }
+        block
     }
 
     /// Render an OSC 2 escape sequence to set the terminal pane title.
@@ -229,10 +242,29 @@ pub fn write_command_file(
         }
     };
 
+    let runtime = operator_env
+        .and_then(|e| e.git_context.as_ref())
+        .map(crate::git::runtime::GitRuntime::create)
+        .transpose()?;
+    let git_block = runtime
+        .as_ref()
+        .map(|r| {
+            format!(
+                "export OPERATOR_GIT_RUNTIME={}\ntrap 'rm -rf -- \"$OPERATOR_GIT_RUNTIME\"' EXIT\n. \"$OPERATOR_GIT_RUNTIME/env.sh\" || exit 1\n",
+                shell_escape(&r.path.to_string_lossy())
+            )
+        })
+        .unwrap_or_default();
+    let run = if runtime.is_some() {
+        format!("printf '%s\\n' \"$$\" > \"$OPERATOR_GIT_RUNTIME/pid\"\ntrap 'rm -rf -- \"$OPERATOR_GIT_RUNTIME\"' EXIT\n( {llm_command} ) <&0 &\noperator_git_child=$!\ntrap 'kill -TERM \"$operator_git_child\" 2>/dev/null; wait \"$operator_git_child\"; exit 143' TERM\ntrap 'kill -INT \"$operator_git_child\" 2>/dev/null; wait \"$operator_git_child\"; exit 130' INT\ntrap 'kill -HUP \"$operator_git_child\" 2>/dev/null; wait \"$operator_git_child\"; exit 129' HUP\nwait \"$operator_git_child\"\n")
+    } else {
+        format!("exec {llm_command}\n")
+    };
+
     let script_content = format!(
-        "#!/bin/bash\n{env_block}{provider_block}{strip_block}{pane_title}cd {}\nexec {}\n",
+        "#!/bin/bash\n{env_block}{provider_block}{strip_block}{git_block}{pane_title}cd {} || exit 1\n{}",
         shell_escape(project_path),
-        llm_command
+        run
     );
 
     fs::write(&command_file, &script_content).context("Failed to write command file")?;
@@ -246,6 +278,13 @@ pub fn write_command_file(
             .context("Failed to set command file permissions")?;
     }
 
+    if let Some(runtime) = runtime {
+        fs::write(
+            command_file.with_extension("git-runtime"),
+            runtime.path.to_string_lossy().as_bytes(),
+        )?;
+        runtime.persist();
+    }
     Ok(command_file)
 }
 
@@ -522,12 +561,14 @@ mod tests {
     #[test]
     fn test_operator_env_vars_to_export_block() {
         let env = OperatorEnvVars {
+            git_context: None,
             agent_id: "abc-123".to_string(),
             ticket_id: "FEAT-042".to_string(),
             project: "gamesvc".to_string(),
             step: "implement".to_string(),
             ui_url: "http://localhost:7007/#/agent/abc-123".to_string(),
             ui_port: 7007,
+            callback_token: String::new(),
         };
         let block = env.to_export_block();
         assert!(block.contains("export OPERATOR_AGENT_ID='abc-123'"));
@@ -541,12 +582,14 @@ mod tests {
     #[test]
     fn test_operator_env_vars_to_pane_title_line() {
         let env = OperatorEnvVars {
+            git_context: None,
             agent_id: "abc-123".to_string(),
             ticket_id: "FEAT-042".to_string(),
             project: "gamesvc".to_string(),
             step: "implement".to_string(),
             ui_url: "http://localhost:7007/#/agent/abc-123".to_string(),
             ui_port: 7007,
+            callback_token: String::new(),
         };
         let line = env.to_pane_title_line();
         assert!(line.contains("\\033]2;"));
@@ -562,12 +605,14 @@ mod tests {
         let config = make_test_config_with_tickets_path(temp_dir.path());
 
         let env = OperatorEnvVars {
+            git_context: None,
             agent_id: "test-agent-id".to_string(),
             ticket_id: "FEAT-001".to_string(),
             project: "myproject".to_string(),
             step: "plan".to_string(),
             ui_url: "http://localhost:7007/#/agent/test-agent-id".to_string(),
             ui_port: 7007,
+            callback_token: String::new(),
         };
 
         let result = write_command_file(
@@ -678,5 +723,39 @@ mod tests {
         assert!(!content.contains("OPERATOR_"));
         assert!(!content.contains("\\033]2;"));
         assert!(content.starts_with("#!/bin/bash\ncd"));
+    }
+    #[test]
+    fn command_payload_applies_git_identity_and_removes_runtime() {
+        let temp = tempfile::tempdir().unwrap();
+        let config = make_test_config_with_tickets_path(temp.path());
+        let env = OperatorEnvVars {
+            git_context: Some(crate::config::GitExecutionConfig {
+                identity: Some(crate::config::GitIdentityConfig {
+                    name: "Ticket Agent".into(),
+                    email: "agent@example.org".into(),
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let command = write_command_file(
+            &config,
+            "git-context-test",
+            temp.path().to_str().unwrap(),
+            "printf '%s|%s' \"$GIT_AUTHOR_NAME\" \"$GIT_COMMITTER_EMAIL\"",
+            Some(&env),
+            None,
+        )
+        .unwrap();
+        let runtime = fs::read_to_string(command.with_extension("git-runtime")).unwrap();
+        let output = std::process::Command::new("bash")
+            .arg(command)
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert!(String::from_utf8(output.stdout)
+            .unwrap()
+            .ends_with("Ticket Agent|agent@example.org"));
+        assert!(!std::path::Path::new(&runtime).exists());
     }
 }

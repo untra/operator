@@ -5,7 +5,8 @@ import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection, WebhookStatus, ApiStatus } from './types';
 import type { SectionId, SectionHealth } from '../generated';
 import { SessionInfo } from '../types';
-import { discoverApiUrl, ApiSessionInfo } from '../api-client';
+import { discoverApiUrl, ApiSessionInfo, AuthRequiredError, OperatorApiClient } from '../api-client';
+import { SIGN_IN_COMMAND_TITLE } from '../auth/errors';
 import { getOperatorPath, getOperatorVersion } from '../operator-binary';
 import { isMcpServerRegistered } from '../mcp-connect';
 
@@ -137,15 +138,12 @@ export class ConnectionsSection implements StatusSection {
   }
 
   private async tryHealthCheck(apiUrl: string, sessionVersion?: string): Promise<boolean> {
+    const client = new OperatorApiClient(apiUrl);
+    const portStr = new URL(apiUrl).port;
+    const port = portStr ? parseInt(portStr, 10) : 7008;
     try {
-      const response = await fetch(`${apiUrl}/api/v1/health`);
-      if (response.ok) {
-        const health = await response.json() as {
-          version?: string;
-          directory_name?: string;
-        };
-        const portStr = new URL(apiUrl).port;
-        const port = portStr ? parseInt(portStr, 10) : 7008;
+      if (await client.isReachable()) {
+        const health = await client.health();
         const found = health.version;
         const expected = this.operatorVersion;
 
@@ -195,8 +193,18 @@ export class ConnectionsSection implements StatusSection {
         await this.checkWebUi(apiUrl);
         return true;
       }
-    } catch {
-      // Health check failed
+    } catch (err) {
+      if (err instanceof AuthRequiredError) {
+        // Something is listening and it is Operator, but it will not talk to us yet.
+        this.apiStatus = {
+          connected: false,
+          port,
+          url: apiUrl,
+          mismatch: { kind: 'auth', detail: `at ${apiUrl} requires sign-in` },
+        };
+        this.webUiAvailable = false;
+        return false;
+      }
     }
     this.apiStatus = { connected: false };
     this.webUiAvailable = false;
@@ -285,6 +293,17 @@ export class ConnectionsSection implements StatusSection {
         tooltip: this.apiStatus.directoryName
           ? `Operator REST API at ${this.apiStatus.url} (project '${this.apiStatus.directoryName}')`
           : `Operator REST API at ${this.apiStatus.url}`,
+        sectionId: this.sectionId,
+      });
+    } else if (this.apiStatus.mismatch?.kind === 'auth') {
+      apiItem = new StatusItem({
+        label: 'API',
+        description: 'Sign-in required',
+        icon: 'key',
+        tooltip:
+          `The Operator API ${this.apiStatus.mismatch.detail}. ` +
+          `Run "${SIGN_IN_COMMAND_TITLE}" to authorize this editor.`,
+        command: { command: 'operator.signIn', title: SIGN_IN_COMMAND_TITLE },
         sectionId: this.sectionId,
       });
     } else if (this.apiStatus.mismatch) {

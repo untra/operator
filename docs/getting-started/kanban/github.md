@@ -6,9 +6,9 @@ layout: doc
 
 Connect Operator to [**GitHub Projects v2**](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) for issue tracking and project management.
 
-> **⚠ Token Disambiguation — read this first**
+> **⚠ Token Disambiguation - read this first**
 >
-> GitHub Projects uses a **separate** API token from Operator's git provider (the one that creates pull requests). Even if you've already set `GITHUB_TOKEN` for PR workflows, you'll need a *second* token in `OPERATOR_GITHUB_TOKEN` with the `project` (or `read:project`) scope. The two **can** be the same physical PAT minted with both scopes — but they must be exposed via two different environment variables so Operator can route them correctly.
+> GitHub Projects uses a **separate** API token from Operator's git provider (the one that creates pull requests). Even if you've already set `GITHUB_TOKEN` for PR workflows, you'll need a *second* token in `OPERATOR_GITHUB_TOKEN` with the `project` (or `read:project`) scope. The two **can** be the same physical PAT minted with both scopes - but they must be exposed via two different environment variables so Operator can route them correctly.
 >
 > | Operator subsystem            | Env var                  | Required scopes                                  | Configured at                      |
 > |-------------------------------|--------------------------|--------------------------------------------------|------------------------------------|
@@ -20,24 +20,24 @@ Connect Operator to [**GitHub Projects v2**](https://docs.github.com/en/issues/p
 ## Prerequisites
 
 - A GitHub account with access to at least one Project v2 (user-owned or org-owned)
-- A Personal Access Token (PAT) — classic or fine-grained — with the `project` scope, or a GitHub App installation token with `organization_projects: write`
+- A Personal Access Token (PAT) - classic or fine-grained - with the `project` scope, or a GitHub App installation token with `organization_projects: write`
 - Operator installed and running
 
 ## Create a Token
 
 You have two options. **Fine-grained PATs are recommended** because they're scoped to specific orgs/repos and have built-in expiration.
 
-### Option A — Classic Personal Access Token (simpler)
+### Option A - Classic Personal Access Token (simpler)
 
 1. Go to [github.com/settings/tokens](https://github.com/settings/tokens)
 2. Click **Generate new token (classic)**
 3. Name it something like *"Operator Kanban (read+write)"*
 4. Select scopes:
-   - `project` (full read + write to Projects v2) — **or** `read:project` (read-only)
+   - `project` (full read + write to Projects v2) - **or** `read:project` (read-only)
    - Optionally `read:org` if you need to enumerate org projects
 5. Click **Generate token**, then copy the `ghp_...` value
 
-### Option B — Fine-Grained Personal Access Token (recommended)
+### Option B - Fine-Grained Personal Access Token (recommended)
 
 1. Go to [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens)
 2. Click **Generate new token**
@@ -78,7 +78,7 @@ doing = "In Progress"   # Status pushed when a ticket is launched/claimed
 done = "Done"           # Status pushed when a ticket completes
 ```
 
-The hashmap key under `[kanban.github."<owner>"]` is the GitHub owner login (user or org). Project keys inside `projects` are **GraphQL node IDs** (e.g. `PVT_kwDOABcdefg`) — not project numbers — because every Projects v2 mutation needs the node ID and storing it directly avoids an extra lookup per call.
+The hashmap key under `[kanban.github."<owner>"]` is the GitHub owner login (user or org). Project keys inside `projects` are **GraphQL node IDs** (e.g. `PVT_kwDOABcdefg`) - not project numbers - because every Projects v2 mutation needs the node ID and storing it directly avoids an extra lookup per call.
 
 ### 3. Multiple Owners with Different Tokens
 
@@ -133,7 +133,7 @@ query($login: String!) {
 
 The `id` field is what you put in `[kanban.github."<owner>".projects.<id>]`.
 
-If you'd rather skip this step, use the **VS Code extension** or **Operator TUI** onboarding flow — both will list your projects after validating your token and write the config for you.
+If you'd rather skip this step, use the **VS Code extension** or **Operator TUI** onboarding flow - both will list your projects after validating your token and write the config for you.
 
 ## Finding Your `sync_user_id`
 
@@ -154,8 +154,8 @@ gh api graphql -f query='query { viewer { databaseId login } }'
 
 Operator's GitHub Projects provider exposes issue types via two paths, in order of preference:
 
-1. **Org-level Issue Types** (recommended where available) — the new first-class GitHub feature. See [docs.github.com/en/issues/tracking-your-work-with-issues/configuring-issues/managing-issue-types-in-an-organization](https://docs.github.com/en/issues/tracking-your-work-with-issues/configuring-issues/managing-issue-types-in-an-organization). If your org has issue types configured, the provider exposes them directly.
-2. **Repo labels (fallback)** — when issue types aren't available (user-owned projects or orgs without the feature), the provider aggregates labels from all repos linked through project items.
+1. **Org-level Issue Types** (recommended where available) - the new first-class GitHub feature. See [docs.github.com/en/issues/tracking-your-work-with-issues/configuring-issues/managing-issue-types-in-an-organization](https://docs.github.com/en/issues/tracking-your-work-with-issues/configuring-issues/managing-issue-types-in-an-organization). If your org has issue types configured, the provider exposes them directly.
+2. **Repo labels (fallback)** - when issue types aren't available (user-owned projects or orgs without the feature), the provider aggregates labels from all repos linked through project items.
 
 Configure mappings via `type_mappings` in your `ProjectSyncConfig`:
 
@@ -196,7 +196,7 @@ real option names via `GET /api/v1/kanban/github/PVT_kwDOABcdefg/statuses`.
 > **Migrating from `sync_statuses`:** the old list is no longer read (the key
 > is silently ignored). Re-express it as the `status_mapping` table above.
 
-The keys in `type_mappings` are the GraphQL label IDs (or issue type IDs) returned by `get_issue_types()` — they're persisted in the local issue type catalog after the first sync, and you can find them with:
+The keys in `type_mappings` are the GraphQL label IDs (or issue type IDs) returned by `get_issue_types()` - they're persisted in the local issue type catalog after the first sync, and you can find them with:
 
 ```bash
 cat .tickets/operator/kanban/github/PVT_kwDOABcdefg/issuetypes.json
@@ -210,7 +210,7 @@ Pull issues from GitHub Projects:
 operator sync
 ```
 
-The provider client-side filters by your `sync_user_id` (project items don't support server-side assignee filtering in the GraphQL API), so very large projects may pull a few extra pages before applying the filter. Status filtering uses the `Status` single-select field's option names — make sure the values in `status_mapping` exactly match the names defined in your project (case-insensitive).
+The provider client-side filters by your `sync_user_id` (project items don't support server-side assignee filtering in the GraphQL API), so very large projects may pull a few extra pages before applying the filter. Status filtering uses the `Status` single-select field's option names - make sure the values in `status_mapping` exactly match the names defined in your project (case-insensitive).
 
 ### What gets synced
 
@@ -230,15 +230,15 @@ The `key` field on the synced ticket follows these formats:
 
 For v1, the GitHub Projects provider creates **draft issues only** via the `addProjectV2DraftIssue` mutation. Draft issues live inside the project (not in any repo) and can be promoted to real issues later from the GitHub UI.
 
-If you need real repo issues, create them through GitHub's normal flows — they'll appear in operator after the next sync if they're added to a project the operator is configured for.
+If you need real repo issues, create them through GitHub's normal flows - they'll appear in operator after the next sync if they're added to a project the operator is configured for.
 
 ## Troubleshooting
 
 ### "Token authenticated but lacks 'project' scope"
 
-This is the disambiguation guard rail firing. It means the token reached GitHub's API successfully but doesn't have the `project` scope — most likely you accidentally pasted your `GITHUB_TOKEN` (which is repo-scoped for PR workflows). Re-mint a token with the `project` (or `read:project`) scope and re-run onboarding.
+This is the disambiguation guard rail firing. It means the token reached GitHub's API successfully but doesn't have the `project` scope - most likely you accidentally pasted your `GITHUB_TOKEN` (which is repo-scoped for PR workflows). Re-mint a token with the `project` (or `read:project`) scope and re-run onboarding.
 
-If you're using a fine-grained PAT and you're sure it has Projects permissions, double-check the **Resource owner** matches the org/user whose projects you're trying to sync — fine-grained PATs are scoped per resource owner.
+If you're using a fine-grained PAT and you're sure it has Projects permissions, double-check the **Resource owner** matches the org/user whose projects you're trying to sync - fine-grained PATs are scoped per resource owner.
 
 ### Authentication errors
 
@@ -251,7 +251,7 @@ curl -H "Authorization: bearer $OPERATOR_GITHUB_TOKEN" \
      -d '{"query":"{ viewer { login databaseId } }"}'
 ```
 
-For classic PATs, also check the response headers — they include `x-oauth-scopes`:
+For classic PATs, also check the response headers - they include `x-oauth-scopes`:
 
 ```bash
 curl -i -H "Authorization: bearer $OPERATOR_GITHUB_TOKEN" \

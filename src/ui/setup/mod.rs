@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use crate::agents::{SystemTmuxClient, TmuxClient, TmuxError};
 use crate::config::{CollectionPreset, SessionWrapperType};
+use crate::ui::masked_input::MaskedInput;
 use ratatui::{widgets::ListState, Frame};
 
 pub mod steps;
@@ -92,6 +93,19 @@ pub struct SetupScreen {
     pub use_worktrees: bool,
     /// List state for worktree option selection
     pub(crate) worktree_state: ListState,
+    // ─── Admin Password State ─────────────────────────────────────────────────
+    /// The admin password field.
+    pub(crate) password: MaskedInput,
+    /// The confirmation field.
+    pub(crate) password_confirm: MaskedInput,
+    /// Which field Tab currently targets.
+    pub(crate) password_field_focused: PasswordField,
+    /// Inline validation message; `Some` keeps the step from advancing.
+    pub(crate) password_error: Option<String>,
+    /// The accepted password, applied at initialization. `None` means skipped.
+    pub admin_password: Option<String>,
+    /// Whether an admin account already exists, in which case the step is skipped.
+    pub admin_password_configured: bool,
 }
 
 impl SetupScreen {
@@ -161,6 +175,12 @@ impl SetupScreen {
             vscode_status: VSCodeDetectionStatus::NotChecked,
             // Git worktree state
             use_worktrees: false,
+            password: MaskedInput::new(),
+            password_confirm: MaskedInput::new(),
+            password_field_focused: PasswordField::default(),
+            password_error: None,
+            admin_password: None,
+            admin_password_configured: false,
             worktree_state,
         }
     }
@@ -342,6 +362,9 @@ impl SetupScreen {
                     }
                 }
             }
+            SetupStep::AdminPassword => {
+                self.password_field_focused = self.password_field_focused.toggled();
+            }
             SetupStep::Confirm => {
                 self.confirm_selected = !self.confirm_selected;
             }
@@ -456,6 +479,74 @@ impl SetupScreen {
     }
 
     /// Proceed to next step or confirm (Enter key)
+    fn enter_wrapper_step(&mut self) {
+        match self.selected_wrapper {
+            SessionWrapperType::Tmux => {
+                // Check tmux availability when entering TmuxOnboarding
+                self.check_tmux_availability();
+                self.step = SetupStep::TmuxOnboarding;
+            }
+            SessionWrapperType::Vscode => {
+                self.step = SetupStep::VSCodeSetup;
+            }
+            SessionWrapperType::Cmux => {
+                self.step = SetupStep::CmuxSetup;
+            }
+            SessionWrapperType::Zellij => {
+                self.step = SetupStep::ZellijSetup;
+            }
+        }
+    }
+
+    /// Validate the password fields.
+    ///
+    /// `Ok(None)` means the step was skipped — both fields empty. The step is
+    /// optional, so an empty pair is a deliberate choice, not an error.
+    /// `Err(message)` is shown inline and keeps the wizard on this step.
+    fn validate_admin_password(&self) -> Result<Option<String>, String> {
+        let password = self.password.value();
+        let confirm = self.password_confirm.value();
+
+        if self.password.is_empty() && self.password_confirm.is_empty() {
+            return Ok(None);
+        }
+        if password != confirm {
+            return Err("Passwords do not match".to_string());
+        }
+        // Reuse the server's rule rather than restating a length here
+        crate::auth::password::validate_password(password).map_err(|e| e.to_string())?;
+
+        Ok(Some(password.to_string()))
+    }
+
+    /// Route a key to the focused password field.
+    ///
+    /// Called only for `SetupStep::AdminPassword`; see the guard in
+    /// `app::keyboard`, which otherwise consumes `i`, `c`, `j`, `k`, and space
+    /// as wizard commands before any character reaches a text field.
+    pub fn handle_password_key(&mut self, code: ratatui::crossterm::event::KeyCode) {
+        use ratatui::crossterm::event::KeyCode;
+
+        let field = match self.password_field_focused {
+            PasswordField::Password => &mut self.password,
+            PasswordField::Confirm => &mut self.password_confirm,
+        };
+
+        match code {
+            KeyCode::Char(c) => field.handle_char(c),
+            KeyCode::Backspace => field.handle_backspace(),
+            KeyCode::Delete => field.handle_delete(),
+            KeyCode::Left => field.cursor_left(),
+            KeyCode::Right => field.cursor_right(),
+            KeyCode::Home => field.cursor_home(),
+            KeyCode::End => field.cursor_end(),
+            _ => return,
+        }
+
+        // Any edit invalidates the previous complaint.
+        self.password_error = None;
+    }
+
     pub fn confirm(&mut self) -> SetupResult {
         match self.step {
             SetupStep::Welcome => {
@@ -564,22 +655,25 @@ impl SetupScreen {
                         self.use_worktrees = options[i].to_use_worktrees();
                     }
                 }
-                // Navigate to the appropriate next step based on wrapper choice
-                match self.selected_wrapper {
-                    SessionWrapperType::Tmux => {
-                        // Check tmux availability when entering TmuxOnboarding
-                        self.check_tmux_availability();
-                        self.step = SetupStep::TmuxOnboarding;
+                // The wrapper fan-out now lives on the AdminPassword arm, so
+                // the password step sits between this one and the wrapper step.
+                if self.admin_password_configured {
+                    self.enter_wrapper_step();
+                } else {
+                    self.step = SetupStep::AdminPassword;
+                }
+                SetupResult::Continue
+            }
+            SetupStep::AdminPassword => {
+                match self.validate_admin_password() {
+                    Ok(password) => {
+                        self.admin_password = password;
+                        self.password_error = None;
+                        self.enter_wrapper_step();
                     }
-                    SessionWrapperType::Vscode => {
-                        self.step = SetupStep::VSCodeSetup;
-                    }
-                    SessionWrapperType::Cmux => {
-                        self.step = SetupStep::CmuxSetup;
-                    }
-                    SessionWrapperType::Zellij => {
-                        self.step = SetupStep::ZellijSetup;
-                    }
+                    // `SetupResult` has no "stay and report" variant, so the
+                    // message lives on the screen and the step does not change.
+                    Err(message) => self.password_error = Some(message),
                 }
                 SetupResult::Continue
             }
@@ -673,20 +767,40 @@ impl SetupScreen {
                 self.step = SetupStep::SessionWrapperChoice;
                 SetupResult::Continue
             }
-            SetupStep::TmuxOnboarding => {
+            SetupStep::AdminPassword => {
                 self.step = SetupStep::WorktreePreference;
+                SetupResult::Continue
+            }
+            SetupStep::TmuxOnboarding => {
+                self.step = if self.admin_password_configured {
+                    SetupStep::WorktreePreference
+                } else {
+                    SetupStep::AdminPassword
+                };
                 SetupResult::Continue
             }
             SetupStep::VSCodeSetup => {
-                self.step = SetupStep::WorktreePreference;
+                self.step = if self.admin_password_configured {
+                    SetupStep::WorktreePreference
+                } else {
+                    SetupStep::AdminPassword
+                };
                 SetupResult::Continue
             }
             SetupStep::CmuxSetup => {
-                self.step = SetupStep::WorktreePreference;
+                self.step = if self.admin_password_configured {
+                    SetupStep::WorktreePreference
+                } else {
+                    SetupStep::AdminPassword
+                };
                 SetupResult::Continue
             }
             SetupStep::ZellijSetup => {
-                self.step = SetupStep::WorktreePreference;
+                self.step = if self.admin_password_configured {
+                    SetupStep::WorktreePreference
+                } else {
+                    SetupStep::AdminPassword
+                };
                 SetupResult::Continue
             }
             SetupStep::AcceptanceCriteria => {
@@ -731,6 +845,7 @@ impl SetupScreen {
             SetupStep::KanbanProviderSetup { provider_index } => {
                 self.render_kanban_provider_setup_step(frame, provider_index);
             }
+            SetupStep::AdminPassword => self.render_admin_password_step(frame),
             SetupStep::AcceptanceCriteria => self.render_acceptance_criteria_step(frame),
             SetupStep::StartupTickets => self.render_startup_tickets_step(frame),
             SetupStep::Confirm => self.render_confirm_step(frame),

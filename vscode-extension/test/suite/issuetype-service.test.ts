@@ -25,6 +25,9 @@ const fixturesDir = path.join(
   'api'
 );
 
+import { clearCredentialProvider, setCredentialProvider } from '../../src/auth/credentials';
+import { fakeCredentials } from './helpers/credentials';
+
 suite('IssueType Service Test Suite', () => {
   let outputChannel: vscode.OutputChannel;
   let service: IssueTypeService;
@@ -45,10 +48,12 @@ suite('IssueType Service Test Suite', () => {
 
     // Stub global fetch
     fetchStub = sinon.stub(global, 'fetch');
+    setCredentialProvider(fakeCredentials());
   });
 
   teardown(() => {
     sinon.restore();
+    clearCredentialProvider();
   });
 
   suite('constructor and defaults', () => {
@@ -63,14 +68,14 @@ suite('IssueType Service Test Suite', () => {
       assert.ok(service.isKnownType('INV'));
     });
 
-    test('uses provided baseUrl', () => {
+    test('uses provided baseUrl', async () => {
       service = new IssueTypeService(outputChannel, 'http://custom:9000');
 
       // We can verify by checking that refresh would use the custom URL
       const customUrl = 'http://custom:9000';
       fetchStub.resolves(new Response(JSON.stringify([]), { status: 200 }));
 
-      void service.refresh();
+      await service.refresh();
 
       assert.ok(
         fetchStub.calledWith(`${customUrl}/api/v1/issuetypes`),
@@ -295,6 +300,16 @@ suite('IssueType Service Test Suite', () => {
       assert.strictEqual(result.type, 'FEAT');
     });
 
+    test('parses the canonical timestamped filename', () => {
+      service = new IssueTypeService(outputChannel, 'http://localhost:7008');
+
+      const result = service.parseTicketFilename(
+        '20260807-1200-FEAT-operator-api-tree.md'
+      );
+      assert.strictEqual(result.type, 'FEAT');
+      assert.strictEqual(result.id, 'FEAT-202608071200');
+    });
+
     test('handles non-standard filenames', () => {
       service = new IssueTypeService(outputChannel, 'http://localhost:7008');
 
@@ -371,14 +386,14 @@ suite('IssueType Service Test Suite', () => {
   });
 
   suite('setBaseUrl()', () => {
-    test('updates the base URL', () => {
+    test('updates the base URL', async () => {
       service = new IssueTypeService(outputChannel, 'http://localhost:7008');
 
       service.setBaseUrl('http://newurl:9000');
 
       // Verify by checking fetch calls
       fetchStub.resolves(new Response(JSON.stringify([]), { status: 200 }));
-      void service.refresh();
+      await service.refresh();
 
       assert.ok(
         fetchStub.calledWith('http://newurl:9000/api/v1/issuetypes'),

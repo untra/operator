@@ -109,16 +109,16 @@ target = "cloud"
 
 **Resolution precedence** (first match wins):
 
-1. `target` name — explicit `[[targets]]` entry, the synthesized
+1. `target` name - explicit `[[targets]]` entry, the synthesized
    `local`/`docker` targets, or a `[[hosts]]` name. Unknown names are a hard
    error, never a silent fallback to local.
-2. `host` name (deprecated) — the `[[hosts]]` entry of that name
-3. `docker = true` (deprecated) — the synthesized docker target
-4. `docker = false` — local
-5. `launch.docker.enabled = true` — the synthesized docker target.
+2. `host` name (deprecated) - the `[[hosts]]` entry of that name
+3. `docker = true` (deprecated) - the synthesized docker target
+4. `docker = false` - local
+5. `launch.docker.enabled = true` - the synthesized docker target.
    **Behavior change:** this was previously only a TUI dialog gate; it is now
    a real fallback, so REST/CLI/auto launches with it set run in docker.
-6. otherwise — local
+6. otherwise - local
 
 Legacy inputs are synthesized rather than special-cased: `[launch.docker]`
 becomes a target named `docker`, and every `[[hosts]]` entry becomes an ssh
@@ -130,13 +130,13 @@ erroring.
 
 A coder target's execution shape is an SSH target with a dynamically
 provisioned alias: Operator creates (or restarts) a per-ticket workspace from
-`template`, writes an SSH config fragment (`ProxyCommand coder ssh --stdio <workspace>`), prepares the git checkout, and launches over the shared SSH remote path. Workspaces are stopped on completion and **never deleted** — reclamation belongs to the Coder admin's
+`template`, writes an SSH config fragment (`ProxyCommand coder ssh --stdio <workspace>`), prepares the git checkout, and launches over the shared SSH remote path. Workspaces are stopped on completion and **never deleted** - reclamation belongs to the Coder admin's
 autostop policy.
 
 Credentials are held **by name**: `url_env` / `token_env` name environment
 variables, and the token variable is stripped from every agent's spawn
 environment on all target kinds. **Blast radius:** a Coder session token can
-create, delete, and SSH into every workspace its user owns — scope accordingly.
+create, delete, and SSH into every workspace its user owns - scope accordingly.
 
 Known limitation: prompt files are written on the operator side, so a coder
 target currently requires the workspace to reach them (e.g. Operator itself
@@ -202,14 +202,14 @@ prompt_suffix = "\n\nThink carefully before acting."
 
 ## Agent profiles & remote agents
 
-A delegator can be serialized to a portable **agent profile** (`agent-profile.json`) — a
+A delegator can be serialized to a portable **agent profile** (`agent-profile.json`) - a
 tool-agnostic interchange format with a shared core (`provider`, `model`, `system_prompt`,
 `skills`, `mcp_servers`, `tools`) plus namespaced extension bags: `x_operator` (Operator's
 launch config and model properties) and per-platform opaque bags (`x_agnt`, `x_openai`) that are
 preserved verbatim. Profiles round-trip losslessly in both directions, so a profile authored on
 another platform survives `import → export` byte-for-byte.
 
-A delegator may also carry a **`remote_agent`** reference — a `{ platform, id }` pointer to a
+A delegator may also carry a **`remote_agent`** reference - a `{ platform, id }` pointer to a
 remote, named agent that lives on another service:
 
 ```toml
@@ -222,7 +222,7 @@ id       = "a1b2c3d4-…"            # AGNT agent UUID, or an OpenAI asst_… id
 ```
 
 Remote agents are **export-only**: Operator has no runtime client for those platforms, so a
-delegator carrying a `remote_agent` cannot be launched locally — resolution returns a
+delegator carrying a `remote_agent` cannot be launched locally - resolution returns a
 `RemoteOnlyDelegator` error on every launch path. When the platform is `agnt`, the reference is
 surfaced in the [`--format agnt` workflow export](/getting-started/workflows/agnt/) as a native AGNT `agnt-agent` node; other platforms
 ride opaquely in the profile.
@@ -232,9 +232,9 @@ ride opaquely in the profile.
 > back into Operator, which then hits the `RemoteOnlyDelegator` guard and errors. Don't bind a
 > non-AGNT remote delegator as the step agent of a workflow you intend to export to AGNT.
 
-> **Design note — the interchange is tool-agnostic.** AGNT was the first remote platform; adding
+> **Design note - the interchange is tool-agnostic.** AGNT was the first remote platform; adding
 > OpenAI Assistants as the second cost only a generic `remote_agent { platform, id }` reference and
-> an opaque `x_openai` bag mirroring `x_agnt` — **no new mapping logic, no executor, no export
+> an opaque `x_openai` bag mirroring `x_agnt` - **no new mapping logic, no executor, no export
 > node.** That's the evidence the schema core is not shaped around any one tool.
 
 ## REST API
@@ -256,6 +256,6 @@ See the [OpenAPI reference](/schemas/openapi.json) for request/response shapes.
 
 ## See also
 
-- [Configuration reference](/configuration/) — full `operator.toml` schema
-- [LLM Tools](/llm-tools/) — which tools Operator can detect and launch
-- [Schema reference](/schemas/config/) — type definitions for `Delegator` and `DelegatorLaunchConfig`
+- [Configuration reference](/configuration/) - full `operator.toml` schema
+- [LLM Tools](/llm-tools/) - which tools Operator can detect and launch
+- [Schema reference](/schemas/config/) - type definitions for `Delegator` and `DelegatorLaunchConfig`

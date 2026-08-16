@@ -8,21 +8,25 @@
 //! - Capabilities system for capability-based feature enablement
 //! - Error handling with auth failure tracking
 
+pub mod argv;
 pub mod cli_detection;
 pub mod error;
 pub mod gh_cli;
+pub mod gitea_service;
 pub mod github_service;
 pub mod gitlab_service;
 pub mod glab_cli;
 pub mod kanban_sync;
 pub mod pr_service;
 pub mod providers;
+pub mod tea_cli;
 
 // Legacy modules (kept for backward compatibility during migration)
 pub mod anthropic;
 pub mod github;
 
 // Re-export commonly used types from providers
+pub use argv::ProviderCommand;
 pub use error::ApiError;
 pub use providers::ai::{AiProvider, AnthropicProvider, RateLimitInfo};
 pub use providers::repo::{GitHubProvider, IssueStatus, PrStatus, RepoProvider};

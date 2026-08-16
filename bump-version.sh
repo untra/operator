@@ -71,5 +71,17 @@ for f in "${JSON_FILES[@]}"; do
   fi
 done
 
+CHART_FILE="charts/operator/Chart.yaml"
+if $DRY_RUN; then
+  echo "[dry-run] would update $CHART_FILE"
+else
+  awk -v version="$NEW" '
+    /^version:/ { $0 = "version: " version }
+    /^appVersion:/ { $0 = "appVersion: \"" version "\"" }
+    { print }
+  ' "$CHART_FILE" > "$CHART_FILE.tmp" && mv "$CHART_FILE.tmp" "$CHART_FILE"
+  echo "Updated $CHART_FILE"
+fi
+
 echo ""
 echo "Done. Version is now $NEW"

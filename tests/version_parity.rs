@@ -81,6 +81,7 @@ const MANAGED: &[(&str, ExtractKind)] = &[
         ExtractKind::TomlPackageVersion,
     ),
     ("docs/_config.yml", ExtractKind::YamlVersion),
+    ("charts/operator/Chart.yaml", ExtractKind::YamlVersion),
     ("vscode-extension/package.json", ExtractKind::JsonDotVersion),
     (
         "vscode-extension/src/webhook-server.ts",
@@ -119,4 +120,11 @@ fn test_all_managed_manifests_match_version_file() {
         "version drift from VERSION={expected:?}:\n{}\nRun ./bump-version.sh or correct the files above; regenerate docs/schemas/openapi.json with `cargo run -- docs --only openapi`.",
         mismatches.join("\n")
     );
+
+    let chart = read(&root.join("charts/operator/Chart.yaml"));
+    let app_version = chart
+        .lines()
+        .find(|line| line.trim_start().starts_with("appVersion:"))
+        .and_then(|line| between_quotes_after(line, ":"));
+    assert_eq!(app_version.as_deref(), Some(expected.as_str()));
 }

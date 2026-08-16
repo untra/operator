@@ -100,11 +100,20 @@ pub async fn list_statuses(
     )
 )]
 pub async fn write_config(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     Json(req): Json<WriteKanbanConfigRequest>,
 ) -> Result<Json<WriteKanbanConfigResponse>, ApiError> {
-    // Pass `None` so the service uses the production config path.
-    let resp = kanban_onboarding::write_config(req, None)?;
+    let resp = state
+        .mutate_config(move |config| {
+            let section_header = kanban_onboarding::apply_config_request(config, req)?;
+            Ok(WriteKanbanConfigResponse {
+                written_path: crate::config::Config::operator_config_path()
+                    .display()
+                    .to_string(),
+                section_header,
+            })
+        })
+        .await?;
     Ok(Json(resp))
 }
 

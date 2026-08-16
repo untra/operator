@@ -330,6 +330,7 @@ mod tests {
         // The FEAT "code" step names agent "claude-opus"; register a
         // delegator by that name pointing at a different tool + model.
         config.delegators = vec![Delegator {
+            git: None,
             name: "claude-opus".to_string(),
             llm_tool: "gemini".to_string(),
             model: "gemini-pro".to_string(),

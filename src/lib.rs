@@ -8,6 +8,7 @@
 // Public modules for type generation
 pub mod agents;
 pub mod api;
+pub mod auth;
 pub mod collections;
 pub mod config;
 pub mod editors;

@@ -13,6 +13,7 @@ mod detection;
 pub mod skill_deployer;
 pub mod tool_config;
 
+pub use detection::verify_tool_health;
 #[allow(unused_imports)] // Used by main.rs binary
 pub use detection::{detect_all_tools, refresh_tool_detection};
 pub use skill_deployer::deploy_skills;

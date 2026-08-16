@@ -538,7 +538,10 @@ mod review_signals {
         // Test the condition check without full App
         let review_state: Option<&str> = Some("pending_plan");
 
-        let can_approve = matches!(review_state, Some("pending_plan" | "pending_visual"));
+        let can_approve = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
 
         assert!(can_approve);
     }
@@ -548,16 +551,35 @@ mod review_signals {
         // Symmetric test for the pending_visual match arm
         let review_state: Option<&str> = Some("pending_visual");
 
-        let can_approve = matches!(review_state, Some("pending_plan" | "pending_visual"));
+        let can_approve = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
 
         assert!(can_approve, "pending_visual should also be approvable");
+    }
+
+    #[test]
+    fn test_review_approval_pending_proof() {
+        // Symmetric test for the pending_proof match arm
+        let review_state: Option<&str> = Some("pending_proof");
+
+        let can_approve = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
+
+        assert!(can_approve, "pending_proof should also be approvable");
     }
 
     #[test]
     fn test_review_approval_blocked_for_other_states() {
         let review_state: Option<&str> = Some("running");
 
-        let can_approve = matches!(review_state, Some("pending_plan" | "pending_visual"));
+        let can_approve = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
 
         assert!(!can_approve);
     }
@@ -567,7 +589,10 @@ mod review_signals {
         // Mirrors approval tests but for rejection path — same guard logic applies
         let review_state: Option<&str> = Some("running");
 
-        let can_reject = matches!(review_state, Some("pending_plan" | "pending_visual"));
+        let can_reject = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
 
         assert!(
             !can_reject,
@@ -576,7 +601,10 @@ mod review_signals {
 
         // Also verify None is blocked
         let review_state: Option<&str> = None;
-        let can_reject = matches!(review_state, Some("pending_plan" | "pending_visual"));
+        let can_reject = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
         assert!(
             !can_reject,
             "Rejection should be blocked when no review state"
@@ -584,19 +612,35 @@ mod review_signals {
 
         // And verify pending states ARE rejectable
         let review_state: Option<&str> = Some("pending_plan");
-        let can_reject = matches!(review_state, Some("pending_plan" | "pending_visual"));
+        let can_reject = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
         assert!(can_reject, "pending_plan should be rejectable");
 
         let review_state: Option<&str> = Some("pending_visual");
-        let can_reject = matches!(review_state, Some("pending_plan" | "pending_visual"));
+        let can_reject = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
         assert!(can_reject, "pending_visual should be rejectable");
+
+        let review_state: Option<&str> = Some("pending_proof");
+        let can_reject = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
+        assert!(can_reject, "pending_proof should be rejectable");
     }
 
     #[test]
     fn test_review_approval_blocked_for_none() {
         let review_state: Option<&str> = None;
 
-        let can_approve = matches!(review_state, Some("pending_plan" | "pending_visual"));
+        let can_approve = matches!(
+            review_state,
+            Some("pending_plan" | "pending_visual" | "pending_proof")
+        );
 
         assert!(!can_approve);
     }

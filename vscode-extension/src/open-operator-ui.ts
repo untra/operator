@@ -12,7 +12,7 @@
  */
 
 import * as vscode from 'vscode';
-import { discoverApiUrl } from './api-client';
+import { discoverApiUrl, OperatorApiClient } from './api-client';
 
 /** Sections of the hosted UI we can deep-link to (hash routes from ui/src/main.tsx). */
 export type OperatorUiRoute =
@@ -50,14 +50,7 @@ export async function openOperatorUi(
   // The hosted UI is served by the daemon; if it's down there is nothing to
   // show. Probe health before opening so the user gets an actionable message
   // rather than a blank Simple Browser tab.
-  let reachable: boolean;
-  try {
-    const res = await fetch(`${apiUrl}/api/v1/health`);
-    reachable = res.ok;
-  } catch {
-    reachable = false;
-  }
-  if (!reachable) {
+  if (!(await new OperatorApiClient(apiUrl).isReachable())) {
     const choice = await vscode.window.showErrorMessage(
       'The Operator daemon is not running, so the Operator UI is unavailable. ' +
         'Start the daemon, then try again.',

@@ -1,5 +1,8 @@
 //! Webhook notification integration.
 
+use std::time::Duration;
+
+use crate::auth::egress::EgressPolicy;
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Utc;
@@ -44,6 +47,12 @@ struct WebhookPayload {
     data: serde_json::Value,
 }
 
+/// Client used for webhook delivery, with redirect destinations re-validated.
+fn egress_client() -> Client {
+    crate::auth::egress::validated_client(EgressPolicy::default(), Duration::from_secs(30))
+        .unwrap_or_else(|_| Client::new())
+}
+
 impl WebhookIntegration {
     /// Create a new webhook integration from config.
     #[allow(dead_code)] // Used by main.rs binary via mod, not via lib crate
@@ -85,7 +94,7 @@ impl WebhookIntegration {
             auth,
             subscribed_events: config.events.clone().unwrap_or_default(),
             enabled: config.enabled,
-            client: Client::new(),
+            client: egress_client(),
         })
     }
 
@@ -98,7 +107,7 @@ impl WebhookIntegration {
             auth: WebhookAuth::None,
             subscribed_events: events,
             enabled: true,
-            client: Client::new(),
+            client: egress_client(),
         }
     }
 }
@@ -128,6 +137,16 @@ impl NotificationIntegration for WebhookIntegration {
             timestamp: Utc::now().to_rfc3339(),
             data: serde_json::to_value(event)?,
         };
+
+        // A webhook URL comes from configuration and this request carries the configured bearer or basic credential
+        if let Err(e) = crate::auth::egress::validate(&self.url, &EgressPolicy::default()) {
+            tracing::warn!(
+                webhook = %self.name,
+                error = %e,
+                "refusing to deliver webhook to a disallowed destination"
+            );
+            return Ok(());
+        }
 
         // Build request
         let mut request = self.client.post(&self.url).json(&payload);

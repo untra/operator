@@ -18,7 +18,7 @@ fn main() {
         )
         .expect("write placeholder index.html");
         println!(
-            "cargo:warning=ui/dist/index.html is a placeholder — run `cd ui && bun run build` for real UI"
+            "cargo:warning=ui/dist/index.html is a placeholder - run `cd ui && bun run build` for real UI"
         );
     }
 
@@ -26,7 +26,7 @@ fn main() {
     let total = walk_dir_size(ui_dist);
     assert!(
         total <= 15_728_640,
-        "UI dist is {}B ({:.1}MB) — exceeds 15MB uncompressed budget",
+        "UI dist is {}B ({:.1}MB) - exceeds 15MB uncompressed budget",
         total,
         total as f64 / 1_048_576.0
     );

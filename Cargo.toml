@@ -92,8 +92,19 @@ http-body-util = "0.1"
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 
-# Agent Client Protocol (ACP) — JSON-RPC 2.0 over stdio for editor integration
+# Agent Client Protocol (ACP) JSON-RPC 2.0 over stdio for editor integration
 agent-client-protocol = "2.0"
+
+# Authentication: local credential store, password hashing, and token signing.
+rusqlite = { version = "0.37", features = ["bundled"] }
+argon2 = "0.5"
+password-hash = { version = "0.5", features = ["getrandom"] }
+jsonwebtoken = "9"
+ring = "0.17"
+rand = "0.9"
+base64 = "0.22"
+subtle = "2"
+url = "2"
 
 # Embedded web UI (behind embed-ui feature flag)
 rust-embed = { version = "8", optional = true }

@@ -8,6 +8,12 @@ const DEFAULT_API_PORT: u16 = 7008;
 /// API session file path relative to working directory
 const API_SESSION_FILE: &str = ".tickets/operator/api-session.json";
 
+/// Env var carrying the callback credential operator injects at launch.
+///
+/// The operator REST API is authenticated, and the step-completion endpoint
+/// launches processes. This token is scoped to exactly one ticket and step.
+const API_TOKEN_ENV: &str = "OPERATOR_API_TOKEN";
+
 /// Retry configuration
 const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 1000;
@@ -166,6 +172,9 @@ pub struct CurrentStepInfo {
 pub struct ApiClient {
     client: Client,
     base_url: String,
+    /// Callback credential injected by operator at launch. Absent only when
+    /// running against a server that pre-dates authentication.
+    token: Option<String>,
 }
 
 #[derive(Debug)]
@@ -210,6 +219,11 @@ fn resolve_base_url(
 impl ApiClient {
     /// Create a new API client with the given base URL
     pub fn new(base_url: &str) -> Self {
+        Self::with_token(base_url, std::env::var(API_TOKEN_ENV).ok())
+    }
+
+    /// Create a client with an explicit callback credential.
+    pub fn with_token(base_url: &str, token: Option<String>) -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .build()
@@ -218,6 +232,7 @@ impl ApiClient {
         Self {
             client,
             base_url: base_url.trim_end_matches('/').to_string(),
+            token: token.filter(|t| !t.trim().is_empty()),
         }
     }
 
@@ -266,7 +281,12 @@ impl ApiClient {
                 backoff_ms *= 2; // Exponential backoff
             }
 
-            match self.client.post(url).json(body).send().await {
+            let mut request = self.client.post(url).json(body);
+            if let Some(token) = &self.token {
+                request = request.bearer_auth(token);
+            }
+
+            match request.send().await {
                 Ok(response) => {
                     let status = response.status();
                     if status.is_success() {
@@ -366,11 +386,28 @@ mod tests {
 
     #[test]
     fn test_api_client_new() {
-        let client = ApiClient::new("http://localhost:7008/");
+        let client = ApiClient::with_token("http://localhost:7008/", None);
         assert_eq!(client.base_url, "http://localhost:7008");
 
-        let client = ApiClient::new("http://localhost:7008");
+        let client = ApiClient::with_token("http://localhost:7008", None);
         assert_eq!(client.base_url, "http://localhost:7008");
+    }
+
+    #[test]
+    fn test_blank_token_is_treated_as_absent() {
+        // An unset env var arrives as an empty string through some shells;
+        // sending `Authorization: Bearer ` would be worse than sending nothing.
+        for blank in ["", "   ", "\n"] {
+            let client = ApiClient::with_token("http://localhost:7008", Some(blank.to_string()));
+            assert!(client.token.is_none(), "blank token {blank:?} should be dropped");
+        }
+    }
+
+    #[test]
+    fn test_token_is_retained_when_supplied() {
+        let client =
+            ApiClient::with_token("http://localhost:7008", Some("cb-token".to_string()));
+        assert_eq!(client.token.as_deref(), Some("cb-token"));
     }
 
     #[test]

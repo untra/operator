@@ -757,8 +757,14 @@ impl StatusSnapshot {
         let git_provider = config.git.provider.as_ref().map(|p| format!("{p:?}"));
         let git_token_set = match config.git.provider {
             Some(GitProviderConfig::GitLab) => std::env::var(&config.git.gitlab.token_env).is_ok(),
-            // GitHub is the default for all other providers (including None).
-            _ => std::env::var(&config.git.github.token_env).is_ok(),
+            Some(GitProviderConfig::Gitea) => std::env::var(&config.git.gitea.token_env).is_ok(),
+            Some(GitProviderConfig::Forgejo) => {
+                std::env::var(&config.git.forgejo.token_env).is_ok()
+            }
+            Some(GitProviderConfig::GitHub) | None => {
+                std::env::var(&config.git.github.token_env).is_ok()
+            }
+            _ => false,
         };
 
         // Managed projects — names from config, resolved against the projects base dir.

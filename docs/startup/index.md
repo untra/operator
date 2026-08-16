@@ -15,18 +15,19 @@ When Operator starts and no `.tickets/` directory exists, the setup wizard guide
 | 1 | Welcome | Splash screen showing detected LLM tools and discovered projects |
 | 2 | Session Wrapper Choice | Select which session wrapper to use for launching coding agents |
 | 3 | Worktree Preference | Choose whether to use git worktrees for ticket isolation |
-| 4 | Tmux Onboarding | Help and documentation about tmux session management (shown if tmux selected) |
-| 5 | VS Code Setup | VS Code extension setup and verification (shown if VS Code selected) |
-| 6 | Cmux Setup | cmux session wrapper setup (shown if cmux selected) |
-| 7 | Zellij Setup | Zellij session wrapper setup (shown if Zellij selected) |
-| 8 | Kanban Info | Kanban integration overview and provider credential detection |
-| 9 | Kanban Provider Setup | Per-provider credential validation and project selection |
-| 10 | Collection Source | Choose which issue type collection to use |
-| 11 | Custom Collection | Select individual issue types (only shown if Custom Selection chosen) |
-| 12 | Task Field Config | Configure optional fields for TASK issue type |
-| 13 | Acceptance Criteria | Review and configure acceptance criteria for ticket completion |
-| 14 | Startup Tickets | Optionally create tickets to bootstrap your projects |
-| 15 | Confirm | Review settings and confirm initialization |
+| 4 | Web UI Password | Optionally set the admin password for the web dashboard |
+| 5 | Tmux Onboarding | Help and documentation about tmux session management (shown if tmux selected) |
+| 6 | VS Code Setup | VS Code extension setup and verification (shown if VS Code selected) |
+| 7 | Cmux Setup | cmux session wrapper setup (shown if cmux selected) |
+| 8 | Zellij Setup | Zellij session wrapper setup (shown if Zellij selected) |
+| 9 | Kanban Info | Kanban integration overview and provider credential detection |
+| 10 | Kanban Provider Setup | Per-provider credential validation and project selection |
+| 11 | Collection Source | Choose which issue type collection to use |
+| 12 | Hosted Collections | Browse and select hosted collections (only shown if Browse chosen) |
+| 13 | Task Field Config | Configure optional fields for TASK issue type |
+| 14 | Acceptance Criteria | Review and configure acceptance criteria for ticket completion |
+| 15 | Startup Tickets | Optionally create tickets to bootstrap your projects |
+| 16 | Confirm | Review settings and confirm initialization |
 
 ## Step Details
 
@@ -70,7 +71,21 @@ Worktrees allow multiple agents to work on different tickets simultaneously with
 
 **Navigation**: ↑/↓ or j/k to navigate, Enter to select, Esc to go back
 
-### 4. Tmux Onboarding
+### 4. Web UI Password
+
+*Optionally set the admin password for the web dashboard*
+
+Operator has a single human account, `admin`.
+
+This terminal and the CLI need no password: a loopback process authenticates with an owner-only token file in the state directory. A browser cannot read that file, so the web dashboard stays locked until an admin password exists.
+
+Leave both fields blank to skip. You can set one later with `operator auth bootstrap` or from the /setup page.
+
+The password must be at least 12 characters. This step is hidden when an admin account already exists.
+
+**Navigation**: Tab to switch fields, Enter to continue (blank to skip), Esc to go back
+
+### 5. Tmux Onboarding
 
 *Help and documentation about tmux session management (shown if tmux selected)*
 
@@ -84,7 +99,7 @@ Operator session names start with 'op-' for easy identification.
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 5. VS Code Setup
+### 6. VS Code Setup
 
 *VS Code extension setup and verification (shown if VS Code selected)*
 
@@ -95,7 +110,7 @@ Install the extension from the VS Code marketplace if prompted.
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 6. Cmux Setup
+### 7. Cmux Setup
 
 *cmux session wrapper setup (shown if cmux selected)*
 
@@ -105,7 +120,7 @@ This step verifies the cmux app's CLI binary exists at the configured binary_pat
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 7. Zellij Setup
+### 8. Zellij Setup
 
 *Zellij session wrapper setup (shown if Zellij selected)*
 
@@ -115,7 +130,7 @@ This step verifies Zellij is installed and configures the layout Operator will u
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 8. Kanban Info
+### 9. Kanban Info
 
 *Kanban integration overview and provider credential detection*
 
@@ -126,7 +141,7 @@ Credentials are read from environment variables (e.g. OPERATOR_JIRA_API_KEY). Th
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 9. Kanban Provider Setup
+### 10. Kanban Provider Setup
 
 *Per-provider credential validation and project selection*
 
@@ -139,7 +154,7 @@ Only projects you select will be synced to your ticket queue. You can skip this 
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to select projects, Enter to confirm, Esc to go back
 
-### 10. Collection Source
+### 11. Collection Source
 
 *Choose which issue type collection to use*
 
@@ -151,22 +166,19 @@ Select a preset collection of issue types:
 
 **Navigation**: ↑/↓ or j/k to navigate, Enter to select, Esc to go back
 
-### 11. Custom Collection
+### 12. Hosted Collections
 
-*Select individual issue types (only shown if Custom Selection chosen)*
+*Browse and select hosted collections (only shown if Browse chosen)*
 
-Toggle individual issue types to include:
-- **TASK**: Focused task that executes one specific thing
-- **FEAT**: New feature or enhancement
-- **FIX**: Bug fix, follow-up work, tech debt
-- **SPIKE**: Research or exploration (paired mode)
-- **INV**: Incident investigation (paired mode)
+Pick one or more curated collections published at operator.untra.io.
 
-At least one issue type must be selected to proceed.
+The list is fetched from the collections manifest; if it cannot be reached, the collections bundled with Operator are offered instead. Each collection brings its own issue types and workflow steps.
+
+Selections are additive - choose as many as apply.
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
 
-### 12. Task Field Config
+### 13. Task Field Config
 
 *Configure optional fields for TASK issue type*
 
@@ -179,7 +191,7 @@ These choices propagate to other issue types. The 'summary' field is always requ
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
 
-### 13. Acceptance Criteria
+### 14. Acceptance Criteria
 
 *Review and configure acceptance criteria for ticket completion*
 
@@ -190,7 +202,7 @@ The default criteria cover formatting, tests, and lint checks. You can customize
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 14. Startup Tickets
+### 15. Startup Tickets
 
 *Optionally create tickets to bootstrap your projects*
 
@@ -203,7 +215,7 @@ These tickets are optional and help automate common setup tasks.
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
 
-### 15. Confirm
+### 16. Confirm
 
 *Review settings and confirm initialization*
 

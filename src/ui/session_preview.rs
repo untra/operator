@@ -319,6 +319,7 @@ mod tests {
 
     fn make_test_agent() -> AgentState {
         AgentState {
+            git_context: None,
             id: "agent-1".to_string(),
             ticket_id: "FEAT-1234".to_string(),
             ticket_type: "FEAT".to_string(),

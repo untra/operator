@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { KanbanTicketCard } from '@operator/bindings/KanbanTicketCard';
-import type { Config } from '@operator/bindings/Config';
+import type { ConfigurationResponse } from '@operator/bindings/ConfigurationResponse';
+import type { DelegatorResponse } from '@operator/bindings/DelegatorResponse';
 import type { LaunchTicketResponse } from '@operator/bindings/LaunchTicketResponse';
 import { OperatorApi } from '../api-client';
 import { useHost } from '../host';
@@ -30,7 +31,9 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
   const [target, setTarget] = useState<string>(''); // '' = delegator's target
   const [yolo, setYolo] = useState(false);
 
-  const [config, setConfig] = useState<Config | null>(null);
+  const [config, setConfig] = useState<ConfigurationResponse | null>(null);
+  const [delegators, setDelegators] = useState<DelegatorResponse[]>([]);
+  const [targets, setTargets] = useState<string[]>([]);
   const [workflow, setWorkflow] = useState<IssueType | null>(null);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
 
@@ -46,9 +49,13 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
   // Config (delegator names + the configured control wrapper) for the dropdowns.
   useEffect(() => {
     let cancelled = false;
-    api
-      .getConfiguration()
-      .then((c) => !cancelled && setConfig(c))
+    Promise.all([api.getConfiguration(), api.listDelegators(), api.executionTargets()])
+      .then(([configuration, delegatorResponse, targetResponse]) => {
+        if (cancelled) return;
+        setConfig(configuration);
+        setDelegators(delegatorResponse.delegators);
+        setTargets(targetResponse.targets.filter((item) => item.available).map((item) => item.name));
+      })
       .catch(() => !cancelled && setConfig(null));
     return () => {
       cancelled = true;
@@ -70,20 +77,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
     };
   }, [api, ticket.ticket_type]);
 
-  const defaultWrapperLabel = config?.sessions.wrapper ?? 'configured';
-  const delegators = useMemo(() => config?.delegators ?? [], [config]);
-
-  // Named execution targets: explicit [[targets]] entries, [[hosts]] synths,
-  // and the synthesized docker target when an image is configured.
-  const targets = useMemo(() => {
-    if (!config) return [] as string[];
-    const names = [
-      ...(config.targets ?? []).map((t) => t.name),
-      ...(config.hosts ?? []).map((h) => h.name),
-    ];
-    if (config.launch.docker.image) names.push('docker');
-    return names;
-  }, [config]);
+  const defaultWrapperLabel = config?.launch.session_wrapper ?? 'configured';
 
   const onLaunch = () => {
     setLaunching(true);

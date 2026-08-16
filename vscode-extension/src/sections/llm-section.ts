@@ -3,8 +3,7 @@ import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection, LlmState, LlmToolInfo } from './types';
 import type { SectionId, SectionHealth } from '../generated';
 import { detectInstalledLlmTools } from '../walkthrough';
-import { discoverApiUrl } from '../api-client';
-import type { DetectedTool } from '../generated/DetectedTool';
+import { discoverApiUrl, OperatorApiClient } from '../api-client';
 
 export class LlmSection implements StatusSection {
   readonly sectionId: SectionId = 'llm';
@@ -26,18 +25,15 @@ export class LlmSection implements StatusSection {
 
     // Priority 1: Try API (has model_aliases from embedded tool configs)
     try {
-      const apiUrl = await discoverApiUrl(ctx.ticketsDir);
-      const response = await fetch(`${apiUrl}/api/v1/llm-tools`);
-      if (response.ok) {
-        const data = await response.json() as { tools: DetectedTool[] };
-        for (const tool of data.tools) {
-          seen.add(tool.name);
-          toolDetails.push({
-            name: tool.name,
-            version: tool.version,
-            models: tool.model_aliases,
-          });
-        }
+      const client = new OperatorApiClient(await discoverApiUrl(ctx.ticketsDir));
+      const data = await client.listLlmTools();
+      for (const tool of data.tools) {
+        seen.add(tool.name);
+        toolDetails.push({
+          name: tool.name,
+          version: tool.version,
+          models: tool.model_aliases,
+        });
       }
     } catch {
       // API not available
@@ -91,12 +87,9 @@ export class LlmSection implements StatusSection {
     let defaultTool: string | undefined;
     let defaultModel: string | undefined;
     try {
-      const apiUrl = await discoverApiUrl(ctx.ticketsDir);
-      const defaultResp = await fetch(`${apiUrl}/api/v1/llm-tools/default`);
-      if (defaultResp.ok) {
-        const data = await defaultResp.json() as { tool: string; model: string };
-        if (data.tool) { defaultTool = data.tool; defaultModel = data.model; }
-      }
+      const client = new OperatorApiClient(await discoverApiUrl(ctx.ticketsDir));
+      const data = await client.getDefaultLlm();
+      if (data.tool) { defaultTool = data.tool; defaultModel = data.model; }
     } catch {
       // API not available — fall back to config TOML
       const cfgForDefault = await ctx.readConfigToml();

@@ -61,6 +61,24 @@ macOS is the primary development platform. No known feature gaps.
 
 ---
 
+## Containers and Kubernetes
+
+Operator also ships as a container image and a Helm chart. Both are Linux-only
+(`linux/amd64`, `linux/arm64`) regardless of the host you drive them from.
+
+| Distribution | Status | Notes |
+|--------------|--------|-------|
+| Docker image `untra/operator` | ✅ Supported | Multi-arch. See [Docker](/getting-started/platforms/docker/) |
+| Helm chart `oci://ghcr.io/untra/charts/operator` | ⚠️ Alpha | Single-replica StatefulSet, ReadWriteOnce persistence. See [Kubernetes](/getting-started/platforms/kubernetes/) |
+| Example Helmfile | ⚠️ Alpha | `examples/helmfile.yaml` in the repository |
+
+| Feature | Status | Reason | Workaround |
+|---------|--------|--------|------------|
+| Horizontal scaling of the chart | ❌ N/A | Operator is a single-writer process over a ReadWriteOnce volume with a local queue and SQLite auth database | Run one replica; scale by running separate instances against separate workspaces |
+| Agent process isolation | ⚠️ Planned | Agents run as child processes sharing Operator's user and filesystem | Treat the configured agent tool as trusted. See [Security](/security/#the-agent-process-is-inside-the-trust-boundary) |
+
+---
+
 ## Integration-Level Gaps (all platforms)
 
 These gaps apply on every operating system because the integration itself is not fully implemented.

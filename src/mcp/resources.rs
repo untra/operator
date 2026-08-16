@@ -10,7 +10,7 @@ use crate::queue::Queue;
 use crate::rest::state::ApiState;
 
 pub async fn list_resources(state: &ApiState) -> Result<Vec<Value>, String> {
-    let config = (*state.config).clone();
+    let config = (*state.config()).clone();
     tokio::task::spawn_blocking(move || -> Result<Vec<Value>, String> {
         let queue = Queue::new(&config).map_err(|e| e.to_string())?;
         let mut all = Vec::new();
@@ -43,7 +43,7 @@ pub async fn read_resource(uri: &str, state: &ApiState) -> Result<String, String
         .split_once('/')
         .ok_or_else(|| format!("Malformed URI: {uri}"))?;
 
-    let config = (*state.config).clone();
+    let config = (*state.config()).clone();
     let status = status.to_string();
     let id = id.to_string();
     tokio::task::spawn_blocking(move || -> Result<String, String> {

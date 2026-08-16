@@ -136,6 +136,20 @@ fn detect_tool(config: &ToolConfig) -> Option<DetectedTool> {
     })
 }
 
+/// Verify one tool's health right now, against its current config. Used at launch time by surfaces
+/// that never ran startup detection (`launch`, `api`, `mcp`, `acp`), so a stale or absent `health_ok`
+/// in config.toml cannot permanently block a tool that is actually installed and working.
+pub fn verify_tool_health(tool_name: &str) -> bool {
+    load_all_tool_configs()
+        .iter()
+        .find(|c| c.tool_name == tool_name)
+        .is_some_and(|config| {
+            let presence_verified = config.detection_mode() == DetectionMode::Which
+                && get_binary_path(&config.tool_name).is_some();
+            check_health(config, presence_verified)
+        })
+}
+
 /// Decide whether a tool is healthy. Health is earned, never assumed: which-mode
 /// tools bank the verified presence of their binary, always-mode tools have
 /// nothing locally verifiable and need a passing `health_command`. An unhealthy
@@ -494,6 +508,12 @@ mod tests {
         let config = make_tool_config(MISSING_BINARY, DetectionMode::Always, Some("true"));
         let tool = detect_tool(&config).unwrap();
         assert!(tool.health_ok);
+    }
+
+    #[test]
+    fn test_verify_tool_health_unknown_tool_is_unhealthy() {
+        // No tool config means nothing to verify against.
+        assert!(!verify_tool_health("definitely-not-a-tool-config"));
     }
 
     #[test]

@@ -59,7 +59,8 @@ export interface ApiStatus {
   port?: number;
   url?: string;
   directoryName?: string;
-  mismatch?: { kind: 'version' | 'project'; detail: string };
+  /** `auth`: the daemon answered but rejected every credential the extension holds. */
+  mismatch?: { kind: 'version' | 'project' | 'auth'; detail: string };
 }
 
 /** Internal state for the Configuration section */

@@ -73,7 +73,7 @@ pub async fn descriptor(
 ) -> Json<McpDescriptorResponse> {
     let base = format!("http://{host}");
 
-    let stdio = if state.config.mcp.stdio_advertised {
+    let stdio = if state.config().mcp.stdio_advertised {
         let command = std::env::current_exe()
             .ok()
             .and_then(|p| p.to_str().map(str::to_string))

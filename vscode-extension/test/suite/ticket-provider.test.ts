@@ -111,6 +111,21 @@ step: plan
     );
   });
 
+  test('a ticket without a frontmatter id falls back to the filename', async () => {
+    await fs.writeFile(
+      path.join(tmpDir, 'queue', QUEUE_CARD.filename),
+      `---\nstatus: queued\n---\n\n# Feature: no id in frontmatter\n`
+    );
+    const provider = new TicketTreeProvider(
+      'queue',
+      new IssueTypeService(mockOutputChannel())
+    );
+    await provider.setTicketsDir(tmpDir);
+    const ticket = provider.getChildren()[0]!.ticket;
+    assert.strictEqual(ticket.id, 'FEAT-202608071200');
+    assert.strictEqual(ticket.type, 'FEAT');
+  });
+
   test('running and awaiting columns both land in the in-progress tree', async () => {
     const service = new IssueTypeService(mockOutputChannel());
     const provider = new TicketTreeProvider('in-progress', service);

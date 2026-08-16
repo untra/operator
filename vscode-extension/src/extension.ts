@@ -20,6 +20,13 @@ import { LaunchManager } from './launch-manager';
 import { IssueTypeService } from './issuetype-service';
 import { TicketInfo } from './types';
 import { OperatorApiClient, discoverApiUrl } from './api-client';
+import {
+  OperatorCredentials,
+  clearCredentialProvider,
+  setCredentialProvider,
+} from './auth/credentials';
+import { TokenStore } from './auth/token-store';
+import { signIn, signOut } from './auth/sign-in';
 import { showLaunchOptionsDialog, showTicketPicker } from './launch-dialog';
 import { parseTicketMetadata, getCurrentSessionId } from './ticket-parser';
 import {
@@ -478,24 +485,10 @@ async function resumeQueueCommand(ctx: CommandContext): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function showAwaitingAgentPicker(
-  _apiClient: OperatorApiClient
+  apiClient: OperatorApiClient
 ): Promise<string | undefined> {
   try {
-    const response = await fetch(
-      `${vscode.workspace.getConfiguration('operator').get('apiUrl', 'http://localhost:7008')}/api/v1/agents/active`
-    );
-    if (!response.ok) {
-      void vscode.window.showErrorMessage('Failed to fetch active agents');
-      return undefined;
-    }
-    const data = (await response.json()) as {
-      agents: Array<{
-        id: string;
-        ticket_id: string;
-        project: string;
-        status: string;
-      }>;
-    };
+    const data = await apiClient.listActiveAgents();
 
     const awaitingAgents = data.agents.filter(
       (a) => a.status === 'awaiting_input'
@@ -960,6 +953,12 @@ export async function activate(
   context.subscriptions.push(outputChannel);
   outputChannel.appendLine('[Operator] Activation started');
 
+  // Every daemon request resolves its credential through this one provider.
+  const tokenStore = new TokenStore(context.secrets);
+  const credentials = new OperatorCredentials(tokenStore);
+  setCredentialProvider(credentials);
+  context.subscriptions.push({ dispose: clearCredentialProvider });
+
   // Initialize issue type service (constructor is safe — no network calls)
   const issueTypeService = new IssueTypeService(outputChannel);
 
@@ -1061,6 +1060,7 @@ export async function activate(
       await completedProvider.refresh();
     },
     setTicketsDir: async (dir) => {
+      credentials.setTicketsDir(dir);
       await statusProvider.setTicketsDir(dir);
       await inProgressProvider.setTicketsDir(dir);
       await queueProvider.setTicketsDir(dir);
@@ -1133,21 +1133,26 @@ export async function activate(
         if (!tool || !model) { return; }
         try {
           const apiUrl = await discoverApiUrl(ctx.getCurrentTicketsDir());
-          const resp = await fetch(`${apiUrl}/api/v1/llm-tools/default`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tool, model }),
-          });
-          if (resp.ok) {
-            void vscode.window.showInformationMessage(`Default LLM set to ${tool}:${model}`);
-            void ctx.refreshAllProviders();
-          } else {
-            void vscode.window.showErrorMessage('Failed to set default LLM');
-          }
-        } catch {
-          void vscode.window.showErrorMessage('Operator API not available');
+          await new OperatorApiClient(apiUrl).setDefaultLlm({ tool, model });
+          void vscode.window.showInformationMessage(`Default LLM set to ${tool}:${model}`);
+          void ctx.refreshAllProviders();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Operator API not available';
+          void vscode.window.showErrorMessage(`Failed to set default LLM: ${msg}`);
         }
       }),
+    vscode.commands.registerCommand('operator.signIn', async () => {
+      const apiUrl = await discoverApiUrl(ctx.getCurrentTicketsDir());
+      const outcome = await signIn(apiUrl, credentials, tokenStore);
+      if (outcome?.status === 'approved') {
+        await ctx.refreshAllProviders();
+      }
+    }),
+    vscode.commands.registerCommand('operator.signOut', async () => {
+      const apiUrl = await discoverApiUrl(ctx.getCurrentTicketsDir());
+      await signOut(apiUrl, tokenStore);
+      await ctx.refreshAllProviders();
+    }),
     vscode.commands.registerCommand('operator.openWalkthrough', openWalkthrough),
     vscode.commands.registerCommand('operator.openSettings',
       () => ConfigPanel.createOrShow(ctx.extensionContext.extensionUri)),

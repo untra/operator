@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::mcp::tools;
+use crate::rest::dto::auth::Scope;
 use crate::rest::state::ApiState;
 
 #[derive(Debug, Deserialize)]
@@ -35,7 +36,11 @@ pub struct JsonRpcError {
     pub message: String,
 }
 
-pub async fn handle_jsonrpc(request: &JsonRpcRequest, state: &ApiState) -> JsonRpcResponse {
+pub async fn handle_jsonrpc(
+    request: &JsonRpcRequest,
+    state: &ApiState,
+    scopes: &[Scope],
+) -> JsonRpcResponse {
     let id = request.id.clone().unwrap_or(Value::Null);
 
     match request.method.as_str() {
@@ -96,7 +101,7 @@ pub async fn handle_jsonrpc(request: &JsonRpcRequest, state: &ApiState) -> JsonR
                 .cloned()
                 .unwrap_or_else(|| json!({}));
 
-            match tools::execute_tool(tool_name, arguments, state).await {
+            match tools::execute_tool(tool_name, arguments, state, scopes).await {
                 Ok(result) => {
                     let text = serde_json::to_string_pretty(&result).unwrap_or_default();
                     JsonRpcResponse {
@@ -199,7 +204,7 @@ mod tests {
             params: json!({}),
         };
 
-        let response = handle_jsonrpc(&request, &state).await;
+        let response = handle_jsonrpc(&request, &state, &Scope::ALL).await;
 
         assert_eq!(response.jsonrpc, "2.0");
         assert_eq!(response.id, json!(1));
@@ -222,7 +227,7 @@ mod tests {
             params: json!({}),
         };
 
-        let response = handle_jsonrpc(&request, &state).await;
+        let response = handle_jsonrpc(&request, &state, &Scope::ALL).await;
 
         assert!(response.error.is_none());
         let result = response.result.unwrap();
@@ -248,7 +253,7 @@ mod tests {
             }),
         };
 
-        let response = handle_jsonrpc(&request, &state).await;
+        let response = handle_jsonrpc(&request, &state, &Scope::ALL).await;
 
         assert!(response.error.is_none());
         let result = response.result.unwrap();
@@ -274,7 +279,7 @@ mod tests {
             }),
         };
 
-        let response = handle_jsonrpc(&request, &state).await;
+        let response = handle_jsonrpc(&request, &state, &Scope::ALL).await;
 
         assert!(response.error.is_some());
         assert!(response.error.unwrap().message.contains("Unknown tool"));
@@ -290,7 +295,7 @@ mod tests {
             params: json!({}),
         };
 
-        let response = handle_jsonrpc(&request, &state).await;
+        let response = handle_jsonrpc(&request, &state, &Scope::ALL).await;
 
         assert!(response.error.is_some());
         let err = response.error.unwrap();
@@ -308,7 +313,7 @@ mod tests {
             params: json!({}),
         };
 
-        let response = handle_jsonrpc(&request, &state).await;
+        let response = handle_jsonrpc(&request, &state, &Scope::ALL).await;
 
         assert!(response.error.is_none());
         assert!(response.result.is_some());

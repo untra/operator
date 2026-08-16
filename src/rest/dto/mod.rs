@@ -5,8 +5,10 @@
 //! - `kanban`: Kanban onboarding, board, and sync DTOs
 //! - `agents`: Agent lifecycle, launch, step execution, and review DTOs
 //! - `configuration`: `Delegator`, model server, LLM tool, and project DTOs
+//! - `auth`: Bootstrap, session, OAuth device flow, and access-key DTOs
 
 pub mod agents;
+pub mod auth;
 pub mod configuration;
 pub mod integrations;
 pub mod issue_types;
@@ -16,6 +18,7 @@ pub mod tickets;
 pub mod workflow;
 
 pub use agents::*;
+pub use auth::*;
 pub use configuration::*;
 pub use integrations::*;
 pub use issue_types::*;

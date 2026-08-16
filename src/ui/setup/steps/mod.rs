@@ -1,6 +1,7 @@
 //! Render methods for each setup step
 
 mod acceptance;
+mod admin_password;
 mod collection;
 mod confirm;
 mod hosted;

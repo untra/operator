@@ -59,7 +59,7 @@ pub async fn provider_catalog(
 ) -> Result<Json<Vec<KanbanProviderCatalogEntry>>, ApiError> {
     // Reload config from disk so freshly onboarded providers are reflected in
     // the `configured` flags without requiring a server restart.
-    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config()).clone());
     Ok(Json(build_provider_catalog(&fresh_config.kanban)))
 }
 
@@ -88,7 +88,7 @@ pub async fn external_issue_types(
 ) -> Result<Json<Vec<ExternalIssueTypeSummary>>, ApiError> {
     // Try reading from persisted catalog first
     let service = KanbanIssueTypeService::from_tickets_path(std::path::Path::new(
-        &state.config.paths.tickets,
+        &state.config().paths.tickets,
     ));
     let catalog_types = service
         .list_kanban_types(&provider_name, &project_key)
@@ -109,7 +109,7 @@ pub async fn external_issue_types(
 
     // Fall back to live provider fetch. Reload config from disk so freshly
     // onboarded providers are visible without requiring a server restart.
-    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config()).clone());
     let provider = get_provider_from_config(&fresh_config.kanban, &provider_name, &project_key)
         .map_err(|e| ApiError::BadRequest(e.to_string()))?;
 
@@ -158,7 +158,7 @@ pub async fn project_statuses(
 ) -> Result<Json<ListKanbanStatusesResponse>, ApiError> {
     // Reload config from disk so freshly onboarded providers are visible
     // without requiring a server restart.
-    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config()).clone());
     let provider = get_provider_from_config(&fresh_config.kanban, &provider_name, &project_key)
         .map_err(|e| ApiError::BadRequest(e.to_string()))?;
 
@@ -194,12 +194,12 @@ pub async fn sync_issue_types(
 ) -> Result<Json<SyncKanbanIssueTypesResponse>, ApiError> {
     // Reload config from disk so freshly onboarded providers are visible
     // without requiring a server restart.
-    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
+    let fresh_config = Config::load(None).unwrap_or_else(|_| (*state.config()).clone());
     let provider = get_provider_from_config(&fresh_config.kanban, &provider_name, &project_key)
         .map_err(|e| ApiError::BadRequest(e.to_string()))?;
 
     let service = KanbanIssueTypeService::from_tickets_path(std::path::Path::new(
-        &state.config.paths.tickets,
+        &state.config().paths.tickets,
     ));
 
     let synced_types = service

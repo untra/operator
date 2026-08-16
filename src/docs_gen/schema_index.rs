@@ -26,7 +26,7 @@ impl DocGenerator for SchemaIndexDocGenerator {
         let mut output = format_header("Schema Reference", self.source());
 
         output.push_str(
-            "This section documents all JSON schemas and type definitions used by Operator.\n\n",
+            "This section documents Operator's file schemas and public REST API contract.\n\n",
         );
 
         // Documentation pages
@@ -79,7 +79,7 @@ impl DocGenerator for SchemaIndexDocGenerator {
             ],
             vec![
                 "[openapi.json](openapi.json)".to_string(),
-                "OpenAPI 3.0".to_string(),
+                "OpenAPI 3.1".to_string(),
                 "REST API specification (generated via utoipa)".to_string(),
             ],
             vec![
@@ -95,25 +95,15 @@ impl DocGenerator for SchemaIndexDocGenerator {
         ];
         output.push_str(&table(json_headers, &json_rows));
 
-        // TypeScript types
-        output.push_str(&heading(2, "TypeScript Types"));
-        output.push_str(
-            "TypeScript type definitions are available for frontend integration:\n\n\
-            - Source: `shared/types.ts` (generated via ts-rs)\n\
-            - API docs can be generated locally with `npm run docs:typescript`\n\n",
-        );
-
         // Regeneration instructions
         output.push_str(&heading(2, "Regenerating Schemas"));
         output.push_str(
             "Schemas are auto-generated from source code. To regenerate:\n\n\
             ```bash\n\
-            # Generate JSON schemas and TypeScript types\n\
+            # Generate JSON schemas\n\
             cargo run --bin generate_types\n\n\
             # Generate documentation pages\n\
-            cargo run -- docs\n\n\
-            # Generate TypeScript API docs\n\
-            npm run docs:typescript\n\
+            cargo run -- docs\n\
             ```\n",
         );
 
@@ -148,6 +138,8 @@ mod tests {
         assert!(result.contains("config.json"));
         assert!(result.contains("state.json"));
         assert!(result.contains("openapi.json"));
+        assert!(result.contains("OpenAPI 3.1"));
+        assert!(!result.contains("TypeScript Types"));
 
         // Should have regeneration instructions
         assert!(result.contains("cargo run --bin generate_types"));

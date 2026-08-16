@@ -28,11 +28,11 @@ pub async fn list(State(state): State<ApiState>) -> Json<Vec<SectionDto>> {
             // so report live connection facts the config-only snapshot can't know.
             let live = LiveConnectionStatus {
                 api_running: true,
-                port: state.config.rest_api.port,
-                mcp_http_enabled: state.config.mcp.http_enabled,
+                port: state.config().rest_api.port,
+                mcp_http_enabled: state.config().mcp.http_enabled,
                 mcp_active_sessions: state.mcp_sessions.lock().await.len(),
             };
-            Json(provider(&state.config, &registry, &live))
+            Json(provider(&state.config(), &registry, &live))
         }
         None => Json(Vec::new()),
     }

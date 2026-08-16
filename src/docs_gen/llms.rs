@@ -62,6 +62,10 @@ const SECTIONS: &[Section] = &[
                 fallback_desc: "Supported coding agents, lifecycle, and modes.",
             },
             Link {
+                slug: "getting-started/platforms/kubernetes",
+                fallback_desc: "Run Operator in a cluster from the OCI Helm chart.",
+            },
+            Link {
                 slug: "downloads",
                 fallback_desc: "",
             },
@@ -131,6 +135,14 @@ const SECTIONS: &[Section] = &[
             Link {
                 slug: "artifact-detection",
                 fallback_desc: "Using produced files as step-completion signals.",
+            },
+            Link {
+                slug: "security",
+                fallback_desc: "Threat model, trust boundaries, and residual risks.",
+            },
+            Link {
+                slug: "security/authentication",
+                fallback_desc: "Admin account, scopes, tokens, and recovery.",
             },
         ],
         extra: &[],
@@ -208,8 +220,13 @@ fn render_item(title: &str, url: &str, desc: &str) -> String {
 ///
 /// Falls back to a title-cased slug when the page or its `title` is missing.
 fn read_front_matter(docs_root: &Path, slug: &str) -> (String, Option<String>) {
-    let path = docs_root.join(slug).join("index.md");
-    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    // A section slug resolves to either `<slug>/index.md` or `<slug>.md`;
+    // Jekyll's `permalink: pretty` serves both at `/<slug>/`.
+    let index = docs_root.join(slug).join("index.md");
+    let flat = docs_root.join(format!("{slug}.md"));
+    let content = std::fs::read_to_string(&index)
+        .or_else(|_| std::fs::read_to_string(&flat))
+        .unwrap_or_default();
 
     let mut title = None;
     let mut description = None;
@@ -269,24 +286,29 @@ mod tests {
     /// `read_front_matter` swallows a missing file, so a slug pointing at a
     /// deleted or renamed page yields a title-cased slug and a live link to a
     /// 404 with no error anywhere. Assert every listed page actually exists.
+    ///
+    /// A slug resolves through either `docs/<slug>/index.md` or the flat
+    /// `docs/<slug>.md`; `permalink: pretty` serves both at `/<slug>/`, and the
+    /// generator reads front matter from whichever exists.
     #[test]
     fn test_every_listed_slug_resolves_to_a_real_page() {
         let docs_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs");
         for section in super::SECTIONS {
             for link in section.links {
-                let path = docs_root.join(link.slug).join("index.md");
+                let index = docs_root.join(link.slug).join("index.md");
+                let flat = docs_root.join(format!("{}.md", link.slug));
+                let path = if index.is_file() { &index } else { &flat };
                 assert!(
                     path.is_file(),
-                    "llms.txt lists '{}' under '{}', but {} does not exist. The generator \
-                     requires docs/<slug>/index.md specifically — a flat <slug>.md yields \
-                     empty output and a broken link.",
+                    "llms.txt lists '{}' under '{}', but neither {} nor {} exists.",
                     link.slug,
                     section.heading,
-                    path.display()
+                    index.display(),
+                    flat.display()
                 );
                 // Existing on disk is not enough: Jekyll skips `published: false`
                 // pages entirely, so the link would still 404.
-                let content = std::fs::read_to_string(&path).expect("page reads");
+                let content = std::fs::read_to_string(path).expect("page reads");
                 assert!(
                     !content.contains("published: false"),
                     "llms.txt lists '{}', but {} is `published: false` — Jekyll will not \

@@ -39,3 +39,15 @@ impl<S: Send + Sync> FromRequestParts<S> for Host {
         Ok(Host(host))
     }
 }
+
+/// Base URL to advertise in descriptors and transport endpoints.
+///
+/// Prefers the configured public URL over the request's `Host` header. The header is attacker-controlled and carries no scheme,
+/// so behind TLS termination it yields a `http://` URL a client cannot use. Falling back to it is still correct for a loopback bind.
+pub fn public_base_url(state: &crate::rest::state::ApiState, host: &str) -> String {
+    state
+        .config()
+        .rest_api
+        .public_base_url()
+        .unwrap_or_else(|| format!("http://{host}"))
+}

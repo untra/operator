@@ -6,7 +6,6 @@
 use axum::extract::State;
 use axum::Json;
 
-use crate::config::Config;
 use crate::rest::dto::{DefaultLlmResponse, LlmToolsResponse, SetDefaultLlmRequest};
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
@@ -22,7 +21,24 @@ use crate::rest::state::ApiState;
     )
 )]
 pub async fn list(State(state): State<ApiState>) -> Json<LlmToolsResponse> {
-    let tools = state.config.llm_tools.detected.clone();
+    let tools = state
+        .config()
+        .llm_tools
+        .detected
+        .iter()
+        .map(|tool| crate::rest::dto::DetectedToolSummary {
+            name: tool.name.clone(),
+            version: tool.version.clone(),
+            min_version: tool.min_version.clone(),
+            version_ok: tool.version_ok,
+            model_aliases: tool.model_aliases.clone(),
+            capabilities: crate::rest::dto::ToolCapabilitiesSummary {
+                supports_sessions: tool.capabilities.supports_sessions,
+                supports_headless: tool.capabilities.supports_headless,
+            },
+            health_ok: tool.health_ok,
+        })
+        .collect::<Vec<_>>();
     let total = tools.len();
     Json(LlmToolsResponse { tools, total })
 }
@@ -40,13 +56,13 @@ pub async fn list(State(state): State<ApiState>) -> Json<LlmToolsResponse> {
 pub async fn get_default(State(state): State<ApiState>) -> Json<DefaultLlmResponse> {
     Json(DefaultLlmResponse {
         tool: state
-            .config
+            .config()
             .llm_tools
             .default_tool
             .clone()
             .unwrap_or_default(),
         model: state
-            .config
+            .config()
             .llm_tools
             .default_model
             .clone()
@@ -70,30 +86,29 @@ pub async fn set_default(
     State(state): State<ApiState>,
     Json(req): Json<SetDefaultLlmRequest>,
 ) -> Result<Json<DefaultLlmResponse>, ApiError> {
-    if !state
-        .config
-        .llm_tools
-        .detected
-        .iter()
-        .any(|t| t.name == req.tool)
-    {
-        return Err(ApiError::NotFound(format!(
-            "Tool '{}' not detected",
-            req.tool
-        )));
-    }
+    let response = state
+        .mutate_config(move |config| {
+            if !config
+                .llm_tools
+                .detected
+                .iter()
+                .any(|tool| tool.name == req.tool)
+            {
+                return Err(ApiError::NotFound(format!(
+                    "Tool '{}' not detected",
+                    req.tool
+                )));
+            }
+            config.llm_tools.default_tool = Some(req.tool.clone());
+            config.llm_tools.default_model = Some(req.model.clone());
+            Ok(DefaultLlmResponse {
+                tool: req.tool,
+                model: req.model,
+            })
+        })
+        .await?;
 
-    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
-    config.llm_tools.default_tool = Some(req.tool.clone());
-    config.llm_tools.default_model = Some(req.model.clone());
-    config
-        .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
-
-    Ok(Json(DefaultLlmResponse {
-        tool: req.tool,
-        model: req.model,
-    }))
+    Ok(Json(response))
 }
 
 #[cfg(test)]

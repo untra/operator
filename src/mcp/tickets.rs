@@ -53,7 +53,7 @@ pub async fn list_tickets(args: Value, state: &ApiState) -> Result<Value, String
         .and_then(|v| v.as_str())
         .unwrap_or("queue")
         .to_string();
-    let config = (*state.config).clone();
+    let config = (*state.config()).clone();
     let tickets = tokio::task::spawn_blocking(move || -> Result<Vec<Ticket>, String> {
         let queue = Queue::new(&config).map_err(|e| e.to_string())?;
         match status.as_str() {
@@ -73,7 +73,7 @@ pub async fn list_tickets(args: Value, state: &ApiState) -> Result<Value, String
 async fn find_ticket(state: &ApiState, id: &str, in_status: &str) -> Result<Ticket, String> {
     let id = id.to_string();
     let in_status = in_status.to_string();
-    let config = (*state.config).clone();
+    let config = (*state.config()).clone();
     tokio::task::spawn_blocking(move || -> Result<Ticket, String> {
         let queue = Queue::new(&config).map_err(|e| e.to_string())?;
         let list = match in_status.as_str() {
@@ -97,7 +97,7 @@ pub async fn claim_ticket(args: Value, state: &ApiState) -> Result<Value, String
         .and_then(|v| v.as_str())
         .ok_or("Missing required arg: id")?;
     let ticket = find_ticket(state, id, "queue").await?;
-    let config = (*state.config).clone();
+    let config = (*state.config()).clone();
     let id_str = id.to_string();
     let ticket_for_push = ticket.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
@@ -116,7 +116,7 @@ pub async fn complete_ticket(args: Value, state: &ApiState) -> Result<Value, Str
         .and_then(|v| v.as_str())
         .ok_or("Missing required arg: id")?;
     let ticket = find_ticket(state, id, "in-progress").await?;
-    let config = (*state.config).clone();
+    let config = (*state.config()).clone();
     let id_str = id.to_string();
     let ticket_for_push = ticket.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
@@ -135,7 +135,7 @@ pub async fn return_to_queue(args: Value, state: &ApiState) -> Result<Value, Str
         .and_then(|v| v.as_str())
         .ok_or("Missing required arg: id")?;
     let ticket = find_ticket(state, id, "in-progress").await?;
-    let config = (*state.config).clone();
+    let config = (*state.config()).clone();
     let id_str = id.to_string();
     let ticket_for_push = ticket.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
@@ -169,7 +169,7 @@ pub async fn create_ticket(args: Value, state: &ApiState) -> Result<Value, Strin
         }
     }
 
-    let config = (*state.config).clone();
+    let config = (*state.config()).clone();
     let path = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, String> {
         let creator = TicketCreator::new(&config);
         creator
@@ -334,6 +334,7 @@ mod tests {
             "operator_claim_ticket",
             json!({ "id": "FEAT-0001" }),
             &state,
+            &crate::rest::dto::auth::Scope::ALL,
         )
         .await
         .unwrap_err();

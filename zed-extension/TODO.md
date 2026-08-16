@@ -33,18 +33,18 @@ Feature comparison and implementation status vs VS Code extension.
 
 Features Zed has that VS Code doesn't:
 
-1. **Native MCP integration** — tools appear directly in Agent Panel without manual config
-2. **ACP agent sessions** — prompts flow through Operator to Claude Code delegator
-3. **AI-accessible slash commands** — both humans and AI can use them in the assistant
+1. **Native MCP integration** - tools appear directly in Agent Panel without manual config
+2. **ACP agent sessions** - prompts flow through Operator to Claude Code delegator
+3. **AI-accessible slash commands** - both humans and AI can use them in the assistant
 
 ## Not Possible in Zed (API Limitations)
 
-1. **Sidebar views** — no TreeDataProvider equivalent
-2. **Status bar items** — no extension API
-3. **Terminal management** — no programmatic terminal API
-4. **File watching** — no extension file watcher
-5. **Agent server from WASM** — must use settings.json config (extension.toml requires binary downloads)
-6. **Webhook server** — WASM sandbox prevents port listening
+1. **Sidebar views** - no TreeDataProvider equivalent
+2. **Status bar items** - no extension API
+3. **Terminal management** - no programmatic terminal API
+4. **File watching** - no extension file watcher
+5. **Agent server from WASM** - must use settings.json config (extension.toml requires binary downloads)
+6. **Webhook server** - WASM sandbox prevents port listening
 
 ## Future Improvements
 

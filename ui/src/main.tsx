@@ -13,6 +13,10 @@ import { StatusPage } from './routes/StatusPage';
 import { SectionPage } from './routes/SectionPage';
 import { AgentDetailPage } from './routes/AgentDetailPage';
 import { ModelProvidersPage } from './routes/ModelProvidersPage';
+import { LoginPage } from './routes/LoginPage';
+import { SetupPage } from './routes/SetupPage';
+import { DevicePage } from './routes/DevicePage';
+import { SecurityPage } from './routes/SecurityPage';
 
 const host = createBrowserHost();
 
@@ -21,7 +25,13 @@ createRoot(document.getElementById('root')!).render(
     <HostContext.Provider value={host}>
       <HashRouter>
         <Routes>
+          {/* Unauthenticated screens render outside Layout: the shell's own
+              API calls would 401 for a visitor who cannot yet authenticate. */}
+          <Route path="login" element={<LoginPage />} />
+          <Route path="setup" element={<SetupPage />} />
           <Route element={<Layout />}>
+            <Route path="device" element={<DevicePage />} />
+            <Route path="settings/security" element={<SecurityPage />} />
             <Route index element={<DashboardPage />} />
             <Route path="config" element={<ConfigPage />} />
             <Route path="connections" element={<SectionPage conceptKey="connections" />} />

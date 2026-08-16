@@ -1,0 +1,72 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: untra/operator
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+publicUrl: ""
+
+bootstrap:
+  existingSecret: ""
+  passwordKey: password
+
+serviceAccount:
+  name: ""
+  annotations: {}
+
+service:
+  port: 7008
+
+persistence:
+  size: 20Gi
+  storageClass: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+extraEnv: []
+extraEnvFrom: []
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+  path: /
+  pathType: Prefix
+  tls:
+    secretName: ""
+
+networkPolicy:
+  enabled: false
+  ingress:
+    from: []
+  egress:
+    allowDNS: true
+    to: []

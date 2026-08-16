@@ -17,7 +17,10 @@ import type { UpdateIssueTypeRequest } from '@operator/bindings/UpdateIssueTypeR
 import type { LaunchTicketRequest } from '@operator/bindings/LaunchTicketRequest';
 import type { LaunchTicketResponse } from '@operator/bindings/LaunchTicketResponse';
 import type { QueueControlResponse } from '@operator/bindings/QueueControlResponse';
-import type { Config } from '@operator/bindings/Config';
+import type { ConfigurationResponse } from '@operator/bindings/ConfigurationResponse';
+import type { UpdateConfigurationRequest } from '@operator/bindings/UpdateConfigurationRequest';
+import type { ExecutionTargetsResponse } from '@operator/bindings/ExecutionTargetsResponse';
+import type { LlmToolsResponse } from '@operator/bindings/LlmToolsResponse';
 import type { AgentDetailResponse } from '@operator/bindings/AgentDetailResponse';
 import type { WorkflowExportResponse } from '@operator/bindings/WorkflowExportResponse';
 import type { WorkflowPreviewResponse } from '@operator/bindings/WorkflowPreviewResponse';
@@ -31,7 +34,29 @@ import type { DelegatorsResponse } from '@operator/bindings/DelegatorsResponse';
 import type { DelegatorResponse } from '@operator/bindings/DelegatorResponse';
 import type { CreateDelegatorRequest } from '@operator/bindings/CreateDelegatorRequest';
 
+import type { AccessKeyListResponse } from '@operator/bindings/AccessKeyListResponse';
+import type { BootstrapStatusResponse } from '@operator/bindings/BootstrapStatusResponse';
+import type { BootstrapSubmitRequest } from '@operator/bindings/BootstrapSubmitRequest';
+import type { BootstrapSubmitResponse } from '@operator/bindings/BootstrapSubmitResponse';
+import type { CreateAccessKeyRequest } from '@operator/bindings/CreateAccessKeyRequest';
+import type { CreateAccessKeyResponse } from '@operator/bindings/CreateAccessKeyResponse';
+import type { CsrfTokenResponse } from '@operator/bindings/CsrfTokenResponse';
+import type { CurrentSessionResponse } from '@operator/bindings/CurrentSessionResponse';
+import type { DeviceApprovalRequest } from '@operator/bindings/DeviceApprovalRequest';
+import type { DeviceApprovalResponse } from '@operator/bindings/DeviceApprovalResponse';
+import type { LoginRequest } from '@operator/bindings/LoginRequest';
+import type { LoginResponse } from '@operator/bindings/LoginResponse';
+import type { LogoutResponse } from '@operator/bindings/LogoutResponse';
+import type { RevokeAccessKeyResponse } from '@operator/bindings/RevokeAccessKeyResponse';
+import type { SessionListResponse } from '@operator/bindings/SessionListResponse';
+
 export type {
+  AccessKeyListResponse,
+  BootstrapStatusResponse,
+  CreateAccessKeyResponse,
+  CurrentSessionResponse,
+  LoginResponse,
+  SessionListResponse,
   HealthResponse,
   StatusResponse,
   SectionDto,
@@ -50,7 +75,10 @@ export type {
   LaunchTicketRequest,
   LaunchTicketResponse,
   QueueControlResponse,
-  Config,
+  ConfigurationResponse,
+  UpdateConfigurationRequest,
+  ExecutionTargetsResponse,
+  LlmToolsResponse,
   AgentDetailResponse,
   WorkflowExportResponse,
   WorkflowPreviewResponse,
@@ -72,21 +100,98 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(base: string, path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${base}${path}`, init);
+/**
+ * The API is authenticated, so every call goes through here.
+ *
+ * Three things are added centrally rather than per call site:
+ *
+ * - `credentials: 'same-origin'` so the session cookie is actually sent. The
+ *   cookie is `HttpOnly`, so script cannot read or attach it by hand.
+ * - The CSRF header on mutations. The cookie rides along automatically, so a
+ *   mutation needs proof the request was intended.
+ * - A `401` handler that redirects to login (or setup, on a server with no
+ *   admin account yet) instead of surfacing an error the user cannot act on.
+ */
+const CSRF_HEADER = 'x-operator-csrf';
+
+/** In-memory only: a CSRF token in localStorage outlives the session it belongs to. */
+let csrfToken: string | null = null;
+
+export function setCsrfToken(token: string | null): void {
+  csrfToken = token;
+}
+
+export function getCsrfToken(): string | null {
+  return csrfToken;
+}
+
+function isMutation(method: string | undefined): boolean {
+  const m = (method ?? 'GET').toUpperCase();
+  return m !== 'GET' && m !== 'HEAD' && m !== 'OPTIONS';
+}
+
+/** Send the user somewhere they can actually authenticate. */
+async function redirectToAuth(base: string): Promise<void> {
+  let target = '#/login';
+  try {
+    const res = await fetch(`${base}/api/v1/auth/bootstrap`, { credentials: 'same-origin' });
+    if (res.ok) {
+      const status = (await res.json()) as { state?: string };
+      if (status.state !== 'complete') {
+        target = '#/setup';
+      }
+    }
+  } catch {
+    // Unreachable server: login is still the right place to land.
+  }
+  if (window.location.hash !== target) {
+    window.location.hash = target;
+  }
+}
+
+/**
+ * `JSON.stringify` for request bodies that may contain `BigInt`.
+ *
+ * Rust `u64` fields generate as TypeScript `bigint`, and `JSON.stringify`
+ * *throws* on a BigInt rather than serializing it — so a body containing one
+ * fails before the request is ever sent, with no server-side trace. Numbers of
+ * this kind (a day count, a seconds value) are far inside the safe-integer
+ * range, so emitting them as JSON numbers is both correct and what the server
+ * expects.
+ */
+export function toJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    typeof v === 'bigint' ? Number(v) : (v as unknown),
+  );
+}
+
+function authInit(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers);
+  if (isMutation(init?.method) && csrfToken) {
+    headers.set(CSRF_HEADER, csrfToken);
+  }
+  return { ...init, headers, credentials: 'same-origin' };
+}
+
+async function send(base: string, path: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(`${base}${path}`, authInit(init));
+  if (res.status === 401) {
+    await redirectToAuth(base);
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
     throw new ApiError(res.status, body.message ?? body.error ?? `HTTP ${res.status}`);
   }
+  return res;
+}
+
+async function request<T>(base: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await send(base, path, init);
   return res.json() as Promise<T>;
 }
 
 async function requestVoid(base: string, path: string, init?: RequestInit): Promise<void> {
-  const res = await fetch(`${base}${path}`, init);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
-    throw new ApiError(res.status, body.message ?? body.error ?? `HTTP ${res.status}`);
-  }
+  await send(base, path, init);
 }
 
 export class OperatorApi {
@@ -94,6 +199,86 @@ export class OperatorApi {
 
   constructor(host: Host) {
     this.base = host.baseUrl();
+  }
+
+  // --- Auth ---
+
+  bootstrapStatus(): Promise<BootstrapStatusResponse> {
+    return request(this.base, '/api/v1/auth/bootstrap');
+  }
+
+  bootstrap(body: BootstrapSubmitRequest): Promise<BootstrapSubmitResponse> {
+    return request(this.base, '/api/v1/auth/bootstrap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  async login(password: string): Promise<LoginResponse> {
+    const res = await request<LoginResponse>(this.base, '/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson({ password } satisfies LoginRequest),
+    });
+    // Every later mutation needs this, so capture it at the one point it is issued.
+    setCsrfToken(res.csrf_token);
+    return res;
+  }
+
+  async logout(): Promise<LogoutResponse> {
+    const res = await request<LogoutResponse>(this.base, '/api/v1/auth/logout', {
+      method: 'POST',
+    });
+    setCsrfToken(null);
+    return res;
+  }
+
+  currentSession(): Promise<CurrentSessionResponse> {
+    return request(this.base, '/api/v1/auth/session');
+  }
+
+  /** Re-issue a CSRF token, e.g. after a page reload where the cookie survived. */
+  async refreshCsrf(): Promise<string> {
+    const res = await request<CsrfTokenResponse>(this.base, '/api/v1/auth/csrf');
+    setCsrfToken(res.csrf_token);
+    return res.csrf_token;
+  }
+
+  listSessions(): Promise<SessionListResponse> {
+    return request(this.base, '/api/v1/auth/sessions');
+  }
+
+  revokeSession(id: string): Promise<LogoutResponse> {
+    return request(this.base, `/api/v1/auth/sessions/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  listAccessKeys(): Promise<AccessKeyListResponse> {
+    return request(this.base, '/api/v1/auth/keys');
+  }
+
+  createAccessKey(body: CreateAccessKeyRequest): Promise<CreateAccessKeyResponse> {
+    return request(this.base, '/api/v1/auth/keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  revokeAccessKey(id: string): Promise<RevokeAccessKeyResponse> {
+    return request(this.base, `/api/v1/auth/keys/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  approveDevice(userCode: string): Promise<DeviceApprovalResponse> {
+    return request(this.base, '/api/v1/auth/device/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson({ user_code: userCode } satisfies DeviceApprovalRequest),
+    });
   }
 
   // --- Health ---
@@ -154,7 +339,7 @@ export class OperatorApi {
     return requestVoid(this.base, `/api/v1/agents/${encodeURIComponent(agentId)}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason }),
+      body: toJson({ reason }),
     });
   }
 
@@ -175,7 +360,7 @@ export class OperatorApi {
     return request(this.base, `/api/v1/tickets/${encodeURIComponent(ticketId)}/launch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(options),
+      body: toJson(options),
     });
   }
 
@@ -199,7 +384,7 @@ export class OperatorApi {
     return request(this.base, '/api/v1/issuetypes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
+      body: toJson(req),
     });
   }
 
@@ -207,7 +392,7 @@ export class OperatorApi {
     return request(this.base, `/api/v1/issuetypes/${encodeURIComponent(key)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
+      body: toJson(req),
     });
   }
 
@@ -231,16 +416,24 @@ export class OperatorApi {
 
   // --- Configuration ---
 
-  getConfiguration(): Promise<Config> {
+  getConfiguration(): Promise<ConfigurationResponse> {
     return request(this.base, '/api/v1/configuration');
   }
 
-  updateConfiguration(config: Partial<Config>): Promise<Config> {
+  updateConfiguration(config: UpdateConfigurationRequest): Promise<ConfigurationResponse> {
     return request(this.base, '/api/v1/configuration', {
-      method: 'PUT',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
+      body: toJson(config),
     });
+  }
+
+  executionTargets(): Promise<ExecutionTargetsResponse> {
+    return request(this.base, '/api/v1/execution-targets');
+  }
+
+  listLlmTools(): Promise<LlmToolsResponse> {
+    return request(this.base, '/api/v1/llm-tools');
   }
 
   // --- Model providers ---
@@ -265,7 +458,7 @@ export class OperatorApi {
     return request(this.base, '/api/v1/model-servers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
+      body: toJson(req),
     });
   }
 
@@ -279,7 +472,15 @@ export class OperatorApi {
     return request(this.base, '/api/v1/delegators', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
+      body: toJson(req),
+    });
+  }
+
+  updateDelegator(name: string, req: CreateDelegatorRequest): Promise<DelegatorResponse> {
+    return request(this.base, `/api/v1/delegators/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(req),
     });
   }
 

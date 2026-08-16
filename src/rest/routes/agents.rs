@@ -30,7 +30,7 @@ use crate::state::State as OperatorState;
 )]
 pub async fn active(State(state): State<ApiState>) -> Result<Json<ActiveAgentsResponse>, ApiError> {
     // Load operator state from state.json
-    let operator_state = OperatorState::load(&state.config)
+    let operator_state = OperatorState::load(&state.config())
         .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     // Map AgentState to ActiveAgentResponse
@@ -85,7 +85,7 @@ pub async fn get_detail(
     State(state): State<ApiState>,
     Path(agent_id): Path<String>,
 ) -> Result<Json<AgentDetailResponse>, ApiError> {
-    let operator_state = OperatorState::load(&state.config)
+    let operator_state = OperatorState::load(&state.config())
         .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     let agent = operator_state
@@ -137,7 +137,7 @@ pub async fn approve_review(
     State(state): State<ApiState>,
     Path(agent_id): Path<String>,
 ) -> Result<Json<ReviewResponse>, ApiError> {
-    let mut operator_state = OperatorState::load(&state.config)
+    let mut operator_state = OperatorState::load(&state.config())
         .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     // Find the agent
@@ -197,7 +197,7 @@ pub async fn reject_review(
     Path(agent_id): Path<String>,
     Json(request): Json<RejectReviewRequest>,
 ) -> Result<Json<ReviewResponse>, ApiError> {
-    let mut operator_state = OperatorState::load(&state.config)
+    let mut operator_state = OperatorState::load(&state.config())
         .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     // Find the agent
@@ -256,7 +256,7 @@ pub async fn focus_session(
     State(state): State<ApiState>,
     Path(agent_id): Path<String>,
 ) -> Result<(), ApiError> {
-    let operator_state = OperatorState::load(&state.config)
+    let operator_state = OperatorState::load(&state.config())
         .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     let agent = operator_state
@@ -274,7 +274,7 @@ pub async fn focus_session(
                     "Agent '{agent_id}' has no cmux session refs to focus"
                 )));
             }
-            let cmux_config = state.config.sessions.cmux.clone();
+            let cmux_config = state.config().sessions.cmux.clone();
             // cmux focusing shells out to the cmux binary; run it off the async
             // worker so a slow subprocess can't stall the runtime.
             tokio::task::spawn_blocking(move || -> Result<(), crate::agents::cmux::CmuxError> {

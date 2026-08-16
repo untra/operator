@@ -93,6 +93,9 @@ docs:
           - title: GitLab
             url: /getting-started/git/gitlab/
             icon: gitlab
+          - title: Gitea
+            url: /getting-started/git/gitea/
+            icon: gitea
           - title: Provider Support
             url: /getting-started/git/provider-support/
       - title: Supported Notification Integrations
@@ -113,6 +116,9 @@ docs:
           - title: Docker
             url: /getting-started/platforms/docker/
             icon: docker
+          - title: Kubernetes
+            url: /getting-started/platforms/kubernetes/
+            icon: kubernetes
       - title: Automation Platform Integrations
         url: /getting-started/integrations/
         children:
@@ -133,6 +139,12 @@ docs:
       - title: Shortcuts
         url: /shortcuts/
         codicon: keyboard
+      - title: Security
+        url: /security/
+        codicon: shield
+        children:
+          - title: Authentication
+            url: /security/authentication/
       - title: Design System
         url: /design-system/
         codicon: symbol-color

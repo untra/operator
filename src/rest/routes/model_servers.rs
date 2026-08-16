@@ -57,7 +57,7 @@ fn server_to_response(s: &ModelServer, user_declared: bool) -> ModelServerRespon
 )]
 pub async fn list(State(state): State<ApiState>) -> Json<ModelServersResponse> {
     let mut servers: Vec<ModelServerResponse> = state
-        .config
+        .config()
         .model_servers
         .iter()
         .map(|s| server_to_response(s, true))
@@ -92,7 +92,7 @@ pub async fn get_one(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<ModelServerResponse>, ApiError> {
-    if let Some(server) = state.config.model_servers.iter().find(|s| s.name == name) {
+    if let Some(server) = state.config().model_servers.iter().find(|s| s.name == name) {
         return Ok(Json(server_to_response(server, true)));
     }
     for tool in IMPLICIT_TOOL_NAMES {
@@ -122,17 +122,6 @@ pub async fn create(
     State(state): State<ApiState>,
     Json(req): Json<CreateModelServerRequest>,
 ) -> Result<Json<ModelServerResponse>, ApiError> {
-    if state
-        .config
-        .model_servers
-        .iter()
-        .any(|s| s.name == req.name)
-    {
-        return Err(ApiError::Conflict(format!(
-            "Model server '{}' already exists",
-            req.name
-        )));
-    }
     if IMPLICIT_TOOL_NAMES
         .iter()
         .any(|t| implicit_model_server_for_tool(t).name == req.name)
@@ -152,13 +141,24 @@ pub async fn create(
         display_name: req.display_name,
     };
 
-    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
-    config.model_servers.push(server.clone());
-    config
-        .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+    let response = state
+        .mutate_config(move |config| {
+            if config
+                .model_servers
+                .iter()
+                .any(|existing| existing.name == server.name)
+            {
+                return Err(ApiError::Conflict(format!(
+                    "Model server '{}' already exists",
+                    server.name
+                )));
+            }
+            config.model_servers.push(server.clone());
+            Ok(server_to_response(&server, true))
+        })
+        .await?;
 
-    Ok(Json(server_to_response(&server, true)))
+    Ok(Json(response))
 }
 
 /// Delete a user-declared model server by name
@@ -191,21 +191,17 @@ pub async fn delete(
         )));
     }
 
-    let server = state
-        .config
-        .model_servers
-        .iter()
-        .find(|s| s.name == name)
-        .ok_or_else(|| ApiError::NotFound(format!("Model server '{name}' not found")))?
-        .clone();
-
-    let response = server_to_response(&server, true);
-
-    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
-    config.model_servers.retain(|s| s.name != name);
-    config
-        .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+    let response = state
+        .mutate_config(move |config| {
+            let position = config
+                .model_servers
+                .iter()
+                .position(|server| server.name == name)
+                .ok_or_else(|| ApiError::NotFound(format!("Model server '{name}' not found")))?;
+            let server = config.model_servers.remove(position);
+            Ok(server_to_response(&server, true))
+        })
+        .await?;
 
     Ok(Json(response))
 }
@@ -240,25 +236,23 @@ pub async fn update(
         )));
     }
 
-    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
-    let server = config
-        .model_servers
-        .iter_mut()
-        .find(|s| s.name == name)
-        .ok_or_else(|| ApiError::NotFound(format!("Model server '{name}' not found")))?;
+    let updated = state
+        .mutate_config(move |config| {
+            let server = config
+                .model_servers
+                .iter_mut()
+                .find(|server| server.name == name)
+                .ok_or_else(|| ApiError::NotFound(format!("Model server '{name}' not found")))?;
+            server.kind = req.kind;
+            server.base_url = req.base_url;
+            server.api_key_env = req.api_key_env;
+            server.extra_env = req.extra_env;
+            server.display_name = req.display_name;
+            Ok(server_to_response(server, true))
+        })
+        .await?;
 
-    server.kind = req.kind;
-    server.base_url = req.base_url;
-    server.api_key_env = req.api_key_env;
-    server.extra_env = req.extra_env;
-    server.display_name = req.display_name;
-    let updated = server.clone();
-
-    config
-        .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
-
-    Ok(Json(server_to_response(&updated, true)))
+    Ok(Json(updated))
 }
 
 /// List the models a server offers, via a live probe of its inference endpoint.
@@ -282,10 +276,14 @@ pub async fn models(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<ModelServerModelsResponse>, ApiError> {
-    let (server, _) = find_server(&state.config, &name)
+    let (server, _) = find_server(&state.config(), &name)
         .ok_or_else(|| ApiError::NotFound(format!("Model server '{name}' not found")))?;
 
-    let outcome = probe_models(&server).await;
+    let outcome = probe_models(
+        &server,
+        &crate::auth::egress::EgressPolicy::from_config(&state.config()),
+    )
+    .await;
     Ok(Json(ModelServerModelsResponse {
         server: name,
         reachable: outcome.reachable,
@@ -362,7 +360,7 @@ pub async fn kind_models(
     // Prefer a user-declared instance of this kind; otherwise probe from the
     // kind's built-in defaults (the probe fills in base_url/api_key_env).
     let server = state
-        .config
+        .config()
         .model_servers
         .iter()
         .find(|s| s.kind == slug)
@@ -376,7 +374,11 @@ pub async fn kind_models(
             display_name: None,
         });
 
-    let outcome = probe_models(&server).await;
+    let outcome = probe_models(
+        &server,
+        &crate::auth::egress::EgressPolicy::from_config(&state.config()),
+    )
+    .await;
     Ok(Json(ModelServerModelsResponse {
         server: kind.slug().to_string(),
         reachable: outcome.reachable,

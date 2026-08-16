@@ -26,14 +26,28 @@ startup; otherwise it falls back to built-in defaults.
 Subcommands are appended after the image name. Run as a background REST API service:
 
 ```bash
-docker run --rm -v $(pwd):/op:rw -p 127.0.0.1:7008:7008 untra/operator api
+docker run --rm -v $(pwd):/op:rw \
+  -e OPERATOR_REST_API__HOST=0.0.0.0 \
+  -e OPERATOR_BOOTSTRAP_PASSWORD_FILE=/run/secrets/bootstrap \
+  -p 127.0.0.1:7008:7008 untra/operator api
 ```
 
-> **Security:** the REST API is **unauthenticated**, sends permissive CORS headers, and
-> exposes mutating endpoints (launching agents, editing config). The publish above binds it
-> to loopback (`127.0.0.1`) only — a bare `-p 7008:7008` would expose it on every host
-> interface. Do not publish it to untrusted networks; if you need remote access, put it
-> behind an authenticating reverse proxy.
+**`OPERATOR_REST_API__HOST=0.0.0.0` is required to publish the port at all.**
+
+Operator binds `127.0.0.1` by default, which inside a container means the *container's* loopback — unreachable from the host no matter how you publish it.
+Setting the bind address to `0.0.0.0` makes it reachable from the container network; `-p 127.0.0.1:7008:7008` then restricts which host interface it appears on. Both halves are needed, and they do different jobs.
+
+Outside a container the default is unchanged: Operator binds loopback, and you do not need to set this.
+
+**`-p 127.0.0.1:7008:7008` binds the published port to host loopback only.** A
+bare `-p 7008:7008` publishes on every host interface.
+
+> **Authentication.** The REST API is authenticated. On first start Operator has
+> no admin account and only the bootstrap, login, and probe endpoints respond;
+> visit `/setup` to set the admin password, or mount a bootstrap password so the
+> account cannot be claimed by whoever reaches the port first. CORS defaults to
+> same-origin; set `[rest_api].cors_origins` to allow specific origins. See
+> [Authentication](/security/authentication/).
 
 Any Operator subcommand works the same way:
 
@@ -71,11 +85,11 @@ docker run --rm -v $(pwd):/op:rw -it untra/operator:{{ site.version }}
    RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
     && npm install -g @anthropic-ai/claude-code \
     && rm -rf /var/lib/apt/lists/*
-   USER operator
+   USER 10001
    ```
 
 2. **Mount + env vars** — mount an already-installed, authenticated CLI from the host
-   and pass credentials. The container runs as uid 1000 with `$HOME=/home/operator`:
+   and pass credentials. The container runs as uid/gid 10001 with `$HOME=/home/operator`:
 
    ```bash
    docker run --rm -v $(pwd):/op:rw \
@@ -106,11 +120,10 @@ A global override at `~/.config/operator/config.toml` (i.e.
 
 ### Permission denied writing to the mounted directory
 
-The container runs as the unprivileged `operator` user (uid 1000), so it can only write into
-`/op` (state, prompts, logs) if the mounted host directory is writable by uid 1000. On a
-typical single-user Linux host your uid is already 1000 and it just works; otherwise either
-make the directory writable (e.g. `chmod -R g+w` with a matching group, or `chown`) or run the
-container as your own uid:
+The container runs as the unprivileged `operator` user (uid/gid 10001), so it can only write
+into `/op` (state, prompts, logs) if the mounted host directory is writable by uid 10001.
+Either make the directory writable (e.g. `chown -R 10001:10001`, or `chmod -R g+w` with a
+matching group) or run the container as your own uid:
 
 ```bash
 docker run --rm -v $(pwd):/op:rw --user $(id -u):$(id -g) -it untra/operator

@@ -176,11 +176,21 @@ impl App {
                 })
                 .collect();
 
-            let setup = SetupScreen::new(
+            let mut setup = SetupScreen::new(
                 tickets_path.to_string_lossy().to_string(),
                 detected_tools,
                 projects_by_tool,
             );
+            // Set after construction so `SetupScreen::new`'s signature stays
+            // stable for its other callers and tests. A store that cannot be
+            // opened is treated as "not configured".
+            setup.admin_password_configured =
+                crate::auth::store::AuthStore::open(&config.state_path())
+                    .and_then(|store| store.bootstrap_state())
+                    .is_ok_and(|state| {
+                        state != crate::rest::dto::auth::BootstrapState::Uninitialized
+                    });
+
             // Projects will be saved to config during initialize_tickets()
             (Some(setup), discovered_projects)
         } else {
@@ -239,9 +249,14 @@ impl App {
         let (version_tx, version_rx) = mpsc::unbounded_channel();
 
         // Create PR monitor service and get shared access to tracked PRs
-        let mut pr_monitor = PrMonitorService::new(pr_event_tx)
-            .with_poll_interval(Duration::from_secs(config.api.pr_check_interval_secs))
-            .with_shutdown(pr_shutdown_rx);
+        let mut pr_monitor = PrMonitorService::with_service(
+            Arc::new(crate::api::pr_service::PrServiceRouter::with_config(
+                &config, None,
+            )),
+            pr_event_tx,
+        )
+        .with_poll_interval(Duration::from_secs(config.api.pr_check_interval_secs))
+        .with_shutdown(pr_shutdown_rx);
         let pr_tracked = pr_monitor.tracked_prs();
 
         // Spawn PR monitor as background task

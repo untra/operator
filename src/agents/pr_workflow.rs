@@ -19,21 +19,41 @@ use crate::types::pr::{CreatePrError, CreatePrRequest, PrState, PullRequestInfo,
 
 /// Handles the PR/MR workflow for a step
 pub struct PrWorkflow {
+    hosts: crate::types::pr::ProviderHosts,
+    git_context: Option<crate::config::GitExecutionConfig>,
     service: Arc<dyn PrService>,
 }
 
 impl Default for PrWorkflow {
     fn default() -> Self {
-        Self::new()
+        Self::with_service(Arc::new(PrServiceRouter::with_config(
+            &crate::config::Config::default(),
+            None,
+        )))
     }
 }
 
 impl PrWorkflow {
-    /// Create a new PR workflow handler (routes per-call by provider)
-    pub fn new() -> Self {
+    /// Build a workflow over an explicit `PrService`. The injection seam the
+    /// orchestration layer was missing -- both real constructors hardcoded a
+    /// router, so nothing above `PrService` could be tested with a mock.
+    pub fn with_service(service: Arc<dyn PrService>) -> Self {
         Self {
-            service: Arc::new(PrServiceRouter::new()),
+            hosts: crate::types::pr::ProviderHosts::default(),
+            git_context: None,
+            service,
         }
+    }
+
+    pub fn with_config(
+        config: &crate::config::Config,
+        git_context: Option<crate::config::GitExecutionConfig>,
+    ) -> Result<Self> {
+        Ok(Self {
+            hosts: crate::types::pr::ProviderHosts::from_config(&config.git)?,
+            service: Arc::new(PrServiceRouter::with_config(config, git_context.clone())),
+            git_context,
+        })
     }
 
     /// Get repo info from a worktree path
@@ -43,7 +63,7 @@ impl PrWorkflow {
             .await
             .context("Failed to get remote URL")?;
 
-        RepoInfo::from_remote_url(&remote_url)
+        RepoInfo::from_remote_url_with_hosts(&remote_url, &self.hosts)
             .map_err(|e| anyhow::anyhow!("Failed to parse repository URL: {e}"))
     }
 
@@ -56,7 +76,15 @@ impl PrWorkflow {
         set_upstream: bool,
     ) -> Result<()> {
         info!("Pushing branch {} to remote", branch);
-        GitCli::push(worktree_path, "origin", branch, set_upstream).await
+        if let Some(context) = &self.git_context {
+            let remote = GitCli::get_remote_url(worktree_path).await?;
+            crate::git::runtime::validate_remote(context, &remote)?;
+        }
+        crate::git::runtime::scope(
+            self.git_context.clone(),
+            GitCli::push(worktree_path, "origin", branch, set_upstream),
+        )
+        .await
     }
 
     /// Create a PR for the current branch
@@ -156,9 +184,11 @@ impl PrWorkflow {
         ticket_id: &str,
     ) -> Result<()> {
         let repo_info = self.get_repo_info(worktree_path).await?;
-        monitor
-            .track_pr(repo_info, pr_number, ticket_id.to_string())
-            .await
+        crate::git::runtime::scope(
+            self.git_context.clone(),
+            monitor.track_pr(repo_info, pr_number, ticket_id.to_string()),
+        )
+        .await
     }
 
     /// Stop tracking a PR
@@ -244,6 +274,6 @@ mod tests {
 
     #[test]
     fn test_create_workflow() {
-        let _workflow = PrWorkflow::new();
+        let _workflow = PrWorkflow::default();
     }
 }

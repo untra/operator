@@ -22,6 +22,7 @@ const DEFAULT_POLL_INTERVAL: Duration = Duration::from_mins(1);
 /// Tracked PR information
 #[derive(Debug, Clone)]
 pub struct TrackedPr {
+    pub git_context: Option<crate::config::GitExecutionConfig>,
     /// Repository info (provider-agnostic)
     pub repo_info: RepoInfo,
     /// PR number
@@ -74,11 +75,6 @@ pub struct PrMonitorService {
 }
 
 impl PrMonitorService {
-    /// Create a new PR monitor service, routing per-PR by provider
-    pub fn new(event_tx: mpsc::UnboundedSender<PrStatusEvent>) -> Self {
-        Self::with_service(Arc::new(PrServiceRouter::new()), event_tx)
-    }
-
     /// Create a new PR monitor service with a custom provider
     pub fn with_service(
         pr_service: Arc<dyn PrService>,
@@ -111,8 +107,14 @@ impl PrMonitorService {
     }
 
     /// Generate a key for a tracked PR
-    fn pr_key(repo_info: &RepoInfo, pr_number: i64) -> String {
-        format!("{}#{}", repo_info.full_name(), pr_number)
+    pub(crate) fn pr_key(repo_info: &RepoInfo, pr_number: i64) -> String {
+        format!(
+            "{}:{}:{}#{}",
+            repo_info.provider,
+            repo_info.host.as_deref().unwrap_or_default(),
+            repo_info.full_name(),
+            pr_number
+        )
     }
 
     /// Start tracking a PR
@@ -131,6 +133,7 @@ impl PrMonitorService {
             .context("Failed to fetch initial PR state")?;
 
         let tracked = TrackedPr {
+            git_context: crate::git::runtime::current(),
             repo_info: repo_info.clone(),
             pr_number,
             last_state: pr.state,
@@ -214,11 +217,13 @@ impl PrMonitorService {
 
     /// Poll a single PR and handle status changes
     async fn poll_single_pr(&self, tracked: &TrackedPr) -> Result<()> {
-        let pr = self
-            .pr_service
-            .get_pr(&tracked.repo_info, tracked.pr_number)
-            .await
-            .context("Failed to fetch PR")?;
+        let pr = crate::git::runtime::scope(
+            tracked.git_context.clone(),
+            self.pr_service
+                .get_pr(&tracked.repo_info, tracked.pr_number),
+        )
+        .await
+        .context("Failed to fetch PR")?;
 
         // Check for state changes
         let mut events = Vec::new();
@@ -308,24 +313,38 @@ mod tests {
     #[test]
     fn test_pr_key_format() {
         let repo = RepoInfo {
+            host: None,
             provider: GitProvider::GitHub,
             owner: "owner".to_string(),
             repo_name: "repo".to_string(),
         };
-        assert_eq!(PrMonitorService::pr_key(&repo, 42), "owner/repo#42");
+        assert_eq!(PrMonitorService::pr_key(&repo, 42), "github::owner/repo#42");
     }
 
     #[tokio::test]
     async fn test_create_service() {
         let (tx, _rx) = mpsc::unbounded_channel();
-        let service = PrMonitorService::new(tx);
+        let service = PrMonitorService::with_service(
+            Arc::new(PrServiceRouter::with_config(
+                &crate::config::Config::default(),
+                None,
+            )),
+            tx,
+        );
         assert_eq!(service.tracked_count().await, 0);
     }
 
     #[tokio::test]
     async fn test_poll_interval_config() {
         let (tx, _rx) = mpsc::unbounded_channel();
-        let service = PrMonitorService::new(tx).with_poll_interval(Duration::from_secs(30));
+        let service = PrMonitorService::with_service(
+            Arc::new(PrServiceRouter::with_config(
+                &crate::config::Config::default(),
+                None,
+            )),
+            tx,
+        )
+        .with_poll_interval(Duration::from_secs(30));
         assert_eq!(service.poll_interval, Duration::from_secs(30));
     }
 }

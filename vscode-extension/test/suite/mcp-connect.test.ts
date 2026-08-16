@@ -43,15 +43,20 @@ async function loadFixture(name: string): Promise<McpDescriptorResponse> {
   ) as McpDescriptorResponse;
 }
 
+import { clearCredentialProvider, setCredentialProvider } from '../../src/auth/credentials';
+import { fakeCredentials } from './helpers/credentials';
+
 suite('MCP Connect Test Suite', () => {
   let fetchStub: sinon.SinonStub;
 
   setup(() => {
     fetchStub = sinon.stub(global, 'fetch');
+    setCredentialProvider(fakeCredentials());
   });
 
   teardown(() => {
     sinon.restore();
+    clearCredentialProvider();
   });
 
   suite('fetchMcpDescriptor()', () => {

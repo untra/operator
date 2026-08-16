@@ -207,7 +207,16 @@ pub(crate) fn provision_workspace(
     ticket_id: &str,
     remote_url: Option<&str>,
     branch: Option<&str>,
+    git: Option<&crate::config::GitExecutionConfig>,
 ) -> Result<RemoteHost> {
+    if let Some(context) = git {
+        if context.credentials.is_some() {
+            crate::git::runtime::validate_remote(
+                context,
+                remote_url.context("Git credentials require a repository origin")?,
+            )?;
+        }
+    }
     // Fail fast before any lifecycle action: credentials, then CLI presence.
     let session = resolve_session(coder)?;
     if !cli_available() {
@@ -259,7 +268,22 @@ pub(crate) fn provision_workspace(
 
     // Ensure the checkout before the agent lands in the workdir.
     if let (Some(url), Some(branch)) = (remote_url, branch) {
-        let script = checkout_script(&workdir, url, branch);
+        let runtime = git
+            .map(crate::git::runtime::GitRuntime::create)
+            .transpose()?;
+        let mut script = checkout_script(&workdir, url, branch);
+        if let Some(runtime) = &runtime {
+            let host = RemoteHost {
+                name: workspace.clone(),
+                ssh_alias: alias.clone(),
+                workdir: workdir.clone(),
+                display_name: None,
+                ssh_config_path: Some(fragment.to_string_lossy().into_owned()),
+            };
+            super::remote::transfer_git_runtime(&host, &runtime.path)?;
+            let path = super::prompt::shell_escape(&runtime.path.to_string_lossy());
+            script = format!(". {path}/env.sh\ntrap 'rm -rf -- {path}' EXIT\n{script}");
+        }
         run_ssh(&fragment, &alias, &script)
             .with_context(|| format!("Failed to prepare checkout on workspace '{workspace}'"))?;
     }

@@ -294,9 +294,15 @@ pub struct RestApiConfig {
     /// Port for the REST API server
     #[serde(default = "default_rest_port")]
     pub port: u16,
-    /// CORS allowed origins (empty = allow all)
+    /// CORS allowed origins. Empty means **same-origin only**
     #[serde(default)]
     pub cors_origins: Vec<String>,
+    /// Externally reachable base URL (e.g. `https://operator.example.com`).
+    ///
+    /// OAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header,
+    /// which a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy.
+    #[serde(default)]
+    pub public_url: Option<String>,
 }
 
 fn default_rest_enabled() -> bool {
@@ -318,6 +324,7 @@ impl Default for RestApiConfig {
             host: default_rest_host(),
             port: default_rest_port(),
             cors_origins: Vec::new(),
+            public_url: None,
         }
     }
 }
@@ -329,6 +336,15 @@ impl RestApiConfig {
         self.host
             .parse()
             .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST))
+    }
+
+    /// The configured public base URL, trailing slash trimmed.
+    pub fn public_base_url(&self) -> Option<String> {
+        self.public_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|u| !u.is_empty())
+            .map(|u| u.trim_end_matches('/').to_string())
     }
 }
 
@@ -662,6 +678,19 @@ pub struct RelayConfig {
     pub auto_inject_mcp: bool,
 }
 
+/// Environment-variable source for `Config::load`.
+///
+/// `prefix_separator` is explicit because `config`'s default for it is the
+/// value of `separator`, not `_`: with `separator("__")` alone the source only
+/// matches `OPERATOR__REST_API__HOST`, so every documented `OPERATOR_*__*`
+/// variable is silently ignored.
+fn env_source() -> config::Environment {
+    config::Environment::with_prefix("OPERATOR")
+        .prefix_separator("_")
+        .separator("__")
+        .try_parsing(true)
+}
+
 impl Config {
     /// Path to the operator config file within .tickets/
     pub fn operator_config_path() -> PathBuf {
@@ -699,11 +728,7 @@ impl Config {
         }
 
         // Environment variables with OPERATOR_ prefix
-        builder = builder.add_source(
-            config::Environment::with_prefix("OPERATOR")
-                .separator("__")
-                .try_parsing(true),
-        );
+        builder = builder.add_source(env_source());
 
         let config = builder.build().context("Failed to load configuration")?;
         let cfg: Self = config.try_deserialize().map_err(|e| {
@@ -740,12 +765,14 @@ impl Config {
         }
 
         validate_targets(&cfg)?;
+        crate::git::identity::validate_config(&cfg)?;
 
         Ok(cfg)
     }
 
     /// Save config to .tickets/operator/config.toml
     pub fn save(&self) -> Result<()> {
+        crate::git::identity::validate_config(self)?;
         let config_path = Self::operator_config_path();
 
         // Ensure parent directory exists
@@ -757,7 +784,15 @@ impl Config {
         let toml_str =
             toml::to_string_pretty(self).context("Failed to serialize config to TOML")?;
 
-        std::fs::write(&config_path, toml_str).context("Failed to write config file")?;
+        // Write to a sibling temp file and rename over the target. A plain
+        // write truncates first, so a crash or a full disk mid-write leaves a
+        // half-written config.toml that will not parse. prevents startup failure later
+        let temp_path = config_path.with_extension(format!("toml.tmp.{}", uuid::Uuid::new_v4()));
+        std::fs::write(&temp_path, toml_str).context("Failed to write config file")?;
+        if let Err(e) = std::fs::rename(&temp_path, &config_path) {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(e).context("Failed to replace config file");
+        }
 
         Ok(())
     }
@@ -948,6 +983,51 @@ mod tests {
     fn test_default_worktrees_dir_contains_worktrees() {
         let dir = default_worktrees_dir();
         assert!(dir.contains("worktrees"));
+    }
+
+    // --- Environment override mapping ---
+    //
+    // `env_source().source(Some(map))` feeds a fixed map instead of the process
+    // environment, so these run in parallel without touching real env vars.
+
+    fn config_from_env(vars: &[(&str, &str)]) -> Config {
+        let map: std::collections::HashMap<String, String> = vars
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+            .collect();
+        let defaults_json = serde_json::to_string(&Config::default()).unwrap();
+        config::Config::builder()
+            .add_source(config::File::from_str(
+                &defaults_json,
+                config::FileFormat::Json,
+            ))
+            .add_source(env_source().source(Some(map)))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap()
+    }
+
+    #[test]
+    fn test_env_override_applies_to_nested_rest_api_fields() {
+        let cfg = config_from_env(&[
+            ("OPERATOR_REST_API__HOST", "0.0.0.0"),
+            ("OPERATOR_REST_API__PORT", "7099"),
+        ]);
+        assert_eq!(cfg.rest_api.host, "0.0.0.0");
+        assert_eq!(cfg.rest_api.port, 7099);
+    }
+
+    #[test]
+    fn test_env_override_applies_to_paths_worktrees() {
+        let cfg = config_from_env(&[("OPERATOR_PATHS__WORKTREES", "/op/.worktrees")]);
+        assert_eq!(cfg.paths.worktrees, "/op/.worktrees");
+    }
+
+    #[test]
+    fn test_env_override_leaves_unset_fields_at_default() {
+        let cfg = config_from_env(&[("OPERATOR_REST_API__HOST", "0.0.0.0")]);
+        assert_eq!(cfg.rest_api.port, default_rest_port());
     }
 }
 

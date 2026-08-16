@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::agents::PrWorkflow;
 use crate::notifications::NotificationEvent;
 use crate::queue::Queue;
-use crate::services::{PrStatusEvent, TrackedPr};
+use crate::services::{PrMonitorService, PrStatusEvent, TrackedPr};
 use crate::state::State;
 
 use super::App;
@@ -216,7 +216,7 @@ impl App {
             let base_branch = ticket.branch.as_deref().unwrap_or("main");
 
             // Create PR via PrWorkflow
-            let workflow = PrWorkflow::new();
+            let workflow = PrWorkflow::with_config(&self.config, agent.git_context.clone())?;
             let pr_title = format!("{}: {}", ticket.ticket_type, ticket.summary);
             let pr_body = Some(ticket.content.clone());
 
@@ -281,8 +281,9 @@ impl App {
                     }
 
                     // Add PR to tracking
-                    let key = format!("{}#{}", repo_info.full_name(), pr.number);
+                    let key = PrMonitorService::pr_key(&repo_info, pr.number);
                     let tracked_pr = TrackedPr {
+                        git_context: agent.git_context.clone(),
                         repo_info: repo_info.clone(),
                         pr_number: pr.number,
                         last_state: crate::types::pr::PrState::Open,

@@ -70,8 +70,8 @@ The workspace image must include `tmux` (or your chosen `session_wrapper`) for o
 
 Coder automatically injects environment variables into every workspace that operator can reference in ticket templates and agent prompts:
 
-- `CODER_WORKSPACE_NAME` — workspace identifier
-- `CODER_WORKSPACE_OWNER` — workspace owner username
-- `CODER_AGENT_TOKEN` — agent authentication token
+- `CODER_WORKSPACE_NAME` - workspace identifier
+- `CODER_WORKSPACE_OWNER` - workspace owner username
+- `CODER_AGENT_TOKEN` - agent authentication token
 
-No operator configuration is needed to access these — they are ambient in the workspace environment.
+No operator configuration is needed to access these - they are ambient in the workspace environment.

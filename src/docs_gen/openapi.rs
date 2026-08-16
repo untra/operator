@@ -1,6 +1,6 @@
 //! OpenAPI specification documentation generator.
 //!
-//! Generates OpenAPI 3.0 specification from utoipa annotations.
+//! Generates the OpenAPI specification from utoipa annotations.
 
 use anyhow::Result;
 

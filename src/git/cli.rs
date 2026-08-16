@@ -17,7 +17,9 @@ impl GitCli {
     async fn run_git(args: &[&str], cwd: &Path) -> Result<String> {
         debug!(?args, ?cwd, "Running git command");
 
-        let output = Command::new("git")
+        let mut command = Command::new("git");
+        let _git_runtime = crate::git::runtime::configure_command(&mut command)?;
+        let output = command
             .args(args)
             .current_dir(cwd)
             .stdout(Stdio::piped())

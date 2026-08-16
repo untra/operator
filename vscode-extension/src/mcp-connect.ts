@@ -22,7 +22,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { discoverApiUrl } from './api-client';
+import { ApiError, discoverApiUrl, OperatorApiClient } from './api-client';
 
 /**
  * Stdio entrypoint advertised by the Operator MCP descriptor when
@@ -105,26 +105,23 @@ export function cursorMcpConfigPath(): string {
 export async function fetchMcpDescriptor(
   apiUrl: string
 ): Promise<McpDescriptorResponse> {
-  const url = `${apiUrl}/api/v1/mcp/descriptor`;
-
-  let response: Response;
+  const client = new OperatorApiClient(apiUrl);
   try {
-    response = await fetch(url);
+    const descriptor = await client.mcpDescriptor();
+    return { ...descriptor, stdio: descriptor.stdio ?? undefined };
   } catch (err) {
+    if (err instanceof ApiError) {
+      throw new Error(
+        `MCP descriptor unavailable (HTTP ${err.status}). ` +
+          'Ensure Operator is updated to a version that supports MCP.',
+        { cause: err },
+      );
+    }
     throw new Error(
       `Operator API is not running at ${apiUrl}. Start the server first.`,
       { cause: err },
     );
   }
-
-  if (!response.ok) {
-    throw new Error(
-      `MCP descriptor unavailable (HTTP ${response.status}). ` +
-        'Ensure Operator is updated to a version that supports MCP.'
-    );
-  }
-
-  return (await response.json()) as McpDescriptorResponse;
 }
 
 /**

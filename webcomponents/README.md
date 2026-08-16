@@ -11,16 +11,6 @@ The point is that there is one implementation. An Operator workflow drawn in
 the app and the same workflow drawn on the docs site come from the same source
 over the same bytes, so they cannot disagree.
 
-## What belongs here
-
-Anything the docs site and the SPA both need to render. Today that is the
-workflow graph and the collection-catalog search; new shared JS should land
-here rather than being written twice.
-
-What does *not* belong here: page chrome and layout owned by one surface. The
-collection card grid and table are rendered by the Rust docs generator and
-styled by `docs/assets/css/main.css`; this package only enhances them.
-
 ## Layout
 
 ```

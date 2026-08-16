@@ -2,3 +2,5 @@
 *
 !operator-linux-amd64
 !operator-linux-arm64
+!opr8r-linux-amd64
+!opr8r-linux-arm64

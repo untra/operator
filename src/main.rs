@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 mod api;
 mod app;
+mod auth;
 mod collections;
 mod config;
 mod editors;
@@ -305,6 +306,48 @@ enum Commands {
         #[command(subcommand)]
         action: WorkflowAction,
     },
+
+    /// Local authentication administration and recovery
+    Auth {
+        #[command(subcommand)]
+        action: AuthAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum AuthAction {
+    /// Reset the admin password, revoking every issued credential.
+    ///
+    /// Local only, by design. A network-reachable password reset on a single-admin system has no compensating control.
+    /// no second factor to require and no second account to notify -- so recovery deliberately requires filesystem access.
+    ResetAdminPassword {
+        /// New password. Omit to read it from stdin without echoing to the
+        /// terminal; passing it as an argument leaves it in shell history.
+        #[arg(long)]
+        password: Option<String>,
+    },
+
+    /// Show the bootstrap state and recent audit records.
+    Status {
+        /// How many audit records to show
+        #[arg(long, default_value_t = 20)]
+        limit: u32,
+    },
+
+    /// Bootstrap the admin account on a running server
+    Bootstrap {
+        /// Server base URL (e.g. <https://operator.example.com>)
+        #[arg(long)]
+        server: String,
+
+        /// Temporary password, when the server was started with a bootstrap secret
+        #[arg(long)]
+        temporary_password: Option<String>,
+
+        /// New admin password. Omit to read from stdin.
+        #[arg(long)]
+        password: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -445,6 +488,9 @@ async fn main() -> Result<()> {
                 skip_llm_detection,
             )?;
         }
+        Some(Commands::Auth { action }) => {
+            cmd_auth(&config, action).await?;
+        }
         Some(Commands::Workflow { action }) => {
             cmd_workflow(&config, action)?;
         }
@@ -470,7 +516,7 @@ async fn run_tui(
 
     // Note: tmux availability is now checked in the setup wizard (TmuxOnboarding step)
     // when the user selects tmux as their session wrapper
-    let mut app = App::new(config, start_web, open_ui).await?;
+    let mut app = Box::pin(App::new(config, start_web, open_ui)).await?;
     let result = app.run().await;
 
     // Print log file path on exit if logs were written
@@ -845,6 +891,96 @@ async fn cmd_create(
     println!("Created ticket: {}", filepath.display());
 
     Ok(())
+}
+
+/// Read a password from stdin without echoing it.
+///
+/// Falls back to a plain read when stdin is not a terminal, so the command stays usable .
+fn read_password_from_stdin(prompt: &str) -> Result<String> {
+    use std::io::{BufRead, Write};
+
+    print!("{prompt}");
+    std::io::stdout().flush()?;
+
+    let mut line = String::new();
+    std::io::stdin().lock().read_line(&mut line)?;
+    println!();
+    Ok(line.trim_end_matches(['\n', '\r']).to_string())
+}
+
+/// `operator auth ...`
+async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
+    use crate::auth::store::AuthStore;
+
+    match action {
+        AuthAction::ResetAdminPassword { password } => {
+            let password = match password {
+                Some(p) => p,
+                None => read_password_from_stdin("New admin password: ")?,
+            };
+
+            let store = AuthStore::open(&config.state_path())?;
+            store.set_admin_password(&password)?;
+            // Everything issued under the old password is now suspect: the
+            // reason for a reset is usually that something leaked.
+            store.revoke_all_credentials("admin password reset")?;
+            store.audit("password reset", Some("via local CLI"), true)?;
+
+            println!("Admin password reset.");
+            println!(
+                "Every session, refresh token, and access key has been revoked; \
+                 integrations need new keys."
+            );
+            Ok(())
+        }
+
+        AuthAction::Status { limit } => {
+            let store = AuthStore::open(&config.state_path())?;
+            println!("Bootstrap state: {:?}", store.bootstrap_state()?);
+
+            let keys = store.list_access_keys()?;
+            let active = keys.iter().filter(|k| k.revoked_at.is_none()).count();
+            println!("Access keys: {active} active, {} total", keys.len());
+
+            println!("\nRecent audit records:");
+            for (at, event, detail, succeeded) in store.recent_audit(limit)? {
+                let outcome = if succeeded { "ok" } else { "FAILED" };
+                match detail {
+                    Some(d) => println!("  {at}  {outcome:<6}  {event} ({d})"),
+                    None => println!("  {at}  {outcome:<6}  {event}"),
+                }
+            }
+            Ok(())
+        }
+
+        AuthAction::Bootstrap {
+            server,
+            temporary_password,
+            password,
+        } => {
+            let password = match password {
+                Some(p) => p,
+                None => read_password_from_stdin("New admin password: ")?,
+            };
+
+            let url = format!("{}/api/v1/auth/bootstrap", server.trim_end_matches('/'));
+            let body = serde_json::json!({
+                "temporary_password": temporary_password,
+                "new_password": password,
+            });
+
+            let response = reqwest::Client::new().post(&url).json(&body).send().await?;
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+
+            if status.is_success() {
+                println!("Admin account created on {server}.");
+                Ok(())
+            } else {
+                anyhow::bail!("bootstrap failed ({status}): {text}")
+            }
+        }
+    }
 }
 
 fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {

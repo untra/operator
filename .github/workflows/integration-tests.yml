@@ -8,9 +8,13 @@ on:
       - 'src/api/providers/kanban/**'
       - 'src/api/providers/model_server/**'
       - 'src/git/**'
+      - 'src/api/glab_cli.rs'
+      - 'src/api/gitlab_service.rs'
+      - 'src/api/pr_service.rs'
       - 'tests/kanban_integration.rs'
       - 'tests/model_server_integration.rs'
       - 'tests/git_integration.rs'
+      - 'tests/gitprovider_integration.rs'
       - '.github/workflows/integration-tests.yml'
   pull_request:
     branches:
@@ -19,9 +23,13 @@ on:
       - 'src/api/providers/kanban/**'
       - 'src/api/providers/model_server/**'
       - 'src/git/**'
+      - 'src/api/glab_cli.rs'
+      - 'src/api/gitlab_service.rs'
+      - 'src/api/pr_service.rs'
       - 'tests/kanban_integration.rs'
       - 'tests/model_server_integration.rs'
       - 'tests/git_integration.rs'
+      - 'tests/gitprovider_integration.rs'
   workflow_dispatch:
     inputs:
       run_jira:
@@ -46,6 +54,10 @@ on:
         default: true
       run_git_push:
         description: 'Run Git push tests (creates/deletes optest/ branches)'
+        type: boolean
+        default: false
+      run_git_providers:
+        description: 'Run git-provider (GitHub/GitLab PR service) integration tests'
         type: boolean
         default: false
 
@@ -178,6 +190,30 @@ jobs:
 
       # NOTE: Git push tests disabled in CI - require authenticated push access
       # Run locally with OPERATOR_GIT_PUSH_ENABLED=true to test push operations
+
+      # Git Provider Integration Tests (live PrService against gh/glab)
+      - name: Install glab
+        if: github.event_name != 'workflow_dispatch' || inputs.run_git_providers
+        run: |
+          GLAB_VERSION="1.55.0"
+          curl -L "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_amd64.tar.gz" | tar xz
+          sudo mv bin/glab /usr/local/bin/
+          glab --version
+
+      - name: Git provider integration tests
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.run_git_providers) &&
+          env.OPERATOR_GITHUB_TOKEN != ''
+        env:
+          OPERATOR_GITPROVIDER_TEST_ENABLED: 'true'
+          OPERATOR_GITHUB_TOKEN: ${{ secrets.OPERATOR_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.OPERATOR_GITHUB_TOKEN }}
+          GITLAB_TOKEN: ${{ secrets.OPERATOR_GITLAB_TOKEN }}
+          OPERATOR_GITPROVIDER_TEST_REPO_GITHUB: ${{ vars.OPERATOR_GITPROVIDER_TEST_REPO_GITHUB || '' }}
+          OPERATOR_GITPROVIDER_TEST_PR_GITHUB: ${{ vars.OPERATOR_GITPROVIDER_TEST_PR_GITHUB || '' }}
+          OPERATOR_GITPROVIDER_TEST_REPO_GITLAB: ${{ vars.OPERATOR_GITPROVIDER_TEST_REPO_GITLAB || '' }}
+          OPERATOR_GITPROVIDER_TEST_PR_GITLAB: ${{ vars.OPERATOR_GITPROVIDER_TEST_PR_GITLAB || '' }}
+        run: cargo test --locked --test gitprovider_integration -- --nocapture
 
       - name: Cleanup optest branches
         if: always()

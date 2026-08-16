@@ -1,14 +1,10 @@
 # operator-plugin (AGNT.gg)
 
-An [AGNT.gg](https://agnt.gg) plugin that exposes **Operator!**'s ticket
-orchestration as workflow nodes. Drop these nodes into an AGNT workflow to
-create tickets, launch coding agents, poll the queue, export workflows, and
-raise investigations — all driven by Operator's local REST API.
+An [AGNT.gg](https://agnt.gg) plugin that exposes **Operator!**'s ticket orchestration as workflow nodes.
+Drop these nodes into an AGNT workflow to create tickets, launch coding agents, poll the queue, export workflows, and
+raise investigations.
 
-This is the **AGNT → Operator** direction. The companion direction (Operator →
-AGNT) is the `operator workflow export --format agnt` emitter built into
-Operator, which emits graphs composed of the `operator-launch-agent` nodes this
-plugin defines.
+This is the **AGNT → Operator** direction. The companion direction (Operator → AGNT) is the `operator workflow export --format agnt` emitter built into Operator, which emits graphs composed of the `operator-launch-agent` nodes this plugin defines.
 
 ## Nodes
 
@@ -79,7 +75,7 @@ curl -X POST http://localhost:3333/api/plugins/reload
 ## Alternative: the MCP bridge (no plugin)
 
 Operator also ships a stdio MCP server exposing ~18 orchestration tools. AGNT
-consumes stdio MCP servers natively — register Operator without this plugin via
+consumes stdio MCP servers natively - register Operator without this plugin via
 AGNT's MCP settings:
 
 ```json

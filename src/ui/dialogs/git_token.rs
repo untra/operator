@@ -9,6 +9,7 @@ use ratatui::{
 };
 
 use super::centered_rect;
+use crate::ui::masked_input::MaskedInput;
 
 /// Dialog for collecting a git personal access token with masked input.
 pub struct GitTokenDialog {
@@ -23,8 +24,8 @@ pub struct GitTokenDialog {
     pub placeholder: String,
     /// Inline error message (shown below input on validation failure).
     pub error: Option<String>,
-    token: String,
-    cursor_position: usize,
+    /// The masked field itself; shared with the setup wizard's password step.
+    input: MaskedInput,
 }
 
 impl GitTokenDialog {
@@ -36,8 +37,7 @@ impl GitTokenDialog {
             pat_url: String::new(),
             placeholder: String::new(),
             error: None,
-            token: String::new(),
-            cursor_position: 0,
+            input: MaskedInput::new(),
         }
     }
 
@@ -53,22 +53,27 @@ impl GitTokenDialog {
         self.provider_display = provider_display.to_string();
         self.pat_url = pat_url.to_string();
         self.placeholder = placeholder.to_string();
-        self.token.clear();
-        self.cursor_position = 0;
+        self.input.clear();
         self.error = None;
         self.visible = true;
     }
 
     pub fn hide(&mut self) {
         self.visible = false;
-        self.token.clear();
-        self.cursor_position = 0;
+        self.input.clear();
         self.error = None;
     }
 
     /// Get the current token value.
     pub fn token(&self) -> &str {
-        &self.token
+        self.input.value()
+    }
+
+    /// Cursor position, in characters. Exposed for tests, which assert cursor
+    /// behavior as part of the dialog's contract.
+    #[cfg(test)]
+    fn cursor_position(&self) -> usize {
+        self.input.cursor()
     }
 
     /// Set an inline error message.
@@ -77,44 +82,40 @@ impl GitTokenDialog {
     }
 
     pub fn handle_char(&mut self, c: char) {
-        self.token.insert(self.cursor_position, c);
-        self.cursor_position += 1;
+        self.input.handle_char(c);
         self.error = None; // clear error on new input
     }
 
     pub fn handle_backspace(&mut self) {
-        if self.cursor_position > 0 {
-            self.cursor_position -= 1;
-            self.token.remove(self.cursor_position);
+        // Only clear the error when something was actually removed, matching
+        // the original guard.
+        if self.input.cursor() > 0 {
+            self.input.handle_backspace();
             self.error = None;
         }
     }
 
     pub fn handle_delete(&mut self) {
-        if self.cursor_position < self.token.len() {
-            self.token.remove(self.cursor_position);
+        if self.input.cursor() < self.input.char_count() {
+            self.input.handle_delete();
             self.error = None;
         }
     }
 
     pub fn cursor_left(&mut self) {
-        if self.cursor_position > 0 {
-            self.cursor_position -= 1;
-        }
+        self.input.cursor_left();
     }
 
     pub fn cursor_right(&mut self) {
-        if self.cursor_position < self.token.len() {
-            self.cursor_position += 1;
-        }
+        self.input.cursor_right();
     }
 
     pub fn cursor_home(&mut self) {
-        self.cursor_position = 0;
+        self.input.cursor_home();
     }
 
     pub fn cursor_end(&mut self) {
-        self.cursor_position = self.token.len();
+        self.input.cursor_end();
     }
 
     pub fn render(&self, frame: &mut Frame) {
@@ -169,24 +170,9 @@ impl GitTokenDialog {
         )]);
         frame.render_widget(Paragraph::new(prompt), chunks[0]);
 
-        // Masked input
-        let display_text = if self.token.is_empty() {
-            Span::styled(&self.placeholder, Style::default().fg(Color::DarkGray))
-        } else {
-            let masked: String = "•".repeat(self.token.len());
-            Span::styled(masked, Style::default().fg(Color::White))
-        };
-
-        let input = Paragraph::new(display_text)
-            .block(Block::default().borders(Borders::ALL).border_style(
-                Style::default().fg(if has_error { Color::Red } else { Color::Cyan }),
-            ))
-            .wrap(Wrap { trim: false });
-        frame.render_widget(input, chunks[1]);
-
-        // Cursor
-        let input_inner = Block::default().borders(Borders::ALL).inner(chunks[1]);
-        frame.set_cursor_position((input_inner.x + self.cursor_position as u16, input_inner.y));
+        // Masked input (draws its own border and places the cursor).
+        self.input
+            .render(frame, chunks[1], &self.placeholder, true, has_error);
 
         // Error message (if present)
         if has_error {
@@ -221,7 +207,7 @@ mod tests {
         let dialog = GitTokenDialog::new();
         assert!(!dialog.visible);
         assert!(dialog.token().is_empty());
-        assert_eq!(dialog.cursor_position, 0);
+        assert_eq!(dialog.cursor_position(), 0);
         assert!(dialog.error.is_none());
     }
 
@@ -257,7 +243,7 @@ mod tests {
         dialog.handle_char('p');
 
         assert_eq!(dialog.token(), "ghp");
-        assert_eq!(dialog.cursor_position, 3);
+        assert_eq!(dialog.cursor_position(), 3);
     }
 
     #[test]
@@ -270,7 +256,7 @@ mod tests {
         dialog.handle_backspace();
 
         assert_eq!(dialog.token(), "a");
-        assert_eq!(dialog.cursor_position, 1);
+        assert_eq!(dialog.cursor_position(), 1);
     }
 
     #[test]
@@ -280,7 +266,7 @@ mod tests {
 
         dialog.handle_backspace();
         assert!(dialog.token().is_empty());
-        assert_eq!(dialog.cursor_position, 0);
+        assert_eq!(dialog.cursor_position(), 0);
     }
 
     #[test]
@@ -292,16 +278,16 @@ mod tests {
         dialog.handle_char('c');
 
         dialog.cursor_left();
-        assert_eq!(dialog.cursor_position, 2);
+        assert_eq!(dialog.cursor_position(), 2);
 
         dialog.cursor_right();
-        assert_eq!(dialog.cursor_position, 3);
+        assert_eq!(dialog.cursor_position(), 3);
 
         dialog.cursor_home();
-        assert_eq!(dialog.cursor_position, 0);
+        assert_eq!(dialog.cursor_position(), 0);
 
         dialog.cursor_end();
-        assert_eq!(dialog.cursor_position, 3);
+        assert_eq!(dialog.cursor_position(), 3);
     }
 
     #[test]

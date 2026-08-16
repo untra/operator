@@ -12,6 +12,7 @@ import { TerminalManager } from './terminal-manager';
 import { IssueTypeService } from './issuetype-service';
 import { TicketInfo } from './types';
 import { OperatorApiClient } from './api-client';
+import { parseTicketContent } from './ticket-parser';
 import type { KanbanTicketCard } from './generated';
 
 /**
@@ -121,8 +122,9 @@ export class TicketTreeProvider
     filePath: string,
     content: string
   ): TicketInfo {
-    // Parse ticket ID and type dynamically from filename
-    const { id, type } = this.issueTypeService.parseTicketFilename(filename);
+    const { id: filenameId, type } =
+      this.issueTypeService.parseTicketFilename(filename);
+    const id = parseTicketContent(content)?.id || filenameId;
 
     // Parse title from first heading or frontmatter
     const titleMatch =

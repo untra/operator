@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection } from './types';
 import type { SectionId, SectionHealth } from '../generated';
-import { discoverApiUrl } from '../api-client';
+import { discoverApiUrl, OperatorApiClient } from '../api-client';
 import type { ProjectSummary } from '../generated/ProjectSummary';
 
 interface ManagedProjectsState {
@@ -23,13 +23,10 @@ export class ManagedProjectsSection implements StatusSection {
 
   async check(ctx: SectionContext): Promise<void> {
     try {
-      const apiUrl = await discoverApiUrl(ctx.ticketsDir);
-      const response = await fetch(`${apiUrl}/api/v1/projects`);
-      if (response.ok) {
-        const projects = await response.json() as ProjectSummary[];
-        this.state = { configured: true, projects };
-        return;
-      }
+      const client = new OperatorApiClient(await discoverApiUrl(ctx.ticketsDir));
+      const projects: ProjectSummary[] = await client.getProjects();
+      this.state = { configured: true, projects };
+      return;
     } catch {
       // API not available
     }

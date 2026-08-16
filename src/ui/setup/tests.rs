@@ -191,7 +191,10 @@ fn test_setup_navigation_tmux_path() {
     screen.step = SetupStep::WorktreePreference;
     screen.selected_wrapper = SessionWrapperType::Tmux;
 
-    // WorktreePreference -> TmuxOnboarding (when tmux selected)
+    // WorktreePreference -> AdminPassword -> TmuxOnboarding (tmux selected).
+    // The optional password step now sits between them; skipping it reaches the same wrapper step.
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::AdminPassword);
     screen.confirm();
     assert_eq!(screen.step, SetupStep::TmuxOnboarding);
 }
@@ -202,7 +205,9 @@ fn test_setup_navigation_vscode_path() {
     screen.step = SetupStep::WorktreePreference;
     screen.selected_wrapper = SessionWrapperType::Vscode;
 
-    // WorktreePreference -> VSCodeSetup (when vscode selected)
+    // WorktreePreference -> AdminPassword -> VSCodeSetup (vscode selected).
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::AdminPassword);
     screen.confirm();
     assert_eq!(screen.step, SetupStep::VSCodeSetup);
 }
@@ -221,9 +226,9 @@ fn test_setup_tmux_onboarding_go_back() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::TmuxOnboarding;
 
-    // TmuxOnboarding -> WorktreePreference
+    // TmuxOnboarding -> AdminPassword (the step it now came from)
     screen.go_back();
-    assert_eq!(screen.step, SetupStep::WorktreePreference);
+    assert_eq!(screen.step, SetupStep::AdminPassword);
 }
 
 #[test]
@@ -231,9 +236,9 @@ fn test_setup_vscode_setup_go_back() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::VSCodeSetup;
 
-    // VSCodeSetup -> WorktreePreference
+    // VSCodeSetup -> AdminPassword (the step it now came from)
     screen.go_back();
-    assert_eq!(screen.step, SetupStep::WorktreePreference);
+    assert_eq!(screen.step, SetupStep::AdminPassword);
 }
 
 #[test]
@@ -429,4 +434,231 @@ fn test_session_wrapper_option_to_wrapper_type() {
         SessionWrapperOption::VSCode.to_wrapper_type(),
         SessionWrapperType::Vscode
     );
+}
+
+// =============================================================================
+// Admin password step
+// =============================================================================
+
+/// Drive the two password fields the way the key handler does.
+fn type_password(screen: &mut SetupScreen, password: &str, confirm: &str) {
+    use ratatui::crossterm::event::KeyCode;
+
+    screen.password_field_focused = PasswordField::Password;
+    for c in password.chars() {
+        screen.handle_password_key(KeyCode::Char(c));
+    }
+    screen.password_field_focused = PasswordField::Confirm;
+    for c in confirm.chars() {
+        screen.handle_password_key(KeyCode::Char(c));
+    }
+}
+
+fn at_admin_password() -> SetupScreen {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::AdminPassword;
+    screen.selected_wrapper = SessionWrapperType::Vscode;
+    screen
+}
+
+#[test]
+fn test_admin_password_step_follows_worktree_preference() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::WorktreePreference;
+
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::AdminPassword);
+}
+
+#[test]
+fn test_admin_password_skipped_when_admin_exists() {
+    // Forward: straight past the step to the wrapper.
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.admin_password_configured = true;
+    screen.step = SetupStep::WorktreePreference;
+    screen.selected_wrapper = SessionWrapperType::Vscode;
+    screen.confirm();
+    assert_eq!(
+        screen.step,
+        SetupStep::VSCodeSetup,
+        "an existing admin must not be offered a second bootstrap"
+    );
+
+    // Backward: the wrapper step returns past it too, or Esc would strand the
+    // operator on a step that cannot be completed.
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::WorktreePreference);
+}
+
+#[test]
+fn test_admin_password_empty_enter_skips() {
+    let mut screen = at_admin_password();
+
+    screen.confirm();
+
+    assert_eq!(screen.step, SetupStep::VSCodeSetup);
+    assert!(
+        screen.admin_password.is_none(),
+        "blank fields mean skip, not an empty password"
+    );
+    assert!(screen.password_error.is_none());
+}
+
+#[test]
+fn test_admin_password_too_short_shows_error_and_stays() {
+    let mut screen = at_admin_password();
+    type_password(&mut screen, "short", "short");
+
+    screen.confirm();
+
+    assert_eq!(screen.step, SetupStep::AdminPassword, "must not advance");
+    let error = screen.password_error.as_deref().unwrap_or_default();
+    assert!(
+        error.contains("12"),
+        "error should name the length rule, got {error:?}"
+    );
+    assert!(screen.admin_password.is_none());
+}
+
+#[test]
+fn test_admin_password_mismatch_shows_error_and_stays() {
+    let mut screen = at_admin_password();
+    type_password(
+        &mut screen,
+        "a properly long password",
+        "a properly long passwerd",
+    );
+
+    screen.confirm();
+
+    assert_eq!(screen.step, SetupStep::AdminPassword);
+    assert_eq!(
+        screen.password_error.as_deref(),
+        Some("Passwords do not match")
+    );
+    assert!(screen.admin_password.is_none());
+}
+
+#[test]
+fn test_admin_password_mismatch_is_reported_before_length() {
+    // A mismatched pair that is also too short should say "do not match" —
+    // telling someone their password is too short when they simply mistyped the
+    // confirmation sends them to fix the wrong thing.
+    let mut screen = at_admin_password();
+    type_password(&mut screen, "short", "shorter");
+
+    screen.confirm();
+
+    assert_eq!(
+        screen.password_error.as_deref(),
+        Some("Passwords do not match")
+    );
+}
+
+#[test]
+fn test_admin_password_valid_advances_and_records_value() {
+    let mut screen = at_admin_password();
+    type_password(
+        &mut screen,
+        "a properly long password",
+        "a properly long password",
+    );
+
+    screen.confirm();
+
+    assert_eq!(screen.step, SetupStep::VSCodeSetup);
+    assert_eq!(
+        screen.admin_password.as_deref(),
+        Some("a properly long password")
+    );
+    assert!(screen.password_error.is_none());
+}
+
+#[test]
+fn test_admin_password_go_back_returns_to_worktree_preference() {
+    let mut screen = at_admin_password();
+
+    screen.go_back();
+
+    assert_eq!(screen.step, SetupStep::WorktreePreference);
+}
+
+#[test]
+fn test_admin_password_reaches_every_wrapper_step() {
+    // The wrapper fan-out moved from WorktreePreference onto this step, so all
+    // four destinations must still be reachable.
+    for (wrapper, expected) in [
+        (SessionWrapperType::Tmux, SetupStep::TmuxOnboarding),
+        (SessionWrapperType::Vscode, SetupStep::VSCodeSetup),
+        (SessionWrapperType::Cmux, SetupStep::CmuxSetup),
+        (SessionWrapperType::Zellij, SetupStep::ZellijSetup),
+    ] {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.step = SetupStep::AdminPassword;
+        screen.selected_wrapper = wrapper;
+
+        screen.confirm();
+
+        assert_eq!(screen.step, expected, "wrapper {wrapper:?} lost its step");
+    }
+}
+
+#[test]
+fn test_tab_switches_password_fields() {
+    let mut screen = at_admin_password();
+    assert_eq!(screen.password_field_focused, PasswordField::Password);
+
+    screen.toggle_selection();
+    assert_eq!(screen.password_field_focused, PasswordField::Confirm);
+
+    screen.toggle_selection();
+    assert_eq!(screen.password_field_focused, PasswordField::Password);
+}
+
+#[test]
+fn test_editing_clears_a_previous_error() {
+    use ratatui::crossterm::event::KeyCode;
+
+    let mut screen = at_admin_password();
+    type_password(&mut screen, "short", "short");
+    screen.confirm();
+    assert!(screen.password_error.is_some());
+
+    screen.password_field_focused = PasswordField::Password;
+    screen.handle_password_key(KeyCode::Char('x'));
+
+    assert!(
+        screen.password_error.is_none(),
+        "a stale complaint must not sit under freshly typed input"
+    );
+}
+
+#[test]
+fn test_password_keys_reach_the_focused_field_only() {
+    use ratatui::crossterm::event::KeyCode;
+
+    let mut screen = at_admin_password();
+    screen.password_field_focused = PasswordField::Password;
+    screen.handle_password_key(KeyCode::Char('a'));
+    screen.password_field_focused = PasswordField::Confirm;
+    screen.handle_password_key(KeyCode::Char('b'));
+
+    assert_eq!(screen.password.value(), "a");
+    assert_eq!(screen.password_confirm.value(), "b");
+}
+
+#[test]
+fn test_wizard_command_characters_are_typable_in_a_password() {
+    use ratatui::crossterm::event::KeyCode;
+
+    // `i` initializes, `c` quits, and `j`/`k`/space navigate when the wizard
+    // handles them. Reaching the field they must be plain characters instead.
+    let mut screen = at_admin_password();
+    screen.password_field_focused = PasswordField::Password;
+    for c in "ick j".chars() {
+        screen.handle_password_key(KeyCode::Char(c));
+    }
+
+    assert_eq!(screen.password.value(), "ick j");
+    assert_eq!(screen.step, SetupStep::AdminPassword, "still on the step");
 }

@@ -4,7 +4,7 @@ import type { SectionContext, StatusSection } from './types';
 import type { SectionId, SectionHealth } from '../generated';
 import type { IssueTypeSummary } from '../generated/IssueTypeSummary';
 import { DEFAULT_ISSUE_TYPES, GLYPH_TO_ICON, COLOR_TO_THEME } from '../issuetype-service';
-import { discoverApiUrl } from '../api-client';
+import { discoverApiUrl, OperatorApiClient } from '../api-client';
 
 interface IssueTypeState {
   apiAvailable: boolean;
@@ -25,13 +25,10 @@ export class IssueTypeSection implements StatusSection {
   async check(ctx: SectionContext): Promise<void> {
     // Try fetching from API
     try {
-      const apiUrl = await discoverApiUrl(ctx.ticketsDir);
-      const response = await fetch(`${apiUrl}/api/v1/issuetypes`);
-      if (response.ok) {
-        const types = await response.json() as IssueTypeSummary[];
-        this.state = { apiAvailable: true, types };
-        return;
-      }
+      const client = new OperatorApiClient(await discoverApiUrl(ctx.ticketsDir));
+      const types: IssueTypeSummary[] = await client.listIssueTypes();
+      this.state = { apiAvailable: true, types };
+      return;
     } catch {
       // API not available
     }

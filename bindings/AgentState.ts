@@ -73,7 +73,7 @@ llm_model: string | null,
 launch_mode: string | null, 
 /**
  * Review state for `awaiting_input` agents
- * Values: "`pending_plan`", "`pending_visual`", "`pending_pr_creation`", "`pending_pr_merge`"
+ * Values: "`pending_plan`", "`pending_visual`", "`pending_proof`", "`pending_pr_creation`", "`pending_pr_merge`"
  */
 review_state: string | null, 
 /**

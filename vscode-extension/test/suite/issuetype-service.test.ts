@@ -295,6 +295,16 @@ suite('IssueType Service Test Suite', () => {
       assert.strictEqual(result.type, 'FEAT');
     });
 
+    test('parses the canonical timestamped filename', () => {
+      service = new IssueTypeService(outputChannel, 'http://localhost:7008');
+
+      const result = service.parseTicketFilename(
+        '20260807-1200-FEAT-operator-api-tree.md'
+      );
+      assert.strictEqual(result.type, 'FEAT');
+      assert.strictEqual(result.id, 'FEAT-202608071200');
+    });
+
     test('handles non-standard filenames', () => {
       service = new IssueTypeService(outputChannel, 'http://localhost:7008');
 

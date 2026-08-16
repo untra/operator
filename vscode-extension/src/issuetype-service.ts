@@ -253,12 +253,24 @@ export class IssueTypeService {
    * Parse ticket ID and type from a filename
    *
    * Supports formats:
+   * - "20260807-1200-FEAT-operator-title.md" -> { id: "FEAT-202608071200", type: "FEAT" }
    * - "FEAT-123.md" -> { id: "FEAT-123", type: "FEAT" }
    * - "FEAT-123-title.md" -> { id: "FEAT-123", type: "FEAT" }
    * - "random.md" -> { id: "random", type: "TASK" }
+   *
+   * The id returned for the canonical format is the fallback used only when the
+   * ticket has no frontmatter `id:`, mirroring `Ticket::from_file` in Rust.
    */
   parseTicketFilename(filename: string): { id: string; type: string } {
     const baseName = filename.replace(/\.md$/, '');
+
+    // Canonical operator filenames: YYYYMMDD-HHMM-TYPE-project-description.md
+    const canonical = baseName.match(/^(\d{8})-(\d{4})-([A-Z][A-Z0-9_]*)-[a-z0-9]+-/);
+    if (canonical) {
+      const type = canonical[3]!;
+      return { id: `${type}-${canonical[1]}${canonical[2]}`, type };
+    }
+
     const match = baseName.match(/^([A-Z]+)-(\d+)/i);
 
     if (match?.[1] && match[2]) {

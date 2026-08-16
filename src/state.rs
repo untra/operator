@@ -788,7 +788,9 @@ impl State {
             .iter()
             .filter(|a| {
                 a.status == "awaiting_input"
-                    && a.review_state.as_ref().is_some_and(|s| s == "pending_proof")
+                    && a.review_state
+                        .as_ref()
+                        .is_some_and(|s| s == "pending_proof")
             })
             .collect()
     }

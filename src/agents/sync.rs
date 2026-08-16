@@ -20,10 +20,39 @@ use super::monitor::{HealthCheckResult, SessionMonitor};
 use super::tmux::TmuxClient;
 use super::visual_review::VisualReviewHandler;
 use crate::agents::launcher::worktree_setup::cleanup_ticket_worktree;
+use crate::agents::ProofResult;
 use crate::config::Config;
 use crate::queue::{Queue, StepAdvanceResult, Ticket};
 use crate::state::{AgentState, State};
 use crate::templates::schema::ReviewType;
+
+/// Status message for a finished proof run - mirrors the strings the
+/// `complete_step` proof hook (`rest/routes/launch.rs`) produces, so the
+/// message reads the same regardless of which path ran the proof.
+fn proof_result_message(result: &ProofResult, proof_ref: &str) -> String {
+    if result.timed_out {
+        format!(
+            "Proof FAILED (timeout, exit {}) — awaiting review ({proof_ref})",
+            result.exit_code
+        )
+    } else if result.passed {
+        format!("Proof passed — awaiting review ({proof_ref})")
+    } else {
+        format!(
+            "Proof FAILED (exit {}) — awaiting review ({proof_ref})",
+            result.exit_code
+        )
+    }
+}
+
+/// Read and format the message for an already-persisted `result.json`.
+/// Returns `None` on any read/parse failure so callers fall back to a
+/// generic message.
+fn read_proof_result_message(result_path: &std::path::Path, proof_ref: &str) -> Option<String> {
+    let contents = std::fs::read_to_string(result_path).ok()?;
+    let result: ProofResult = serde_json::from_str(&contents).ok()?;
+    Some(proof_result_message(&result, proof_ref))
+}
 
 /// Result of a sync cycle
 #[derive(Debug, Default)]
@@ -129,6 +158,7 @@ impl TicketSessionSync {
             if let Some(agent) = state.agent_by_ticket(&ticket.id) {
                 let agent_id = agent.id.clone();
                 let session_name = agent.session_name.clone().unwrap_or_default();
+                let worktree_path = agent.worktree_path.clone();
 
                 // Determine the sync action based on health check results
                 let action = self.determine_action(&ticket, &session_name, health_result);
@@ -210,8 +240,13 @@ impl TicketSessionSync {
                                 );
                             }
                             ReviewType::Proof => {
-                                // treat as a standard awaiting_input
-                                state.update_agent_status(&agent_id, "awaiting_input", None)?;
+                                self.handle_proof_awaiting(
+                                    &ticket,
+                                    &agent_id,
+                                    &step_display,
+                                    &worktree_path,
+                                    state,
+                                )?;
                             }
                         }
 
@@ -357,6 +392,111 @@ impl TicketSessionSync {
         }
 
         Ok(result)
+    }
+
+    /// Gate a Proof step at `MovedToAwaiting`
+    fn handle_proof_awaiting(
+        &self,
+        ticket: &Ticket,
+        agent_id: &str,
+        step_display: &str,
+        worktree_path: &Option<String>,
+        state: &mut State,
+    ) -> Result<()> {
+        let Some(proof_config) = ticket.current_step_schema().and_then(|s| s.proof_config) else {
+            state.update_agent_status(
+                agent_id,
+                "awaiting_input",
+                Some("Proof review (no config)".to_string()),
+            )?;
+            state.set_agent_review_state(agent_id, "pending_proof")?;
+            return Ok(());
+        };
+
+        let worktree_root = worktree_path
+            .clone()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.config.projects_path().join(&ticket.project));
+        let proof_ref = format!(".proof/{}/{}", ticket.id, ticket.step);
+        let result_path =
+            crate::agents::ProofRunner::result_path(&worktree_root, &ticket.id, &ticket.step);
+        let already_ran = result_path.exists();
+
+        let message = if already_ran {
+            // Already ran (e.g. via complete_step) - never rerun.
+            read_proof_result_message(&result_path, &proof_ref)
+                .unwrap_or_else(|| "Proof review: awaiting approval".to_string())
+        } else {
+            "Proof review: awaiting approval".to_string()
+        };
+
+        state.update_agent_status(agent_id, "awaiting_input", Some(message))?;
+        state.set_agent_review_state(agent_id, "pending_proof")?;
+
+        if !already_ran {
+            self.spawn_proof_run(ticket, agent_id, proof_config, worktree_root, proof_ref);
+        }
+
+        tracing::info!(
+            ticket_id = %ticket.id,
+            step = %step_display,
+            "Step awaiting proof review"
+        );
+        Ok(())
+    }
+
+    /// Fire-and-forget the proof run. `sync_all` doesn't hold a live `State`
+    /// handle across await points, so the spawned task loads/saves its own
+    /// copy on completion - the same pattern `launch.rs`'s proof hook uses.
+    fn spawn_proof_run(
+        &self,
+        ticket: &Ticket,
+        agent_id: &str,
+        proof_config: crate::templates::schema::ProofReviewConfig,
+        worktree_root: PathBuf,
+        proof_ref: String,
+    ) {
+        let config = self.config.clone();
+        let ticket_id = ticket.id.clone();
+        let step_name = ticket.step.clone();
+        let agent_id = agent_id.to_string();
+        let context = serde_json::json!({"ticket_id": ticket_id, "step": step_name});
+
+        tokio::spawn(async move {
+            let runner = crate::agents::ProofRunner::with_context(context);
+            let message = match runner
+                .run(&proof_config, &worktree_root, &ticket_id, &step_name)
+                .await
+            {
+                Ok(result) => proof_result_message(&result, &proof_ref),
+                Err(e) => {
+                    tracing::warn!(
+                        ticket_id = %ticket_id,
+                        step = %step_name,
+                        error = %e,
+                        "Proof runner error"
+                    );
+                    "Proof runner error — awaiting review".to_string()
+                }
+            };
+            match State::load(&config) {
+                Ok(mut app_state) => {
+                    if let Err(e) =
+                        app_state.update_agent_status(&agent_id, "awaiting_input", Some(message))
+                    {
+                        tracing::warn!(
+                            agent_id = %agent_id,
+                            error = %e,
+                            "Failed to persist proof result status"
+                        );
+                    }
+                }
+                Err(e) => tracing::warn!(
+                    error = %e,
+                    "Failed to load state for proof result status"
+                ),
+            }
+        });
     }
 
     /// Sync a multi-agent ticket: iterate each sub-agent in the group,
@@ -676,7 +816,7 @@ impl TicketSessionSync {
 
                 // Handle based on review state
                 match agent.review_state.as_deref() {
-                    Some("pending_plan" | "pending_visual") => {
+                    Some("pending_plan" | "pending_visual" | "pending_proof") => {
                         // Review was approved via TUI (signal file written by approval handler)
                         // Resume without needing content change
                         state.update_agent_status(&agent.id, "running", None)?;

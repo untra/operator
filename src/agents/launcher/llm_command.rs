@@ -35,6 +35,32 @@ pub fn build_llm_command_with_permissions_for_tool(
     project_path: Option<&str>,
     operator_relay: Option<bool>,
 ) -> Result<String> {
+    build_llm_command_impl(
+        config,
+        tool_name,
+        model,
+        session_id,
+        prompt_file,
+        ticket,
+        project_path,
+        operator_relay,
+        &crate::llm::verify_tool_health,
+    )
+}
+
+/// Injectable-verifier variant so tests don't depend on what is installed locally.
+#[allow(clippy::too_many_arguments)]
+fn build_llm_command_impl(
+    config: &Config,
+    tool_name: &str,
+    model: &str,
+    session_id: &str,
+    prompt_file: &std::path::Path,
+    ticket: Option<&Ticket>,
+    project_path: Option<&str>,
+    operator_relay: Option<bool>,
+    verify_health: &dyn Fn(&str) -> bool,
+) -> Result<String> {
     // Find the specified tool
     let tool = get_detected_tool(config, tool_name).ok_or_else(|| {
         anyhow::anyhow!(
@@ -42,10 +68,12 @@ pub fn build_llm_command_with_permissions_for_tool(
         )
     })?;
 
-    // Health is verified at startup; a tool that failed cannot be launched.
-    if !tool.health_ok {
+    // A recorded pass is trusted; anything else is re-verified here rather than
+    // failing on a value the launching process never checked (only the TUI runs
+    // startup detection — `launch`, `api`, `mcp` and `acp` do not).
+    if !tool.health_ok && !verify_health(tool_name) {
         anyhow::bail!(
-            "LLM tool '{tool_name}' failed its health check. Fix the tool (or its detection.health_command) and restart operator to re-verify."
+            "LLM tool '{tool_name}' is not launchable: its health check failed. Check the binary is installed and on PATH, or fix its detection.health_command."
         );
     }
 
@@ -1195,7 +1223,7 @@ mod tests {
         tool.health_ok = false;
         let config = make_test_config_with_tool(tool);
 
-        let result = build_llm_command_with_permissions_for_tool(
+        let result = build_llm_command_impl(
             &config,
             "claude",
             "opus",
@@ -1204,6 +1232,7 @@ mod tests {
             None,
             None,
             None,
+            &|_| false,
         );
 
         assert!(result.is_err());
@@ -1211,6 +1240,33 @@ mod tests {
         assert!(
             err.contains("health check"),
             "Error should mention the failed health check, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_build_llm_command_stale_health_revalidates() {
+        // A config written before `health_ok` existed (or by a stale run) must
+        // not permanently block launching a tool that is actually healthy.
+        let mut tool = make_detected_tool();
+        tool.health_ok = false;
+        let config = make_test_config_with_tool(tool);
+
+        let result = build_llm_command_impl(
+            &config,
+            "claude",
+            "opus",
+            "sess-abc",
+            Path::new("/tmp/prompt.md"),
+            None,
+            None,
+            None,
+            &|_| true,
+        );
+
+        assert!(
+            result.is_ok(),
+            "Live verification should override a stale health_ok, got: {:?}",
+            result.err()
         );
     }
 

@@ -167,6 +167,7 @@ version_ok = true
 model_aliases = ["sonnet", "opus", "haiku"]
 command_template = "{mock_llm} {{{{config_flags}}}}{{{{model_flag}}}}--session-id {{{{session_id}}}} --print-prompt-path {{{{prompt_file}}}}"
 yolo_flags = ["--dangerously-skip-permissions"]
+health_ok = true
 
 [llm_tools.detected.capabilities]
 supports_sessions = true
@@ -256,6 +257,7 @@ version_ok = true
 model_aliases = ["sonnet", "opus", "haiku"]
 command_template = "{mock_llm} {{{{config_flags}}}}{{{{model_flag}}}}--session-id {{{{session_id}}}} --print-prompt-path {{{{prompt_file}}}}"
 yolo_flags = ["--dangerously-skip-permissions"]
+health_ok = true
 
 [llm_tools.detected.capabilities]
 supports_sessions = true

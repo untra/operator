@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feature Maturity | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Feature Maturity | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Feature Maturity" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta name="twitter:description" property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/maturity/" />
+<meta property="og:url" content="https://operator.untra.io/maturity/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Feature Maturity" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Feature Maturity","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/maturity/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/remote-hosts/" >Remote Hosts (SSH)</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" class="active" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/maturity/index.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.7</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-08-16</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Feature Maturity</h1>
+  
+
+  <!-- AUTO-GENERATED FROM src/integrations/catalog.rs - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+<p>Operator integrates with many providers and tools across several <strong>verticals</strong>. Each integration carries an official <strong>support status</strong> so you know what to expect before you depend on it. This page is generated from the same source of truth that drives the README badges and the <code class="language-plaintext highlighter-rouge">/api/v1/integrations</code> API, so it always reflects the current state.</p>
+
+<h2 id="support-levels">Support levels</h2>
+
+<ul>
+  <li><img src="https://img.shields.io/badge/GA-1BB91F" alt="GA" /> — Generally available and supported.</li>
+  <li><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /> — Stable-ish and hardening toward general availability.</li>
+  <li><img src="https://img.shields.io/badge/Alpha-6495ED" alt="Alpha" /> — Usable, but expect breaking changes. Advertised with caveats.</li>
+  <li><img src="https://img.shields.io/badge/Proto-6B7280" alt="Proto" /> — Experimental — present in code with no guarantees. Not advertised yet.</li>
+</ul>
+
+<h2 id="kanban-provider">Kanban Provider</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Jira</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/kanban/jira/">Jira</a></td>
+    </tr>
+    <tr>
+      <td>Linear</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/kanban/linear/">Linear</a></td>
+    </tr>
+    <tr>
+      <td>GitHub Projects</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/kanban/github/">GitHub Projects</a></td>
+    </tr>
+    <tr>
+      <td>OpenSpec</td>
+      <td><img src="https://img.shields.io/badge/Alpha-6495ED" alt="Alpha" /></td>
+      <td><a href="https://operator.untra.io/getting-started/kanban/openspec/">OpenSpec</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="model-provider">Model Provider</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Anthropic</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/model-servers/anthropic/">Anthropic</a></td>
+    </tr>
+    <tr>
+      <td>OpenAI</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/model-servers/openai/">OpenAI</a></td>
+    </tr>
+    <tr>
+      <td>Google</td>
+      <td><img src="https://img.shields.io/badge/Alpha-6495ED" alt="Alpha" /></td>
+      <td><a href="https://operator.untra.io/getting-started/model-servers/google/">Google</a></td>
+    </tr>
+    <tr>
+      <td>Ollama</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/model-servers/ollama/">Ollama</a></td>
+    </tr>
+    <tr>
+      <td>OpenRouter</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/model-servers/openrouter/">OpenRouter</a></td>
+    </tr>
+    <tr>
+      <td>OpenAI-compatible</td>
+      <td><img src="https://img.shields.io/badge/Proto-6B7280" alt="Proto" /></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>LM Studio</td>
+      <td><img src="https://img.shields.io/badge/Proto-6B7280" alt="Proto" /></td>
+      <td>—</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="git-version-control">Git Version Control</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>GitHub</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/git/github/">GitHub</a></td>
+    </tr>
+    <tr>
+      <td>GitLab</td>
+      <td><img src="https://img.shields.io/badge/Alpha-6495ED" alt="Alpha" /></td>
+      <td><a href="https://operator.untra.io/getting-started/git/gitlab/">GitLab</a></td>
+    </tr>
+    <tr>
+      <td>Bitbucket</td>
+      <td><img src="https://img.shields.io/badge/Proto-6B7280" alt="Proto" /></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Azure DevOps</td>
+      <td><img src="https://img.shields.io/badge/Proto-6B7280" alt="Proto" /></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Forgejo</td>
+      <td><img src="https://img.shields.io/badge/Proto-6B7280" alt="Proto" /></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Gitea</td>
+      <td><img src="https://img.shields.io/badge/Proto-6B7280" alt="Proto" /></td>
+      <td>—</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="session">Session</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>tmux</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/sessions/tmux/">tmux</a></td>
+    </tr>
+    <tr>
+      <td>cmux</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/sessions/cmux/">cmux</a></td>
+    </tr>
+    <tr>
+      <td>Zellij</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/sessions/zellij/">Zellij</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="editor">Editor</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>VS Code</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/sessions/vscode/">VS Code</a></td>
+    </tr>
+    <tr>
+      <td>Zed</td>
+      <td><img src="https://img.shields.io/badge/Alpha-6495ED" alt="Alpha" /></td>
+      <td><a href="https://operator.untra.io/getting-started/sessions/zed/">Zed</a></td>
+    </tr>
+    <tr>
+      <td>Cursor</td>
+      <td><img src="https://img.shields.io/badge/Proto-6B7280" alt="Proto" /></td>
+      <td><a href="https://operator.untra.io/getting-started/sessions/cursor/">Cursor</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="llm-tool">LLM Tool</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Claude</td>
+      <td><img src="https://img.shields.io/badge/GA-1BB91F" alt="GA" /></td>
+      <td><a href="https://operator.untra.io/getting-started/agents/claude/">Claude</a></td>
+    </tr>
+    <tr>
+      <td>Codex</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/agents/codex/">Codex</a></td>
+    </tr>
+    <tr>
+      <td>Gemini CLI</td>
+      <td><img src="https://img.shields.io/badge/Alpha-6495ED" alt="Alpha" /></td>
+      <td><a href="https://operator.untra.io/getting-started/agents/gemini-cli/">Gemini CLI</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="platform">Platform</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Docker</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/platforms/docker/">Docker</a></td>
+    </tr>
+    <tr>
+      <td>Coder</td>
+      <td><img src="https://img.shields.io/badge/Alpha-6495ED" alt="Alpha" /></td>
+      <td><a href="https://operator.untra.io/getting-started/platforms/coder/">Coder</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="integration">Integration</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>AGNT</td>
+      <td><img src="https://img.shields.io/badge/Alpha-6495ED" alt="Alpha" /></td>
+      <td><a href="https://operator.untra.io/getting-started/integrations/agnt/">AGNT</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="workflow-export-format">Workflow Export Format</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Claude Workflow</td>
+      <td><img src="https://img.shields.io/badge/GA-1BB91F" alt="GA" /></td>
+      <td><a href="https://operator.untra.io/getting-started/workflows/claude/">Claude Workflow</a></td>
+    </tr>
+    <tr>
+      <td>AGNT Workflow</td>
+      <td><img src="https://img.shields.io/badge/Alpha-6495ED" alt="Alpha" /></td>
+      <td><a href="https://operator.untra.io/getting-started/workflows/agnt/">AGNT Workflow</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="notification-channel">Notification Channel</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Integration</th>
+      <th>Status</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Operating System</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/notifications/os/">Operating System</a></td>
+    </tr>
+    <tr>
+      <td>Webhooks</td>
+      <td><img src="https://img.shields.io/badge/Beta-E8A33D" alt="Beta" /></td>
+      <td><a href="https://operator.untra.io/getting-started/notifications/webhooks/">Webhooks</a></td>
+    </tr>
+  </tbody>
+</table>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

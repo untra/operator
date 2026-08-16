@@ -1,0 +1,50 @@
+/* Operator! brand tokens — SINGLE SOURCE OF TRUTH for web surfaces.
+ *
+ * Consumed by both the docs site (docs/assets/css/main.css) and the embedded
+ * React SPA (ui/src/index.css). Do not re-declare these brand vars in either
+ * consumer — change them here and both surfaces follow.
+ *
+ * The TUI (src/ui/*.rs, ANSI) and the VS Code webview (defers to the editor
+ * theme) deliberately do NOT consume this file — see operator/CLAUDE.md
+ * "Design & UI Consistency" and docs/design-system/.
+ *
+ * Palette: warm terracotta + cornflower + cream, over a green scale
+ * (sage -> teal -> deep pine -> midnight). Light default, dark via
+ * [data-theme="dark"].
+ */
+
+:root {
+  /* Brand palette */
+  --color-salmon: #e05d44; /* Terracotta — primary brand */
+  --color-cornflower: #6688aa; /* Muted blue — secondary text / separators */
+  --color-cream: #f2eac9; /* Warm accent / highlights */
+  --color-coral: #e05d44; /* Link / accent (alias of salmon in light) */
+  --color-bg: #faf8f5; /* Page background */
+  --color-white: #ffffff;
+
+  /* Green scale */
+  --color-green-l1: #66aa99; /* Sage  — nav buttons */
+  --color-green-l2: #448880; /* Teal  — hover / success */
+  --color-green-l3: #115566; /* Deep pine — selected / primary text */
+  --color-green-l4: #082226; /* Midnight — darkest */
+  --color-teal: #115566; /* Body text (== green-l3) */
+
+  /* Shared layout */
+  --sidebar-width: 260px;
+}
+
+[data-theme="dark"] {
+  --color-salmon: #e05d44;
+  --color-cornflower: #88aabb;
+  --color-cream: #1a1d1e;
+  --color-coral: #ff7a66;
+  --color-bg: #0d1011;
+  --color-white: #1a1d1e;
+
+  /* Green scale — adjusted for dark mode */
+  --color-green-l1: #3d8a7a;
+  --color-green-l2: #5aa896;
+  --color-green-l3: #88ccbb;
+  --color-green-l4: #aaddcc;
+  --color-teal: #b8d4cc;
+}

@@ -31,7 +31,6 @@ impl DocGenerator for StateSchemaDocGenerator {
         let mut output = format_header("Application State Schema", self.source());
 
         // Title and description
-        output.push_str(&heading(1, "Application State Schema"));
         output.push_str(
             "JSON Schema for the Operator runtime state file (`state.json`).\n\n\
             This file tracks the current state of agents, completed tickets, and system status.\n\n",
@@ -215,7 +214,8 @@ mod tests {
         assert!(result.contains("state.json"));
 
         // Should have the main heading
-        assert!(result.contains("# Application State Schema"));
+        assert!(result.contains("title: \"Application State Schema\""));
+        assert!(!result.contains("\n# Application State Schema"));
 
         // Should have required fields section
         assert!(result.contains("## Required Fields"));

@@ -166,6 +166,7 @@ fn dto_to_launch_config(lc: DelegatorLaunchConfigDto) -> DelegatorLaunchConfig {
         prompt_suffix: lc.prompt_suffix,
         operator_relay: lc.operator_relay,
         host: lc.host,
+        target: lc.target,
     }
 }
 
@@ -182,6 +183,7 @@ fn launch_config_to_dto(lc: &DelegatorLaunchConfig) -> DelegatorLaunchConfigDto 
         prompt_suffix: lc.prompt_suffix.clone(),
         operator_relay: lc.operator_relay,
         host: lc.host.clone(),
+        target: lc.target.clone(),
     }
 }
 
@@ -500,6 +502,7 @@ mod tests {
                 prompt_suffix: Some("Run tests before finishing.".to_string()),
                 operator_relay: None,
                 host: None,
+                target: None,
             }),
             remote_agent: None,
             x_agnt: None,
@@ -630,6 +633,7 @@ mod tests {
             prompt_suffix: None,
             operator_relay: Some(true),
             host: None,
+            target: None,
         };
         let dto = launch_config_to_dto(&config);
         assert_eq!(dto.operator_relay, Some(true));

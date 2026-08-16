@@ -26,7 +26,6 @@ impl DocGenerator for TaxonomyDocGenerator {
         let mut output = format_header("Project Taxonomy", self.source());
 
         // Introduction
-        output.push_str(&heading(1, "Project Taxonomy"));
         output.push_str(&format!(
             "This document defines the **{} project Kinds** organized into **{} tiers**.\n\n",
             taxonomy.kinds.len(),
@@ -232,7 +231,8 @@ mod tests {
         assert!(result.contains("taxonomy.toml"));
 
         // Should have the main heading
-        assert!(result.contains("# Project Taxonomy"));
+        assert!(result.contains("title: \"Project Taxonomy\""));
+        assert!(!result.contains("\n# Project Taxonomy"));
 
         // Should mention project Kinds (flexible - any count)
         assert!(result.contains("project Kinds"));

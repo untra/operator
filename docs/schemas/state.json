@@ -163,7 +163,7 @@
           "default": null
         },
         "pr_url": {
-          "description": "PR URL if created during \"pr\" step",
+          "description": "PR/MR URL if created during the \"pr\" step",
           "type": [
             "string",
             "null"
@@ -171,7 +171,7 @@
           "default": null
         },
         "pr_number": {
-          "description": "PR number for GitHub API tracking",
+          "description": "Code review request (PR/MR) number",
           "type": [
             "integer",
             "null"
@@ -180,8 +180,8 @@
           "minimum": 0,
           "default": null
         },
-        "github_repo": {
-          "description": "GitHub repo in format \"owner/repo\"",
+        "repo": {
+          "description": "Repository in \"owner/repo\" format on the configured git provider",
           "type": [
             "string",
             "null"
@@ -189,7 +189,7 @@
           "default": null
         },
         "pr_status": {
-          "description": "Last known PR status (\"open\", \"approved\", \"`changes_requested`\", \"merged\", \"closed\")",
+          "description": "Last known PR/MR status (\"open\", \"approved\", \"`changes_requested`\", \"merged\", \"closed\")",
           "type": [
             "string",
             "null"
@@ -221,7 +221,7 @@
           "default": null
         },
         "launch_mode": {
-          "description": "Launch mode: \"default\", \"yolo\", \"docker\", \"docker-yolo\"",
+          "description": "Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`\n(derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match)",
           "type": [
             "string",
             "null"
@@ -261,6 +261,26 @@
             "null"
           ],
           "default": null
+        },
+        "step_launch_context": {
+          "description": "Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StepLaunchContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "target_name": {
+          "description": "Name of the resolved execution target this agent launched on",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [
@@ -272,6 +292,66 @@
         "started_at",
         "last_activity",
         "paired"
+      ]
+    },
+    "StepLaunchContext": {
+      "description": "Launch context fixed at launch time, persisted with the agent record, and\nread back by `complete_step` to build subsequent step commands.\n\nThe persisted context is the baseline for a ticket's whole chain; per-step\n`agent` overrides from the step schema apply on top for that step only.",
+      "type": "object",
+      "properties": {
+        "delegator": {
+          "description": "Delegator name used at launch (None = ad-hoc provider/model)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "tool": {
+          "description": "Resolved LLM tool (e.g. \"claude\")",
+          "type": "string"
+        },
+        "model": {
+          "description": "Resolved model alias (e.g. \"sonnet\")",
+          "type": "string"
+        },
+        "yolo": {
+          "description": "YOLO (auto-accept) mode",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Session UUID of the step launched with this context (informational;\neach transition mints a fresh UUID for the next step)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "opr8r": {
+          "description": "opr8r invocation for the launch environment (\"opr8r\" inside a\ncontainer where the image ships it on PATH, an absolute path locally).\nSteps exec inside the same environment, so the value holds chain-wide.",
+          "type": "string"
+        },
+        "operator_relay": {
+          "description": "Relay MCP injection override from the delegator launch config",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "extra_flags": {
+          "description": "Extra CLI flags from the delegator launch config",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "tool",
+        "model",
+        "yolo",
+        "opr8r"
       ]
     },
     "CompletedTicket": {

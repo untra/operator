@@ -174,7 +174,7 @@ impl App {
             self.confirm_dialog.configure(
                 self.config.llm_tools.providers.clone(),
                 self.config.projects.clone(),
-                self.config.launch.docker.enabled,
+                crate::config::launchable_target_names(&self.config),
                 self.config.launch.yolo.enabled,
             );
 
@@ -289,11 +289,19 @@ impl App {
                 None
             };
 
+            // Dialog target picker resolves by name; "local" (index 0) shields
+            // the launch.docker.enabled fallback so picker-off = local.
+            let target = crate::agents::delegator_resolution::resolve_named_target(
+                &self.config,
+                self.confirm_dialog.selected_target_name(),
+            )
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+
             let options = LaunchOptions {
                 provider: self.confirm_dialog.selected_provider().cloned(),
                 delegator_name: None,
                 extra_flags: Vec::new(),
-                docker_mode: self.confirm_dialog.docker_selected,
+                target,
                 yolo_mode: self.confirm_dialog.yolo_selected,
                 project_override,
                 ..Default::default()

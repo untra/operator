@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM src/config.rs - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Configuration
-
 Operator configuration is stored in `.tickets/operator/config.toml`.
 
 ## Configuration Sections
@@ -156,6 +154,7 @@ projects = []
 delegators = []
 model_servers = []
 hosts = []
+targets = []
 
 [agents]
 max_parallel = 5

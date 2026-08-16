@@ -196,12 +196,78 @@ export async function showLaunchOptionsDialog(
 
   const selectedLabels = optionChoices.map((c) => c.label);
 
+  // Execution target: offered only when the config declares targets/hosts;
+  // Auto keeps the delegator's own resolution.
+  const target = await pickTarget(ticket, ticketsDir);
+  if (target === null) {
+    return undefined; // dismissed
+  }
+
   return {
     delegator: delegatorChoice.delegatorName ?? null,
     model: delegatorChoice.model,
     yoloMode: selectedLabels.includes('YOLO Mode'),
     resumeSession: selectedLabels.includes('Resume Session'),
+    target,
   };
+}
+
+/**
+ * Pick an execution target by name. Returns:
+ * - undefined: no override (Auto, or no targets configured)
+ * - a name: override
+ * - null: dialog dismissed
+ */
+async function pickTarget(
+  ticket: TicketInfo,
+  ticketsDir?: string
+): Promise<string | undefined | null> {
+  const names = await fetchTargetNames(ticketsDir);
+  if (names.length === 0) {
+    return undefined;
+  }
+  const items: vscode.QuickPickItem[] = [
+    {
+      label: '$(rocket) Auto',
+      description: "Use the delegator's configured target",
+    },
+    ...names.map((n) => ({ label: n })),
+  ];
+  const choice = await vscode.window.showQuickPick(items, {
+    title: `Launch ${ticket.id}: Execution Target`,
+    placeHolder: 'Where should the agent run?',
+  });
+  if (!choice) {
+    return null;
+  }
+  return choice.label.includes('Auto') ? undefined : choice.label;
+}
+
+/** Named targets from the server config: [[targets]] entries + [[hosts]] synths. */
+async function fetchTargetNames(ticketsDir?: string): Promise<string[]> {
+  try {
+    const apiUrl = await discoverApiUrl(ticketsDir);
+    const response = await fetch(`${apiUrl}/api/v1/configuration`);
+    if (!response.ok) {
+      return [];
+    }
+    const config = (await response.json()) as {
+      targets?: { name: string }[];
+      hosts?: { name: string }[];
+      launch?: { docker?: { enabled?: boolean; image?: string } };
+    };
+    const names = [
+      ...(config.targets ?? []).map((t) => t.name),
+      ...(config.hosts ?? []).map((h) => h.name),
+    ];
+    // The synthesized docker target is only worth offering when configured.
+    if (config.launch?.docker?.image) {
+      names.push('docker');
+    }
+    return names;
+  } catch {
+    return [];
+  }
 }
 
 /**

@@ -1,7 +1,9 @@
 //! Tool configuration loading and templating
 //!
-//! This module loads LLM CLI tool configurations from embedded JSON files
-//! and provides template-based command building.
+//! This module loads LLM CLI tool configurations — embedded builtin JSONs plus
+//! user JSONs from `<config dir>/operator/tools/` — and provides template-based
+//! command building. User configs are only ever read from the user-global
+//! config dir, never from repo-local paths (see [`load_user_tool_configs`]).
 
 use serde::{Deserialize, Serialize};
 
@@ -66,6 +68,28 @@ pub struct IdleDetectionConfig {
     pub hook_config: Option<HookConfig>,
 }
 
+/// How a tool's presence is determined
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DetectionMode {
+    /// Gate on a successful `which <tool_name>` lookup (default)
+    #[default]
+    Which,
+    /// Skip the PATH lookup; `tool_name` is used as the invocation path.
+    Always,
+}
+
+/// Detection behavior overrides for a tool
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DetectionConfig {
+    #[serde(default)]
+    pub mode: DetectionMode,
+    /// Health check run every startup. Which-mode tools store their verified presence and only need this if set;
+    /// always-mode tools have nothing locally verifiable and stay unhealthy until this passes.
+    #[serde(default)]
+    pub health_command: Option<String>,
+}
+
 /// Tool configuration loaded from JSON
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolConfig {
@@ -97,12 +121,20 @@ pub struct ToolConfig {
     /// Well-known directories for skill/command files
     #[serde(default)]
     pub skill_directories: Option<SkillDirectories>,
+    /// Detection behavior (None = which-gated, no health check)
+    #[serde(default)]
+    pub detection: Option<DetectionConfig>,
 }
 
 impl ToolConfig {
     /// Get the display name, falling back to `tool_name`
     pub fn display_name(&self) -> &str {
         self.display_name.as_deref().unwrap_or(&self.tool_name)
+    }
+
+    /// Effective detection mode (default: `Which`)
+    pub fn detection_mode(&self) -> DetectionMode {
+        self.detection.as_ref().map(|d| d.mode).unwrap_or_default()
     }
 
     /// Build a command string by substituting template variables
@@ -122,31 +154,104 @@ impl ToolConfig {
     }
 }
 
-/// Load all embedded tool configurations
+/// Operator's directory under the platform config dir (matches `src/config.rs`)
+const OPERATOR_CONFIG_DIR_NAME: &str = "operator";
+/// Subdirectory scanned for user tool configs
+const USER_TOOLS_DIR_NAME: &str = "tools";
+const TOOL_CONFIG_EXT: &str = "json";
+
+const BUILTIN_TOOL_CONFIGS: &[(&str, &str)] = &[
+    ("claude", include_str!("tools/claude.json")),
+    ("gemini", include_str!("tools/gemini.json")),
+    ("codex", include_str!("tools/codex.json")),
+];
+
+/// The user tool-config directory: `<platform config dir>/operator/tools`
+pub fn user_tools_dir() -> Option<std::path::PathBuf> {
+    dirs::config_dir().map(|d| d.join(OPERATOR_CONFIG_DIR_NAME).join(USER_TOOLS_DIR_NAME))
+}
+
+/// Load all tool configurations: embedded builtins plus user JSONs from
+/// [`user_tools_dir`]. A user config whose `tool_name` matches a builtin fully
+/// replaces it; new names append.
 pub fn load_all_tool_configs() -> Vec<ToolConfig> {
-    let mut configs = Vec::new();
+    load_all_tool_configs_with(user_tools_dir().as_deref())
+}
 
-    // Load Claude config
-    if let Ok(config) = serde_json::from_str::<ToolConfig>(include_str!("tools/claude.json")) {
-        configs.push(config);
-    } else {
-        tracing::warn!("Failed to parse claude.json tool config");
+/// Injectable-dir variant for tests
+pub(crate) fn load_all_tool_configs_with(user_dir: Option<&std::path::Path>) -> Vec<ToolConfig> {
+    let mut configs = load_builtin_tool_configs();
+    if let Some(dir) = user_dir {
+        for user_config in load_user_tool_configs(dir) {
+            match configs
+                .iter()
+                .position(|c| c.tool_name == user_config.tool_name)
+            {
+                Some(pos) => configs[pos] = user_config,
+                None => configs.push(user_config),
+            }
+        }
     }
+    configs
+}
 
-    // Load Gemini config
-    if let Ok(config) = serde_json::from_str::<ToolConfig>(include_str!("tools/gemini.json")) {
-        configs.push(config);
-    } else {
-        tracing::warn!("Failed to parse gemini.json tool config");
+fn load_builtin_tool_configs() -> Vec<ToolConfig> {
+    BUILTIN_TOOL_CONFIGS
+        .iter()
+        .filter_map(|(name, json)| match serde_json::from_str(json) {
+            Ok(config) => Some(config),
+            Err(e) => {
+                tracing::warn!(tool = name, error = %e, "Failed to parse builtin tool config");
+                None
+            }
+        })
+        .collect()
+}
+
+/// Read `*.json` tool configs from a user directory, sorted by filename so
+/// duplicate `tool_name`s resolve deterministically (last wins). Malformed or
+/// unreadable files are skipped with a warning.
+///
+/// Only the user-global config dir is ever scanned — never repo-local paths:
+/// `command_template` is arbitrary shell executed at launch, so loading tool
+/// configs from a checked-out repository would be a supply-chain hazard.
+fn load_user_tool_configs(dir: &std::path::Path) -> Vec<ToolConfig> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<_> = entries
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|ext| ext == TOOL_CONFIG_EXT))
+        .collect();
+    paths.sort();
+
+    let mut configs: Vec<ToolConfig> = Vec::new();
+    for path in paths {
+        let contents = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(path = %path.display(), error = %e, "Failed to read user tool config");
+                continue;
+            }
+        };
+        match serde_json::from_str::<ToolConfig>(&contents) {
+            Ok(config) => {
+                if let Some(pos) = configs.iter().position(|c| c.tool_name == config.tool_name) {
+                    tracing::warn!(
+                        path = %path.display(),
+                        tool = %config.tool_name,
+                        "Duplicate tool_name in user tool configs; later file wins"
+                    );
+                    configs[pos] = config;
+                } else {
+                    configs.push(config);
+                }
+            }
+            Err(e) => {
+                tracing::warn!(path = %path.display(), error = %e, "Failed to parse user tool config; skipping");
+            }
+        }
     }
-
-    // Load Codex config
-    if let Ok(config) = serde_json::from_str::<ToolConfig>(include_str!("tools/codex.json")) {
-        configs.push(config);
-    } else {
-        tracing::warn!("Failed to parse codex.json tool config");
-    }
-
     configs
 }
 
@@ -154,15 +259,123 @@ pub fn load_all_tool_configs() -> Vec<ToolConfig> {
 mod tests {
     use super::*;
 
+    fn tool_json(tool_name: &str, display_name: &str) -> String {
+        format!(
+            r#"{{
+                "tool_name": "{tool_name}",
+                "display_name": "{display_name}",
+                "version_command": "{tool_name} --version",
+                "capabilities": {{ "supports_sessions": false, "supports_headless": true }},
+                "model_aliases": ["default"],
+                "arg_mapping": {{ "prompt": "", "model": "" }},
+                "command_template": "{tool_name} \"$(cat {{{{prompt_file}}}})\""
+            }}"#
+        )
+    }
+
     #[test]
     fn test_load_all_tool_configs() {
-        let configs = load_all_tool_configs();
+        let configs = load_all_tool_configs_with(None);
         assert_eq!(configs.len(), 3);
 
         let names: Vec<_> = configs.iter().map(|c| c.tool_name.as_str()).collect();
         assert!(names.contains(&"claude"));
         assert!(names.contains(&"gemini"));
         assert!(names.contains(&"codex"));
+    }
+
+    #[test]
+    fn test_user_dir_adds_new_tool() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(dir.path().join("agy.json"), tool_json("agy", "Agy")).unwrap();
+
+        let configs = load_all_tool_configs_with(Some(dir.path()));
+        assert_eq!(configs.len(), 4);
+        let agy = configs.iter().find(|c| c.tool_name == "agy").unwrap();
+        assert_eq!(agy.display_name(), "Agy");
+    }
+
+    #[test]
+    fn test_user_config_replaces_builtin_by_tool_name() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            dir.path().join("claude.json"),
+            tool_json("claude", "My Claude"),
+        )
+        .unwrap();
+
+        let configs = load_all_tool_configs_with(Some(dir.path()));
+        assert_eq!(configs.len(), 3);
+        let claude = configs.iter().find(|c| c.tool_name == "claude").unwrap();
+        // Full replacement: user's file wins entirely, not a field merge
+        assert_eq!(claude.display_name(), "My Claude");
+        assert!(claude.min_version.is_none());
+    }
+
+    #[test]
+    fn test_malformed_user_config_skipped() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(dir.path().join("broken.json"), "{ not json").unwrap();
+        std::fs::write(dir.path().join("agy.json"), tool_json("agy", "Agy")).unwrap();
+
+        let configs = load_all_tool_configs_with(Some(dir.path()));
+        assert_eq!(configs.len(), 4);
+        assert!(configs.iter().any(|c| c.tool_name == "agy"));
+    }
+
+    #[test]
+    fn test_missing_user_dir_ok() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let missing = dir.path().join("does-not-exist");
+        let configs = load_all_tool_configs_with(Some(&missing));
+        assert_eq!(configs.len(), 3);
+    }
+
+    #[test]
+    fn test_non_json_files_ignored() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(dir.path().join("README.md"), "# tools").unwrap();
+
+        let configs = load_all_tool_configs_with(Some(dir.path()));
+        assert_eq!(configs.len(), 3);
+    }
+
+    #[test]
+    fn test_detection_defaults_to_which() {
+        let configs = load_all_tool_configs();
+        let claude = configs.iter().find(|c| c.tool_name == "claude").unwrap();
+        assert!(claude.detection.is_none());
+        assert_eq!(claude.detection_mode(), DetectionMode::Which);
+    }
+
+    #[test]
+    fn test_detection_mode_always_parses() {
+        let json = r#"{
+            "tool_name": "agy",
+            "version_command": "agy --version",
+            "capabilities": { "supports_sessions": false, "supports_headless": true },
+            "model_aliases": ["default"],
+            "arg_mapping": { "prompt": "", "model": "" },
+            "command_template": "agy \"$(cat {{prompt_file}})\"",
+            "detection": { "mode": "always", "health_command": "agy ping" }
+        }"#;
+        let config: ToolConfig = serde_json::from_str(json).expect("detection config parses");
+        assert_eq!(config.detection_mode(), DetectionMode::Always);
+        let detection = config.detection.unwrap();
+        assert_eq!(detection.health_command.as_deref(), Some("agy ping"));
+
+        let json_no_health = r#"{
+            "tool_name": "agy",
+            "version_command": "agy --version",
+            "capabilities": { "supports_sessions": false, "supports_headless": true },
+            "model_aliases": ["default"],
+            "arg_mapping": { "prompt": "", "model": "" },
+            "command_template": "agy \"$(cat {{prompt_file}})\"",
+            "detection": { "mode": "always" }
+        }"#;
+        let config: ToolConfig = serde_json::from_str(json_no_health).unwrap();
+        assert_eq!(config.detection_mode(), DetectionMode::Always);
+        assert!(config.detection.unwrap().health_command.is_none());
     }
 
     #[test]

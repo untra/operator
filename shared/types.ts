@@ -296,6 +296,10 @@ model_servers: Array<ModelServer>,
  */
 hosts: Array<RemoteHost>, 
 /**
+ * Named execution targets (docker/coder/ssh/local) referenced by `DelegatorLaunchConfig.target`.
+ */
+targets: Array<TargetDef>, 
+/**
  * Relay MCP injection configuration
  */
 relay: RelayConfig, 
@@ -488,7 +492,11 @@ capabilities: ToolCapabilities,
 /**
  * CLI flags for YOLO (auto-accept) mode
  */
-yolo_flags: Array<string>, };
+yolo_flags: Array<string>, 
+/**
+ * Whether the tool passed its health check at detection on startup
+ */
+health_ok: boolean, };
 
 export type ToolCapabilities = { 
 /**
@@ -636,7 +644,8 @@ use_worktrees: boolean | null,
  */
 create_branch: boolean | null, 
 /**
- * Run in docker container (None = use global `launch.docker.enabled`)
+ * DEPRECATED: prefer `target`. Run in docker container
+ * (None = fall back to `launch.docker.enabled`, then local).
  */
 docker: boolean | null, 
 /**
@@ -652,10 +661,16 @@ prompt_suffix: string | null,
  */
 operator_relay: boolean | null, 
 /**
- * Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent
- * CLI on over SSH. `None` = launch locally.
+ * DEPRECATED: prefer `target`. Name of a declared `RemoteHost` (from
+ * `Config.hosts`) to launch the agent CLI on over SSH. `None` = local.
  */
-host?: string | null, };
+host?: string | null, 
+/**
+ * Name of an execution target: an explicit `[[targets]]` entry, the
+ * synthesized `local`/`docker` targets, or a `[[hosts]]` name.
+ * Supersedes `docker` and `host`.
+ */
+target?: string | null, };
 
 export type AgentProfile = { 
 /**
@@ -848,19 +863,19 @@ step_started_at: string | null,
  */
 last_content_change: string | null, 
 /**
- * PR URL if created during "pr" step
+ * PR/MR URL if created during the "pr" step
  */
 pr_url: string | null, 
 /**
- * PR number for GitHub API tracking
+ * Code review request (PR/MR) number
  */
 pr_number: bigint | null, 
 /**
- * GitHub repo in format "owner/repo"
+ * Repository in "owner/repo" format on the configured git provider
  */
-github_repo: string | null, 
+repo: string | null, 
 /**
- * Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed")
+ * Last known PR/MR status ("open", "approved", "`changes_requested`", "merged", "closed")
  */
 pr_status: string | null, 
 /**
@@ -876,7 +891,8 @@ llm_tool: string | null,
  */
 llm_model: string | null, 
 /**
- * Launch mode: "default", "yolo", "docker", "docker-yolo"
+ * Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`
+ * (derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match)
  */
 launch_mode: string | null, 
 /**
@@ -895,7 +911,15 @@ worktree_path: string | null,
 /**
  * Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local)
  */
-remote_host: string | null, };
+remote_host: string | null, 
+/**
+ * Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model.
+ */
+step_launch_context: StepLaunchContext | null, 
+/**
+ * Name of the resolved execution target this agent launched on
+ */
+target_name: string | null, };
 
 export type CompletedTicket = { ticket_id: string, ticket_type: string, project: string, summary: string, completed_at: string, pr_url: string | null, output_tickets: Array<string>, };
 
@@ -925,19 +949,19 @@ export type CreateFieldRequest = { name: string, description: string, field_type
 
 export type StepResponse = { name: string, display_name: string | null, prompt: string, outputs: Array<string>, allowed_tools: Array<string>, 
 /**
- * Type of review required: "none", "plan", "visual", "pr"
+ * Type of review required: "none", "plan", "visual", "pr", "proof"
  */
 review_type: string, next_step: string | null, permission_mode: string, };
 
 export type CreateStepRequest = { name: string, display_name: string | null, prompt: string, outputs: Array<string>, allowed_tools: Array<string>, 
 /**
- * Type of review required: "none", "plan", "visual", "pr"
+ * Type of review required: "none", "plan", "visual", "pr", "proof"
  */
 review_type: string, next_step: string | null, permission_mode: string, };
 
 export type UpdateStepRequest = { display_name: string | null, prompt: string | null, outputs: Array<string> | null, allowed_tools: Array<string> | null, 
 /**
- * Type of review required: "none", "plan", "visual", "pr"
+ * Type of review required: "none", "plan", "visual", "pr", "proof"
  */
 review_type: string | null, next_step: string | null, permission_mode: string | null, };
 
@@ -1374,9 +1398,15 @@ prompt_suffix?: string | null,
  */
 operator_relay?: boolean | null, 
 /**
- * Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local)
+ * Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local).
+ * DEPRECATED: prefer `target`.
  */
-host?: string | null, };
+host?: string | null, 
+/**
+ * Name of an execution target (explicit `[[targets]]` entry, synthesized
+ * `local`/`docker`, or a `[[hosts]]` name). Supersedes `docker`/`host`.
+ */
+target?: string | null, };
 
 export type LlmTask = { 
 /**
@@ -1662,7 +1692,11 @@ yoloMode: boolean,
 /**
  * Resume from existing session (uses `session_id` from ticket)
  */
-resumeSession: boolean, };
+resumeSession: boolean, 
+/**
+ * Execution-target override by name (None = delegator/default resolution)
+ */
+target?: string, };
 
 export type VsCodeTicketMetadata = { 
 /**

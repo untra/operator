@@ -28,7 +28,8 @@ use_worktrees: boolean | null,
  */
 create_branch: boolean | null, 
 /**
- * Run in docker container (None = use global `launch.docker.enabled`)
+ * DEPRECATED: prefer `target`. Run in docker container
+ * (None = fall back to `launch.docker.enabled`, then local).
  */
 docker: boolean | null, 
 /**
@@ -44,7 +45,13 @@ prompt_suffix: string | null,
  */
 operator_relay: boolean | null, 
 /**
- * Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent
- * CLI on over SSH. `None` = launch locally.
+ * DEPRECATED: prefer `target`. Name of a declared `RemoteHost` (from
+ * `Config.hosts`) to launch the agent CLI on over SSH. `None` = local.
  */
-host?: string | null, };
+host?: string | null, 
+/**
+ * Name of an execution target: an explicit `[[targets]]` entry, the
+ * synthesized `local`/`docker` targets, or a `[[hosts]]` name.
+ * Supersedes `docker` and `host`.
+ */
+target?: string | null, };

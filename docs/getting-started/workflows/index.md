@@ -4,8 +4,6 @@ description: "Export an Operator workflow into a format another LLM tool or mode
 layout: doc
 ---
 
-# Workflow Export Formats
-
 Operator is a kanban-shaped orchestrator: each **ticket** carries the work, and
 its **issue type** carries an **Operator workflow** — an ordered graph of steps
 (tasks, classifiers, delegators, fan-outs, pipelines, human review gates). That
@@ -25,8 +23,8 @@ same input always produces the same output.
 
 | Format | Artifact | Status | Docs |
 |---|---|---|---|
-| Claude Workflow | `.js` (Claude Code dynamic workflow) | GA | [Claude Workflow](./claude/) |
-| AGNT Workflow | `.json` (AGNT.gg graph) | Alpha | [AGNT Workflow](./agnt/) |
+| Claude Workflow | `.js` (Claude Code dynamic workflow) | GA | [Claude Workflow](/getting-started/workflows/claude/) |
+| AGNT Workflow | `.json` (AGNT.gg graph) | Alpha | [AGNT Workflow](/getting-started/workflows/agnt/) |
 
 The authoritative, machine-readable list is the
 [`GET /api/v1/workflow-formats`](https://operator.untra.io/schemas/openapi.json)

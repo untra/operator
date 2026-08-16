@@ -306,6 +306,7 @@ mod tests {
             allowed_tools: vec![],
             review_type: ReviewType::None,
             visual_config: None,
+            proof_config: None,
             on_reject: None,
             next_step: None,
             permissions: None,

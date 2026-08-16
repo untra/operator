@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM src/main.rs, src/env_vars.rs - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# CLI Reference
-
 Operator provides both a TUI dashboard and CLI commands for queue management.
 
 ## Global Options
@@ -40,7 +38,7 @@ Launch agent for next available ticket
 | `<TICKET>` | Specific ticket to launch (optional) |
 | `-y, --yes` | Skip confirmation prompt |
 | `--delegator` | Use a named delegator from config (mutually exclusive with --llm-tool/--model/--model-server) |
-| `--llm-tool` | LLM tool override: claude, codex, gemini |
+| `--llm-tool` | LLM tool override (e.g., claude, codex, gemini, or configured tool) |
 | `--model` | Model override (e.g., opus, gpt-4o, qwen2.5-coder) |
 | `--model-server` | Named model server reference (e.g., ollama-local) — overrides the delegator's default. Pairs with --llm-tool/--model for ad-hoc ollama-backed launches. v1 accepts the flag and validates the name; env-var injection on spawn ships in v2 |
 
@@ -140,7 +138,7 @@ Initialize operator workspace (non-interactive by default)
 | `-f, --force` | Overwrite existing files |
 | `-w, --working-dir` | Working directory (parent of .tickets/) |
 | `-k, --kanban-provider` | Kanban provider to configure: jira, linear |
-| `-l, --llm-tool` | Preferred LLM tool: claude, codex, gemini |
+| `-l, --llm-tool` | Preferred LLM tool (e.g., claude, codex, gemini, or any configured tool) |
 | `--skip-llm-detection` | Skip LLM tool detection |
 
 ### `workflow`

@@ -4,15 +4,12 @@ description: "Run Operator from an official multi-arch Docker image, mounting yo
 layout: doc
 ---
 
-# Docker
-
 <span class="badge supported">Supported</span>
 
-Run [Operator](https://operator.untra.io) from an official multi-arch container image. The image bundles the Operator binary (with the embedded web dashboard and REST API) on a slim Debian base, plus the `git` and `tmux` substrate Operator needs to launch agents. Mount your projects root into the container and Operator treats it as the workspace.
+Run [Operator](https://operator.untra.io) from an official multi-arch container image. The image bundles the Operator binary (with the embedded web dashboard and REST API) and the `opr8r` client on a slim Debian base, plus the `git` and `tmux` substrate Operator needs to launch agents. Mount your projects root into the container and Operator treats it as the workspace.
 
 **Image:** [`untra/operator`](https://hub.docker.com/r/untra/operator) — `linux/amd64` and `linux/arm64`.
 
-> **Not to be confused with** the `[docker]` config section, which makes Operator launch each *agent* inside a container. This page is about distributing *Operator itself* as a container image. The two are orthogonal.
 
 ## Usage
 
@@ -56,6 +53,7 @@ docker run --rm -v $(pwd):/op:rw -it untra/operator:{{ site.version }}
 | Included | Purpose |
 |----------|---------|
 | `operator` binary | The CLI/TUI/REST API, with the web dashboard embedded |
+| `opr8r` binary | Client agent sessions call to report step completion for multi-step workflows |
 | `git` | Branch and commit operations for ticket work |
 | `tmux` | Default session wrapper Operator uses to spawn agent sessions |
 | `ca-certificates` | TLS for LLM, kanban, and git provider APIs |

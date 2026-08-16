@@ -2,6 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::types::pr::GitProvider;
+
 // ─── Git Provider Configuration ────────────────────────────────────────────
 
 /// Git provider configuration for PR/MR operations
@@ -14,7 +16,7 @@ pub struct GitConfig {
     /// GitHub-specific configuration
     #[serde(default)]
     pub github: GitHubConfig,
-    /// GitLab-specific configuration (planned)
+    /// GitLab-specific configuration
     #[serde(default)]
     pub gitlab: GitLabConfig,
     /// Branch naming format (e.g., "{type}/{ticket_id}-{slug}")
@@ -55,6 +57,23 @@ pub enum GitProviderConfig {
     Bitbucket,
     /// Azure DevOps (dev.azure.com)
     AzureDevOps,
+    /// Forgejo (e.g. codeberg.org or self-hosted)
+    Forgejo,
+    /// Gitea (gitea.com or self-hosted)
+    Gitea,
+}
+
+impl From<GitProviderConfig> for GitProvider {
+    fn from(config: GitProviderConfig) -> Self {
+        match config {
+            GitProviderConfig::GitHub => GitProvider::GitHub,
+            GitProviderConfig::GitLab => GitProvider::GitLab,
+            GitProviderConfig::Bitbucket => GitProvider::Bitbucket,
+            GitProviderConfig::AzureDevOps => GitProvider::AzureDevOps,
+            GitProviderConfig::Forgejo => GitProvider::Forgejo,
+            GitProviderConfig::Gitea => GitProvider::Gitea,
+        }
+    }
 }
 
 /// GitHub-specific configuration
@@ -77,7 +96,7 @@ fn default_github_token_env() -> String {
     "GITHUB_TOKEN".to_string()
 }
 
-/// GitLab-specific configuration (planned)
+/// GitLab-specific configuration
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, Default)]
 #[ts(export)]
 pub struct GitLabConfig {
@@ -94,4 +113,37 @@ pub struct GitLabConfig {
 
 fn default_gitlab_token_env() -> String {
     "GITLAB_TOKEN".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_git_provider_config_into_git_provider() {
+        assert_eq!(
+            GitProvider::from(GitProviderConfig::GitHub),
+            GitProvider::GitHub
+        );
+        assert_eq!(
+            GitProvider::from(GitProviderConfig::GitLab),
+            GitProvider::GitLab
+        );
+        assert_eq!(
+            GitProvider::from(GitProviderConfig::Bitbucket),
+            GitProvider::Bitbucket
+        );
+        assert_eq!(
+            GitProvider::from(GitProviderConfig::AzureDevOps),
+            GitProvider::AzureDevOps
+        );
+        assert_eq!(
+            GitProvider::from(GitProviderConfig::Forgejo),
+            GitProvider::Forgejo
+        );
+        assert_eq!(
+            GitProvider::from(GitProviderConfig::Gitea),
+            GitProvider::Gitea
+        );
+    }
 }

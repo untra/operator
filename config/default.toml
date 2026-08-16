@@ -167,6 +167,18 @@ connect_timeout_ms = 5000
 # tmux, the agent CLI on PATH, credentials in its own environment, and the
 # project checked out at `workdir`.
 #
+# Named execution targets: where launched agents run. Referenced from
+# [delegators.launch_config] target = "<name>".
+# [[targets]]
+# name  = "sandbox"
+# kind  = "docker"
+# image = "untra/operator:latest"
+#
+# [[targets]]
+# name     = "cloud"
+# kind     = "coder"
+# template = "operator-agent"
+
 # [[hosts]]
 # name = "gpu-vm"
 # ssh_alias = "gpu-vm"

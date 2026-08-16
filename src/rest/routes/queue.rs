@@ -31,6 +31,7 @@ fn ticket_to_card(ticket: &Ticket) -> KanbanTicketCard {
         step_display_name: ticket.current_step_display_name().into(),
         priority: ticket.priority.clone(),
         timestamp: ticket.timestamp.clone(),
+        filename: ticket.filename.clone(),
     }
 }
 

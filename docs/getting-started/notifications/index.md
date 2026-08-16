@@ -4,8 +4,6 @@ description: "Notification providers for Operator events."
 layout: doc
 ---
 
-# Supported Notification Integrations
-
 Operator can notify you when important events occur, such as agent completion, failures, or tickets awaiting review.
 
 ## Available Integrations

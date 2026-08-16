@@ -12,6 +12,8 @@ pub mod cli_detection;
 pub mod error;
 pub mod gh_cli;
 pub mod github_service;
+pub mod gitlab_service;
+pub mod glab_cli;
 pub mod kanban_sync;
 pub mod pr_service;
 pub mod providers;
@@ -30,6 +32,8 @@ pub use anthropic::AnthropicClient;
 pub use gh_cli::GhCli;
 pub use github::GitHubClient;
 pub use github_service::GitHubService;
+pub use gitlab_service::GitLabService;
+pub use glab_cli::GlabCli;
 pub use pr_service::PrService;
 
 use std::collections::HashMap;

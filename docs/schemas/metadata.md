@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM src/schemas/ticket_metadata.schema.json - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Ticket Metadata Schema
-
 Schema for operator-tracked ticket metadata in YAML frontmatter. This schema documents the structure of ticket files used by the operator TUI.
 
 ## Schema Information

@@ -4,8 +4,6 @@ description: "Connect Anthropic as a first-party model provider and list its mod
 layout: doc
 ---
 
-# Anthropic
-
 [**Anthropic**](https://www.anthropic.com/) is a first-party model provider — it
 produces the Claude family of models and serves them from its own API. It is the
 zero-config default for the `claude` llm tool, and a first-class

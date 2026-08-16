@@ -3,4 +3,4 @@
 /**
  * Supported Git hosting providers
  */
-export type GitProvider = "github" | "gitlab" | "bitbucket" | "azuredevops";
+export type GitProvider = "github" | "gitlab" | "bitbucket" | "azuredevops" | "forgejo" | "gitea";

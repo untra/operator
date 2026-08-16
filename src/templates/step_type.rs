@@ -481,6 +481,7 @@ mod tests {
             prompt: "Test prompt".to_string(),
             review_type: ReviewType::None,
             visual_config: None,
+            proof_config: None,
             on_reject: None,
             next_step: None,
             allowed_tools: vec!["Read".to_string()],

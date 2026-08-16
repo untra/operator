@@ -69,6 +69,7 @@ fn test_config_hosts_roundtrip() {
         ssh_alias: "gpu-vm-alias".to_string(),
         workdir: "/srv/agents".to_string(),
         display_name: None,
+        ssh_config_path: None,
     });
     let json = serde_json::to_string(&config).unwrap();
     let parsed: Config = serde_json::from_str(&json).unwrap();

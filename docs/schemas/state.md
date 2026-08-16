@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM docs/schemas/state.json - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Application State Schema
-
 JSON Schema for the Operator runtime state file (`state.json`).
 
 This file tracks the current state of agents, completed tickets, and system status.
@@ -58,18 +56,39 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `current_step` | `string` \| `null` | No | Current step in the ticket workflow (e.g., "plan", "implement", "test") |
 | `step_started_at` | `string` \| `null` | No | When the current step started (for timeout detection) |
 | `last_content_change` | `string` \| `null` | No | Last time content changed in the session (for hung detection) |
-| `pr_url` | `string` \| `null` | No | PR URL if created during "pr" step |
-| `pr_number` | `integer` \| `null` | No | PR number for GitHub API tracking |
-| `github_repo` | `string` \| `null` | No | GitHub repo in format "owner/repo" |
-| `pr_status` | `string` \| `null` | No | Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed") |
+| `pr_url` | `string` \| `null` | No | PR/MR URL if created during the "pr" step |
+| `pr_number` | `integer` \| `null` | No | Code review request (PR/MR) number |
+| `repo` | `string` \| `null` | No | Repository in "owner/repo" format on the configured git provider |
+| `pr_status` | `string` \| `null` | No | Last known PR/MR status ("open", "approved", "`changes_requested`", "merged", "closed") |
 | `completed_steps` | `array` | No | Completed steps for this ticket |
 | `llm_tool` | `string` \| `null` | No | LLM tool used (e.g., "claude", "gemini", "codex") |
 | `llm_model` | `string` \| `null` | No | LLM model alias (e.g., "opus", "sonnet", "gpt-4o") |
-| `launch_mode` | `string` \| `null` | No | Launch mode: "default", "yolo", "docker", "docker-yolo" |
+| `launch_mode` | `string` \| `null` | No | Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]` (derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match) |
 | `review_state` | `string` \| `null` | No | Review state for `awaiting_input` agents Values: "`pending_plan`", "`pending_visual`", "`pending_pr_creation`", "`pending_pr_merge`" |
 | `dev_server_pid` | `integer` \| `null` | No | Server process ID for visual review cleanup (if applicable) |
 | `worktree_path` | `string` \| `null` | No | Path to the git worktree for this ticket (per-ticket isolation) |
 | `remote_host` | `string` \| `null` | No | Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local) |
+| `step_launch_context` | object | No | Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model. |
+| `target_name` | `string` \| `null` | No | Name of the resolved execution target this agent launched on |
+
+### StepLaunchContext
+
+Launch context fixed at launch time, persisted with the agent record, and
+read back by `complete_step` to build subsequent step commands.
+
+The persisted context is the baseline for a ticket's whole chain; per-step
+`agent` overrides from the step schema apply on top for that step only.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `delegator` | `string` \| `null` | No | Delegator name used at launch (None = ad-hoc provider/model) |
+| `tool` | `string` | Yes | Resolved LLM tool (e.g. "claude") |
+| `model` | `string` | Yes | Resolved model alias (e.g. "sonnet") |
+| `yolo` | `boolean` | Yes | YOLO (auto-accept) mode |
+| `session_id` | `string` \| `null` | No | Session UUID of the step launched with this context (informational; each transition mints a fresh UUID for the next step) |
+| `opr8r` | `string` | Yes | opr8r invocation for the launch environment ("opr8r" inside a container where the image ships it on PATH, an absolute path locally). Steps exec inside the same environment, so the value holds chain-wide. |
+| `operator_relay` | `boolean` \| `null` | No | Relay MCP injection override from the delegator launch config |
+| `extra_flags` | `array` | No | Extra CLI flags from the delegator launch config |
 
 ### CompletedTicket
 

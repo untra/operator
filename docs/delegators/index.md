@@ -70,11 +70,84 @@ prompt_suffix    = "\n\nBe concise."
 | `flags` | `[]` | Extra CLI flags appended to the launch command |
 | `use_worktrees` | inherit | Override global `git.use_worktrees` for this delegator |
 | `create_branch` | inherit | Whether to create a git branch per ticket |
-| `docker` | inherit | Run agent in a Docker container |
+| `target` | none | Name of an execution target, such as a remote host, `docker` container or `coder` workspace |
 | `prompt_prefix` | none | Text prepended before the generated ticket prompt |
 | `prompt_suffix` | none | Text appended after the generated ticket prompt |
 
 `inherit` means the global config value is used.
+
+## Execution targets
+
+*Where does the agent process run?* One `[[targets]]` registry answers it for
+every launch path (TUI, web, VS Code, REST). A delegator references a target
+by name, exactly like `model_server`:
+
+```toml
+[[targets]]
+name  = "sandbox"
+kind  = "docker"
+image = "untra/operator:latest"
+
+[[targets]]
+name     = "cloud"
+kind     = "coder"
+template = "operator-agent"      # child workspaces come from this template
+
+[[targets]]
+name      = "gpu-vm"
+kind      = "ssh"
+ssh_alias = "gpu-vm"             # resolved via ~/.ssh/config
+workdir   = "/home/me/proj"
+
+[[delegators]]
+name   = "heavy"
+llm_tool = "claude"
+model  = "opus"
+[delegators.launch_config]
+target = "cloud"
+```
+
+**Resolution precedence** (first match wins):
+
+1. `target` name — explicit `[[targets]]` entry, the synthesized
+   `local`/`docker` targets, or a `[[hosts]]` name. Unknown names are a hard
+   error, never a silent fallback to local.
+2. `host` name (deprecated) — the `[[hosts]]` entry of that name
+3. `docker = true` (deprecated) — the synthesized docker target
+4. `docker = false` — local
+5. `launch.docker.enabled = true` — the synthesized docker target.
+   **Behavior change:** this was previously only a TUI dialog gate; it is now
+   a real fallback, so REST/CLI/auto launches with it set run in docker.
+6. otherwise — local
+
+Legacy inputs are synthesized rather than special-cased: `[launch.docker]`
+becomes a target named `docker`, and every `[[hosts]]` entry becomes an ssh
+target of the same name. Setting both `docker` and `host` now resolves
+deterministically to the host (with a deprecation warning) instead of
+erroring.
+
+### Coder targets
+
+A coder target's execution shape is an SSH target with a dynamically
+provisioned alias: Operator creates (or restarts) a per-ticket workspace from
+`template`, writes an SSH config fragment (`ProxyCommand coder ssh --stdio <workspace>`), prepares the git checkout, and launches over the shared SSH remote path. Workspaces are stopped on completion and **never deleted** — reclamation belongs to the Coder admin's
+autostop policy.
+
+Credentials are held **by name**: `url_env` / `token_env` name environment
+variables, and the token variable is stripped from every agent's spawn
+environment on all target kinds. **Blast radius:** a Coder session token can
+create, delete, and SSH into every workspace its user owns — scope accordingly.
+
+Known limitation: prompt files are written on the operator side, so a coder
+target currently requires the workspace to reach them (e.g. Operator itself
+running inside a Coder workspace via the
+[coder module](/getting-started/platforms/coder/)); `callback_url` keeps
+multi-step chains reporting when the SSH tunnel drops.
+
+Remote constraints for ssh and coder targets: worktrees and relay MCP
+injection are forced off, and the zellij session wrapper is unsupported. See
+[Remote Hosts (SSH)](/getting-started/sessions/remote-hosts/) for the
+underlying mechanics.
 
 ### Relay MCP injection
 
@@ -151,7 +224,7 @@ id       = "a1b2c3d4-…"            # AGNT agent UUID, or an OpenAI asst_… id
 Remote agents are **export-only**: Operator has no runtime client for those platforms, so a
 delegator carrying a `remote_agent` cannot be launched locally — resolution returns a
 `RemoteOnlyDelegator` error on every launch path. When the platform is `agnt`, the reference is
-surfaced in the [`--format agnt` workflow export](/docs/) as a native AGNT `agnt-agent` node; other platforms
+surfaced in the [`--format agnt` workflow export](/getting-started/workflows/agnt/) as a native AGNT `agnt-agent` node; other platforms
 ride opaquely in the profile.
 
 > **Caveat:** a non-AGNT remote delegator (e.g. `platform = "openai"`) used as a step agent in an
@@ -179,10 +252,10 @@ The running Operator API exposes full CRUD for delegators, plus agent-profile in
 | `PUT` | `/api/v1/delegators/{name}` | Update a delegator |
 | `DELETE` | `/api/v1/delegators/{name}` | Delete a delegator |
 
-See the [OpenAPI reference](/docs/schemas/openapi.json) for request/response shapes.
+See the [OpenAPI reference](/schemas/openapi.json) for request/response shapes.
 
 ## See also
 
-- [Configuration reference](/docs/configuration/) — full `operator.toml` schema
-- [LLM Tools](/docs/llm-tools/) — which tools Operator can detect and launch
-- [Schema reference](/docs/schemas/config/) — type definitions for `Delegator` and `DelegatorLaunchConfig`
+- [Configuration reference](/configuration/) — full `operator.toml` schema
+- [LLM Tools](/llm-tools/) — which tools Operator can detect and launch
+- [Schema reference](/schemas/config/) — type definitions for `Delegator` and `DelegatorLaunchConfig`

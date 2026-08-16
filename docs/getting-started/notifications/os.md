@@ -4,8 +4,6 @@ description: "Configure native OS notifications for Operator events."
 layout: doc
 ---
 
-# Operating System Notifications
-
 Display native system notifications when Operator events occur.
 
 ## Platform Support

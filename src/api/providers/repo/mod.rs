@@ -3,6 +3,10 @@
 //! Repository Provider trait and implementations
 //!
 //! Supports GitHub, GitLab, and Azure Repos for PR/issue status tracking.
+//!
+//! Legacy/experimental: this is a separate REST-polling stack, not part of
+//! the `PrService` provider contract (see `crate::api::pr_service`). Slated
+//! for consolidation into `PrService`.
 
 mod github;
 

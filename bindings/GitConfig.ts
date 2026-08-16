@@ -16,7 +16,7 @@ provider: GitProviderConfig | null,
  */
 github: GitHubConfig, 
 /**
- * GitLab-specific configuration (planned)
+ * GitLab-specific configuration
  */
 gitlab: GitLabConfig, 
 /**

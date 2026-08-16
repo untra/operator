@@ -35,12 +35,47 @@ pub fn build_llm_command_with_permissions_for_tool(
     project_path: Option<&str>,
     operator_relay: Option<bool>,
 ) -> Result<String> {
+    build_llm_command_impl(
+        config,
+        tool_name,
+        model,
+        session_id,
+        prompt_file,
+        ticket,
+        project_path,
+        operator_relay,
+        &crate::llm::verify_tool_health,
+    )
+}
+
+/// Injectable-verifier variant so tests don't depend on what is installed locally.
+#[allow(clippy::too_many_arguments)]
+fn build_llm_command_impl(
+    config: &Config,
+    tool_name: &str,
+    model: &str,
+    session_id: &str,
+    prompt_file: &std::path::Path,
+    ticket: Option<&Ticket>,
+    project_path: Option<&str>,
+    operator_relay: Option<bool>,
+    verify_health: &dyn Fn(&str) -> bool,
+) -> Result<String> {
     // Find the specified tool
     let tool = get_detected_tool(config, tool_name).ok_or_else(|| {
         anyhow::anyhow!(
             "LLM tool '{tool_name}' not detected. Install it or choose a different provider."
         )
     })?;
+
+    // A recorded pass is trusted; anything else is re-verified here rather than
+    // failing on a value the launching process never checked (only the TUI runs
+    // startup detection — `launch`, `api`, `mcp` and `acp` do not).
+    if !tool.health_ok && !verify_health(tool_name) {
+        anyhow::bail!(
+            "LLM tool '{tool_name}' is not launchable: its health check failed. Check the binary is installed and on PATH, or fix its detection.health_command."
+        );
+    }
 
     // Build model flag based on tool's arg_mapping
     let model_flag = format!("--model {model} ");
@@ -89,14 +124,78 @@ pub fn apply_yolo_flags(config: &Config, cmd: &str, tool_name: &str) -> String {
     cmd.to_string()
 }
 
-/// Build a docker command that wraps the LLM command
+/// Wrap an inner LLM command for a resolved execution target.
+///
+/// `Local` is the identity; `Docker` wraps in `docker run`. `Ssh` and `Coder`
+/// are NOT command wraps — they dispatch through the remote session launch
+/// path before the command pipeline, so reaching them here is a bug.
+pub fn wrap_for_target(
+    config: &Config,
+    inner_cmd: &str,
+    working_dir: &str,
+    target: &crate::config::TargetDef,
+    operator_env: Option<&std::collections::HashMap<String, String>>,
+) -> Result<String> {
+    wrap_for_target_impl(
+        config,
+        inner_cmd,
+        working_dir,
+        target,
+        operator_env,
+        is_containerized(),
+    )
+}
+
+fn wrap_for_target_impl(
+    config: &Config,
+    inner_cmd: &str,
+    working_dir: &str,
+    target: &crate::config::TargetDef,
+    operator_env: Option<&std::collections::HashMap<String, String>>,
+    containerized: bool,
+) -> Result<String> {
+    use crate::config::TargetKind;
+    match &target.kind {
+        TargetKind::Local => Ok(inner_cmd.to_string()),
+        TargetKind::Docker(docker_config) => {
+            if containerized {
+                anyhow::bail!(
+                    "Refusing docker target '{}' inside a container: when Operator runs \
+                     containerised, the container IS the sandbox. Use a local target, or a \
+                     coder/ssh target for brokered isolation.",
+                    target.name
+                );
+            }
+            build_docker_command(config, docker_config, inner_cmd, working_dir, operator_env)
+        }
+        TargetKind::Ssh(_) | TargetKind::Coder(_) => anyhow::bail!(
+            "internal error: target '{}' reached the command-wrap pipeline; \
+             remote targets dispatch via the session launch path",
+            target.name
+        ),
+    }
+}
+
+/// Whether Operator itself is running inside a container (docker/podman).
+fn is_containerized() -> bool {
+    std::path::Path::new("/.dockerenv").exists()
+        || std::path::Path::new("/run/.containerenv").exists()
+}
+
+/// Build a docker command that wraps the LLM command.
+///
+/// `docker_config` is the resolved target's payload (not necessarily the
+/// global `launch.docker`). Values are shell-escaped where they can contain
+/// hostile characters; `extra_args` are passed verbatim — users may embed
+/// their own quoting.
 pub fn build_docker_command(
     config: &Config,
+    docker_config: &crate::config::DockerConfig,
     inner_cmd: &str,
     project_path: &str,
     operator_env: Option<&std::collections::HashMap<String, String>>,
 ) -> Result<String> {
-    let docker_config = &config.launch.docker;
+    use super::prompt::{shell_escape, shell_escape_if_needed};
 
     if docker_config.image.is_empty() {
         anyhow::bail!(
@@ -111,37 +210,59 @@ pub fn build_docker_command(
         "--rm".to_string(),
         "-it".to_string(),
         "-v".to_string(),
-        format!("{}:{}:rw", project_path, docker_config.mount_path),
+        shell_escape_if_needed(&format!("{}:{}:rw", project_path, docker_config.mount_path)),
         "-w".to_string(),
-        docker_config.mount_path.clone(),
+        shell_escape_if_needed(&docker_config.mount_path),
     ];
+
+    // Mount the tickets tree at its host path so prompt files, per-session
+    // configs, and opr8r step payloads resolve inside the container.
+    let tickets_path = config.tickets_path().to_string_lossy().to_string();
+    docker_args.push("-v".to_string());
+    docker_args.push(shell_escape_if_needed(&format!(
+        "{tickets_path}:{tickets_path}:rw"
+    )));
 
     // Add environment variables
     for env_var in &docker_config.env_vars {
         docker_args.push("-e".to_string());
-        docker_args.push(env_var.clone());
+        docker_args.push(shell_escape_if_needed(env_var));
     }
 
-    // Add extra args from config
+    // Add extra args from config (verbatim; see docstring)
     for arg in &docker_config.extra_args {
         docker_args.push(arg.clone());
     }
+
+    // Route the containerised opr8r's completion POST to the host-side REST
+    // API. On Linux the gateway alias must be mapped explicitly — omitting it
+    // produces a silent stall, not an error. Injected before operator_env so
+    // an explicit caller value (e.g. a callback URL) wins (last -e wins).
+    #[cfg(target_os = "linux")]
+    docker_args.push("--add-host=host.docker.internal:host-gateway".to_string());
+    docker_args.push("-e".to_string());
+    docker_args.push(format!(
+        "OPERATOR_API_URL=http://host.docker.internal:{}",
+        config.rest_api.port
+    ));
 
     // Add operator environment variables (if provided)
     if let Some(env) = operator_env {
         for (key, value) in env {
             docker_args.push("-e".to_string());
-            docker_args.push(format!("{key}={value}"));
+            docker_args.push(shell_escape_if_needed(&format!("{key}={value}")));
         }
     }
 
     // Add the image
     docker_args.push(docker_config.image.clone());
 
-    // Add the inner command (use sh -c to handle complex commands)
+    // Add the inner command. Quoted as one argument to the container's shell —
+    // unquoted, every flag after the binary name would bind to $0/$1 and be
+    // silently dropped.
     docker_args.push("sh".to_string());
     docker_args.push("-c".to_string());
-    docker_args.push(inner_cmd.to_string());
+    docker_args.push(shell_escape(inner_cmd));
 
     Ok(docker_args.join(" "))
 }
@@ -471,6 +592,30 @@ fn relay_mcp_config_flag_with_command(
     write_mcp_server_config(session_dir, "relay", relay_entry)
 }
 
+/// Locate the opr8r binary itself — alongside the running operator binary
+/// first (primary: signed distribution), then on PATH. Used by the step
+/// wrapper. Distinct from `locate_relay_command`, which also accepts the
+/// legacy standalone relay binary.
+pub(crate) fn locate_opr8r_binary() -> Option<PathBuf> {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let candidate = parent.join("opr8r");
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+    if std::process::Command::new("which")
+        .arg("opr8r")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        return Some(PathBuf::from("opr8r"));
+    }
+    None
+}
+
 /// Locate the relay command, returning `(binary_path, extra_args)`.
 ///
 /// Discovery order:
@@ -574,6 +719,7 @@ mod tests {
                 supports_headless: true,
             },
             yolo_flags: vec!["--dangerously-skip-permissions".to_string()],
+            health_ok: true,
         }
     }
 
@@ -667,8 +813,13 @@ mod tests {
         config.launch.docker.image = "my-claude:latest".to_string();
         config.launch.docker.mount_path = "/workspace".to_string();
 
-        let result =
-            build_docker_command(&config, "claude --model sonnet", "/home/user/project", None);
+        let result = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude --model sonnet",
+            "/home/user/project",
+            None,
+        );
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
@@ -681,7 +832,13 @@ mod tests {
         config.launch.docker.image = "my-claude:latest".to_string();
         config.launch.docker.mount_path = "/workspace".to_string();
 
-        let result = build_docker_command(&config, "claude", "/home/user/project", None);
+        let result = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/home/user/project",
+            None,
+        );
 
         let cmd = result.unwrap();
         assert!(
@@ -696,7 +853,13 @@ mod tests {
         config.launch.docker.image = "my-claude:latest".to_string();
         config.launch.docker.mount_path = "/workspace".to_string();
 
-        let result = build_docker_command(&config, "claude", "/home/user/project", None);
+        let result = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/home/user/project",
+            None,
+        );
 
         let cmd = result.unwrap();
         assert!(
@@ -713,7 +876,13 @@ mod tests {
         config.launch.docker.env_vars =
             vec!["ANTHROPIC_API_KEY".to_string(), "HOME=/root".to_string()];
 
-        let result = build_docker_command(&config, "claude", "/project", None);
+        let result = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/project",
+            None,
+        );
 
         let cmd = result.unwrap();
         assert!(
@@ -727,6 +896,84 @@ mod tests {
     }
 
     #[test]
+    fn test_docker_command_injects_operator_api_url() {
+        let mut config = Config::default();
+        config.launch.docker.image = "my-claude:latest".to_string();
+        config.rest_api.port = 7008;
+
+        let cmd = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/project",
+            None,
+        )
+        .unwrap();
+
+        assert!(
+            cmd.contains("-e OPERATOR_API_URL=http://host.docker.internal:7008"),
+            "containerised opr8r must reach the host API via the gateway, got: {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_docker_command_adds_host_gateway_on_linux() {
+        let mut config = Config::default();
+        config.launch.docker.image = "my-claude:latest".to_string();
+
+        let cmd = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/project",
+            None,
+        )
+        .unwrap();
+
+        #[cfg(target_os = "linux")]
+        assert!(
+            cmd.contains("--add-host=host.docker.internal:host-gateway"),
+            "Linux docker needs the host gateway mapped explicitly, got: {cmd}"
+        );
+        #[cfg(not(target_os = "linux"))]
+        assert!(
+            !cmd.contains("--add-host=host.docker.internal"),
+            "host.docker.internal is native off Linux; no --add-host, got: {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_docker_command_caller_env_overrides_api_url() {
+        let mut config = Config::default();
+        config.launch.docker.image = "my-claude:latest".to_string();
+        let mut env = std::collections::HashMap::new();
+        env.insert(
+            "OPERATOR_API_URL".to_string(),
+            "http://callback.example:9999".to_string(),
+        );
+
+        let cmd = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/project",
+            Some(&env),
+        )
+        .unwrap();
+
+        let injected = cmd
+            .find("OPERATOR_API_URL=http://host.docker.internal")
+            .unwrap();
+        let caller = cmd
+            .find("OPERATOR_API_URL=http://callback.example:9999")
+            .unwrap();
+        assert!(
+            caller > injected,
+            "caller-supplied OPERATOR_API_URL must come later (docker: last -e wins): {cmd}"
+        );
+    }
+
+    #[test]
     fn test_build_docker_command_extra_args() {
         let mut config = Config::default();
         config.launch.docker.image = "my-claude:latest".to_string();
@@ -734,7 +981,13 @@ mod tests {
         config.launch.docker.extra_args =
             vec!["--network=host".to_string(), "--privileged".to_string()];
 
-        let result = build_docker_command(&config, "claude", "/project", None);
+        let result = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/project",
+            None,
+        );
 
         let cmd = result.unwrap();
         assert!(cmd.contains("--network=host"), "Should include extra arg 1");
@@ -745,7 +998,13 @@ mod tests {
     fn test_build_docker_command_no_image_errors() {
         let config = Config::default(); // image is empty by default
 
-        let result = build_docker_command(&config, "claude", "/project", None);
+        let result = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/project",
+            None,
+        );
 
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
@@ -761,12 +1020,120 @@ mod tests {
         config.launch.docker.image = "my-claude:latest".to_string();
         config.launch.docker.mount_path = "/workspace".to_string();
 
-        let result = build_docker_command(&config, "claude --model sonnet", "/project", None);
+        let result = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude --model sonnet",
+            "/project",
+            None,
+        );
 
         let cmd = result.unwrap();
         assert!(
-            cmd.contains("sh -c claude --model sonnet"),
-            "Should wrap inner command with sh -c, got: {cmd}"
+            cmd.contains("sh -c 'claude --model sonnet'"),
+            "inner command must be quoted as ONE sh -c argument — unquoted, every \
+             flag after the binary binds to $0/$1 and is silently dropped, got: {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_build_docker_command_flags_survive_quoting() {
+        let mut config = Config::default();
+        config.launch.docker.image = "img:1".to_string();
+        let inner = "opr8r --ticket-id=FEAT-1 -- claude --model sonnet \"$(cat /p/f.txt)\"";
+
+        let cmd =
+            build_docker_command(&config, &config.launch.docker.clone(), inner, "/proj", None)
+                .unwrap();
+
+        assert!(
+            cmd.ends_with(&format!("sh -c '{inner}'")),
+            "full inner command incl. flags and command substitution must survive as one \
+             argument, got: {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_build_docker_command_escapes_env_with_spaces() {
+        let mut config = Config::default();
+        config.launch.docker.image = "img:1".to_string();
+        let mut env = std::collections::HashMap::new();
+        env.insert("GREETING".to_string(), "hello world".to_string());
+
+        let cmd = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/proj",
+            Some(&env),
+        )
+        .unwrap();
+
+        assert!(
+            cmd.contains("-e 'GREETING=hello world'"),
+            "env values with spaces must be quoted, got: {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_build_docker_command_mounts_tickets_tree() {
+        let mut config = Config::default();
+        config.launch.docker.image = "img:1".to_string();
+
+        let cmd = build_docker_command(
+            &config,
+            &config.launch.docker.clone(),
+            "claude",
+            "/proj",
+            None,
+        )
+        .unwrap();
+
+        let tickets = config.tickets_path().to_string_lossy().to_string();
+        assert!(
+            cmd.contains(&format!("{tickets}:{tickets}:rw")),
+            "tickets tree must be mounted at its host path so prompts/configs/payloads \
+             resolve inside the container, got: {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_wrap_for_target_local_is_identity() {
+        let config = Config::default();
+        let target = crate::config::TargetDef::local();
+        let cmd =
+            wrap_for_target(&config, "claude --model sonnet", "/proj", &target, None).unwrap();
+        assert_eq!(cmd, "claude --model sonnet");
+    }
+
+    #[test]
+    fn test_wrap_for_target_ssh_is_internal_error() {
+        let config = Config::default();
+        let target = crate::config::TargetDef {
+            name: "gpu".to_string(),
+            display_name: None,
+            kind: crate::config::TargetKind::Ssh(crate::config::SshTarget {
+                ssh_alias: "gpu".to_string(),
+                workdir: "/p".to_string(),
+                ssh_config_path: None,
+            }),
+        };
+        let err = wrap_for_target(&config, "claude", "/proj", &target, None).unwrap_err();
+        assert!(err.to_string().contains("session launch path"), "{err}");
+    }
+
+    #[test]
+    fn test_wrap_for_target_docker_inside_container_errors() {
+        // DinD is an enforced non-goal: when Operator runs containerised, the
+        // container IS the sandbox.
+        let mut config = Config::default();
+        config.launch.docker.image = "img:1".to_string();
+        let target = crate::config::TargetDef::docker(config.launch.docker.clone());
+        let err =
+            wrap_for_target_impl(&config, "claude", "/proj", &target, None, true).unwrap_err();
+        assert!(
+            err.to_string().contains("container IS the sandbox"),
+            "{err}"
         );
     }
 
@@ -847,6 +1214,59 @@ mod tests {
         assert!(
             err.contains("not detected"),
             "Error should mention tool not detected, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_build_llm_command_unhealthy_tool_errors() {
+        let mut tool = make_detected_tool();
+        tool.health_ok = false;
+        let config = make_test_config_with_tool(tool);
+
+        let result = build_llm_command_impl(
+            &config,
+            "claude",
+            "opus",
+            "sess-abc",
+            Path::new("/tmp/prompt.md"),
+            None,
+            None,
+            None,
+            &|_| false,
+        );
+
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("health check"),
+            "Error should mention the failed health check, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_build_llm_command_stale_health_revalidates() {
+        // A config written before `health_ok` existed (or by a stale run) must
+        // not permanently block launching a tool that is actually healthy.
+        let mut tool = make_detected_tool();
+        tool.health_ok = false;
+        let config = make_test_config_with_tool(tool);
+
+        let result = build_llm_command_impl(
+            &config,
+            "claude",
+            "opus",
+            "sess-abc",
+            Path::new("/tmp/prompt.md"),
+            None,
+            None,
+            None,
+            &|_| true,
+        );
+
+        assert!(
+            result.is_ok(),
+            "Live verification should override a stale health_ok, got: {:?}",
+            result.err()
         );
     }
 

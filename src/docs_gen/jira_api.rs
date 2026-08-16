@@ -33,7 +33,6 @@ impl DocGenerator for JiraApiDocGenerator {
         let mut output = format_header("Jira API Reference", self.source());
 
         // Title and description
-        output.push_str(&heading(1, "Jira API Reference"));
         output.push_str("Auto-generated documentation of Jira Cloud REST API response types used by Operator.\n\n");
 
         // Overview

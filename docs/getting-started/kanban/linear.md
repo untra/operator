@@ -4,8 +4,6 @@ description: "Configure Linear integration with Operator."
 layout: doc
 ---
 
-# Linear
-
 Connect Operator to [**Linear**](https://linear.app/features) for modern issue tracking and project management.
 
 ## Prerequisites

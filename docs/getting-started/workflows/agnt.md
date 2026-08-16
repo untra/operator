@@ -4,8 +4,6 @@ description: "Export an Operator ticket + issue type into an AGNT.gg workflow gr
 layout: doc
 ---
 
-# AGNT Workflow
-
 Renders a `ticket + issue type` into an [AGNT.gg](https://agnt.gg) **workflow
 graph** — a `{ name, description, nodes, edges }` JSON document AGNT can import
 and run.

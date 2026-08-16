@@ -23,12 +23,15 @@ const CONCEPT = CONCEPTS['model-servers'];
 /** Live connection probe per provider slug. `undefined` = still loading. */
 type ProbeMap = Record<string, ModelServerModelsResponse | undefined>;
 
+/** A detected llm tool offered in the delegator form; unhealthy ones can't launch. */
+type DetectedToolOption = { name: string; healthOk: boolean };
+
 export function ModelProvidersPage() {
   const host = useHost();
   const [api] = useState(() => new OperatorApi(host));
   const [kinds, setKinds] = useState<ModelServerKindEntry[]>([]);
   const [probes, setProbes] = useState<ProbeMap>({});
-  const [detectedTools, setDetectedTools] = useState<string[]>([]);
+  const [detectedTools, setDetectedTools] = useState<DetectedToolOption[]>([]);
   const [delegators, setDelegators] = useState<DelegatorResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +51,9 @@ export function ModelProvidersPage() {
       .then(([catalog, config]: [ModelServerKindEntry[], Config]) => {
         if (cancelled) return;
         setKinds(catalog);
-        setDetectedTools(config.llm_tools.detected.map((t) => t.name));
+        setDetectedTools(
+          config.llm_tools.detected.map((t) => ({ name: t.name, healthOk: t.health_ok })),
+        );
         // Probe each provider concurrently; fill the map as results land.
         for (const k of catalog) {
           api
@@ -230,7 +235,7 @@ function CreateDelegatorForm({
   api: OperatorApi;
   kinds: ModelServerKindEntry[];
   probes: ProbeMap;
-  detectedTools: string[];
+  detectedTools: DetectedToolOption[];
   onCreated: (name: string) => void;
   onError: (msg: string) => void;
 }) {
@@ -240,9 +245,11 @@ function CreateDelegatorForm({
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Default the tool once detection lands.
+  // Default the tool once detection lands, preferring one that can actually launch.
   useEffect(() => {
-    if (!tool && detectedTools.length > 0) setTool(detectedTools[0]);
+    if (tool || detectedTools.length === 0) return;
+    const preferred = detectedTools.find((t) => t.healthOk) ?? detectedTools[0];
+    setTool(preferred.name);
   }, [detectedTools, tool]);
 
   const probe = provider ? probes[provider] : undefined;
@@ -288,8 +295,8 @@ function CreateDelegatorForm({
           <select value={tool} onChange={(e) => setTool(e.target.value)} className={styles.select}>
             {detectedTools.length === 0 && <option value="">(none detected)</option>}
             {detectedTools.map((t) => (
-              <option key={t} value={t}>
-                {t}
+              <option key={t.name} value={t.name}>
+                {t.healthOk ? t.name : `${t.name} (health check failed)`}
               </option>
             ))}
           </select>

@@ -11,7 +11,7 @@ use axum::{
 };
 
 use crate::agents::delegator_resolution::{self, AgentContext};
-use crate::agents::{LaunchOptions, Launcher, PreparedLaunch, RelaunchOptions};
+use crate::agents::{LaunchOptions, Launcher, PreparedLaunch, ProofRunner, RelaunchOptions};
 use crate::queue::Queue;
 use crate::rest::dto::{
     LaunchTicketRequest, LaunchTicketResponse, NextStepInfo, StepCompleteRequest,
@@ -117,6 +117,7 @@ fn handle_multi_agent_completion(
 /// Convert `PreparedLaunch` to `LaunchTicketResponse`
 fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse {
     LaunchTicketResponse {
+        executed_server_side: false,
         agent_id: prepared.agent_id,
         ticket_id: prepared.ticket_id,
         working_directory: prepared.working_directory.to_string_lossy().to_string(),
@@ -197,23 +198,103 @@ pub async fn launch_ticket(
     let launcher =
         Launcher::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
-    let prepared = if in_progress_path.exists() {
+    // Non-local targets (docker/coder/ssh) execute SERVER-SIDE: workspace
+    // lifecycle and remote session orchestration belong to the server, and a
+    // prepared command handed to a remote client could not run them. Local
+    // targets keep the prepared-handoff (the client owns the terminal).
+    let response = if in_progress_path.exists() {
         // Ticket is in-progress - use relaunch flow (no claim needed)
-        let relaunch_options = build_relaunch_options(&state, &request, agent_context.as_ref())?;
-        launcher
-            .prepare_relaunch(&ticket, relaunch_options)
-            .await
-            .map_err(|e| ApiError::InternalError(e.to_string()))?
+        let mut relaunch_options =
+            build_relaunch_options(&state, &request, agent_context.as_ref())?;
+        apply_request_target(&state, &request, &mut relaunch_options.launch_options)?;
+        if relaunch_options.launch_options.target.kind == crate::config::TargetKind::Local {
+            let prepared = launcher
+                .prepare_relaunch(&ticket, relaunch_options)
+                .await
+                .map_err(|e| ApiError::InternalError(e.to_string()))?;
+            prepared_launch_to_response(prepared)
+        } else {
+            launcher
+                .relaunch(&ticket, relaunch_options)
+                .await
+                .map_err(|e| ApiError::InternalError(e.to_string()))?;
+            server_side_response(&state, &ticket)?
+        }
     } else {
         // New launch - claim ticket from queue
-        let launch_options = build_launch_options(&state, &request, agent_context.as_ref())?;
-        launcher
-            .prepare_launch(&ticket, launch_options)
-            .await
-            .map_err(|e| ApiError::InternalError(e.to_string()))?
+        let mut launch_options = build_launch_options(&state, &request, agent_context.as_ref())?;
+        apply_request_target(&state, &request, &mut launch_options)?;
+        if launch_options.target.kind == crate::config::TargetKind::Local {
+            let prepared = launcher
+                .prepare_launch(&ticket, launch_options)
+                .await
+                .map_err(|e| ApiError::InternalError(e.to_string()))?;
+            prepared_launch_to_response(prepared)
+        } else {
+            launcher
+                .launch_with_options(&ticket, launch_options)
+                .await
+                .map_err(|e| ApiError::InternalError(e.to_string()))?;
+            server_side_response(&state, &ticket)?
+        }
     };
 
-    Ok(Json(prepared_launch_to_response(prepared)))
+    Ok(Json(response))
+}
+
+/// Apply the request's per-launch target override, with the same remote
+/// constraints delegator resolution enforces.
+fn apply_request_target(
+    state: &ApiState,
+    request: &LaunchTicketRequest,
+    options: &mut LaunchOptions,
+) -> Result<(), ApiError> {
+    if let Some(ref name) = request.target {
+        let target = delegator_resolution::resolve_named_target(&state.config, name)
+            .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+        delegator_resolution::apply_target_to_options(options, target, &state.config)
+            .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+    }
+    Ok(())
+}
+
+/// Response for a launch the server executed itself: `command` is empty and
+/// the client must not run anything; details come from the agent record.
+fn server_side_response(
+    state: &ApiState,
+    ticket: &crate::queue::Ticket,
+) -> Result<LaunchTicketResponse, ApiError> {
+    let app_state = crate::state::State::load(&state.config)
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let agent = app_state
+        .agents
+        .iter()
+        .rfind(|a| a.ticket_id == ticket.id)
+        .ok_or_else(|| {
+            ApiError::InternalError("launch succeeded but no agent record found".to_string())
+        })?;
+    Ok(LaunchTicketResponse {
+        executed_server_side: true,
+        agent_id: agent.id.clone(),
+        ticket_id: ticket.id.clone(),
+        working_directory: agent.worktree_path.clone().unwrap_or_else(|| {
+            state
+                .config
+                .projects_path()
+                .join(&ticket.project)
+                .to_string_lossy()
+                .to_string()
+        }),
+        command: String::new(),
+        terminal_name: agent.session_name.clone().unwrap_or_default(),
+        tmux_session_name: agent.session_name.clone().unwrap_or_default(),
+        session_wrapper: agent.session_wrapper.clone(),
+        session_window_ref: agent.session_window_ref.clone(),
+        session_context_ref: agent.session_context_ref.clone(),
+        session_id: String::new(),
+        worktree_created: agent.worktree_path.is_some(),
+        branch: ticket.branch.clone(),
+    })
 }
 
 /// Build `LaunchOptions` from the request, delegating to the shared resolution module.
@@ -247,6 +328,279 @@ fn build_relaunch_options(
         resume_session_id: request.resume_session_id.clone(),
         retry_reason: request.retry_reason.clone(),
     })
+}
+
+/// Pick the agent that ran the just-completed step: prefer a match on the
+/// persisted launch-context session id (opr8r's `--session-id`, the LLM
+/// session that ran the step) over the first agent on the ticket. With
+/// multiple agents on one ticket (retries, manual relaunch) a plain
+/// ticket-id match can pick the wrong one's launch context.
+fn find_completing_agent<'a>(
+    agents: &'a [crate::state::AgentState],
+    ticket_id: &str,
+    session_id: Option<&str>,
+) -> Option<&'a crate::state::AgentState> {
+    session_id
+        .and_then(|sid| {
+            agents.iter().find(|a| {
+                a.ticket_id == ticket_id
+                    && a.step_launch_context
+                        .as_ref()
+                        .and_then(|c| c.session_id.as_deref())
+                        == Some(sid)
+            })
+        })
+        .or_else(|| agents.iter().find(|a| a.ticket_id == ticket_id))
+}
+
+/// Build the next step's opr8r-wrapped command from the launch context
+/// persisted with the agent record. Agents launched before contexts were
+/// persisted fall back to a baseline reconstructed from per-agent fields.
+fn build_next_step_command(
+    state: &ApiState,
+    ticket: &crate::queue::Ticket,
+    next_step: &crate::templates::schema::StepSchema,
+    request: &StepCompleteRequest,
+) -> anyhow::Result<crate::agents::launcher::step_command::BuiltStepCommand> {
+    use crate::agents::launcher::step_command::{self, StepLaunchContext};
+
+    let config: &crate::config::Config = &state.config;
+    let app_state = crate::state::State::load(config)?;
+    let agent = find_completing_agent(&app_state.agents, &ticket.id, request.session_id.as_deref());
+
+    let ctx = agent
+        .and_then(|a| a.step_launch_context.clone())
+        .unwrap_or_else(|| StepLaunchContext {
+            delegator: None,
+            tool: agent
+                .and_then(|a| a.llm_tool.clone())
+                .unwrap_or_else(|| "claude".to_string()),
+            model: agent
+                .and_then(|a| a.llm_model.clone())
+                .unwrap_or_else(|| "sonnet".to_string()),
+            yolo: agent
+                .and_then(|a| a.launch_mode.as_deref())
+                .is_some_and(|m| m.contains("yolo")),
+            session_id: None,
+            opr8r: "opr8r".to_string(),
+            operator_relay: None,
+            extra_flags: vec![],
+        });
+
+    // Working directory: the agent's worktree when one exists, else the project
+    let project_path = agent
+        .and_then(|a| a.worktree_path.clone())
+        .unwrap_or_else(|| {
+            config
+                .projects_path()
+                .join(&ticket.project)
+                .to_string_lossy()
+                .to_string()
+        });
+
+    let (previous_summary, previous_recommendation) =
+        request.output.as_ref().map_or((None, None), |o| {
+            (o.summary.clone(), o.recommendation.clone())
+        });
+
+    step_command::build_step_command(
+        config,
+        ticket,
+        next_step,
+        &ctx,
+        &project_path,
+        previous_summary.as_deref(),
+        previous_recommendation.as_deref(),
+    )
+}
+
+/// Advance the ticket file to the next step and persist the minted session id
+/// and agent step, so chain bookkeeping matches what will execute. Best-effort:
+/// failures are logged, not fatal — opr8r already holds the command.
+///
+/// opr8r retries the completion POST up to 3 times, and the artifact-sync
+/// loop (src/agents/sync.rs) can also advance the ticket independently, so a
+/// re-entrant call must not advance twice: re-read the ticket fresh and only
+/// call `advance_step()` when it is still sitting on `completed_step`. On a
+/// duplicate (already advanced), still record the session id for the next
+/// step — that part is idempotent.
+fn record_step_transition(
+    state: &ApiState,
+    ticket: &crate::queue::Ticket,
+    completed_step: &str,
+    next_step: &crate::templates::schema::StepSchema,
+    next_session_id: &str,
+    request: &StepCompleteRequest,
+) {
+    let mut advanced = match crate::queue::Ticket::from_file(std::path::Path::new(&ticket.filepath))
+    {
+        Ok(fresh) => fresh,
+        Err(e) => {
+            tracing::warn!(ticket = %ticket.id, error = %e, "Failed to re-read ticket for advance guard; using stale copy");
+            ticket.clone()
+        }
+    };
+
+    // Empty step means "sitting on the schema's first step" (the convention
+    // used everywhere else `ticket.step` is read before a step is chosen).
+    let first_step_name = advanced
+        .template_schema()
+        .and_then(|t| t.first_step().map(|s| s.name.clone()));
+    let at_completed_step = if advanced.step.is_empty() {
+        first_step_name.as_deref() == Some(completed_step)
+    } else {
+        advanced.step == completed_step
+    };
+
+    if at_completed_step {
+        if let Err(e) = advanced.advance_step() {
+            tracing::warn!(ticket = %ticket.id, error = %e, "Failed to advance ticket step");
+        }
+    } else {
+        tracing::debug!(
+            ticket = %ticket.id,
+            completed_step = %completed_step,
+            current_step = %advanced.step,
+            "Ticket already advanced past completed step; skipping duplicate advance"
+        );
+    }
+
+    if let Err(e) = advanced.set_session_id(&next_step.name, next_session_id) {
+        tracing::warn!(ticket = %ticket.id, error = %e, "Failed to store next step session id");
+    }
+    match crate::state::State::load(&state.config) {
+        Ok(mut app_state) => {
+            let matched =
+                find_completing_agent(&app_state.agents, &ticket.id, request.session_id.as_deref());
+            let agent_id = matched.map(|a| a.id.clone());
+            // Re-point the persisted context at the uuid minted for the next
+            // step; without it the session arm of `find_completing_agent`
+            // stops matching from the second transition onward.
+            let next_ctx = matched
+                .and_then(|a| a.step_launch_context.clone())
+                .map(|mut c| {
+                    c.session_id = Some(next_session_id.to_string());
+                    c
+                });
+            if let Some(id) = agent_id {
+                if let Err(e) = app_state.update_agent_step(&id, &next_step.name) {
+                    tracing::warn!(ticket = %ticket.id, error = %e, "Failed to update agent step");
+                }
+                if let Some(ctx) = next_ctx {
+                    if let Err(e) = app_state.update_agent_step_launch_context(&id, ctx) {
+                        tracing::warn!(ticket = %ticket.id, error = %e, "Failed to update agent step launch context");
+                    }
+                }
+            }
+        }
+        Err(e) => tracing::warn!(ticket = %ticket.id, error = %e, "Failed to load state"),
+    }
+}
+
+/// Persist `message` as the completing agent's `last_message`.
+fn set_proof_status_message(
+    state: &ApiState,
+    ticket: &crate::queue::Ticket,
+    session_id: Option<&str>,
+    message: &str,
+) {
+    let mut app_state = match crate::state::State::load(&state.config) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(ticket = %ticket.id, error = %e, "Failed to load state for proof status message");
+            return;
+        }
+    };
+    let Some(agent) = find_completing_agent(&app_state.agents, &ticket.id, session_id) else {
+        return;
+    };
+    let (agent_id, status) = (agent.id.clone(), agent.status.clone());
+    if let Err(e) = app_state.update_agent_status(&agent_id, &status, Some(message.to_string())) {
+        tracing::warn!(ticket = %ticket.id, error = %e, "Failed to persist proof status message");
+    }
+}
+
+/// Run a Proof step's assertion synchronously after a successful command
+/// exit, recording pass/fail evidence under `.proof/{ticket}/{step}/` and
+/// annotating the agent's status message. The caller's status logic already
+/// yields `awaiting_review` for this step either way — a human still
+/// confirms; this only attaches evidence.
+///
+/// Worktree resolution mirrors `build_next_step_command`'s fallback: the
+/// completing agent's `worktree_path`, else the project path.
+async fn run_proof_review_hook(
+    state: &ApiState,
+    ticket: &crate::queue::Ticket,
+    step: &crate::templates::schema::StepSchema,
+    request: &StepCompleteRequest,
+) {
+    let Some(proof_config) = step.proof_config.as_ref() else {
+        tracing::warn!(ticket = %ticket.id, step = %step.name, "Proof step has no proof_config; skipping run");
+        set_proof_status_message(
+            state,
+            ticket,
+            request.session_id.as_deref(),
+            "Proof review (no config) — awaiting review",
+        );
+        return;
+    };
+
+    let project_fallback = || {
+        state
+            .config
+            .projects_path()
+            .join(&ticket.project)
+            .to_string_lossy()
+            .to_string()
+    };
+    let worktree_root = match crate::state::State::load(&state.config) {
+        Ok(app_state) => {
+            let agent =
+                find_completing_agent(&app_state.agents, &ticket.id, request.session_id.as_deref());
+            agent
+                .and_then(|a| a.worktree_path.clone())
+                .unwrap_or_else(project_fallback)
+        }
+        Err(e) => {
+            tracing::warn!(ticket = %ticket.id, error = %e, "Failed to load state for proof worktree resolution");
+            project_fallback()
+        }
+    };
+
+    let context = serde_json::json!({"ticket_id": ticket.id, "step": step.name});
+    let runner = ProofRunner::with_context(context);
+    let message = match runner
+        .run(
+            proof_config,
+            std::path::Path::new(&worktree_root),
+            &ticket.id,
+            &step.name,
+        )
+        .await
+    {
+        Ok(result) => {
+            let proof_ref = format!(".proof/{}/{}", ticket.id, step.name);
+            if result.timed_out {
+                format!(
+                    "Proof FAILED (timeout, exit {}) — awaiting review ({proof_ref})",
+                    result.exit_code
+                )
+            } else if result.passed {
+                format!("Proof passed — awaiting review ({proof_ref})")
+            } else {
+                format!(
+                    "Proof FAILED (exit {}) — awaiting review ({proof_ref})",
+                    result.exit_code
+                )
+            }
+        }
+        Err(e) => {
+            tracing::warn!(ticket = %ticket.id, step = %step.name, error = %e, "Proof runner error");
+            "Proof runner error — awaiting review".to_string()
+        }
+    };
+
+    set_proof_status_message(state, ticket, request.session_id.as_deref(), &message);
 }
 
 /// Report step completion from opr8r wrapper
@@ -306,6 +660,16 @@ pub async fn complete_step(
         return Ok(Json(response));
     }
 
+    // Proof review: run the assertion synchronously on a clean exit so its
+    // evidence (result.json + status message) is ready before the response
+    // goes out. Status stays `awaiting_review` either way (below) — a human
+    // still confirms.
+    if request.exit_code == 0
+        && current_step.review_type == crate::templates::schema::ReviewType::Proof
+    {
+        run_proof_review_hook(&state, &ticket, current_step, &request).await;
+    }
+
     // Determine status based on exit code and validation
     let status = if request.exit_code != 0 {
         "failed".to_string()
@@ -344,15 +708,42 @@ pub async fn complete_step(
         && next_step_info.is_some()
         && current_step.review_type == crate::templates::schema::ReviewType::None;
 
-    // Build next command if auto-proceeding
-    // For now, return a placeholder - actual implementation would build the full opr8r command
+    // Build next command if auto-proceeding: the same builder the launcher
+    // uses for step one, fed by the launch context persisted with the agent.
+    // Never target-wrapped — exec() happens inside the already-wrapped
+    // environment (see step_command module docs).
     let next_command = if auto_proceed {
-        next_step_info.as_ref().map(|next| {
-            format!(
-                "opr8r --ticket-id={} --step={} -- claude --prompt 'Continue with step {}'",
-                ticket_id, next.name, next.name
-            )
-        })
+        match current_step
+            .next_step
+            .as_ref()
+            .and_then(|n| issue_type.get_step(n).cloned())
+        {
+            Some(next_schema) => {
+                match build_next_step_command(&state, &ticket, &next_schema, &request) {
+                    Ok(built) => {
+                        record_step_transition(
+                            &state,
+                            &ticket,
+                            &step_name,
+                            &next_schema,
+                            &built.session_id,
+                            &request,
+                        );
+                        Some(built.command)
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            ticket = %ticket.id,
+                            step = %step_name,
+                            error = %e,
+                            "Failed to build next step command; chain will not auto-proceed"
+                        );
+                        None
+                    }
+                }
+            }
+            None => None,
+        }
     } else {
         None
     };
@@ -413,6 +804,7 @@ mod tests {
     fn test_build_launch_options_default() {
         let state = make_state();
         let request = LaunchTicketRequest {
+            target: None,
             delegator: None,
             provider: None,
             model: None,
@@ -435,6 +827,7 @@ mod tests {
     fn test_build_launch_options_yolo() {
         let state = make_state();
         let request = LaunchTicketRequest {
+            target: None,
             delegator: None,
             provider: None,
             model: None,
@@ -456,6 +849,7 @@ mod tests {
     fn test_build_launch_options_unknown_provider() {
         let state = make_state();
         let request = LaunchTicketRequest {
+            target: None,
             delegator: None,
             provider: Some("unknown-provider".to_string()),
             model: None,
@@ -474,6 +868,7 @@ mod tests {
     fn test_build_relaunch_options() {
         let state = make_state();
         let request = LaunchTicketRequest {
+            target: None,
             delegator: None,
             provider: None,
             model: None,
@@ -517,6 +912,7 @@ mod tests {
                 prompt_suffix: Some("SUFFIX".to_string()),
                 operator_relay: None,
                 host: None,
+                target: None,
             }),
             remote_agent: None,
             x_agnt: None,
@@ -526,6 +922,7 @@ mod tests {
         let state = ApiState::new(config, PathBuf::from("/tmp/test-launch"));
 
         let request = LaunchTicketRequest {
+            target: None,
             delegator: Some("full-delegator".to_string()),
             provider: None,
             model: None,
@@ -541,7 +938,7 @@ mod tests {
 
         let options = result.unwrap();
         assert!(options.yolo_mode);
-        assert!(options.docker_mode);
+        assert!(options.is_docker());
         assert_eq!(options.use_worktrees_override, Some(true));
         assert_eq!(options.create_branch_override, Some(false));
         assert_eq!(options.prompt_prefix.as_deref(), Some("PREFIX"));
@@ -569,6 +966,7 @@ mod tests {
         let state = ApiState::new(config, PathBuf::from("/tmp/test-launch"));
 
         let request = LaunchTicketRequest {
+            target: None,
             delegator: Some("minimal".to_string()),
             provider: None,
             model: None,
@@ -584,7 +982,7 @@ mod tests {
 
         let options = result.unwrap();
         assert!(!options.yolo_mode);
-        assert!(!options.docker_mode);
+        assert!(!options.is_docker());
         assert!(options.use_worktrees_override.is_none());
         assert!(options.create_branch_override.is_none());
         assert!(options.prompt_prefix.is_none());
@@ -617,8 +1015,38 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_apply_request_target_unknown_is_bad_request() {
+        let state = make_state();
+        let mut request = empty_request();
+        request.target = Some("nope".to_string());
+        let mut options = LaunchOptions::default();
+        let err = apply_request_target(&state, &request, &mut options).unwrap_err();
+        assert!(matches!(err, ApiError::BadRequest(_)));
+    }
+
+    #[test]
+    fn test_apply_request_target_docker_overrides_local() {
+        let state = make_state();
+        let mut request = empty_request();
+        request.target = Some("docker".to_string());
+        let mut options = LaunchOptions::default();
+        apply_request_target(&state, &request, &mut options).unwrap();
+        assert!(options.is_docker());
+    }
+
+    #[test]
+    fn test_apply_request_target_none_keeps_resolved_target() {
+        let state = make_state();
+        let request = empty_request();
+        let mut options = LaunchOptions::default();
+        apply_request_target(&state, &request, &mut options).unwrap();
+        assert_eq!(options.target.kind, crate::config::TargetKind::Local);
+    }
+
     fn empty_request() -> LaunchTicketRequest {
         LaunchTicketRequest {
+            target: None,
             delegator: None,
             provider: None,
             model: None,
@@ -689,6 +1117,7 @@ mod tests {
             issuetype_agent: Some("claude-opus".to_string()),
         };
         let request = LaunchTicketRequest {
+            target: None,
             delegator: Some("gemini-pro".to_string()),
             ..empty_request()
         };
@@ -747,6 +1176,7 @@ mod tests {
                 prompt_suffix: Some("END".to_string()),
                 operator_relay: None,
                 host: None,
+                target: None,
             }),
             remote_agent: None,
             x_agnt: None,
@@ -760,7 +1190,7 @@ mod tests {
 
         let options = build_launch_options(&state, &empty_request(), Some(&ctx)).unwrap();
         assert!(options.yolo_mode);
-        assert!(!options.docker_mode);
+        assert!(!options.is_docker());
         assert_eq!(options.use_worktrees_override, Some(true));
         assert_eq!(options.create_branch_override, Some(true));
         assert_eq!(options.extra_flags, vec!["--full-auto".to_string()]);
@@ -1007,5 +1437,592 @@ mod tests {
             .join("review")
             .join(format!("{second_agent_id}.json"));
         assert!(expected.exists());
+    }
+
+    // ─── complete_step chain-hardening tests ────────────────────────────
+    //
+    // Uses the builtin SYNC issuetype (scan -> validate -> update): "scan"
+    // and "validate" both have review_type None (auto_proceed), which lets
+    // duplicate-advance be reproduced (a 2-step type has nowhere further to
+    // advance to, so it can't show the defect).
+
+    use crate::agents::launcher::step_command::StepLaunchContext;
+    use crate::config::{DetectedTool, ToolCapabilities};
+    use std::path::Path;
+
+    fn make_chain_detected_tool() -> DetectedTool {
+        DetectedTool {
+            name: "claude".to_string(),
+            path: "/usr/bin/claude".to_string(),
+            version: "1.0.0".to_string(),
+            min_version: Some("1.0.0".to_string()),
+            version_ok: true,
+            model_aliases: vec!["sonnet".to_string(), "opus".to_string()],
+            command_template: "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} --print-prompt-path {{prompt_file}}".to_string(),
+            capabilities: ToolCapabilities {
+                supports_sessions: true,
+                supports_headless: true,
+            },
+            yolo_flags: vec!["--dangerously-skip-permissions".to_string()],
+            health_ok: true,
+        }
+    }
+
+    /// Temp `.tickets/{queue,in-progress,...}` + state tree wired for the
+    /// full `complete_step` route, with "claude" detected so
+    /// `build_step_command` renders a real (non-error) command.
+    struct ChainFixture {
+        _temp: TempDir,
+        state: ApiState,
+    }
+
+    fn make_chain_fixture() -> ChainFixture {
+        let temp = TempDir::new().unwrap();
+        let tickets_path = temp.path().join(".tickets");
+        for d in ["queue", "in-progress", "completed", "templates"] {
+            std::fs::create_dir_all(tickets_path.join(d)).unwrap();
+        }
+        let state_path = temp.path().join("state");
+        std::fs::create_dir_all(&state_path).unwrap();
+
+        let mut config = Config::default();
+        config.paths.tickets = tickets_path.to_string_lossy().to_string();
+        config.paths.state = state_path.to_string_lossy().to_string();
+        config.paths.projects = temp.path().join("projects").to_string_lossy().to_string();
+        config.llm_tools.detected = vec![make_chain_detected_tool()];
+
+        let state = ApiState::new(config, tickets_path);
+        ChainFixture { _temp: temp, state }
+    }
+
+    /// Write a SYNC ticket into `in-progress/` so `Queue::find_ticket` sees it.
+    fn write_sync_ticket(state: &ApiState, id: &str, step: &str) -> Ticket {
+        let filename = format!("20260807-0900-SYNC-chainproj-{}.md", id.to_lowercase());
+        let content =
+            format!("---\nid: {id}\nstatus: running\nstep: {step}\n---\n\n# Chain ticket\n");
+        let path = state
+            .config
+            .tickets_path()
+            .join("in-progress")
+            .join(filename);
+        std::fs::write(&path, content).unwrap();
+        Ticket::from_file(&path).unwrap()
+    }
+
+    fn make_launch_context(model: &str, session_id: &str) -> StepLaunchContext {
+        StepLaunchContext {
+            delegator: None,
+            tool: "claude".to_string(),
+            model: model.to_string(),
+            yolo: false,
+            session_id: Some(session_id.to_string()),
+            opr8r: "opr8r".to_string(),
+            operator_relay: None,
+            extra_flags: vec![],
+        }
+    }
+
+    fn make_chain_complete_request(session_id: &str) -> StepCompleteRequest {
+        StepCompleteRequest {
+            exit_code: 0,
+            output_valid: true,
+            output_schema_errors: None,
+            session_id: Some(session_id.to_string()),
+            duration_secs: 5,
+            output_sample: None,
+            output: Some(OperatorOutput {
+                status: "complete".to_string(),
+                exit_signal: true,
+                summary: Some("done".to_string()),
+                ..Default::default()
+            }),
+        }
+    }
+
+    /// Add an agent for `ticket` carrying the given persisted launch context.
+    fn add_chain_agent(state: &ApiState, ticket: &Ticket, model: &str, session_id: &str) -> String {
+        let mut app_state = State::load(&state.config).unwrap();
+        let agent_id = app_state
+            .add_agent_with_options(
+                ticket.id.clone(),
+                ticket.ticket_type.clone(),
+                ticket.project.clone(),
+                false,
+                Some("claude".to_string()),
+                None,
+            )
+            .unwrap();
+        app_state
+            .update_agent_step_launch_context(&agent_id, make_launch_context(model, session_id))
+            .unwrap();
+        agent_id
+    }
+
+    fn persisted_context_session_id(state: &ApiState, agent_id: &str) -> Option<String> {
+        State::load(&state.config)
+            .unwrap()
+            .agents
+            .iter()
+            .find(|a| a.id == agent_id)
+            .and_then(|a| a.step_launch_context.as_ref())
+            .and_then(|c| c.session_id.clone())
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_next_command_uses_persisted_context() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9001", "scan");
+        add_chain_agent(&fixture.state, &ticket, "opus", "session-current");
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "scan".to_string())),
+            Json(make_chain_complete_request("session-current")),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert!(
+            response.auto_proceed,
+            "scan has review_type None, so it should auto-proceed"
+        );
+        let next_command = response.next_command.expect("next_command present");
+        assert!(
+            next_command.contains("--model opus"),
+            "persisted launch-context model must reach the command: {next_command}"
+        );
+        assert!(
+            next_command.contains(&format!("--ticket-id={}", ticket.id)),
+            "opr8r wrapper must carry the ticket id: {next_command}"
+        );
+        assert!(
+            !next_command.contains("docker run"),
+            "next_command must never be target-wrapped: {next_command}"
+        );
+    }
+
+    #[test]
+    fn test_complete_step_next_command_mints_fresh_session_uuid() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9002", "scan");
+        add_chain_agent(&fixture.state, &ticket, "sonnet", "session-scan");
+
+        let next_step = ticket
+            .template_schema()
+            .unwrap()
+            .get_step("validate")
+            .unwrap()
+            .clone();
+        let request = make_chain_complete_request("session-scan");
+
+        let built = build_next_step_command(&fixture.state, &ticket, &next_step, &request)
+            .expect("build_next_step_command");
+        assert_ne!(
+            built.session_id, "session-scan",
+            "the next step must mint a fresh session id, not reuse the completed step's"
+        );
+        assert!(built
+            .command
+            .contains(&format!("--session-id={}", built.session_id)));
+
+        record_step_transition(
+            &fixture.state,
+            &ticket,
+            "scan",
+            &next_step,
+            &built.session_id,
+            &request,
+        );
+
+        let reloaded = Ticket::from_file(Path::new(&ticket.filepath)).unwrap();
+        assert_eq!(
+            reloaded.sessions.get("validate"),
+            Some(&built.session_id),
+            "minted session id must be persisted in the ticket's session map"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_duplicate_post_does_not_double_advance() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9003", "scan");
+        add_chain_agent(&fixture.state, &ticket, "sonnet", "session-scan");
+
+        let first = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "scan".to_string())),
+            Json(make_chain_complete_request("session-scan")),
+        )
+        .await
+        .unwrap();
+        assert!(first.0.auto_proceed);
+
+        let after_first = Ticket::from_file(Path::new(&ticket.filepath)).unwrap();
+        assert_eq!(
+            after_first.step, "validate",
+            "first POST advances scan -> validate"
+        );
+
+        // opr8r retries the same completion POST (duplicate delivery).
+        let second = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "scan".to_string())),
+            Json(make_chain_complete_request("session-scan")),
+        )
+        .await
+        .unwrap();
+        assert!(second.0.auto_proceed);
+
+        let after_second = Ticket::from_file(Path::new(&ticket.filepath)).unwrap();
+        assert_eq!(
+            after_second.step, "validate",
+            "duplicate POST for an already-completed step must not advance a second time"
+        );
+    }
+
+    #[test]
+    fn test_complete_step_agent_lookup_prefers_session_id() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9004", "scan");
+        add_chain_agent(&fixture.state, &ticket, "opus", "session-agent-1");
+        add_chain_agent(&fixture.state, &ticket, "sonnet", "session-agent-2");
+
+        let next_step = ticket
+            .template_schema()
+            .unwrap()
+            .get_step("validate")
+            .unwrap()
+            .clone();
+        let request = make_chain_complete_request("session-agent-2");
+
+        let built = build_next_step_command(&fixture.state, &ticket, &next_step, &request)
+            .expect("build_next_step_command");
+        assert!(
+            built.command.contains("--model sonnet"),
+            "must prefer the agent whose persisted session id matches the request, \
+             not the first agent found by ticket id: {}",
+            built.command
+        );
+    }
+
+    #[test]
+    fn test_find_completing_agent_session_arm_requires_ticket_match() {
+        let fixture = make_chain_fixture();
+        let other = write_sync_ticket(&fixture.state, "SYNC-9005", "scan");
+        let target = write_sync_ticket(&fixture.state, "SYNC-9006", "scan");
+        // The other ticket's agent is registered FIRST and carries the session
+        // id being reported, so a ticket-blind session arm would pick it.
+        add_chain_agent(&fixture.state, &other, "opus", "shared-session");
+        let target_agent = add_chain_agent(&fixture.state, &target, "sonnet", "target-session");
+
+        let app_state = State::load(&fixture.state.config).unwrap();
+        let found = find_completing_agent(&app_state.agents, &target.id, Some("shared-session"))
+            .expect("falls back to a ticket match");
+        assert_eq!(
+            found.id, target_agent,
+            "a session match on another ticket must not win"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_transition_repoints_context_session_id_for_next_completion() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9007", "scan");
+        // Registered first: the ticket-id fallback would pick this one.
+        add_chain_agent(&fixture.state, &ticket, "sonnet", "session-other");
+        let chain_agent = add_chain_agent(&fixture.state, &ticket, "opus", "session-scan");
+
+        let first = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "scan".to_string())),
+            Json(make_chain_complete_request("session-scan")),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert!(first.auto_proceed);
+
+        let validate_session = Ticket::from_file(Path::new(&ticket.filepath))
+            .unwrap()
+            .sessions
+            .get("validate")
+            .cloned()
+            .expect("validate session id persisted on the ticket");
+        assert_eq!(
+            persisted_context_session_id(&fixture.state, &chain_agent),
+            Some(validate_session.clone()),
+            "the transition must re-point the agent's context at the next step's uuid"
+        );
+
+        // Second transition: the session arm must still find the chain agent.
+        let second = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "validate".to_string())),
+            Json(make_chain_complete_request(&validate_session)),
+        )
+        .await
+        .unwrap()
+        .0;
+        let next_command = second.next_command.expect("next_command present");
+        assert!(
+            next_command.contains("--model opus"),
+            "session arm must still match the chain agent on transition 2: {next_command}"
+        );
+    }
+
+    // ─── Proof review hook (Task B3) ────────────────────────────────────
+    //
+    // Registers a synthetic "PROOF" issue type directly into the registry
+    // (IssueType::validate doesn't check proof_config — that's B1's
+    // TemplateSchema-level check for filesystem-loaded types — so this can
+    // also model the "runtime template bypassed validation" case).
+
+    use crate::agents::ProofResult;
+    use crate::issuetypes::schema::IssueTypeSource;
+    use crate::issuetypes::IssueType;
+    use crate::templates::schema::{ExecutionMode, StepSchema};
+
+    fn make_proof_step(proof_config: Option<serde_json::Value>) -> StepSchema {
+        serde_json::from_value(serde_json::json!({
+            "name": "run",
+            "outputs": [],
+            "prompt": "run the proof",
+            "review_type": "proof",
+            "proof_config": proof_config,
+            "next_step": null,
+        }))
+        .unwrap()
+    }
+
+    fn proof_config_json(assertion_command: &str) -> serde_json::Value {
+        serde_json::json!({"assertion_command": assertion_command})
+    }
+
+    fn make_proof_issue_type(step: StepSchema) -> IssueType {
+        IssueType {
+            key: "PROOF".to_string(),
+            name: "Proof".to_string(),
+            description: "proof hook test type".to_string(),
+            mode: ExecutionMode::Autonomous,
+            glyph: "P".to_string(),
+            color: None,
+            project_required: true,
+            fields: vec![],
+            steps: vec![step],
+            agent_prompt: None,
+            agent: None,
+            source: IssueTypeSource::Builtin,
+            external_id: None,
+        }
+    }
+
+    /// Like `write_sync_ticket`, but for an arbitrary registered `ticket_type`.
+    fn write_typed_ticket(state: &ApiState, id: &str, ticket_type: &str, step: &str) -> Ticket {
+        let filename = format!(
+            "20260807-0900-{ticket_type}-chainproj-{}.md",
+            id.to_lowercase()
+        );
+        let content =
+            format!("---\nid: {id}\nstatus: running\nstep: {step}\n---\n\n# Proof ticket\n");
+        let path = state
+            .config
+            .tickets_path()
+            .join("in-progress")
+            .join(filename);
+        std::fs::write(&path, content).unwrap();
+        Ticket::from_file(&path).unwrap()
+    }
+
+    fn agent_last_message(state: &ApiState, agent_id: &str) -> Option<String> {
+        State::load(&state.config)
+            .unwrap()
+            .agents
+            .iter()
+            .find(|a| a.id == agent_id)
+            .and_then(|a| a.last_message.clone())
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_proof_hook_records_pass_and_message() {
+        let fixture = make_chain_fixture();
+        let worktree_dir = TempDir::new().unwrap();
+        let worktree = worktree_dir.path().to_path_buf();
+
+        fixture
+            .state
+            .registry
+            .write()
+            .await
+            .register(make_proof_issue_type(make_proof_step(Some(
+                proof_config_json("true"),
+            ))))
+            .unwrap();
+
+        let ticket = write_typed_ticket(&fixture.state, "PROOF-9001", "PROOF", "run");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-1");
+        State::load(&fixture.state.config)
+            .unwrap()
+            .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
+            .unwrap();
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "run".to_string())),
+            Json(make_chain_complete_request("session-proof-1")),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert_eq!(response.status, "awaiting_review");
+        assert!(!response.auto_proceed);
+
+        let result_path = worktree
+            .join(".proof")
+            .join(&ticket.id)
+            .join("run")
+            .join("result.json");
+        assert!(result_path.exists(), "result.json must be written");
+        let result: ProofResult =
+            serde_json::from_str(&std::fs::read_to_string(result_path).unwrap()).unwrap();
+        assert!(result.passed);
+
+        let message = agent_last_message(&fixture.state, &agent_id).expect("message set");
+        assert!(message.starts_with("Proof passed"), "message: {message}");
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_proof_hook_records_failure_and_message() {
+        let fixture = make_chain_fixture();
+        let worktree_dir = TempDir::new().unwrap();
+        let worktree = worktree_dir.path().to_path_buf();
+
+        fixture
+            .state
+            .registry
+            .write()
+            .await
+            .register(make_proof_issue_type(make_proof_step(Some(
+                proof_config_json("false"),
+            ))))
+            .unwrap();
+
+        let ticket = write_typed_ticket(&fixture.state, "PROOF-9002", "PROOF", "run");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-2");
+        State::load(&fixture.state.config)
+            .unwrap()
+            .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
+            .unwrap();
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "run".to_string())),
+            Json(make_chain_complete_request("session-proof-2")),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert_eq!(response.status, "awaiting_review");
+
+        let result_path = worktree
+            .join(".proof")
+            .join(&ticket.id)
+            .join("run")
+            .join("result.json");
+        let result: ProofResult =
+            serde_json::from_str(&std::fs::read_to_string(result_path).unwrap()).unwrap();
+        assert!(!result.passed);
+
+        let message = agent_last_message(&fixture.state, &agent_id).expect("message set");
+        assert!(message.starts_with("Proof FAILED"), "message: {message}");
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_proof_hook_skips_run_on_nonzero_exit() {
+        let fixture = make_chain_fixture();
+        let worktree_dir = TempDir::new().unwrap();
+        let worktree = worktree_dir.path().to_path_buf();
+
+        fixture
+            .state
+            .registry
+            .write()
+            .await
+            .register(make_proof_issue_type(make_proof_step(Some(
+                proof_config_json("true"),
+            ))))
+            .unwrap();
+
+        let ticket = write_typed_ticket(&fixture.state, "PROOF-9003", "PROOF", "run");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-3");
+        State::load(&fixture.state.config)
+            .unwrap()
+            .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
+            .unwrap();
+
+        let mut request = make_chain_complete_request("session-proof-3");
+        request.exit_code = 1;
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "run".to_string())),
+            Json(request),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert_eq!(response.status, "failed");
+        assert!(
+            !worktree.join(".proof").exists(),
+            "assertion command must not run on nonzero exit"
+        );
+        let _ = agent_id;
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_proof_hook_missing_config_does_not_crash() {
+        let fixture = make_chain_fixture();
+        let worktree_dir = TempDir::new().unwrap();
+        let worktree = worktree_dir.path().to_path_buf();
+
+        fixture
+            .state
+            .registry
+            .write()
+            .await
+            .register(make_proof_issue_type(make_proof_step(None)))
+            .unwrap();
+
+        let ticket = write_typed_ticket(&fixture.state, "PROOF-9004", "PROOF", "run");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-4");
+        State::load(&fixture.state.config)
+            .unwrap()
+            .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
+            .unwrap();
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "run".to_string())),
+            Json(make_chain_complete_request("session-proof-4")),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert_eq!(response.status, "awaiting_review");
+        assert!(
+            !worktree.join(".proof").exists(),
+            "no proof_config means no assertion run"
+        );
+
+        let message = agent_last_message(&fixture.state, &agent_id).expect("message set");
+        assert!(
+            message.to_lowercase().contains("no config")
+                || message.to_lowercase().contains("missing"),
+            "message must note missing config: {message}"
+        );
     }
 }

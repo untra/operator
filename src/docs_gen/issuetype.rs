@@ -32,7 +32,6 @@ impl DocGenerator for IssuetypeSchemaDocGenerator {
         let mut output = format_header("Issue Type Schema", self.source());
 
         // Title and description
-        output.push_str(&heading(1, "Issue Type Schema"));
 
         if let Some(desc) = schema.get("description").and_then(|d| d.as_str()) {
             output.push_str(&format!("{desc}\n\n"));
@@ -279,7 +278,8 @@ mod tests {
         assert!(result.contains("TemplateSchema"));
 
         // Should have the main heading
-        assert!(result.contains("# Issue Type Schema"));
+        assert!(result.contains("title: \"Issue Type Schema\""));
+        assert!(!result.contains("\n# Issue Type Schema"));
 
         // Should have required fields section
         assert!(result.contains("## Required Fields"));

@@ -5,6 +5,6 @@
  */
 export type UpdateStepRequest = { display_name: string | null, prompt: string | null, outputs: Array<string> | null, allowed_tools: Array<string> | null, 
 /**
- * Type of review required: "none", "plan", "visual", "pr"
+ * Type of review required: "none", "plan", "visual", "pr", "proof"
  */
 review_type: string | null, next_step: string | null, permission_mode: string | null, };

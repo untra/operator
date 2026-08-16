@@ -10,13 +10,60 @@ layout: doc
 
 ### Claude Code
 
-The primary LLM tool supported by Operator. Claude Code is a CLI tool that provides:
+The primary LLM tool supported by Operator. 
 
-- Code generation and editing
-- Bug analysis and fixes
-- Test writing
-- Documentation
-- Refactoring
+### OpenAI Codex
+
+### Google Gemini
+
+## Custom Tool Configs
+
+Beyond the builtin tools (claude, gemini, codex), any LLM CLI can be added at runtime by dropping a JSON config into the user tool-config directory - no rebuild required:
+
+- Linux: `~/.config/operator/tools/<tool_name>.json`
+- macOS: `~/Library/Application Support/operator/tools/<tool_name>.json`
+
+Configs are loaded fresh on every startup. A user config whose `tool_name`
+matches a builtin **fully replaces** that builtin (no field-by-field merge).
+Malformed files are skipped with a logged warning. Runtime-loaded tools work
+everywhere the builtins do, including remote (SSH) launches, where the tool's
+presence on the remote host is verified by a `command -v` preflight.
+
+> **Security note:** `command_template` is arbitrary shell executed at launch.
+> <span class="operator-brand">Operator!</span> only loads tool configs from the
+> user-global config directory - never from repository-local paths - so a
+> cloned repo cannot inject a tool config.
+
+The full config format is documented in the schema reference on this site
+(source of truth: `src/llm/tools/tool_config.schema.json`).
+
+## Detection Modes
+
+By default a tool is detected only when `which <tool_name>` succeeds. The
+optional `detection` object overrides this:
+
+```json
+{
+  "detection": { "mode": "always", "health_command": "your-tool ping" }
+}
+```
+
+- `mode: "which"` (default) - gate detection on the binary being in PATH
+- `mode: "always"` - skip the PATH lookup and use `tool_name` verbatim as the
+  invocation path; for tools not installed locally, e.g. only present on a
+  remote SSH host
+- `health_command` - health check run at every startup
+
+Health is **earned, never assumed**, and re-verified on every startup:
+
+| Mode | No `health_command` | With `health_command` |
+|------|---------------------|-----------------------|
+| `which` | Healthy - the PATH lookup proves the binary is present | Healthy if still on PATH **and** the command passes |
+| `always` | **Unhealthy** - nothing is locally verifiable | Healthy if the command passes |
+
+An unhealthy tool stays listed among the detected tools, but launching a local agent with it fails until it is healthy again.
+
+Remote (SSH) launches are unaffected - they are gated by their own `command -v` preflight on the remote host. An `always`-mode tool should therefore define a `health_command` that proves reachability.
 
 ## Integration Points
 

@@ -24,7 +24,7 @@ opr8r --ticket-id FEAT-042 --step build -- claude --prompt "implement the featur
        Operator API  →  next step / review / done
 ```
 
-See the [opr8r CLI reference](/docs/cli/) for full flag documentation.
+See the [opr8r CLI reference](/cli/) for full flag documentation.
 
 ### relay — MCP client for the relay hub
 
@@ -105,6 +105,6 @@ The protocol is byte-compatible with TypeScript claude-relay. Existing TS channe
 
 ## See also
 
-- [Claude agent setup](/docs/getting-started/agents/claude/)
-- [Codex agent setup](/docs/getting-started/agents/codex/)
-- [Delegators](/docs/delegators/) — named tool + model pairings that launch agents
+- [Claude agent setup](/getting-started/agents/claude/)
+- [Codex agent setup](/getting-started/agents/codex/)
+- [Delegators](/delegators/) — named tool + model pairings that launch agents

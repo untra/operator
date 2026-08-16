@@ -5,6 +5,12 @@
  */
 export type LaunchTicketResponse = { 
 /**
+ * True when the server executed the launch itself (non-local targets:
+ * docker/coder/ssh orchestration is server-side); `command` is then
+ * empty and the client must NOT run anything.
+ */
+executed_server_side: boolean, 
+/**
  * Agent ID assigned to this launch
  */
 agent_id: string, 

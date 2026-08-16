@@ -161,6 +161,7 @@ mod tests {
     #[test]
     fn test_launch_response_cmux_fields_present_when_set() {
         let resp = LaunchTicketResponse {
+            executed_server_side: false,
             agent_id: "a1".to_string(),
             ticket_id: "FEAT-001".to_string(),
             working_directory: "/tmp".to_string(),
@@ -184,6 +185,7 @@ mod tests {
     #[test]
     fn test_launch_response_cmux_fields_absent_when_none() {
         let resp = LaunchTicketResponse {
+            executed_server_side: false,
             agent_id: "a1".to_string(),
             ticket_id: "FEAT-001".to_string(),
             working_directory: "/tmp".to_string(),

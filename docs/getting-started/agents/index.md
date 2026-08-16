@@ -4,8 +4,6 @@ description: "AI coding agents compatible with Operator."
 layout: doc
 ---
 
-# Supported Coding Agents
-
 Operator orchestrates AI coding agents to work on tickets from your kanban board. The following agents are currently supported:
 
 ## Available Agents

@@ -3,4 +3,4 @@
 /**
  * Type of review required for a step
  */
-export type ReviewType = "none" | "plan" | "visual" | "pr";
+export type ReviewType = "none" | "plan" | "visual" | "pr" | "proof";

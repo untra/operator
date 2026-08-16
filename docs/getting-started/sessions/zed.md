@@ -4,8 +4,6 @@ description: "Zed editor integration for Operator via MCP context server, ACP ag
 layout: doc
 ---
 
-# Zed
-
 <span class="badge alpha">Alpha</span>
 
 <div class="alpha-banner">

@@ -25,7 +25,6 @@ impl DocGenerator for ShortcutsDocGenerator {
         let mut output = format_header("Keyboard Shortcuts", self.source());
 
         // Introduction
-        output.push_str(&heading(1, "Keyboard Shortcuts"));
         output.push_str("Operator uses vim-style keybindings for navigation and actions. ");
         output.push_str("This reference documents all available keyboard shortcuts.\n\n");
 
@@ -103,7 +102,8 @@ mod tests {
         assert!(result.contains("keybindings.rs"));
 
         // Should have the main heading
-        assert!(result.contains("# Keyboard Shortcuts"));
+        assert!(result.contains("title: \"Keyboard Shortcuts\""));
+        assert!(!result.contains("\n# Keyboard Shortcuts"));
 
         // Should have quick reference section
         assert!(result.contains("## Quick Reference"));

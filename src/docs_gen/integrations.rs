@@ -41,8 +41,7 @@ impl DocGenerator for MaturityDocGenerator {
         let mut content = format_header("Feature Maturity", self.source());
 
         content.push_str(
-            "# Feature Maturity\n\n\
-             Operator integrates with many providers and tools across several **verticals**. \
+            "Operator integrates with many providers and tools across several **verticals**. \
              Each integration carries an official **support status** so you know what to expect \
              before you depend on it. This page is generated from the same source of truth that \
              drives the README badges and the `/api/v1/integrations` API, so it always reflects \
@@ -105,7 +104,8 @@ mod tests {
     #[test]
     fn test_maturity_content_has_legend_and_tables() {
         let content = MaturityDocGenerator.generate().unwrap();
-        assert!(content.contains("# Feature Maturity"));
+        assert!(content.contains("title: \"Feature Maturity\""));
+        assert!(!content.contains("\n# Feature Maturity"));
         assert!(content.contains("## Support levels"));
         // Legend badges for all four levels.
         for status in SupportStatus::ALL {

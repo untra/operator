@@ -465,7 +465,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
         key: KeyCode::Char('D'),
         modifiers: KeyModifiers::NONE,
         alt_key: Some(KeyCode::Char('d')),
-        description: "Toggle Docker mode",
+        description: "Cycle execution target",
         category: ShortcutCategory::Actions,
         context: ShortcutContext::LaunchDialog,
     },

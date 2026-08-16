@@ -292,6 +292,7 @@ mod tests {
             allowed_tools: vec!["Read".to_string(), "Glob".to_string()],
             review_type: crate::templates::schema::ReviewType::None,
             visual_config: None,
+            proof_config: None,
             on_reject: None,
             next_step: Some("implement".to_string()),
             permissions: None,

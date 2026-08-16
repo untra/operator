@@ -116,31 +116,35 @@ pub struct App {
 
 impl App {
     pub async fn new(mut config: Config, start_web: bool, open_ui: bool) -> Result<Self> {
-        // Run LLM tool detection on first startup
-        if !config.llm_tools.detection_complete {
-            tracing::info!("Detecting LLM CLI tools...");
-            config.llm_tools = crate::llm::detect_all_tools();
+        // Refresh LLM tool detection every startup so config edits and
+        // runtime-loaded tool JSONs take effect (cached tools skip re-probe)
+        let refreshed = crate::llm::refresh_tool_detection(&config.llm_tools);
+        let detection_changed =
+            serde_json::to_value(&refreshed).ok() != serde_json::to_value(&config.llm_tools).ok();
+        config.llm_tools = refreshed;
 
-            // Log detected tools
-            for tool in &config.llm_tools.detected {
-                tracing::info!(
-                    tool = %tool.name,
-                    version = %tool.version,
-                    path = %tool.path,
-                    "LLM tool detected"
-                );
-            }
+        // Log detected tools
+        for tool in &config.llm_tools.detected {
+            tracing::info!(
+                tool = %tool.name,
+                version = %tool.version,
+                path = %tool.path,
+                "LLM tool detected"
+            );
+        }
 
-            // Log available providers
-            for provider in &config.llm_tools.providers {
-                tracing::debug!(
-                    tool = %provider.tool,
-                    model = %provider.model,
-                    "LLM provider available"
-                );
-            }
+        // Log available providers
+        for provider in &config.llm_tools.providers {
+            tracing::debug!(
+                tool = %provider.tool,
+                model = %provider.model,
+                "LLM provider available"
+            );
+        }
 
-            // Save the detection results to config
+        // Save only when detection results changed, to avoid rewriting
+        // config.toml on every boot
+        if detection_changed {
             if let Err(e) = config.save() {
                 tracing::warn!("Failed to save LLM detection results: {}", e);
             }

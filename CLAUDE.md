@@ -6,15 +6,22 @@
 
 ## Tech Stack
 
-- **Language**: Rust
-- **TUI Framework**: ratatui (with crossterm backend)
-- **Async Runtime**: tokio
-- **Notifications**: mac-notification-sys (macOS)
-- **Config**: config crate (TOML)
-- **File Watching**: notify crate
+- **Language**: Rust (core), TypeScript (`ui/`, `webcomponents/`, `vscode-extension/`)
+- **TUI**: ratatui (crossterm backend); tokio async runtime
+- **Server surfaces**: axum REST API + utoipa OpenAPI (`src/rest/`), MCP server (`src/mcp/`), ACP (`src/acp/`)
+- **Web**: Vite/React SPA in `ui/`, shared `webcomponents/` package, thin VS Code extension webview
+- **Notifications**: mac-notification-sys (macOS), notify-rust (Linux), webhooks
+- **Config**: config crate (TOML); **File Watching**: notify crate
 
 ## Code Style
-Aim for functional software development with a focus on stateless, single responsibility focus. comments should be terse and used judiciously.
+Aim for functional software development with a focus on stateless, single responsibility focus.
+Minimize use of comments; they should be terse and used judiciously, ideally one sentence tops.
+Data types come from rust; typescript and docs binds are generated from low-level rust types annotated with comments that embed as descriptions into configuration and reference files.
+Favor falsey defaults ; lets aim not to enforce `default=true` or some other javascript-truthy default value.
+
+## Plans & Specs Location
+
+Write superpowers plans to `superpowers/plans/` and design specs to `superpowers/specs/` (repo root, not hosted).
 
 ## Development Standards
 
@@ -26,9 +33,7 @@ Aim for functional software development with a focus on stateless, single respon
 
 ### Mandatory Before Committing
 
-All changes MUST pass these checks before committing. Run them with `make check`,
-which mirrors the CI `lint-test` job exactly (so a clean local run means a clean
-CI run):
+All changes MUST pass these checks before committing. Run them with `make check`, which mirrors the CI `lint-test` job exactly:
 
 ```bash
 make check
@@ -109,65 +114,68 @@ cargo test <name>              # Run specific test
 cargo run                      # Run TUI
 cargo run -- queue             # CLI: show queue
 cargo run -- launch            # CLI: launch next ticket
+cargo run -- api               # REST API + embedded web UI
+cargo run -- mcp               # MCP server (stdio)
+cargo run -- docs              # Regenerate auto-generated docs
 ```
+
+Full command list: `docs/cli/` (auto-generated).
 
 ## Architecture
 
+Grouped map of `src/` (not exhaustive — `ls src/` for the full list):
+
 ```
 src/
-├── main.rs           # Entry point, CLI parsing
-├── app.rs            # Application state and event loop
-├── ui/               # TUI rendering
-│   ├── mod.rs
-│   ├── dashboard.rs  # Main dashboard layout
-│   ├── queue.rs      # Queue panel
-│   ├── agents.rs     # Agents panel
-│   └── dialogs.rs    # Confirmation dialogs
-├── queue/            # Queue management
-│   ├── mod.rs
-│   ├── ticket.rs     # Ticket parsing
-│   ├── watcher.rs    # File system watcher
-│   └── assigner.rs   # Work assignment logic
-├── agents/           # Agent lifecycle
-│   ├── mod.rs
-│   ├── launcher.rs   # Claude Desktop integration
-│   ├── tracker.rs    # Agent state tracking
-│   └── session.rs    # Session persistence
-├── notifications/    # Notification system
-│   ├── mod.rs
-│   └── macos.rs      # macOS notifications
-├── config.rs         # Configuration management
-└── state.rs          # Persistent state store
+├── main.rs, lib.rs    # Entry + CLI parsing; lib/bin split (src/rest compiles
+│                      #   in the lib and must not reference bin-only src/ui)
+├── app/               # TUI application state and event loop
+├── ui/                # Ratatui rendering: dashboard, panels, dialogs, keybindings
+├── queue/             # Ticket parsing, creation, file watcher
+├── agents/            # Agent lifecycle: launcher/ (tmux, zellij, cmux, coder,
+│                      #   remote), monitor, activity/idle detection, hooks
+├── config.rs, config/ # TOML config: agent profiles, kanban, llm tools,
+│                      #   sessions, targets, git, notifications
+├── state.rs           # Persistent state store
+├── rest/              # REST API + embedded web UI hosting (axum, utoipa)
+├── mcp/, acp/         # MCP server; Agent Client Protocol
+├── api/, services/    # Kanban/GitHub/PR clients and sync services
+├── llm/, permissions/ # LLM tool detection + runtime configs; per-tool
+│                      #   permission translation (claude, codex, gemini)
+├── issuetypes/, templates/, collections/  # Issue type schema, registry,
+│                      #   shipped collections
+├── taxonomy/, schemas/, docs_gen/  # Source-of-truth data + docs generators
+├── workflow_gen/      # Workflow export (Claude .js, AGNT)
+├── notifications/     # OS notifications (macOS/Linux) + webhook integrations
+└── git/, steps/, relay/, integrations/, startup/, editors.rs, projects.rs, …
 ```
+
+Sibling subprojects: `ui/` (SPA), `webcomponents/` (shared JS, built ahead of
+`ui/` and `docs/`), `vscode-extension/`, `opr8r/`, `docs/` (hosted Jekyll
+site), `collections/community/`.
 
 ## Key Concepts
 
-### Ticket Priority Order
-1. INV (Investigation) - Failures, highest priority
-2. FIX - Bug fixes
-3. FEAT - Features
-4. SPIKE - Research (requires pairing)
+### Ticket Priority
+Queue order is `queue.priority_order` (default INV > FIX > TASK > FEAT > SPIKE), then FIFO.
+Issue types are schema-driven (collections + customm templates), not a fixed set.
 
 ### Agent Modes
-- **Autonomous** (FEAT, FIX): Launch and forget, monitor progress
-- **Paired** (SPIKE, INV): Require human interaction, track "awaiting input"
+Execution mode is declared per issue type (`mode` in the issuetype schema):
+- **Autonomous** (e.g. FEAT, FIX, TASK): launch and monitor progress
+- **Paired** (e.g. SPIKE, INV): require human interaction, track "awaiting input"
 
 ### Parallelism Rules
-- Max agents = min(configured_max, cpu_cores - reserved_cores)
-- Autonomous agents can run in parallel across non-intersecting projects
+- Effective max agents = max(1, min(`agents.max_parallel`, cpu_cores − `agents.cores_reserved`))
+- Same repo is sequential unless `git.use_worktrees = true`, which allows up to
+  `agents.max_agents_per_repo` agents in per-ticket worktrees
 - Paired agents run one at a time per operator attention
-- Same project = sequential (to avoid conflicts)
 
 ## State Management
 
-Operator state persists in `.operator/`:
-```
-.operator/
-├── state.json        # Current queue/agent state
-├── sessions/         # Agent session logs
-│   └── {agent-id}.json
-└── history.json      # Completed work log
-```
+Persistent state lives under `paths.state` (default `.tickets/operator/`);
+`state.json` holds queue/agent state — schema documented at `/schemas/state/`.
+Per-ticket worktrees default to `~/.operator/worktrees`.
 
 ## Ticket Workflow
 
@@ -175,38 +183,33 @@ Operator state persists in `.operator/`:
 2. **Sort**: Order by priority, then FIFO timestamp
 3. **Assign**: When agent slot available, select next ticket
 4. **Confirm**: Prompt operator for launch confirmation
-5. **Launch**: Open Claude Desktop with project + ticket prompt
+5. **Launch**: Run the agent CLI in the configured session target with the interpolated prompt
 6. **Track**: Monitor agent progress, watch for completion
 7. **Complete**: Move ticket, notify, update stats
 
-## Claude Desktop Integration
+## Agent Launching
 
-Launch command (macOS):
-```bash
-open -a "Claude" --args --project "/path/to/project"
-```
+`src/agents/launcher/` builds the agent CLI command (claude, codex, gemini) with a prompt interpolated from the ticket + issuetype steps,
+then runs it in the configured session target:
 
-Initial prompt injected via:
-- Clipboard + paste simulation, OR
-- Project-specific `.claude/initial-prompt.md`, OR
-- AppleScript automation
+- Terminal multiplexers: tmux, zellij, cmux
+- Editors: VS Code, Cursor, Zed (`src/editors.rs`)
+- Remote: SSH hosts and Coder workspaces (`[[targets]]` config)
+
+Per-ticket git worktrees are prepared by `launcher/worktree_setup.rs`.
 
 ## Notifications
 
-macOS notifications via `mac-notification-sys`:
-```rust
-Notification::new()
-    .title("Agent Complete")
-    .subtitle("backend")
-    .message("FEAT-042: Add pagination")
-    .send()?;
-```
+Dispatched through `src/notifications/service.rs` to the enabled integrations:
+OS notifications (mac-notification-sys on macOS, notify-rust on Linux) and
+webhooks.
 
 ## Project Discovery
 
-On startup, operator scans the configured projects directory for subdirectories containing a `CLAUDE.md` file. These are presented as available projects when creating tickets.
+On startup, operator scans the configured projects directory for subdirectories containing an agent marker file (`CLAUDE.md`, `GEMINI.md`, `CODEX.md`).
+These are presented as available projects when creating tickets.
 
-## Ticket Workflow
+## Working a Ticket
 
 ### Before Starting Work
 

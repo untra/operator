@@ -4,8 +4,6 @@ description: "Export an Operator ticket + issue type into a Claude Code dynamic 
 layout: doc
 ---
 
-# Claude Workflow
-
 The default export target. Renders a `ticket + issue type` into a **Claude Code
 dynamic workflow** — a `.js` module the
 [`@untra/naiveworkflow-compiler`](https://operator.untra.io/getting-started/workflows/)

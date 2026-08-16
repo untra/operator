@@ -4,8 +4,6 @@ description: "Download Operator! binaries for macOS, Linux, and Windows."
 layout: doc
 ---
 
-# Operator artifact Downloads
-
 Download <span class="operator-brand">Operator!</span> for your platform. Current version: **v{{ site.version }}**
 
 ## VS Code Extension (Recommended)

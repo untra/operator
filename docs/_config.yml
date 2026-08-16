@@ -28,6 +28,7 @@ exclude:
   - vendor
   - typescript
   - collections
+  - superpowers
 
 # Plugins
 plugins:

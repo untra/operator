@@ -4,8 +4,6 @@ description: "Import OpenSpec spec-driven change tasks as Operator tickets."
 layout: doc
 ---
 
-# OpenSpec
-
 <span class="badge alpha">Experimental</span>
 
 Operator can import work from [**OpenSpec**](https://github.com/Fission-AI/OpenSpec), the spec-driven development (SDD) framework for AI coding assistants. OpenSpec keeps proposed changes as plain-markdown bundles in your repository; Operator turns their task checklists into queued tickets.

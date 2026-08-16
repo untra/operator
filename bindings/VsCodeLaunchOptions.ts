@@ -20,4 +20,8 @@ yoloMode: boolean,
 /**
  * Resume from existing session (uses `session_id` from ticket)
  */
-resumeSession: boolean, };
+resumeSession: boolean, 
+/**
+ * Execution-target override by name (None = delegator/default resolution)
+ */
+target?: string, };

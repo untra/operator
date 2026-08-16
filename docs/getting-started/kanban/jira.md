@@ -4,8 +4,6 @@ description: "Configure Jira Cloud integration with Operator."
 layout: doc
 ---
 
-# Jira Cloud
-
 Connect Operator to [**Jira Cloud**](https://www.atlassian.com/software/jira) for issue tracking and project management.
 
 ## Prerequisites
@@ -129,3 +127,8 @@ curl -u email:token https://your-org.atlassian.net/rest/api/3/myself
 ### Missing issues
 
 Check your JQL query and permissions in Jira.
+
+## API Reference
+
+The full set of Jira REST calls Operator makes is documented in the generated
+[Jira API Reference](/getting-started/kanban/jira-api/).

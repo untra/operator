@@ -4,8 +4,6 @@ description: "Export Operator workflows to AGNT.gg and drive Operator from AGNT 
 layout: doc
 ---
 
-# AGNT.gg
-
 [AGNT.gg](https://agnt.gg) is a local-first agent operating system: a desktop
 app + local runtime with visual graph workflows, agents, a plugin marketplace,
 and native MCP support. Operator connects to AGNT in both directions.

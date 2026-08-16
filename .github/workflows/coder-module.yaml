@@ -1,0 +1,52 @@
+name: Coder Module
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'coder-module/**'
+      - '.github/workflows/coder-module.yaml'
+      - 'scripts/ci/check-coder-module.sh'
+  pull_request:
+    paths:
+      - 'coder-module/**'
+      - '.github/workflows/coder-module.yaml'
+      - 'scripts/ci/check-coder-module.sh'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  test:
+    name: Validate and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: coder-module
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Check formatting
+        run: terraform fmt -check -diff
+
+      - name: Validate
+        run: |
+          terraform init -input=false
+          terraform validate
+
+      # The rendered coder_script is what actually runs in a workspace, so a bash syntax error here is a broken module. 
+      - name: Shell-check the rendered startup script
+        run: ../scripts/ci/check-coder-module.sh
+
+      - name: Test
+        run: bun test

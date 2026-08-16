@@ -87,9 +87,14 @@ impl InProgressPanel {
                     _ => (" ", Color::Reset),
                 };
 
-                // Check launch mode for docker and yolo
-                let is_docker = a.launch_mode.as_ref().is_some_and(|m| m.contains("docker"));
-                let is_yolo = a.launch_mode.as_ref().is_some_and(|m| m.contains("yolo"));
+                // Parse the persisted launch mode (never substring-match it)
+                let parsed = a
+                    .launch_mode
+                    .as_deref()
+                    .map(crate::agents::parse_launch_mode)
+                    .unwrap_or_default();
+                let is_docker = parsed.kind == crate::agents::LaunchModeKind::Docker;
+                let is_yolo = parsed.yolo;
 
                 // YOLO indicator with rainbow animation (6-second cycle: R -> G -> B)
                 let yolo_indicator = if is_yolo {
@@ -344,7 +349,7 @@ mod tests {
             last_content_change: None,
             pr_url: None,
             pr_number: None,
-            github_repo: None,
+            repo: None,
             pr_status: None,
             completed_steps: Vec::new(),
             llm_tool: None,
@@ -354,6 +359,8 @@ mod tests {
             dev_server_pid: None,
             worktree_path: None,
             remote_host: None,
+            step_launch_context: None,
+            target_name: None,
         }
     }
 

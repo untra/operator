@@ -1,10 +1,8 @@
 ---
-title: "Gemini"
+title: "Gemini CLI"
 description: "Configure Google Gemini as your AI coding agent."
 layout: doc
 ---
-
-# Gemini CLI
 
 [Gemini](https://geminicli.com/) is [Google](https://google.com)'s multimodal agent CLI with strong coding capabilities.
 

@@ -17,6 +17,10 @@ enum ExtractKind {
     YamlVersion,
     /// `const VERSION = '...'` (webhook-server.ts).
     TsConst,
+    /// `default = "..."` of the named HCL `variable` block (coder-module/main.tf).
+    /// The Coder module pins the release tag it downloads, so an unbumped
+    /// default points workspaces at a nonexistent GitHub release.
+    HclVariableDefault(&'static str),
 }
 
 /// Repo root = crate manifest dir (tests run with CWD at the crate root).
@@ -57,6 +61,13 @@ fn extract(kind: &ExtractKind, content: &str) -> Option<String> {
             .lines()
             .find(|l| l.contains("const VERSION"))
             .and_then(|l| between_quotes_after(l, "=")),
+        ExtractKind::HclVariableDefault(name) => {
+            let start = content.find(&format!("variable \"{name}\""))?;
+            content[start..]
+                .lines()
+                .find(|l| l.trim_start().starts_with("default"))
+                .and_then(|l| between_quotes_after(l, "="))
+        }
     }
 }
 
@@ -78,6 +89,10 @@ const MANAGED: &[(&str, ExtractKind)] = &[
     ("agnt-plugin/package.json", ExtractKind::JsonDotVersion),
     ("agnt-plugin/manifest.json", ExtractKind::JsonDotVersion),
     ("docs/schemas/openapi.json", ExtractKind::JsonDotVersion),
+    (
+        "coder-module/main.tf",
+        ExtractKind::HclVariableDefault("install_version"),
+    ),
 ];
 
 #[test]

@@ -4,18 +4,18 @@ description: "Kanban and issue tracking integrations for Operator."
 layout: doc
 ---
 
-# Supported Kanban Providers
-
 Operator integrates with popular issue tracking systems to manage work items for AI agents.
 
 ## Available Integrations
 
+Statuses follow the [feature maturity](/maturity/) scale.
+
 | Provider | Status | Notes |
 |----------|--------|-------|
-| [Jira Cloud](/getting-started/kanban/jira/) | Supported | Full API integration |
-| [Linear](/getting-started/kanban/linear/) | Supported | Full API integration |
-| [GitHub Projects](/getting-started/kanban/github/) | Supported | Projects v2 GraphQL integration |
-| [OpenSpec](/getting-started/kanban/openspec/) | Experimental | Local spec-driven changes; pull-only |
+| [Jira Cloud](/getting-started/kanban/jira/) | Beta | Full API integration |
+| [Linear](/getting-started/kanban/linear/) | Beta | Full API integration |
+| [GitHub Projects](/getting-started/kanban/github/) | Beta | Projects v2 GraphQL integration |
+| [OpenSpec](/getting-started/kanban/openspec/) | Alpha | Local spec-driven changes; pull-only |
 
 ## How It Works
 
@@ -86,10 +86,10 @@ as dropdowns. See the per-provider guides for details.
 
 ## Choosing a Provider
 
-Both Jira Cloud and Linear are fully supported kanban providers:
-
 - **Jira Cloud**: Best for teams already using Atlassian products, with rich workflow customization
 - **Linear**: Best for teams wanting a modern, fast issue tracker with streamlined workflows
+- **GitHub Projects**: Best when your work already lives in GitHub issues and Projects v2 boards
+- **OpenSpec**: Best for local, spec-driven change tracking without an external tracker (pull-only)
 
 ## Local Tickets
 

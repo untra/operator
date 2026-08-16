@@ -224,6 +224,7 @@ suite('API Client Test Suite', () => {
         wrapper: 'vscode',
         retry_reason: null,
         resume_session_id: null,
+        target: null,
       };
 
       const result = await client.launchTicket('FEAT-123', options);
@@ -279,6 +280,7 @@ suite('API Client Test Suite', () => {
         wrapper: null,
         retry_reason: null,
         resume_session_id: null,
+        target: null,
       };
 
       await client.launchTicket('FEAT-123/sub', options);
@@ -309,6 +311,7 @@ suite('API Client Test Suite', () => {
         wrapper: null,
         retry_reason: null,
         resume_session_id: null,
+        target: null,
       };
 
       await assert.rejects(
@@ -333,6 +336,7 @@ suite('API Client Test Suite', () => {
         wrapper: null,
         retry_reason: null,
         resume_session_id: null,
+        target: null,
       };
 
       await assert.rejects(

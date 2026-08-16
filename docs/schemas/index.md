@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM docs/schemas/ - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Schema Reference
-
 This section documents all JSON schemas and type definitions used by Operator.
 
 ## Documentation
@@ -38,8 +36,8 @@ Machine-readable JSON Schema files for validation and code generation:
 
 TypeScript type definitions are available for frontend integration:
 
-- [TypeScript API Documentation](/typescript/) - Generated via TypeDoc
 - Source: `shared/types.ts` (generated via ts-rs)
+- API docs can be generated locally with `npm run docs:typescript`
 
 ## Regenerating Schemas
 

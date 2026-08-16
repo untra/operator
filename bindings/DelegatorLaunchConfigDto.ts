@@ -44,6 +44,12 @@ prompt_suffix?: string | null,
  */
 operator_relay?: boolean | null, 
 /**
- * Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local)
+ * Name of a declared `RemoteHost` to launch the agent CLI on over SSH (None = local).
+ * DEPRECATED: prefer `target`.
  */
-host?: string | null, };
+host?: string | null, 
+/**
+ * Name of an execution target (explicit `[[targets]]` entry, synthesized
+ * `local`/`docker`, or a `[[hosts]]` name). Supersedes `docker`/`host`.
+ */
+target?: string | null, };

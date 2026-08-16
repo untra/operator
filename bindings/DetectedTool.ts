@@ -40,4 +40,8 @@ capabilities: ToolCapabilities,
 /**
  * CLI flags for YOLO (auto-accept) mode
  */
-yolo_flags: Array<string>, };
+yolo_flags: Array<string>, 
+/**
+ * Whether the tool passed its health check at detection on startup
+ */
+health_ok: boolean, };

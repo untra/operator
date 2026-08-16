@@ -31,7 +31,6 @@ impl DocGenerator for ConfigSchemaDocGenerator {
         let mut output = format_header("Configuration Schema", self.source());
 
         // Title and description
-        output.push_str(&heading(1, "Configuration Schema"));
         output.push_str("JSON Schema for the Operator configuration file (`config.toml`).\n\n");
 
         // Schema metadata
@@ -220,7 +219,8 @@ mod tests {
         assert!(result.contains("config.json"));
 
         // Should have the main heading
-        assert!(result.contains("# Configuration Schema"));
+        assert!(result.contains("title: \"Configuration Schema\""));
+        assert!(!result.contains("\n# Configuration Schema"));
 
         // Should have required fields section
         assert!(result.contains("## Required Fields"));

@@ -27,6 +27,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
   // Launch form state.
   const [delegator, setDelegator] = useState<string>(''); // '' = default chain
   const [wrapper, setWrapper] = useState<string>(''); // '' = configured default
+  const [target, setTarget] = useState<string>(''); // '' = delegator's target
   const [yolo, setYolo] = useState(false);
 
   const [config, setConfig] = useState<Config | null>(null);
@@ -72,6 +73,18 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
   const defaultWrapperLabel = config?.sessions.wrapper ?? 'configured';
   const delegators = useMemo(() => config?.delegators ?? [], [config]);
 
+  // Named execution targets: explicit [[targets]] entries, [[hosts]] synths,
+  // and the synthesized docker target when an image is configured.
+  const targets = useMemo(() => {
+    if (!config) return [] as string[];
+    const names = [
+      ...(config.targets ?? []).map((t) => t.name),
+      ...(config.hosts ?? []).map((h) => h.name),
+    ];
+    if (config.launch.docker.image) names.push('docker');
+    return names;
+  }, [config]);
+
   const onLaunch = () => {
     setLaunching(true);
     setLaunchError(null);
@@ -85,6 +98,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
         wrapper: wrapper || null,
         retry_reason: null,
         resume_session_id: null,
+        target: target || null,
       })
       .then((r) => setResult(r))
       .catch((e) => setLaunchError(e instanceof Error ? e.message : 'Launch failed'))
@@ -150,6 +164,24 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
               <option value="zellij">zellij</option>
             </select>
           </label>
+
+          {targets.length > 0 && (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Target</span>
+              <select
+                className={styles.select}
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+              >
+                <option value="">Delegator&apos;s target (auto)</option>
+                {targets.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <label className={styles.checkboxField}>
             <input type="checkbox" checked={yolo} onChange={(e) => setYolo(e.target.checked)} />

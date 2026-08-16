@@ -6,8 +6,6 @@ layout: doc
 <!-- AUTO-GENERATED FROM docs/schemas/config.json - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-# Configuration Schema
-
 JSON Schema for the Operator configuration file (`config.toml`).
 
 ## Schema Information
@@ -49,6 +47,7 @@ JSON Schema for the Operator configuration file (`config.toml`).
 | `delegators` | `array` | No | Agent delegator configurations for autonomous ticket launching |
 | `model_servers` | `array` | No | User-declared model servers (ollama, lmstudio, any OpenAI-compat host). Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration. |
 | `hosts` | `array` | No | Remote machines agents can be launched on over SSH, referenced by name from `DelegatorLaunchConfig.host`. |
+| `targets` | `array` | No | Named execution targets (docker/coder/ssh/local) referenced by `DelegatorLaunchConfig.target`. |
 | `relay` | → `RelayConfig` | No | Relay MCP injection configuration |
 | `mcp` | → `McpConfig` | No | Model Context Protocol (MCP) server configuration |
 | `acp` | → `AcpConfig` | No | Agent Client Protocol (ACP) agent configuration |
@@ -320,6 +319,7 @@ A detected CLI tool (e.g., claude binary)
 | `command_template` | `string` | No | Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders |
 | `capabilities` | → `ToolCapabilities` | No | Tool capabilities |
 | `yolo_flags` | `array` | No | CLI flags for YOLO (auto-accept) mode |
+| `health_ok` | `boolean` | No | Whether the tool passed its health check at detection on startup |
 
 ### ToolCapabilities
 
@@ -375,7 +375,7 @@ Git provider configuration for PR/MR operations
 | --- | --- | --- | --- |
 | `provider` | object | No | Active provider (auto-detected from remote URL if not specified) |
 | `github` | → `GitHubConfig` | No | GitHub-specific configuration |
-| `gitlab` | → `GitLabConfig` | No | GitLab-specific configuration (planned) |
+| `gitlab` | → `GitLabConfig` | No | GitLab-specific configuration |
 | `branch_format` | `string` | No | Branch naming format (e.g., "{type}/{ticket_id}-{slug}") |
 | `use_worktrees` | `boolean` | No | Whether to use git worktrees for per-ticket isolation (default: false) When false, tickets work directly in the project directory with branches |
 
@@ -389,6 +389,8 @@ Git provider selection
 - `gitlab` - GitLab (gitlab.com or self-hosted)
 - `bitbucket` - Bitbucket (bitbucket.org)
 - `azuredevops` - Azure DevOps (dev.azure.com)
+- `forgejo` - Forgejo (e.g. codeberg.org or self-hosted)
+- `gitea` - Gitea (gitea.com or self-hosted)
 
 ### GitHubConfig
 
@@ -401,7 +403,7 @@ GitHub-specific configuration
 
 ### GitLabConfig
 
-GitLab-specific configuration (planned)
+GitLab-specific configuration
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -423,7 +425,7 @@ Providers are keyed by domain/workspace:
 | `jira` | `object` | No | Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net") |
 | `linear` | `object` | No | Linear instances keyed by workspace slug |
 | `github` | `object` | No | GitHub Projects v2 instances keyed by owner login (user or org)  NOTE: This is the *kanban* GitHub integration (Projects v2), distinct from `GitHubConfig` which is the *git provider* used for PRs and branches. The two use different env vars and different scopes — see `docs/getting-started/kanban/github.md` for the full disambiguation. |
-| `openspec` | `object` | No | OpenSpec roots keyed by a free-form instance name (e.g., a repo alias). Experimental, pull-only: each active change under `<root_path>/changes/` acts as a kanban "project" whose issues are the tasks.md task groups. |
+| `openspec` | `object` | No | `OpenSpec` roots keyed by a free-form instance name (e.g., a repo alias). Experimental, pull-only: each active change under `<root_path>/changes/` acts as a kanban "project" whose issues are the tasks.md task groups. |
 
 ### JiraConfig
 
@@ -503,7 +505,7 @@ require different OAuth scopes (`project` vs `repo`). See
 
 ### OpenspecConfig
 
-OpenSpec provider configuration (experimental, pull-only)
+`OpenSpec` provider configuration (experimental, pull-only)
 
 The instance name is the `HashMap` key in `KanbanConfig.openspec`. There
 are no credentials — the provider reads local markdown under `root_path`.
@@ -511,7 +513,7 @@ are no credentials — the provider reads local markdown under `root_path`.
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether this provider is enabled |
-| `root_path` | `string` | No | Directory containing the OpenSpec `changes/` tree (typically `<repo>/openspec`) |
+| `root_path` | `string` | No | Directory containing the `OpenSpec` `changes/` tree (typically `<repo>/openspec`) |
 | `project` | `string` \| `null` | No | Operator project stamped on imported tickets (defaults to the change id) |
 
 ### VersionCheckConfig
@@ -559,11 +561,12 @@ semantics: `None` = inherit from global config, `Some(true/false)` = override.
 | `flags` | `array` | No | Additional CLI flags |
 | `use_worktrees` | `boolean` \| `null` | No | Override global `git.use_worktrees` per-delegator (None = use global setting) |
 | `create_branch` | `boolean` \| `null` | No | Whether to create a git branch for the ticket (None = default behavior) |
-| `docker` | `boolean` \| `null` | No | Run in docker container (None = use global `launch.docker.enabled`) |
+| `docker` | `boolean` \| `null` | No | DEPRECATED: prefer `target`. Run in docker container (None = fall back to `launch.docker.enabled`, then local). |
 | `prompt_prefix` | `string` \| `null` | No | Prompt text to prepend before the generated step prompt |
 | `prompt_suffix` | `string` \| `null` | No | Prompt text to append after the generated step prompt |
 | `operator_relay` | `boolean` \| `null` | No | Override global relay auto-inject MCP setting per-delegator (None = use global setting) |
-| `host` | `string` \| `null` | No | Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent CLI on over SSH. `None` = launch locally. |
+| `host` | `string` \| `null` | No | DEPRECATED: prefer `target`. Name of a declared `RemoteHost` (from `Config.hosts`) to launch the agent CLI on over SSH. `None` = local. |
+| `target` | `string` \| `null` | No | Name of an execution target: an explicit `[[targets]]` entry, the synthesized `local`/`docker` targets, or a `[[hosts]]` name. Supersedes `docker` and `host`. |
 
 ### RemoteAgentRef
 
@@ -616,6 +619,48 @@ Distinct from [`ModelServer`] (where model *inference* lives) and from
 | `ssh_alias` | `string` | Yes | SSH destination, resolved via the user's `~/.ssh/config` |
 | `workdir` | `string` | Yes | Absolute path to the project root on the remote host |
 | `display_name` | `string` \| `null` | No | Optional display name for UI |
+| `ssh_config_path` | `string` \| `null` | No | SSH config fragment passed with `-F` (used by provisioned coder aliases) |
+
+### TargetDef
+
+A named execution target agents can be launched on.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Unique name, referenced by `DelegatorLaunchConfig.target`. `local` and `docker` are reserved for synthesized targets. |
+| `display_name` | `string` \| `null` | No | Human-readable name for UI surfaces |
+
+**Allowed Values:**
+
+
+### CoderConfig
+
+Coder workspace target: lifecycle + alias provisioning around the shared
+SSH remote-launch path. There is no `enabled` field — presence in
+`[[targets]]` is the enablement.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `template` | `string` | Yes | Coder template child workspaces are created from (an allowlist — never per-ticket input) |
+| `url_env` | `string` | No | Env var NAME holding the Coder deployment URL |
+| `token_env` | `string` | No | Env var NAME holding the Coder session token. The variable is stripped from every agent's spawn environment on all target kinds. |
+| `name_prefix` | `string` | No | Workspace name prefix for deterministic per-ticket naming |
+| `workdir` | `string` \| `null` | No | Project root inside the workspace (None = workspace $HOME) |
+| `stop_on_complete` | `boolean` | No | Stop the workspace when the ticket completes (never delete) |
+| `create_timeout_secs` | `integer` | No | Bound on workspace create + agent-ready wait |
+| `callback_url` | `string` \| `null` | No | Control-plane-reachable `OPERATOR_API_URL` override for detached multi-step (empty/None = reverse tunnel default) |
+| `parameters` | `object` | No | Passthrough `-p` template parameters for `coder create` |
+
+### SshTarget
+
+SSH target payload. Name and display name live on `TargetDef`; this is the
+connection shape (`RemoteHost` minus identity).
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `ssh_alias` | `string` | Yes | Host alias resolved via the user's `~/.ssh/config` (or `ssh_config_path`) |
+| `workdir` | `string` | Yes | Absolute project root on the remote machine |
+| `ssh_config_path` | `string` \| `null` | No | SSH config fragment passed with `-F` (used by provisioned coder aliases) |
 
 ### RelayConfig
 

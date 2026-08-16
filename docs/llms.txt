@@ -18,6 +18,7 @@ Operator runs from the root of your work directory, discovers projects by LLM ma
 - [Workflows](https://operator.untra.io/workflows/): Shareable collections of Operator workflows.
 - [Workflow Export Formats](https://operator.untra.io/getting-started/workflows/): Export an Operator workflow into a format another LLM tool or model can run.
 - [Delegators](https://operator.untra.io/delegators/): Named LLM tool + model pairings for autonomous ticket launching.
+- [Remote Hosts (SSH)](https://operator.untra.io/getting-started/sessions/remote-hosts/): Launch agent CLI processes on a remote machine over SSH while the Operator dashboard stays local.
 
 ## Integrations
 - [LLM Tools](https://operator.untra.io/llm-tools/): Configure Claude Code and other LLM tools for AI-powered agent integration with Operator!.

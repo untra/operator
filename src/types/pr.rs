@@ -1,6 +1,6 @@
 //! Pull Request types for Git provider integration.
 //!
-//! These types support multiple Git providers (GitHub, GitLab, Bitbucket, Azure DevOps)
+//! These types support multiple Git providers (see [`GitProvider::ALL`])
 //! with provider-specific CLI wrappers for operations.
 
 use chrono::{DateTime, Utc};
@@ -25,6 +25,10 @@ pub enum GitProvider {
     Bitbucket,
     /// Azure DevOps (dev.azure.com)
     AzureDevOps,
+    /// Forgejo (codeberg.org or self-hosted)
+    Forgejo,
+    /// Gitea (gitea.com or self-hosted)
+    Gitea,
 }
 
 impl fmt::Display for GitProvider {
@@ -34,6 +38,8 @@ impl fmt::Display for GitProvider {
             GitProvider::GitLab => write!(f, "gitlab"),
             GitProvider::Bitbucket => write!(f, "bitbucket"),
             GitProvider::AzureDevOps => write!(f, "azure"),
+            GitProvider::Forgejo => write!(f, "forgejo"),
+            GitProvider::Gitea => write!(f, "gitea"),
         }
     }
 }
@@ -41,11 +47,13 @@ impl fmt::Display for GitProvider {
 impl GitProvider {
     /// The canonical list of git providers, in display order. Single source of
     /// truth mirrored by the vertical catalog (`crate::integrations::catalog`).
-    pub const ALL: [GitProvider; 4] = [
+    pub const ALL: [GitProvider; 6] = [
         GitProvider::GitHub,
         GitProvider::GitLab,
         GitProvider::Bitbucket,
         GitProvider::AzureDevOps,
+        GitProvider::Forgejo,
+        GitProvider::Gitea,
     ];
 
     /// Stable lowercase slug (matches the [`Display`](std::fmt::Display) form and
@@ -56,6 +64,8 @@ impl GitProvider {
             GitProvider::GitLab => "gitlab",
             GitProvider::Bitbucket => "bitbucket",
             GitProvider::AzureDevOps => "azure",
+            GitProvider::Forgejo => "forgejo",
+            GitProvider::Gitea => "gitea",
         }
     }
 
@@ -70,6 +80,10 @@ impl GitProvider {
             Some(GitProvider::Bitbucket)
         } else if url_lower.contains("dev.azure.com") || url_lower.contains("visualstudio.com") {
             Some(GitProvider::AzureDevOps)
+        } else if url_lower.contains("codeberg.org") {
+            Some(GitProvider::Forgejo)
+        } else if url_lower.contains("gitea.com") {
+            Some(GitProvider::Gitea)
         } else {
             None
         }
@@ -141,13 +155,17 @@ fn parse_owner_repo(
 ) -> Result<(String, String), RepoInfoError> {
     let pattern = match provider {
         GitProvider::GitHub => r"github\.com[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?(?:/|$)",
-        GitProvider::GitLab => r"gitlab[^/]*[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?(?:/|$)",
+        GitProvider::GitLab => r"gitlab[^:/]*[:/](?P<owner>.+)/(?P<repo>[^/]+?)(?:\.git)?(?:/|$)",
         GitProvider::Bitbucket => {
             r"bitbucket\.org[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?(?:/|$)"
         }
         GitProvider::AzureDevOps => {
             r"(?:dev\.azure\.com|visualstudio\.com)[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?(?:/|$)"
         }
+        GitProvider::Forgejo => {
+            r"codeberg\.org[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?(?:/|$)"
+        }
+        GitProvider::Gitea => r"gitea\.com[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?(?:/|$)",
     };
 
     let re = Regex::new(pattern)
@@ -205,13 +223,13 @@ pub struct CreatePrRequest {
     pub draft: Option<bool>,
 }
 
-/// PR info returned from GitHub
+/// PR/MR info returned from the git provider
 #[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
 #[ts(export)]
 pub struct PullRequestInfo {
     /// PR number
     pub number: i64,
-    /// PR URL on GitHub
+    /// PR URL on the provider
     pub url: String,
     /// Current PR state
     pub state: PrState,
@@ -320,10 +338,12 @@ impl UnifiedPrComment {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[ts(export)]
 pub enum CreatePrError {
-    /// GitHub CLI is not installed
-    GithubCliNotInstalled,
-    /// GitHub CLI is not authenticated
-    GithubCliNotLoggedIn,
+    /// Provider CLI (gh/glab/...) is not installed
+    #[serde(alias = "github_cli_not_installed")]
+    ProviderCliNotInstalled,
+    /// Provider CLI is not authenticated
+    #[serde(alias = "github_cli_not_logged_in")]
+    ProviderCliNotLoggedIn,
     /// Git CLI is not installed
     GitCliNotInstalled,
     /// Git remote is not configured
@@ -334,8 +354,9 @@ pub enum CreatePrError {
     BranchNotPushed { branch: String },
     /// PR already exists for this branch
     PrAlreadyExists { pr_number: i64, url: String },
-    /// GitHub API error
-    GithubApiError { message: String },
+    /// Provider API error
+    #[serde(alias = "github_api_error")]
+    ProviderApiError { message: String },
 }
 
 #[cfg(test)]
@@ -395,6 +416,30 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_detect_forgejo_provider() {
+        assert_eq!(
+            GitProvider::from_remote_url("git@codeberg.org:owner/repo.git"),
+            Some(GitProvider::Forgejo)
+        );
+        assert_eq!(
+            GitProvider::from_remote_url("https://codeberg.org/owner/repo"),
+            Some(GitProvider::Forgejo)
+        );
+    }
+
+    #[test]
+    fn test_detect_gitea_provider() {
+        assert_eq!(
+            GitProvider::from_remote_url("git@gitea.com:owner/repo.git"),
+            Some(GitProvider::Gitea)
+        );
+        assert_eq!(
+            GitProvider::from_remote_url("https://gitea.com/owner/repo"),
+            Some(GitProvider::Gitea)
+        );
+    }
+
     // RepoInfo parsing tests (GitHub)
     #[test]
     fn test_parse_github_ssh_url() {
@@ -437,6 +482,39 @@ mod tests {
         assert_eq!(info.repo_name, "repo");
     }
 
+    #[test]
+    fn test_parse_gitlab_subgroup_https_url() {
+        let info = RepoInfo::from_remote_url("https://gitlab.com/group/subgroup/repo.git").unwrap();
+        assert_eq!(info.provider, GitProvider::GitLab);
+        assert_eq!(info.owner, "group/subgroup");
+        assert_eq!(info.repo_name, "repo");
+    }
+
+    #[test]
+    fn test_parse_gitlab_subgroup_ssh_url() {
+        let info = RepoInfo::from_remote_url("git@gitlab.com:group/subgroup/repo.git").unwrap();
+        assert_eq!(info.provider, GitProvider::GitLab);
+        assert_eq!(info.owner, "group/subgroup");
+        assert_eq!(info.repo_name, "repo");
+    }
+
+    // RepoInfo parsing tests (Forgejo / Gitea)
+    #[test]
+    fn test_parse_forgejo_https_url() {
+        let info = RepoInfo::from_remote_url("https://codeberg.org/owner/repo").unwrap();
+        assert_eq!(info.provider, GitProvider::Forgejo);
+        assert_eq!(info.owner, "owner");
+        assert_eq!(info.repo_name, "repo");
+    }
+
+    #[test]
+    fn test_parse_gitea_https_url() {
+        let info = RepoInfo::from_remote_url("https://gitea.com/owner/repo").unwrap();
+        assert_eq!(info.provider, GitProvider::Gitea);
+        assert_eq!(info.owner, "owner");
+        assert_eq!(info.repo_name, "repo");
+    }
+
     // Error handling tests
     #[test]
     fn test_invalid_url() {
@@ -470,6 +548,22 @@ mod tests {
         assert_eq!(GitProvider::GitLab.to_string(), "gitlab");
         assert_eq!(GitProvider::Bitbucket.to_string(), "bitbucket");
         assert_eq!(GitProvider::AzureDevOps.to_string(), "azure");
+        assert_eq!(GitProvider::Forgejo.to_string(), "forgejo");
+        assert_eq!(GitProvider::Gitea.to_string(), "gitea");
+    }
+
+    #[test]
+    fn test_provider_slug_round_trip() {
+        for provider in GitProvider::ALL {
+            assert_eq!(provider.slug(), provider.to_string());
+        }
+        assert_eq!(GitProvider::Forgejo.slug(), "forgejo");
+        assert_eq!(GitProvider::Gitea.slug(), "gitea");
+    }
+
+    #[test]
+    fn test_all_has_six_providers() {
+        assert_eq!(GitProvider::ALL.len(), 6);
     }
 
     // PR comment tests
@@ -484,6 +578,43 @@ mod tests {
             url: "https://github.com/...".to_string(),
         };
         assert!(comment.created_at() <= Utc::now());
+    }
+
+    // CreatePrError wire-compat tests
+    #[test]
+    fn test_create_pr_error_alias_old_wire_strings_deserialize() {
+        let cli_not_installed: CreatePrError =
+            serde_json::from_str(r#"{"type":"github_cli_not_installed"}"#).unwrap();
+        assert!(matches!(
+            cli_not_installed,
+            CreatePrError::ProviderCliNotInstalled
+        ));
+
+        let cli_not_logged_in: CreatePrError =
+            serde_json::from_str(r#"{"type":"github_cli_not_logged_in"}"#).unwrap();
+        assert!(matches!(
+            cli_not_logged_in,
+            CreatePrError::ProviderCliNotLoggedIn
+        ));
+
+        let api_error: CreatePrError =
+            serde_json::from_str(r#"{"type":"github_api_error","message":"boom"}"#).unwrap();
+        assert!(matches!(
+            api_error,
+            CreatePrError::ProviderApiError { message } if message == "boom"
+        ));
+    }
+
+    #[test]
+    fn test_create_pr_error_new_wire_strings_round_trip() {
+        let err = CreatePrError::ProviderCliNotInstalled;
+        let json = serde_json::to_string(&err).unwrap();
+        assert_eq!(json, r#"{"type":"provider_cli_not_installed"}"#);
+        let round_tripped: CreatePrError = serde_json::from_str(&json).unwrap();
+        assert!(matches!(
+            round_tripped,
+            CreatePrError::ProviderCliNotInstalled
+        ));
     }
 
     // TypeScript binding tests

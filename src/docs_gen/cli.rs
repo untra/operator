@@ -29,7 +29,6 @@ impl DocGenerator for CliDocGenerator {
         let mut output = format_header("CLI Reference", self.source());
 
         // Introduction
-        output.push_str(&heading(1, "CLI Reference"));
         output.push_str(
             "Operator provides both a TUI dashboard and CLI commands for queue management.\n\n",
         );
@@ -222,7 +221,8 @@ mod tests {
         assert!(result.contains("main.rs"));
 
         // Should have the main heading
-        assert!(result.contains("# CLI Reference"));
+        assert!(result.contains("title: \"CLI Reference\""));
+        assert!(!result.contains("\n# CLI Reference"));
 
         // Should have global options section
         assert!(result.contains("## Global Options"));

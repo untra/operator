@@ -9,7 +9,9 @@
         "deny": [
             "Bash(git revert*)",
             "Bash(git checkout*)",
-            "Bash(git rebase*)"
+            "Bash(git rebase*)",
+            "Write(docs/superpowers/**)",
+            "Edit(docs/superpowers/**)"
         ]
     }
 }

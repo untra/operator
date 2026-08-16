@@ -4,8 +4,6 @@ description: "Interactive Swagger UI documentation for the Operator! REST API fo
 layout: doc
 ---
 
-# Operator REST API
-
 Interactive API documentation powered by Swagger UI.
 
 The Operator REST API provides endpoints for managing issue types and collections programmatically.

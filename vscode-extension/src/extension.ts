@@ -66,6 +66,8 @@ interface CommandContext {
   statusBarItem: vscode.StatusBarItem;
   createBarItem: vscode.StatusBarItem;
   outputChannel: vscode.OutputChannel;
+  /** The Operator server this window is attached to (probe-first activation) */
+  attachedServer?: { url: string; version?: string };
   getCurrentTicketsDir: () => string | undefined;
   setCurrentTicketsDir: (dir: string | undefined) => void;
   refreshAllProviders: () => Promise<void>;
@@ -203,6 +205,7 @@ async function launchTicketFromEditorCommand(
       yolo_mode: false,
       retry_reason: null,
       resume_session_id: null,
+      target: null,
     });
 
     ctx.terminalManager.create({
@@ -286,6 +289,7 @@ async function launchTicketFromEditorWithOptionsCommand(
       yolo_mode: options.yoloMode,
       retry_reason: null,
       resume_session_id: null,
+      target: null,
     });
 
     ctx.terminalManager.create({
@@ -331,7 +335,7 @@ function openTicketFile(filePath: string): void {
 // Server commands
 // ---------------------------------------------------------------------------
 
-async function startServer(ctx: CommandContext): Promise<void> {
+async function startWebhookServer(ctx: CommandContext): Promise<void> {
   const hasConfig = await configFileExists();
   if (!hasConfig) {
     showConfigMissingNotification();
@@ -396,14 +400,24 @@ function showStatus(ctx: CommandContext): void {
 }
 
 function updateStatusBar(ctx: CommandContext): void {
-  if (ctx.webhookServer.isRunning()) {
-    const port = ctx.webhookServer.getPort();
-    ctx.statusBarItem.text = `$(terminal) Operator :${port}`;
-    ctx.statusBarItem.tooltip = `Operator webhook server running on port ${port}`;
+  // Two distinct facts: which Operator server this window is attached to,
+  // and whether the extension's own webhook listener is up.
+  const webhook = ctx.webhookServer.isRunning()
+    ? `webhook :${ctx.webhookServer.getPort()}`
+    : 'webhook off';
+  if (ctx.attachedServer) {
+    const coderWorkspace = process.env.CODER_WORKSPACE_NAME;
+    const label = coderWorkspace
+      ? `coder/${coderWorkspace}`
+      : ctx.attachedServer.url.replace(/^https?:\/\//, '');
+    ctx.statusBarItem.text = `$(server) Operator: ${label}`;
+    ctx.statusBarItem.tooltip =
+      `Attached to Operator ${ctx.attachedServer.version ? `v${ctx.attachedServer.version} ` : ''}` +
+      `at ${ctx.attachedServer.url} · ${webhook}`;
     ctx.statusBarItem.backgroundColor = undefined;
   } else {
-    ctx.statusBarItem.text = '$(terminal) Operator (off)';
-    ctx.statusBarItem.tooltip = 'Operator webhook server stopped';
+    ctx.statusBarItem.text = '$(server) Operator (no server)';
+    ctx.statusBarItem.tooltip = `No Operator server reachable. Set operator.apiUrl or start one. · ${webhook}`;
     ctx.statusBarItem.backgroundColor = new vscode.ThemeColor(
       'statusBarItem.warningBackground'
     );
@@ -1160,7 +1174,7 @@ export async function activate(
     vscode.commands.registerCommand('operator.revealTicketsDir',
       () => revealTicketsDirCommand(ctx)),
     vscode.commands.registerCommand('operator.startWebhookServer',
-      () => startServer(ctx)),
+      () => startWebhookServer(ctx)),
     vscode.commands.registerCommand('operator.connectMcpServer',
       () => connectMcpServer(ctx.getCurrentTicketsDir())),
     // ABXY navigation commands for status panel — registered last but still before async init
@@ -1210,17 +1224,42 @@ export async function activate(
       context.subscriptions.push(watcher);
     }
 
-    // Auto-start if configured and config.toml exists
+    // Probe-first attachment: the health probe is the ONLY thing deciding
+    // whether an Operator server exists — no binary, config.toml, or .tickets
+    // gating on this path. Filesystem checks gate *starting* a server only.
+    const apiUrl = await discoverApiUrl(ctx.getCurrentTicketsDir());
+    try {
+      const health = await new OperatorApiClient(apiUrl).health();
+      ctx.attachedServer = { url: apiUrl, version: health.version };
+      outputChannel.appendLine(`[Operator] Attached to server at ${apiUrl}`);
+      const client = new OperatorApiClient(apiUrl);
+      queueProvider.setApiClient(client);
+      inProgressProvider.setApiClient(client);
+      completedProvider.setApiClient(client);
+    } catch {
+      ctx.attachedServer = undefined;
+    }
+
+    // operator.autoStart: start a local server when none is reachable.
+    // Starting happens only from a named VS Code workspace terminal.
     const autoStart = vscode.workspace
       .getConfiguration('operator')
       .get('autoStart', true);
-    if (autoStart) {
+    if (!ctx.attachedServer && autoStart) {
       const hasConfig = await configFileExists();
       if (hasConfig) {
-        await startServer(ctx);
+        await startOperatorServerCommand(ctx);
       } else {
-        showConfigMissingNotification();
+        void vscode.window.showInformationMessage(
+          'No Operator server. Set operator.apiUrl.'
+        );
       }
+    }
+
+    // The webhook listener stays in-process (it must hand its port back to
+    // the extension host) and needs the local config to exist.
+    if (await configFileExists()) {
+      await startWebhookServer(ctx);
     }
 
     updateStatusBar(ctx);

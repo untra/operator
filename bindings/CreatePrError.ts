@@ -3,4 +3,4 @@
 /**
  * Error when creating a PR
  */
-export type CreatePrError = { "type": "github_cli_not_installed" } | { "type": "github_cli_not_logged_in" } | { "type": "git_cli_not_installed" } | { "type": "git_remote_not_configured" } | { "type": "target_branch_not_found", branch: string, } | { "type": "branch_not_pushed", branch: string, } | { "type": "pr_already_exists", pr_number: bigint, url: string, } | { "type": "github_api_error", message: string, };
+export type CreatePrError = { "type": "provider_cli_not_installed" } | { "type": "provider_cli_not_logged_in" } | { "type": "git_cli_not_installed" } | { "type": "git_remote_not_configured" } | { "type": "target_branch_not_found", branch: string, } | { "type": "branch_not_pushed", branch: string, } | { "type": "pr_already_exists", pr_number: bigint, url: string, } | { "type": "provider_api_error", message: string, };

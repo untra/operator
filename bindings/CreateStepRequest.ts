@@ -5,6 +5,6 @@
  */
 export type CreateStepRequest = { name: string, display_name: string | null, prompt: string, outputs: Array<string>, allowed_tools: Array<string>, 
 /**
- * Type of review required: "none", "plan", "visual", "pr"
+ * Type of review required: "none", "plan", "visual", "pr", "proof"
  */
 review_type: string, next_step: string | null, permission_mode: string, };

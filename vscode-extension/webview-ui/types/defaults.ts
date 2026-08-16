@@ -43,9 +43,9 @@ const DEFAULT_CONFIG: Config = {
     },
   },
   launch: {
-    confirm_autonomous: false,
+    confirm_autonomous: true,
     confirm_paired: true,
-    launch_delay_ms: BigInt(500),
+    launch_delay_ms: BigInt(2000),
     docker: {
       enabled: false,
       image: '',
@@ -129,6 +129,7 @@ const DEFAULT_CONFIG: Config = {
   delegators: [],
   model_servers: [],
   hosts: [],
+  targets: [],
   relay: { auto_inject_mcp: false },
   mcp: {
     http_enabled: true,

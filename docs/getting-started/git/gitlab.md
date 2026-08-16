@@ -5,8 +5,6 @@ layout: doc
 published: true
 ---
 
-# GitLab
-
 Connect Operator to GitLab for repository management and merge requests.
 
 ## Prerequisites

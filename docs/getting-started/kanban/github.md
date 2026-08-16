@@ -4,8 +4,6 @@ description: "Configure GitHub Projects v2 integration with Operator."
 layout: doc
 ---
 
-# GitHub Projects
-
 Connect Operator to [**GitHub Projects v2**](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) for issue tracking and project management.
 
 > **⚠ Token Disambiguation — read this first**

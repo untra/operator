@@ -28,13 +28,13 @@ pub struct ProofResult {
     pub assertion_command: String,
     /// Exit code of the assertion command; -1 if killed by signal/timeout.
     pub exit_code: i32,
-    /// True iff exit_code == 0 && !timed_out.
+    /// True iff `exit_code` == 0 && !`timed_out`.
     pub passed: bool,
     /// True if the assertion command was killed for exceeding its timeout.
     pub timed_out: bool,
     /// Wall-clock duration of the assertion command, in milliseconds.
     pub duration_ms: u64,
-    /// Paths (relative to worktree_root) of everything written into the
+    /// Paths (relative to `worktree_root`) of everything written into the
     /// proof dir: assertion.log, artifact.log (if run), and copied files.
     pub artifacts: Vec<String>,
     /// Error from running/spawning `artifact_command`, if any. Artifact capture is best-effort.
@@ -71,7 +71,7 @@ impl ProofRunner {
     }
 
     /// Path to the persisted `result.json` for `(ticket_id, step_name)`.
-    /// Used by callers (complete_step hook, sync arm) for idempotence
+    /// Used by callers (`complete_step` hook, sync arm) for idempotence
     /// checks - a proof step has already run iff this path exists.
     pub fn result_path(worktree_root: &Path, ticket_id: &str, step_name: &str) -> PathBuf {
         Self::proof_dir(worktree_root, ticket_id, step_name).join("result.json")
@@ -102,7 +102,7 @@ impl ProofRunner {
 
     /// Run `sh -c <rendered command>` in `worktree_root`, capturing
     /// stdout+stderr into `log_path` (sections, not interleaved) and
-    /// enforcing `timeout`. Returns (exit_code, timed_out, duration_ms).
+    /// enforcing `timeout`. Returns `(exit_code, timed_out, duration_ms)`.
     async fn run_command(
         command: &str,
         worktree_root: &Path,

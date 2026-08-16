@@ -11,7 +11,7 @@ use axum::{
 };
 
 use crate::agents::delegator_resolution::{self, AgentContext};
-use crate::agents::{LaunchOptions, Launcher, PreparedLaunch, RelaunchOptions};
+use crate::agents::{LaunchOptions, Launcher, PreparedLaunch, ProofRunner, RelaunchOptions};
 use crate::queue::Queue;
 use crate::rest::dto::{
     LaunchTicketRequest, LaunchTicketResponse, NextStepInfo, StepCompleteRequest,
@@ -497,6 +497,112 @@ fn record_step_transition(
     }
 }
 
+/// Persist `message` as the completing agent's `last_message`.
+fn set_proof_status_message(
+    state: &ApiState,
+    ticket: &crate::queue::Ticket,
+    session_id: Option<&str>,
+    message: &str,
+) {
+    let mut app_state = match crate::state::State::load(&state.config) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(ticket = %ticket.id, error = %e, "Failed to load state for proof status message");
+            return;
+        }
+    };
+    let Some(agent) = find_completing_agent(&app_state.agents, &ticket.id, session_id) else {
+        return;
+    };
+    let (agent_id, status) = (agent.id.clone(), agent.status.clone());
+    if let Err(e) = app_state.update_agent_status(&agent_id, &status, Some(message.to_string())) {
+        tracing::warn!(ticket = %ticket.id, error = %e, "Failed to persist proof status message");
+    }
+}
+
+/// Run a Proof step's assertion synchronously after a successful command
+/// exit, recording pass/fail evidence under `.proof/{ticket}/{step}/` and
+/// annotating the agent's status message. The caller's status logic already
+/// yields `awaiting_review` for this step either way — a human still
+/// confirms; this only attaches evidence.
+///
+/// Worktree resolution mirrors `build_next_step_command`'s fallback: the
+/// completing agent's `worktree_path`, else the project path.
+async fn run_proof_review_hook(
+    state: &ApiState,
+    ticket: &crate::queue::Ticket,
+    step: &crate::templates::schema::StepSchema,
+    request: &StepCompleteRequest,
+) {
+    let Some(proof_config) = step.proof_config.as_ref() else {
+        tracing::warn!(ticket = %ticket.id, step = %step.name, "Proof step has no proof_config; skipping run");
+        set_proof_status_message(
+            state,
+            ticket,
+            request.session_id.as_deref(),
+            "Proof review (no config) — awaiting review",
+        );
+        return;
+    };
+
+    let project_fallback = || {
+        state
+            .config
+            .projects_path()
+            .join(&ticket.project)
+            .to_string_lossy()
+            .to_string()
+    };
+    let worktree_root = match crate::state::State::load(&state.config) {
+        Ok(app_state) => {
+            let agent =
+                find_completing_agent(&app_state.agents, &ticket.id, request.session_id.as_deref());
+            agent
+                .and_then(|a| a.worktree_path.clone())
+                .unwrap_or_else(project_fallback)
+        }
+        Err(e) => {
+            tracing::warn!(ticket = %ticket.id, error = %e, "Failed to load state for proof worktree resolution");
+            project_fallback()
+        }
+    };
+
+    let context = serde_json::json!({"ticket_id": ticket.id, "step": step.name});
+    let runner = ProofRunner::with_context(context);
+    let message = match runner
+        .run(
+            proof_config,
+            std::path::Path::new(&worktree_root),
+            &ticket.id,
+            &step.name,
+        )
+        .await
+    {
+        Ok(result) => {
+            let proof_ref = format!(".proof/{}/{}", ticket.id, step.name);
+            if result.timed_out {
+                format!(
+                    "Proof FAILED (timeout, exit {}) — awaiting review ({proof_ref})",
+                    result.exit_code
+                )
+            } else if result.passed {
+                format!("Proof passed — awaiting review ({proof_ref})")
+            } else {
+                format!(
+                    "Proof FAILED (exit {}) — awaiting review ({proof_ref})",
+                    result.exit_code
+                )
+            }
+        }
+        Err(e) => {
+            tracing::warn!(ticket = %ticket.id, step = %step.name, error = %e, "Proof runner error");
+            "Proof runner error — awaiting review".to_string()
+        }
+    };
+
+    set_proof_status_message(state, ticket, request.session_id.as_deref(), &message);
+}
+
 /// Report step completion from opr8r wrapper
 ///
 /// Called by the opr8r wrapper when an LLM command completes.
@@ -552,6 +658,16 @@ pub async fn complete_step(
     // The sync loop owns aggregation, advancement, and artifact writing.
     if let Some(response) = handle_multi_agent_completion(&state, &ticket, &step_name, &request)? {
         return Ok(Json(response));
+    }
+
+    // Proof review: run the assertion synchronously on a clean exit so its
+    // evidence (result.json + status message) is ready before the response
+    // goes out. Status stays `awaiting_review` either way (below) — a human
+    // still confirms.
+    if request.exit_code == 0
+        && current_step.review_type == crate::templates::schema::ReviewType::Proof
+    {
+        run_proof_review_hook(&state, &ticket, current_step, &request).await;
     }
 
     // Determine status based on exit code and validation
@@ -1652,6 +1768,261 @@ mod tests {
         assert!(
             next_command.contains("--model opus"),
             "session arm must still match the chain agent on transition 2: {next_command}"
+        );
+    }
+
+    // ─── Proof review hook (Task B3) ────────────────────────────────────
+    //
+    // Registers a synthetic "PROOF" issue type directly into the registry
+    // (IssueType::validate doesn't check proof_config — that's B1's
+    // TemplateSchema-level check for filesystem-loaded types — so this can
+    // also model the "runtime template bypassed validation" case).
+
+    use crate::agents::ProofResult;
+    use crate::issuetypes::schema::IssueTypeSource;
+    use crate::issuetypes::IssueType;
+    use crate::templates::schema::{ExecutionMode, StepSchema};
+
+    fn make_proof_step(proof_config: Option<serde_json::Value>) -> StepSchema {
+        serde_json::from_value(serde_json::json!({
+            "name": "run",
+            "outputs": [],
+            "prompt": "run the proof",
+            "review_type": "proof",
+            "proof_config": proof_config,
+            "next_step": null,
+        }))
+        .unwrap()
+    }
+
+    fn proof_config_json(assertion_command: &str) -> serde_json::Value {
+        serde_json::json!({"assertion_command": assertion_command})
+    }
+
+    fn make_proof_issue_type(step: StepSchema) -> IssueType {
+        IssueType {
+            key: "PROOF".to_string(),
+            name: "Proof".to_string(),
+            description: "proof hook test type".to_string(),
+            mode: ExecutionMode::Autonomous,
+            glyph: "P".to_string(),
+            color: None,
+            project_required: true,
+            fields: vec![],
+            steps: vec![step],
+            agent_prompt: None,
+            agent: None,
+            source: IssueTypeSource::Builtin,
+            external_id: None,
+        }
+    }
+
+    /// Like `write_sync_ticket`, but for an arbitrary registered `ticket_type`.
+    fn write_typed_ticket(state: &ApiState, id: &str, ticket_type: &str, step: &str) -> Ticket {
+        let filename = format!(
+            "20260807-0900-{ticket_type}-chainproj-{}.md",
+            id.to_lowercase()
+        );
+        let content =
+            format!("---\nid: {id}\nstatus: running\nstep: {step}\n---\n\n# Proof ticket\n");
+        let path = state
+            .config
+            .tickets_path()
+            .join("in-progress")
+            .join(filename);
+        std::fs::write(&path, content).unwrap();
+        Ticket::from_file(&path).unwrap()
+    }
+
+    fn agent_last_message(state: &ApiState, agent_id: &str) -> Option<String> {
+        State::load(&state.config)
+            .unwrap()
+            .agents
+            .iter()
+            .find(|a| a.id == agent_id)
+            .and_then(|a| a.last_message.clone())
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_proof_hook_records_pass_and_message() {
+        let fixture = make_chain_fixture();
+        let worktree_dir = TempDir::new().unwrap();
+        let worktree = worktree_dir.path().to_path_buf();
+
+        fixture
+            .state
+            .registry
+            .write()
+            .await
+            .register(make_proof_issue_type(make_proof_step(Some(
+                proof_config_json("true"),
+            ))))
+            .unwrap();
+
+        let ticket = write_typed_ticket(&fixture.state, "PROOF-9001", "PROOF", "run");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-1");
+        State::load(&fixture.state.config)
+            .unwrap()
+            .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
+            .unwrap();
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "run".to_string())),
+            Json(make_chain_complete_request("session-proof-1")),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert_eq!(response.status, "awaiting_review");
+        assert!(!response.auto_proceed);
+
+        let result_path = worktree
+            .join(".proof")
+            .join(&ticket.id)
+            .join("run")
+            .join("result.json");
+        assert!(result_path.exists(), "result.json must be written");
+        let result: ProofResult =
+            serde_json::from_str(&std::fs::read_to_string(result_path).unwrap()).unwrap();
+        assert!(result.passed);
+
+        let message = agent_last_message(&fixture.state, &agent_id).expect("message set");
+        assert!(message.starts_with("Proof passed"), "message: {message}");
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_proof_hook_records_failure_and_message() {
+        let fixture = make_chain_fixture();
+        let worktree_dir = TempDir::new().unwrap();
+        let worktree = worktree_dir.path().to_path_buf();
+
+        fixture
+            .state
+            .registry
+            .write()
+            .await
+            .register(make_proof_issue_type(make_proof_step(Some(
+                proof_config_json("false"),
+            ))))
+            .unwrap();
+
+        let ticket = write_typed_ticket(&fixture.state, "PROOF-9002", "PROOF", "run");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-2");
+        State::load(&fixture.state.config)
+            .unwrap()
+            .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
+            .unwrap();
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "run".to_string())),
+            Json(make_chain_complete_request("session-proof-2")),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert_eq!(response.status, "awaiting_review");
+
+        let result_path = worktree
+            .join(".proof")
+            .join(&ticket.id)
+            .join("run")
+            .join("result.json");
+        let result: ProofResult =
+            serde_json::from_str(&std::fs::read_to_string(result_path).unwrap()).unwrap();
+        assert!(!result.passed);
+
+        let message = agent_last_message(&fixture.state, &agent_id).expect("message set");
+        assert!(message.starts_with("Proof FAILED"), "message: {message}");
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_proof_hook_skips_run_on_nonzero_exit() {
+        let fixture = make_chain_fixture();
+        let worktree_dir = TempDir::new().unwrap();
+        let worktree = worktree_dir.path().to_path_buf();
+
+        fixture
+            .state
+            .registry
+            .write()
+            .await
+            .register(make_proof_issue_type(make_proof_step(Some(
+                proof_config_json("true"),
+            ))))
+            .unwrap();
+
+        let ticket = write_typed_ticket(&fixture.state, "PROOF-9003", "PROOF", "run");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-3");
+        State::load(&fixture.state.config)
+            .unwrap()
+            .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
+            .unwrap();
+
+        let mut request = make_chain_complete_request("session-proof-3");
+        request.exit_code = 1;
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "run".to_string())),
+            Json(request),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert_eq!(response.status, "failed");
+        assert!(
+            !worktree.join(".proof").exists(),
+            "assertion command must not run on nonzero exit"
+        );
+        let _ = agent_id;
+    }
+
+    #[tokio::test]
+    async fn test_complete_step_proof_hook_missing_config_does_not_crash() {
+        let fixture = make_chain_fixture();
+        let worktree_dir = TempDir::new().unwrap();
+        let worktree = worktree_dir.path().to_path_buf();
+
+        fixture
+            .state
+            .registry
+            .write()
+            .await
+            .register(make_proof_issue_type(make_proof_step(None)))
+            .unwrap();
+
+        let ticket = write_typed_ticket(&fixture.state, "PROOF-9004", "PROOF", "run");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-4");
+        State::load(&fixture.state.config)
+            .unwrap()
+            .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
+            .unwrap();
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "run".to_string())),
+            Json(make_chain_complete_request("session-proof-4")),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert_eq!(response.status, "awaiting_review");
+        assert!(
+            !worktree.join(".proof").exists(),
+            "no proof_config means no assertion run"
+        );
+
+        let message = agent_last_message(&fixture.state, &agent_id).expect("message set");
+        assert!(
+            message.to_lowercase().contains("no config")
+                || message.to_lowercase().contains("missing"),
+            "message must note missing config: {message}"
         );
     }
 }

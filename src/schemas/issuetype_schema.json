@@ -659,7 +659,7 @@
       "type": "object",
       "properties": {
         "assertion_command": {
-          "description": "Assertion command run via `sh -c` in the worktree root; exit code 0 = pass.\nSupports handlebars: {{ticket_id}}, {{step}}, {{proof_dir}}",
+          "description": "Assertion command run via `sh -c` in the worktree root; exit code 0 = pass.\nSupports handlebars: `{{ticket_id}}`, `{{step}}`, `{{proof_dir}}`",
           "type": "string"
         },
         "artifact_command": {
@@ -671,7 +671,7 @@
           "default": null
         },
         "artifact_patterns": {
-          "description": "Glob patterns (relative to worktree root) copied into .proof/{ticket_id}/{step}/",
+          "description": "Glob patterns (relative to worktree root) copied into `.proof/{ticket_id}/{step}/`",
           "type": "array",
           "items": {
             "type": "string"

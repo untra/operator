@@ -978,9 +978,9 @@
           "default": []
         },
         "health_ok": {
-          "description": "Whether the tool's health command succeeded (true when none configured)",
+          "description": "Whether the tool passed its health check at detection on startup",
           "type": "boolean",
-          "default": true
+          "default": false
         }
       },
       "required": [
@@ -1152,7 +1152,7 @@
           }
         },
         "gitlab": {
-          "description": "GitLab-specific configuration (planned)",
+          "description": "GitLab-specific configuration",
           "$ref": "#/$defs/GitLabConfig",
           "default": {
             "enabled": false,
@@ -1194,6 +1194,16 @@
           "description": "Azure DevOps (dev.azure.com)",
           "type": "string",
           "const": "azuredevops"
+        },
+        {
+          "description": "Forgejo (e.g. codeberg.org or self-hosted)",
+          "type": "string",
+          "const": "forgejo"
+        },
+        {
+          "description": "Gitea (gitea.com or self-hosted)",
+          "type": "string",
+          "const": "gitea"
         }
       ]
     },
@@ -1214,7 +1224,7 @@
       }
     },
     "GitLabConfig": {
-      "description": "GitLab-specific configuration (planned)",
+      "description": "GitLab-specific configuration",
       "type": "object",
       "properties": {
         "enabled": {

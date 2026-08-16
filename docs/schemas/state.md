@@ -56,10 +56,10 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `current_step` | `string` \| `null` | No | Current step in the ticket workflow (e.g., "plan", "implement", "test") |
 | `step_started_at` | `string` \| `null` | No | When the current step started (for timeout detection) |
 | `last_content_change` | `string` \| `null` | No | Last time content changed in the session (for hung detection) |
-| `pr_url` | `string` \| `null` | No | PR URL if created during "pr" step |
-| `pr_number` | `integer` \| `null` | No | PR number for GitHub API tracking |
-| `github_repo` | `string` \| `null` | No | GitHub repo in format "owner/repo" |
-| `pr_status` | `string` \| `null` | No | Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed") |
+| `pr_url` | `string` \| `null` | No | PR/MR URL if created during the "pr" step |
+| `pr_number` | `integer` \| `null` | No | Code review request (PR/MR) number |
+| `repo` | `string` \| `null` | No | Repository in "owner/repo" format on the configured git provider |
+| `pr_status` | `string` \| `null` | No | Last known PR/MR status ("open", "approved", "`changes_requested`", "merged", "closed") |
 | `completed_steps` | `array` | No | Completed steps for this ticket |
 | `llm_tool` | `string` \| `null` | No | LLM tool used (e.g., "claude", "gemini", "codex") |
 | `llm_model` | `string` \| `null` | No | LLM model alias (e.g., "opus", "sonnet", "gpt-4o") |
@@ -69,7 +69,7 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `worktree_path` | `string` \| `null` | No | Path to the git worktree for this ticket (per-ticket isolation) |
 | `remote_host` | `string` \| `null` | No | Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local) |
 | `step_launch_context` | object | No | Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model. |
-| `target_name` | `string` \| `null` | No | Name of the resolved execution target this agent launched on (config lookup key for e.g. coder `stop_on_complete`) |
+| `target_name` | `string` \| `null` | No | Name of the resolved execution target this agent launched on |
 
 ### StepLaunchContext
 

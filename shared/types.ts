@@ -494,7 +494,7 @@ capabilities: ToolCapabilities,
  */
 yolo_flags: Array<string>, 
 /**
- * Whether the tool's health command succeeded (true when none configured)
+ * Whether the tool passed its health check at detection on startup
  */
 health_ok: boolean, };
 
@@ -863,19 +863,19 @@ step_started_at: string | null,
  */
 last_content_change: string | null, 
 /**
- * PR URL if created during "pr" step
+ * PR/MR URL if created during the "pr" step
  */
 pr_url: string | null, 
 /**
- * PR number for GitHub API tracking
+ * Code review request (PR/MR) number
  */
 pr_number: bigint | null, 
 /**
- * GitHub repo in format "owner/repo"
+ * Repository in "owner/repo" format on the configured git provider
  */
-github_repo: string | null, 
+repo: string | null, 
 /**
- * Last known PR status ("open", "approved", "`changes_requested`", "merged", "closed")
+ * Last known PR/MR status ("open", "approved", "`changes_requested`", "merged", "closed")
  */
 pr_status: string | null, 
 /**
@@ -892,8 +892,7 @@ llm_tool: string | null,
 llm_model: string | null, 
 /**
  * Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`
- * (derived from the resolved execution target; parse with
- * `agents::parse_launch_mode`, never substring-match)
+ * (derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match)
  */
 launch_mode: string | null, 
 /**
@@ -914,13 +913,11 @@ worktree_path: string | null,
  */
 remote_host: string | null, 
 /**
- * Launch context fixed at launch time; `complete_step` reads it back to
- * build subsequent step commands with the same delegator/tool/model.
+ * Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model.
  */
 step_launch_context: StepLaunchContext | null, 
 /**
  * Name of the resolved execution target this agent launched on
- * (config lookup key for e.g. coder `stop_on_complete`)
  */
 target_name: string | null, };
 
@@ -952,19 +949,19 @@ export type CreateFieldRequest = { name: string, description: string, field_type
 
 export type StepResponse = { name: string, display_name: string | null, prompt: string, outputs: Array<string>, allowed_tools: Array<string>, 
 /**
- * Type of review required: "none", "plan", "visual", "pr"
+ * Type of review required: "none", "plan", "visual", "pr", "proof"
  */
 review_type: string, next_step: string | null, permission_mode: string, };
 
 export type CreateStepRequest = { name: string, display_name: string | null, prompt: string, outputs: Array<string>, allowed_tools: Array<string>, 
 /**
- * Type of review required: "none", "plan", "visual", "pr"
+ * Type of review required: "none", "plan", "visual", "pr", "proof"
  */
 review_type: string, next_step: string | null, permission_mode: string, };
 
 export type UpdateStepRequest = { display_name: string | null, prompt: string | null, outputs: Array<string> | null, allowed_tools: Array<string> | null, 
 /**
- * Type of review required: "none", "plan", "visual", "pr"
+ * Type of review required: "none", "plan", "visual", "pr", "proof"
  */
 review_type: string | null, next_step: string | null, permission_mode: string | null, };
 

@@ -3707,7 +3707,7 @@
           },
           "health_ok": {
             "type": "boolean",
-            "description": "Whether the tool's health command succeeded"
+            "description": "Whether the tool passed its health check at detection on startup"
           },
           "min_version": {
             "type": [

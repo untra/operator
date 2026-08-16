@@ -319,7 +319,7 @@ A detected CLI tool (e.g., claude binary)
 | `command_template` | `string` | No | Command template with {{model}}, {{`session_id`}}, {{`prompt_file`}} placeholders |
 | `capabilities` | → `ToolCapabilities` | No | Tool capabilities |
 | `yolo_flags` | `array` | No | CLI flags for YOLO (auto-accept) mode |
-| `health_ok` | `boolean` | No | Whether the tool's health command succeeded (true when none configured) |
+| `health_ok` | `boolean` | No | Whether the tool passed its health check at detection on startup |
 
 ### ToolCapabilities
 
@@ -375,7 +375,7 @@ Git provider configuration for PR/MR operations
 | --- | --- | --- | --- |
 | `provider` | object | No | Active provider (auto-detected from remote URL if not specified) |
 | `github` | → `GitHubConfig` | No | GitHub-specific configuration |
-| `gitlab` | → `GitLabConfig` | No | GitLab-specific configuration (planned) |
+| `gitlab` | → `GitLabConfig` | No | GitLab-specific configuration |
 | `branch_format` | `string` | No | Branch naming format (e.g., "{type}/{ticket_id}-{slug}") |
 | `use_worktrees` | `boolean` | No | Whether to use git worktrees for per-ticket isolation (default: false) When false, tickets work directly in the project directory with branches |
 
@@ -389,6 +389,8 @@ Git provider selection
 - `gitlab` - GitLab (gitlab.com or self-hosted)
 - `bitbucket` - Bitbucket (bitbucket.org)
 - `azuredevops` - Azure DevOps (dev.azure.com)
+- `forgejo` - Forgejo (e.g. codeberg.org or self-hosted)
+- `gitea` - Gitea (gitea.com or self-hosted)
 
 ### GitHubConfig
 
@@ -401,7 +403,7 @@ GitHub-specific configuration
 
 ### GitLabConfig
 
-GitLab-specific configuration (planned)
+GitLab-specific configuration
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |

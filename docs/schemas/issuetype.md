@@ -198,9 +198,9 @@ Configuration for proof review steps
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `assertion_command` | `string` | Yes | Assertion command run via `sh -c` in the worktree root; exit code 0 = pass. Supports handlebars: {{ticket_id}}, {{step}}, {{proof_dir}} |
+| `assertion_command` | `string` | Yes | Assertion command run via `sh -c` in the worktree root; exit code 0 = pass. Supports handlebars: `{{ticket_id}}`, `{{step}}`, `{{proof_dir}}` |
 | `artifact_command` | `string` \| `null` | No | Artifact-producing command (e.g. screenshot capture), run after the assertion regardless of its result |
-| `artifact_patterns` | `array` | No | Glob patterns (relative to worktree root) copied into .proof/{ticket_id}/{step}/ |
+| `artifact_patterns` | `array` | No | Glob patterns (relative to worktree root) copied into `.proof/{ticket_id}/{step}/` |
 | `timeout_secs` | `integer` \| `null` | No | Per-command timeout in seconds (default 120) |
 
 ### Definition: OnReject

@@ -163,7 +163,7 @@
           "default": null
         },
         "pr_url": {
-          "description": "PR URL if created during \"pr\" step",
+          "description": "PR/MR URL if created during the \"pr\" step",
           "type": [
             "string",
             "null"
@@ -171,7 +171,7 @@
           "default": null
         },
         "pr_number": {
-          "description": "PR number for GitHub API tracking",
+          "description": "Code review request (PR/MR) number",
           "type": [
             "integer",
             "null"
@@ -180,8 +180,8 @@
           "minimum": 0,
           "default": null
         },
-        "github_repo": {
-          "description": "GitHub repo in format \"owner/repo\"",
+        "repo": {
+          "description": "Repository in \"owner/repo\" format on the configured git provider",
           "type": [
             "string",
             "null"
@@ -189,7 +189,7 @@
           "default": null
         },
         "pr_status": {
-          "description": "Last known PR status (\"open\", \"approved\", \"`changes_requested`\", \"merged\", \"closed\")",
+          "description": "Last known PR/MR status (\"open\", \"approved\", \"`changes_requested`\", \"merged\", \"closed\")",
           "type": [
             "string",
             "null"
@@ -221,7 +221,7 @@
           "default": null
         },
         "launch_mode": {
-          "description": "Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`\n(derived from the resolved execution target; parse with\n`agents::parse_launch_mode`, never substring-match)",
+          "description": "Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`\n(derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match)",
           "type": [
             "string",
             "null"
@@ -263,7 +263,7 @@
           "default": null
         },
         "step_launch_context": {
-          "description": "Launch context fixed at launch time; `complete_step` reads it back to\nbuild subsequent step commands with the same delegator/tool/model.",
+          "description": "Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model.",
           "anyOf": [
             {
               "$ref": "#/$defs/StepLaunchContext"
@@ -275,7 +275,7 @@
           "default": null
         },
         "target_name": {
-          "description": "Name of the resolved execution target this agent launched on\n(config lookup key for e.g. coder `stop_on_complete`)",
+          "description": "Name of the resolved execution target this agent launched on",
           "type": [
             "string",
             "null"

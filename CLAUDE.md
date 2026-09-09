@@ -123,7 +123,7 @@ Full command list: `docs/cli/` (auto-generated).
 
 ## Architecture
 
-Grouped map of `src/` (not exhaustive - `ls src/` for the full list):
+Grouped map of `src/` (not exhaustive — `ls src/` for the full list):
 
 ```
 src/
@@ -174,7 +174,7 @@ Execution mode is declared per issue type (`mode` in the issuetype schema):
 ## State Management
 
 Persistent state lives under `paths.state` (default `.tickets/operator/`);
-`state.json` holds queue/agent state - schema documented at `/schemas/state/`.
+`state.json` holds queue/agent state — schema documented at `/schemas/state/`.
 Per-ticket worktrees default to `~/.operator/worktrees`.
 
 ## Ticket Workflow

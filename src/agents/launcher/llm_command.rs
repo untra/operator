@@ -741,10 +741,6 @@ mod tests {
         }
     }
 
-    // ========================================
-    // apply_yolo_flags() tests
-    // ========================================
-
     #[test]
     fn test_apply_yolo_flags_inserts_after_tool_name() {
         let tool = make_detected_tool();

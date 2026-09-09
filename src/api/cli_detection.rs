@@ -23,14 +23,6 @@ pub struct CliInfo {
 
 /// Static description of a provider CLI: the binary to probe plus everything
 /// onboarding needs to install and authenticate it.
-///
-/// This is the single source of truth for provider binary names. Nothing else
-/// may spell `gh`/`glab`/`tea` — enforced by
-/// `provider_binaries_are_not_hardcoded_outside_the_registry`.
-///
-/// `provider` is `None` for the provider-agnostic `git` binary. Providers with
-/// no onboarding story yet carry empty strings rather than `Option`s, so a
-/// caller reads "nothing configured" without unwrapping.
 pub struct CliSpec {
     provider: Option<GitProvider>,
     /// Human name of the tool ("GitHub CLI").

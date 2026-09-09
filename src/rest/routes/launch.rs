@@ -1804,13 +1804,6 @@ mod tests {
         );
     }
 
-    // ─── Proof review hook (Task B3) ────────────────────────────────────
-    //
-    // Registers a synthetic "PROOF" issue type directly into the registry
-    // (IssueType::validate doesn't check proof_config — that's B1's
-    // TemplateSchema-level check for filesystem-loaded types — so this can
-    // also model the "runtime template bypassed validation" case).
-
     use crate::agents::ProofResult;
     use crate::issuetypes::schema::IssueTypeSource;
     use crate::issuetypes::IssueType;

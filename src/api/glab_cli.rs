@@ -80,12 +80,7 @@ impl GlabCli {
         Ok(user.username)
     }
 
-    /// Build the `glab mr create` invocation. Pure, so the flags are asserted
-    /// without spawning `glab`.
-    ///
-    /// GitLab spells the same request differently from GitHub:
-    /// `--source-branch`/`--target-branch`/`--description`, and `--yes` to
-    /// skip the interactive prompt.
+    /// Build the `glab mr create` invocation. Pure, so the flags are asserted without spawning `glab`.
     pub fn create_pr_argv(repo_info: &RepoInfo, request: &CreatePrRequest) -> ProviderCommand {
         let mut args = vec![
             "mr".to_string(),

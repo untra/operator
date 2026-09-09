@@ -287,7 +287,6 @@ pub(crate) fn provision_workspace(
         run_ssh(&fragment, &alias, &script)
             .with_context(|| format!("Failed to prepare checkout on workspace '{workspace}'"))?;
     }
-
     Ok(RemoteHost {
         name: workspace.clone(),
         ssh_alias: alias,

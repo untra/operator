@@ -10,7 +10,7 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.2.6"
+    "version": "0.2.7"
   },
   "paths": {
     "/api/v1/agents/active": {
@@ -6273,6 +6273,7 @@
           "review_type": {
             "type": "string",
             "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
+            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
           }
         }
       },
@@ -6672,6 +6673,10 @@
           },
           "health_ok": {
             "type": "boolean"
+          },
+          "health_ok": {
+            "type": "boolean",
+            "description": "Whether the tool passed its health check at detection on startup"
           },
           "min_version": {
             "type": [
@@ -8494,49 +8499,7 @@
           },
           "review_type": {
             "type": "string",
-            "description": "Review type: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
-          }
-        }
-      },
-      "OAuthErrorCode": {
-        "type": "string",
-        "description": "OAuth error codes Operator emits.",
-        "enum": [
-          "authorization_pending",
-          "slow_down",
-          "expired_token",
-          "access_denied",
-          "invalid_grant",
-          "invalid_request",
-          "invalid_client",
-          "invalid_scope",
-          "unsupported_grant_type"
-        ]
-      },
-      "OAuthErrorResponse": {
-        "type": "object",
-        "description": "Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can\ninterpret it — notably `authorization_pending` and `slow_down`, which a\ndevice-flow client polls against.",
-        "required": [
-          "error"
-        ],
-        "properties": {
-          "error": {
-            "$ref": "#/components/schemas/OAuthErrorCode",
-            "description": "Machine-readable error code."
-          },
-          "error_description": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Human-readable explanation."
-          },
-          "error_uri": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Documentation link."
+            "description": "Review type: \"none\", \"plan\", \"visual\", \"pr\""
           }
         }
       },

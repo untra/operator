@@ -40,7 +40,6 @@ TEXT_FILES=(
 # JSON files: update .version via jq
 JSON_FILES=(
   "vscode-extension/package.json"
-  "backstage-server/package.json"
   "agnt-plugin/package.json"
   "agnt-plugin/manifest.json"
 )

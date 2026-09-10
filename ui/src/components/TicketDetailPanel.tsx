@@ -79,18 +79,6 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
 
   const defaultWrapperLabel = config?.launch.session_wrapper ?? 'configured';
 
-  // Named execution targets: explicit [[targets]] entries, [[hosts]] synths,
-  // and the synthesized docker target when an image is configured.
-  const targets = useMemo(() => {
-    if (!config) return [] as string[];
-    const names = [
-      ...(config.targets ?? []).map((t) => t.name),
-      ...(config.hosts ?? []).map((h) => h.name),
-    ];
-    if (config.launch.docker.image) names.push('docker');
-    return names;
-  }, [config]);
-
   const onLaunch = () => {
     setLaunching(true);
     setLaunchError(null);

@@ -648,11 +648,6 @@ export class OperatorApiClient {
     return this.request('/api/v1/queue/kanban');
   }
 
-  /** Kanban board columns — the API-backed source for the ticket trees. */
-  async getKanban(): Promise<KanbanBoardResponse> {
-    return this.getJson<KanbanBoardResponse>('/api/v1/queue/kanban');
-  }
-
   async listDelegators(): Promise<DelegatorsResponse> {
     return this.request('/api/v1/delegators');
   }

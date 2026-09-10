@@ -399,14 +399,16 @@ mod tests {
         // sending `Authorization: Bearer ` would be worse than sending nothing.
         for blank in ["", "   ", "\n"] {
             let client = ApiClient::with_token("http://localhost:7008", Some(blank.to_string()));
-            assert!(client.token.is_none(), "blank token {blank:?} should be dropped");
+            assert!(
+                client.token.is_none(),
+                "blank token {blank:?} should be dropped"
+            );
         }
     }
 
     #[test]
     fn test_token_is_retained_when_supplied() {
-        let client =
-            ApiClient::with_token("http://localhost:7008", Some("cb-token".to_string()));
+        let client = ApiClient::with_token("http://localhost:7008", Some("cb-token".to_string()));
         assert_eq!(client.token.as_deref(), Some("cb-token"));
     }
 

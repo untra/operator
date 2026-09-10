@@ -173,23 +173,20 @@ needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/taxonomy/taxonomy\.t
 needs_bun_root()       { has_changes '^(package\.json|bun\.lock)$'; }
 needs_bun_ui()         { has_changes '^ui/(package\.json|bun\.lock)$'; }
 needs_bun_webcomp()    { has_changes '^webcomponents/(package\.json|bun\.lock)$'; }
-needs_bun_backstage()  { has_changes '^backstage-server/(.*/)?(package\.json|bun\.lock)$'; }
 
 # --- 0. Bun lockfiles ---
 #
 # Run this first, cheaply, across every bun project so a stale lockfile fails
 # loudly and early instead of midway through a UI build. Mirrors CI's
 # `bun install --frozen-lockfile`, and additionally covers the root and
-# backstage-server lockfiles that CI does not currently enforce.
 
-if needs_bun_root || needs_bun_ui || needs_bun_webcomp || needs_bun_backstage; then
+if needs_bun_root || needs_bun_ui || needs_bun_webcomp ; then
   section "Bun lockfiles"
   require_tool bun "bun lockfile sync"
 
   if needs_bun_root;      then check_bun_lockfile ".";                else skip "Lockfile sync: . (no changes)"; fi
   if needs_bun_ui;        then check_bun_lockfile "ui";               else skip "Lockfile sync: ui (no changes)"; fi
   if needs_bun_webcomp;   then check_bun_lockfile "webcomponents";    else skip "Lockfile sync: webcomponents (no changes)"; fi
-  if needs_bun_backstage; then check_bun_lockfile "backstage-server"; else skip "Lockfile sync: backstage-server (no changes)"; fi
 else
   skip "Bun lockfiles"
 fi

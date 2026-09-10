@@ -6,12 +6,14 @@ on:
     paths:
       - 'vscode-extension/**'
       - 'icons/**'
+      - 'bindings/**'
       - '.github/workflows/vscode-extension.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'vscode-extension/**'
       - 'icons/**'
+      - 'bindings/**'
   workflow_dispatch:
     inputs:
       publish:

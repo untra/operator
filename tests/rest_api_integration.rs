@@ -28,6 +28,7 @@
 
 use std::env;
 use std::fs;
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -55,6 +56,22 @@ macro_rules! skip_if_not_configured {
     };
 }
 
+/// How long a server gets to come up before the suite gives up.
+const READY_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// How often readiness is rechecked while waiting.
+const POLL_INTERVAL: Duration = Duration::from_millis(20);
+
+/// Ports for this suite start here, high enough to avoid anything in use.
+const API_TEST_PORT_BASE: u16 = 17000;
+
+/// Hands out a distinct port per context. Ports used to be hardcoded at each
+static NEXT_PORT: AtomicU16 = AtomicU16::new(API_TEST_PORT_BASE);
+
+fn next_port() -> u16 {
+    NEXT_PORT.fetch_add(1, Ordering::SeqCst)
+}
+
 // ─── Test Context ─────────────────────────────────────────────────────────────
 
 /// Test context holding temporary directories and configuration
@@ -65,8 +82,14 @@ struct RestApiTestContext {
 }
 
 impl RestApiTestContext {
-    /// Create a new test context with isolated directories
-    fn new(test_name: &str, port: u16) -> Self {
+    /// Create a new test context on its own freshly allocated port.
+    fn new(test_name: &str) -> Self {
+        Self::with_port(test_name, next_port())
+    }
+
+    /// Create a context bound to a specific port. Only for the port-conflict
+    /// test, which needs two contexts deliberately sharing one port.
+    fn with_port(test_name: &str, port: u16) -> Self {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
         // Create directory structure
@@ -126,15 +149,70 @@ impl RestApiTestContext {
         self.session_file_path().exists()
     }
 
-    /// Make HTTP request to health endpoint
+    /// Block until the server is fully up: listening, session file written, and
+    /// the health endpoint answering.
+    ///
+    /// A fixed `sleep` is a guess, and a cold Windows or arm64 CI runner can
+    /// outlast any constant -- which is what made this suite flaky across the
+    /// matrix. Polling waits exactly as long as needed and no longer.
+    async fn wait_until_ready(&self, server: &RestApiServer) {
+        self.poll_until("server to become ready", || async {
+            server.is_running() && self.session_file_exists() && self.check_health().await.is_ok()
+        })
+        .await;
+    }
+
+    /// Block until the server has fully shut down and cleaned up after itself.
+    async fn wait_until_stopped(&self, server: &RestApiServer) {
+        self.poll_until("server to stop", || async {
+            !server.is_running() && !self.session_file_exists()
+        })
+        .await;
+    }
+
+    /// Poll `condition` until it holds, or panic after `READY_TIMEOUT`.
+    async fn poll_until<F, Fut>(&self, what: &str, condition: F)
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = bool>,
+    {
+        let deadline = std::time::Instant::now() + READY_TIMEOUT;
+        while std::time::Instant::now() < deadline {
+            if condition().await {
+                return;
+            }
+            tokio::time::sleep(POLL_INTERVAL).await;
+        }
+        panic!(
+            "timed out after {READY_TIMEOUT:?} waiting for {what} on port {}",
+            self.port
+        );
+    }
+
+    /// The local-unlock token this server issued into its own state directory
+    /// when it bound to loopback (see `rest::state`). `/api/v1/health` requires credentials
+    fn local_token(&self) -> Option<String> {
+        operator::auth::local::read(&self.config.state_path())
+    }
+
+    /// Make an authenticated HTTP request to the health endpoint
     async fn check_health(&self) -> Result<HealthResponse, String> {
+        self.get_health(self.local_token().as_deref()).await
+    }
+
+    /// Health request with an explicit credential (`None` sends no auth header).
+    async fn get_health(&self, token: Option<&str>) -> Result<HealthResponse, String> {
         let url = format!("http://localhost:{}/api/v1/health", self.port);
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
             .map_err(|e| e.to_string())?;
 
-        let response = client.get(&url).send().await.map_err(|e| e.to_string())?;
+        let mut request = client.get(&url);
+        if let Some(token) = token {
+            request = request.bearer_auth(token);
+        }
+        let response = request.send().await.map_err(|e| e.to_string())?;
 
         if response.status().is_success() {
             response
@@ -163,15 +241,13 @@ struct HealthResponse {
 async fn test_api_server_starts_and_responds() {
     skip_if_not_configured!();
 
-    let ctx = RestApiTestContext::new("starts_and_responds", 17001);
+    let ctx = RestApiTestContext::new("starts_and_responds");
     let server = RestApiServer::new(ctx.config.clone(), ctx.port);
 
     // Start server
     let result = server.start();
     assert!(result.is_ok(), "Server should start successfully");
-
-    // Give the server time to start
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    ctx.wait_until_ready(&server).await;
 
     // Verify server is running
     assert!(server.is_running(), "Server should report as running");
@@ -190,9 +266,7 @@ async fn test_api_server_starts_and_responds() {
 
     // Stop server
     server.stop();
-
-    // Give it time to stop
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    ctx.wait_until_stopped(&server).await;
 
     // Verify server is stopped
     assert!(!server.is_running(), "Server should report as stopped");
@@ -202,7 +276,7 @@ async fn test_api_server_starts_and_responds() {
 async fn test_api_writes_session_file() {
     skip_if_not_configured!();
 
-    let ctx = RestApiTestContext::new("writes_session_file", 17002);
+    let ctx = RestApiTestContext::new("writes_session_file");
     let server = RestApiServer::new(ctx.config.clone(), ctx.port);
 
     // Verify session file doesn't exist yet
@@ -214,9 +288,7 @@ async fn test_api_writes_session_file() {
     // Start server
     let result = server.start();
     assert!(result.is_ok(), "Server should start successfully");
-
-    // Give the server time to start and write session file
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    ctx.wait_until_ready(&server).await;
 
     // Verify session file exists
     assert!(
@@ -251,12 +323,12 @@ async fn test_api_writes_session_file() {
 async fn test_api_removes_session_file_on_stop() {
     skip_if_not_configured!();
 
-    let ctx = RestApiTestContext::new("removes_session_file", 17003);
+    let ctx = RestApiTestContext::new("removes_session_file");
     let server = RestApiServer::new(ctx.config.clone(), ctx.port);
 
     // Start server
     server.start().expect("Server should start");
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    ctx.wait_until_ready(&server).await;
 
     // Verify session file exists
     assert!(
@@ -266,7 +338,7 @@ async fn test_api_removes_session_file_on_stop() {
 
     // Stop server
     server.stop();
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    ctx.wait_until_stopped(&server).await;
 
     // Verify session file is removed
     assert!(
@@ -279,12 +351,12 @@ async fn test_api_removes_session_file_on_stop() {
 async fn test_api_session_file_matches_health_endpoint() {
     skip_if_not_configured!();
 
-    let ctx = RestApiTestContext::new("session_matches_health", 17004);
+    let ctx = RestApiTestContext::new("session_matches_health");
     let server = RestApiServer::new(ctx.config.clone(), ctx.port);
 
     // Start server
     server.start().expect("Server should start");
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    ctx.wait_until_ready(&server).await;
 
     // Get session file info
     let session = ctx.read_session_file().expect("Should read session file");
@@ -306,19 +378,46 @@ async fn test_api_session_file_matches_health_endpoint() {
 }
 
 #[tokio::test]
+async fn test_api_health_requires_a_credential() {
+    skip_if_not_configured!();
+
+    let ctx = RestApiTestContext::new("health_requires_credential");
+    let server = RestApiServer::new(ctx.config.clone(), ctx.port);
+
+    server.start().expect("Server should start");
+    ctx.wait_until_ready(&server).await;
+
+    let anonymous = ctx.get_health(None).await;
+    assert!(
+        anonymous.as_ref().err().is_some_and(|e| e.contains("401")),
+        "unauthenticated health must be rejected, got: {anonymous:?}"
+    );
+
+    let token = ctx
+        .local_token()
+        .expect("server should issue a local token on loopback bind");
+    assert!(
+        ctx.get_health(Some(&token)).await.is_ok(),
+        "the issued local token must be accepted"
+    );
+
+    server.stop();
+}
+
+#[tokio::test]
 async fn test_api_port_in_use_detection() {
     skip_if_not_configured!();
 
-    let port = 17005;
+    let port = next_port();
 
     // Start first server
-    let ctx1 = RestApiTestContext::new("port_in_use_1", port);
+    let ctx1 = RestApiTestContext::with_port("port_in_use_1", port);
     let server1 = RestApiServer::new(ctx1.config.clone(), port);
     server1.start().expect("First server should start");
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    ctx1.wait_until_ready(&server1).await;
 
     // Try to start second server on same port
-    let ctx2 = RestApiTestContext::new("port_in_use_2", port);
+    let ctx2 = RestApiTestContext::with_port("port_in_use_2", port);
     let server2 = RestApiServer::new(ctx2.config.clone(), port);
 
     // Check if port is in use
@@ -333,7 +432,7 @@ async fn test_api_port_in_use_detection() {
 async fn test_api_creates_operator_directory() {
     skip_if_not_configured!();
 
-    let ctx = RestApiTestContext::new("creates_operator_dir", 17006);
+    let ctx = RestApiTestContext::new("creates_operator_dir");
 
     // Verify operator directory doesn't exist yet
     let operator_dir = ctx.temp_dir.path().join("tickets").join("operator");
@@ -346,7 +445,7 @@ async fn test_api_creates_operator_directory() {
 
     // Start server
     server.start().expect("Server should start");
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    ctx.wait_until_ready(&server).await;
 
     // Verify operator directory was created
     assert!(

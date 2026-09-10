@@ -15,7 +15,8 @@
 
 ## Code Style
 Aim for functional software development with a focus on stateless, single responsibility focus.
-Minimize use of comments; they should be terse and used judiciously, ideally one sentence tops.
+ABSOLUTELY NO UNNECESSARY CODE COMMENTS WITHIN FUNCTIONS OR CONFIGURATION.
+Minimize use of comments entirely; they should be terse and used judiciously, ideally one line tops.
 Data types come from rust; typescript and docs binds are generated from low-level rust types annotated with comments that embed as descriptions into configuration and reference files.
 Favor falsey defaults ; lets aim not to enforce `default=true` or some other javascript-truthy default value.
 

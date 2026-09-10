@@ -10,7 +10,7 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.2.7"
+    "version": "0.2.8"
   },
   "paths": {
     "/api/v1/agents/active": {
@@ -5967,6 +5967,17 @@
             ],
             "description": "Optional display name for UI"
           },
+          "git": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GitExecutionConfig",
+                "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              }
+            ]
+          },
           "launch_config": {
             "oneOf": [
               {
@@ -6020,6 +6031,17 @@
               "null"
             ],
             "description": "Optional display name"
+          },
+          "git": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GitExecutionConfig",
+                "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              }
+            ]
           },
           "launch_config": {
             "oneOf": [
@@ -6272,7 +6294,6 @@
           },
           "review_type": {
             "type": "string",
-            "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
             "description": "Type of review required: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
           }
         }
@@ -6581,6 +6602,17 @@
             ],
             "description": "Optional display name"
           },
+          "git": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GitExecutionConfig",
+                "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              }
+            ]
+          },
           "launch_config": {
             "oneOf": [
               {
@@ -6673,10 +6705,6 @@
           },
           "health_ok": {
             "type": "boolean"
-          },
-          "health_ok": {
-            "type": "boolean",
-            "description": "Whether the tool passed its health check at detection on startup"
           },
           "min_version": {
             "type": [
@@ -7023,6 +7051,89 @@
           },
           "user_editable": {
             "type": "boolean"
+          }
+        }
+      },
+      "GitConfigEntry": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "GitCredentialConfig": {
+        "type": "object",
+        "description": "Supplied HTTPS credential, bound to a repository; contains no secret value.",
+        "required": [
+          "repository_url",
+          "username",
+          "token_env"
+        ],
+        "properties": {
+          "repository_url": {
+            "type": "string"
+          },
+          "token_env": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "GitExecutionConfig": {
+        "type": "object",
+        "description": "Git settings owned by a named delegator.",
+        "properties": {
+          "credentials": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GitCredentialConfig"
+              }
+            ]
+          },
+          "identity": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GitIdentityConfig"
+              }
+            ]
+          },
+          "settings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitConfigEntry"
+            }
+          }
+        }
+      },
+      "GitIdentityConfig": {
+        "type": "object",
+        "description": "Commit identity template for delegated work.",
+        "required": [
+          "name",
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -8499,7 +8610,49 @@
           },
           "review_type": {
             "type": "string",
-            "description": "Review type: \"none\", \"plan\", \"visual\", \"pr\""
+            "description": "Review type: \"none\", \"plan\", \"visual\", \"pr\", \"proof\""
+          }
+        }
+      },
+      "OAuthErrorCode": {
+        "type": "string",
+        "description": "OAuth error codes Operator emits.",
+        "enum": [
+          "authorization_pending",
+          "slow_down",
+          "expired_token",
+          "access_denied",
+          "invalid_grant",
+          "invalid_request",
+          "invalid_client",
+          "invalid_scope",
+          "unsupported_grant_type"
+        ]
+      },
+      "OAuthErrorResponse": {
+        "type": "object",
+        "description": "Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can\ninterpret it — notably `authorization_pending` and `slow_down`, which a\ndevice-flow client polls against.",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/OAuthErrorCode",
+            "description": "Machine-readable error code."
+          },
+          "error_description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Human-readable explanation."
+          },
+          "error_uri": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Documentation link."
           }
         }
       },
@@ -10693,6 +10846,17 @@
               "null"
             ],
             "description": "Optional display name for UI."
+          },
+          "git": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GitExecutionConfig",
+                "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              }
+            ]
           },
           "launch_config": {
             "oneOf": [

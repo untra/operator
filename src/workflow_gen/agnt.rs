@@ -643,6 +643,7 @@ mod tests {
     fn config_with_remote_delegator(name: &str, platform: &str, id: &str) -> Config {
         let mut config = Config::default();
         config.delegators.push(crate::config::Delegator {
+            git: None,
             name: name.to_string(),
             llm_tool: "anthropic".to_string(),
             model: "claude-3-5-sonnet".to_string(),
@@ -720,6 +721,7 @@ mod tests {
         let it = issuetype_with_step_agent("local-claude");
         let mut config = Config::default();
         config.delegators.push(crate::config::Delegator {
+            git: None,
             name: "local-claude".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),

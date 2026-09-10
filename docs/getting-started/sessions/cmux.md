@@ -12,16 +12,16 @@ layout: doc
 
 ## What is cmux?
 
-cmux is a macOS-native terminal multiplexer that organizes work into **windows** and **workspaces**. Each workspace provides an isolated terminal environment within a window, similar to how tmux organizes sessions and panes — but with a native macOS interface.
+cmux is a macOS-native terminal multiplexer that organizes work into **windows** and **workspaces**. Each workspace provides an isolated terminal environment within a window, similar to how tmux organizes sessions and panes - but with a native macOS interface.
 
 Operator uses cmux workspaces to run LLM agent sessions, allowing you to focus and switch between agents without leaving your terminal environment.
 
 ## Prerequisites
 
-1. **macOS** — cmux is a macOS-only application
-2. **cmux installed** — by default, Operator looks for the binary at `/Applications/cmux.app/Contents/Resources/bin/cmux`
-3. **cmux 0.64.8 or newer** — Operator's placement policies rely on `new-workspace --window`, which landed in cmux 0.64.8. Older versions are rejected at startup with an explicit `Unsupported version` error — update cmux to resolve it.
-4. **Running inside cmux** — Operator must be launched from within a cmux session (the `CMUX_WORKSPACE_ID` environment variable must be present)
+1. **macOS** - cmux is a macOS-only application
+2. **cmux installed** - by default, Operator looks for the binary at `/Applications/cmux.app/Contents/Resources/bin/cmux`
+3. **cmux 0.64.8 or newer** - Operator's placement policies rely on `new-workspace --window`, which landed in cmux 0.64.8. Older versions are rejected at startup with an explicit `Unsupported version` error - update cmux to resolve it.
+4. **Running inside cmux** - Operator must be launched from within a cmux session (the `CMUX_WORKSPACE_ID` environment variable must be present)
 
 ## Configuration
 
@@ -86,7 +86,7 @@ When Operator launches a ticket:
 
 ### Focusing Agents
 
-When you press Enter on an agent in the TUI, Operator focuses the corresponding cmux workspace. Unlike tmux, this does **not** suspend the TUI — cmux handles window/workspace focus natively.
+When you press Enter on an agent in the TUI, Operator focuses the corresponding cmux workspace. Unlike tmux, this does **not** suspend the TUI - cmux handles window/workspace focus natively.
 
 ### Session Preview
 

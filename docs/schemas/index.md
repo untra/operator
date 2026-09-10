@@ -6,7 +6,7 @@ layout: doc
 <!-- AUTO-GENERATED FROM docs/schemas/ - DO NOT EDIT MANUALLY -->
 <!-- Regenerate with: cargo run -- docs -->
 
-This section documents all JSON schemas and type definitions used by Operator.
+This section documents Operator's file schemas and public REST API contract.
 
 ## Documentation
 
@@ -28,28 +28,18 @@ Machine-readable JSON Schema files for validation and code generation:
 | --- | --- | --- |
 | [config.json](config.json) | JSON Schema | Configuration file schema (generated via schemars) |
 | [state.json](state.json) | JSON Schema | Runtime state file schema (generated via schemars) |
-| [openapi.json](openapi.json) | OpenAPI 3.0 | REST API specification (generated via utoipa) |
+| [openapi.json](openapi.json) | OpenAPI 3.1 | REST API specification (generated via utoipa) |
 | [collections/schema.json](../collections/schema.json) | JSON Schema | Hosted issuetype collection manifest format (collection.json) |
 | [collections/index.json](../collections/index.json) | JSON | Index of hosted issuetype collections (fetched during setup) |
-
-## TypeScript Types
-
-TypeScript type definitions are available for frontend integration:
-
-- Source: `shared/types.ts` (generated via ts-rs)
-- API docs can be generated locally with `npm run docs:typescript`
 
 ## Regenerating Schemas
 
 Schemas are auto-generated from source code. To regenerate:
 
 ```bash
-# Generate JSON schemas and TypeScript types
+# Generate JSON schemas
 cargo run --bin generate_types
 
 # Generate documentation pages
 cargo run -- docs
-
-# Generate TypeScript API docs
-npm run docs:typescript
 ```

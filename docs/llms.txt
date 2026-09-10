@@ -12,6 +12,7 @@ Operator runs from the root of your work directory, discovers projects by LLM ma
 - [Tickets](https://operator.untra.io/getting-started/tickets/): Create and manage tickets with markdown format, naming conventions, and best practices for LLM agents.
 - [Supported Kanban Providers](https://operator.untra.io/getting-started/kanban/): Kanban and issue tracking integrations for Operator.
 - [Supported Coding Agents](https://operator.untra.io/getting-started/agents/): AI coding agents compatible with Operator.
+- [Kubernetes](https://operator.untra.io/getting-started/platforms/kubernetes/): Run Operator in Kubernetes from the official OCI Helm chart, with persistent workspace state and an authenticated API.
 - [Downloads](https://operator.untra.io/downloads/): Download Operator! binaries for macOS, Linux, and Windows.
 
 ## Workflows
@@ -31,6 +32,8 @@ Operator runs from the root of your work directory, discovers projects by LLM ma
 - [Keyboard Shortcuts](https://operator.untra.io/shortcuts/): TUI keyboard shortcuts by context.
 - [Project Taxonomy](https://operator.untra.io/taxonomy/): Project Kinds across five tiers.
 - [Artifact Detection](https://operator.untra.io/artifact-detection/): How Operator uses file artifacts as positive signals for step completion.
+- [Security](https://operator.untra.io/security/): Threat model and security architecture for Operator: trust boundaries, route classification, credential handling, and residual risks.
+- [Authentication](https://operator.untra.io/security/authentication/): How Operator authenticates: the admin account, bootstrap, browser sessions, OAuth device flow, access keys, scopes, and recovery.
 
 ## Optional
 - [GitHub Repository](https://github.com/untra/operator): Source code (Rust, MIT).

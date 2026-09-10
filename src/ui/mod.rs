@@ -8,6 +8,7 @@ pub mod form_field;
 pub mod in_progress_panel;
 pub mod kanban_view;
 pub mod keybindings;
+pub mod masked_input;
 pub mod paginated_list;
 mod panels;
 pub mod projects_dialog;

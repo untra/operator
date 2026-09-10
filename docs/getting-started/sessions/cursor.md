@@ -8,13 +8,13 @@ layout: doc
 
 <a href="https://open-vsx.org/extension/untra/operator-terminals" target="_blank" class="button">Install from OpenVSX</a>
 
-[Cursor](https://www.cursor.com) is a fork of VS Code that natively runs most VS Code extensions and adds its own MCP configuration surface. The same `operator-terminals` extension that powers the VS Code session manager runs in Cursor unmodified — the only difference is **where** the extension writes the MCP server entry.
+[Cursor](https://www.cursor.com) is a fork of VS Code that natively runs most VS Code extensions and adds its own MCP configuration surface. The same `operator-terminals` extension that powers the VS Code session manager runs in Cursor unmodified - the only difference is **where** the extension writes the MCP server entry.
 
 ## Two Integration Paths
 
 ### 1. Extension Path (recommended)
 
-Install `operator-terminals` from OpenVSX (Cursor's default extension registry) or via a downloaded `.vsix`, then run `Operator: Connect MCP Server` from the command palette. Inside Cursor, the extension writes the operator MCP entry to `~/.cursor/mcp.json` instead of VS Code's workspace `mcp.servers` — Cursor's MCP UI only surfaces user-scope entries, so writing workspace config would have no effect.
+Install `operator-terminals` from OpenVSX (Cursor's default extension registry) or via a downloaded `.vsix`, then run `Operator: Connect MCP Server` from the command palette. Inside Cursor, the extension writes the operator MCP entry to `~/.cursor/mcp.json` instead of VS Code's workspace `mcp.servers` - Cursor's MCP UI only surfaces user-scope entries, so writing workspace config would have no effect.
 
 This path also gives you the sidebar (Queue / In Progress / Completed), styled terminals, and the rest of the extension's features.
 
@@ -54,12 +54,12 @@ The extension shares the same configuration as the VS Code session manager. Sett
 
 ## MCP Integration
 
-Cursor's `~/.cursor/mcp.json` uses the `mcpServers` shape with `command`, `args`, and `cwd` — stdio only. SSE-style URL entries are not honored by Cursor's MCP UI.
+Cursor's `~/.cursor/mcp.json` uses the `mcpServers` shape with `command`, `args`, and `cwd` - stdio only. SSE-style URL entries are not honored by Cursor's MCP UI.
 
 ### Requirements
 
 - Operator must be running with `[mcp].stdio_advertised = true` in its config (this is the default). Restart the operator API after toggling.
-- The operator binary path written into `~/.cursor/mcp.json` is taken from the running operator process — if you reinstall or move the binary, re-run `Operator: Connect MCP Server` to refresh the path.
+- The operator binary path written into `~/.cursor/mcp.json` is taken from the running operator process - if you reinstall or move the binary, re-run `Operator: Connect MCP Server` to refresh the path.
 
 ### Merge Semantics
 
@@ -69,11 +69,11 @@ The extension's Cursor-write path is additive:
 - Any existing `mcpServers.*` entries (other servers you've registered) are preserved.
 - Only `mcpServers.operator` is set or overwritten on each run.
 
-If `~/.cursor/mcp.json` exists but contains malformed JSON, the extension shows an error and refuses to overwrite the file — fix or remove it manually and re-run the command.
+If `~/.cursor/mcp.json` exists but contains malformed JSON, the extension shows an error and refuses to overwrite the file - fix or remove it manually and re-run the command.
 
 ## Commands
 
-Same set as the VS Code session manager — access via the command palette (`Cmd+Shift+P`):
+Same set as the VS Code session manager - access via the command palette (`Cmd+Shift+P`):
 
 | Command | Description |
 |---------|-------------|
@@ -108,4 +108,4 @@ If you want a clean slate in only one of the two editors, delete the entry from 
 
 1. Check that `~/.cursor/mcp.json` exists and contains `mcpServers.operator` with `command`, `args`, and `cwd`.
 2. Restart Cursor or open **Cursor Settings → MCP** and toggle the operator server off and on.
-3. Confirm the `command` path in the JSON is executable (`ls -l <path>` and run it manually with `<path> mcp` — it should hang waiting for JSON-RPC on stdin, which is correct).
+3. Confirm the `command` path in the JSON is executable (`ls -l <path>` and run it manually with `<path> mcp` - it should hang waiting for JSON-RPC on stdin, which is correct).

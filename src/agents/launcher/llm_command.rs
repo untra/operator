@@ -254,6 +254,19 @@ pub fn build_docker_command(
         }
     }
 
+    let git_enabled =
+        config.git.identity.is_some() || config.delegators.iter().any(|d| d.git.is_some());
+    if git_enabled {
+        docker_args.push("${OPERATOR_GIT_RUNTIME:+-v}".into());
+        docker_args.push(
+            "${OPERATOR_GIT_RUNTIME:+\"$OPERATOR_GIT_RUNTIME:$OPERATOR_GIT_RUNTIME:ro\"}".into(),
+        );
+        docker_args.extend(["-e".into(), "OPERATOR_GIT_RUNTIME".into()]);
+        for name in crate::git::identity::IDENTITY_ENV_NAMES {
+            docker_args.extend(["-e".into(), (*name).into()]);
+        }
+    }
+
     // Add the image
     docker_args.push(docker_config.image.clone());
 
@@ -262,7 +275,12 @@ pub fn build_docker_command(
     // silently dropped.
     docker_args.push("sh".to_string());
     docker_args.push("-c".to_string());
-    docker_args.push(shell_escape(inner_cmd));
+    let inner_cmd = if git_enabled {
+        format!("if [ -n \"${{OPERATOR_GIT_RUNTIME:-}}\" ]; then . \"$OPERATOR_GIT_RUNTIME/env.sh\"; fi; {inner_cmd}")
+    } else {
+        inner_cmd.to_string()
+    };
+    docker_args.push(shell_escape(&inner_cmd));
 
     Ok(docker_args.join(" "))
 }
@@ -722,10 +740,6 @@ mod tests {
             health_ok: true,
         }
     }
-
-    // ========================================
-    // apply_yolo_flags() tests
-    // ========================================
 
     #[test]
     fn test_apply_yolo_flags_inserts_after_tool_name() {

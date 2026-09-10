@@ -75,6 +75,9 @@ pub struct AgentProfile {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub struct XOperator {
+    /// Optional Git identity, HTTPS credential reference, and runtime settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git: Option<crate::config::GitExecutionConfig>,
     /// Optional display name for UI.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
@@ -93,7 +96,8 @@ pub struct XOperator {
 impl XOperator {
     /// Whether this bag carries any Operator-specific data worth serializing.
     fn is_empty(&self) -> bool {
-        self.display_name.is_none()
+        self.git.is_none()
+            && self.display_name.is_none()
             && self.model_properties.is_empty()
             && self.model_server.is_none()
             && self.launch_config.is_none()
@@ -139,6 +143,7 @@ pub fn delegator_to_profile(d: &Delegator) -> AgentProfile {
         .unwrap_or_default();
 
     let x_operator = XOperator {
+        git: d.git.clone(),
         display_name: d.display_name.clone(),
         model_properties: d.model_properties.clone(),
         model_server: d.model_server.clone(),
@@ -186,6 +191,7 @@ pub fn profile_to_delegator(p: &AgentProfile) -> Delegator {
     };
 
     Delegator {
+        git: x.git,
         name: p.name.clone(),
         llm_tool: p.provider.clone(),
         model: p.model.clone(),
@@ -216,6 +222,7 @@ mod tests {
         let mut props = std::collections::HashMap::new();
         props.insert("reasoning_effort".to_string(), "high".to_string());
         Delegator {
+            git: None,
             name: "claude-opus-auto".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),
@@ -270,6 +277,7 @@ mod tests {
     #[test]
     fn delegator_with_no_operator_data_has_no_x_operator() {
         let d = Delegator {
+            git: None,
             name: "bare".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),

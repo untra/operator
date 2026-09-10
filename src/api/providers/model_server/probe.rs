@@ -8,6 +8,7 @@
 //! Parsing is split out from the HTTP call ([`parse_models`]) so the per-protocol
 //! response shapes can be unit-tested without a live server.
 
+use crate::auth::egress::EgressPolicy;
 use std::time::Duration;
 
 use serde_json::Value;
@@ -66,14 +67,17 @@ impl ProbeOutcome {
 
 /// Probe a server for its model list. Never panics; returns a [`ProbeOutcome`]
 /// summarizing reachability so callers can render status without handling errors.
-pub async fn probe_models(server: &ModelServer) -> ProbeOutcome {
-    match probe_models_inner(server).await {
+pub async fn probe_models(server: &ModelServer, policy: &EgressPolicy) -> ProbeOutcome {
+    match probe_models_inner(server, policy).await {
         Ok(models) => ProbeOutcome::ok(models),
         Err(err) => ProbeOutcome::failed(&err),
     }
 }
 
-async fn probe_models_inner(server: &ModelServer) -> Result<Vec<ModelInfo>, ProbeError> {
+async fn probe_models_inner(
+    server: &ModelServer,
+    policy: &EgressPolicy,
+) -> Result<Vec<ModelInfo>, ProbeError> {
     let kind = ModelServerKind::from_slug(&server.kind)
         .ok_or_else(|| ProbeError::UnknownKind(server.kind.clone()))?;
 
@@ -98,10 +102,13 @@ async fn probe_models_inner(server: &ModelServer) -> Result<Vec<ModelInfo>, Prob
         .and_then(|var| std::env::var(var).ok())
         .filter(|k| !k.is_empty());
 
-    let client = reqwest::Client::builder()
-        .user_agent("operator-tui")
-        .timeout(Duration::from_secs(5))
-        .build()
+    // This request carries the provider API key, so where it is allowed to go
+    // matters as much as what it sends. Validating the destination *and* every
+    // redirect hop is what stops a caller-supplied `base_url` from turning this
+    // into a credentialed request against the cloud metadata endpoint.
+    crate::auth::egress::validate(&url, policy).map_err(|e| ProbeError::Network(e.to_string()))?;
+
+    let client = crate::auth::egress::validated_client(policy.clone(), Duration::from_secs(5))
         .map_err(|e| ProbeError::Network(e.to_string()))?;
 
     let mut req = client.get(&url);
@@ -504,7 +511,7 @@ mod tests {
             extra_env: std::collections::HashMap::new(),
             display_name: None,
         };
-        let outcome = probe_models(&server).await;
+        let outcome = probe_models(&server, &EgressPolicy::default()).await;
         assert!(!outcome.reachable);
         assert!(outcome.error.is_some());
     }

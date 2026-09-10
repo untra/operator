@@ -17,6 +17,9 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, instrument, warn};
 
+use crate::api::argv::ProviderCommand;
+use crate::api::cli_detection::binary_for;
+use crate::types::pr::GitProvider;
 use crate::types::pr::{
     CreatePrError, CreatePrRequest, GitHubRepoInfo, PrReviewState, PrState, PullRequestInfo,
     UnifiedPrComment,
@@ -30,12 +33,14 @@ impl GhCli {
     async fn run_gh(args: &[&str], cwd: Option<&Path>) -> Result<String> {
         debug!(?args, "Running gh command");
 
-        let mut cmd = Command::new("gh");
+        let mut cmd = Command::new(binary_for(GitProvider::GitHub));
         cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
 
         if let Some(dir) = cwd {
             cmd.current_dir(dir);
         }
+
+        let _git_runtime = crate::git::runtime::configure_command(&mut cmd)?;
 
         let output = cmd.output().await.context("Failed to execute gh command")?;
 
@@ -53,7 +58,7 @@ impl GhCli {
 
     /// Check if gh CLI is installed
     pub async fn is_installed() -> bool {
-        Command::new("gh")
+        Command::new(binary_for(GitProvider::GitHub))
             .arg("--version")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -75,6 +80,38 @@ impl GhCli {
         Self::run_gh(&["api", "user", "--jq", ".login"], None).await
     }
 
+    /// Build the `gh pr create` invocation. Pure, so the flags are asserted
+    /// without spawning `gh`.
+    ///
+    /// Note there is no `--json`: `gh pr create` does not accept it and prints
+    /// the new PR's URL on stdout instead. The number is read back from that
+    /// URL and hydrated via `get_pr`, matching the GitLab path.
+    pub fn create_pr_argv(
+        repo_info: &GitHubRepoInfo,
+        request: &CreatePrRequest,
+    ) -> ProviderCommand {
+        let mut args = vec![
+            "pr".to_string(),
+            "create".to_string(),
+            "--repo".to_string(),
+            repo_info.full_name(),
+            "--head".to_string(),
+            request.head_branch.clone(),
+            "--base".to_string(),
+            request.base_branch.clone(),
+            "--title".to_string(),
+            request.title.clone(),
+        ];
+        if let Some(body) = &request.body {
+            args.push("--body".to_string());
+            args.push(body.clone());
+        }
+        if request.draft.unwrap_or(false) {
+            args.push("--draft".to_string());
+        }
+        ProviderCommand::new(binary_for(GitProvider::GitHub), args)
+    }
+
     /// Create a PR using gh CLI
     #[instrument(skip(request))]
     pub async fn create_pr(
@@ -82,95 +119,30 @@ impl GhCli {
         request: &CreatePrRequest,
         cwd: &Path,
     ) -> Result<PullRequestInfo, CreatePrError> {
-        // Check if gh is installed
         if !Self::is_installed().await {
             return Err(CreatePrError::ProviderCliNotInstalled);
         }
 
-        // Check if authenticated
         if !Self::check_auth().await.unwrap_or(false) {
             return Err(CreatePrError::ProviderCliNotLoggedIn);
         }
 
-        let repo_full_name = repo_info.full_name();
-        let mut args = vec![
-            "pr",
-            "create",
-            "--repo",
-            &repo_full_name,
-            "--head",
-            &request.head_branch,
-            "--base",
-            &request.base_branch,
-            "--title",
-            &request.title,
-        ];
+        let command = Self::create_pr_argv(repo_info, request);
+        let output = Self::run_gh(&command.arg_refs(), Some(cwd))
+            .await
+            .map_err(|e| classify_create_error(&e.to_string(), request))?;
 
-        // Add body if provided
-        let body_arg: String;
-        if let Some(ref body) = request.body {
-            body_arg = body.clone();
-            args.push("--body");
-            args.push(&body_arg);
-        }
-
-        // Add draft flag if requested
-        if request.draft.unwrap_or(false) {
-            args.push("--draft");
-        }
-
-        // Request JSON output
-        args.push("--json");
-        args.push("number,url,state,isDraft,title");
-
-        let output = Self::run_gh(&args, Some(cwd)).await.map_err(|e| {
-            let err_str = e.to_string();
-
-            if err_str.contains("already exists") {
-                // Try to extract PR number from error
-                if let Some(captures) = extract_existing_pr_info(&err_str) {
-                    return CreatePrError::PrAlreadyExists {
-                        pr_number: captures.0,
-                        url: captures.1,
-                    };
-                }
-            }
-
-            if err_str.contains("not pushed") || err_str.contains("has no commits") {
-                return CreatePrError::BranchNotPushed {
-                    branch: request.head_branch.clone(),
-                };
-            }
-
-            if err_str.contains("not found") && err_str.contains(&request.base_branch) {
-                return CreatePrError::TargetBranchNotFound {
-                    branch: request.base_branch.clone(),
-                };
-            }
-
-            CreatePrError::ProviderApiError { message: err_str }
-        })?;
-
-        // Parse the JSON response
-        let pr_response: GhPrCreateResponse =
-            serde_json::from_str(&output).map_err(|e| CreatePrError::ProviderApiError {
-                message: format!("Failed to parse PR response: {e}"),
+        // `gh pr create` prints the PR URL; everything else comes from `get_pr`.
+        let number =
+            pr_number_from_url(&output).ok_or_else(|| CreatePrError::ProviderApiError {
+                message: format!("Could not read a PR number from gh output: {output}"),
             })?;
 
-        Ok(PullRequestInfo {
-            number: pr_response.number,
-            url: pr_response.url,
-            state: if pr_response.state.eq_ignore_ascii_case("open") {
-                PrState::Open
-            } else if pr_response.state.eq_ignore_ascii_case("merged") {
-                PrState::Merged
-            } else {
-                PrState::Closed
-            },
-            merge_commit_sha: None,
-            title: Some(pr_response.title),
-            is_draft: pr_response.is_draft,
-        })
+        Self::get_pr(repo_info, number)
+            .await
+            .map_err(|e| CreatePrError::ProviderApiError {
+                message: e.to_string(),
+            })
     }
 
     /// Get PR info using gh CLI
@@ -505,9 +477,115 @@ fn extract_existing_pr_info(error: &str) -> Option<(i64, String)> {
     None
 }
 
+/// Map a failed `gh pr create` to a structured error the UI can act on.
+fn classify_create_error(err: &str, request: &CreatePrRequest) -> CreatePrError {
+    if err.contains("already exists") {
+        if let Some((pr_number, url)) = extract_existing_pr_info(err) {
+            return CreatePrError::PrAlreadyExists { pr_number, url };
+        }
+    }
+    if err.contains("not pushed") || err.contains("has no commits") {
+        return CreatePrError::BranchNotPushed {
+            branch: request.head_branch.clone(),
+        };
+    }
+    if err.contains("not found") && err.contains(&request.base_branch) {
+        return CreatePrError::TargetBranchNotFound {
+            branch: request.base_branch.clone(),
+        };
+    }
+    CreatePrError::ProviderApiError {
+        message: err.to_string(),
+    }
+}
+
+/// Read the PR number out of a `.../pull/<n>` URL anywhere in `output`.
+fn pr_number_from_url(output: &str) -> Option<i64> {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    RE.get_or_init(|| regex::Regex::new(r"/pull/(\d+)").expect("static regex"))
+        .captures(output)?
+        .get(1)?
+        .as_str()
+        .parse()
+        .ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn request() -> CreatePrRequest {
+        CreatePrRequest {
+            title: "Add widget".into(),
+            body: Some("Body text".into()),
+            head_branch: "feat/widget".into(),
+            base_branch: "main".into(),
+            draft: Some(true),
+        }
+    }
+
+    #[test]
+    fn create_pr_argv_is_the_documented_gh_contract() {
+        let repo = GitHubRepoInfo::new(GitProvider::GitHub, "owner", "repo");
+        let cmd = GhCli::create_pr_argv(&repo, &request());
+        assert_eq!(cmd.program, "gh");
+        assert_eq!(
+            cmd.args,
+            [
+                "pr",
+                "create",
+                "--repo",
+                "owner/repo",
+                "--head",
+                "feat/widget",
+                "--base",
+                "main",
+                "--title",
+                "Add widget",
+                "--body",
+                "Body text",
+                "--draft",
+            ]
+        );
+    }
+
+    /// `gh pr create` has no `--json`; it prints the new PR's URL on stdout.
+    /// Asking for JSON made every GitHub PR creation fail on flag parse.
+    #[test]
+    fn create_pr_argv_does_not_ask_gh_for_json() {
+        let repo = GitHubRepoInfo::new(GitProvider::GitHub, "owner", "repo");
+        let cmd = GhCli::create_pr_argv(&repo, &request());
+        assert!(
+            !cmd.long_flags().contains(&"--json"),
+            "gh pr create does not accept --json"
+        );
+    }
+
+    #[test]
+    fn create_pr_argv_omits_optional_flags_when_unset() {
+        let repo = GitHubRepoInfo::new(GitProvider::GitHub, "owner", "repo");
+        let bare = CreatePrRequest {
+            body: None,
+            draft: None,
+            ..request()
+        };
+        let flags = GhCli::create_pr_argv(&repo, &bare);
+        assert!(!flags.long_flags().contains(&"--body"));
+        assert!(!flags.long_flags().contains(&"--draft"));
+    }
+
+    #[test]
+    fn pr_number_is_read_from_the_created_url() {
+        assert_eq!(
+            pr_number_from_url("https://github.com/owner/repo/pull/42"),
+            Some(42)
+        );
+        assert_eq!(
+            pr_number_from_url("noise\nhttps://github.com/o/r/pull/7\n"),
+            Some(7)
+        );
+        assert_eq!(pr_number_from_url("no url here"), None);
+    }
 
     #[tokio::test]
     async fn test_is_installed() {

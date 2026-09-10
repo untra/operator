@@ -119,6 +119,7 @@ pub struct JiraCredentials {
     /// Atlassian account email for Basic Auth
     pub email: String,
     /// API token / personal access token
+    #[schema(write_only, format = Password)]
     pub api_token: String,
 }
 
@@ -127,6 +128,7 @@ pub struct JiraCredentials {
 #[ts(export)]
 pub struct LinearCredentials {
     /// Linear API key (prefixed `lin_api_`)
+    #[schema(write_only, format = Password)]
     pub api_key: String,
 }
 
@@ -139,6 +141,7 @@ pub struct LinearCredentials {
 #[ts(export)]
 pub struct GithubCredentials {
     /// GitHub PAT, fine-grained PAT, or app installation token
+    #[schema(write_only, format = Password)]
     pub token: String,
 }
 
@@ -397,6 +400,7 @@ pub struct WriteKanbanConfigResponse {
 pub struct JiraSessionEnv {
     pub domain: String,
     pub email: String,
+    #[schema(write_only, format = Password)]
     pub api_token: String,
     pub api_key_env: String,
 }
@@ -405,6 +409,7 @@ pub struct JiraSessionEnv {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct LinearSessionEnv {
+    #[schema(write_only, format = Password)]
     pub api_key: String,
     pub api_key_env: String,
 }
@@ -413,6 +418,7 @@ pub struct LinearSessionEnv {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct GithubSessionEnv {
+    #[schema(write_only, format = Password)]
     pub token: String,
     pub api_key_env: String,
 }

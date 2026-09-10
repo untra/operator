@@ -13,11 +13,13 @@ use axum::{
 use crate::agents::delegator_resolution::{self, AgentContext};
 use crate::agents::{LaunchOptions, Launcher, PreparedLaunch, ProofRunner, RelaunchOptions};
 use crate::queue::Queue;
+use crate::rest::dto::auth::PrincipalKind;
 use crate::rest::dto::{
     LaunchTicketRequest, LaunchTicketResponse, NextStepInfo, StepCompleteRequest,
     StepCompleteResponse,
 };
 use crate::rest::error::ApiError;
+use crate::rest::middleware::auth::Authenticated;
 use crate::rest::state::ApiState;
 
 /// If the sub-agent identified by `request.session_id` (or by ticket fallback)
@@ -32,7 +34,7 @@ fn handle_multi_agent_completion(
     step_name: &str,
     request: &StepCompleteRequest,
 ) -> Result<Option<StepCompleteResponse>, ApiError> {
-    let mut app_state = crate::state::State::load(&state.config)
+    let mut app_state = crate::state::State::load(&state.config())
         .map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Resolve the sub-agent: prefer session-id lookup, fall back to ticket.
@@ -159,7 +161,7 @@ pub async fn launch_ticket(
     Json(request): Json<LaunchTicketRequest>,
 ) -> Result<Json<LaunchTicketResponse>, ApiError> {
     // Create a queue to find the ticket
-    let queue = Queue::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Find the ticket by ID
     let ticket = queue
@@ -189,14 +191,14 @@ pub async fn launch_ticket(
 
     // Check if ticket is in-progress directory
     let in_progress_path = state
-        .config
+        .config()
         .tickets_path()
         .join("in-progress")
         .join(&ticket.filename);
 
     // Create launcher
     let launcher =
-        Launcher::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+        Launcher::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Non-local targets (docker/coder/ssh) execute SERVER-SIDE: workspace
     // lifecycle and remote session orchestration belong to the server, and a
@@ -250,9 +252,9 @@ fn apply_request_target(
     options: &mut LaunchOptions,
 ) -> Result<(), ApiError> {
     if let Some(ref name) = request.target {
-        let target = delegator_resolution::resolve_named_target(&state.config, name)
+        let target = delegator_resolution::resolve_named_target(&state.config(), name)
             .map_err(|e| ApiError::BadRequest(e.to_string()))?;
-        delegator_resolution::apply_target_to_options(options, target, &state.config)
+        delegator_resolution::apply_target_to_options(options, target, &state.config())
             .map_err(|e| ApiError::BadRequest(e.to_string()))?;
     }
     Ok(())
@@ -264,7 +266,7 @@ fn server_side_response(
     state: &ApiState,
     ticket: &crate::queue::Ticket,
 ) -> Result<LaunchTicketResponse, ApiError> {
-    let app_state = crate::state::State::load(&state.config)
+    let app_state = crate::state::State::load(&state.config())
         .map_err(|e| ApiError::InternalError(e.to_string()))?;
     let agent = app_state
         .agents
@@ -279,7 +281,7 @@ fn server_side_response(
         ticket_id: ticket.id.clone(),
         working_directory: agent.worktree_path.clone().unwrap_or_else(|| {
             state
-                .config
+                .config()
                 .projects_path()
                 .join(&ticket.project)
                 .to_string_lossy()
@@ -304,7 +306,7 @@ fn build_launch_options(
     agent_context: Option<&AgentContext>,
 ) -> Result<LaunchOptions, ApiError> {
     delegator_resolution::resolve_launch_options(
-        &state.config,
+        &state.config(),
         request.delegator.as_deref(),
         request.provider.as_deref(),
         request.model.as_deref(),
@@ -364,7 +366,7 @@ fn build_next_step_command(
 ) -> anyhow::Result<crate::agents::launcher::step_command::BuiltStepCommand> {
     use crate::agents::launcher::step_command::{self, StepLaunchContext};
 
-    let config: &crate::config::Config = &state.config;
+    let config: &crate::config::Config = &state.config();
     let app_state = crate::state::State::load(config)?;
     let agent = find_completing_agent(&app_state.agents, &ticket.id, request.session_id.as_deref());
 
@@ -468,7 +470,7 @@ fn record_step_transition(
     if let Err(e) = advanced.set_session_id(&next_step.name, next_session_id) {
         tracing::warn!(ticket = %ticket.id, error = %e, "Failed to store next step session id");
     }
-    match crate::state::State::load(&state.config) {
+    match crate::state::State::load(&state.config()) {
         Ok(mut app_state) => {
             let matched =
                 find_completing_agent(&app_state.agents, &ticket.id, request.session_id.as_deref());
@@ -504,7 +506,7 @@ fn set_proof_status_message(
     session_id: Option<&str>,
     message: &str,
 ) {
-    let mut app_state = match crate::state::State::load(&state.config) {
+    let mut app_state = match crate::state::State::load(&state.config()) {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!(ticket = %ticket.id, error = %e, "Failed to load state for proof status message");
@@ -547,13 +549,13 @@ async fn run_proof_review_hook(
 
     let project_fallback = || {
         state
-            .config
+            .config()
             .projects_path()
             .join(&ticket.project)
             .to_string_lossy()
             .to_string()
     };
-    let worktree_root = match crate::state::State::load(&state.config) {
+    let worktree_root = match crate::state::State::load(&state.config()) {
         Ok(app_state) => {
             let agent =
                 find_completing_agent(&app_state.agents, &ticket.id, request.session_id.as_deref());
@@ -626,10 +628,25 @@ async fn run_proof_review_hook(
 pub async fn complete_step(
     State(state): State<ApiState>,
     Path((ticket_id, step_name)): Path<(String, String)>,
+    Authenticated(principal): Authenticated,
     Json(request): Json<StepCompleteRequest>,
 ) -> Result<Json<StepCompleteResponse>, ApiError> {
+    // A callback token is pinned to one ticket and step. Presenting a valid but
+    // *different* one here would let an agent working on one ticket drive
+    // another ticket's workflow forward, so the claims are matched against the
+    // path rather than trusted for having verified at all.
+    if principal.kind == PrincipalKind::AgentCallback {
+        let matches_ticket = principal.ticket_id.as_deref() == Some(ticket_id.as_str());
+        let matches_step = principal.step.as_deref() == Some(step_name.as_str());
+        if !matches_ticket || !matches_step {
+            return Err(ApiError::Forbidden(
+                "this callback token is issued for a different ticket or step".to_string(),
+            ));
+        }
+    }
+
     // Create a queue to find the ticket
-    let queue = Queue::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Find the ticket by ID
     let ticket = queue
@@ -653,6 +670,19 @@ pub async fn complete_step(
         ))
     })?;
 
+    // Clone what the rest of the function needs from the registry, then drop
+    // the read guard before any `.await`. The proof hook below runs an
+    // assertion command synchronously (up to its configured timeout, default
+    // 120s) — holding `registry.read()` across that would stall every
+    // `registry.write()` caller (issuetypes/collections/steps routes) for
+    // the duration of each Proof-reviewed step completion.
+    let current_step = current_step.clone();
+    let next_step_schema = current_step
+        .next_step
+        .as_ref()
+        .and_then(|n| issue_type.get_step(n).cloned());
+    drop(registry);
+
     // Multi-agent branch: if the calling sub-agent belongs to a group,
     // write its individual output file and return a group_* status.
     // The sync loop owns aggregation, advancement, and artifact writing.
@@ -667,7 +697,7 @@ pub async fn complete_step(
     if request.exit_code == 0
         && current_step.review_type == crate::templates::schema::ReviewType::Proof
     {
-        run_proof_review_hook(&state, &ticket, current_step, &request).await;
+        run_proof_review_hook(&state, &ticket, &current_step, &request).await;
     }
 
     // Determine status based on exit code and validation
@@ -694,13 +724,11 @@ pub async fn complete_step(
     }
 
     // Find next step info
-    let next_step_info = current_step.next_step.as_ref().and_then(|next_name| {
-        issue_type.get_step(next_name).map(|step| NextStepInfo {
-            name: step.name.clone(),
-            display_name: step.display_name.clone().unwrap_or(step.name.clone()),
-            review_type: format!("{:?}", step.review_type).to_lowercase(),
-            prompt: Some(step.prompt.clone()),
-        })
+    let next_step_info = next_step_schema.as_ref().map(|step| NextStepInfo {
+        name: step.name.clone(),
+        display_name: step.display_name.clone().unwrap_or(step.name.clone()),
+        review_type: format!("{:?}", step.review_type).to_lowercase(),
+        prompt: Some(step.prompt.clone()),
     });
 
     // Determine if we should auto-proceed
@@ -713,11 +741,7 @@ pub async fn complete_step(
     // Never target-wrapped — exec() happens inside the already-wrapped
     // environment (see step_command module docs).
     let next_command = if auto_proceed {
-        match current_step
-            .next_step
-            .as_ref()
-            .and_then(|n| issue_type.get_step(n).cloned())
-        {
+        match next_step_schema {
             Some(next_schema) => {
                 match build_next_step_command(&state, &ticket, &next_schema, &request) {
                     Ok(built) => {
@@ -895,6 +919,7 @@ mod tests {
     fn test_build_launch_options_delegator_propagates_all_fields() {
         let mut config = Config::default();
         config.delegators.push(crate::config::Delegator {
+            git: None,
             name: "full-delegator".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),
@@ -951,6 +976,7 @@ mod tests {
     fn test_build_launch_options_delegator_none_overrides_inherit() {
         let mut config = Config::default();
         config.delegators.push(crate::config::Delegator {
+            git: None,
             name: "minimal".to_string(),
             llm_tool: "claude".to_string(),
             model: "sonnet".to_string(),
@@ -1001,6 +1027,7 @@ mod tests {
 
     fn make_delegator(name: &str, tool: &str, model: &str) -> crate::config::Delegator {
         crate::config::Delegator {
+            git: None,
             name: name.to_string(),
             llm_tool: tool.to_string(),
             model: model.to_string(),
@@ -1159,6 +1186,7 @@ mod tests {
     #[test]
     fn test_build_launch_options_step_agent_applies_launch_config() {
         let state = make_state_with_delegators(vec![crate::config::Delegator {
+            git: None,
             name: "codex-auto".to_string(),
             llm_tool: "codex".to_string(),
             model: "o3".to_string(),
@@ -1289,7 +1317,7 @@ mod tests {
 
         // Build a group with 2 expected sub-agents; launch one (mark_launched).
         let (agent_id, session_name) = {
-            let mut state = State::load(&api_state.config).unwrap();
+            let mut state = State::load(&api_state.config()).unwrap();
             let group_id = state
                 .create_multi_agent_group(
                     &ticket.id,
@@ -1360,7 +1388,7 @@ mod tests {
 
         // 2 sub-agents, both launched; the FIRST has already recorded its output.
         let (second_agent_id, session_name) = {
-            let mut state = State::load(&api_state.config).unwrap();
+            let mut state = State::load(&api_state.config()).unwrap();
             let group_id = state
                 .create_multi_agent_group(
                     &ticket.id,
@@ -1501,7 +1529,7 @@ mod tests {
         let content =
             format!("---\nid: {id}\nstatus: running\nstep: {step}\n---\n\n# Chain ticket\n");
         let path = state
-            .config
+            .config()
             .tickets_path()
             .join("in-progress")
             .join(filename);
@@ -1541,7 +1569,7 @@ mod tests {
 
     /// Add an agent for `ticket` carrying the given persisted launch context.
     fn add_chain_agent(state: &ApiState, ticket: &Ticket, model: &str, session_id: &str) -> String {
-        let mut app_state = State::load(&state.config).unwrap();
+        let mut app_state = State::load(&state.config()).unwrap();
         let agent_id = app_state
             .add_agent_with_options(
                 ticket.id.clone(),
@@ -1559,7 +1587,7 @@ mod tests {
     }
 
     fn persisted_context_session_id(state: &ApiState, agent_id: &str) -> Option<String> {
-        State::load(&state.config)
+        State::load(&state.config())
             .unwrap()
             .agents
             .iter()
@@ -1577,6 +1605,7 @@ mod tests {
         let response = complete_step(
             State(fixture.state.clone()),
             Path((ticket.id.clone(), "scan".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(make_chain_complete_request("session-current")),
         )
         .await
@@ -1652,6 +1681,7 @@ mod tests {
         let first = complete_step(
             State(fixture.state.clone()),
             Path((ticket.id.clone(), "scan".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(make_chain_complete_request("session-scan")),
         )
         .await
@@ -1668,6 +1698,7 @@ mod tests {
         let second = complete_step(
             State(fixture.state.clone()),
             Path((ticket.id.clone(), "scan".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(make_chain_complete_request("session-scan")),
         )
         .await
@@ -1716,7 +1747,7 @@ mod tests {
         add_chain_agent(&fixture.state, &other, "opus", "shared-session");
         let target_agent = add_chain_agent(&fixture.state, &target, "sonnet", "target-session");
 
-        let app_state = State::load(&fixture.state.config).unwrap();
+        let app_state = State::load(&fixture.state.config()).unwrap();
         let found = find_completing_agent(&app_state.agents, &target.id, Some("shared-session"))
             .expect("falls back to a ticket match");
         assert_eq!(
@@ -1736,6 +1767,7 @@ mod tests {
         let first = complete_step(
             State(fixture.state.clone()),
             Path((ticket.id.clone(), "scan".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(make_chain_complete_request("session-scan")),
         )
         .await
@@ -1759,6 +1791,7 @@ mod tests {
         let second = complete_step(
             State(fixture.state.clone()),
             Path((ticket.id.clone(), "validate".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(make_chain_complete_request(&validate_session)),
         )
         .await
@@ -1770,13 +1803,6 @@ mod tests {
             "session arm must still match the chain agent on transition 2: {next_command}"
         );
     }
-
-    // ─── Proof review hook (Task B3) ────────────────────────────────────
-    //
-    // Registers a synthetic "PROOF" issue type directly into the registry
-    // (IssueType::validate doesn't check proof_config — that's B1's
-    // TemplateSchema-level check for filesystem-loaded types — so this can
-    // also model the "runtime template bypassed validation" case).
 
     use crate::agents::ProofResult;
     use crate::issuetypes::schema::IssueTypeSource;
@@ -1826,7 +1852,7 @@ mod tests {
         let content =
             format!("---\nid: {id}\nstatus: running\nstep: {step}\n---\n\n# Proof ticket\n");
         let path = state
-            .config
+            .config()
             .tickets_path()
             .join("in-progress")
             .join(filename);
@@ -1835,7 +1861,7 @@ mod tests {
     }
 
     fn agent_last_message(state: &ApiState, agent_id: &str) -> Option<String> {
-        State::load(&state.config)
+        State::load(&state.config())
             .unwrap()
             .agents
             .iter()
@@ -1861,7 +1887,7 @@ mod tests {
 
         let ticket = write_typed_ticket(&fixture.state, "PROOF-9001", "PROOF", "run");
         let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-1");
-        State::load(&fixture.state.config)
+        State::load(&fixture.state.config())
             .unwrap()
             .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
             .unwrap();
@@ -1869,6 +1895,7 @@ mod tests {
         let response = complete_step(
             State(fixture.state.clone()),
             Path((ticket.id.clone(), "run".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(make_chain_complete_request("session-proof-1")),
         )
         .await
@@ -1910,7 +1937,7 @@ mod tests {
 
         let ticket = write_typed_ticket(&fixture.state, "PROOF-9002", "PROOF", "run");
         let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-2");
-        State::load(&fixture.state.config)
+        State::load(&fixture.state.config())
             .unwrap()
             .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
             .unwrap();
@@ -1918,6 +1945,7 @@ mod tests {
         let response = complete_step(
             State(fixture.state.clone()),
             Path((ticket.id.clone(), "run".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(make_chain_complete_request("session-proof-2")),
         )
         .await
@@ -1957,7 +1985,7 @@ mod tests {
 
         let ticket = write_typed_ticket(&fixture.state, "PROOF-9003", "PROOF", "run");
         let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-3");
-        State::load(&fixture.state.config)
+        State::load(&fixture.state.config())
             .unwrap()
             .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
             .unwrap();
@@ -1968,6 +1996,7 @@ mod tests {
         let response = complete_step(
             State(fixture.state.clone()),
             Path((ticket.id.clone(), "run".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(request),
         )
         .await
@@ -1998,7 +2027,7 @@ mod tests {
 
         let ticket = write_typed_ticket(&fixture.state, "PROOF-9004", "PROOF", "run");
         let agent_id = add_chain_agent(&fixture.state, &ticket, "sonnet", "session-proof-4");
-        State::load(&fixture.state.config)
+        State::load(&fixture.state.config())
             .unwrap()
             .update_agent_worktree_path(&agent_id, &worktree.to_string_lossy())
             .unwrap();
@@ -2006,6 +2035,7 @@ mod tests {
         let response = complete_step(
             State(fixture.state.clone()),
             Path((ticket.id.clone(), "run".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(make_chain_complete_request("session-proof-4")),
         )
         .await

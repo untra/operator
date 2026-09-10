@@ -19,6 +19,13 @@ host: string,
  */
 port: number, 
 /**
- * CORS allowed origins (empty = allow all)
+ * CORS allowed origins. Empty means **same-origin only**
  */
-cors_origins: Array<string>, };
+cors_origins: Array<string>, 
+/**
+ * Externally reachable base URL (e.g. `https://operator.example.com`).
+ *
+ * OAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header,
+ * which a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy.
+ */
+public_url: string | null, };

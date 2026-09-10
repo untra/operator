@@ -95,6 +95,11 @@ describe('issueTypeToGraph', () => {
     expect(nodes.find((n) => n.id === 'build')?.badge).toBeUndefined();
   });
 
+  test('surfaces a proof review gate as a node badge', () => {
+    const { nodes } = issueTypeToGraph(doc([step({ name: 'verify', review_type: 'proof' })]));
+    expect(nodes.find((n) => n.id === 'verify')?.badge).toBe('proof review');
+  });
+
   test('fans multi_model steps out to a voting aggregate', () => {
     const { nodes, edges } = issueTypeToGraph(
       doc([

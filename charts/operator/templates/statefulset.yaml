@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "operator.fullname" . }}
+  labels:
+    {{- include "operator.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ include "operator.fullname" . }}
+  podManagementPolicy: OrderedReady
+  minReadySeconds: 5
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  selector:
+    matchLabels:
+      {{- include "operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "operator.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "operator.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: operator
+          image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - api
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: HOME
+              value: /home/operator
+            # HOME is an emptyDir, so the default ~/.operator/worktrees would
+            # discard every agent worktree on restart. Keep them on the PVC.
+            - name: OPERATOR_PATHS__WORKTREES
+              value: /op/.worktrees
+            - name: OPERATOR_REST_API__HOST
+              value: 0.0.0.0
+            - name: OPERATOR_REST_API__PORT
+              value: {{ .Values.service.port | quote }}
+            {{- with .Values.publicUrl }}
+            - name: OPERATOR_REST_API__PUBLIC_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.bootstrap.existingSecret }}
+            - name: OPERATOR_BOOTSTRAP_PASSWORD_FILE
+              value: /run/secrets/operator-bootstrap/password
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: workspace
+              mountPath: /op
+            - name: home
+              mountPath: /home/operator
+            - name: tmp
+              mountPath: /tmp
+            {{- with .Values.bootstrap.existingSecret }}
+            - name: bootstrap
+              mountPath: /run/secrets/operator-bootstrap
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        {{- with .Values.bootstrap.existingSecret }}
+        - name: bootstrap
+          secret:
+            secretName: {{ . | quote }}
+            optional: true
+            items:
+              - key: {{ $.Values.bootstrap.passwordKey | quote }}
+                path: password
+        {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: workspace
+        labels:
+          {{- include "operator.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- with .Values.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}

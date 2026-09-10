@@ -11,8 +11,26 @@ The Operator REST API provides endpoints for managing issue types and collection
 ## Quick Links
 
 - **Base URL**: `http://localhost:7008/api/v1`
-- **Health Check**: `GET /api/v1/health`
-- **Status**: `GET /api/v1/status`
+- **Liveness probe**: `GET /livez` (public)
+- **Readiness probe**: `GET /readyz` (public)
+- **Health Check**: `GET /api/v1/health` (requires `read`)
+- **Status**: `GET /api/v1/status` (requires `read`)
+
+## Authentication
+
+Every endpoint below is authenticated except the probes, the bootstrap and
+login endpoints, and the OAuth device and token endpoints. Two schemes are
+accepted:
+
+| Scheme | Used by | Notes |
+|--------|---------|-------|
+| `bearerAuth` | CLI, IDE clients, integrations, MCP | `Authorization: Bearer <access token>`. Access tokens are short-lived; obtain one at the token endpoint with a refresh token or a service access key. |
+| `sessionCookie` | The web dashboard | Opaque `__Host-operator_session` cookie. Cookie-authenticated mutations additionally require a CSRF token and a matching `Origin`. |
+
+Each operation declares the scope it requires - `read`, `write`, `execute`, or `admin`. A credential without the scope receives `403`; no credential at all receives `401`.
+
+Full details, including bootstrap, the device flow, and access-key lifecycle,
+are in [Authentication](/security/authentication/).
 
 ## Starting the API Server
 

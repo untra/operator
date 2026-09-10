@@ -13,7 +13,7 @@ Build and serve the `docs/` subproject locally for inspection. Stop immediately 
 Run each step sequentially from the repo root. If any step fails, stop and report the failure clearly.
 
 1. **Install Ruby dependencies**: `cd docs && bundle install`
-2. **Build the full site**: `make docs` from the repo root. This runs the whole pipeline in order — ts-rs bindings, the generated reference docs and hosted collection bundle (`cargo run -- docs`), the shared `webcomponents/` bundle, the copy into `docs/assets/js/`, then Jekyll.
+2. **Build the full site**: `make docs` from the repo root. This runs the whole pipeline in order - ts-rs bindings, the generated reference docs and hosted collection bundle (`cargo run -- docs`), the shared `webcomponents/` bundle, the copy into `docs/assets/js/`, then Jekyll.
 3. **Serve locally**: `cd docs && bundle exec jekyll serve` (run in background so the session remains interactive; serves on port 4000)
 4. **Report**: Confirm the site is running at http://localhost:4000. Let the user know it auto-rebuilds on file changes.
 

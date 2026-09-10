@@ -50,7 +50,7 @@ fn ticket_to_card(ticket: &Ticket) -> KanbanTicketCard {
 )]
 pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardResponse>, ApiError> {
     // Create a queue from the config
-    let queue = Queue::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Load tickets from each directory
     let queued_tickets = queue
@@ -152,7 +152,7 @@ pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardRes
 )]
 pub async fn status(State(state): State<ApiState>) -> Result<Json<QueueStatusResponse>, ApiError> {
     // Create a queue from the config
-    let queue = Queue::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Load tickets from each directory
     let queued_tickets = queue
@@ -249,7 +249,7 @@ pub async fn status(State(state): State<ApiState>) -> Result<Json<QueueStatusRes
     )
 )]
 pub async fn pause(State(state): State<ApiState>) -> Result<Json<QueueControlResponse>, ApiError> {
-    let mut operator_state = OperatorState::load(&state.config)
+    let mut operator_state = OperatorState::load(&state.config())
         .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     operator_state
@@ -275,7 +275,7 @@ pub async fn pause(State(state): State<ApiState>) -> Result<Json<QueueControlRes
     )
 )]
 pub async fn resume(State(state): State<ApiState>) -> Result<Json<QueueControlResponse>, ApiError> {
-    let mut operator_state = OperatorState::load(&state.config)
+    let mut operator_state = OperatorState::load(&state.config())
         .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
     operator_state
@@ -304,7 +304,7 @@ pub async fn resume(State(state): State<ApiState>) -> Result<Json<QueueControlRe
 pub async fn sync(State(state): State<ApiState>) -> Result<Json<KanbanSyncResponse>, ApiError> {
     use crate::services::KanbanSyncService;
 
-    let sync_service = KanbanSyncService::new(&state.config);
+    let sync_service = KanbanSyncService::new(&state.config());
 
     let result = sync_service
         .sync_all()
@@ -342,7 +342,7 @@ pub async fn sync_collection(
 ) -> Result<Json<KanbanSyncResponse>, ApiError> {
     use crate::services::KanbanSyncService;
 
-    let sync_service = KanbanSyncService::new(&state.config);
+    let sync_service = KanbanSyncService::new(&state.config());
 
     let result = sync_service
         .sync_collection(&provider, &project_key)

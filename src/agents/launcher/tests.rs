@@ -509,12 +509,14 @@ use crate::agents::tmux::TmuxClient;
 
 fn make_test_operator_env() -> OperatorEnvVars {
     OperatorEnvVars {
+        git_context: None,
         agent_id: Uuid::new_v4().to_string(),
         ticket_id: "TEST-001".to_string(),
         project: "test-project".to_string(),
         step: "initial".to_string(),
         ui_url: "http://localhost:7008/#/agent/test".to_string(),
         ui_port: 7008,
+        callback_token: String::new(),
     }
 }
 
@@ -1854,6 +1856,7 @@ use crate::state::{PendingSubAgent, State};
 fn add_delegators(config: &mut Config, names: &[&str]) {
     for name in names {
         config.delegators.push(Delegator {
+            git: None,
             name: (*name).to_string(),
             llm_tool: "claude".to_string(),
             model: "sonnet".to_string(),

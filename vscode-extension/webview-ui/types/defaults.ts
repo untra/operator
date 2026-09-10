@@ -107,12 +107,15 @@ const DEFAULT_CONFIG: Config = {
     host: '127.0.0.1',
     port: 7008,
     cors_origins: [],
+    public_url: null,
   },
   git: {
     provider: null,
     github: { enabled: true, token_env: 'GITHUB_TOKEN' },
     gitlab: { enabled: false, token_env: 'GITLAB_TOKEN', host: null },
-    branch_format: '{type}/{ticket_id}-{slug}',
+    gitea: { enabled: false, token_env: 'GITEA_TOKEN', host: null, wip_prefix: 'WIP: ' },
+    forgejo: { enabled: false, token_env: 'FORGEJO_TOKEN', host: null, wip_prefix: 'WIP: ' },
+    branch_format: '{type}/{ticket_id}',
     use_worktrees: false,
   },
   kanban: {

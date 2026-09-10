@@ -3,7 +3,7 @@
 # Operator!
 [![GitHub Tag](https://img.shields.io/github/v/tag/untra/operator)](https://github.com/untra/operator/releases) [![codecov](https://codecov.io/gh/untra/operator/branch/main/graph/badge.svg)](https://codecov.io/gh/untra/operator)
 
-**_This Project is currently in alpha, is free to use, and officially promises nothing yet!_**
+**_This Project is currently in ALPHA, is free to use, and officially promises nothing yet!_**
 
 * **Session** [![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=white)](https://operator.untra.io/getting-started/sessions/tmux/) [![cmux](https://img.shields.io/badge/cmux-333333)](https://operator.untra.io/getting-started/sessions/cmux/) [![Zellij](https://img.shields.io/badge/Zellij-E8590C)](https://operator.untra.io/getting-started/sessions/zellij/)
 
@@ -18,7 +18,7 @@
 
 * **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/) [![GitLab](https://img.shields.io/badge/GitLab-FC6D26?logo=gitlab&logoColor=white)](https://operator.untra.io/getting-started/git/gitlab/)
 
-* **Platform** [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://operator.untra.io/getting-started/platforms/docker/) [![Coder](https://img.shields.io/badge/Coder-7C71FF?logo=coder&logoColor=white)](https://operator.untra.io/getting-started/platforms/coder/) 
+* **Platform** [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://operator.untra.io/getting-started/platforms/docker/) [![Coder](https://img.shields.io/badge/Coder-7C71FF?logo=coder&logoColor=white)](https://operator.untra.io/getting-started/platforms/coder/) [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://operator.untra.io/getting-started/platforms/kubernetes/) 
 
 * **Workflow Export Format** [![Claude Workflow](https://img.shields.io/badge/Claude_Workflow-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/workflows/claude/) [![AGNT Workflow](https://img.shields.io/badge/AGNT_Workflow-6E56CF)](https://operator.untra.io/getting-started/workflows/agnt/)
 
@@ -98,7 +98,7 @@ sudo mv operator /usr/local/bin/
 ```
 
 ```powershell
-# Windows (PowerShell) — use operator-windows-arm64.exe on ARM64
+# Windows (PowerShell) - use operator-windows-arm64.exe on ARM64
 Invoke-WebRequest -Uri "https://github.com/untra/operator/releases/latest/download/operator-windows-x86_64.exe" -OutFile "operator.exe"
 ```
 
@@ -301,7 +301,7 @@ operator launch --delegator codex-local-qwen
 operator launch --llm-tool codex --model qwen2.5-coder --model-server ollama-local
 ```
 
-**Protocol compatibility.** Codex speaks the OpenAI API — pairing with ollama requires no bridge. Claude and Gemini use their own vendor protocols and require a translating proxy (e.g. `claude-code-router`, `litellm-proxy`) between the CLI and ollama; declare the bridge URL as your `model_server.base_url`.
+**Protocol compatibility.** Codex speaks the OpenAI API - pairing with ollama requires no bridge. Claude and Gemini use their own vendor protocols and require a translating proxy (e.g. `claude-code-router`, `litellm-proxy`) between the CLI and ollama; declare the bridge URL as your `model_server.base_url`.
 
-Current release ships the infrastructure — ollama detection and automatic env-var injection on spawn land in the next release. See `docs/getting-started/model-servers/` for the full walkthrough.
+Current release ships the infrastructure - ollama detection and automatic env-var injection on spawn land in the next release. See `docs/getting-started/model-servers/` for the full walkthrough.
 

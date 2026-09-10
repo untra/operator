@@ -22,7 +22,7 @@ Operator ships as **two executables built from one repository**: `operator`, a l
 
 ## Two independent channels
 
-Operator and opr8r never share memory or a socket file handle directly — everything crosses a process boundary. There are two distinct channels, used for two distinct purposes:
+Operator and opr8r never share memory or a socket file handle directly - everything crosses a process boundary. There are two distinct channels, used for two distinct purposes:
 
 ```
 operator process
@@ -36,13 +36,13 @@ operator process
       relay_ask / relay_reply / relay_broadcast / relay_peers / relay_rename
 ```
 
-1. **Launch (operator → session, one-way, process spawn).** Operator decides what to run and starts it — see [Launching agents](#launching-agents).
-2. **Step completion (opr8r → operator, HTTP).** After the wrapped LLM command exits, `opr8r` reports the result back to Operator's REST API — see [The REST channel](#the-rest-channel-opr8r-as-step-wrapper).
-3. **Peer messaging (agent ↔ agent, via operator).** A *different* opr8r subcommand, `opr8r relay`, runs as an MCP server so the LLM tool itself can message other agents through Operator's relay hub. This is a separate feature covered in full on the [Relay](/docs/relay/) page — this doc only places it in the launch topology.
+1. **Launch (operator → session, one-way, process spawn).** Operator decides what to run and starts it - see [Launching agents](#launching-agents).
+2. **Step completion (opr8r → operator, HTTP).** After the wrapped LLM command exits, `opr8r` reports the result back to Operator's REST API - see [The REST channel](#the-rest-channel-opr8r-as-step-wrapper).
+3. **Peer messaging (agent ↔ agent, via operator).** A *different* opr8r subcommand, `opr8r relay`, runs as an MCP server so the LLM tool itself can message other agents through Operator's relay hub. This is a separate feature covered in full on the [Relay](/docs/relay/) page - this doc only places it in the launch topology.
 
 ## Launching agents
 
-Operator decides which LLM tool, model, and prompt to use (see the [LLM Tools](/docs/llm-tools/) and [Delegators](/docs/delegators/) references) and starts that process inside a session wrapper. Today the LLM tool is spawned directly — `opr8r` does not sit between Operator and the agent for a single, non-stepped launch.
+Operator decides which LLM tool, model, and prompt to use (see the [LLM Tools](/docs/llm-tools/) and [Delegators](/docs/delegators/) references) and starts that process inside a session wrapper. Today the LLM tool is spawned directly - `opr8r` does not sit between Operator and the agent for a single, non-stepped launch.
 
 Where `opr8r` becomes the parent process is **multi-step ticket workflows**, where a ticket's issuetype defines a sequence of steps (e.g. `plan` → `build` → `test`) and each step needs its completion reported before the next can run:
 
@@ -82,11 +82,11 @@ Operator's handler (`complete_step` in `src/rest/routes/launch.rs`) records the 
 }
 ```
 
-- If `auto_proceed` is true, `opr8r` `exec()`s the `next_command` — on Unix this replaces the current process image in place (same terminal, same pane, no new session), on Windows it spawns and waits since there's no `exec()` equivalent.
+- If `auto_proceed` is true, `opr8r` `exec()`s the `next_command` - on Unix this replaces the current process image in place (same terminal, same pane, no new session), on Windows it spawns and waits since there's no `exec()` equivalent.
 - If a review is required, `opr8r` prints an "awaiting review" banner and exits, leaving the terminal open for the operator to advance the ticket manually or via the TUI.
 - `--no-auto-proceed` disables the exec regardless of what the server returns.
 
-**Current status:** the endpoint, request/response contract, and `opr8r` chain-exec logic are implemented; the server-side construction of a fully general `next_command` for arbitrary next steps is still a placeholder in `complete_step` (see the `// For now, return a placeholder` comment in `src/rest/routes/launch.rs`) — treat multi-step auto-chaining as alpha until that lands.
+**Current status:** the endpoint, request/response contract, and `opr8r` chain-exec logic are implemented; the server-side construction of a fully general `next_command` for arbitrary next steps is still a placeholder in `complete_step` (see the `// For now, return a placeholder` comment in `src/rest/routes/launch.rs`) - treat multi-step auto-chaining as alpha until that lands.
 
 ### Discovering the API
 
@@ -96,7 +96,7 @@ Operator's handler (`complete_step` in `src/rest/routes/launch.rs`) records the 
 |---|---|---|
 | 1 | `--api-url` flag | Explicit override |
 | 2 | `OPERATOR_API_URL` env var | Remote launches, where callbacks must route back through an SSH reverse tunnel |
-| 3 | `.tickets/operator/api-session.json` | Local discovery — see below |
+| 3 | `.tickets/operator/api-session.json` | Local discovery - see below |
 | 4 | `http://localhost:7008` | Default fallback |
 
 Operator writes `api-session.json` (`{"port", "pid", "started_at", "version"}`) into `.tickets/operator/` when its REST server starts (`src/rest/server.rs::write_session_file`), and removes it on shutdown. This is the primary discovery mechanism: opr8r reads the file to find the live port without any configuration.
@@ -115,15 +115,15 @@ Operator writes `api-session.json` (`{"port", "pid", "started_at", "version"}`) 
 
 ## The relay channel: opr8r as MCP peer
 
-Separately from step-wrapping, `opr8r relay` runs as an MCP stdio server — a *child* of the LLM tool rather than its parent — connecting to Operator's in-process relay hub over a Unix socket so agents on different tickets can message each other (`relay_ask`, `relay_reply`, `relay_broadcast`, `relay_peers`, `relay_rename`). Operator locates and injects this automatically for delegators with `operator_relay = true`. Full protocol, socket discovery, and wiring details live on the [Relay](/docs/relay/) page — this doc's scope is just where it sits in the launch/communication topology relative to the step-wrapper role above.
+Separately from step-wrapping, `opr8r relay` runs as an MCP stdio server - a *child* of the LLM tool. It connects to Operator's in-process relay hub over a Unix socket so agents on different tickets can message each other (`relay_ask`, `relay_reply`, `relay_broadcast`, `relay_peers`, `relay_rename`). Operator locates and injects this automatically for delegators with `operator_relay = true`. Full protocol, socket discovery, and wiring details live on the [Relay](/docs/relay/) page - this doc's scope is just where it sits in the launch/communication topology relative to the step-wrapper role above.
 
 ## Why one binary, two roles
 
-`opr8r` step-wrapping and `opr8r relay` are both subcommands of the same binary (`relay` is a `Cmd::Relay` variant; step-wrapper mode is the default when no subcommand is given). This means only one small artifact needs to be built, signed, and bundled with Operator releases and the VS Code extension — there is no separate `operator-relay` binary to maintain (a legacy standalone `operator-relay` is still detected for backward compatibility, but is not produced by current builds).
+`opr8r` step-wrapping and `opr8r relay` are both subcommands of the same binary (`relay` is a `Cmd::Relay` variant; step-wrapper mode is the default when no subcommand is given). This means only one small artifact needs to be built, signed, and bundled with Operator releases and the VS Code extension - there is no separate `operator-relay` binary to maintain (a legacy standalone `operator-relay` is still detected for backward compatibility, but is not produced by current builds).
 
 ## See also
 
-- [Relay](/docs/relay/) — the MCP peer-to-peer protocol and hub, in full
-- [CLI Reference](/docs/cli/) — `opr8r`'s full flag reference
-- [Delegators](/docs/delegators/) — how Operator picks the LLM tool/model a session launches with
-- [LLM Tools](/docs/llm-tools/) — how Operator detects and invokes CLI coding agents
+- [Relay](/docs/relay/) - the MCP peer-to-peer protocol and hub, in full
+- [CLI Reference](/docs/cli/) - `opr8r`'s full flag reference
+- [Delegators](/docs/delegators/) - how Operator picks the LLM tool/model a session launches with
+- [LLM Tools](/docs/llm-tools/) - how Operator detects and invokes CLI coding agents

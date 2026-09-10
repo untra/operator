@@ -81,6 +81,15 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
         navigation: "↑/↓ or j/k to navigate, Enter to select, Esc to go back",
     },
     SetupStepInfo {
+        name: "Web UI Password",
+        description: "Optionally set the admin password for the web dashboard",
+        help_text: "Operator has a single human account, `admin`.\n\n\
+            This terminal and the CLI need no password: a loopback process             authenticates with an owner-only token file in the state directory.             A browser cannot read that file, so the web dashboard stays locked             until an admin password exists.\n\n\
+            Leave both fields blank to skip. You can set one later with             `operator auth bootstrap` or from the /setup page.\n\n\
+            The password must be at least 12 characters. This step is hidden             when an admin account already exists.",
+        navigation: "Tab to switch fields, Enter to continue (blank to skip), Esc to go back",
+    },
+    SetupStepInfo {
         name: "Tmux Onboarding",
         description:
             "Help and documentation about tmux session management (shown if tmux selected)",
@@ -154,15 +163,11 @@ pub static SETUP_STEPS: &[SetupStepInfo] = &[
         navigation: "↑/↓ or j/k to navigate, Enter to select, Esc to go back",
     },
     SetupStepInfo {
-        name: "Custom Collection",
-        description: "Select individual issue types (only shown if Custom Selection chosen)",
-        help_text: "Toggle individual issue types to include:\n\
-            - **TASK**: Focused task that executes one specific thing\n\
-            - **FEAT**: New feature or enhancement\n\
-            - **FIX**: Bug fix, follow-up work, tech debt\n\
-            - **SPIKE**: Research or exploration (paired mode)\n\
-            - **INV**: Incident investigation (paired mode)\n\n\
-            At least one issue type must be selected to proceed.",
+        name: "Hosted Collections",
+        description: "Browse and select hosted collections (only shown if Browse chosen)",
+        help_text: "Pick one or more curated collections published at             operator.untra.io.\n\n\
+            The list is fetched from the collections manifest; if it cannot be             reached, the collections bundled with Operator are offered instead.             Each collection brings its own issue types and workflow steps.\n\n\
+            Selections are additive - choose as many as apply.",
         navigation: "↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back",
     },
     SetupStepInfo {
@@ -239,12 +244,11 @@ mod tests {
 
     #[test]
     fn test_setup_steps_count_matches_enum() {
-        // 15 steps: Welcome, SessionWrapperChoice, WorktreePreference,
-        // TmuxOnboarding, VSCodeSetup, CmuxSetup, ZellijSetup,
-        // KanbanInfo, KanbanProviderSetup,
-        // CollectionSource, CustomCollection, TaskFieldConfig,
+        // 16 steps: Welcome, SessionWrapperChoice, WorktreePreference,
+        // AdminPassword, TmuxOnboarding, VSCodeSetup, CmuxSetup, ZellijSetup,
+        // KanbanInfo, KanbanProviderSetup, CollectionSource, HostedCollectionFetch, TaskFieldConfig,
         // AcceptanceCriteria, StartupTickets, Confirm
-        assert_eq!(SETUP_STEPS.len(), 15);
+        assert_eq!(SETUP_STEPS.len(), 16);
     }
 
     #[test]

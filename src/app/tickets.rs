@@ -3,6 +3,7 @@ use std::fs;
 
 use crate::agents::{generate_status_script, generate_tmux_conf};
 use crate::agents::{AgentTicketCreator, AssessTicketCreator};
+use crate::auth::store::AuthStore;
 use crate::queue::TicketCreator;
 use crate::setup::filter_schema_fields;
 use crate::state::State;
@@ -116,6 +117,16 @@ impl App {
         let discovered_full = self.config.discover_projects_full();
         let discovered_projects: Vec<String> =
             discovered_full.iter().map(|p| p.name.clone()).collect();
+
+        // Create the admin account before the config is written.
+        if let Some(password) = self
+            .setup_screen
+            .as_ref()
+            .and_then(|s| s.admin_password.as_deref())
+        {
+            let store = AuthStore::open(&self.config.state_path())?;
+            persist_admin_password(&store, Some(password))?;
+        }
 
         // Update config with discovered projects and save
         self.config.projects = discovered_projects.clone();
@@ -404,5 +415,92 @@ impl App {
 
             Ok(())
         })
+    }
+}
+
+/// Create the admin account from the wizard's optional password.
+///
+/// `None` means the operator skipped the step, which is not a failure.
+///
+/// A `false` return from `create_admin` may mean an account already existed.
+fn persist_admin_password(store: &AuthStore, password: Option<&str>) -> Result<()> {
+    let Some(password) = password else {
+        return Ok(());
+    };
+
+    if store.create_admin(password, false)? {
+        store.audit("admin created", Some("via setup wizard"), true)?;
+    } else {
+        tracing::info!("admin account already exists; setup wizard password not applied");
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod admin_password_tests {
+    use super::*;
+
+    #[test]
+    fn test_skipped_password_creates_no_account() {
+        use crate::rest::dto::auth::BootstrapState;
+
+        let store = AuthStore::in_memory().unwrap();
+        persist_admin_password(&store, None).unwrap();
+
+        assert_eq!(
+            store.bootstrap_state().unwrap(),
+            BootstrapState::Uninitialized,
+            "skipping the step must leave the deployment unbootstrapped"
+        );
+    }
+
+    #[test]
+    fn test_password_creates_a_usable_admin_account() {
+        use crate::rest::dto::auth::BootstrapState;
+
+        let store = AuthStore::in_memory().unwrap();
+        persist_admin_password(&store, Some("a properly long password")).unwrap();
+
+        assert_eq!(store.bootstrap_state().unwrap(), BootstrapState::Complete);
+        assert!(store
+            .verify_admin_password("a properly long password")
+            .unwrap());
+    }
+
+    #[test]
+    fn test_existing_admin_is_left_alone_rather_than_failing() {
+        // A server that bootstrapped between wizard start and finish must not
+        // make initialization fail, and must keep its own password.
+        let store = AuthStore::in_memory().unwrap();
+        store.create_admin("the original password", false).unwrap();
+
+        persist_admin_password(&store, Some("the wizard password")).unwrap();
+
+        assert!(store
+            .verify_admin_password("the original password")
+            .unwrap());
+        assert!(!store.verify_admin_password("the wizard password").unwrap());
+    }
+
+    #[test]
+    fn test_invalid_password_surfaces_as_an_error() {
+        // The wizard validates first, so this only happens if that check is
+        // bypassed — it must still not create a weak account silently.
+        let store = AuthStore::in_memory().unwrap();
+        assert!(persist_admin_password(&store, Some("short")).is_err());
+    }
+
+    #[test]
+    fn test_creation_is_audited() {
+        let store = AuthStore::in_memory().unwrap();
+        persist_admin_password(&store, Some("a properly long password")).unwrap();
+
+        let recent = store.recent_audit(10).unwrap();
+        let entry = recent
+            .iter()
+            .find(|(_, event, _, _)| event == "admin created")
+            .expect("account creation should be audited");
+        assert_eq!(entry.2.as_deref(), Some("via setup wizard"));
+        assert!(entry.3, "recorded as a success");
     }
 }

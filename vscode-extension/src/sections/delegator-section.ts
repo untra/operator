@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection } from './types';
 import type { SectionId, SectionHealth } from '../generated';
-import { discoverApiUrl } from '../api-client';
+import { discoverApiUrl, OperatorApiClient } from '../api-client';
 import type { DelegatorResponse } from '../generated/DelegatorResponse';
 import type { DelegatorsResponse } from '../generated/DelegatorsResponse';
 
@@ -24,13 +24,10 @@ export class DelegatorSection implements StatusSection {
 
   async check(ctx: SectionContext): Promise<void> {
     try {
-      const apiUrl = await discoverApiUrl(ctx.ticketsDir);
-      const response = await fetch(`${apiUrl}/api/v1/delegators`);
-      if (response.ok) {
-        const data = await response.json() as DelegatorsResponse;
-        this.state = { apiAvailable: true, delegators: data.delegators };
-        return;
-      }
+      const client = new OperatorApiClient(await discoverApiUrl(ctx.ticketsDir));
+      const data: DelegatorsResponse = await client.listDelegators();
+      this.state = { apiAvailable: true, delegators: data.delegators };
+      return;
     } catch {
       // API not available
     }

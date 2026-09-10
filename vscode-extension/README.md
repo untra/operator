@@ -48,6 +48,8 @@ This extension also runs in [Cursor](https://www.cursor.com). Install it from th
 - **Operator: Start Webhook Server** - Start the webhook server
 - **Operator: Stop Webhook Server** - Stop the webhook server
 - **Operator: Show Server Status** - Display server status and terminal count
+- **Operator: Sign In** - Authorize this editor with a remote Operator daemon through the browser (a local daemon needs no sign-in)
+- **Operator: Sign Out** - Forget the stored credential for the current daemon
 
 ## API Endpoints
 

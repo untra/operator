@@ -64,7 +64,7 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `llm_tool` | `string` \| `null` | No | LLM tool used (e.g., "claude", "gemini", "codex") |
 | `llm_model` | `string` \| `null` | No | LLM model alias (e.g., "opus", "sonnet", "gpt-4o") |
 | `launch_mode` | `string` \| `null` | No | Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]` (derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match) |
-| `review_state` | `string` \| `null` | No | Review state for `awaiting_input` agents Values: "`pending_plan`", "`pending_visual`", "`pending_pr_creation`", "`pending_pr_merge`" |
+| `review_state` | `string` \| `null` | No | Review state for `awaiting_input` agents Values: "`pending_plan`", "`pending_visual`", "`pending_proof`", "`pending_pr_creation`", "`pending_pr_merge`" |
 | `dev_server_pid` | `integer` \| `null` | No | Server process ID for visual review cleanup (if applicable) |
 | `worktree_path` | `string` \| `null` | No | Path to the git worktree for this ticket (per-ticket isolation) |
 | `remote_host` | `string` \| `null` | No | Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local) |

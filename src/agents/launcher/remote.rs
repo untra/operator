@@ -26,6 +26,104 @@ fn ssh_config_flag(host: &RemoteHost) -> String {
         .unwrap_or_default()
 }
 
+pub(crate) fn reconcile_git_runtime(config: &Config, host: &RemoteHost) {
+    for (pointer, path) in crate::git::runtime::abandoned_runtime_pointers(config) {
+        let marker = pointer.with_extension("git-remote");
+        if std::fs::read_to_string(&marker).ok().as_deref() != Some(&host.ssh_alias) {
+            continue;
+        }
+        let target = shell_escape(&path.to_string_lossy());
+        let script = format!("if [ -L {target} ]; then exit 1; fi; if [ -f {target}/pid ]; then read -r pid < {target}/pid; case \"$pid\" in ''|*[!0-9]*|0) exit 1;; esac; if kill -0 \"$pid\" 2>/dev/null; then exit 1; fi; fi; rm -rf -- {target}");
+        let mut command = std::process::Command::new("ssh");
+        if let Some(config) = &host.ssh_config_path {
+            command.args(["-F", config]);
+        }
+        if command
+            .args([
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=10",
+                &host.ssh_alias,
+                &script,
+            ])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|s| s.success())
+        {
+            let _ = std::fs::remove_file(pointer);
+            let _ = std::fs::remove_file(marker);
+        }
+    }
+}
+
+pub(crate) fn transfer_git_runtime(host: &RemoteHost, path: &Path) -> Result<()> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    fn send(host: &RemoteHost, script: &str, data: &[u8]) -> Result<()> {
+        let mut command = Command::new("ssh");
+        if let Some(config) = &host.ssh_config_path {
+            command.args(["-F", config]);
+        }
+        let mut child = command
+            .args(["-o", "BatchMode=yes", &host.ssh_alias, script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+        child
+            .stdin
+            .take()
+            .context("Opening SSH credential transport")?
+            .write_all(data)?;
+        anyhow::ensure!(child.wait()?.success(), "Git credential transport failed");
+        Ok(())
+    }
+    fn copy(host: &RemoteHost, path: &Path) -> Result<()> {
+        send(
+            host,
+            &format!(
+                "umask 077; mkdir -- {}",
+                shell_escape(&path.to_string_lossy())
+            ),
+            &[],
+        )?;
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let kind = entry.file_type()?;
+            if kind.is_dir() {
+                copy(host, &entry.path())?;
+            } else {
+                anyhow::ensure!(kind.is_file(), "Unexpected Git runtime file type");
+                let mode = if entry.file_name() == "helper"
+                    || entry.path().parent().is_some_and(|p| p.ends_with("bin"))
+                {
+                    "700"
+                } else {
+                    "600"
+                };
+                let target = shell_escape(&entry.path().to_string_lossy());
+                send(
+                    host,
+                    &format!("umask 077; set -C; cat > {target} && chmod {mode} {target}"),
+                    &std::fs::read(entry.path())?,
+                )?;
+            }
+        }
+        Ok(())
+    }
+    let result = copy(host, path);
+    if result.is_err() {
+        let _ = send(
+            host,
+            &format!("rm -rf -- {}", shell_escape(&path.to_string_lossy())),
+            &[],
+        );
+    }
+    result
+}
+
 /// Remote path the prompt file is shipped to.
 pub(crate) fn remote_prompt_path(host: &RemoteHost, session_uuid: &str) -> String {
     format!(
@@ -252,6 +350,19 @@ pub(crate) fn launch_remote_in_session(
         Some(&provider_env),
     )?;
 
+    reconcile_git_runtime(config, host);
+    let runtime_pointer = payload_file.with_extension("git-runtime");
+    if runtime_pointer.exists() {
+        let path = PathBuf::from(std::fs::read_to_string(&runtime_pointer)?);
+        std::fs::write(
+            runtime_pointer.with_extension("git-remote"),
+            &host.ssh_alias,
+        )?;
+        let transferred = transfer_git_runtime(host, &path);
+        let _ = std::fs::remove_dir_all(&path);
+        transferred?;
+    }
+
     let wrapper_content = build_remote_wrapper_script(
         host,
         session_name,
@@ -288,20 +399,42 @@ pub(crate) fn launch_remote_in_session(
 const PREFLIGHT_NO_TMUX: i32 = 40;
 const PREFLIGHT_NO_TOOL: i32 = 41;
 const PREFLIGHT_NO_WORKDIR: i32 = 42;
+const PREFLIGHT_NO_PROVIDER_CLI: i32 = 43;
+const PREFLIGHT_NO_GIT: i32 = 44;
 
 /// The check script run on the remote host by [`run_preflight`].
-fn preflight_script(host: &RemoteHost, tool_name: &str) -> String {
-    format!(
-        "command -v tmux >/dev/null || exit {PREFLIGHT_NO_TMUX}; command -v {tool} >/dev/null || exit {PREFLIGHT_NO_TOOL}; test -d {workdir} || exit {PREFLIGHT_NO_WORKDIR}",
+///
+/// `provider` is the git provider the project resolves to, when it resolves to
+/// one. Operator ships no client binaries, so the target supplies `gh`/`glab`/
+/// `tea` itself and this is where a missing one is caught -- before a session
+/// exists, rather than halfway through a ticket.
+fn preflight_script(
+    host: &RemoteHost,
+    tool_name: &str,
+    provider: Option<crate::types::pr::GitProvider>,
+) -> String {
+    let mut checks = format!(
+        "command -v tmux >/dev/null || exit {PREFLIGHT_NO_TMUX}; command -v {tool} >/dev/null || exit {PREFLIGHT_NO_TOOL}; test -d {workdir} || exit {PREFLIGHT_NO_WORKDIR}; command -v git >/dev/null || exit {PREFLIGHT_NO_GIT}",
         tool = shell_escape(tool_name),
         workdir = shell_escape(&host.workdir),
-    )
+    );
+    if let Some(provider) = provider {
+        checks.push_str(&format!(
+            "; command -v {cli} >/dev/null || exit {PREFLIGHT_NO_PROVIDER_CLI}",
+            cli = shell_escape(crate::api::cli_detection::binary_for(provider)),
+        ));
+    }
+    checks
 }
 
 /// Check the remote host can run the agent before any session is created:
 /// reachable over SSH (`BatchMode` so a password prompt can't wedge the TUI),
 /// tmux and the tool on the remote PATH, and the workdir present.
-pub(crate) fn run_preflight(host: &RemoteHost, tool_name: &str) -> Result<()> {
+pub(crate) fn run_preflight(
+    host: &RemoteHost,
+    tool_name: &str,
+    provider: Option<crate::types::pr::GitProvider>,
+) -> Result<()> {
     let mut cmd = std::process::Command::new("ssh");
     if let Some(ref frag) = host.ssh_config_path {
         cmd.args(["-F", frag]);
@@ -309,7 +442,7 @@ pub(crate) fn run_preflight(host: &RemoteHost, tool_name: &str) -> Result<()> {
     let status = cmd
         .args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=5"])
         .arg(&host.ssh_alias)
-        .arg(preflight_script(host, tool_name))
+        .arg(preflight_script(host, tool_name, provider))
         .status()
         .context("Failed to run ssh for remote preflight")?;
 
@@ -328,6 +461,24 @@ pub(crate) fn run_preflight(host: &RemoteHost, tool_name: &str) -> Result<()> {
             host.name,
             host.workdir
         ),
+        Some(c) if c == PREFLIGHT_NO_GIT => anyhow::bail!(
+            "Remote host '{}' has no git on PATH; install git there first",
+            host.name
+        ),
+        Some(c) if c == PREFLIGHT_NO_PROVIDER_CLI => {
+            let spec = crate::api::cli_detection::spec_for(
+                provider.expect("exit 43 is only emitted when a provider was checked"),
+            );
+            anyhow::bail!(
+                "Remote host '{}' has no '{}' on PATH, needed to open {} pull requests. \
+                 Operator does not install client binaries -- install it on the target \
+                 (or bake it into the workspace image): {}",
+                host.name,
+                spec.command,
+                spec.display_name,
+                spec.install_url
+            )
+        }
         _ => anyhow::bail!(
             "Cannot reach remote host '{}' via `ssh {}` (BatchMode). Verify the alias in ~/.ssh/config and connect once manually to accept host keys",
             host.name,
@@ -507,10 +658,37 @@ mod tests {
 
     #[test]
     fn test_preflight_script_distinct_exit_codes() {
-        let s = preflight_script(&host(), "claude");
+        let s = preflight_script(&host(), "claude", None);
         assert!(s.contains("command -v tmux >/dev/null || exit 40"));
         assert!(s.contains("command -v 'claude' >/dev/null || exit 41"));
         assert!(s.contains("test -d '/srv/agents/proj' || exit 42"));
+        assert!(s.contains("command -v git >/dev/null || exit 44"));
+    }
+
+    /// A missing provider CLI must be caught here, before a session exists.
+    /// Operator installs no client binaries, so this check is the only thing
+    /// standing between a BYO target and a PR that fails halfway through.
+    #[test]
+    fn preflight_requires_the_provider_cli_when_one_is_known() {
+        use crate::types::pr::GitProvider;
+        let s = preflight_script(&host(), "claude", Some(GitProvider::GitHub));
+        assert!(s.contains("command -v 'gh' >/dev/null || exit 43"));
+
+        let gitea = preflight_script(&host(), "claude", Some(GitProvider::Gitea));
+        assert!(gitea.contains("command -v 'tea' >/dev/null || exit 43"));
+
+        // Forgejo rides the Gitea-compatible tea CLI; never `fj`.
+        let forgejo = preflight_script(&host(), "claude", Some(GitProvider::Forgejo));
+        assert!(forgejo.contains("command -v 'tea' >/dev/null || exit 43"));
+        assert!(!forgejo.contains("fj"));
+    }
+
+    /// No resolvable provider means no PR will be attempted, so requiring a
+    /// provider CLI would block launches that never needed one.
+    #[test]
+    fn preflight_skips_the_provider_check_when_no_provider_is_resolved() {
+        let s = preflight_script(&host(), "claude", None);
+        assert!(!s.contains(&format!("exit {PREFLIGHT_NO_PROVIDER_CLI}")));
     }
 
     #[test]

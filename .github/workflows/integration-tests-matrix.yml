@@ -18,6 +18,7 @@ on:
       - 'vscode-extension/**'
       - 'tests/**'
       - 'scripts/ci/**'
+      - '.github/workflows/integration-tests-matrix.yml'
   workflow_dispatch:
     inputs:
       run_vscode_tests:
@@ -187,8 +188,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.os }}-cargo-test-
+          key: ${{ matrix.os }}-cargo-${{ github.job }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-${{ github.job }}-
 
       - name: Download operator binary
         uses: actions/download-artifact@v8
@@ -246,8 +247,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.os }}-cargo-test-
+          key: ${{ matrix.os }}-cargo-${{ github.job }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-${{ github.job }}-
 
       - name: Download operator binary
         uses: actions/download-artifact@v8
@@ -315,8 +316,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.os }}-cargo-test-
+          key: ${{ matrix.os }}-cargo-${{ github.job }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-${{ github.job }}-
 
       - name: Download operator binary
         uses: actions/download-artifact@v8
@@ -342,18 +343,17 @@ jobs:
   # VSCODE WRAPPER LAUNCH TESTS (Rust library-level, all platforms)
   # ============================================================================
 
+  # No `needs: build-operator`: `cargo test` compiles the library from source and
+  # this suite never executes the release binary, so waiting on it was dead time.
   test-vscode-wrapper:
     name: VSCode Wrapper (${{ matrix.os }})
-    needs: build-operator
     if: github.event_name != 'workflow_dispatch' || inputs.run_vscode_wrapper_tests
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: operator-linux-x64
           - os: macos-14
-            artifact: operator-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -368,17 +368,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.os }}-cargo-test-
-
-      - name: Download operator binary
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ matrix.artifact }}
-          path: target/release
-
-      - name: Make binary executable
-        run: chmod +x target/release/operator
+          key: ${{ matrix.os }}-cargo-vscode-wrapper-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-vscode-wrapper-
 
       - name: Run VS Code wrapper launch tests
         env:
@@ -391,21 +382,15 @@ jobs:
 
   test-rest-api:
     name: REST API (${{ matrix.os }})
-    needs: build-operator
     if: github.event_name != 'workflow_dispatch' || inputs.run_api_tests
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: operator-linux-x64
           - os: ubuntu-24.04-arm
-            artifact: operator-linux-arm64
           - os: macos-14
-            artifact: operator-macos-arm64
           - os: windows-latest
-            artifact: operator-windows-x64
-            extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -420,18 +405,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ matrix.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.os }}-cargo-test-
-
-      - name: Download operator binary
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ matrix.artifact }}
-          path: target/release
-
-      - name: Make binary executable (Unix)
-        if: runner.os != 'Windows'
-        run: chmod +x target/release/operator
+          key: ${{ matrix.os }}-cargo-rest-api-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-cargo-rest-api-
 
       - name: Run REST API integration tests
         env:
@@ -444,34 +419,24 @@ jobs:
 
   test-opr8r-cli:
     name: opr8r CLI (${{ matrix.os }})
-    needs: [build-operator, build-opr8r]
+    needs: build-opr8r
     if: github.event_name != 'workflow_dispatch' || inputs.run_opr8r_tests
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            operator_artifact: operator-linux-x64
             opr8r_artifact: opr8r-linux-x64
           - os: ubuntu-24.04-arm
-            operator_artifact: operator-linux-arm64
             opr8r_artifact: opr8r-linux-arm64
           - os: macos-14
-            operator_artifact: operator-macos-arm64
             opr8r_artifact: opr8r-macos-arm64
           - os: windows-latest
-            operator_artifact: operator-windows-x64
             opr8r_artifact: opr8r-windows-x64
             extension: .exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-
-      - name: Download operator binary
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ matrix.operator_artifact }}
-          path: target/release
 
       - name: Download opr8r binary
         uses: actions/download-artifact@v8
@@ -479,11 +444,9 @@ jobs:
           name: ${{ matrix.opr8r_artifact }}
           path: opr8r-bin
 
-      - name: Make binaries executable (Unix)
+      - name: Make binary executable (Unix)
         if: runner.os != 'Windows'
-        run: |
-          chmod +x target/release/operator
-          chmod +x opr8r-bin/opr8r
+        run: chmod +x opr8r-bin/opr8r
 
       - name: Test opr8r --version (Unix)
         if: runner.os != 'Windows'
@@ -509,20 +472,17 @@ jobs:
 
   test-vscode-extension:
     name: VSCode Extension (${{ matrix.os }})
-    needs: [build-operator, build-opr8r]
+    needs: build-opr8r
     if: github.event_name != 'workflow_dispatch' || inputs.run_vscode_tests
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            operator_artifact: operator-linux-x64
             opr8r_artifact: opr8r-linux-x64
           - os: macos-14
-            operator_artifact: operator-macos-arm64
             opr8r_artifact: opr8r-macos-arm64
           - os: windows-latest
-            operator_artifact: operator-windows-x64
             opr8r_artifact: opr8r-windows-x64
             extension: .exe
     runs-on: ${{ matrix.os }}

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection } from './types';
 import type { SectionId, SectionHealth } from '../generated';
-import { discoverApiUrl } from '../api-client';
+import { discoverApiUrl, OperatorApiClient } from '../api-client';
 import type { WorkflowFormatDto } from '../generated/WorkflowFormatDto';
 
 /**
@@ -29,13 +29,10 @@ export class WorkflowsSection implements StatusSection {
 
   async check(ctx: SectionContext): Promise<void> {
     try {
-      const apiUrl = await discoverApiUrl(ctx.ticketsDir);
-      const response = await fetch(`${apiUrl}/api/v1/workflow-formats`);
-      if (response.ok) {
-        const formats = await response.json() as WorkflowFormatDto[];
-        this.state = { apiAvailable: true, formats };
-        return;
-      }
+      const client = new OperatorApiClient(await discoverApiUrl(ctx.ticketsDir));
+      const formats: WorkflowFormatDto[] = await client.listWorkflowFormats();
+      this.state = { apiAvailable: true, formats };
+      return;
     } catch {
       // API not available — fall through to the unavailable state.
     }

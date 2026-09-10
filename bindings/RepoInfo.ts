@@ -6,6 +6,10 @@ import type { GitProvider } from "./GitProvider";
  */
 export type RepoInfo = { 
 /**
+ * Repository hostname, retained for routing and monitor isolation.
+ */
+host: string | null, 
+/**
  * Git hosting provider
  */
 provider: GitProvider, 

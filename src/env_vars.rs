@@ -259,6 +259,14 @@ pub static ENV_VARS: &[EnvVar] = &[
         default: Some(".tickets/operator"),
         example: Some("/var/lib/operator/state"),
     },
+    EnvVar {
+        name: "OPERATOR_PATHS__WORKTREES",
+        description: "Directory for per-ticket git worktrees",
+        category: EnvVarCategory::Paths,
+        required: false,
+        default: Some("~/.operator/worktrees"),
+        example: Some("/op/.worktrees"),
+    },
     // === UI ===
     EnvVar {
         name: "OPERATOR_UI__REFRESH_RATE_MS",

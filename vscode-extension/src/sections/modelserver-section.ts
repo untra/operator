@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection } from './types';
 import type { SectionId, SectionHealth } from '../generated';
-import { discoverApiUrl } from '../api-client';
+import { discoverApiUrl, OperatorApiClient } from '../api-client';
 import type { ModelServerResponse } from '../generated/ModelServerResponse';
 import type { ModelServersResponse } from '../generated/ModelServersResponse';
 import type { ModelServerKindEntry } from '../generated/ModelServerKindEntry';
@@ -43,16 +43,13 @@ export class ModelServerSection implements StatusSection {
 
   async check(ctx: SectionContext): Promise<void> {
     try {
-      const apiUrl = await discoverApiUrl(ctx.ticketsDir);
-      const response = await fetch(`${apiUrl}/api/v1/model-servers`);
-      if (!response.ok) { throw new Error('servers fetch failed'); }
-      const data = await response.json() as ModelServersResponse;
+      const client = new OperatorApiClient(await discoverApiUrl(ctx.ticketsDir));
+      const data: ModelServersResponse = await client.listModelServers();
 
       // Catalog of supported kinds (single source of truth, served by REST).
       let kinds: ModelServerKindEntry[] = [];
       try {
-        const kindsResp = await fetch(`${apiUrl}/api/v1/model-servers/kinds`);
-        if (kindsResp.ok) { kinds = await kindsResp.json() as ModelServerKindEntry[]; }
+        kinds = await client.listProviderKinds();
       } catch { /* kinds are optional decoration */ }
 
       // Probe each server with a base_url for its model list (and reachability).
@@ -63,10 +60,7 @@ export class ModelServerSection implements StatusSection {
           .filter((s) => !!s.base_url)
           .map(async (s) => {
             try {
-              const r = await fetch(
-                `${apiUrl}/api/v1/model-servers/${encodeURIComponent(s.name)}/models`,
-              );
-              if (r.ok) { models[s.name] = await r.json() as ModelServerModelsResponse; }
+              models[s.name] = await client.modelServerModels(s.name);
             } catch { /* leave unprobed */ }
           }),
       );

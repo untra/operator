@@ -40,6 +40,9 @@ pub struct State {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct AgentState {
+    /// Non-secret Git configuration captured at launch.
+    #[serde(default)]
+    pub git_context: Option<crate::config::GitExecutionConfig>,
     pub id: String,
     pub ticket_id: String,
     pub ticket_type: String,
@@ -309,6 +312,7 @@ impl State {
         let now = Utc::now();
 
         self.agents.push(AgentState {
+            git_context: None,
             id: id.clone(),
             ticket_id,
             ticket_type,
@@ -366,6 +370,7 @@ impl State {
         let now = Utc::now();
 
         self.agents.push(AgentState {
+            git_context: None,
             id: id.clone(),
             ticket_id,
             ticket_type,
@@ -533,6 +538,17 @@ impl State {
     }
 
     /// Persist the launch context used for multi-step exec-chain transitions
+    pub fn update_agent_git_context(
+        &mut self,
+        id: &str,
+        context: Option<crate::config::GitExecutionConfig>,
+    ) -> Result<()> {
+        if let Some(agent) = self.agents.iter_mut().find(|a| a.id == id) {
+            agent.git_context = context;
+        }
+        self.save()
+    }
+
     pub fn update_agent_step_launch_context(
         &mut self,
         agent_id: &str,

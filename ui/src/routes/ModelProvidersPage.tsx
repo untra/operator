@@ -8,9 +8,10 @@ import { OperatorApi } from '../api-client';
 import type {
   ModelServerKindEntry,
   ModelServerModelsResponse,
-  Config,
+  LlmToolsResponse,
   DelegatorResponse,
 } from '../api-client';
+import type { GitExecutionConfig } from '@operator/bindings/GitExecutionConfig';
 import { useHost } from '../host';
 import { CONCEPTS } from '../concepts';
 import { PageHeader } from '../components/PageHeader';
@@ -47,12 +48,12 @@ export function ModelProvidersPage() {
   // Load the catalog + detected tools, then probe each provider for connection.
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.listProviderKinds(), api.getConfiguration()])
-      .then(([catalog, config]: [ModelServerKindEntry[], Config]) => {
+    Promise.all([api.listProviderKinds(), api.listLlmTools()])
+      .then(([catalog, tools]: [ModelServerKindEntry[], LlmToolsResponse]) => {
         if (cancelled) return;
         setKinds(catalog);
         setDetectedTools(
-          config.llm_tools.detected.map((t) => ({ name: t.name, healthOk: t.health_ok })),
+          tools.tools.map((t) => ({ name: t.name, healthOk: t.health_ok })),
         );
         // Probe each provider concurrently; fill the map as results land.
         for (const k of catalog) {
@@ -154,6 +155,7 @@ export function ModelProvidersPage() {
                   {d.llm_tool}:{d.model}
                   {d.model_server ? ` @ ${d.model_server}` : ''}
                 </span>
+                <DelegatorGitEditor api={api} delegator={d} onSaved={refreshDelegators} />
               </li>
             ))}
           </ul>
@@ -243,6 +245,7 @@ function CreateDelegatorForm({
   const [provider, setProvider] = useState('');
   const [model, setModel] = useState('');
   const [name, setName] = useState('');
+  const [git, setGit] = useState<GitExecutionConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Default the tool once detection lands, preferring one that can actually launch.
@@ -270,6 +273,7 @@ function CreateDelegatorForm({
         display_name: null,
         model_properties: {},
         model_server: provider,
+        git,
         launch_config: null,
         remote_agent: null,
       });
@@ -362,10 +366,72 @@ function CreateDelegatorForm({
           />
         </label>
 
+        <GitFields value={git} onChange={setGit} disabled={submitting} />
         <button className={styles.submitBtn} onClick={submit} disabled={submitting}>
           {submitting ? 'Creating…' : 'Create delegator'}
         </button>
       </div>
     </section>
   );
+}
+
+function GitFields({ value, onChange, disabled }: {
+  value: GitExecutionConfig | null;
+  onChange: (value: GitExecutionConfig | null) => void;
+  disabled: boolean;
+}) {
+  const config: GitExecutionConfig = value ?? { identity: null, credentials: null, settings: [] };
+  const identity = config.identity ?? { name: '', email: '' };
+  const credentials = config.credentials ?? { repository_url: '', username: '', token_env: '' };
+  return <fieldset disabled={disabled}>
+    <legend>Git identity and credentials</legend>
+    <label><input type="checkbox" checked={value !== null} onChange={e => onChange(e.target.checked ? config : null)} />Customize Git for this delegator</label>
+    {value && <>
+      <label><input type="checkbox" checked={config.identity !== null} onChange={e => onChange({ ...config, identity: e.target.checked ? identity : null })} />Set commit identity</label>
+      {config.identity && <>
+        <label className={styles.field}>Commit name<input className={styles.input} value={identity.name} onChange={e => onChange({ ...config, identity: { ...identity, name: e.target.value } })} /></label>
+        <label className={styles.field}>Commit email<input className={styles.input} value={identity.email} onChange={e => onChange({ ...config, identity: { ...identity, email: e.target.value } })} /></label>
+        <p>Templates support {'{ticket_id}'}, {'{project}'}, and {'{ticket_type}'}.</p>
+      </>}
+      <label><input type="checkbox" checked={config.credentials !== null} onChange={e => onChange({ ...config, credentials: e.target.checked ? credentials : null })} />Supply HTTPS credentials</label>
+      {config.credentials && <>
+        <label className={styles.field}>HTTPS repository URL<input className={styles.input} value={credentials.repository_url} onChange={e => onChange({ ...config, credentials: { ...credentials, repository_url: e.target.value } })} /></label>
+        <label className={styles.field}>Git username<input className={styles.input} value={credentials.username} onChange={e => onChange({ ...config, credentials: { ...credentials, username: e.target.value } })} /></label>
+        <label className={styles.field}>Token environment variable<input className={styles.input} value={credentials.token_env} onChange={e => onChange({ ...config, credentials: { ...credentials, token_env: e.target.value } })} /></label>
+        <p>Enter the variable name configured on Operator, such as AGENT_GIT_TOKEN.</p>
+      </>}
+      {config.settings.map((entry, index) => <div key={index}>
+        <label>Git setting<input className={styles.input} value={entry.key} onChange={e => onChange({ ...config, settings: config.settings.map((v, i) => i === index ? { ...v, key: e.target.value } : v) })} /></label>
+        <label>Value<input className={styles.input} value={entry.value} onChange={e => onChange({ ...config, settings: config.settings.map((v, i) => i === index ? { ...v, value: e.target.value } : v) })} /></label>
+        <button type="button" onClick={() => onChange({ ...config, settings: config.settings.filter((_, i) => i !== index) })}>Remove setting</button>
+      </div>)}
+      <button type="button" onClick={() => onChange({ ...config, settings: [...config.settings, { key: '', value: '' }] })}>Add Git setting</button>
+    </>}
+  </fieldset>;
+}
+
+function DelegatorGitEditor({ api, delegator, onSaved }: { api: OperatorApi; delegator: DelegatorResponse; onSaved: () => void }) {
+  const [git, setGit] = useState<GitExecutionConfig | null>(delegator.git ?? null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => setGit(delegator.git ?? null), [delegator]);
+  const save = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await api.updateDelegator(delegator.name, {
+        name: delegator.name, llm_tool: delegator.llm_tool, model: delegator.model,
+        display_name: delegator.display_name ?? null, model_properties: delegator.model_properties,
+        model_server: delegator.model_server ?? null, launch_config: delegator.launch_config ?? null,
+        remote_agent: delegator.remote_agent ?? null, git,
+      });
+      onSaved();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to save Git settings'); }
+    finally { setBusy(false); }
+  };
+  return <details><summary>Git settings</summary>
+    <GitFields value={git} onChange={setGit} disabled={busy} />
+    {error && <p role="alert">{error}</p>}
+    <button type="button" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save Git settings'}</button>
+  </details>;
 }

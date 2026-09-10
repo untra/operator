@@ -52,7 +52,7 @@ pub async fn export(
     Path(ticket_id): Path<String>,
     Query(query): Query<ExportQuery>,
 ) -> Result<Json<WorkflowExportResponse>, ApiError> {
-    let queue = Queue::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
 
     let registry = state.registry.read().await;
@@ -60,7 +60,7 @@ pub async fn export(
         &ticket,
         &registry,
         None,
-        &state.config,
+        &state.config(),
         query.format,
     )
     .map_err(|e| ApiError::NotFound(e.to_string()))?;

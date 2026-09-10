@@ -10,7 +10,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 use utoipa::OpenApi;
@@ -21,6 +21,7 @@ use utoipa_swagger_ui::SwaggerUi;
 pub mod directory;
 pub mod dto;
 pub mod error;
+pub mod middleware;
 pub mod openapi;
 pub mod routes;
 pub mod server;
@@ -58,6 +59,39 @@ pub use state::ApiState;
 #[allow(dead_code)]
 pub const DEFAULT_PORT: u16 = 7008;
 
+/// Probe and authentication routes.
+///
+/// Split out of [`documented_router`] both to keep that function legible and
+/// because this is the security-relevant subset: every route here either needs
+/// no credential or manages one. Merged in, so it still self-registers in the
+/// OpenAPI spec exactly like the rest.
+fn auth_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        // Kubernetes probes — public, and deliberately metadata-free.
+        .routes(routes!(routes::probes::livez))
+        .routes(routes!(routes::probes::readyz))
+        // Obtaining a credential.
+        .routes(routes!(
+            routes::auth::bootstrap_status,
+            routes::auth::bootstrap_submit
+        ))
+        .routes(routes!(routes::auth::login))
+        .routes(routes!(routes::auth::device_code))
+        .routes(routes!(routes::auth::token))
+        // Managing credentials (authenticated).
+        .routes(routes!(routes::auth::logout))
+        .routes(routes!(routes::auth::current_session))
+        .routes(routes!(routes::auth::csrf_token))
+        .routes(routes!(routes::auth::list_sessions))
+        .routes(routes!(routes::auth::revoke_session))
+        .routes(routes!(routes::auth::device_approve))
+        .routes(routes!(
+            routes::auth::list_access_keys,
+            routes::auth::create_access_key
+        ))
+        .routes(routes!(routes::auth::revoke_access_key))
+}
+
 /// Build the documented API surface as a `utoipa_axum::OpenApiRouter`.
 ///
 /// Every always-on route is mounted here via `routes!`, so mounting a route
@@ -71,6 +105,7 @@ pub const DEFAULT_PORT: u16 = 7008;
 /// mounted handlers.
 fn documented_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .merge(auth_router())
         // Health endpoints
         .routes(routes!(routes::health::health))
         .routes(routes!(routes::health::status))
@@ -170,8 +205,9 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // Configuration endpoints
         .routes(routes!(
             routes::configuration::get_config,
-            routes::configuration::update_config
+            routes::configuration::patch_config
         ))
+        .routes(routes!(routes::configuration::execution_targets))
         // Model server endpoints
         .routes(routes!(
             routes::model_servers::list,
@@ -193,8 +229,8 @@ fn documented_router() -> OpenApiRouter<ApiState> {
 /// The canonical OpenAPI spec for the documented API surface.
 ///
 /// Built from [`documented_router`] so it always reflects the mounted routes.
-/// Config-gated MCP transport routes are omitted (they carry no
-/// `#[utoipa::path]` and only ever exist when `[mcp].http_enabled`).
+/// Config-gated MCP transport routes remain in the contract so clients can
+/// discover their wire format even when a particular deployment disables them.
 ///
 /// The `info.version` is stamped here from `CARGO_PKG_VERSION` — the compiled
 /// release version that CI writes into `Cargo.toml`/`VERSION` on every release.
@@ -204,22 +240,59 @@ fn documented_router() -> OpenApiRouter<ApiState> {
 pub fn openapi_spec() -> utoipa::openapi::OpenApi {
     let mut spec = documented_router().split_for_parts().1;
     spec.info.version = env!("CARGO_PKG_VERSION").to_string();
-    spec
+    openapi::apply_contract_metadata(spec)
 }
 
 /// Build the API router with all routes
-pub fn build_router(state: ApiState) -> Router {
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+/// Build the CORS layer from configuration.
+///
+/// Replaces a blanket `allow_origin(Any)`, which let any website on the
+/// internet call this API. `Any` is also incompatible with credentials: a
+/// browser refuses to send cookies to a wildcard origin, so the permissive
+/// version could not have supported an authenticated dashboard anyway.
+///
+/// An empty `cors_origins` means **same-origin only** — no `Access-Control-Allow-Origin`
+/// is emitted, the same-origin dashboard still works, and no other site can
+/// read a response.
+fn cors_layer(config: &crate::config::Config) -> CorsLayer {
+    let origins: Vec<axum::http::HeaderValue> = config
+        .rest_api
+        .cors_origins
+        .iter()
+        .filter_map(|o| o.parse().ok())
+        .collect();
 
-    let mcp_enabled = state.config.mcp.http_enabled;
+    if origins.is_empty() {
+        return CorsLayer::new();
+    }
+
+    CorsLayer::new()
+        .allow_origin(origins)
+        .allow_methods(vec![
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::PATCH,
+            axum::http::Method::DELETE,
+        ])
+        .allow_headers(vec![
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+            axum::http::HeaderName::from_static(crate::rest::middleware::auth::CSRF_HEADER),
+        ])
+        // Required for the dashboard's session cookie to be sent at all.
+        .allow_credentials(true)
+}
+
+pub fn build_router(state: ApiState) -> Router {
+    let config = state.config();
+    let cors = cors_layer(&config);
+
+    let mcp_enabled = config.mcp.http_enabled;
 
     let (mut router, _api) = documented_router().split_for_parts();
 
-    // MCP transport endpoints — gated by [mcp].http_enabled and intentionally
-    // undocumented (no OpenAPI schema for the SSE/JSON-RPC transport).
+    // MCP transport endpoints are gated by [mcp].http_enabled.
     if mcp_enabled {
         router = router
             .route("/api/v1/mcp/sse", get(crate::mcp::transport::sse_handler))
@@ -229,7 +302,26 @@ pub fn build_router(state: ApiState) -> Router {
             );
     }
 
-    let router = router
+    // Swagger UI and its spec are merged in here, and the SPA fallback is
+    // registered here, so that the auth layer below covers both.
+    //
+    // Ordering is load-bearing: `Router::fallback` registered *after* `.layer`
+    // is not wrapped by that layer. With the fallback added last, an unknown
+    // `/api/...` path bypassed authorization entirely and was answered with the
+    // SPA shell instead of a 401 — which also meant a route mounted without a
+    // `ROUTE_RULES` entry would silently serve HTML rather than fail closed.
+    let router =
+        router.merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi_spec()));
+
+    #[cfg(feature = "embed-ui")]
+    let router = router.fallback(web_ui::spa_handler);
+
+    router
+        // Authorization runs over the composed router: documented routes, the config-gated MCP transport, Swagger, and the SPA fallback.
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::auth::authorize,
+        ))
         .layer(
             TraceLayer::new_for_http()
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
@@ -237,20 +329,13 @@ pub fn build_router(state: ApiState) -> Router {
         )
         .layer(cors)
         .with_state(state)
-        // Serve the version-stamped spec (not the raw `_api` half) so swagger-ui
-        // reports the release version, matching /api/v1/health.
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi_spec()));
-
-    #[cfg(feature = "embed-ui")]
-    let router = router.fallback(web_ui::spa_handler);
-
-    router
 }
 
 /// Start the REST API server (standalone mode with session file and logging)
 pub async fn serve(state: ApiState, port: u16) -> Result<()> {
     let tickets_path = state.tickets_path.clone();
-    let host_ip = state.config.rest_api.host_ip();
+    let state_path = state.config().state_path();
+    let host_ip = state.config().rest_api.host_ip();
     let app = build_router(state);
     let addr = SocketAddr::new(host_ip, port);
 
@@ -258,7 +343,7 @@ pub async fn serve(state: ApiState, port: u16) -> Result<()> {
     tracing::info!("Swagger UI available at http://{}/swagger-ui", addr);
 
     // Write session file for client discovery
-    write_session_file(&tickets_path, port)?;
+    write_session_file(&tickets_path, &state_path, port)?;
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
@@ -274,7 +359,11 @@ pub async fn serve(state: ApiState, port: u16) -> Result<()> {
 }
 
 /// Write API session file for client discovery (standalone mode)
-fn write_session_file(tickets_path: &std::path::Path, port: u16) -> Result<()> {
+fn write_session_file(
+    tickets_path: &std::path::Path,
+    state_path: &std::path::Path,
+    port: u16,
+) -> Result<()> {
     let operator_dir = tickets_path.join("operator");
     std::fs::create_dir_all(&operator_dir)?;
 
@@ -284,6 +373,7 @@ fn write_session_file(tickets_path: &std::path::Path, port: u16) -> Result<()> {
         pid: std::process::id(),
         started_at: chrono::Utc::now().to_rfc3339(),
         version: env!("CARGO_PKG_VERSION").to_string(),
+        state_dir: state_path.to_path_buf(),
     };
 
     let json = serde_json::to_string_pretty(&session)?;

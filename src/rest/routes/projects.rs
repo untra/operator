@@ -23,7 +23,7 @@ use crate::templates::TemplateType;
     )
 )]
 pub async fn list(State(state): State<ApiState>) -> Json<Vec<ProjectSummary>> {
-    let config = &state.config;
+    let config = &state.config();
     let projects_path = config.projects_path();
     let project_names = &config.projects;
 
@@ -141,7 +141,7 @@ pub async fn assess(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<AssessTicketResponse>, ApiError> {
-    let config = &state.config;
+    let config = &state.config();
 
     // Validate project exists in config
     if !config.projects.contains(&name) {

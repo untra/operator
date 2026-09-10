@@ -36,8 +36,7 @@ Because the tracked pane is local, screen scraping, attach, idle detection, and 
 ## Remote host requirements
 
 - **SSH access** via an alias in `~/.ssh/config`, with key-based auth.
-  Connect once manually first (`ssh gpu-vm`) to accept host keys — launches use
-  `BatchMode`, which cannot answer interactive prompts.
+  Connect once manually first (`ssh gpu-vm`) to accept host keys. Launches use `BatchMode`, which cannot answer interactive prompts.
 - **tmux** installed on the remote PATH.
 - **The agent CLI** (`claude`, `codex`, `gemini`) on the remote PATH, already
   authenticated there (e.g. remote `~/.claude` credentials).

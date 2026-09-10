@@ -164,7 +164,7 @@ impl App {
                 }
             }
             StatusAction::ConfigureGitProvider { provider } => {
-                match git_onboarding::resolve_onboarding(&provider) {
+                match git_onboarding::resolve_onboarding_with_config(&self.config, &provider) {
                     Some(git_onboarding::OnboardingStep::InstallCli {
                         install_url,
                         provider_display,

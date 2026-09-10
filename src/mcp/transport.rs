@@ -20,7 +20,9 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_stream::StreamExt as _;
 
 use crate::mcp::handler::{handle_jsonrpc, JsonRpcRequest};
-use crate::rest::state::ApiState;
+use crate::mcp::public_base_url;
+use crate::rest::middleware::auth::Authenticated;
+use crate::rest::state::{ApiState, McpSession};
 
 /// Query parameters for the message endpoint
 #[derive(Debug, Deserialize)]
@@ -33,21 +35,37 @@ pub struct MessageQuery {
 ///
 /// The client connects here first, receives the message endpoint URL,
 /// then sends JSON-RPC requests to that endpoint.
+#[utoipa::path(
+    get,
+    path = "/api/v1/mcp/sse",
+    tag = "MCP",
+    operation_id = "mcp_sse",
+    responses((status = 200, description = "SSE stream carrying the message endpoint and JSON-RPC responses", content_type = "text/event-stream", body = String))
+)]
 pub async fn sse_handler(
     Host(host): Host,
     State(state): State<ApiState>,
+    Authenticated(principal): Authenticated,
 ) -> Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>> {
     let session_id = uuid::Uuid::new_v4().to_string();
     let (tx, rx) = mpsc::unbounded_channel::<String>();
 
-    // Register session
-    state
-        .mcp_sessions
-        .lock()
-        .await
-        .insert(session_id.clone(), tx);
+    // Bind the session to whoever opened it. The session id travels in a URL
+    // and is therefore a bearer credential; recording the principal means a
+    // leaked id is not enough on its own to drive the session.
+    state.mcp_sessions.lock().await.insert(
+        session_id.clone(),
+        McpSession {
+            tx,
+            subject: principal.subject.clone(),
+            scopes: principal.scopes.clone(),
+        },
+    );
 
-    let message_url = format!("http://{host}/api/v1/mcp/message?sessionId={session_id}");
+    // Generated from the configured public URL, not the request `Host` header,
+    // which a caller controls and which is plain `http` behind TLS termination.
+    let base = public_base_url(&state, &host);
+    let message_url = format!("{base}/api/v1/mcp/message?sessionId={session_id}");
 
     let session_id_cleanup = session_id.clone();
     let sessions_cleanup = state.mcp_sessions.clone();
@@ -77,24 +95,46 @@ pub async fn sse_handler(
 }
 
 /// Message endpoint — receives JSON-RPC requests and sends responses via SSE
+#[utoipa::path(
+    post,
+    path = "/api/v1/mcp/message",
+    tag = "MCP",
+    operation_id = "mcp_message",
+    params(("sessionId" = String, Query, description = "MCP SSE session id")),
+    request_body = serde_json::Value,
+    responses(
+        (status = 202, description = "JSON-RPC request accepted for delivery on the SSE stream"),
+        (status = 403, description = "Session belongs to another principal"),
+        (status = 404, description = "Session not found")
+    )
+)]
 pub async fn message_handler(
     Query(query): Query<MessageQuery>,
     State(state): State<ApiState>,
+    Authenticated(principal): Authenticated,
     Json(request): Json<JsonRpcRequest>,
 ) -> impl IntoResponse {
-    // Clone the sender and drop the lock before async work
-    let tx = {
+    // Clone the sender and drop the lock before async work.
+    let (tx, scopes) = {
         let sessions = state.mcp_sessions.lock().await;
-        let Some(tx) = sessions.get(&query.session_id) else {
+        let Some(session) = sessions.get(&query.session_id) else {
             return (
                 axum::http::StatusCode::NOT_FOUND,
                 Json(json!({"error": "Session not found"})),
             );
         };
-        tx.clone()
+        // The caller must be the principal that opened this stream. Without
+        // this, anyone who learns a session id inherits its authority.
+        if session.subject != principal.subject {
+            return (
+                axum::http::StatusCode::FORBIDDEN,
+                Json(json!({"error": "Session belongs to a different principal"})),
+            );
+        }
+        (session.tx.clone(), session.scopes.clone())
     };
 
-    let response = handle_jsonrpc(&request, &state).await;
+    let response = handle_jsonrpc(&request, &state, &scopes).await;
 
     // Send response through SSE channel
     if let Ok(json_str) = serde_json::to_string(&response) {

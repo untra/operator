@@ -34,6 +34,26 @@ For headless servers, CI/CD pipelines, or advanced workflows, download the CLI b
 | Windows | x86_64 | [operator-windows-x86_64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-x86_64.exe)<br><small>sha256:<code>{{ site.data.checksums.operator.windows_x86_64 }}</code></small> |
 | Windows | ARM64 | [operator-windows-arm64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-arm64.exe)<br><small>sha256:<code>{{ site.data.checksums.operator.windows_arm64 }}</code></small> |
 
+## Kubernetes
+
+Run Operator in a cluster from the official OCI Helm chart:
+
+```bash
+helm install operator oci://ghcr.io/untra/charts/operator \
+  --namespace operator --create-namespace \
+  --set publicUrl=https://operator.example.com
+```
+
+See the [Kubernetes guide](/getting-started/platforms/kubernetes/) for bootstrap, TLS, persistence, and NetworkPolicy.
+
+## Container image
+
+```bash
+docker pull untra/operator:{{ site.version }}
+```
+
+Multi-arch (`linux/amd64`, `linux/arm64`). See the [Docker guide](/getting-started/platforms/docker/).
+
 ## All Releases
 
 [View all releases on GitHub]({{ site.github.repo }}/releases)

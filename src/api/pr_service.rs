@@ -250,21 +250,26 @@ pub struct UnsupportedProviderError {
     provider: GitProvider,
 }
 
-/// Build the `PrService` for a given provider.
+/// Build the `PrService` for a given provider, against `git`.
 ///
-/// GitHub and GitLab are operational; Bitbucket, Azure DevOps, Forgejo, and
-/// Gitea are detect-only today (see `GitProvider::ALL`) and return
-/// `UnsupportedProviderError` until their CLI stacks are implemented.
+/// Takes the config rather than defaulting: a defaulted `GiteaConfig` has no
+/// host, which silently pointed self-hosted instances at gitea.com.
+///
+/// GitHub, GitLab, and Gitea are operational; Bitbucket, Azure DevOps, and
+/// Forgejo return `UnsupportedProviderError` until their CLI stacks exist.
 pub fn pr_service_for(
     provider: GitProvider,
+    git: &crate::config::GitConfig,
 ) -> Result<Arc<dyn PrService>, UnsupportedProviderError> {
     match provider {
         GitProvider::GitHub => Ok(Arc::new(GitHubService::new())),
         GitProvider::GitLab => Ok(Arc::new(GitLabService::new())),
-        GitProvider::Bitbucket
-        | GitProvider::AzureDevOps
-        | GitProvider::Forgejo
-        | GitProvider::Gitea => Err(UnsupportedProviderError { provider }),
+        GitProvider::Gitea => Ok(Arc::new(crate::api::gitea_service::GiteaService::new(
+            git.gitea.clone(),
+        ))),
+        GitProvider::Bitbucket | GitProvider::AzureDevOps | GitProvider::Forgejo => {
+            Err(UnsupportedProviderError { provider })
+        }
     }
 }
 
@@ -282,20 +287,47 @@ type Resolver =
 /// `"auto"` so callers can tell it's the router rather than a concrete
 /// provider.
 pub struct PrServiceRouter {
+    default_provider: GitProvider,
     resolve: Resolver,
 }
 
-impl Default for PrServiceRouter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl PrServiceRouter {
-    /// Create a new provider-routing PR service, backed by `pr_service_for`
-    pub fn new() -> Self {
+    pub fn with_config(
+        config: &crate::config::Config,
+        context: Option<crate::config::GitExecutionConfig>,
+    ) -> Self {
+        let git = config.git.clone();
         Self {
-            resolve: Box::new(pr_service_for),
+            default_provider: git.provider.clone().map(Into::into).unwrap_or_default(),
+            resolve: Box::new(move |provider| {
+                let service = pr_service_for(provider, &git)?;
+                let auth = match provider {
+                    GitProvider::GitHub => Some(crate::git::runtime::ProviderAuth {
+                        provider,
+                        token_env: if git.github.token_env.is_empty() {
+                            "GITHUB_TOKEN".into()
+                        } else {
+                            git.github.token_env.clone()
+                        },
+                        host: None,
+                    }),
+                    GitProvider::GitLab => Some(crate::git::runtime::ProviderAuth {
+                        provider,
+                        token_env: if git.gitlab.token_env.is_empty() {
+                            "GITLAB_TOKEN".into()
+                        } else {
+                            git.gitlab.token_env.clone()
+                        },
+                        host: git.gitlab.host.clone(),
+                    }),
+                    _ => None,
+                };
+                Ok(Arc::new(ScopedPrService {
+                    inner: service,
+                    context: context.clone(),
+                    auth,
+                }))
+            }),
         }
     }
 
@@ -308,6 +340,7 @@ impl PrServiceRouter {
             + 'static,
     ) -> Self {
         Self {
+            default_provider: GitProvider::GitHub,
             resolve: Box::new(resolve),
         }
     }
@@ -320,11 +353,15 @@ impl PrService for PrServiceRouter {
     }
 
     async fn check_available(&self) -> Result<bool> {
-        GitHubService::new().check_available().await
+        (self.resolve)(self.default_provider)?
+            .check_available()
+            .await
     }
 
     async fn get_authenticated_user(&self) -> Result<String> {
-        GitHubService::new().get_authenticated_user().await
+        (self.resolve)(self.default_provider)?
+            .get_authenticated_user()
+            .await
     }
 
     async fn get_pr(&self, repo_info: &RepoInfo, pr_number: i64) -> Result<PullRequestInfo> {
@@ -410,11 +447,184 @@ impl PrService for PrServiceRouter {
     }
 }
 
+struct ScopedPrService {
+    auth: Option<crate::git::runtime::ProviderAuth>,
+    inner: Arc<dyn PrService>,
+    context: Option<crate::config::GitExecutionConfig>,
+}
+
+#[async_trait]
+impl PrService for ScopedPrService {
+    fn provider_name(&self) -> &str {
+        self.inner.provider_name()
+    }
+    async fn check_available(&self) -> Result<bool> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.check_available(),
+            ),
+        )
+        .await
+    }
+    async fn get_authenticated_user(&self) -> Result<String> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.get_authenticated_user(),
+            ),
+        )
+        .await
+    }
+    async fn get_pr(&self, repo: &RepoInfo, number: i64) -> Result<PullRequestInfo> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.get_pr(repo, number),
+            ),
+        )
+        .await
+    }
+    async fn is_ready_to_merge(&self, repo: &RepoInfo, number: i64) -> Result<bool> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.is_ready_to_merge(repo, number),
+            ),
+        )
+        .await
+    }
+    async fn get_review_state(&self, repo: &RepoInfo, number: i64) -> Result<PrReviewState> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.get_review_state(repo, number),
+            ),
+        )
+        .await
+    }
+    async fn create_pr(
+        &self,
+        repo: &RepoInfo,
+        request: &CreatePrRequest,
+        cwd: &Path,
+    ) -> Result<PullRequestInfo, CreatePrError> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.create_pr(repo, request, cwd),
+            ),
+        )
+        .await
+    }
+    async fn list_prs_for_branch(
+        &self,
+        repo: &RepoInfo,
+        branch: &str,
+    ) -> Result<Vec<PullRequestInfo>> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.list_prs_for_branch(repo, branch),
+            ),
+        )
+        .await
+    }
+    async fn get_all_comments(
+        &self,
+        repo: &RepoInfo,
+        number: i64,
+    ) -> Result<Vec<UnifiedPrComment>> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.get_all_comments(repo, number),
+            ),
+        )
+        .await
+    }
+    async fn open_in_browser(&self, repo: &RepoInfo, number: i64) -> Result<()> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.open_in_browser(repo, number),
+            ),
+        )
+        .await
+    }
+    async fn get_comments_since(
+        &self,
+        repo: &RepoInfo,
+        number: i64,
+        since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<UnifiedPrComment>> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.get_comments_since(repo, number, since),
+            ),
+        )
+        .await
+    }
+    async fn find_pr_for_branch(
+        &self,
+        repo: &RepoInfo,
+        branch: &str,
+    ) -> Result<Option<PullRequestInfo>> {
+        crate::git::runtime::auth_scope(
+            self.auth.clone(),
+            crate::git::runtime::scope(
+                self.context.clone().or_else(crate::git::runtime::current),
+                self.inner.find_pr_for_branch(repo, branch),
+            ),
+        )
+        .await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::types::pr::PrState;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn git() -> crate::config::GitConfig {
+        crate::config::GitConfig::default()
+    }
+
+    /// A defaulted `GiteaConfig` has no host and resolves to gitea.com, so the
+    /// factory must be handed the real config or a self-hosted instance is
+    /// silently wrong.
+    #[test]
+    fn gitea_service_honors_the_configured_self_hosted_host() {
+        let mut config = git();
+        config.gitea.host = Some("https://git.example.org".into());
+        let service = pr_service_for(GitProvider::Gitea, &config).expect("gitea is operational");
+        assert_eq!(service.provider_name(), "gitea");
+
+        let direct = crate::api::gitea_service::GiteaService::new(config.gitea.clone());
+        assert_eq!(
+            direct.base_url().unwrap().as_str(),
+            "https://git.example.org/"
+        );
+        assert_eq!(
+            crate::api::gitea_service::GiteaService::new(git().gitea)
+                .base_url()
+                .unwrap()
+                .host_str(),
+            Some("gitea.com")
+        );
+    }
 
     #[test]
     fn test_github_service_provider_name() {
@@ -430,19 +640,19 @@ mod tests {
 
     #[test]
     fn test_pr_service_for_github() {
-        let service = pr_service_for(GitProvider::GitHub).unwrap();
+        let service = pr_service_for(GitProvider::GitHub, &git()).unwrap();
         assert_eq!(service.provider_name(), "github");
     }
 
     #[test]
     fn test_pr_service_for_gitlab() {
-        let service = pr_service_for(GitProvider::GitLab).unwrap();
+        let service = pr_service_for(GitProvider::GitLab, &git()).unwrap();
         assert_eq!(service.provider_name(), "gitlab");
     }
 
     #[test]
     fn test_pr_service_for_unsupported_provider_errors() {
-        let result = pr_service_for(GitProvider::Bitbucket);
+        let result = pr_service_for(GitProvider::Bitbucket, &git());
         let message = match result {
             Ok(_) => panic!("expected UnsupportedProviderError for Bitbucket"),
             Err(e) => e.to_string(),
@@ -457,15 +667,14 @@ mod tests {
             GitProvider::Bitbucket,
             GitProvider::AzureDevOps,
             GitProvider::Forgejo,
-            GitProvider::Gitea,
         ] {
-            assert!(pr_service_for(provider).is_err());
+            assert!(pr_service_for(provider, &git()).is_err());
         }
     }
 
     #[test]
     fn test_router_provider_name_is_auto() {
-        let router = PrServiceRouter::new();
+        let router = PrServiceRouter::with_config(&crate::config::Config::default(), None);
         assert_eq!(router.provider_name(), "auto");
     }
 

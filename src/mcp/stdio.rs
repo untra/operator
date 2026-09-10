@@ -9,6 +9,7 @@ use std::io;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use crate::mcp::handler::{handle_jsonrpc, JsonRpcRequest};
+use crate::rest::dto::auth::Scope;
 use crate::rest::state::ApiState;
 
 /// Run the stdio MCP loop until stdin closes.
@@ -32,7 +33,7 @@ where
                 continue;
             }
         };
-        let response = handle_jsonrpc(&request, &state).await;
+        let response = handle_jsonrpc(&request, &state, &Scope::ALL).await;
         let json = serde_json::to_string(&response).unwrap_or_else(|_| {
             r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"serialization failed"}}"#
                 .to_string()

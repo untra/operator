@@ -1,16 +1,21 @@
 /**
  * Operator REST API client
  *
- * Provides methods to communicate with the Operator REST API
- * for launching tickets and checking health status.
+ * Every daemon request goes through one authenticated path (`send`), which
+ * attaches the credential from `auth/credentials`, retries once after a refresh on 401, and normalizes errors into `ApiError`.
  */
 
 import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+import { credentialProvider } from './auth/credentials';
+import { ApiError, AuthRequiredError } from './auth/errors';
+
 // Import generated types from Rust bindings (source of truth)
 import type {
+  ActiveAgentsResponse,
+  CurrentSessionResponse,
   KanbanBoardResponse,
   LaunchTicketRequest,
   LaunchTicketResponse,
@@ -33,13 +38,20 @@ import type {
   SetKanbanSessionEnvRequest,
   SetKanbanSessionEnvResponse,
   WorkflowExportResponse,
+  WorkflowFormatDto,
   ModelServerKindEntry,
   ModelServerModelsResponse,
   ModelServerResponse,
+  ModelServersResponse,
   CreateModelServerRequest,
   DelegatorsResponse,
   DelegatorResponse,
   CreateDelegatorRequest,
+  DefaultLlmResponse,
+  SetDefaultLlmRequest,
+  LlmToolsResponse,
+  ExecutionTargetsResponse,
+  McpDescriptorResponse,
 } from './generated';
 
 // Re-export generated types for consumers
@@ -71,6 +83,7 @@ export type {
   DelegatorResponse,
   CreateDelegatorRequest,
 };
+export { ApiError, AuthRequiredError };
 
 /**
  * Summary of a project from the Operator REST API
@@ -104,7 +117,8 @@ export interface AssessTicketResponse {
   project_name: string;
 }
 
-export interface ApiError {
+/** Error body the daemon returns on non-2xx responses. */
+export interface ApiErrorBody {
   error: string;
   message: string;
 }
@@ -151,6 +165,22 @@ export interface ApiSessionInfo {
   pid: number;
   started_at: string;
   version: string;
+  /** State directory holding `local-token`; absent from files written by older daemons. */
+  state_dir?: string;
+}
+
+export const DEFAULT_API_URL = 'http://localhost:7008';
+/** Public liveness probe: answers without a credential, unlike `/api/v1/health`. */
+export const LIVEZ_PATH = '/livez';
+
+/**
+ * ts-rs maps Rust `u64` to `bigint`, and `JSON.stringify` throws on a bigint,
+ * so a body containing one would fail before the request is ever sent.
+ */
+export function toJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    typeof v === 'bigint' ? Number(v) : v
+  );
 }
 
 /**
@@ -186,7 +216,25 @@ export async function discoverApiUrl(
     }
   }
 
-  return 'http://localhost:7008';
+  return DEFAULT_API_URL;
+}
+
+function withBearer(init: RequestInit, token: string | undefined): RequestInit {
+  if (!token) {
+    return init;
+  }
+  return {
+    ...init,
+    headers: { ...(init.headers as Record<string, string> | undefined), Authorization: `Bearer ${token}` },
+  };
+}
+
+function jsonInit(method: string, body: unknown): RequestInit {
+  return {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: toJson(body),
+  };
 }
 
 /**
@@ -197,18 +245,82 @@ export class OperatorApiClient {
 
   constructor(baseUrl?: string) {
     const config = vscode.workspace.getConfiguration('operator');
-    this.baseUrl = baseUrl || config.get('apiUrl', 'http://localhost:7008');
+    this.baseUrl = baseUrl || config.get('apiUrl', DEFAULT_API_URL);
+  }
+
+  /**
+   * Perform an authenticated request.
+   *
+   * A 401 triggers exactly one refresh-and-retry. A refresh that yields the
+   * same credential (or none) is not retried: the server has already rejected
+   * it, and repeating the request would only repeat the rejection.
+   */
+  private async send(apiPath: string, init: RequestInit = {}): Promise<Response> {
+    const provider = credentialProvider();
+    const url = `${this.baseUrl}${apiPath}`;
+
+    const token = await provider.bearer(this.baseUrl);
+    let response = await fetch(url, withBearer(init, token));
+
+    if (response.status === 401) {
+      const refreshed = await provider.refresh(this.baseUrl);
+      if (refreshed && refreshed !== token) {
+        response = await fetch(url, withBearer(init, refreshed));
+      }
+    }
+
+    if (response.status === 401) {
+      throw new AuthRequiredError(this.baseUrl);
+    }
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as Partial<ApiErrorBody>;
+      throw new ApiError(
+        response.status,
+        body.message ?? body.error ?? `HTTP ${response.status}: ${response.statusText}`
+      );
+    }
+    return response;
+  }
+
+  private async request<T>(apiPath: string, init?: RequestInit): Promise<T> {
+    const response = await this.send(apiPath, init);
+    return (await response.json()) as T;
+  }
+
+  private async requestVoid(apiPath: string, init?: RequestInit): Promise<void> {
+    await this.send(apiPath, init);
+  }
+
+  /**
+   * Whether anything is listening at the base URL. Unauthenticated: this is
+   * the "is the daemon up" question, not "is it ours".
+   */
+  async isReachable(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}${LIVEZ_PATH}`);
+      return response.ok;
+    } catch {
+      return false;
+    }
   }
 
   /**
    * Check if the Operator API is available
    */
   async health(): Promise<HealthResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/health`);
-    if (!response.ok) {
-      throw new Error('Operator API not available');
+    try {
+      return await this.request<HealthResponse>('/api/v1/health');
+    } catch (err) {
+      if (err instanceof ApiError && !(err instanceof AuthRequiredError)) {
+        throw new ApiError(err.status, 'Operator API not available');
+      }
+      throw err;
     }
-    return (await response.json()) as HealthResponse;
+  }
+
+  /** The identity the daemon sees for the extension's current credential. */
+  async currentSession(): Promise<CurrentSessionResponse> {
+    return this.request('/api/v1/auth/session');
   }
 
   /**
@@ -221,30 +333,14 @@ export class OperatorApiClient {
     ticketId: string,
     options: LaunchTicketRequest
   ): Promise<LaunchTicketResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/tickets/${encodeURIComponent(ticketId)}/launch`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          delegator: options.delegator ?? null,
-          provider: options.provider,
-          model: options.model,
-          yolo_mode: options.yolo_mode ?? false,
-          wrapper: options.wrapper,
-        }),
-      }
+    return this.request(
+      `/api/v1/tickets/${encodeURIComponent(ticketId)}/launch`,
+      jsonInit('POST', {
+        ...options,
+        delegator: options.delegator ?? null,
+        yolo_mode: options.yolo_mode ?? false,
+      })
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as LaunchTicketResponse;
   }
 
   /**
@@ -252,20 +348,15 @@ export class OperatorApiClient {
    * workflow (.js). Goes through the same shared code path as the CLI and TUI.
    */
   async exportWorkflow(ticketId: string): Promise<WorkflowExportResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/tickets/${encodeURIComponent(ticketId)}/workflow-export`,
+    return this.request(
+      `/api/v1/tickets/${encodeURIComponent(ticketId)}/workflow-export`,
       { method: 'POST' }
     );
+  }
 
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as WorkflowExportResponse;
+  /** Agents currently running, for the review pickers. */
+  async listActiveAgents(): Promise<ActiveAgentsResponse> {
+    return this.request('/api/v1/agents/active');
   }
 
   /**
@@ -274,19 +365,7 @@ export class OperatorApiClient {
    * Stops automatic ticket assignment and agent launches.
    */
   async pauseQueue(): Promise<QueueControlResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/queue/pause`, {
-      method: 'POST',
-    });
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as QueueControlResponse;
+    return this.request('/api/v1/queue/pause', { method: 'POST' });
   }
 
   /**
@@ -295,19 +374,7 @@ export class OperatorApiClient {
    * Resumes automatic ticket assignment and agent launches.
    */
   async resumeQueue(): Promise<QueueControlResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/queue/resume`, {
-      method: 'POST',
-    });
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as QueueControlResponse;
+    return this.request('/api/v1/queue/resume', { method: 'POST' });
   }
 
   /**
@@ -317,19 +384,7 @@ export class OperatorApiClient {
    * local tickets in the queue.
    */
   async syncKanban(): Promise<KanbanSyncResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/queue/sync`, {
-      method: 'POST',
-    });
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as KanbanSyncResponse;
+    return this.request('/api/v1/queue/sync', { method: 'POST' });
   }
 
   /**
@@ -342,20 +397,10 @@ export class OperatorApiClient {
     provider: string,
     projectKey: string
   ): Promise<KanbanSyncResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/queue/sync/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}`,
+    return this.request(
+      `/api/v1/queue/sync/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}`,
       { method: 'POST' }
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as KanbanSyncResponse;
   }
 
   /**
@@ -364,22 +409,10 @@ export class OperatorApiClient {
    * Clears the review state and signals the agent to continue.
    */
   async approveReview(agentId: string): Promise<ReviewResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/agents/${encodeURIComponent(agentId)}/approve`,
-      {
-        method: 'POST',
-      }
+    return this.request(
+      `/api/v1/agents/${encodeURIComponent(agentId)}/approve`,
+      { method: 'POST' }
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as ReviewResponse;
   }
 
   /**
@@ -388,195 +421,85 @@ export class OperatorApiClient {
    * Signals the agent that the review was rejected with feedback.
    */
   async rejectReview(agentId: string, reason: string): Promise<ReviewResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/agents/${encodeURIComponent(agentId)}/reject`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
-      }
+    return this.request(
+      `/api/v1/agents/${encodeURIComponent(agentId)}/reject`,
+      jsonInit('POST', { reason })
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as ReviewResponse;
   }
 
   /**
    * List all configured projects with analysis data
    */
   async getProjects(): Promise<ProjectSummary[]> {
-    const response = await fetch(`${this.baseUrl}/api/v1/projects`);
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as ProjectSummary[];
+    return this.request('/api/v1/projects');
   }
 
   /**
    * Create an ASSESS ticket for a project
    */
   async assessProject(name: string): Promise<AssessTicketResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(name)}/assess`,
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(name)}/assess`,
       { method: 'POST' }
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as AssessTicketResponse;
   }
 
   /**
    * List all issue types from the registry
    */
   async listIssueTypes(): Promise<IssueTypeSummary[]> {
-    const response = await fetch(`${this.baseUrl}/api/v1/issuetypes`);
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as IssueTypeSummary[];
+    return this.request('/api/v1/issuetypes');
   }
 
   /**
    * Get a single issue type by key
    */
   async getIssueType(key: string): Promise<IssueTypeResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/issuetypes/${encodeURIComponent(key)}`
-    );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as IssueTypeResponse;
+    return this.request(`/api/v1/issuetypes/${encodeURIComponent(key)}`);
   }
 
   /**
    * Create a new issue type
    */
   async createIssueType(request: CreateIssueTypeRequest): Promise<IssueTypeResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/issuetypes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as IssueTypeResponse;
+    return this.request('/api/v1/issuetypes', jsonInit('POST', request));
   }
 
   /**
    * Update an existing issue type
    */
   async updateIssueType(key: string, request: UpdateIssueTypeRequest): Promise<IssueTypeResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/issuetypes/${encodeURIComponent(key)}`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-      }
+    return this.request(
+      `/api/v1/issuetypes/${encodeURIComponent(key)}`,
+      jsonInit('PUT', request)
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as IssueTypeResponse;
   }
 
   /**
    * Delete an issue type by key
    */
   async deleteIssueType(key: string): Promise<void> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/issuetypes/${encodeURIComponent(key)}`,
+    await this.requestVoid(
+      `/api/v1/issuetypes/${encodeURIComponent(key)}`,
       { method: 'DELETE' }
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
   }
 
   /**
    * List all collections
    */
   async listCollections(): Promise<CollectionResponse[]> {
-    const response = await fetch(`${this.baseUrl}/api/v1/collections`);
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as CollectionResponse[];
+    return this.request('/api/v1/collections');
   }
 
   /**
    * Activate a collection by name
    */
   async activateCollection(name: string): Promise<void> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/collections/${encodeURIComponent(name)}/activate`,
+    await this.requestVoid(
+      `/api/v1/collections/${encodeURIComponent(name)}/activate`,
       { method: 'PUT' }
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
   }
 
   /**
@@ -585,17 +508,7 @@ export class OperatorApiClient {
    * truth shared with the TUI / web `/#/kanban` list view.
    */
   async listKanbanProviderCatalog(): Promise<KanbanProviderCatalogEntry[]> {
-    const response = await fetch(`${this.baseUrl}/api/v1/kanban/providers`);
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as KanbanProviderCatalogEntry[];
+    return this.request('/api/v1/kanban/providers');
   }
 
   /**
@@ -605,19 +518,9 @@ export class OperatorApiClient {
     provider: string,
     projectKey: string
   ): Promise<ExternalIssueTypeSummary[]> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/kanban/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}/issuetypes`
+    return this.request(
+      `/api/v1/kanban/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}/issuetypes`
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as ExternalIssueTypeSummary[];
   }
 
   /**
@@ -625,19 +528,9 @@ export class OperatorApiClient {
    * provider/project — populates the todo/doing/done mapping dropdowns.
    */
   async getKanbanStatuses(provider: string, projectKey: string): Promise<string[]> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/kanban/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}/statuses`
+    const body = await this.request<{ statuses: string[] }>(
+      `/api/v1/kanban/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}/statuses`
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    const body = (await response.json()) as { statuses: string[] };
     return body.statuses;
   }
 
@@ -649,20 +542,10 @@ export class OperatorApiClient {
     provider: string,
     projectKey: string
   ): Promise<SyncKanbanIssueTypesResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/kanban/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}/issuetypes/sync`,
+    return this.request(
+      `/api/v1/kanban/${encodeURIComponent(provider)}/${encodeURIComponent(projectKey)}/issuetypes/sync`,
       { method: 'POST' }
     );
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as SyncKanbanIssueTypesResponse;
   }
 
   // ─── Kanban Onboarding ────────────────────────────────────────────────
@@ -677,21 +560,7 @@ export class OperatorApiClient {
   async validateKanbanCredentials(
     req: ValidateKanbanCredentialsRequest
   ): Promise<ValidateKanbanCredentialsResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/kanban/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as ValidateKanbanCredentialsResponse;
+    return this.request('/api/v1/kanban/validate', jsonInit('POST', req));
   }
 
   /**
@@ -701,21 +570,10 @@ export class OperatorApiClient {
   async listKanbanProjects(
     req: ListKanbanProjectsRequest
   ): Promise<KanbanProjectInfo[]> {
-    const response = await fetch(`${this.baseUrl}/api/v1/kanban/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    const body = (await response.json()) as ListKanbanProjectsResponse;
+    const body = await this.request<ListKanbanProjectsResponse>(
+      '/api/v1/kanban/projects',
+      jsonInit('POST', req)
+    );
     return body.projects;
   }
 
@@ -728,21 +586,7 @@ export class OperatorApiClient {
   async writeKanbanConfig(
     req: WriteKanbanConfigRequest
   ): Promise<WriteKanbanConfigResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/kanban/config`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-
-    return (await response.json()) as WriteKanbanConfigResponse;
+    return this.request('/api/v1/kanban/config', jsonInit('PUT', req));
   }
 
   /**
@@ -755,81 +599,75 @@ export class OperatorApiClient {
   async setKanbanSessionEnv(
     req: SetKanbanSessionEnvRequest
   ): Promise<SetKanbanSessionEnvResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/kanban/session-env`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req),
-      }
-    );
+    return this.request('/api/v1/kanban/session-env', jsonInit('POST', req));
+  }
 
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
+  // --- LLM tools ---
 
-    return (await response.json()) as SetKanbanSessionEnvResponse;
+  async listLlmTools(): Promise<LlmToolsResponse> {
+    return this.request('/api/v1/llm-tools');
+  }
+
+  async getDefaultLlm(): Promise<DefaultLlmResponse> {
+    return this.request('/api/v1/llm-tools/default');
+  }
+
+  async setDefaultLlm(req: SetDefaultLlmRequest): Promise<void> {
+    await this.requestVoid('/api/v1/llm-tools/default', jsonInit('PUT', req));
   }
 
   // --- Model providers ---
 
-  private async getJson<T>(path: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`);
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-    return (await response.json()) as T;
-  }
-
-  private async postJson<T>(path: string, body: unknown): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: 'unknown',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }))) as ApiError;
-      throw new Error(error.message);
-    }
-    return (await response.json()) as T;
-  }
-
   /** The catalog of supported model providers (kinds). */
   async listProviderKinds(): Promise<ModelServerKindEntry[]> {
-    return this.getJson('/api/v1/model-servers/kinds');
+    return this.request('/api/v1/model-servers/kinds');
   }
 
   /** Live models for a provider kind (declared instance or kind defaults). */
   async providerModels(slug: string): Promise<ModelServerModelsResponse> {
-    return this.getJson(`/api/v1/model-servers/kinds/${encodeURIComponent(slug)}/models`);
+    return this.request(`/api/v1/model-servers/kinds/${encodeURIComponent(slug)}/models`);
+  }
+
+  /** Declared model server instances plus builtins. */
+  async listModelServers(): Promise<ModelServersResponse> {
+    return this.request('/api/v1/model-servers');
+  }
+
+  /** Live models for one declared server. */
+  async modelServerModels(name: string): Promise<ModelServerModelsResponse> {
+    return this.request(`/api/v1/model-servers/${encodeURIComponent(name)}/models`);
   }
 
   /** Connect a gateway provider by declaring an instance. */
   async createModelServer(req: CreateModelServerRequest): Promise<ModelServerResponse> {
-    return this.postJson('/api/v1/model-servers', req);
+    return this.request('/api/v1/model-servers', jsonInit('POST', req));
   }
 
   /** Kanban board columns — the API-backed source for the ticket trees. */
   async getKanban(): Promise<KanbanBoardResponse> {
-    return this.getJson<KanbanBoardResponse>('/api/v1/queue/kanban');
+    return this.request('/api/v1/queue/kanban');
   }
 
   async listDelegators(): Promise<DelegatorsResponse> {
-    return this.getJson('/api/v1/delegators');
+    return this.request('/api/v1/delegators');
   }
 
   async createDelegator(req: CreateDelegatorRequest): Promise<DelegatorResponse> {
-    return this.postJson('/api/v1/delegators', req);
+    return this.request('/api/v1/delegators', jsonInit('POST', req));
+  }
+
+  // --- Workflows, targets, MCP ---
+
+  async listWorkflowFormats(): Promise<WorkflowFormatDto[]> {
+    return this.request('/api/v1/workflow-formats');
+  }
+
+  /** Named execution targets: local, docker, `[[targets]]`, and `[[hosts]]`. */
+  async listExecutionTargets(): Promise<ExecutionTargetsResponse> {
+    return this.request('/api/v1/execution-targets');
+  }
+
+  async mcpDescriptor(): Promise<McpDescriptorResponse> {
+    return this.request('/api/v1/mcp/descriptor');
   }
 }

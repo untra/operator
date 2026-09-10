@@ -108,12 +108,14 @@ pub struct FetchedCollection {
 }
 
 fn http_client(timeout_secs: u64) -> Result<reqwest::Client> {
-    Ok(reqwest::Client::builder()
-        .timeout(Duration::from_secs(timeout_secs))
-        .build()?)
+    crate::auth::egress::validated_client(
+        crate::auth::egress::EgressPolicy::default(),
+        Duration::from_secs(timeout_secs),
+    )
 }
 
 async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<Vec<u8>> {
+    crate::auth::egress::validate(url, &crate::auth::egress::EgressPolicy::default())?;
     let response = client.get(url).send().await?;
     let status = response.status();
     if !status.is_success() {

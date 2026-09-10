@@ -9,6 +9,8 @@
 #![allow(unused_imports)]
 
 mod cli;
+pub mod identity;
+pub mod runtime;
 mod worktree;
 
 pub use cli::{GitCli, WorktreeEntry};

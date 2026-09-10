@@ -12,14 +12,14 @@ layout: doc
 
 ## What is Zellij?
 
-Zellij is a terminal workspace manager written in Rust. It organizes work into **sessions**, **tabs**, and **panes** — a 3-tier hierarchy that provides flexible terminal management with a modern interface.
+Zellij is a terminal workspace manager written in Rust. It organizes work into **sessions**, **tabs**, and **panes** - a 3-tier hierarchy that provides flexible terminal management with a modern interface.
 
 Operator uses Zellij tabs to run LLM agent sessions, with each agent getting its own dedicated tab. This keeps agents isolated while letting you switch between them using Zellij's native tab navigation.
 
 ## Prerequisites
 
-1. **Zellij installed** — install via your package manager or from [zellij.dev](https://zellij.dev)
-2. **Running inside Zellij** — Operator must be launched from within a Zellij session (the `ZELLIJ` environment variable must be present)
+1. **Zellij installed** - install via your package manager or from [zellij.dev](https://zellij.dev)
+2. **Running inside Zellij** - Operator must be launched from within a Zellij session (the `ZELLIJ` environment variable must be present)
 
 ## Configuration
 
@@ -51,7 +51,7 @@ When Operator launches a ticket:
 
 ### Focusing Agents
 
-When you press Enter on an agent in the TUI, Operator focuses the corresponding Zellij tab. Like cmux, this does **not** suspend the TUI — Zellij handles tab focus natively.
+When you press Enter on an agent in the TUI, Operator focuses the corresponding Zellij tab. Like cmux, this does **not** suspend the TUI - Zellij handles tab focus natively.
 
 ### Session Preview
 
@@ -62,11 +62,6 @@ Press `p` on an agent to preview its terminal content directly in the TUI. Opera
 ### Agent Switching
 
 When a workflow step specifies a different agent (delegator), Operator gracefully exits the current agent and launches the new one in the same Zellij tab using the 3-tier escalation (`/exit` → `Ctrl+C` → `Ctrl+D`).
-
-## Known Limitations
-
-- **Screen capture requires focus:** Zellij's `dump-screen` command captures the currently focused pane. Operator must briefly switch tabs to capture content, which may cause a momentary visual flicker.
-- **Tab operations require focus:** Closing a tab or sending text requires first focusing the tab. There is a potential race condition if you manually switch tabs at the same moment.
 
 ## Troubleshooting
 

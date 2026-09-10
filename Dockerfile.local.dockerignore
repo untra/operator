@@ -1,0 +1,16 @@
+# Build context for Dockerfile.local only.
+# .dockerignore is an allow-list of the binaries of the CI stages, which would leave this build with an empty context.
+.git
+target
+opr8r/target
+**/node_modules
+docs/_site
+.tickets
+
+# Rebuilt from source in the web stage; a stale local dist must not leak in.
+ui/dist
+webcomponents/dist
+
+# CI-staged release binaries, if a previous CI-style build left them behind.
+operator-linux-*
+opr8r-linux-*

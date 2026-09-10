@@ -129,6 +129,14 @@
         "title": "Operator: Show Server Status"
       },
       {
+        "command": "operator.signIn",
+        "title": "Operator: Sign In"
+      },
+      {
+        "command": "operator.signOut",
+        "title": "Operator: Sign Out"
+      },
+      {
         "command": "operator.refreshTickets",
         "title": "Refresh Tickets",
         "icon": "$(refresh)"

@@ -71,29 +71,116 @@ impl GitProvider {
 
     /// Detect provider from a remote URL
     pub fn from_remote_url(remote_url: &str) -> Option<Self> {
-        let url_lower = remote_url.to_lowercase();
-        if url_lower.contains("github.com") {
-            Some(GitProvider::GitHub)
-        } else if url_lower.contains("gitlab.com") || url_lower.contains("gitlab.") {
-            Some(GitProvider::GitLab)
-        } else if url_lower.contains("bitbucket.org") {
-            Some(GitProvider::Bitbucket)
-        } else if url_lower.contains("dev.azure.com") || url_lower.contains("visualstudio.com") {
-            Some(GitProvider::AzureDevOps)
-        } else if url_lower.contains("codeberg.org") {
-            Some(GitProvider::Forgejo)
-        } else if url_lower.contains("gitea.com") {
-            Some(GitProvider::Gitea)
-        } else {
-            None
-        }
+        Self::from_remote_url_with_hosts(remote_url, &ProviderHosts::default())
     }
+
+    pub fn from_remote_url_with_hosts(remote_url: &str, hosts: &ProviderHosts) -> Option<Self> {
+        let (host, _) = remote_parts(remote_url).ok()?;
+        hosts
+            .entries
+            .get(&host.to_ascii_lowercase())
+            .copied()
+            .or_else(|| match host.to_ascii_lowercase().as_str() {
+                "github.com" => Some(Self::GitHub),
+                "gitlab.com" => Some(Self::GitLab),
+                "bitbucket.org" => Some(Self::Bitbucket),
+                "dev.azure.com" => Some(Self::AzureDevOps),
+                "codeberg.org" => Some(Self::Forgejo),
+                "gitea.com" => Some(Self::Gitea),
+                host if host.starts_with("gitlab.") => Some(Self::GitLab),
+                host if host.ends_with(".visualstudio.com") || host == "visualstudio.com" => {
+                    Some(Self::AzureDevOps)
+                }
+                _ => None,
+            })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ProviderHosts {
+    entries: std::collections::BTreeMap<String, GitProvider>,
+}
+
+pub fn provider_base_url(host: Option<&str>, default: &str) -> anyhow::Result<url::Url> {
+    let raw = host.unwrap_or(default);
+    let raw = if raw.contains("://") {
+        raw.to_owned()
+    } else {
+        format!("https://{raw}")
+    };
+    let url = crate::git::identity::credential_url(&raw)?;
+    anyhow::ensure!(
+        url.path() == "/",
+        "Git provider host must be an HTTPS origin without a path"
+    );
+    Ok(url)
+}
+
+impl ProviderHosts {
+    pub fn from_config(config: &crate::config::GitConfig) -> anyhow::Result<Self> {
+        let mut hosts = Self::default();
+        for (host, provider) in [
+            (config.gitlab.host.as_deref(), GitProvider::GitLab),
+            (config.gitea.host.as_deref(), GitProvider::Gitea),
+            (config.forgejo.host.as_deref(), GitProvider::Forgejo),
+        ] {
+            if let Some(host) = host {
+                let parsed = provider_base_url(Some(host), "")?;
+                let hostname = parsed
+                    .host_str()
+                    .ok_or_else(|| anyhow::anyhow!("Missing provider host"))?
+                    .to_ascii_lowercase();
+                anyhow::ensure!(
+                    hosts.entries.insert(hostname, provider).is_none(),
+                    "Ambiguous Git provider host mapping"
+                );
+            }
+        }
+        Ok(hosts)
+    }
+}
+
+fn remote_parts(raw: &str) -> Result<(String, String), RepoInfoError> {
+    let normalized = if raw.contains("://") {
+        raw.to_owned()
+    } else if let Some((authority, path)) = raw.split_once(':') {
+        if authority.contains('@') {
+            format!("ssh://{authority}/{path}")
+        } else {
+            format!("https://{raw}")
+        }
+    } else {
+        format!("https://{raw}")
+    };
+    let url = url::Url::parse(&normalized)
+        .map_err(|_| RepoInfoError::InvalidUrl("Invalid repository remote".into()))?;
+    if !matches!(url.scheme(), "https" | "http" | "ssh" | "git")
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(RepoInfoError::InvalidUrl(
+            "Invalid repository remote".into(),
+        ));
+    }
+    Ok((
+        url.host_str()
+            .ok_or_else(|| RepoInfoError::InvalidUrl("Missing repository host".into()))?
+            .to_owned(),
+        url.path()
+            .trim_matches('/')
+            .trim_end_matches(".git")
+            .to_owned(),
+    ))
 }
 
 /// Repository info parsed from remote URL (provider-agnostic)
 #[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
 #[ts(export)]
 pub struct RepoInfo {
+    /// Repository hostname, retained for routing and monitor isolation.
+    #[serde(default)]
+    pub host: Option<String>,
     /// Git hosting provider
     #[serde(default)]
     pub provider: GitProvider,
@@ -111,6 +198,7 @@ impl RepoInfo {
         repo_name: impl Into<String>,
     ) -> Self {
         Self {
+            host: None,
             provider,
             owner: owner.into(),
             repo_name: repo_name.into(),
@@ -127,12 +215,31 @@ impl RepoInfo {
     ///
     /// Similar formats supported for GitLab, Bitbucket, and Azure DevOps.
     pub fn from_remote_url(remote_url: &str) -> Result<Self, RepoInfoError> {
-        let provider = GitProvider::from_remote_url(remote_url)
-            .ok_or_else(|| RepoInfoError::UnknownProvider(remote_url.to_string()))?;
+        Self::from_remote_url_with_hosts(remote_url, &ProviderHosts::default())
+    }
 
-        let (owner, repo_name) = parse_owner_repo(remote_url, provider)?;
-
+    pub fn from_remote_url_with_hosts(
+        remote_url: &str,
+        hosts: &ProviderHosts,
+    ) -> Result<Self, RepoInfoError> {
+        let provider = GitProvider::from_remote_url_with_hosts(remote_url, hosts)
+            .ok_or_else(|| RepoInfoError::UnknownProvider("Unconfigured repository host".into()))?;
+        let (host, path) = remote_parts(remote_url)?;
+        let (owner, repo_name) = if provider == GitProvider::AzureDevOps {
+            parse_owner_repo(remote_url, provider)?
+        } else {
+            let (owner, repo) = path
+                .rsplit_once('/')
+                .ok_or_else(|| RepoInfoError::InvalidUrl("Repository needs owner/name".into()))?;
+            if owner.is_empty() || repo.is_empty() {
+                return Err(RepoInfoError::InvalidUrl(
+                    "Repository needs owner/name".into(),
+                ));
+            }
+            (owner.to_owned(), repo.to_owned())
+        };
         Ok(Self {
+            host: Some(host),
             provider,
             owner,
             repo_name,
@@ -631,5 +738,29 @@ mod tests {
     #[test]
     fn test_export_bindings_gitprovider() {
         let _ = GitProvider::export_to_string(&ts_rs::Config::default());
+    }
+    #[test]
+    fn configured_gitea_host_is_exact_and_supports_ssh_and_https() {
+        let mut config = crate::config::GitConfig::default();
+        config.gitea.host = Some("gitea.kube.untra.casa".into());
+        let hosts = ProviderHosts::from_config(&config).unwrap();
+        for remote in [
+            "https://GITEA.KUBE.UNTRA.CASA/team/repo.git",
+            "git@gitea.kube.untra.casa:team/repo.git",
+            "ssh://git@gitea.kube.untra.casa:2222/team/repo.git",
+        ] {
+            let repo = RepoInfo::from_remote_url_with_hosts(remote, &hosts).unwrap();
+            assert_eq!(repo.provider, GitProvider::Gitea);
+            assert_eq!(repo.full_name(), "team/repo");
+        }
+        assert!(GitProvider::from_remote_url_with_hosts(
+            "https://gitea.kube.untra.casa.evil/team/repo",
+            &hosts
+        )
+        .is_none());
+        assert!(GitProvider::from_remote_url("https://evil.example/github.com/repo").is_none());
+        assert!(GitProvider::from_remote_url("https://notgitlab.com/team/repo").is_none());
+        config.forgejo.host = config.gitea.host.clone();
+        assert!(ProviderHosts::from_config(&config).is_err());
     }
 }

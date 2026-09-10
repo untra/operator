@@ -11,6 +11,9 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, instrument};
 
+use crate::api::argv::ProviderCommand;
+use crate::api::cli_detection::binary_for;
+use crate::types::pr::GitProvider;
 use crate::types::pr::{
     CreatePrError, CreatePrRequest, PrReviewState, PrState, PullRequestInfo, RepoInfo,
     UnifiedPrComment,
@@ -24,12 +27,14 @@ impl GlabCli {
     async fn run_glab(args: &[&str], cwd: Option<&Path>) -> Result<String> {
         debug!(?args, "Running glab command");
 
-        let mut cmd = Command::new("glab");
+        let mut cmd = Command::new(binary_for(GitProvider::GitLab));
         cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
 
         if let Some(dir) = cwd {
             cmd.current_dir(dir);
         }
+
+        let _git_runtime = crate::git::runtime::configure_command(&mut cmd)?;
 
         let output = cmd
             .output()
@@ -50,7 +55,7 @@ impl GlabCli {
 
     /// Check if glab CLI is installed
     pub async fn is_installed() -> bool {
-        Command::new("glab")
+        Command::new(binary_for(GitProvider::GitLab))
             .arg("--version")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -75,6 +80,31 @@ impl GlabCli {
         Ok(user.username)
     }
 
+    /// Build the `glab mr create` invocation. Pure, so the flags are asserted without spawning `glab`.
+    pub fn create_pr_argv(repo_info: &RepoInfo, request: &CreatePrRequest) -> ProviderCommand {
+        let mut args = vec![
+            "mr".to_string(),
+            "create".to_string(),
+            "--repo".to_string(),
+            repo_info.full_name(),
+            "--source-branch".to_string(),
+            request.head_branch.clone(),
+            "--target-branch".to_string(),
+            request.base_branch.clone(),
+            "--title".to_string(),
+            request.title.clone(),
+        ];
+        if let Some(body) = &request.body {
+            args.push("--description".to_string());
+            args.push(body.clone());
+        }
+        if request.draft.unwrap_or(false) {
+            args.push("--draft".to_string());
+        }
+        args.push("--yes".to_string());
+        ProviderCommand::new(binary_for(GitProvider::GitLab), args)
+    }
+
     /// Create an MR using glab CLI
     #[instrument(skip(request))]
     pub async fn create_pr(
@@ -90,38 +120,10 @@ impl GlabCli {
             return Err(CreatePrError::ProviderCliNotLoggedIn);
         }
 
-        let repo_full_name = repo_info.full_name();
-        let mut args = vec![
-            "mr",
-            "create",
-            "--repo",
-            &repo_full_name,
-            "--source-branch",
-            &request.head_branch,
-            "--target-branch",
-            &request.base_branch,
-            "--title",
-            &request.title,
-        ];
-
-        let body_arg: String;
-        if let Some(ref body) = request.body {
-            body_arg = body.clone();
-            args.push("--description");
-            args.push(&body_arg);
-        }
-
-        if request.draft.unwrap_or(false) {
-            args.push("--draft");
-        }
-
-        args.push("--yes");
-
-        let output = Self::run_glab(&args, Some(cwd)).await.map_err(|e| {
-            CreatePrError::ProviderApiError {
-                message: e.to_string(),
-            }
-        })?;
+        let command = Self::create_pr_argv(repo_info, request);
+        let output = Self::run_glab(&command.arg_refs(), Some(cwd))
+            .await
+            .map_err(|e| classify_create_error(&e.to_string(), request))?;
 
         let mr_number =
             extract_mr_number(&output).ok_or_else(|| CreatePrError::ProviderApiError {
@@ -427,9 +429,106 @@ fn extract_mr_number(output: &str) -> Option<i64> {
     None
 }
 
+/// Map a failed `glab mr create` to a structured error, matching the GitHub
+/// path. Previously every GitLab failure collapsed into `ProviderApiError`.
+fn classify_create_error(err: &str, request: &CreatePrRequest) -> CreatePrError {
+    let lower = err.to_lowercase();
+    if lower.contains("already exists") || lower.contains("open merge request") {
+        if let Some(pr_number) = extract_mr_number(err) {
+            return CreatePrError::PrAlreadyExists {
+                pr_number,
+                url: err.to_string(),
+            };
+        }
+    }
+    if lower.contains("not pushed")
+        || lower.contains("has no commits")
+        || lower.contains("no commits between")
+    {
+        return CreatePrError::BranchNotPushed {
+            branch: request.head_branch.clone(),
+        };
+    }
+    if lower.contains("not found") && err.contains(&request.base_branch) {
+        return CreatePrError::TargetBranchNotFound {
+            branch: request.base_branch.clone(),
+        };
+    }
+    CreatePrError::ProviderApiError {
+        message: err.to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn request() -> CreatePrRequest {
+        CreatePrRequest {
+            title: "Add widget".into(),
+            body: Some("Body text".into()),
+            head_branch: "feat/widget".into(),
+            base_branch: "main".into(),
+            draft: Some(true),
+        }
+    }
+
+    #[test]
+    fn create_pr_argv_is_the_documented_glab_contract() {
+        let repo = RepoInfo::new(GitProvider::GitLab, "group/sub", "repo");
+        let cmd = GlabCli::create_pr_argv(&repo, &request());
+        assert_eq!(cmd.program, "glab");
+        assert_eq!(
+            cmd.args,
+            [
+                "mr",
+                "create",
+                "--repo",
+                "group/sub/repo",
+                "--source-branch",
+                "feat/widget",
+                "--target-branch",
+                "main",
+                "--title",
+                "Add widget",
+                "--description",
+                "Body text",
+                "--draft",
+                "--yes",
+            ]
+        );
+    }
+
+    /// GitLab does not take GitHub's flag names; mixing them up is silent
+    /// until a live MR is attempted.
+    #[test]
+    fn create_pr_argv_does_not_borrow_github_flag_names() {
+        let repo = RepoInfo::new(GitProvider::GitLab, "owner", "repo");
+        let flags = GlabCli::create_pr_argv(&repo, &request());
+        for github_only in ["--head", "--base", "--body", "--json"] {
+            assert!(
+                !flags.long_flags().contains(&github_only),
+                "{github_only} is a gh flag, not a glab flag"
+            );
+        }
+    }
+
+    #[test]
+    fn create_failures_map_to_structured_errors() {
+        let req = request();
+        assert!(matches!(
+            classify_create_error("no commits between main and feat/widget", &req),
+            CreatePrError::BranchNotPushed { .. }
+        ));
+        assert!(matches!(
+            classify_create_error("an open merge request already exists: !42", &req),
+            CreatePrError::PrAlreadyExists { pr_number: 42, .. }
+        ));
+        assert!(matches!(
+            classify_create_error("something else broke", &req),
+            CreatePrError::ProviderApiError { .. }
+        ));
+    }
 
     #[tokio::test]
     async fn test_is_installed() {

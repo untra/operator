@@ -259,7 +259,15 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
         entry(Git, "bitbucket", "Bitbucket", None, None, false, Proto),
         entry(Git, "azure", "Azure DevOps", None, None, false, Proto),
         entry(Git, "forgejo", "Forgejo", None, None, false, Proto),
-        entry(Git, "gitea", "Gitea", None, None, false, Proto),
+        entry(
+            Git,
+            "gitea",
+            "Gitea",
+            Some("getting-started/git/gitea"),
+            Some("gitea"),
+            false,
+            Alpha,
+        ),
         // --- Session wrappers (mirror SessionWrapperType::ALL; vscode lives under Editor) ---
         entry(
             Session,
@@ -360,6 +368,15 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "Coder",
             Some("getting-started/platforms/coder"),
             Some("coder"),
+            true,
+            Alpha,
+        ),
+        entry(
+            Platform,
+            "kubernetes",
+            "Kubernetes",
+            Some("getting-started/platforms/kubernetes"),
+            Some("kubernetes"),
             true,
             Alpha,
         ),

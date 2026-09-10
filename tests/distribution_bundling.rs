@@ -20,13 +20,41 @@ fn read(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()))
 }
 
+/// True if some `COPY` line stages `src` at `dest`, regardless of any flags
+/// (`--chown`, `--chmod`, `--from`) between the instruction and its operands.
+fn copies(content: &str, src: &str, dest: &str) -> bool {
+    content.lines().any(|line| {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix("COPY ") else {
+            return false;
+        };
+        let operands: Vec<&str> = rest
+            .split_whitespace()
+            .filter(|t| !t.starts_with("--"))
+            .collect();
+        operands == [src, dest]
+    })
+}
+
 #[test]
 fn test_dockerfile_stages_opr8r() {
     let content = read(&repo_root().join("Dockerfile"));
 
     assert!(
-        content.contains("COPY opr8r-linux-${TARGETARCH} /usr/local/bin/opr8r"),
+        copies(
+            &content,
+            "opr8r-linux-${TARGETARCH}",
+            "/usr/local/bin/opr8r"
+        ),
         "Dockerfile must COPY opr8r-linux-${{TARGETARCH}} alongside operator-linux-${{TARGETARCH}}"
+    );
+    assert!(
+        copies(
+            &content,
+            "operator-linux-${TARGETARCH}",
+            "/usr/local/bin/operator"
+        ),
+        "Dockerfile must COPY operator-linux-${{TARGETARCH}} to /usr/local/bin/operator"
     );
     assert!(
         content.contains(r#"RUN ["/usr/local/bin/opr8r", "--version"]"#),

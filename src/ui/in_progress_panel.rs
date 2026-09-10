@@ -66,9 +66,21 @@ impl InProgressPanel {
                     match a.review_state.as_deref() {
                         Some("pending_plan") => ("\u{1f4cb}", Color::Yellow), // 📋 Plan review
                         Some("pending_visual") => ("\u{1f441}", Color::Magenta), // 👁 Visual review
+                        Some("pending_proof") => (
+                            "\u{1f52c}", // 🔬 Proof review
+                            // last_message is prefixed "Proof passed —" / "Proof FAILED (...) —" by sync/launch
+                            if a.last_message
+                                .as_deref()
+                                .is_some_and(|m| m.starts_with("Proof FAILED"))
+                            {
+                                Color::Red
+                            } else {
+                                Color::Green
+                            },
+                        ),
                         Some("pending_pr_creation") => ("\u{1f504}", Color::Blue), // 🔄 Creating PR
                         Some("pending_pr_merge") => ("\u{1f517}", Color::Cyan), // 🔗 Awaiting merge
-                        _ => ("⏸", Color::Yellow),                            // Standard awaiting
+                        _ => ("⏸", Color::Yellow),                              // Standard awaiting
                     }
                 } else {
                     match a.status.as_str() {
@@ -227,6 +239,7 @@ impl InProgressPanel {
                     let hint = match a.review_state.as_deref() {
                         Some("pending_plan") => Some("[a]pprove [r]eject plan"),
                         Some("pending_visual") => Some("[a]pprove [r]eject visual"),
+                        Some("pending_proof") => Some("[a]pprove [r]eject proof"),
                         Some("pending_pr_creation") => Some("Creating PR..."),
                         Some("pending_pr_merge") => {
                             if a.pr_url.is_some() {
@@ -329,6 +342,7 @@ mod tests {
 
     fn make_agent(id: &str, status: &str) -> AgentState {
         AgentState {
+            git_context: None,
             id: id.to_string(),
             ticket_id: format!("FEAT-{id}"),
             ticket_type: "FEAT".to_string(),

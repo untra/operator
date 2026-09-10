@@ -11,7 +11,7 @@ import { LaunchOptions, TicketInfo, ModelOption } from './types';
 import type { DelegatorResponse } from './generated/DelegatorResponse';
 import type { DelegatorsResponse } from './generated/DelegatorsResponse';
 import type { ModelServerModelsResponse } from './generated/ModelServerModelsResponse';
-import { discoverApiUrl } from './api-client';
+import { discoverApiUrl, OperatorApiClient } from './api-client';
 
 /**
  * Provider kind probed for the model fallback list when no delegators exist.
@@ -36,12 +36,9 @@ async function fetchDelegators(
   ticketsDir: string | undefined
 ): Promise<DelegatorResponse[]> {
   try {
-    const apiUrl = await discoverApiUrl(ticketsDir);
-    const response = await fetch(`${apiUrl}/api/v1/delegators`);
-    if (response.ok) {
-      const data = (await response.json()) as DelegatorsResponse;
-      return data.delegators;
-    }
+    const client = new OperatorApiClient(await discoverApiUrl(ticketsDir));
+    const data: DelegatorsResponse = await client.listDelegators();
+    return data.delegators;
   } catch {
     // API not available
   }
@@ -59,14 +56,8 @@ async function fetchFallbackModels(
   ticketsDir: string | undefined
 ): Promise<DelegatorPickItem[] | null> {
   try {
-    const apiUrl = await discoverApiUrl(ticketsDir);
-    const response = await fetch(
-      `${apiUrl}/api/v1/model-servers/kinds/${FALLBACK_MODEL_KIND}/models`
-    );
-    if (!response.ok) {
-      return null;
-    }
-    const data = (await response.json()) as ModelServerModelsResponse;
+    const client = new OperatorApiClient(await discoverApiUrl(ticketsDir));
+    const data: ModelServerModelsResponse = await client.providerModels(FALLBACK_MODEL_KIND);
     if (!data.reachable || data.models.length === 0) {
       return null;
     }
@@ -243,28 +234,21 @@ async function pickTarget(
   return choice.label.includes('Auto') ? undefined : choice.label;
 }
 
-/** Named targets from the server config: [[targets]] entries + [[hosts]] synths. */
+/** The implicit default; offering it as an override would be a no-op. */
+const LOCAL_TARGET = 'local';
+
+/**
+ * Named execution targets: [[targets]] entries, [[hosts]] synths, and docker
+ * when configured. Served by the read-scoped targets route rather than the
+ * admin-only configuration tree.
+ */
 async function fetchTargetNames(ticketsDir?: string): Promise<string[]> {
   try {
-    const apiUrl = await discoverApiUrl(ticketsDir);
-    const response = await fetch(`${apiUrl}/api/v1/configuration`);
-    if (!response.ok) {
-      return [];
-    }
-    const config = (await response.json()) as {
-      targets?: { name: string }[];
-      hosts?: { name: string }[];
-      launch?: { docker?: { enabled?: boolean; image?: string } };
-    };
-    const names = [
-      ...(config.targets ?? []).map((t) => t.name),
-      ...(config.hosts ?? []).map((h) => h.name),
-    ];
-    // The synthesized docker target is only worth offering when configured.
-    if (config.launch?.docker?.image) {
-      names.push('docker');
-    }
-    return names;
+    const client = new OperatorApiClient(await discoverApiUrl(ticketsDir));
+    const { targets } = await client.listExecutionTargets();
+    return targets
+      .filter((t) => t.name !== LOCAL_TARGET && t.available)
+      .map((t) => t.name);
   } catch {
     return [];
   }

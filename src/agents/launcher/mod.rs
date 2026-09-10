@@ -138,6 +138,7 @@ impl Launcher {
     /// Uses custom tmux config if it has been generated and exists.
     /// Also creates a cmux client if the wrapper type is Cmux.
     pub fn new(config: &Config) -> Result<Self> {
+        crate::git::runtime::reconcile_local(config);
         // Use custom tmux config if it exists
         let tmux: Arc<dyn TmuxClient> = if config.tmux.config_generated {
             let config_path = config.tmux_config_path();
@@ -261,6 +262,55 @@ impl Launcher {
         ticket: &Ticket,
         options: LaunchOptions,
     ) -> Result<String> {
+        let git = crate::git::identity::resolve_config(
+            &self.config,
+            ticket,
+            options.delegator_name.as_deref(),
+        )?;
+        if let Some(context) = &git {
+            let path = options
+                .project_override
+                .as_ref()
+                .map(|p| self.get_project_path_for(p))
+                .unwrap_or_else(|| self.get_project_path(ticket))?;
+            if context.credentials.is_some() {
+                let remote =
+                    crate::git::GitCli::get_remote_url(PathBuf::from(path).as_path()).await?;
+                crate::git::runtime::validate_remote(context, &remote)?;
+            }
+            crate::git::runtime::GitRuntime::create(context)?;
+        }
+        crate::git::runtime::scope(git, Box::pin(self.launch_with_git_context(ticket, options)))
+            .await
+    }
+
+    /// The git provider this project's pull requests will target, when it resolves
+    /// to one. Explicit `[git] provider` wins; otherwise it is detected from the
+    /// project's `origin` remote.
+    ///
+    /// `None` means Operator cannot tell which provider is in play, so no provider
+    /// CLI is required -- requiring one would block launches that never open a PR.
+    async fn resolve_git_provider(
+        config: &Config,
+        project_path: impl AsRef<std::path::Path>,
+    ) -> Option<crate::types::pr::GitProvider> {
+        if let Some(configured) = config.git.provider.clone() {
+            return Some(configured.into());
+        }
+        let hosts = crate::types::pr::ProviderHosts::from_config(&config.git).ok()?;
+        let url = crate::git::GitCli::get_remote_url(project_path.as_ref())
+            .await
+            .ok()?;
+        crate::types::pr::RepoInfo::from_remote_url_with_hosts(&url, &hosts)
+            .ok()
+            .map(|repo| repo.provider)
+    }
+
+    async fn launch_with_git_context(
+        &self,
+        ticket: &Ticket,
+        options: LaunchOptions,
+    ) -> Result<String> {
         let mut options = options;
         // Clone ticket so we can update worktree info
         let mut ticket = ticket.clone();
@@ -368,6 +418,12 @@ impl Launcher {
                 &ticket.id,
                 remote_url.as_deref(),
                 Some(&branch),
+                crate::git::identity::resolve_config(
+                    &self.config,
+                    ticket,
+                    options.delegator_name.as_deref(),
+                )?
+                .as_ref(),
             )?;
             options.api_url_override = coder_cfg.callback_url.clone().filter(|u| !u.is_empty());
             options.provisioned_host = Some(host);
@@ -386,15 +442,34 @@ impl Launcher {
         let agent_id = Uuid::new_v4().to_string();
 
         // Build operator environment variables for the terminal session
+        let step_name = if ticket.step.is_empty() {
+            "initial".to_string()
+        } else {
+            ticket.step.clone()
+        };
+        // Without this the agent cannot report step completion.
+        let callback_token =
+            crate::auth::callback::mint(&self.config, &ticket.id, &step_name, &agent_id)
+                .unwrap_or_else(|e| {
+                    tracing::error!(
+                        error = %e,
+                        ticket = %ticket.id,
+                        "failed to mint the agent callback token; step completion will be rejected"
+                    );
+                    String::new()
+                });
+
         let operator_env = prompt::OperatorEnvVars {
+            git_context: crate::git::identity::resolve_config(
+                &self.config,
+                ticket,
+                options.delegator_name.as_deref(),
+            )?,
             agent_id: agent_id.clone(),
             ticket_id: ticket.id.clone(),
             project: ticket.project.clone(),
-            step: if ticket.step.is_empty() {
-                "initial".to_string()
-            } else {
-                ticket.step.clone()
-            },
+            step: step_name,
+            callback_token,
             ui_url: format!(
                 "http://localhost:{}/#/agent/{}",
                 self.config.rest_api.port, agent_id
@@ -409,7 +484,8 @@ impl Launcher {
                 .provider
                 .as_ref()
                 .map_or("claude", |p| p.tool.as_str());
-            remote::run_preflight(&host, tool)?;
+            let git_provider = Self::resolve_git_provider(&self.config, &working_dir_str).await;
+            remote::run_preflight(&host, tool, git_provider)?;
         }
 
         // Dispatch based on session wrapper type
@@ -488,6 +564,7 @@ impl Launcher {
 
         // Store session name in state for later recovery
         state.update_agent_session(&agent_id, &session_name)?;
+        state.update_agent_git_context(&agent_id, operator_env.git_context)?;
 
         // Store session wrapper type
         state.update_agent_session_wrapper(&agent_id, wrapper_name)?;
@@ -1475,6 +1552,47 @@ impl Launcher {
     /// Used when a tmux session died but the ticket is still in progress.
     /// Can optionally resume from an existing Claude session ID.
     pub async fn relaunch(&self, ticket: &Ticket, options: RelaunchOptions) -> Result<String> {
+        let resolved = crate::git::identity::resolve_config(
+            &self.config,
+            ticket,
+            options.launch_options.delegator_name.as_deref(),
+        )?;
+        let git = if options.resume_session_id.is_some() {
+            State::load(&self.config)?
+                .agents
+                .iter()
+                .rev()
+                .find(|a| {
+                    a.ticket_id == ticket.id
+                        && a.current_step.as_deref().unwrap_or_default() == ticket.step
+                })
+                .map(|a| a.git_context.clone())
+                .unwrap_or(resolved)
+        } else {
+            resolved
+        };
+        if let Some(context) = &git {
+            if context.credentials.is_some() {
+                let remote = crate::git::GitCli::get_remote_url(
+                    PathBuf::from(self.get_project_path(ticket)?).as_path(),
+                )
+                .await?;
+                crate::git::runtime::validate_remote(context, &remote)?;
+            }
+            crate::git::runtime::GitRuntime::create(context)?;
+        }
+        crate::git::runtime::scope(
+            git,
+            Box::pin(self.relaunch_with_git_context(ticket, options)),
+        )
+        .await
+    }
+
+    async fn relaunch_with_git_context(
+        &self,
+        ticket: &Ticket,
+        options: RelaunchOptions,
+    ) -> Result<String> {
         let mut options = options;
         // Clone ticket so we can update worktree info if needed
         let mut ticket = ticket.clone();
@@ -1527,15 +1645,30 @@ impl Launcher {
         let agent_id = Uuid::new_v4().to_string();
 
         // Build operator environment variables for the terminal session
+        let step_name = if ticket.step.is_empty() {
+            "initial".to_string()
+        } else {
+            ticket.step.clone()
+        };
+        // Without this the agent cannot report step completion, so a failure to mint is logged loudly
+        let callback_token =
+            crate::auth::callback::mint(&self.config, &ticket.id, &step_name, &agent_id)
+                .unwrap_or_else(|e| {
+                    tracing::error!(
+                        error = %e,
+                        ticket = %ticket.id,
+                        "failed to mint the agent callback token; step completion will be rejected"
+                    );
+                    String::new()
+                });
+
         let operator_env = prompt::OperatorEnvVars {
+            git_context: crate::git::runtime::current(),
             agent_id: agent_id.clone(),
             ticket_id: ticket.id.clone(),
             project: ticket.project.clone(),
-            step: if ticket.step.is_empty() {
-                "initial".to_string()
-            } else {
-                ticket.step.clone()
-            },
+            step: step_name,
+            callback_token,
             ui_url: format!(
                 "http://localhost:{}/#/agent/{}",
                 self.config.rest_api.port, agent_id
@@ -1554,7 +1687,8 @@ impl Launcher {
                 .provider
                 .as_ref()
                 .map_or("claude", |p| p.tool.as_str());
-            remote::run_preflight(&host, tool)?;
+            let git_provider = Self::resolve_git_provider(&self.config, &working_dir_str).await;
+            remote::run_preflight(&host, tool, git_provider)?;
         }
 
         // Dispatch based on session wrapper type
@@ -1633,6 +1767,7 @@ impl Launcher {
 
         // Store session name in state for later recovery
         state.update_agent_session(&agent_id, &session_name)?;
+        state.update_agent_git_context(&agent_id, operator_env.git_context)?;
 
         // Store session wrapper type
         state.update_agent_session_wrapper(&agent_id, wrapper_name)?;

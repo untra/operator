@@ -10,7 +10,7 @@ use axum::{
 
 use crate::config::{
     agent_profile::{delegator_to_profile, profile_to_delegator, AgentProfile},
-    Config, Delegator, DelegatorLaunchConfig,
+    Delegator, DelegatorLaunchConfig,
 };
 use crate::rest::dto::{
     CreateDelegatorFromToolRequest, CreateDelegatorRequest, DelegatorLaunchConfigDto,
@@ -31,7 +31,7 @@ use crate::rest::state::ApiState;
 )]
 pub async fn list(State(state): State<ApiState>) -> Json<DelegatorsResponse> {
     let delegators: Vec<DelegatorResponse> = state
-        .config
+        .config()
         .delegators
         .iter()
         .map(delegator_to_response)
@@ -58,8 +58,8 @@ pub async fn get_one(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<DelegatorResponse>, ApiError> {
-    let delegator = state
-        .config
+    let config = state.config();
+    let delegator = config
         .delegators
         .iter()
         .find(|d| d.name == name)
@@ -84,15 +84,8 @@ pub async fn create(
     State(state): State<ApiState>,
     Json(req): Json<CreateDelegatorRequest>,
 ) -> Result<Json<DelegatorResponse>, ApiError> {
-    // Check for duplicate name
-    if state.config.delegators.iter().any(|d| d.name == req.name) {
-        return Err(ApiError::Conflict(format!(
-            "Delegator '{}' already exists",
-            req.name
-        )));
-    }
-
     let delegator = Delegator {
+        git: req.git,
         name: req.name,
         llm_tool: req.llm_tool,
         model: req.model,
@@ -106,14 +99,24 @@ pub async fn create(
         unmapped_core: None,
     };
 
-    // Read current config, add delegator, save
-    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
-    config.delegators.push(delegator.clone());
-    config
-        .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+    let response = state
+        .mutate_config(move |config| {
+            if config
+                .delegators
+                .iter()
+                .any(|existing| existing.name == delegator.name)
+            {
+                return Err(ApiError::Conflict(format!(
+                    "Delegator '{}' already exists",
+                    delegator.name
+                )));
+            }
+            config.delegators.push(delegator.clone());
+            Ok(delegator_to_response(&delegator))
+        })
+        .await?;
 
-    Ok(Json(delegator_to_response(&delegator)))
+    Ok(Json(response))
 }
 
 /// Delete a delegator by name
@@ -134,21 +137,17 @@ pub async fn delete(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<DelegatorResponse>, ApiError> {
-    // Find the delegator first for the response
-    let delegator = state
-        .config
-        .delegators
-        .iter()
-        .find(|d| d.name == name)
-        .ok_or_else(|| ApiError::NotFound(format!("Delegator '{name}' not found")))?;
-    let response = delegator_to_response(delegator);
-
-    // Read current config, remove delegator, save
-    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
-    config.delegators.retain(|d| d.name != name);
-    config
-        .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+    let response = state
+        .mutate_config(move |config| {
+            let position = config
+                .delegators
+                .iter()
+                .position(|delegator| delegator.name == name)
+                .ok_or_else(|| ApiError::NotFound(format!("Delegator '{name}' not found")))?;
+            let delegator = config.delegators.remove(position);
+            Ok(delegator_to_response(&delegator))
+        })
+        .await?;
 
     Ok(Json(response))
 }
@@ -190,6 +189,7 @@ fn launch_config_to_dto(lc: &DelegatorLaunchConfig) -> DelegatorLaunchConfigDto 
 /// Convert a Delegator config to a `DelegatorResponse` DTO
 fn delegator_to_response(d: &Delegator) -> DelegatorResponse {
     DelegatorResponse {
+        git: d.git.clone(),
         name: d.name.clone(),
         llm_tool: d.llm_tool.clone(),
         model: d.model.clone(),
@@ -220,57 +220,53 @@ pub async fn create_from_tool(
     State(state): State<ApiState>,
     Json(req): Json<CreateDelegatorFromToolRequest>,
 ) -> Result<Json<DelegatorResponse>, ApiError> {
-    // Find the detected tool
-    let tool = state
-        .config
-        .llm_tools
-        .detected
-        .iter()
-        .find(|t| t.name == req.tool_name)
-        .ok_or_else(|| ApiError::NotFound(format!("Tool '{}' not detected", req.tool_name)))?;
+    let response = state
+        .mutate_config(move |config| {
+            let tool = config
+                .llm_tools
+                .detected
+                .iter()
+                .find(|tool| tool.name == req.tool_name)
+                .ok_or_else(|| {
+                    ApiError::NotFound(format!("Tool '{}' not detected", req.tool_name))
+                })?;
+            let model = req.model.unwrap_or_else(|| {
+                tool.model_aliases
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "default".to_string())
+            });
+            let name = req.name.unwrap_or_else(|| format!("{}-{model}", tool.name));
+            if config
+                .delegators
+                .iter()
+                .any(|delegator| delegator.name == name)
+            {
+                return Err(ApiError::Conflict(format!(
+                    "Delegator '{name}' already exists"
+                )));
+            }
 
-    // Resolve model (explicit or first alias or "default")
-    let model = req.model.unwrap_or_else(|| {
-        tool.model_aliases
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "default".to_string())
-    });
+            let delegator = Delegator {
+                git: req.git,
+                name,
+                llm_tool: tool.name.clone(),
+                model,
+                display_name: req.display_name,
+                model_properties: std::collections::HashMap::new(),
+                model_server: req.model_server,
+                launch_config: req.launch_config.map(dto_to_launch_config),
+                remote_agent: None,
+                x_agnt: None,
+                x_openai: None,
+                unmapped_core: None,
+            };
+            config.delegators.push(delegator.clone());
+            Ok(delegator_to_response(&delegator))
+        })
+        .await?;
 
-    // Auto-generate name if not provided
-    let name = req
-        .name
-        .unwrap_or_else(|| format!("{}-{}", tool.name, model));
-
-    // Check for duplicate
-    if state.config.delegators.iter().any(|d| d.name == name) {
-        return Err(ApiError::Conflict(format!(
-            "Delegator '{name}' already exists"
-        )));
-    }
-
-    let delegator = Delegator {
-        name,
-        llm_tool: tool.name.clone(),
-        model,
-        display_name: req.display_name,
-        model_properties: std::collections::HashMap::new(),
-        model_server: req.model_server.clone(),
-        launch_config: req.launch_config.map(dto_to_launch_config),
-        remote_agent: None,
-        x_agnt: None,
-        x_openai: None,
-        unmapped_core: None,
-    };
-
-    // Save to config
-    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
-    config.delegators.push(delegator.clone());
-    config
-        .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
-
-    Ok(Json(delegator_to_response(&delegator)))
+    Ok(Json(response))
 }
 
 /// Update an existing delegator
@@ -293,39 +289,33 @@ pub async fn update(
     Path(name): Path<String>,
     Json(req): Json<CreateDelegatorRequest>,
 ) -> Result<Json<DelegatorResponse>, ApiError> {
-    // Verify the delegator exists, and capture its opaque AGNT carry-fields so an
-    // update through the (AGNT-unaware) request DTO doesn't drop them.
-    let existing = state
-        .config
-        .delegators
-        .iter()
-        .find(|d| d.name == name)
-        .ok_or_else(|| ApiError::NotFound(format!("Delegator '{name}' not found")))?;
+    let response = state
+        .mutate_config(move |config| {
+            let existing = config
+                .delegators
+                .iter_mut()
+                .find(|delegator| delegator.name == name)
+                .ok_or_else(|| ApiError::NotFound(format!("Delegator '{name}' not found")))?;
+            let updated = Delegator {
+                git: req.git,
+                name,
+                llm_tool: req.llm_tool,
+                model: req.model,
+                display_name: req.display_name,
+                model_properties: req.model_properties,
+                model_server: req.model_server,
+                launch_config: req.launch_config.map(dto_to_launch_config),
+                remote_agent: req.remote_agent,
+                x_agnt: existing.x_agnt.clone(),
+                x_openai: existing.x_openai.clone(),
+                unmapped_core: existing.unmapped_core.clone(),
+            };
+            *existing = updated;
+            Ok(delegator_to_response(existing))
+        })
+        .await?;
 
-    let updated = Delegator {
-        name: name.clone(),
-        llm_tool: req.llm_tool,
-        model: req.model,
-        display_name: req.display_name,
-        model_properties: req.model_properties,
-        model_server: req.model_server,
-        launch_config: req.launch_config.map(dto_to_launch_config),
-        remote_agent: req.remote_agent,
-        x_agnt: existing.x_agnt.clone(),
-        x_openai: existing.x_openai.clone(),
-        unmapped_core: existing.unmapped_core.clone(),
-    };
-
-    // Replace in config and save
-    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
-    if let Some(existing) = config.delegators.iter_mut().find(|d| d.name == name) {
-        *existing = updated.clone();
-    }
-    config
-        .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
-
-    Ok(Json(delegator_to_response(&updated)))
+    Ok(Json(response))
 }
 
 /// Export a delegator as a portable `AgentProfile` (`agent-profile.json`).
@@ -350,8 +340,8 @@ pub async fn export_profile(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<AgentProfile>, ApiError> {
-    let delegator = state
-        .config
+    let config = state.config();
+    let delegator = config
         .delegators
         .iter()
         .find(|d| d.name == name)
@@ -379,27 +369,26 @@ pub async fn import_profile(
     State(state): State<ApiState>,
     Json(profile): Json<AgentProfile>,
 ) -> Result<Json<DelegatorResponse>, ApiError> {
-    if state
-        .config
-        .delegators
-        .iter()
-        .any(|d| d.name == profile.name)
-    {
-        return Err(ApiError::Conflict(format!(
-            "Delegator '{}' already exists",
-            profile.name
-        )));
-    }
-
     let delegator = profile_to_delegator(&profile);
 
-    let mut config = Config::load(None).unwrap_or_else(|_| (*state.config).clone());
-    config.delegators.push(delegator.clone());
-    config
-        .save()
-        .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+    let response = state
+        .mutate_config(move |config| {
+            if config
+                .delegators
+                .iter()
+                .any(|existing| existing.name == delegator.name)
+            {
+                return Err(ApiError::Conflict(format!(
+                    "Delegator '{}' already exists",
+                    delegator.name
+                )));
+            }
+            config.delegators.push(delegator.clone());
+            Ok(delegator_to_response(&delegator))
+        })
+        .await?;
 
-    Ok(Json(delegator_to_response(&delegator)))
+    Ok(Json(response))
 }
 
 #[cfg(test)]
@@ -422,6 +411,7 @@ mod tests {
     async fn test_list_with_delegators() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            git: None,
             name: "test-delegator".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),
@@ -454,6 +444,7 @@ mod tests {
     async fn test_get_one_found() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            git: None,
             name: "my-delegator".to_string(),
             llm_tool: "codex".to_string(),
             model: "gpt-4o".to_string(),
@@ -485,6 +476,7 @@ mod tests {
     async fn test_get_one_with_extended_launch_config() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            git: None,
             name: "full-config".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),
@@ -532,6 +524,7 @@ mod tests {
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
         let req = crate::rest::dto::CreateDelegatorFromToolRequest {
+            git: None,
             tool_name: "nonexistent".to_string(),
             model: None,
             name: None,
@@ -548,6 +541,7 @@ mod tests {
     async fn export_profile_returns_agent_profile() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            git: None,
             name: "claude-opus".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),
@@ -582,6 +576,7 @@ mod tests {
         // covered by the unit tests in `config::agent_profile`.
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            git: None,
             name: "dup".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),

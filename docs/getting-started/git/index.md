@@ -16,10 +16,15 @@ All providers require:
 
 ## Available Integrations
 
+Statuses follow the [feature maturity](/maturity/) scale; see
+[Provider Support](/getting-started/git/provider-support/) for the full tier
+table and architecture.
+
 | Platform | Status | CLI Tool | Notes |
 |----------|--------|----------|-------|
-| [GitHub](/getting-started/git/github/) | Supported | `gh` | Full PR integration |
-| [GitLab](/getting-started/git/gitlab/) | Partial | `glab` | Detection and config ready; MR operations planned |
+| [GitHub](/getting-started/git/github/) | Beta | `gh` | Full PR integration |
+| [GitLab](/getting-started/git/gitlab/) | Alpha | `glab` | Full MR integration |
+| [Gitea](/getting-started/git/gitea/) | Alpha | `tea` | Full PR integration via `tea api` |
 
 ## Provider Auto-Detection
 
@@ -27,7 +32,7 @@ Operator detects your Git provider from the remote URL automatically. You can ov
 
 ```toml
 [git]
-provider = "github"   # or "gitlab"
+provider = "github"   # or "gitlab", "gitea"
 ```
 
 ## Shared Git Configuration
@@ -62,7 +67,7 @@ Even without platform integration, Operator manages local Git operations:
 - Branch cleanup after completion
 - Worktree management for parallel development
 
-Local git operations require only the `git` binary—no provider CLI or tokens needed.
+Local git operations require only the `git` binary-no provider CLI or tokens needed.
 
 ## Adding Provider Support
 

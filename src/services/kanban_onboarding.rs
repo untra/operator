@@ -321,6 +321,7 @@ pub async fn list_statuses(
 /// `Config::operator_config_path()` (which is what production uses).
 /// When `Some`, the config is loaded from and saved to that path instead
 /// (used by unit tests).
+#[allow(dead_code)]
 pub fn write_config(
     req: WriteKanbanConfigRequest,
     config_override_path: Option<&PathBuf>,
@@ -333,6 +334,32 @@ pub fn write_config(
         None => Config::load(None).unwrap_or_default(),
     };
 
+    let section_header = apply_config_request(&mut config, req)?;
+
+    let written_path = if let Some(p) = config_override_path {
+        save_config_to_path(&config, p)
+            .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+        p.display().to_string()
+    } else {
+        config
+            .save()
+            .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
+        Config::operator_config_path().display().to_string()
+    };
+
+    info!(section = %section_header, "Wrote kanban config section");
+
+    Ok(WriteKanbanConfigResponse {
+        written_path,
+        section_header,
+    })
+}
+
+/// Apply a validated onboarding request to an existing configuration.
+pub fn apply_config_request(
+    config: &mut Config,
+    req: WriteKanbanConfigRequest,
+) -> Result<String, ApiError> {
     let section_header = match req.provider {
         KanbanProviderKind::Jira => {
             let body = req.jira.ok_or_else(|| {
@@ -386,27 +413,11 @@ pub fn write_config(
             format!("[kanban.openspec.\"{}\"]", body.instance)
         }
     };
-
-    let written_path = if let Some(p) = config_override_path {
-        save_config_to_path(&config, p)
-            .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
-        p.display().to_string()
-    } else {
-        config
-            .save()
-            .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
-        Config::operator_config_path().display().to_string()
-    };
-
-    info!(section = %section_header, "Wrote kanban config section");
-
-    Ok(WriteKanbanConfigResponse {
-        written_path,
-        section_header,
-    })
+    Ok(section_header)
 }
 
 /// Test-only helper: load a Config from an explicit TOML path.
+#[allow(dead_code)]
 fn load_config_from_path(path: &PathBuf) -> anyhow::Result<Config> {
     let raw = std::fs::read_to_string(path)?;
     let cfg: Config = toml::from_str(&raw)?;
@@ -414,6 +425,7 @@ fn load_config_from_path(path: &PathBuf) -> anyhow::Result<Config> {
 }
 
 /// Test-only helper: save a Config to an explicit TOML path.
+#[allow(dead_code)]
 fn save_config_to_path(config: &Config, path: &PathBuf) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;

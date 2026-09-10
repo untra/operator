@@ -7,6 +7,8 @@ on:
     paths:
       - 'docs/**'
       - 'src/docs_gen/**'
+      - 'src/rest/**'
+      - 'src/auth/**'
       - 'src/taxonomy/taxonomy.toml'
       - 'src/templates/*.json'
       - 'src/collections/**'

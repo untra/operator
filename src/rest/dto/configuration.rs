@@ -100,6 +100,9 @@ pub struct SkillsResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct DelegatorResponse {
+    /// Optional Git identity, HTTPS credential reference, and runtime settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git: Option<crate::config::GitExecutionConfig>,
     /// Unique name
     pub name: String,
     /// LLM tool name (e.g., "claude")
@@ -127,6 +130,9 @@ pub struct DelegatorResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateDelegatorRequest {
+    /// Optional Git identity, HTTPS credential reference, and runtime settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git: Option<crate::config::GitExecutionConfig>,
     /// Unique name for the delegator
     pub name: String,
     /// LLM tool name (must match a detected tool)
@@ -213,6 +219,9 @@ pub struct DelegatorsResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateDelegatorFromToolRequest {
+    /// Optional Git identity, HTTPS credential reference, and runtime settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git: Option<crate::config::GitExecutionConfig>,
     /// Name of the detected tool (e.g., "claude", "codex", "gemini")
     pub tool_name: String,
     /// Model alias to use (e.g., "opus"). If omitted, uses the tool's first model alias.
@@ -387,7 +396,7 @@ pub struct ModelServerModelsResponse {
 #[ts(export)]
 pub struct LlmToolsResponse {
     /// Detected CLI tools with model aliases and capabilities
-    pub tools: Vec<crate::config::DetectedTool>,
+    pub tools: Vec<DetectedToolSummary>,
     /// Total count
     pub total: usize,
 }
@@ -410,6 +419,295 @@ pub struct DefaultLlmResponse {
     pub tool: String,
     /// Default model alias (empty string if not set)
     pub model: String,
+}
+
+// =============================================================================
+// Public operational configuration
+// =============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(deny_unknown_fields)]
+pub struct AgentsConfiguration {
+    pub max_parallel: usize,
+    pub cores_reserved: usize,
+    pub max_agents_per_repo: usize,
+    pub health_check_interval: u64,
+    pub generation_timeout_secs: u64,
+    pub sync_interval: u64,
+    pub step_timeout: u64,
+    pub silence_threshold: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(deny_unknown_fields)]
+pub struct QueueConfiguration {
+    pub auto_assign: bool,
+    pub priority_order: Vec<String>,
+    pub poll_interval_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(deny_unknown_fields)]
+pub struct PanelNamesConfiguration {
+    pub status: String,
+    pub queue: String,
+    pub in_progress: String,
+    pub completed: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(deny_unknown_fields)]
+pub struct UiConfiguration {
+    pub refresh_rate_ms: u64,
+    pub completed_history_hours: u64,
+    pub summary_max_length: usize,
+    pub panel_names: PanelNamesConfiguration,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(rename_all = "lowercase")]
+pub enum SessionWrapper {
+    Tmux,
+    Vscode,
+    Cmux,
+    Zellij,
+}
+
+impl From<crate::config::SessionWrapperType> for SessionWrapper {
+    fn from(value: crate::config::SessionWrapperType) -> Self {
+        match value {
+            crate::config::SessionWrapperType::Tmux => Self::Tmux,
+            crate::config::SessionWrapperType::Vscode => Self::Vscode,
+            crate::config::SessionWrapperType::Cmux => Self::Cmux,
+            crate::config::SessionWrapperType::Zellij => Self::Zellij,
+        }
+    }
+}
+
+impl From<SessionWrapper> for crate::config::SessionWrapperType {
+    fn from(value: SessionWrapper) -> Self {
+        match value {
+            SessionWrapper::Tmux => Self::Tmux,
+            SessionWrapper::Vscode => Self::Vscode,
+            SessionWrapper::Cmux => Self::Cmux,
+            SessionWrapper::Zellij => Self::Zellij,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(deny_unknown_fields)]
+pub struct LaunchConfiguration {
+    pub confirm_autonomous: bool,
+    pub confirm_paired: bool,
+    pub launch_delay_ms: u64,
+    pub docker_enabled: bool,
+    pub docker_image: String,
+    pub yolo_enabled: bool,
+    pub session_wrapper: SessionWrapper,
+}
+
+/// The deliberately supported, integration-safe configuration surface.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(deny_unknown_fields)]
+pub struct ConfigurationResponse {
+    pub agents: AgentsConfiguration,
+    pub queue: QueueConfiguration,
+    pub ui: UiConfiguration,
+    pub launch: LaunchConfiguration,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(default, deny_unknown_fields)]
+pub struct AgentsConfigurationPatch {
+    pub max_parallel: Option<usize>,
+    pub cores_reserved: Option<usize>,
+    pub max_agents_per_repo: Option<usize>,
+    pub health_check_interval: Option<u64>,
+    pub generation_timeout_secs: Option<u64>,
+    pub sync_interval: Option<u64>,
+    pub step_timeout: Option<u64>,
+    pub silence_threshold: Option<u64>,
+}
+
+impl AgentsConfigurationPatch {
+    fn is_empty(&self) -> bool {
+        self.max_parallel.is_none()
+            && self.cores_reserved.is_none()
+            && self.max_agents_per_repo.is_none()
+            && self.health_check_interval.is_none()
+            && self.generation_timeout_secs.is_none()
+            && self.sync_interval.is_none()
+            && self.step_timeout.is_none()
+            && self.silence_threshold.is_none()
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(default, deny_unknown_fields)]
+pub struct QueueConfigurationPatch {
+    pub auto_assign: Option<bool>,
+    pub priority_order: Option<Vec<String>>,
+    pub poll_interval_ms: Option<u64>,
+}
+
+impl QueueConfigurationPatch {
+    fn is_empty(&self) -> bool {
+        self.auto_assign.is_none()
+            && self.priority_order.is_none()
+            && self.poll_interval_ms.is_none()
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(default, deny_unknown_fields)]
+pub struct PanelNamesConfigurationPatch {
+    pub status: Option<String>,
+    pub queue: Option<String>,
+    pub in_progress: Option<String>,
+    pub completed: Option<String>,
+}
+
+impl PanelNamesConfigurationPatch {
+    fn is_empty(&self) -> bool {
+        self.status.is_none()
+            && self.queue.is_none()
+            && self.in_progress.is_none()
+            && self.completed.is_none()
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(default, deny_unknown_fields)]
+pub struct UiConfigurationPatch {
+    pub refresh_rate_ms: Option<u64>,
+    pub completed_history_hours: Option<u64>,
+    pub summary_max_length: Option<usize>,
+    pub panel_names: Option<PanelNamesConfigurationPatch>,
+}
+
+impl UiConfigurationPatch {
+    fn is_empty(&self) -> bool {
+        self.refresh_rate_ms.is_none()
+            && self.completed_history_hours.is_none()
+            && self.summary_max_length.is_none()
+            && self
+                .panel_names
+                .as_ref()
+                .is_none_or(PanelNamesConfigurationPatch::is_empty)
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(default, deny_unknown_fields)]
+pub struct LaunchConfigurationPatch {
+    pub confirm_autonomous: Option<bool>,
+    pub confirm_paired: Option<bool>,
+    pub launch_delay_ms: Option<u64>,
+    pub docker_enabled: Option<bool>,
+    pub docker_image: Option<String>,
+    pub yolo_enabled: Option<bool>,
+    pub session_wrapper: Option<SessionWrapper>,
+}
+
+impl LaunchConfigurationPatch {
+    fn is_empty(&self) -> bool {
+        self.confirm_autonomous.is_none()
+            && self.confirm_paired.is_none()
+            && self.launch_delay_ms.is_none()
+            && self.docker_enabled.is_none()
+            && self.docker_image.is_none()
+            && self.yolo_enabled.is_none()
+            && self.session_wrapper.is_none()
+    }
+}
+
+/// Field-level patch for the public operational configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(default, deny_unknown_fields)]
+pub struct UpdateConfigurationRequest {
+    pub agents: Option<AgentsConfigurationPatch>,
+    pub queue: Option<QueueConfigurationPatch>,
+    pub ui: Option<UiConfigurationPatch>,
+    pub launch: Option<LaunchConfigurationPatch>,
+}
+
+impl UpdateConfigurationRequest {
+    pub fn is_empty(&self) -> bool {
+        self.agents
+            .as_ref()
+            .is_none_or(AgentsConfigurationPatch::is_empty)
+            && self
+                .queue
+                .as_ref()
+                .is_none_or(QueueConfigurationPatch::is_empty)
+            && self.ui.as_ref().is_none_or(UiConfigurationPatch::is_empty)
+            && self
+                .launch
+                .as_ref()
+                .is_none_or(LaunchConfigurationPatch::is_empty)
+    }
+}
+
+/// Public view of a detected agent tool without local paths or command flags.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct DetectedToolSummary {
+    pub name: String,
+    pub version: String,
+    pub min_version: Option<String>,
+    pub version_ok: bool,
+    pub model_aliases: Vec<String>,
+    pub capabilities: ToolCapabilitiesSummary,
+    pub health_ok: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ToolCapabilitiesSummary {
+    pub supports_sessions: bool,
+    pub supports_headless: bool,
+}
+
+/// Execution target transport category.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+#[serde(rename_all = "lowercase")]
+pub enum ExecutionTargetKind {
+    Local,
+    Docker,
+    Coder,
+    Ssh,
+}
+
+/// A named execution target without connection or credential plumbing.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ExecutionTargetSummary {
+    pub name: String,
+    pub display_name: Option<String>,
+    pub kind: ExecutionTargetKind,
+    pub available: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ExecutionTargetsResponse {
+    pub targets: Vec<ExecutionTargetSummary>,
+    pub total: usize,
 }
 
 #[cfg(test)]
@@ -453,6 +751,7 @@ mod tests {
     #[test]
     fn test_delegator_response_roundtrip() {
         let resp = DelegatorResponse {
+            git: None,
             name: "claude-opus".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),

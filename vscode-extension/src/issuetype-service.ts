@@ -7,6 +7,7 @@
  */
 
 import * as vscode from 'vscode';
+import { ApiError, OperatorApiClient } from './api-client';
 import { IssueTypeSummary } from './generated';
 
 /**
@@ -139,16 +140,7 @@ export class IssueTypeService {
    */
   async refresh(): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/issuetypes`);
-
-      if (!response.ok) {
-        this.outputChannel.appendLine(
-          `[IssueTypeService] Failed to fetch issue types: ${response.status}`
-        );
-        return;
-      }
-
-      const data = (await response.json()) as IssueTypeSummary[];
+      const data = await new OperatorApiClient(this.baseUrl).listIssueTypes();
 
       // Clear and reload
       this.types.clear();
@@ -159,8 +151,14 @@ export class IssueTypeService {
       this.outputChannel.appendLine(
         `[IssueTypeService] Loaded ${data.length} issue types from API`
       );
-    } catch {
-      // API not available - keep using defaults
+    } catch (err) {
+      // Keep using defaults either way; the log line says which failure it was.
+      if (err instanceof ApiError) {
+        this.outputChannel.appendLine(
+          `[IssueTypeService] Failed to fetch issue types: ${err.status}`
+        );
+        return;
+      }
       this.outputChannel.appendLine(
         `[IssueTypeService] API unavailable, using ${this.types.size} default types`
       );

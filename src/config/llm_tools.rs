@@ -151,6 +151,9 @@ pub struct RemoteAgentRef {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct Delegator {
+    /// Optional Git identity, HTTPS credential reference, and runtime settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git: Option<crate::config::GitExecutionConfig>,
     /// Unique name for this delegator (e.g., "claude-opus-auto")
     pub name: String,
     /// LLM tool name (must match a detected tool, e.g., "claude", "codex")
@@ -344,6 +347,7 @@ mod tests {
     #[test]
     fn delegator_serializes_omits_none_new_fields() {
         let d = Delegator {
+            git: None,
             name: "claude-opus".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),

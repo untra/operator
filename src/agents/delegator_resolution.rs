@@ -426,6 +426,7 @@ mod tests {
 
     fn make_delegator(name: &str, tool: &str, model: &str) -> Delegator {
         Delegator {
+            git: None,
             name: name.to_string(),
             llm_tool: tool.to_string(),
             model: model.to_string(),
@@ -722,6 +723,7 @@ mod tests {
     fn test_resolve_delegator_applies_launch_config() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            git: None,
             name: "full".to_string(),
             llm_tool: "claude".to_string(),
             model: "opus".to_string(),

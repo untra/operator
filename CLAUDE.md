@@ -15,7 +15,8 @@
 
 ## Code Style
 Aim for functional software development with a focus on stateless, single responsibility focus.
-Minimize use of comments; they should be terse and used judiciously, ideally one sentence tops.
+ABSOLUTELY NO UNNECESSARY CODE COMMENTS WITHIN FUNCTIONS OR CONFIGURATION.
+Minimize use of comments entirely; they should be terse and used judiciously, ideally one line tops.
 Data types come from rust; typescript and docs binds are generated from low-level rust types annotated with comments that embed as descriptions into configuration and reference files.
 Favor falsey defaults ; lets aim not to enforce `default=true` or some other javascript-truthy default value.
 
@@ -273,7 +274,7 @@ All generated files include a header warning:
 
 1. Create a struct implementing `DocGenerator` trait in `src/docs_gen/`
 2. Implement `name()`, `source()`, `output_path()`, and `generate()`
-3. Register it in `src/docs_gen/mod.rs` `all_generators()` — that one list drives
+3. Register it in `src/docs_gen/mod.rs` `all_generators()` - that one list drives
    the full run, the `--only` filter, and the CLI help text, so there is nothing
    to add in `src/main.rs`
 
@@ -281,10 +282,10 @@ All generated files include a header warning:
 
 Operator presents one brand (terracotta + cornflower + cream over a green
 scale) across **four rendering surfaces**. Keep them consistent by following the
-rule that fits each surface — they are deliberately *not* all styled the same
+rule that fits each surface - they are deliberately *not* all styled the same
 way. Full details and swatches live in `docs/design-system/` (`/design-system/`).
 
-**Brand source of truth:** `docs/assets/css/tokens.css` — the only place the
+**Brand source of truth:** `docs/assets/css/tokens.css` - the only place the
 brand hex values + dark-mode overrides are declared. Both web surfaces consume
 it; never re-declare a brand color elsewhere.
 
@@ -292,14 +293,14 @@ it; never re-declare a brand color elsewhere.
 |---------|-------|------|
 | Docs site (Jekyll) | `docs/assets/css/main.css` | Links `tokens.css` (via `_includes/head.html`); style components with `var(--...)`, never raw hex. |
 | Embedded SPA (Vite/React) | `ui/src/index.css` + `*.module.css` | Imports `tokens.css`; layers app-only semantic tokens (`--surface`, `--border`, `--danger`, …) on top. Components reference semantic tokens, not raw hex. |
-| Ratatui TUI | `src/ui/*.rs` | Terminal can't render hex — match a **semantic role to ANSI** (danger→Red, success→Green, warning→Yellow, focus→Cyan). Reuse `color_for_key`/`glyph_for_key` from `src/templates/mod.rs`; don't re-hardcode issuetype/priority colors. |
-| VS Code webview | `vscode-extension/webview-ui/` | **Defer to the VS Code host theme**: style with raw `var(--vscode-*)` custom properties (`styles/webview.css` + `components/primitives/`). Apply brand only as accents via the `--op-*` variables; never override the user's editor theme wholesale. No MUI/CSS-in-JS — enforced by `tests/ui_packaging.rs`. |
+| Ratatui TUI | `src/ui/*.rs` | Terminal can't render hex - match a **semantic role to ANSI** (danger→Red, success→Green, warning→Yellow, focus→Cyan). Reuse `color_for_key`/`glyph_for_key` from `src/templates/mod.rs`; don't re-hardcode issuetype/priority colors. |
+| VS Code webview | `vscode-extension/webview-ui/` | **Defer to the VS Code host theme**: style with raw `var(--vscode-*)` custom properties (`styles/webview.css` + `components/primitives/`). Apply brand only as accents via the `--op-*` variables; never override the user's editor theme wholesale. No MUI/CSS-in-JS - enforced by `tests/ui_packaging.rs`. |
 
 When adding or changing UI: change a brand color in `tokens.css` (web surfaces
 follow automatically); reference semantic tokens in new web CSS; map a role to
 ANSI in the TUI; and leave the webview deferring to the editor theme.
 
-**Icons.** Every SVG icon follows the Operator icon standard — a single
+**Icons.** Every SVG icon follows the Operator icon standard - a single
 monochrome `<path>` on a 24×24 canvas with no `fill`/`stroke`/`width`/`height`,
 so it tints from `currentColor` and sizes to its container on all four
 surfaces. Governed directories: `icons/`, `docs/assets/icons/`,

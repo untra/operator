@@ -10,10 +10,10 @@ Operator integrates with many providers and tools across several **verticals**. 
 
 ## Support levels
 
-- ![GA](https://img.shields.io/badge/GA-1BB91F) — Generally available and supported.
-- ![Beta](https://img.shields.io/badge/Beta-E8A33D) — Stable-ish and hardening toward general availability.
-- ![Alpha](https://img.shields.io/badge/Alpha-6495ED) — Usable, but expect breaking changes. Advertised with caveats.
-- ![Proto](https://img.shields.io/badge/Proto-6B7280) — Experimental — present in code with no guarantees. Not advertised yet.
+- ![GA](https://img.shields.io/badge/GA-1BB91F) - Generally available and supported.
+- ![Beta](https://img.shields.io/badge/Beta-E8A33D) - Stable-ish and hardening toward general availability.
+- ![Alpha](https://img.shields.io/badge/Alpha-6495ED) - Usable, but expect breaking changes. Advertised with caveats.
+- ![Proto](https://img.shields.io/badge/Proto-6B7280) - Experimental - present in code with no guarantees. Not advertised yet.
 
 ## Kanban Provider
 
@@ -33,8 +33,8 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Google | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Google](https://operator.untra.io/getting-started/model-servers/google/) |
 | Ollama | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Ollama](https://operator.untra.io/getting-started/model-servers/ollama/) |
 | OpenRouter | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [OpenRouter](https://operator.untra.io/getting-started/model-servers/openrouter/) |
-| OpenAI-compatible | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
-| LM Studio | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
+| OpenAI-compatible | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
+| LM Studio | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
 
 ## Git Version Control
 
@@ -42,10 +42,10 @@ Operator integrates with many providers and tools across several **verticals**. 
 |---|---|---|
 | GitHub | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [GitHub](https://operator.untra.io/getting-started/git/github/) |
 | GitLab | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [GitLab](https://operator.untra.io/getting-started/git/gitlab/) |
-| Bitbucket | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
-| Azure DevOps | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
-| Forgejo | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
-| Gitea | ![Proto](https://img.shields.io/badge/Proto-6B7280) | — |
+| Bitbucket | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
+| Azure DevOps | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
+| Forgejo | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
+| Gitea | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
 
 ## Session
 
@@ -77,6 +77,7 @@ Operator integrates with many providers and tools across several **verticals**. 
 |---|---|---|
 | Docker | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Docker](https://operator.untra.io/getting-started/platforms/docker/) |
 | Coder | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Coder](https://operator.untra.io/getting-started/platforms/coder/) |
+| Kubernetes | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Kubernetes](https://operator.untra.io/getting-started/platforms/kubernetes/) |
 
 ## Integration
 

@@ -9,6 +9,7 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::rest::dto::auth::Scope;
 use crate::rest::dto::{LaunchTicketRequest, RejectReviewRequest};
 use crate::rest::routes;
 use crate::rest::state::ApiState;
@@ -251,19 +252,27 @@ pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
     ]
 }
 
-fn require_write_tools(state: &ApiState) -> Result<(), String> {
-    if state.config.mcp.expose_ticket_write_tools {
-        Ok(())
-    } else {
-        Err(
+/// Gate the ticket-mutating tools.
+fn require_write_tools(state: &ApiState, scopes: &[Scope]) -> Result<(), String> {
+    if !scopes.contains(&Scope::Write) {
+        return Err("This tool requires the `write` scope".to_string());
+    }
+    if !state.config().mcp.expose_ticket_write_tools {
+        return Err(
             "Ticket write tools disabled in config ([mcp].expose_ticket_write_tools = true to enable)"
                 .to_string(),
-        )
+        );
     }
+    Ok(())
 }
 
 /// Execute an MCP tool by name with the given arguments
-pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<Value, String> {
+pub async fn execute_tool(
+    name: &str,
+    args: Value,
+    state: &ApiState,
+    scopes: &[Scope],
+) -> Result<Value, String> {
     match name {
         "operator_health" => {
             let resp = routes::health::health(State(state.clone())).await;
@@ -331,23 +340,23 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
         }
         "operator_list_tickets" => crate::mcp::tickets::list_tickets(args, state).await,
         "operator_claim_ticket" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             crate::mcp::tickets::claim_ticket(args, state).await
         }
         "operator_complete_ticket" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             crate::mcp::tickets::complete_ticket(args, state).await
         }
         "operator_return_to_queue" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             crate::mcp::tickets::return_to_queue(args, state).await
         }
         "operator_create_ticket" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             crate::mcp::tickets::create_ticket(args, state).await
         }
         "operator_launch_ticket" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             let id = args
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -383,7 +392,7 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
             }
         }
         "operator_pause_queue" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             let result = routes::queue::pause(State(state.clone())).await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
@@ -391,7 +400,7 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
             }
         }
         "operator_resume_queue" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             let result = routes::queue::resume(State(state.clone())).await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
@@ -399,7 +408,7 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
             }
         }
         "operator_sync_kanban" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             let result = routes::queue::sync(State(state.clone())).await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
@@ -407,7 +416,7 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
             }
         }
         "operator_approve_agent" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             let id = args
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -420,7 +429,7 @@ pub async fn execute_tool(name: &str, args: Value, state: &ApiState) -> Result<V
             }
         }
         "operator_reject_agent" => {
-            require_write_tools(state)?;
+            require_write_tools(state, scopes)?;
             let id = args
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -522,7 +531,7 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_health", json!({}), &state).await;
+        let result = execute_tool("operator_health", json!({}), &state, &Scope::ALL).await;
         assert!(result.is_ok());
 
         let value = result.unwrap();
@@ -534,7 +543,7 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_status", json!({}), &state).await;
+        let result = execute_tool("operator_status", json!({}), &state, &Scope::ALL).await;
         assert!(result.is_ok());
 
         let value = result.unwrap();
@@ -546,7 +555,8 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_list_issue_types", json!({}), &state).await;
+        let result =
+            execute_tool("operator_list_issue_types", json!({}), &state, &Scope::ALL).await;
         assert!(result.is_ok());
 
         let value = result.unwrap();
@@ -559,7 +569,7 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_get_issue_type", json!({}), &state).await;
+        let result = execute_tool("operator_get_issue_type", json!({}), &state, &Scope::ALL).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Missing required parameter"));
     }
@@ -569,7 +579,7 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("nonexistent_tool", json!({}), &state).await;
+        let result = execute_tool("nonexistent_tool", json!({}), &state, &Scope::ALL).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Unknown tool"));
     }
@@ -581,7 +591,13 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_launch_ticket", json!({"id": "FEAT-1"}), &state).await;
+        let result = execute_tool(
+            "operator_launch_ticket",
+            json!({"id": "FEAT-1"}),
+            &state,
+            &Scope::ALL,
+        )
+        .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Ticket write tools disabled"));
     }
@@ -591,7 +607,7 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_pause_queue", json!({}), &state).await;
+        let result = execute_tool("operator_pause_queue", json!({}), &state, &Scope::ALL).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Ticket write tools disabled"));
     }
@@ -601,7 +617,7 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_resume_queue", json!({}), &state).await;
+        let result = execute_tool("operator_resume_queue", json!({}), &state, &Scope::ALL).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Ticket write tools disabled"));
     }
@@ -611,7 +627,7 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_sync_kanban", json!({}), &state).await;
+        let result = execute_tool("operator_sync_kanban", json!({}), &state, &Scope::ALL).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Ticket write tools disabled"));
     }
@@ -621,7 +637,13 @@ mod tests {
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_approve_agent", json!({"id": "agent-1"}), &state).await;
+        let result = execute_tool(
+            "operator_approve_agent",
+            json!({"id": "agent-1"}),
+            &state,
+            &Scope::ALL,
+        )
+        .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Ticket write tools disabled"));
     }
@@ -635,6 +657,7 @@ mod tests {
             "operator_reject_agent",
             json!({"id": "agent-1", "reason": "bad"}),
             &state,
+            &Scope::ALL,
         )
         .await;
         assert!(result.is_err());
@@ -647,7 +670,7 @@ mod tests {
         config.mcp.expose_ticket_write_tools = true;
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
 
-        let result = execute_tool("operator_launch_ticket", json!({}), &state).await;
+        let result = execute_tool("operator_launch_ticket", json!({}), &state, &Scope::ALL).await;
         assert!(result.is_err());
         assert!(result
             .unwrap_err()

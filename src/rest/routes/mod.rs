@@ -1,6 +1,7 @@
 //! Route handlers for the REST API.
 
 pub mod agents;
+pub mod auth;
 pub mod collections;
 pub mod configuration;
 pub mod delegators;
@@ -12,6 +13,7 @@ pub mod kanban_onboarding;
 pub mod launch;
 pub mod llm_tools;
 pub mod model_servers;
+pub mod probes;
 pub mod projects;
 pub mod queue;
 pub mod sections;

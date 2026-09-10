@@ -20,10 +20,18 @@ pub struct ApiSessionInfo {
     pub pid: u32,
     pub started_at: String,
     pub version: String,
+    /// State directory holding `local-token`, so a same-host client (the VS
+    /// Code extension) can find the local credential when `paths.state` is
+    /// not the default.
+    pub state_dir: PathBuf,
 }
 
 /// Write API session file for client discovery
-fn write_session_file(tickets_path: &Path, port: u16) -> std::io::Result<PathBuf> {
+fn write_session_file(
+    tickets_path: &Path,
+    state_path: &Path,
+    port: u16,
+) -> std::io::Result<PathBuf> {
     let operator_dir = tickets_path.join("operator");
     std::fs::create_dir_all(&operator_dir)?;
 
@@ -33,6 +41,7 @@ fn write_session_file(tickets_path: &Path, port: u16) -> std::io::Result<PathBuf
         pid: std::process::id(),
         started_at: chrono::Utc::now().to_rfc3339(),
         version: env!("CARGO_PKG_VERSION").to_string(),
+        state_dir: state_path.to_path_buf(),
     };
 
     let json = serde_json::to_string_pretty(&session)?;
@@ -211,10 +220,27 @@ impl RestApiServer {
             Err(_) => return ExternalApiProbe::Unreachable,
         };
 
-        let response = match client.get(&url).send().await {
+        // `/api/v1/health` now requires a credential, so the probe presents the
+        // local-unlock token from *this* project's state directory.
+        let mut request = client.get(&url);
+        if let Some(token) = crate::auth::local::read(&self.config.state_path()) {
+            request = request.bearer_auth(token);
+        }
+
+        let response = match request.send().await {
             Ok(r) => r,
             Err(_) => return ExternalApiProbe::Unreachable,
         };
+
+        if response.status() == reqwest::StatusCode::UNAUTHORIZED
+            || response.status() == reqwest::StatusCode::FORBIDDEN
+        {
+            // An operator server we cannot authenticate to is, for adoption
+            // purposes, someone else's workspace.
+            return ExternalApiProbe::DifferentProject {
+                found_name: String::new(),
+            };
+        }
 
         // A 2xx that doesn't deserialize into a health shape is "not operator".
         let health = match response.json::<ProbeHealth>().await {
@@ -244,6 +270,7 @@ impl RestApiServer {
         let host_ip = self.config.rest_api.host_ip();
         let status = self.status.clone();
         let tickets_path = self.tickets_path.clone();
+        let state_path = self.config.state_path();
         let api_state_handle = self.api_state.clone();
 
         *status.lock().unwrap() = RestApiStatus::Starting;
@@ -258,7 +285,7 @@ impl RestApiServer {
                     tracing::info!("REST API listening on http://{}", addr);
 
                     // Write session file for client discovery
-                    if let Err(e) = write_session_file(&tickets_path, port) {
+                    if let Err(e) = write_session_file(&tickets_path, &state_path, port) {
                         tracing::warn!(error = %e, "Failed to write API session file");
                     }
 
@@ -517,7 +544,8 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let port = 7008u16;
 
-        let result = write_session_file(temp_dir.path(), port);
+        let state_dir = temp_dir.path().join("custom-state");
+        let result = write_session_file(temp_dir.path(), &state_dir, port);
         assert!(result.is_ok());
 
         let session_file = temp_dir.path().join("operator").join("api-session.json");
@@ -529,6 +557,10 @@ mod tests {
         assert_eq!(session.port, port);
         assert!(!session.version.is_empty());
         assert!(session.pid > 0);
+        assert_eq!(
+            session.state_dir, state_dir,
+            "clients locate local-token through the advertised state dir"
+        );
     }
 
     #[test]
@@ -539,7 +571,7 @@ mod tests {
         let operator_dir = temp_dir.path().join("operator");
         assert!(!operator_dir.exists());
 
-        let result = write_session_file(temp_dir.path(), 7008);
+        let result = write_session_file(temp_dir.path(), &operator_dir, 7008);
         assert!(result.is_ok());
 
         // Should have created the operator directory

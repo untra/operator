@@ -7,43 +7,8 @@ use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result};
 
+use crate::api::cli_detection::onboarding_spec_for_slug;
 use crate::config::{Config, GitProviderConfig};
-
-/// Per-provider constants for onboarding.
-struct ProviderMeta {
-    cli_command: &'static str,
-    cli_auth_args: &'static [&'static str],
-    cli_install_url: &'static str,
-    pat_url: &'static str,
-    display_name: &'static str,
-    placeholder: &'static str,
-}
-
-const GITHUB: ProviderMeta = ProviderMeta {
-    cli_command: "gh",
-    cli_auth_args: &["auth", "token"],
-    cli_install_url: "https://cli.github.com/",
-    pat_url: "https://github.com/settings/personal-access-tokens/new",
-    display_name: "GitHub",
-    placeholder: "ghp_...",
-};
-
-const GITLAB: ProviderMeta = ProviderMeta {
-    cli_command: "glab",
-    cli_auth_args: &["auth", "token"],
-    cli_install_url: "https://docs.gitlab.com/cli",
-    pat_url: "https://gitlab.com/-/user_settings/personal_access_tokens",
-    display_name: "GitLab",
-    placeholder: "glpat-...",
-};
-
-fn meta_for(provider: &str) -> Option<&'static ProviderMeta> {
-    match provider {
-        "github" => Some(&GITHUB),
-        "gitlab" => Some(&GITLAB),
-        _ => None,
-    }
-}
 
 /// The resolved onboarding step for a provider.
 #[derive(Debug)]
@@ -147,16 +112,19 @@ pub fn validate_gitlab_token(token: &str) -> Result<String> {
 ///
 /// Checks CLI installation → CLI authentication → returns the appropriate step.
 pub fn resolve_onboarding(provider: &str) -> Option<OnboardingStep> {
-    let meta = meta_for(provider)?;
+    let meta = onboarding_spec_for_slug(provider)?;
 
-    if !is_cli_installed(meta.cli_command) {
+    if !is_cli_installed(meta.command) {
         return Some(OnboardingStep::InstallCli {
-            install_url: meta.cli_install_url.to_string(),
+            install_url: meta.install_url.to_string(),
             provider_display: meta.display_name.to_string(),
         });
     }
 
-    if let Some(token) = grab_cli_token(meta.cli_command, meta.cli_auth_args) {
+    if let Some(token) = (!meta.auth_args.is_empty())
+        .then(|| grab_cli_token(meta.command, meta.auth_args))
+        .flatten()
+    {
         // Validate the token
         let username = match provider {
             "github" => validate_github_token(&token),
@@ -198,6 +166,12 @@ pub fn complete_git_onboarding(config: &mut Config, provider: &str, token: &str)
             config.save()?;
             std::env::set_var(&config.git.gitlab.token_env, token);
         }
+        "gitea" => {
+            config.git.provider = Some(GitProviderConfig::Gitea);
+            config.git.gitea.enabled = true;
+            config.save()?;
+            std::env::set_var(&config.git.gitea.token_env, token);
+        }
         _ => anyhow::bail!("Unsupported provider: {provider}"),
     }
     Ok(())
@@ -212,14 +186,56 @@ pub fn validate_token(provider: &str, token: &str) -> Result<String> {
     }
 }
 
+pub fn resolve_onboarding_with_config(config: &Config, provider: &str) -> Option<OnboardingStep> {
+    let mut step = resolve_onboarding(provider)?;
+    if provider == "gitea" {
+        let base =
+            crate::types::pr::provider_base_url(config.git.gitea.host.as_deref(), "gitea.com")
+                .ok()?;
+        if let OnboardingStep::CollectToken { pat_url, .. } = &mut step {
+            *pat_url = base.join("user/settings/applications").ok()?.to_string();
+        }
+    }
+    Some(step)
+}
+
+pub fn validate_token_with_config(config: &Config, provider: &str, token: &str) -> Result<String> {
+    if provider != "gitea" {
+        return validate_token(provider, token);
+    }
+    let base = crate::types::pr::provider_base_url(config.git.gitea.host.as_deref(), "gitea.com")?;
+    let git = crate::config::GitExecutionConfig {
+        credentials: Some(crate::config::GitCredentialConfig {
+            repository_url: base.join("operator/authentication")?.to_string(),
+            username: "operator".into(),
+            token_env: config.git.gitea.token_env.clone(),
+        }),
+        ..Default::default()
+    };
+    let runtime = crate::git::runtime::GitRuntime::create_with_token(&git, Some(token))?;
+    let output = Command::new(crate::api::cli_detection::binary_for(
+        crate::types::pr::GitProvider::Gitea,
+    ))
+    .args(["api", "--login", "operator", "user"])
+    .env("XDG_CONFIG_HOME", &runtime.path)
+    .output()
+    .context("Gitea requires tea with the api command")?;
+    anyhow::ensure!(output.status.success(), "Gitea token validation failed");
+    let body: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    body["login"]
+        .as_str()
+        .map(str::to_owned)
+        .context("Gitea response missing login")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_meta_for_github() {
-        let meta = meta_for("github").unwrap();
-        assert_eq!(meta.cli_command, "gh");
+        let meta = onboarding_spec_for_slug("github").unwrap();
+        assert_eq!(meta.command, "gh");
         assert_eq!(meta.display_name, "GitHub");
         assert_eq!(
             meta.pat_url,
@@ -229,8 +245,8 @@ mod tests {
 
     #[test]
     fn test_meta_for_gitlab() {
-        let meta = meta_for("gitlab").unwrap();
-        assert_eq!(meta.cli_command, "glab");
+        let meta = onboarding_spec_for_slug("gitlab").unwrap();
+        assert_eq!(meta.command, "glab");
         assert_eq!(meta.display_name, "GitLab");
         assert_eq!(
             meta.pat_url,
@@ -240,8 +256,8 @@ mod tests {
 
     #[test]
     fn test_meta_for_unknown_returns_none() {
-        assert!(meta_for("bitbucket").is_none());
-        assert!(meta_for("").is_none());
+        assert!(onboarding_spec_for_slug("bitbucket").is_none());
+        assert!(onboarding_spec_for_slug("").is_none());
     }
 
     #[test]

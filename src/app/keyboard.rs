@@ -19,6 +19,27 @@ impl App {
 
         // Setup screen takes absolute priority
         if let Some(ref mut setup) = self.setup_screen {
+            // The password step needs raw characters, and the wizard bindings
+            // below would eat them: `i` runs initialize_tickets() outright,
+            // `c` quits the app, and `j`/`k`/space navigate. Route text keys to
+            // the field first and leave only Enter/Esc/Tab to the shared
+            // handling. Mirrors the git-token dialog's routing further down.
+            if setup.step == crate::ui::setup::SetupStep::AdminPassword
+                && matches!(
+                    code,
+                    KeyCode::Char(_)
+                        | KeyCode::Backspace
+                        | KeyCode::Delete
+                        | KeyCode::Left
+                        | KeyCode::Right
+                        | KeyCode::Home
+                        | KeyCode::End
+                )
+            {
+                setup.handle_password_key(code);
+                return Ok(());
+            }
+
             match code {
                 KeyCode::Char('i' | 'I') if setup.confirm_selected => {
                     self.initialize_tickets()?;
@@ -315,7 +336,11 @@ impl App {
                     } else {
                         let provider = self.git_token_dialog.provider.clone();
                         let provider_display = self.git_token_dialog.provider_display.clone();
-                        match git_onboarding::validate_token(&provider, &token) {
+                        match git_onboarding::validate_token_with_config(
+                            &self.config,
+                            &provider,
+                            &token,
+                        ) {
                             Ok(username) => {
                                 match git_onboarding::complete_git_onboarding(
                                     &mut self.config,

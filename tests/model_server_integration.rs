@@ -32,6 +32,7 @@
 //! ```
 
 use operator::api::providers::model_server::{probe_models, ProbeOutcome};
+use operator::auth::egress::EgressPolicy;
 use operator::config::ModelServer;
 use std::env;
 use tokio::sync::OnceCell;
@@ -119,7 +120,11 @@ async fn openrouter_outcome() -> ProbeOutcome {
 }
 
 async fn probe_models_owned(kind: &'static str, api_key_env: &'static str) -> ProbeOutcome {
-    probe_models(&server_for(kind, Some(api_key_env))).await
+    probe_models(
+        &server_for(kind, Some(api_key_env)),
+        &EgressPolicy::default(),
+    )
+    .await
 }
 
 // ─── Keyless OpenRouter baseline (no secret, runs every CI run) ───────────────
@@ -130,7 +135,7 @@ mod openrouter_keyless {
     #[tokio::test]
     async fn test_public_models_list_is_text_filtered() {
         // No api_key_env and no OPENROUTER_API_KEY needed — the list is public.
-        let outcome = probe_models(&server_for("openrouter", None)).await;
+        let outcome = probe_models(&server_for("openrouter", None), &EgressPolicy::default()).await;
 
         if !outcome.reachable {
             // Treat a network/outage failure as a skip so offline `cargo test`

@@ -583,6 +583,7 @@ mod tests {
             git_info: Some(GitRepoInfo {
                 remote_url: Some("https://github.com/user/repo.git".to_string()),
                 github_info: Some(GitHubRepoInfo {
+                    host: None,
                     provider: GitProvider::GitHub,
                     owner: "user".to_string(),
                     repo_name: "repo".to_string(),

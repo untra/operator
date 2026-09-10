@@ -1,15 +1,19 @@
 //! API error types and responses.
 
 use axum::{
-    http::StatusCode,
+    http::{header, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
+
+/// Challenge returned with every `401`. Names both accepted schemes so a client that holds neither knows which to obtain.
+const WWW_AUTHENTICATE_CHALLENGE: &str = r#"Bearer realm="operator", Cookie realm="operator""#;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 /// API error types
 #[derive(Debug)]
+#[allow(dead_code)] // Auth variants are constructed by Phase 3 middleware/handlers.
 pub enum ApiError {
     /// Resource not found
     NotFound(String),
@@ -23,6 +27,19 @@ pub enum ApiError {
     BadRequest(String),
     /// Cannot modify builtin resource
     BuiltinReadOnly(String),
+    // The three auth variants below are constructed by the authorization
+    // middleware and auth handlers, which land in Phase 3. The error contract
+    // ships first so clients can be generated against a settled shape.
+    /// No usable credential was presented. Carries a `WWW-Authenticate`
+    /// challenge so a client knows *how* to authenticate, not just that it must.
+    Unauthorized(String),
+    /// A valid credential that lacks the scope this route requires. Distinct
+    /// from `Unauthorized`: re-authenticating will not help, so a client must
+    /// not retry with the same credential.
+    Forbidden(String),
+    /// A cookie-authenticated mutation arrived without a valid CSRF token or
+    /// with a mismatched `Origin`.
+    CsrfFailed(String),
 }
 
 /// Error response body
@@ -43,16 +60,29 @@ impl IntoResponse for ApiError {
             }
             ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, "bad_request", msg),
             ApiError::BuiltinReadOnly(msg) => (StatusCode::FORBIDDEN, "builtin_readonly", msg),
+            ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, "unauthorized", msg),
+            ApiError::Forbidden(msg) => (StatusCode::FORBIDDEN, "forbidden", msg),
+            ApiError::CsrfFailed(msg) => (StatusCode::FORBIDDEN, "csrf_failed", msg),
         };
 
-        (
-            status,
-            Json(ErrorResponse {
-                error: error.to_string(),
-                message,
-            }),
-        )
-            .into_response()
+        let body = Json(ErrorResponse {
+            error: error.to_string(),
+            message,
+        });
+
+        // Only a 401 carries a challenge. A 403 means the credential was
+        // understood and refused, so advertising a scheme would invite a
+        // pointless retry.
+        if status == StatusCode::UNAUTHORIZED {
+            (
+                status,
+                [(header::WWW_AUTHENTICATE, WWW_AUTHENTICATE_CHALLENGE)],
+                body,
+            )
+                .into_response()
+        } else {
+            (status, body).into_response()
+        }
     }
 }
 
@@ -105,5 +135,48 @@ mod tests {
         let response = error.into_response();
 
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn test_unauthorized_carries_a_challenge() {
+        let response =
+            ApiError::Unauthorized("no credential presented".to_string()).into_response();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let challenge = response
+            .headers()
+            .get(header::WWW_AUTHENTICATE)
+            .expect("401 must advertise how to authenticate")
+            .to_str()
+            .unwrap();
+        assert!(challenge.contains("Bearer"));
+        assert!(challenge.contains("Cookie"));
+    }
+
+    #[tokio::test]
+    async fn test_forbidden_does_not_invite_a_retry() {
+        // The credential was understood and refused; a challenge would suggest
+        // re-authenticating fixes it, which it does not.
+        let response =
+            ApiError::Forbidden("requires the `admin` scope".to_string()).into_response();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert!(response.headers().get(header::WWW_AUTHENTICATE).is_none());
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: ErrorResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json.error, "forbidden");
+    }
+
+    #[tokio::test]
+    async fn test_csrf_failure_is_distinguishable_from_a_scope_denial() {
+        // A client retries these differently: refetch a CSRF token, versus
+        // obtain a credential with more scope.
+        let response = ApiError::CsrfFailed("missing CSRF token".to_string()).into_response();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: ErrorResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json.error, "csrf_failed");
     }
 }

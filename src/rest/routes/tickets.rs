@@ -61,7 +61,7 @@ pub async fn get_one(
     State(state): State<ApiState>,
     Path(ticket_id): Path<String>,
 ) -> Result<Json<TicketDetailResponse>, ApiError> {
-    let queue = Queue::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
     let step_display_name = ticket.current_step_display_name();
@@ -126,7 +126,7 @@ pub async fn update_status(
         )));
     }
 
-    let queue = Queue::new(&state.config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
 
@@ -134,7 +134,7 @@ pub async fn update_status(
     let target_status = request.status.as_str();
 
     // Determine target directory
-    let tickets_path = state.config.tickets_path();
+    let tickets_path = state.config().tickets_path();
     let dst_dir = match target_status {
         "queued" => tickets_path.join("queue"),
         "running" | "awaiting" => tickets_path.join("in-progress"),
@@ -229,7 +229,7 @@ async fn create_ticket_from_values(
     template_type: TemplateType,
     values: HashMap<String, String>,
 ) -> Result<(Ticket, std::path::PathBuf), ApiError> {
-    let config = (*state.config).clone();
+    let config = (*state.config()).clone();
     let path = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, String> {
         let creator = TicketCreator::new(&config);
         let project = values.get("project").cloned().unwrap_or_default();

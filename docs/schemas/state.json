@@ -229,7 +229,7 @@
           "default": null
         },
         "review_state": {
-          "description": "Review state for `awaiting_input` agents\nValues: \"`pending_plan`\", \"`pending_visual`\", \"`pending_pr_creation`\", \"`pending_pr_merge`\"",
+          "description": "Review state for `awaiting_input` agents\nValues: \"`pending_plan`\", \"`pending_visual`\", \"`pending_proof`\", \"`pending_pr_creation`\", \"`pending_pr_merge`\"",
           "type": [
             "string",
             "null"

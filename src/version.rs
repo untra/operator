@@ -43,9 +43,13 @@ pub async fn check_for_updates(config: &VersionCheckConfig) -> Option<String> {
 
 /// Fetches the latest version from the specified URL with a timeout.
 async fn fetch_latest_version(url: &str, timeout_secs: u64) -> Result<String> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(timeout_secs))
-        .build()?;
+    // The update-check URL is configurable, so its destination is validated
+    // like any other config-controlled outbound request.
+    crate::auth::egress::validate(url, &crate::auth::egress::EgressPolicy::default())?;
+    let client = crate::auth::egress::validated_client(
+        crate::auth::egress::EgressPolicy::default(),
+        Duration::from_secs(timeout_secs),
+    )?;
 
     let response = client.get(url).send().await?;
     let status = response.status();

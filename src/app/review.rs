@@ -7,7 +7,7 @@ use super::App;
 impl App {
     /// Handle review approval for the selected agent
     ///
-    /// Only works for agents in `awaiting_input` with a `review_state` of `pending_plan` or `pending_visual`.
+    /// Only works for agents in `awaiting_input` with a `review_state` of `pending_plan`, `pending_visual`, or `pending_proof`.
     /// Creates a signal file to trigger resume in the next sync cycle.
     pub(super) fn handle_review_approval(&mut self) -> Result<()> {
         // Only works when in-progress panel is focused
@@ -21,7 +21,9 @@ impl App {
         };
 
         // Only process if agent has a review state that can be approved
-        if let Some("pending_plan" | "pending_visual") = agent.review_state.as_deref() {
+        if let Some("pending_plan" | "pending_visual" | "pending_proof") =
+            agent.review_state.as_deref()
+        {
             // Write signal file to trigger resume
             if let Some(ref session_name) = agent.session_name {
                 let signal_file = format!("/tmp/operator-detach-{session_name}.signal");
@@ -43,7 +45,7 @@ impl App {
 
     /// Handle review rejection for the selected agent
     ///
-    /// Only works for agents in `awaiting_input` with a `review_state` of `pending_plan` or `pending_visual`.
+    /// Only works for agents in `awaiting_input` with a `review_state` of `pending_plan`, `pending_visual`, or `pending_proof`.
     /// For now, this just logs the rejection. A full implementation would show a dialog
     /// for entering a rejection reason and possibly restart the step.
     pub(super) fn handle_review_rejection(&mut self) -> Result<()> {
@@ -58,7 +60,9 @@ impl App {
         };
 
         // Only process if agent has a review state that can be rejected
-        if let Some("pending_plan" | "pending_visual") = agent.review_state.as_deref() {
+        if let Some("pending_plan" | "pending_visual" | "pending_proof") =
+            agent.review_state.as_deref()
+        {
             // TODO: Show rejection dialog for entering reason
             // For now, just log the rejection
             tracing::info!(

@@ -11,12 +11,20 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import {
+  AuthRequiredError,
+  LIVEZ_PATH,
   OperatorApiClient,
   discoverApiUrl,
+  toJson,
   QueueControlResponse,
   KanbanSyncResponse,
   ReviewResponse,
 } from '../../src/api-client';
+import {
+  clearCredentialProvider,
+  setCredentialProvider,
+} from '../../src/auth/credentials';
+import { FakeCredentials, fakeCredentials } from './helpers/credentials';
 import {
   HealthResponse,
   LaunchTicketRequest,
@@ -57,14 +65,120 @@ interface RejectRequestBody {
 
 suite('API Client Test Suite', () => {
   let fetchStub: sinon.SinonStub;
+  let credentials: FakeCredentials;
 
   setup(() => {
     // Stub global fetch
     fetchStub = sinon.stub(global, 'fetch');
+    credentials = fakeCredentials('test-token');
+    setCredentialProvider(credentials);
   });
 
   teardown(() => {
     sinon.restore();
+    clearCredentialProvider();
+  });
+
+  suite('authentication', () => {
+    test('sends the provider credential as a bearer token', async () => {
+      const client = new OperatorApiClient('http://localhost:7008');
+      fetchStub.resolves(new Response(JSON.stringify([]), { status: 200 }));
+
+      await client.listIssueTypes();
+
+      const [, init] = fetchStub.firstCall.args as [string, FetchInit];
+      assert.strictEqual(init.headers.Authorization, 'Bearer test-token');
+    });
+
+    test('keeps Content-Type alongside the bearer token on bodied requests', async () => {
+      const client = new OperatorApiClient('http://localhost:7008');
+      fetchStub.resolves(new Response(JSON.stringify({}), { status: 200 }));
+
+      await client.rejectReview('agent-1', 'reason');
+
+      const [, init] = fetchStub.firstCall.args as [string, FetchInit];
+      assert.strictEqual(init.headers.Authorization, 'Bearer test-token');
+      assert.strictEqual(init.headers['Content-Type'], 'application/json');
+    });
+
+    test('sends no Authorization header when the provider has nothing', async () => {
+      credentials.token = undefined;
+      const client = new OperatorApiClient('http://localhost:7008');
+      fetchStub.resolves(new Response(JSON.stringify([]), { status: 200 }));
+
+      await client.listIssueTypes();
+
+      const [, init] = fetchStub.firstCall.args as [string, Partial<FetchInit> | undefined];
+      assert.strictEqual(init?.headers?.Authorization, undefined);
+    });
+
+    test('refreshes once and retries after a 401', async () => {
+      credentials.refreshed = 'fresh-token';
+      const client = new OperatorApiClient('http://localhost:7008');
+      fetchStub.onFirstCall().resolves(new Response('{}', { status: 401 }));
+      fetchStub.onSecondCall().resolves(new Response(JSON.stringify([]), { status: 200 }));
+
+      await client.listIssueTypes();
+
+      assert.strictEqual(fetchStub.callCount, 2);
+      assert.strictEqual(credentials.refreshCalls, 1);
+      const [, init] = fetchStub.secondCall.args as [string, FetchInit];
+      assert.strictEqual(init.headers.Authorization, 'Bearer fresh-token');
+    });
+
+    test('throws AuthRequiredError when the retry is also rejected', async () => {
+      credentials.refreshed = 'fresh-token';
+      const client = new OperatorApiClient('http://localhost:7008');
+      fetchStub.resolves(new Response('{}', { status: 401 }));
+
+      await assert.rejects(
+        () => client.listIssueTypes(),
+        (err: unknown) =>
+          err instanceof AuthRequiredError &&
+          err.status === 401 &&
+          /Operator: Sign In/.test(err.message)
+      );
+      assert.strictEqual(fetchStub.callCount, 2);
+    });
+
+    test('does not retry when refresh yields nothing new', async () => {
+      credentials.refreshed = undefined;
+      const client = new OperatorApiClient('http://localhost:7008');
+      fetchStub.resolves(new Response('{}', { status: 401 }));
+
+      await assert.rejects(() => client.listIssueTypes(), AuthRequiredError);
+      assert.strictEqual(fetchStub.callCount, 1);
+    });
+
+    test('fails loudly when no provider is configured', async () => {
+      clearCredentialProvider();
+      const client = new OperatorApiClient('http://localhost:7008');
+      await assert.rejects(() => client.listIssueTypes(), /setCredentialProvider/);
+      assert.ok(fetchStub.notCalled);
+    });
+  });
+
+  suite('isReachable()', () => {
+    test('probes the public liveness route without a credential', async () => {
+      const client = new OperatorApiClient('http://localhost:7008');
+      fetchStub.resolves(new Response('ok', { status: 200 }));
+
+      assert.strictEqual(await client.isReachable(), true);
+      assert.strictEqual(fetchStub.firstCall.args[0], `http://localhost:7008${LIVEZ_PATH}`);
+      assert.strictEqual(fetchStub.firstCall.args[1], undefined);
+    });
+
+    test('is false when nothing is listening', async () => {
+      const client = new OperatorApiClient('http://localhost:7008');
+      fetchStub.rejects(new TypeError('fetch failed'));
+      assert.strictEqual(await client.isReachable(), false);
+    });
+  });
+
+  suite('toJson()', () => {
+    test('serializes bigint fields as numbers', () => {
+      assert.strictEqual(toJson({ expires_in_days: 30n, name: 'k' }), '{"expires_in_days":30,"name":"k"}');
+    });
   });
 
   suite('discoverApiUrl()', () => {
@@ -126,7 +240,7 @@ suite('API Client Test Suite', () => {
   });
 
   suite('OperatorApiClient constructor', () => {
-    test('uses provided baseUrl', () => {
+    test('uses provided baseUrl', async () => {
       const client = new OperatorApiClient('http://custom:9000');
 
       // Verify by making a request
@@ -136,7 +250,7 @@ suite('API Client Test Suite', () => {
         })
       );
 
-      void client.health();
+      await client.health();
 
       assert.ok(
         fetchStub.calledWith('http://custom:9000/api/v1/health'),
@@ -144,7 +258,7 @@ suite('API Client Test Suite', () => {
       );
     });
 
-    test('uses default URL when none provided', () => {
+    test('uses default URL when none provided', async () => {
       const client = new OperatorApiClient();
 
       fetchStub.resolves(
@@ -153,7 +267,7 @@ suite('API Client Test Suite', () => {
         })
       );
 
-      void client.health();
+      await client.health();
 
       // Default is http://localhost:7008 from vscode config
       assert.ok(
@@ -692,10 +806,8 @@ suite('API Client Test Suite', () => {
         )
       );
 
-      await assert.rejects(
-        () => client.pauseQueue(),
-        /Authentication required/
-      );
+      // The server's wording is replaced by the actionable sign-in hint.
+      await assert.rejects(() => client.pauseQueue(), AuthRequiredError);
     });
 
     test('handles HTTP 403 Forbidden', async () => {

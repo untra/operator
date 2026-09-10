@@ -147,6 +147,12 @@ Convert between operator issuetypes and other orchestration formats
 
 No additional arguments.
 
+### `auth`
+
+Local authentication administration and recovery
+
+No additional arguments.
+
 ## Environment Variables
 
 All configuration can be overridden via environment variables using the `OPERATOR_` prefix with `__` as the separator for nested config paths.
@@ -176,6 +182,7 @@ All configuration can be overridden via environment variables using the `OPERATO
 | `OPERATOR_PATHS__TICKETS` | Directory containing ticket files | .tickets |
 | `OPERATOR_PATHS__PROJECTS` | Root directory for project discovery | . |
 | `OPERATOR_PATHS__STATE` | Directory for persistent operator state | .tickets/operator |
+| `OPERATOR_PATHS__WORKTREES` | Directory for per-ticket git worktrees | ~/.operator/worktrees |
 | `OPERATOR_UI__REFRESH_RATE_MS` | UI refresh rate in milliseconds | 250 |
 | `OPERATOR_UI__SUMMARY_MAX_LENGTH` | Maximum length of ticket summaries in the UI | 60 |
 | `OPERATOR_LAUNCH__MODE` | Agent launch mode (tmux or direct) | tmux |
@@ -232,6 +239,7 @@ All configuration can be overridden via environment variables using the `OPERATO
 | `OPERATOR_PATHS__TICKETS` | Directory containing ticket files | .tickets |
 | `OPERATOR_PATHS__PROJECTS` | Root directory for project discovery | . |
 | `OPERATOR_PATHS__STATE` | Directory for persistent operator state | .tickets/operator |
+| `OPERATOR_PATHS__WORKTREES` | Directory for per-ticket git worktrees | ~/.operator/worktrees |
 
 ### UI
 

@@ -2,8 +2,8 @@
 # Do not edit manually - regenerated on each release
 
 operator:
-  macos_arm64: "af0218a28d6aedbc045e1fa30e1881ebafa3a7b2821fec2681200965a7eced04"
-  linux_arm64: "e3887c909ba752ba0ac9de6c2300fbc08fc4a43c9be67eb7665f10e3c74f3216"
-  linux_x86_64: "ef89d132aaee3a3b6299731751354e6c0ab7efd6aadb411e6e254ec4e7091418"
-  windows_x86_64: "b4800a9823f273ca45e02cf5b577446de9d6580e447dc663c256015910266434"
-  windows_arm64: "97be600e4ba14f1d9e73556ea27c3454949b75c90ad5af934e62a829517fd18e"
+  macos_arm64: "1d8b5b277c568aa3f5c21c16d3cfa6ea8d6554b6583f82200cb6e1ee8fe937bb"
+  linux_arm64: "43a07a2b5e1ec3dfed8e42ef5d415c2037b499ea4c7c26bfa481ead3df9381a6"
+  linux_x86_64: "dd261856058df250ce32c5676aefa84a9a704adae22eb9b95fa1f4f7df5ffa96"
+  windows_x86_64: "163134bec83179707fd8ded84f40a1da6143875a47f6aeeb3cfea327bf460204"
+  windows_arm64: "75c39ded966b40c9f966a1c22aaedffda9e04a5d66e0daff385a4a3b22851f2d"

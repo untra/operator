@@ -9,9 +9,7 @@ export type RestApiConfig = {
  */
 enabled: boolean, 
 /**
- * Address the REST API binds to. Defaults to `127.0.0.1` (local only) so
- * the server — which reports the project directory name — is not reachable
- * from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
+ * Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
  */
 host: string, 
 /**
@@ -23,9 +21,6 @@ port: number,
  */
 cors_origins: Array<string>, 
 /**
- * Externally reachable base URL (e.g. `https://operator.example.com`).
- *
- * OAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header,
- * which a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy.
+ * Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host.
  */
 public_url: string | null, };

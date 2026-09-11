@@ -7,7 +7,7 @@ interface MappingRowProps {
   operatorTypes: IssueTypeSummary[];
   selectedKey: string | null;
   autoMatchedKey: string | null;
-  onSelect: (externalName: string, operatorKey: string | '') => void;
+  onSelect: (externalName: string, operatorKey: string) => void;
   onViewIssueType: () => void;
 }
 

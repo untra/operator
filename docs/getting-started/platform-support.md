@@ -70,7 +70,6 @@ Operator also ships as a container image and a Helm chart. Both are Linux-only
 |--------------|--------|-------|
 | Docker image `untra/operator` | ✅ Supported | Multi-arch. See [Docker](/getting-started/platforms/docker/) |
 | Helm chart `oci://ghcr.io/untra/charts/operator` | ⚠️ Alpha | Single-replica StatefulSet, ReadWriteOnce persistence. See [Kubernetes](/getting-started/platforms/kubernetes/) |
-| Example Helmfile | ⚠️ Alpha | `examples/helmfile.yaml` in the repository |
 
 | Feature | Status | Reason | Workaround |
 |---------|--------|--------|------------|

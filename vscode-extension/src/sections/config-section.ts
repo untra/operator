@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
+import * as path from 'node:path';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection, ConfigState } from './types';
 import type { SectionId, SectionHealth } from '../generated';

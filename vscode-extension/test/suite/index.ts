@@ -1,6 +1,6 @@
-import * as path from 'path';
-import * as fs from 'fs';
-import * as os from 'os';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import Mocha from 'mocha';
 import { glob } from 'glob';
 
@@ -16,9 +16,7 @@ interface NycInstance {
   report(): Promise<void>;
 }
 
-interface NycConstructor {
-  new (options: Record<string, unknown>): NycInstance;
-}
+type NycConstructor = new (options: Record<string, unknown>) => NycInstance;
 
 // NYC for coverage instrumentation inside VS Code process
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires

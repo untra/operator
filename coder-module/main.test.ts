@@ -98,6 +98,45 @@ describe("operator", async () => {
     });
 
     const script = findResourceInstance(state, "coder_script").script;
-    expect(script).toContain(customConfig);
+    expect(script).toContain(Buffer.from(customConfig).toString("base64"));
+  });
+
+  // The value reaches run.sh through a shell assignment, so an unencoded
+  // hand-off silently ate every quote and expanded every $VAR.
+  it("survives quotes and dollar signs in config_toml", async () => {
+    const customConfig = '[sessions]\nwrapper = "tmux"\nhome = "$HOME"\n';
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      config_toml: customConfig,
+    });
+
+    const script = findResourceInstance(state, "coder_script").script;
+    const encoded = Buffer.from(customConfig).toString("base64");
+    expect(script).toContain(encoded);
+    expect(Buffer.from(encoded, "base64").toString()).toBe(customConfig);
+  });
+
+  it("writes the optional coder target keys only when set", async () => {
+    const bare = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      agent_template: "operator-agent",
+    });
+    const bareScript = findResourceInstance(bare, "coder_script").script;
+    expect(bareScript).toContain('name_prefix=""');
+    expect(bareScript).toContain('stop_on_complete=""');
+
+    const full = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      agent_template: "operator-agent",
+      name_prefix: "op",
+      workdir: "/home/coder/proj",
+      stop_on_complete: "false",
+      create_timeout_secs: "600",
+    });
+    const fullScript = findResourceInstance(full, "coder_script").script;
+    expect(fullScript).toContain('name_prefix="op"');
+    expect(fullScript).toContain('workdir="/home/coder/proj"');
+    expect(fullScript).toContain('stop_on_complete="false"');
+    expect(fullScript).toContain('create_timeout_secs="600"');
   });
 });

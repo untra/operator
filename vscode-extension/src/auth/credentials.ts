@@ -15,10 +15,10 @@
  * constructor parameter threaded through every client, panel, and section.
  */
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import type { TokenRequest, TokenResponse, OAuthErrorResponse } from '../generated';
-import { TokenStore } from './token-store';
+import type { TokenStore } from './token-store';
 
 /** The `client_id` device codes and refresh families are bound to server-side. */
 export const CLIENT_ID = 'vscode';

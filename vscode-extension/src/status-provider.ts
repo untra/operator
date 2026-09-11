@@ -12,9 +12,9 @@
  */
 
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
+import * as fs from 'node:fs/promises';
 import { getResolvedConfigPath } from './config-paths';
-import { StatusItem } from './status-item';
+import type { StatusItem } from './status-item';
 import type { SectionContext, StatusSection } from './sections/types';
 import { ConfigSection } from './sections/config-section';
 import { ConnectionsSection } from './sections/connections-section';
@@ -34,7 +34,7 @@ export type { WebhookStatus, ApiStatus } from './sections/types';
 
 // smol-toml is ESM-only, must use dynamic import
 async function importSmolToml() {
-  return await import('smol-toml');
+  return  import('smol-toml');
 }
 
 /**

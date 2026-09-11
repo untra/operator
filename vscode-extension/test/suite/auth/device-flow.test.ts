@@ -4,11 +4,12 @@
  * Group 2: Service Logic - fetch is faked; time is driven by injected hooks.
  */
 
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as sinon from 'sinon';
+import type {
+  DeviceFlowHooks} from '../../../src/auth/device-flow';
 import {
   DEVICE_CODE_PATH,
-  DeviceFlowHooks,
   IDE_SCOPES,
   SLOW_DOWN_INCREMENT_SECS,
   pollForToken,

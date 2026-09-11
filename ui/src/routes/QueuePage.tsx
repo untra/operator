@@ -25,15 +25,17 @@ export function QueuePage() {
       api
         .kanban()
         .then((b) => {
-          if (cancelled) return;
-          setBoard(b);
-          setError(null);
+          if (!cancelled) {
+            setBoard(b);
+            setError(null);
+          }
+          return undefined;
         })
         .catch((e) => {
-          if (!cancelled) setError(e.message);
+          if (!cancelled) {setError(e.message);}
         })
         .finally(() => {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) {setLoading(false);}
         });
     };
 
@@ -45,7 +47,7 @@ export function QueuePage() {
     };
   }, [api]);
 
-  if (loading) return <div className={styles.loading}>Loading queue...</div>;
+  if (loading) {return <div className={styles.loading}>Loading queue...</div>;}
 
   return (
     <div className={styles.page}>

@@ -3,7 +3,6 @@ import { Alert, Button, Card, CardContent, Chip, Spinner, TextInput, Toggle } fr
 import { ProjectRow } from './ProjectRow';
 import type { JiraConfig } from '../../../src/generated/JiraConfig';
 import type { LinearConfig } from '../../../src/generated/LinearConfig';
-import type { ProjectSyncConfig } from '../../../src/generated/ProjectSyncConfig';
 import type {
   JiraValidationInfo,
   LinearValidationInfo,
@@ -199,7 +198,7 @@ export function ProviderCard({
                   provider={type}
                   domain={domain}
                   projectKey={key}
-                  project={project as ProjectSyncConfig}
+                  project={project}
                   collections={collections}
                   issueTypes={issueTypes}
                   externalTypes={externalIssueTypes.get(`${type}/${key}`)}

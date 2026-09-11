@@ -1,7 +1,7 @@
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 
 suite('Integration Test Suite', () => {
     let extension: vscode.Extension<unknown> | undefined;
@@ -108,10 +108,10 @@ suite('Integration Test Suite', () => {
         assert.ok(Array.isArray(views), 'Views should be an array');
 
         // Verify expected views
-        const viewIds = views.map((v) => v.id);
-        assert.ok(viewIds.includes('operator-status'), 'Status view should exist');
-        assert.ok(viewIds.includes('operator-in-progress'), 'In Progress view should exist');
-        assert.ok(viewIds.includes('operator-queue'), 'Queue view should exist');
-        assert.ok(viewIds.includes('operator-completed'), 'Completed view should exist');
+        const viewIds = new Set(views.map((v) => v.id));
+        assert.ok(viewIds.has('operator-status'), 'Status view should exist');
+        assert.ok(viewIds.has('operator-in-progress'), 'In Progress view should exist');
+        assert.ok(viewIds.has('operator-queue'), 'Queue view should exist');
+        assert.ok(viewIds.has('operator-completed'), 'Completed view should exist');
     });
 });

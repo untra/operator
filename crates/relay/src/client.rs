@@ -1,6 +1,6 @@
 //! Thin relay client for connecting to the hub from opr8r or the relay-channel binary.
 //!
-//! Handles connection, registration, and rename. Does not manage reconnection —
+//! Handles connection, registration, and rename. Does not manage reconnection -
 //! that is the caller's responsibility for long-lived use cases.
 
 use std::path::{Path, PathBuf};

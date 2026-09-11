@@ -56,8 +56,8 @@ export function ProjectRow({
     }
   }, [expanded, statuses, provider, projectKey, onGetKanbanStatuses]);
 
-  const handleMappingChange = (externalName: string, operatorKey: string | '') => {
-    const newMappings = { ...(project.type_mappings ?? {}) };
+  const handleMappingChange = (externalName: string, operatorKey: string) => {
+    const newMappings = { ...project.type_mappings };
     if (operatorKey === '') {
       delete newMappings[externalName];
     } else {
@@ -85,14 +85,16 @@ export function ProjectRow({
     return opts;
   };
 
+  const toggleExpanded = () => setExpanded((current) => !current);
+
   return (
     <div style={{ borderBottom: DIVIDER_BORDER, padding: '8px 0' }}>
-      <div className="op-row op-gap-2" style={{ cursor: 'pointer' }} onClick={() => setExpanded(!expanded)}>
+      <div className="op-row op-gap-2">
         <span className="op-body2" style={{ fontWeight: 600, minWidth: 80 }}>
           {projectKey}
         </span>
 
-        <div style={{ minWidth: 160 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ minWidth: 160 }}>
           <SelectInput
             label="Collection"
             value={project.collection_name || ''}
@@ -108,7 +110,7 @@ export function ProjectRow({
           </SelectInput>
         </div>
 
-        <div className="op-row op-gap-05" style={{ flex: 1 }} onClick={(e) => e.stopPropagation()}>
+        <div className="op-row op-gap-05" style={{ flex: 1 }}>
           {OPERATOR_STATES.filter(({ field }) => statusMapping[field]).map(({ field, label }) => (
             <Chip key={field} label={`${label} → ${statusMapping[field]}`} variant="outlined" />
           ))}
@@ -116,7 +118,7 @@ export function ProjectRow({
 
         {mappingCount > 0 && <Chip label={`${mappingCount} mapped`} variant="outlined" />}
 
-        <IconButton>
+        <IconButton aria-label={expanded ? 'Collapse project' : 'Expand project'} onClick={toggleExpanded}>
           <span
             className="op-body2"
             style={{

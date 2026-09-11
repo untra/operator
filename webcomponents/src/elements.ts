@@ -23,7 +23,7 @@ import {
 } from './elements/operator-workflow-explorer';
 
 function define(tag: string, ctor: CustomElementConstructor) {
-  if (!customElements.get(tag)) customElements.define(tag, ctor);
+  if (!customElements.get(tag)) {customElements.define(tag, ctor);}
 }
 
 define(OPERATOR_WORKFLOW_EXPLORER_TAG, OperatorWorkflowExplorer);

@@ -6,17 +6,20 @@
  * stubs for external dependencies (network, binary discovery, etc.).
  */
 
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as sinon from 'sinon';
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
-import { StatusTreeProvider, StatusItem } from '../../src/status-provider';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import type { StatusItem } from '../../src/status-provider';
+import { StatusTreeProvider } from '../../src/status-provider';
 import * as configPaths from '../../src/config-paths';
 import * as walkthrough from '../../src/walkthrough';
 import * as operatorBinary from '../../src/operator-binary';
 import * as apiClient from '../../src/api-client';
+
+const EMPTY_STUB = {};
 
 /**
  * Create a mock ExtensionContext with stubbed globalState
@@ -42,14 +45,14 @@ function createMockContext(
     storageUri: vscode.Uri.file('/fake/workspace-storage'),
     logUri: vscode.Uri.file('/fake/log'),
     extensionMode: vscode.ExtensionMode.Test,
-    extension: {} as vscode.Extension<unknown>,
-    environmentVariableCollection: {} as vscode.GlobalEnvironmentVariableCollection,
-    secrets: {} as vscode.SecretStorage,
+    extension: EMPTY_STUB as vscode.Extension<unknown>,
+    environmentVariableCollection: EMPTY_STUB as vscode.GlobalEnvironmentVariableCollection,
+    secrets: EMPTY_STUB as vscode.SecretStorage,
     storagePath: '/fake/workspace-storage',
     globalStoragePath: '/fake/storage',
     logPath: '/fake/log',
     asAbsolutePath: (p: string) => p,
-    languageModelAccessInformation: {} as vscode.LanguageModelAccessInformation,
+    languageModelAccessInformation: EMPTY_STUB as vscode.LanguageModelAccessInformation,
   } as unknown as vscode.ExtensionContext;
 }
 

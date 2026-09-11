@@ -47,9 +47,9 @@ export function SectionCard({ section }: { section: SectionDto }) {
 
         {section.children.length > 0 ? (
           <ul className={styles.rows}>
-            {section.children.map((row, i) => (
+            {section.children.map((row) => (
               <li
-                key={`${row.id}-${i}`}
+                key={row.id}
                 className={styles.row}
                 style={{ paddingLeft: `${Math.max(0, row.depth - 1) * 1.25}rem` }}
               >

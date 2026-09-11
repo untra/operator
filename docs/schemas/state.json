@@ -56,6 +56,18 @@
     "AgentState": {
       "type": "object",
       "properties": {
+        "git_context": {
+          "description": "Non-secret Git configuration captured at launch.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitExecutionConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "id": {
           "type": "string"
         },
@@ -292,6 +304,92 @@
         "started_at",
         "last_activity",
         "paired"
+      ]
+    },
+    "GitExecutionConfig": {
+      "description": "Git settings owned by a named delegator.",
+      "type": "object",
+      "properties": {
+        "identity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitIdentityConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "credentials": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitCredentialConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "settings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GitConfigEntry"
+          },
+          "default": []
+        }
+      }
+    },
+    "GitIdentityConfig": {
+      "description": "Commit identity template for delegated work.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "email"
+      ]
+    },
+    "GitCredentialConfig": {
+      "description": "Supplied HTTPS credential, bound to a repository; contains no secret value.",
+      "type": "object",
+      "properties": {
+        "repository_url": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "token_env": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository_url",
+        "username",
+        "token_env"
+      ]
+    },
+    "GitConfigEntry": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "value"
       ]
     },
     "StepLaunchContext": {

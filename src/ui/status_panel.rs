@@ -52,7 +52,7 @@ pub enum SectionId {
     Workflows,
 }
 
-/// Health state of a section — controls the header color.
+/// Health state of a section - controls the header color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub enum SectionHealth {
@@ -105,7 +105,7 @@ impl SectionId {
     }
 }
 
-/// Declarative section metadata — shared between TUI and `VSCode`.
+/// Declarative section metadata - shared between TUI and `VSCode`.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[allow(dead_code)]
@@ -189,7 +189,7 @@ pub struct TreeRow {
     pub icon: StatusIcon,
     /// Optional vendor-brand basename (e.g. "ollama") for surfaces that render
     /// logos (the web UI). The TUI ignores this and renders [`icon`](Self::icon)
-    /// as a semantic ANSI glyph — brand logos can't be drawn in a terminal.
+    /// as a semantic ANSI glyph - brand logos can't be drawn in a terminal.
     pub brand_icon: Option<String>,
     pub is_header: bool,
     pub actions: ActionSet,
@@ -328,20 +328,20 @@ pub enum McpHttpStatus {
     NotMounted,
 }
 
-/// Which button was pressed — maps to ABXY gamepad layout.
+/// Which button was pressed - maps to ABXY gamepad layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActionButton {
-    /// A (Enter) — primary/affirm/activate
+    /// A (Enter) - primary/affirm/activate
     A,
-    /// B (Esc/Backspace) — go back, collapse parent
+    /// B (Esc/Backspace) - go back, collapse parent
     B,
-    /// X (Shift+Enter) — special/tertiary action
+    /// X (Shift+Enter) - special/tertiary action
     X,
-    /// Y (Ctrl+Enter) — contextual refresh/update
+    /// Y (Ctrl+Enter) - contextual refresh/update
     Y,
 }
 
-/// Display metadata for an action — short title for TUI and title+tooltip for `VSCode`.
+/// Display metadata for an action - short title for TUI and title+tooltip for `VSCode`.
 #[derive(Debug, Clone)]
 pub struct ActionMeta {
     /// Short label (max 6 chars) shown right-aligned on the selected row in TUI,
@@ -355,15 +355,15 @@ pub struct ActionMeta {
 /// Four action slots mapped to ABXY gamepad buttons.
 #[derive(Debug, Clone)]
 pub struct ActionSet {
-    /// A (Enter) — primary/affirm/activate
+    /// A (Enter) - primary/affirm/activate
     pub primary: StatusAction,
-    /// B (Esc) — go back, collapse parent
+    /// B (Esc) - go back, collapse parent
     pub back: StatusAction,
-    /// X (Shift+Enter) — special/tertiary
+    /// X (Shift+Enter) - special/tertiary
     pub special: StatusAction,
     /// Display metadata for the special action (shown in TUI and `VSCode`).
     pub special_meta: Option<ActionMeta>,
-    /// Y (Ctrl+Enter) — contextual refresh
+    /// Y (Ctrl+Enter) - contextual refresh
     pub refresh: StatusAction,
     /// Display metadata for the refresh action.
     pub refresh_meta: Option<ActionMeta>,
@@ -658,8 +658,8 @@ impl StatusSnapshot {
 
     /// Build a snapshot from config alone, with default (non-live) runtime fields.
     ///
-    /// Shared by the TUI dashboard — which overrides the runtime fields
-    /// (`api_status`, wrapper/mcp/acp liveness, editor env) with live state —
+    /// Shared by the TUI dashboard - which overrides the runtime fields
+    /// (`api_status`, wrapper/mcp/acp liveness, editor env) with live state -
     /// and the REST `/api/v1/sections` endpoint, which uses the config-derived
     /// result as-is. `issue_types` is passed in because the TUI and REST source
     /// it from different registries. Everything else here is derived purely from
@@ -729,7 +729,7 @@ impl StatusSnapshot {
             })
             .collect();
 
-        // Model servers — user-declared plus implicit vendor builtins.
+        // Model servers - user-declared plus implicit vendor builtins.
         let mut model_servers: Vec<ModelServerInfo> = config
             .model_servers
             .iter()
@@ -767,7 +767,7 @@ impl StatusSnapshot {
             _ => false,
         };
 
-        // Managed projects — names from config, resolved against the projects base dir.
+        // Managed projects - names from config, resolved against the projects base dir.
         let projects_base = Path::new(&config.paths.projects);
         let managed_projects: Vec<ManagedProjectInfo> = config
             .projects
@@ -812,7 +812,7 @@ impl StatusSnapshot {
             wrapper_type: config.sessions.wrapper.display_name().to_string(),
             operator_inside_wrapper: config.sessions.wrapper.is_active_context(),
             operator_version: env!("CARGO_PKG_VERSION").to_string(),
-            // Runtime field — callers with live state override this.
+            // Runtime field - callers with live state override this.
             api_status: RestApiStatus::Stopped,
             kanban_providers,
             llm_tools,
@@ -876,7 +876,7 @@ pub trait StatusSection {
     /// Which section IDs must be Green before this section is visible.
     fn prerequisites(&self) -> &[SectionId];
 
-    /// Current health state — determines header color.
+    /// Current health state - determines header color.
     fn health(&self, snapshot: &StatusSnapshot) -> SectionHealth;
 
     /// Summary description shown next to the section header.
@@ -1044,7 +1044,7 @@ pub fn build_section_dtos(snapshot: &StatusSnapshot) -> Vec<crate::rest::dto::Se
         .collect()
 }
 
-/// The status panel widget — a collapsible tree with progressive disclosure.
+/// The status panel widget - a collapsible tree with progressive disclosure.
 pub struct StatusPanel {
     pub tree_state: TreeState,
     pub title: String,
@@ -1767,42 +1767,42 @@ mod tests {
         let mut panel = StatusPanel::new("Status".into());
         let snap = test_snapshot();
 
-        // Working Dir (index 1) — should open directory
+        // Working Dir (index 1) - should open directory
         panel.tree_state.selected = 1;
         let action = panel.action_for_current(&snap, ActionButton::A);
         assert!(matches!(action, StatusAction::OpenDirectory(_)));
 
-        // Config (index 2) — should edit file
+        // Config (index 2) - should edit file
         panel.tree_state.selected = 2;
         let action = panel.action_for_current(&snap, ActionButton::A);
         assert!(matches!(action, StatusAction::EditFile(_)));
 
-        // Tickets (index 3) — should open directory
+        // Tickets (index 3) - should open directory
         panel.tree_state.selected = 3;
         let action = panel.action_for_current(&snap, ActionButton::A);
         assert!(matches!(action, StatusAction::OpenDirectory(_)));
 
-        // Wrapper (index 4) — read-only
+        // Wrapper (index 4) - read-only
         panel.tree_state.selected = 4;
         let action = panel.action_for_current(&snap, ActionButton::A);
         assert_eq!(action, StatusAction::None);
 
-        // $EDITOR (index 5) — read-only
+        // $EDITOR (index 5) - read-only
         panel.tree_state.selected = 5;
         let action = panel.action_for_current(&snap, ActionButton::A);
         assert_eq!(action, StatusAction::None);
 
-        // $VISUAL (index 6) — read-only
+        // $VISUAL (index 6) - read-only
         panel.tree_state.selected = 6;
         let action = panel.action_for_current(&snap, ActionButton::A);
         assert_eq!(action, StatusAction::None);
 
-        // $IDE (index 7) — read-only
+        // $IDE (index 7) - read-only
         panel.tree_state.selected = 7;
         let action = panel.action_for_current(&snap, ActionButton::A);
         assert_eq!(action, StatusAction::None);
 
-        // Version (index 8) — opens downloads URL
+        // Version (index 8) - opens downloads URL
         panel.tree_state.selected = 8;
         let action = panel.action_for_current(&snap, ActionButton::A);
         assert!(matches!(action, StatusAction::OpenUrl(_)));
@@ -1863,7 +1863,7 @@ mod tests {
         let mut panel = StatusPanel::new("Status".into());
 
         // A fully-ready snapshot (config found + API running) so connections are
-        // Green and several prerequisite-gated sections — including Workflows —
+        // Green and several prerequisite-gated sections - including Workflows -
         // are visible, giving us multiple rows to wrap across.
         let snap = test_snapshot();
         let count = panel.visible_count(&snap);

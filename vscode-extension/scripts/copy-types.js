@@ -10,8 +10,8 @@
  * and generates a barrel export (index.ts).
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const BINDINGS_DIR = path.resolve(__dirname, '../../bindings');
 const GENERATED_DIR = path.resolve(__dirname, '../src/generated');

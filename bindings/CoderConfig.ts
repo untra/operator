@@ -25,7 +25,7 @@ token_env: string,
  */
 name_prefix: string, 
 /**
- * Project root inside the workspace (None = workspace $HOME)
+ * Project root inside the workspace (None = /home/coder/{project})
  */
 workdir?: string | null, 
 /**
@@ -42,6 +42,6 @@ create_timeout_secs: bigint,
  */
 callback_url?: string | null, 
 /**
- * Passthrough `-p` template parameters for `coder create`
+ * Passthrough `--parameter` template parameters for `coder create`
  */
 parameters?: { [key in string]: string }, };

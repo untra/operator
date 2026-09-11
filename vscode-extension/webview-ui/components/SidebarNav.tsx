@@ -25,7 +25,7 @@ export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
 
   useEffect(() => {
     const container = scrollContainerRef.current;
-    if (!container) { return; }
+    if (!container) { return undefined; }
 
     const sectionElements = items
       .filter((item) => !item.disabled)
@@ -37,7 +37,7 @@ export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
         // Find the topmost visible section
         const visible = entries
           .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+          .toSorted((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
 
         if (visible.length > 0) {
           setActiveId(visible[0].target.id);

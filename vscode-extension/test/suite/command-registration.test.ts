@@ -1,7 +1,5 @@
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
 
 /**
  * Tests that verify command registration works correctly in the extension.

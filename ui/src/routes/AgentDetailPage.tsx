@@ -13,7 +13,7 @@ export function AgentDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {return undefined;}
     const load = () => {
       api.getAgent(id).then(setAgent).catch((e) => setError(e.message));
     };
@@ -22,8 +22,8 @@ export function AgentDetailPage() {
     return () => clearInterval(interval);
   }, [api, id]);
 
-  if (error) return <div className={styles.error}>Error: {error}</div>;
-  if (!agent) return <div className={styles.loading}>Loading...</div>;
+  if (error) {return <div className={styles.error}>Error: {error}</div>;}
+  if (!agent) {return <div className={styles.loading}>Loading...</div>;}
 
   const elapsed = formatElapsed(agent.started_at);
 
@@ -69,8 +69,8 @@ export function AgentDetailPage() {
         <div className={styles.stepsSection}>
           <h2>Completed Steps</h2>
           <ol className={styles.stepsList}>
-            {agent.completed_steps.map((step, i) => (
-              <li key={i} className={styles.stepDone}>{step}</li>
+            {agent.completed_steps.map((step) => (
+              <li key={step} className={styles.stepDone}>{step}</li>
             ))}
             {agent.current_step && (
               <li className={styles.stepActive}>{agent.current_step}</li>
@@ -104,9 +104,9 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 function formatElapsed(startedAt: string): string {
   const ms = Date.now() - new Date(startedAt).getTime();
   const secs = Math.floor(ms / 1000);
-  if (secs < 60) return `${secs}s`;
+  if (secs < 60) {return `${secs}s`;}
   const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ${secs % 60}s`;
+  if (mins < 60) {return `${mins}m ${secs % 60}s`;}
   const hrs = Math.floor(mins / 60);
   return `${hrs}h ${mins % 60}m`;
 }

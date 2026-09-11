@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Alert, Spinner } from '../primitives';
 import { MappingRow } from './MappingRow';
 import type { ExternalIssueTypeSummary, IssueTypeSummary } from '../../types/messages';
@@ -12,7 +12,7 @@ interface MappingPanelProps {
   issueTypes: IssueTypeSummary[];
   externalTypes: ExternalIssueTypeSummary[] | undefined;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
-  onMappingChange: (externalName: string, operatorKey: string | '') => void;
+  onMappingChange: (externalName: string, operatorKey: string) => void;
   onViewIssueType: () => void;
 }
 
@@ -45,20 +45,11 @@ export function MappingPanel({
   onMappingChange,
   onViewIssueType,
 }: MappingPanelProps) {
-  const [loading, setLoading] = useState(false);
-
   useEffect(() => {
     if (!externalTypes) {
-      setLoading(true);
       onGetExternalIssueTypes(provider, domain, projectKey);
     }
   }, [provider, domain, projectKey, externalTypes, onGetExternalIssueTypes]);
-
-  useEffect(() => {
-    if (externalTypes) {
-      setLoading(false);
-    }
-  }, [externalTypes]);
 
   const autoMappings = useMemo(() => {
     const map = new Map<string, string | null>();
@@ -70,7 +61,7 @@ export function MappingPanel({
     return map;
   }, [externalTypes, issueTypes]);
 
-  if (loading || !externalTypes) {
+  if (!externalTypes) {
     return (
       <div className="op-row" style={{ padding: '16px 0', justifyContent: 'center' }}>
         <Spinner size={20} />

@@ -14,7 +14,7 @@ import styles from './SecurityPage.module.css';
 const ALL_SCOPES: Scope[] = ['read', 'write', 'execute', 'admin'];
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) {return '—';}
   return new Date(iso).toLocaleString();
 }
 
@@ -49,10 +49,31 @@ export function SecurityPage() {
   }, [host]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    const api = new OperatorApi(host);
+    void api
+      .refreshCsrf()
+      .catch(() => undefined)
+      .then(() => Promise.all([api.listSessions(), api.listAccessKeys()]))
+      .then(([s, k]) => {
+        if (!cancelled) {
+          setSessions(s);
+          setKeys(k);
+          setError(null);
+        }
+        return undefined;
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('Failed to load security settings.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [host]);
 
-  async function createKey(event: React.FormEvent) {
+  async function createKey(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError(null);
@@ -117,7 +138,7 @@ export function SecurityPage() {
               <th>Started</th>
               <th>Expires</th>
               <th>Last used</th>
-              <th />
+              <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -132,7 +153,7 @@ export function SecurityPage() {
                 <td>
                   <button
                     className={styles.danger}
-                    onClick={() => void revokeSession(s.id)}
+                    onClick={() => revokeSession(s.id)}
                     disabled={!!s.revoked_at}
                   >
                     Revoke
@@ -234,7 +255,7 @@ export function SecurityPage() {
               <th>Scopes</th>
               <th>Expires</th>
               <th>Last used</th>
-              <th />
+              <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -247,7 +268,7 @@ export function SecurityPage() {
                 <td>
                   <button
                     className={styles.danger}
-                    onClick={() => void revokeKey(k.id)}
+                    onClick={() => revokeKey(k.id)}
                     disabled={!!k.revoked_at}
                   >
                     Revoke

@@ -13,14 +13,14 @@ The chart deploys a single-replica StatefulSet with a persistent workspace volum
 
 ## What the chart does not contain
 
-Stated up front, because it is the first thing worth knowing about running an agent orchestrator in your cluster:
+Stated up front, because it is the first thing worth knowing about running an agent orchestrator in the cluster:
 
 - **No Docker socket** is mounted.
 - **No Kubernetes controller.** Operator does not watch, create, or reconcile cluster resources.
 - **No Role, RoleBinding, or ClusterRole** is created.
 - The ServiceAccount sets `automountServiceAccountToken: false`, so the pod has no Kubernetes API credential at all.
 
-Operator in your cluster is an application with a volume and a port. It cannot reach the Kubernetes API, because it has no token and no client to use one with.
+Operator in a kubernetes cluster is an application with a volume and a port. It cannot reach the Kubernetes API, because it has no token and no client to use one with.
 
 ## Install
 
@@ -66,8 +66,7 @@ kubectl -n operator delete secret operator-bootstrap
 
 ## DNS and TLS
 
-The chart does not manage certificates. Create the TLS Secret yourself, or let
-cert-manager create it, then point the Ingress at it.
+The chart does not manage certificates. Create the TLS Secret independently, or let cert-manager create it, then point the Ingress at it.
 
 With cert-manager:
 
@@ -114,8 +113,9 @@ persistence:
   storageClass: fast-ssd
 ```
 
-The volume is mounted at `/op` and holds the workspace, repositories,
-`.tickets/`, and the authentication database. It is the only durable state.
+The volume is mounted at `/op` and holds the workspace, repositories, `.tickets/`, and the authentication database. It is the only durable state — `$HOME` and `/tmp` are emptyDir mounts and are discarded on every restart.
+
+Two things land here that are easy to overlook, both under `.tickets/operator/`: `ssh/` holds the per-workspace SSH config fragments for [Coder targets](#coder-targets), and `bin/` caches the `coder` CLI when Operator downloads one. Keeping them on the volume is why a pod restart does not re-download the CLI.
 
 **Horizontal scaling is not supported.** Operator is a single-writer process
 over a ReadWriteOnce volume with a local queue and a local SQLite database.
@@ -149,17 +149,16 @@ networkPolicy:
             - 192.168.0.0/16
 ```
 
-Operator needs egress to your model provider, kanban provider, and Git host. It
-does not need egress to the rest of your cluster.
+Operator needs egress to the model provider, kanban provider, and Git host. It does not need egress to the rest of the cluster — unless you use [Coder targets](#coder-targets), which need to reach the Coder deployment.
+
+Note default: with `enabled: true` and an empty `egress.to`, the rendered policy permits DNS. An empty list is deny-all, not allow-all.
 
 ## Custom agent images
 
-The base image ships `git`, `tmux`, and `ca-certificates`, but **no agent CLI**
-— no `claude`, `codex`, or `gemini`, and no credentials for them. Supply your
-own image:
+The base image ships `git`, `tmux`, `openssh-client`, `curl`, and `ca-certificates`, but **no agent CLI** — no `claude`, `codex`, or `gemini`, and no credentials for them.
 
 ```dockerfile
-FROM untra/operator:0.2.6
+FROM untra/operator:0.2.7
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
  && npm install -g @anthropic-ai/claude-code \
@@ -170,7 +169,7 @@ USER 10001
 ```yaml
 image:
   repository: registry.example.com/operator-claude
-  tag: "0.2.6"
+  tag: "0.2.7"
 ```
 
 Provide the agent's credentials as environment variables from a Secret:
@@ -184,6 +183,46 @@ extraEnvFrom:
 Note that an agent process runs as the same user as Operator and can read
 these. That is inherent to the current execution model — see
 [the trust boundary discussion](/security/#the-agent-process-is-inside-the-trust-boundary).
+
+## Coder targets
+
+Operator can run agents in per-ticket [Coder](/getting-started/platforms/coder/#operator-targeting-coder)
+workspaces instead of in its own pod. From a Kubernetes deployment that needs three things.
+
+**1. Credentials, by name.** Operator reads the deployment URL and a user session token from environment variables. Put them in a Secret and reference it — the chart has no dedicated values for this:
+
+```yaml
+extraEnvFrom:
+  - secretRef:
+      name: operator-coder
+```
+
+```bash
+kubectl -n operator create secret generic operator-coder   --from-literal=CODER_URL=https://coder.example.com   --from-literal=CODER_SESSION_TOKEN=<token>
+```
+
+Give Operator its own Coder service account. A session token can create, delete, and SSH into every workspace its user owns.
+
+**2. Egress to Coder.** If `networkPolicy.enabled` is true, add the Coder namespace explicitly:
+
+```yaml
+networkPolicy:
+  enabled: true
+  egress:
+    allowDNS: true
+    to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: coder
+```
+
+Coder's own ingress NetworkPolicy has to admit Operator's namespace too.
+
+```bash
+kubectl -n operator exec operator-0 --   curl -sSf https://coder.example.com/api/v2/buildinfo
+```
+
+**3. Nothing else.** The image already ships `openssh-client`, and Operator downloads the `coder` CLI from the deployment on first use, caching it on the persistent volume at `.tickets/operator/bin/coder`. No custom image, no initContainer, and no relaxing of `readOnlyRootFilesystem` — the cache and the SSH fragments both live under `/op`.
 
 ## Security context
 
@@ -222,8 +261,7 @@ Back up the persistent volume. It holds everything: workspace, tickets, state, a
 
 Treat the backup as sensitive — it contains the authentication database, which holds the token signing key.
 
-To restore, pre-create the PersistentVolumeClaim the StatefulSet expects, backed
-by your snapshot, before installing the chart. A StatefulSet adopts an existing claim whose name matches its `volumeClaimTemplate`, which is `workspace-<release>-0`:
+To restore, pre-create the PersistentVolumeClaim the StatefulSet expects, backed by the snapshot, before installing the chart. A StatefulSet adopts an existing claim whose name matches its `volumeClaimTemplate`, which is `workspace-<release>-0`:
 
 ```yaml
 apiVersion: v1
@@ -285,8 +323,7 @@ even on a perfectly healthy pod.
 
 ### Agents fail to launch
 
-The base image intentionally omits the agent CLI. Confirm your derived image
-provides an authenticated `claude`, `codex`, or `gemini` on `PATH`:
+The base image intentionally omits the agent CLI. Confirm the derived image provides an authenticated `claude`, `codex`, or `gemini` on `PATH`:
 
 ```bash
 kubectl -n operator exec statefulset/operator -- sh -c 'command -v claude'

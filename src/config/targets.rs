@@ -136,7 +136,7 @@ pub struct CoderConfig {
     /// Workspace name prefix for deterministic per-ticket naming
     #[serde(default = "default_coder_name_prefix")]
     pub name_prefix: String,
-    /// Project root inside the workspace (None = workspace $HOME)
+    /// Project root inside the workspace (None = /home/coder/{project})
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workdir: Option<String>,
     /// Stop the workspace when the ticket completes (never delete)
@@ -149,7 +149,7 @@ pub struct CoderConfig {
     /// multi-step (empty/None = reverse tunnel default)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub callback_url: Option<String>,
-    /// Passthrough `-p` template parameters for `coder create`
+    /// Passthrough `--parameter` template parameters for `coder create`
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub parameters: std::collections::HashMap<String, String>,
 }
@@ -345,6 +345,38 @@ template = "operator-agent"
                 assert_eq!(c.create_timeout_secs, 300);
                 assert!(c.callback_url.is_none());
                 assert!(c.parameters.is_empty());
+            }
+            other => panic!("expected coder kind, got {other:?}"),
+        }
+    }
+
+    /// The coder-module's `run.sh` writes exactly this block. Parsing it here
+    /// keeps the Terraform module and `CoderConfig` from drifting apart.
+    #[test]
+    fn test_target_def_coder_toml_matches_coder_module_output() {
+        let toml_src = r#"
+name = "coder-agents"
+kind = "coder"
+template = "operator-agent"
+token_env = "CODER_SESSION_TOKEN"
+callback_url = "https://op.example.com"
+name_prefix = "op"
+workdir = "/home/coder/proj"
+stop_on_complete = true
+create_timeout_secs = 600
+"#;
+        let def: TargetDef = toml::from_str(toml_src).unwrap();
+        assert_eq!(def.name, "coder-agents");
+        match &def.kind {
+            TargetKind::Coder(c) => {
+                assert_eq!(c.template, "operator-agent");
+                assert_eq!(c.name_prefix, "op");
+                assert_eq!(c.workdir.as_deref(), Some("/home/coder/proj"));
+                assert_eq!(c.callback_url.as_deref(), Some("https://op.example.com"));
+                assert_eq!(c.create_timeout_secs, 600);
+                assert!(c.stop_on_complete);
+                // Not emitted by the module: the workspace gets CODER_URL ambiently.
+                assert_eq!(c.url_env, "CODER_URL");
             }
             other => panic!("expected coder kind, got {other:?}"),
         }

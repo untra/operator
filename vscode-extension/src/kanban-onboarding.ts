@@ -8,7 +8,7 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'path';
+import * as path from 'node:path';
 import { updateWalkthroughContext } from './walkthrough';
 import { resolveWorkingDirectory } from './config-paths';
 import {
@@ -642,6 +642,10 @@ export async function onboardLinear(
  * typically set as `GITHUB_TOKEN` for PR workflows) will be rejected by the
  * server's scope verification with a friendly error pointing to the docs.
  */
+function hasRecognizedGithubTokenPrefix(value: string): boolean {
+  return value.startsWith('ghp_') || value.startsWith('github_pat_') || value.startsWith('gho_');
+}
+
 async function collectGithubToken(title: string): Promise<string | null> {
   const openGithubSettings: vscode.QuickInputButton = {
     iconPath: new vscode.ThemeIcon('link-external'),
@@ -659,14 +663,11 @@ async function collectGithubToken(title: string): Promise<string | null> {
   input.ignoreFocusOut = true;
   input.buttons = [openGithubSettings];
 
-  const isRecognizedPrefix = (val: string): boolean =>
-    val.startsWith('ghp_') || val.startsWith('github_pat_') || val.startsWith('gho_');
-
   const token = await new Promise<string | undefined>((resolve) => {
     let resolved = false;
 
     input.onDidChangeValue((value) => {
-      if (value && !isRecognizedPrefix(value)) {
+      if (value && !hasRecognizedGithubTokenPrefix(value)) {
         input.validationMessage =
           'GitHub tokens start with "ghp_", "github_pat_", or "gho_"';
       } else {
@@ -680,7 +681,7 @@ async function collectGithubToken(title: string): Promise<string | null> {
         input.validationMessage = 'Token is required';
         return;
       }
-      if (!isRecognizedPrefix(val)) {
+      if (!hasRecognizedGithubTokenPrefix(val)) {
         input.validationMessage =
           'GitHub tokens start with "ghp_", "github_pat_", or "gho_"';
         return;

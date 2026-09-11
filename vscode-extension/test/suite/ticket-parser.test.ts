@@ -5,15 +5,15 @@
  * Tests parseTicketContent() and getCurrentSessionId() functions.
  */
 
-import * as assert from 'assert';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import * as assert from 'node:assert';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import {
   parseTicketContent,
   getCurrentSessionId,
   parseTicketMetadata,
 } from '../../src/ticket-parser';
-import { TicketMetadata } from '../../src/types';
+import type { TicketMetadata } from '../../src/types';
 
 // Path to fixtures relative to the workspace root
 // __dirname in compiled code is out/test/suite, so we go up 3 levels to workspace root

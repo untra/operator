@@ -95,7 +95,7 @@ fn test_generated_types_are_copied_before_every_compile_step() {
         serde_json::from_str(&read("webcomponents/package.json")).expect("package.json parses");
     let scripts = pkg["scripts"].as_object().expect("scripts object");
 
-    for step in ["typecheck", "test", "build"] {
+    for step in ["typecheck", "test", "build", "lint"] {
         let script = scripts[step].as_str().unwrap_or("");
         assert!(
             script.contains("copy-types"),

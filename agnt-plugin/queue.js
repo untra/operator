@@ -1,4 +1,4 @@
-// operator-queue-status — GET /api/v1/queue/status
+// operator-queue-status - GET /api/v1/queue/status
 import { callOperator } from "./lib/operator-client.js";
 
 class QueueStatusTool {

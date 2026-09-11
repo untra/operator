@@ -4,10 +4,12 @@
  * Tests environment variable detection, LLM tool detection, and directory validation.
  */
 
-import * as assert from 'assert';
-import * as path from 'path';
-import * as os from 'os';
-import * as fs from 'fs/promises';
+import * as assert from 'node:assert';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import * as fs from 'node:fs/promises';
+import type {
+  KanbanEnvResult} from '../../src/walkthrough';
 import {
   checkKanbanEnvVars,
   checkLlmToolInPath,
@@ -17,8 +19,7 @@ import {
   fetchLinearWorkspace,
   getKanbanWorkspaces,
   KANBAN_ENV_VARS,
-  LLM_TOOLS,
-  KanbanEnvResult,
+  LLM_TOOLS
 } from '../../src/walkthrough';
 
 /** Get all kanban env var keys for setup/teardown */

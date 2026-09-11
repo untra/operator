@@ -2,7 +2,7 @@
 //!
 //! `docs/_data/navigation.yml` is hand-maintained (editorial ordering, section
 //! titles) but its *contents* are enforced against
-//! `operator::integrations::catalog` — every documented `Alpha`+ integration
+//! `operator::integrations::catalog` - every documented `Alpha`+ integration
 //! must be reachable from the sidebar with its catalog icon, and the nav may
 //! not advertise integrations the catalog doesn't know. The suite also guards
 //! general docs hygiene: every nav URL resolves, every published page is
@@ -97,7 +97,7 @@ fn repo_path(rel: &str) -> PathBuf {
 
 /// Deserializing through the strict structs is itself the shape test: it
 /// rejects a 4th nesting level, `icon` on items, `codicon` on leaves, and any
-/// unknown key — exactly what `docs/_includes/sidebar.html` would silently drop.
+/// unknown key - exactly what `docs/_includes/sidebar.html` would silently drop.
 fn load_nav() -> Nav {
     let raw = std::fs::read_to_string(repo_path("docs/_data/navigation.yml"))
         .expect("docs/_data/navigation.yml should be readable");
@@ -279,7 +279,7 @@ fn test_nav_vertical_leaves_map_to_catalog() {
         for leaf in leaves {
             assert!(
                 catalog_urls.contains(&leaf.url) || NAV_EXTRA_PAGES.contains(&leaf.url.as_str()),
-                "nav leaf '{}' ({}) under '{item_url}' advertises a page with no catalog entry — \
+                "nav leaf '{}' ({}) under '{item_url}' advertises a page with no catalog entry - \
                  add it to src/integrations/catalog.rs or NAV_EXTRA_PAGES",
                 leaf.title,
                 leaf.url
@@ -352,7 +352,7 @@ fn test_nav_icons_match_catalog() {
         if let Some(stem) = name.strip_suffix(".svg") {
             assert!(
                 referenced.contains(stem),
-                "docs/assets/icons/{name} is referenced by no navigation.yml entry — remove it or wire it up"
+                "docs/assets/icons/{name} is referenced by no navigation.yml entry - remove it or wire it up"
             );
         }
     }
@@ -397,7 +397,7 @@ fn test_nav_titles_match_pages() {
             .unwrap_or_else(|| panic!("page for nav url '{url}' has no front-matter title"));
         assert_eq!(
             title, page_title,
-            "nav title for '{url}' differs from the page's front-matter title — \
+            "nav title for '{url}' differs from the page's front-matter title - \
              align them or add a NAV_TITLE_EXCEPTIONS entry"
         );
     };
@@ -429,7 +429,7 @@ fn test_docs_pages_reachable() {
         let url = page_url(&page);
         assert!(
             reachable.contains(&url),
-            "docs/{page} ({url}) is published but unreachable from navigation.yml — \
+            "docs/{page} ({url}) is published but unreachable from navigation.yml - \
              add a nav entry or extend NAV_ORPHAN_ALLOWLIST"
         );
     }
@@ -508,7 +508,7 @@ fn test_no_duplicate_body_h1() {
         let first_line = body.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
         assert!(
             !first_line.starts_with("# "),
-            "docs/{page} opens with a body H1 ('{first_line}') — the doc layout already \
+            "docs/{page} opens with a body H1 ('{first_line}') - the doc layout already \
              renders the front-matter title; remove the duplicate heading"
         );
     }

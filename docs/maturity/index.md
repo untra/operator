@@ -45,7 +45,7 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Bitbucket | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
 | Azure DevOps | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
 | Forgejo | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
-| Gitea | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
+| Gitea | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Gitea](https://operator.untra.io/getting-started/git/gitea/) |
 
 ## Session
 

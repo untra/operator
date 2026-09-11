@@ -3,7 +3,7 @@
  */
 
 import * as vscode from 'vscode';
-import { CredentialProvider } from '../../../src/auth/credentials';
+import type { CredentialProvider } from '../../../src/auth/credentials';
 
 /** In-memory SecretStorage: enough of the interface for the token store. */
 export class MemorySecrets implements vscode.SecretStorage {

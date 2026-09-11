@@ -27,12 +27,14 @@ export function DashboardPage() {
       api
         .kanban()
         .then((b) => {
-          if (cancelled) return;
-          setBoard(b);
-          setError(null);
+          if (!cancelled) {
+            setBoard(b);
+            setError(null);
+          }
+          return undefined;
         })
         .catch((e) => {
-          if (!cancelled) setError(e.message);
+          if (!cancelled) {setError(e.message);}
         });
       api.queueStatus().then((q) => !cancelled && setQueue(q)).catch(() => {});
       api.health().then((h) => !cancelled && setHealth(h)).catch(() => {});

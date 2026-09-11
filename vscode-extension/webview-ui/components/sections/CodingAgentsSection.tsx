@@ -4,7 +4,7 @@ import { SectionHeader } from '../SectionHeader';
 import type { AgentsConfig } from '../../../src/generated/AgentsConfig';
 import type { LlmToolsConfig } from '../../../src/generated/LlmToolsConfig';
 
-const LLM_ICON_NAMES = ['claude', 'codex', 'gemini'];
+const LLM_ICON_NAMES = new Set(['claude', 'codex', 'gemini']);
 
 interface NumberFieldProps {
   label: string;
@@ -73,7 +73,7 @@ export function CodingAgentsSection({
                   <Chip
                     label={
                       <>
-                        {LLM_ICON_NAMES.includes(tool.name) && (
+                        {LLM_ICON_NAMES.has(tool.name) && (
                           <i className={`opi-${tool.name}`} style={{ fontSize: '1rem', lineHeight: 1 }} />
                         )}
                         {`${tool.name} ${tool.version}`}
@@ -100,7 +100,7 @@ export function CodingAgentsSection({
           min={1}
           max={16}
           onChange={(e) =>
-            onUpdate('agents', 'max_parallel', parseInt(e.target.value, 10) || 1)
+            onUpdate('agents', 'max_parallel', Number.parseInt(e.target.value, 10) || 1)
           }
           helperText="Maximum number of agents running simultaneously"
         />
@@ -114,7 +114,7 @@ export function CodingAgentsSection({
             onUpdate(
               'agents',
               'generation_timeout_secs',
-              parseInt(e.target.value, 10) || 300
+              Number.parseInt(e.target.value, 10) || 300
             )
           }
           helperText="Timeout for each agent generation step"
@@ -129,7 +129,7 @@ export function CodingAgentsSection({
             onUpdate(
               'agents',
               'step_timeout',
-              parseInt(e.target.value, 10) || 1800
+              Number.parseInt(e.target.value, 10) || 1800
             )
           }
           helperText="Maximum seconds a step can run before timing out"
@@ -144,7 +144,7 @@ export function CodingAgentsSection({
             onUpdate(
               'agents',
               'silence_threshold',
-              parseInt(e.target.value, 10) || 30
+              Number.parseInt(e.target.value, 10) || 30
             )
           }
           helperText="Seconds of silence before considering agent awaiting input"

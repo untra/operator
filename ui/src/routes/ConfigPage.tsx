@@ -37,7 +37,7 @@ export function ConfigPage() {
     }
   };
 
-  if (loading) return <div className={styles.loading}>Loading configuration...</div>;
+  if (loading) {return <div className={styles.loading}>Loading configuration...</div>;}
 
   return (
     <div className={styles.page}>

@@ -77,7 +77,7 @@ function NavGroup({ label, keys }: { label: string; keys: readonly string[] }) {
 // with a header (title + close) above the caller-supplied node.
 function RightPanel() {
   const { content, title, close } = useRightPanel();
-  if (!content) return null;
+  if (!content) {return null;}
   return (
     <aside className={styles.rightPanel} aria-label={title ?? 'Detail panel'}>
       <div className={styles.rightPanelHeader}>

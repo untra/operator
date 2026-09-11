@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs/promises';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
 import { StatusItem } from '../status-item';
 import type { SectionContext, StatusSection, WebhookStatus, ApiStatus } from './types';
 import type { SectionId, SectionHealth } from '../generated';
-import { SessionInfo } from '../types';
-import { discoverApiUrl, ApiSessionInfo, AuthRequiredError, OperatorApiClient } from '../api-client';
+import type { SessionInfo } from '../types';
+import type { ApiSessionInfo} from '../api-client';
+import { discoverApiUrl, AuthRequiredError, OperatorApiClient } from '../api-client';
 import { SIGN_IN_COMMAND_TITLE } from '../auth/errors';
 import { getOperatorPath, getOperatorVersion } from '../operator-binary';
 import { isMcpServerRegistered } from '../mcp-connect';
@@ -18,9 +19,9 @@ export class ConnectionsSection implements StatusSection {
   private apiStatus: ApiStatus = { connected: false };
   private operatorVersion: string | undefined;
   private localDirectoryName: string | undefined;
-  private mcpRegistered: boolean = false;
-  private wrapperType: string = 'vscode';
-  private webUiAvailable: boolean = false;
+  private mcpRegistered = false;
+  private wrapperType = 'vscode';
+  private webUiAvailable = false;
 
   get isApiConnected(): boolean {
     return this.apiStatus.connected;
@@ -140,7 +141,7 @@ export class ConnectionsSection implements StatusSection {
   private async tryHealthCheck(apiUrl: string, sessionVersion?: string): Promise<boolean> {
     const client = new OperatorApiClient(apiUrl);
     const portStr = new URL(apiUrl).port;
-    const port = portStr ? parseInt(portStr, 10) : 7008;
+    const port = portStr ? Number.parseInt(portStr, 10) : 7008;
     try {
       if (await client.isReachable()) {
         const health = await client.health();
@@ -254,10 +255,10 @@ export class ConnectionsSection implements StatusSection {
     // 2. API Version
     let versionItem: StatusItem;
     if (this.apiStatus.connected && this.apiStatus.version) {
-      const swaggerUrl = `http://localhost:${this.apiStatus.port || 7008}/swagger-ui`;
+      const swaggerUrl = `http://localhost:${this.apiStatus.port ? this.apiStatus.port : 7008}/swagger-ui`;
       versionItem = new StatusItem({
         label: 'Operator',
-        description: 'Version ' + this.apiStatus.version,
+        description: `Version ${  this.apiStatus.version}`,
         icon: 'versions',
         tooltip: 'Open Swagger UI',
         command: {
@@ -270,7 +271,7 @@ export class ConnectionsSection implements StatusSection {
     } else {
       versionItem = new StatusItem({
         label: 'Operator Version',
-        description: this.operatorVersion ? 'Version ' + this.operatorVersion : 'Not installed',
+        description: this.operatorVersion ? `Version ${  this.operatorVersion}` : 'Not installed',
         icon: 'versions',
         tooltip: this.operatorVersion
           ? `Installed: ${this.operatorVersion} — click to update`
@@ -288,7 +289,7 @@ export class ConnectionsSection implements StatusSection {
     if (this.apiStatus.connected) {
       apiItem = new StatusItem({
         label: 'API',
-        description: this.apiStatus.url || 'Connected',
+        description: this.apiStatus.url ? this.apiStatus.url : 'Connected',
         icon: 'pass',
         tooltip: this.apiStatus.directoryName
           ? `Operator REST API at ${this.apiStatus.url} (project '${this.apiStatus.directoryName}')`
@@ -342,13 +343,13 @@ export class ConnectionsSection implements StatusSection {
     const webUiItem = this.webUiAvailable
       ? new StatusItem({
           label: 'Web UI',
-          description: `http://localhost:${this.apiStatus.port || 7008}`,
+          description: `http://localhost:${this.apiStatus.port ? this.apiStatus.port : 7008}`,
           icon: 'pass',
           tooltip: 'Click to open the embedded web UI in browser',
           command: {
             command: 'vscode.open',
             title: 'Open Web UI',
-            arguments: [vscode.Uri.parse(`http://localhost:${this.apiStatus.port || 7008}`)],
+            arguments: [vscode.Uri.parse(`http://localhost:${this.apiStatus.port ? this.apiStatus.port : 7008}`)],
           },
           sectionId: this.sectionId,
         })

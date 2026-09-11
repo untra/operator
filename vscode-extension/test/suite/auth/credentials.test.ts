@@ -4,11 +4,11 @@
  * Group 2: Service Logic - fetch and the filesystem are faked.
  */
 
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as sinon from 'sinon';
-import * as fs from 'fs/promises';
-import * as os from 'os';
-import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import {
   CLIENT_ID,
   EXPIRY_SKEW_MS,

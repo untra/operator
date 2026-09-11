@@ -53,8 +53,6 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       # The frontend is typed against these; generate before anything compiles.
-      # bindings/ is committed — the script regenerates and fails on any
-      # checksum difference vs the checkout (modified or newly exported types).
       - name: Generate TypeScript bindings and verify they are committed
         run: |
           scripts/check-bindings-fresh.sh || {

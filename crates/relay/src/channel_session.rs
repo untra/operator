@@ -173,7 +173,7 @@ impl ChannelSession {
         {
             ServerMsg::Peers { peers, .. } => Ok(peers),
             ServerMsg::Err { code, message, .. } => {
-                Err(anyhow::anyhow!("list_peers error: {code:?} — {message:?}"))
+                Err(anyhow::anyhow!("list_peers error: {code:?} - {message:?}"))
             }
             other => Err(anyhow::anyhow!("unexpected list_peers response: {other:?}")),
         }
@@ -235,7 +235,7 @@ impl ChannelSession {
         {
             ServerMsg::Ack { .. } => Ok(()),
             ServerMsg::Err { code, message, .. } => {
-                Err(anyhow::anyhow!("rename error: {code:?} — {message:?}"))
+                Err(anyhow::anyhow!("rename error: {code:?} - {message:?}"))
             }
             other => Err(anyhow::anyhow!("unexpected rename response: {other:?}")),
         }
@@ -289,7 +289,7 @@ async fn route_msg(
                 let _ = tx.send(count);
             }
         }
-        // Ack/Peers/Err without correlation ID — ignore
+        // Ack/Peers/Err without correlation ID - ignore
         _ => {}
     }
 }

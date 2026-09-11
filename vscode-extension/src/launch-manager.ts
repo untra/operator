@@ -9,13 +9,14 @@
  */
 
 import * as vscode from 'vscode';
-import { TerminalManager } from './terminal-manager';
-import { LaunchOptions, TicketInfo } from './types';
+import type { TerminalManager } from './terminal-manager';
+import type { LaunchOptions, TicketInfo } from './types';
 import { parseTicketMetadata, getCurrentSessionId } from './ticket-parser';
+import type {
+  LaunchTicketResponse} from './api-client';
 import {
   OperatorApiClient,
-  discoverApiUrl,
-  LaunchTicketResponse,
+  discoverApiUrl
 } from './api-client';
 
   /**
@@ -97,7 +98,7 @@ export class LaunchManager {
       if (choice === 'Focus Existing') {
         this.terminalManager.focus(terminalName);
         return;
-      } else if (choice === 'Kill and Relaunch') {
+      }if (choice === 'Kill and Relaunch') {
         this.terminalManager.kill(terminalName);
       } else {
         return; // Cancelled
@@ -158,8 +159,8 @@ export class LaunchManager {
     // the session and `command` is empty — nothing to execute here.
     if (response.executed_server_side) {
       void vscode.window.showInformationMessage(
-        `Launched ${ticket.id} on the Operator server` +
-          (response.terminal_name ? ` (session ${response.terminal_name})` : '')
+        `Launched ${ticket.id} on the Operator server${
+          response.terminal_name ? ` (session ${response.terminal_name})` : ''}`
       );
       return;
     }

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs/promises';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
 
 /**
  * Find .tickets directory - check parent directory first, then workspace

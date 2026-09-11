@@ -20,7 +20,8 @@
     "build": "npm run copy-types && vite build -c vite.react.config.ts && tsc -p tsconfig.build.json && vite build -c vite.elements.config.ts",
     "typecheck": "npm run copy-types && tsc --noEmit",
     "test": "npm run copy-types && bun test",
-    "copy-types": "node scripts/copy-types.mjs"
+    "copy-types": "node scripts/copy-types.mjs",
+    "lint": "npm run copy-types && cd .. && bun run lint:webcomponents"
   },
   "dependencies": {
     "@untra/naiveworkflow-react": "0.0.3",

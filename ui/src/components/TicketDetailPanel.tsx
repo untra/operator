@@ -51,10 +51,12 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
     let cancelled = false;
     Promise.all([api.getConfiguration(), api.listDelegators(), api.executionTargets()])
       .then(([configuration, delegatorResponse, targetResponse]) => {
-        if (cancelled) return;
-        setConfig(configuration);
-        setDelegators(delegatorResponse.delegators);
-        setTargets(targetResponse.targets.filter((item) => item.available).map((item) => item.name));
+        if (!cancelled) {
+          setConfig(configuration);
+          setDelegators(delegatorResponse.delegators);
+          setTargets(targetResponse.targets.filter((item) => item.available).map((item) => item.name));
+        }
+        return undefined;
       })
       .catch(() => !cancelled && setConfig(null));
     return () => {
@@ -70,7 +72,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
       .getIssueTypeDocument(ticket.ticket_type)
       .then((doc) => !cancelled && setWorkflow(doc))
       .catch((e) => {
-        if (!cancelled) setWorkflowError(e instanceof Error ? e.message : 'Failed to load workflow');
+        if (!cancelled) {setWorkflowError(e instanceof Error ? e.message : 'Failed to load workflow');}
       });
     return () => {
       cancelled = true;
@@ -203,7 +205,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
             type="button"
             className={styles.linkBtn}
             onClick={() => {
-              navigate(`/agent/${encodeURIComponent(result.agent_id)}`);
+              void navigate(`/agent/${encodeURIComponent(result.agent_id)}`);
               close();
             }}
           >

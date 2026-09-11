@@ -27,10 +27,11 @@ export function SetupPage() {
       .bootstrapStatus()
       .then((status) => {
         if (status.state === 'complete') {
-          navigate('/login', { replace: true });
-          return;
+          void navigate('/login', { replace: true });
+        } else {
+          setNeedsTemporary(status.requires_temporary_password);
         }
-        setNeedsTemporary(status.requires_temporary_password);
+        return undefined;
       })
       .catch(() => setError('Cannot reach the Operator server.'));
   }, [host, navigate]);
@@ -42,7 +43,7 @@ export function SetupPage() {
     password === confirm &&
     (!needsTemporary || temporary.length > 0);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setBusy(true);
@@ -54,7 +55,7 @@ export function SetupPage() {
       });
       // Bootstrap creates the account but does not sign you in.
       await api.login(password);
-      navigate('/', { replace: true });
+      void navigate('/', { replace: true });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         setError('This server already has an admin account. Sign in instead.');

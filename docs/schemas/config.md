@@ -365,7 +365,8 @@ REST API server configuration
 | `enabled` | `boolean` | No | Whether the REST API is enabled |
 | `host` | `string` | No | Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server — which reports the project directory name — is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces. |
 | `port` | `integer` | No | Port for the REST API server |
-| `cors_origins` | `array` | No | CORS allowed origins (empty = allow all) |
+| `cors_origins` | `array` | No | CORS allowed origins. Empty means **same-origin only** |
+| `public_url` | `string` \| `null` | No | Externally reachable base URL (e.g. `https://operator.example.com`).  OAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header, which a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy. |
 
 ### GitConfig
 
@@ -373,11 +374,41 @@ Git provider configuration for PR/MR operations
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
+| `identity` | object | No | Default commit identity for delegated work. |
+| `gitea` | → `GiteaConfig` | No |  |
+| `forgejo` | → `ForgejoConfig` | No |  |
 | `provider` | object | No | Active provider (auto-detected from remote URL if not specified) |
 | `github` | → `GitHubConfig` | No | GitHub-specific configuration |
 | `gitlab` | → `GitLabConfig` | No | GitLab-specific configuration |
 | `branch_format` | `string` | No | Branch naming format (e.g., "{type}/{ticket_id}-{slug}") |
 | `use_worktrees` | `boolean` | No | Whether to use git worktrees for per-ticket isolation (default: false) When false, tickets work directly in the project directory with branches |
+
+### GitIdentityConfig
+
+Commit identity template for delegated work.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes |  |
+| `email` | `string` | Yes |  |
+
+### GiteaConfig
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No |  |
+| `token_env` | `string` | No |  |
+| `host` | `string` \| `null` | No | HTTPS host or base URL; defaults to gitea.com. |
+| `wip_prefix` | `string` | No |  |
+
+### ForgejoConfig
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No |  |
+| `token_env` | `string` | No |  |
+| `host` | `string` \| `null` | No | HTTPS host or base URL; defaults to codeberg.org. |
+| `wip_prefix` | `string` | No |  |
 
 ### GitProviderConfig
 
@@ -535,6 +566,7 @@ that can be used to launch agents for tickets.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
+| `git` | object | No | Optional Git identity, HTTPS credential reference, and runtime settings. |
 | `name` | `string` | Yes | Unique name for this delegator (e.g., "claude-opus-auto") |
 | `llm_tool` | `string` | Yes | LLM tool name (must match a detected tool, e.g., "claude", "codex") |
 | `model` | `string` | Yes | Model alias (e.g., "opus", "sonnet", "gpt-4o") |
@@ -546,6 +578,33 @@ that can be used to launch agents for tickets.
 | `x_agnt` | object | No | Opaque AGNT-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip so re-export is lossless (e.g. `memory`, `assignedWorkflows`, `creditLimit`). Operator never interprets this. |
 | `x_openai` | object | No | Opaque OpenAI-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`, `metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted. |
 | `unmapped_core` | object | No | Opaque carry for `AgentProfile` shared-core fields Operator cannot model first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an import→export round-trip is lossless. Distinct from `x_agnt`: these are shared-core fields, not AGNT-specific, so folding them into `x_agnt` would corrupt that namespace. Operator never interprets this. |
+
+### GitExecutionConfig
+
+Git settings owned by a named delegator.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `identity` | object | No |  |
+| `credentials` | object | No |  |
+| `settings` | `array` | No |  |
+
+### GitCredentialConfig
+
+Supplied HTTPS credential, bound to a repository; contains no secret value.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `repository_url` | `string` | Yes |  |
+| `username` | `string` | Yes |  |
+| `token_env` | `string` | Yes |  |
+
+### GitConfigEntry
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `key` | `string` | Yes |  |
+| `value` | `string` | Yes |  |
 
 ### DelegatorLaunchConfig
 
@@ -645,11 +704,11 @@ SSH remote-launch path. There is no `enabled` field — presence in
 | `url_env` | `string` | No | Env var NAME holding the Coder deployment URL |
 | `token_env` | `string` | No | Env var NAME holding the Coder session token. The variable is stripped from every agent's spawn environment on all target kinds. |
 | `name_prefix` | `string` | No | Workspace name prefix for deterministic per-ticket naming |
-| `workdir` | `string` \| `null` | No | Project root inside the workspace (None = workspace $HOME) |
+| `workdir` | `string` \| `null` | No | Project root inside the workspace (None = /home/coder/{project}) |
 | `stop_on_complete` | `boolean` | No | Stop the workspace when the ticket completes (never delete) |
 | `create_timeout_secs` | `integer` | No | Bound on workspace create + agent-ready wait |
 | `callback_url` | `string` \| `null` | No | Control-plane-reachable `OPERATOR_API_URL` override for detached multi-step (empty/None = reverse tunnel default) |
-| `parameters` | `object` | No | Passthrough `-p` template parameters for `coder create` |
+| `parameters` | `object` | No | Passthrough `--parameter` template parameters for `coder create` |
 
 ### SshTarget
 

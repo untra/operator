@@ -5,18 +5,18 @@
 //! [`SupportStatus`]. This suite asserts that source stays aligned across all
 //! the surfaces that advertise it:
 //!
-//! - **Rust data** — every provider-enum variant (`KanbanProviderType::ALL`,
+//! - **Rust data** - every provider-enum variant (`KanbanProviderType::ALL`,
 //!   `ModelServerKind::ALL`, `GitProvider::ALL`, `SessionWrapperType::ALL`) has a
 //!   catalog entry, so a new variant can't ship without docs/badge coverage.
-//! - **README badges** — every badged entry has a shields.io badge whose link
+//! - **README badges** - every badged entry has a shields.io badge whose link
 //!   points at the entry's docs URL, and no badge advertises an unknown entry.
-//! - **Docs** — every `Alpha`+ entry (and the generated `docs/maturity/` page)
+//! - **Docs** - every `Alpha`+ entry (and the generated `docs/maturity/` page)
 //!   resolves to a real docs page on disk.
-//! - **Support-status guardrails** — `Proto` is never advertised; `Beta`+
+//! - **Support-status guardrails** - `Proto` is never advertised; `Beta`+
 //!   providers always are.
 //!
 //! Adding a new vertical entry therefore *fails the build* until its docs page
-//! and (for `Alpha`+) its README badge exist — which is the whole point.
+//! and (for `Alpha`+) its README badge exist - which is the whole point.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -131,7 +131,7 @@ fn test_badged_entries_have_readme_badge_and_docs() {
     }
 }
 
-/// No README badge may advertise an integration the catalog doesn't know about —
+/// No README badge may advertise an integration the catalog doesn't know about -
 /// the reverse direction of the coverage check.
 #[test]
 fn test_no_stray_vertical_badges_in_readme() {
@@ -204,11 +204,11 @@ fn test_alpha_plus_entries_documented_on_disk() {
 }
 
 /// The generated maturity page (`docs/maturity/index.md`) lists every badged
-/// entry — ties the docs surface into the same source of truth.
+/// entry - ties the docs surface into the same source of truth.
 #[test]
 fn test_maturity_page_lists_badged_entries() {
     let page = std::fs::read_to_string(repo_path("docs/maturity/index.md"))
-        .expect("docs/maturity/index.md should exist — run `cargo run -- docs --only maturity`");
+        .expect("docs/maturity/index.md should exist - run `cargo run -- docs --only maturity`");
     for e in all_integrations() {
         if let Some(url) = e.docs_url().filter(|_| e.readme_badge) {
             assert!(
@@ -245,12 +245,12 @@ fn test_vertical_parity_summary() {
                 "✗"
             }
         } else {
-            "—"
+            "-"
         };
         let docs_ok = match e.docs_path {
             Some(p) if docs_exists(p) => "✓",
             Some(_) => "✗",
-            None => "—",
+            None => "-",
         };
         println!(
             "{:<14} | {:<18} | {:<6} | {:<5} | {:<5} | {}",
@@ -259,7 +259,7 @@ fn test_vertical_parity_summary() {
             e.status.label(),
             badge_ok,
             docs_ok,
-            e.docs_url().unwrap_or_else(|| "—".to_string()),
+            e.docs_url().unwrap_or_else(|| "-".to_string()),
         );
     }
     println!();

@@ -6,8 +6,8 @@
  */
 
 import * as vscode from 'vscode';
-import { TerminalCreateOptions, TerminalState, ActivityState } from './types';
-import { IssueTypeService } from './issuetype-service';
+import type { TerminalCreateOptions, TerminalState, ActivityState } from './types';
+import type { IssueTypeService } from './issuetype-service';
 
 /**
  * Manages operator terminals with activity detection and styling

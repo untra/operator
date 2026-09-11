@@ -21,20 +21,21 @@ export function LoginPage() {
     api
       .bootstrapStatus()
       .then((status) => {
-        if (status.state !== 'complete') navigate('/setup', { replace: true });
+        if (status.state !== 'complete') {void navigate('/setup', { replace: true });}
+        return undefined;
       })
       .catch(() => {
         /* Unreachable server: let the login attempt report it. */
       });
   }, [host, navigate]);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setBusy(true);
     try {
       await new OperatorApi(host).login(password);
-      navigate('/', { replace: true });
+      void navigate('/', { replace: true });
     } catch (e) {
       // 429 carries a wait, not a wrong password; saying "incorrect" would
       // send the operator hunting for a password problem they do not have.
@@ -65,7 +66,6 @@ export function LoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoFocus
             required
           />
         </label>

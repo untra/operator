@@ -84,7 +84,7 @@ export function KanbanProvidersSection({
               key={`jira-${domain}`}
               type="jira"
               domain={domain}
-              config={config as JiraConfig}
+              config={config}
               onUpdate={onUpdate}
               onValidate={onValidateJira}
               validationResult={jiraResult}
@@ -124,7 +124,7 @@ export function KanbanProvidersSection({
               key={`linear-${teamId}`}
               type="linear"
               domain={teamId}
-              config={config as LinearConfig}
+              config={config}
               onUpdate={onUpdate}
               onValidate={onValidateLinear}
               validationResult={linearResult}

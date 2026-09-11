@@ -7,7 +7,7 @@
  */
 
 import * as vscode from 'vscode';
-import { LaunchOptions, TicketInfo, ModelOption } from './types';
+import type { LaunchOptions, TicketInfo, ModelOption } from './types';
 import type { DelegatorResponse } from './generated/DelegatorResponse';
 import type { DelegatorsResponse } from './generated/DelegatorsResponse';
 import type { ModelServerModelsResponse } from './generated/ModelServerModelsResponse';
@@ -185,7 +185,7 @@ export async function showLaunchOptionsDialog(
     return undefined;
   }
 
-  const selectedLabels = optionChoices.map((c) => c.label);
+  const selectedLabels = new Set(optionChoices.map((c) => c.label));
 
   // Execution target: offered only when the config declares targets/hosts;
   // Auto keeps the delegator's own resolution.
@@ -197,8 +197,8 @@ export async function showLaunchOptionsDialog(
   return {
     delegator: delegatorChoice.delegatorName ?? null,
     model: delegatorChoice.model,
-    yoloMode: selectedLabels.includes('YOLO Mode'),
-    resumeSession: selectedLabels.includes('Resume Session'),
+    yoloMode: selectedLabels.has('YOLO Mode'),
+    resumeSession: selectedLabels.has('Resume Session'),
     target,
   };
 }

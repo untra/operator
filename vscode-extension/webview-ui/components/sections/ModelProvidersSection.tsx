@@ -9,7 +9,7 @@ import type {
   DelegatorResponse,
 } from '../../types/messages';
 
-const BRAND_ICONS = ['anthropic', 'google', 'ollama', 'openrouter'];
+const BRAND_ICONS = new Set(['anthropic', 'google', 'ollama', 'openrouter']);
 
 interface ModelProvidersSectionProps {
   detectedTools: string[];
@@ -67,6 +67,32 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
           break;
         case 'modelProvidersError':
           setError(msg.error);
+          break;
+        case 'apiHealthResult':
+        case 'assessTicketCreated':
+        case 'assessTicketError':
+        case 'browseResult':
+        case 'collectionActivated':
+        case 'collectionsError':
+        case 'collectionsLoaded':
+        case 'configError':
+        case 'configLoaded':
+        case 'configUpdated':
+        case 'externalIssueTypesError':
+        case 'externalIssueTypesLoaded':
+        case 'issueTypeCreated':
+        case 'issueTypeDeleted':
+        case 'issueTypeError':
+        case 'issueTypeLoaded':
+        case 'issueTypeUpdated':
+        case 'issueTypesLoaded':
+        case 'jiraValidationResult':
+        case 'kanbanStatusesError':
+        case 'kanbanStatusesLoaded':
+        case 'linearValidationResult':
+        case 'llmToolsDetected':
+        case 'projectsError':
+        case 'projectsLoaded':
           break;
       }
     });
@@ -165,7 +191,7 @@ function ProviderGroup({
           const conn = connection(probe);
           return (
             <div key={k.slug} className="op-row op-gap-1 op-wrap">
-              {k.brand_icon && BRAND_ICONS.includes(k.brand_icon) && (
+              {k.brand_icon && BRAND_ICONS.has(k.brand_icon) && (
                 <i className={`opi-${k.brand_icon}`} style={{ fontSize: '1rem', lineHeight: 1 }} />
               )}
               <span className="op-body2" style={{ fontWeight: 600, minWidth: '8rem' }}>
@@ -209,20 +235,18 @@ function CreateDelegatorForm({
   const [model, setModel] = useState('');
   const [name, setName] = useState('');
 
-  useEffect(() => {
-    if (!tool && detectedTools.length > 0) {setTool(detectedTools[0]);}
-  }, [detectedTools, tool]);
+  const selectedTool = tool || detectedTools[0] || '';
 
   const probe = provider ? probes[provider] : undefined;
   const liveModels = probe?.reachable ? probe.models : [];
 
   const submit = () => {
-    if (!tool || !provider || !model) {return;}
+    if (!selectedTool || !provider || !model) {return;}
     postMessage({
       type: 'createDelegator',
       request: {
-        name: name.trim() || `${tool}-${model}`,
-        llm_tool: tool,
+        name: name.trim() || `${selectedTool}-${model}`,
+        llm_tool: selectedTool,
         model,
         display_name: null,
         model_properties: {},
@@ -243,7 +267,7 @@ function CreateDelegatorForm({
       <div className="op-col" style={{ gap: 12, maxWidth: 420 }}>
         <SelectInput
           label="LLM tool"
-          value={tool}
+          value={selectedTool}
           onChange={(e) => setTool(e.target.value)}
         >
           {detectedTools.length === 0 && <option value="">(none detected)</option>}
@@ -293,7 +317,7 @@ function CreateDelegatorForm({
         <TextInput
           label="Name (optional)"
           value={name}
-          placeholder={tool && model ? `${tool}-${model}` : 'delegator name'}
+          placeholder={selectedTool && model ? `${selectedTool}-${model}` : 'delegator name'}
           onChange={(e) => setName(e.target.value)}
         />
 

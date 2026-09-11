@@ -40,7 +40,7 @@ const ICON_GLOBS: &[&str] = &[
 /// recolor or resize safely.
 const EXEMPT: &[(&str, &str)] = &[(
     "docs/assets/img/operator_logo.svg",
-    "full-color brand wordmark, not a monochrome glyph — it is never tinted, \
+    "full-color brand wordmark, not a monochrome glyph - it is never tinted, \
      inlined, or rendered at icon sizes",
 )];
 
@@ -100,7 +100,7 @@ fn icon_files() -> Vec<PathBuf> {
     files.sort();
     assert!(
         !files.is_empty(),
-        "found no icons under {ICON_GLOBS:?} — has the layout moved?"
+        "found no icons under {ICON_GLOBS:?} - has the layout moved?"
     );
     files
 }
@@ -180,7 +180,7 @@ fn test_every_icon_matches_the_operator_icon_standard() {
             );
         }
 
-        // 5. No pinned color or size — the container decides both.
+        // 5. No pinned color or size - the container decides both.
         for caps in attr_re.captures_iter(&svg) {
             let attr = &caps[1];
             assert!(
@@ -193,7 +193,7 @@ fn test_every_icon_matches_the_operator_icon_standard() {
         // 6. Nothing that breaks when the file is inlined into a page.
         assert!(
             !svg.contains("javascript:") && !handler_re.is_match(&svg),
-            "{name}: event handlers and javascript: URLs are not allowed — these files \
+            "{name}: event handlers and javascript: URLs are not allowed - these files \
              are inlined verbatim into generated pages"
         );
         assert!(
@@ -273,7 +273,7 @@ fn test_exemptions_are_real_and_still_needed() {
         let full = repo_root().join(path);
         assert!(
             full.is_file(),
-            "exempt file {path} no longer exists — remove it from EXEMPT ({reason})"
+            "exempt file {path} no longer exists - remove it from EXEMPT ({reason})"
         );
         let svg = std::fs::read_to_string(&full).unwrap();
         let compliant = svg_re
@@ -282,7 +282,7 @@ fn test_exemptions_are_real_and_still_needed() {
             && svg.matches("<path").count() == 1;
         assert!(
             !compliant,
-            "{path} now meets the icon standard — drop its exemption and move it under \
+            "{path} now meets the icon standard - drop its exemption and move it under \
              a governed directory"
         );
     }

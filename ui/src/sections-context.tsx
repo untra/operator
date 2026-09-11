@@ -3,7 +3,7 @@
 // one place (mounted once by Layout) keeps the sidebar and every section page in
 // sync off a single 3s timer instead of N drifting ones.
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { OperatorApi } from './api-client';
 import type { SectionDto } from './api-client';
@@ -30,12 +30,14 @@ export function SectionsProvider({ children }: { children: ReactNode }) {
       api
         .sections()
         .then((s) => {
-          if (cancelled) return;
-          setSections(s);
-          setError(null);
+          if (!cancelled) {
+            setSections(s);
+            setError(null);
+          }
+          return undefined;
         })
         .catch((e) => {
-          if (!cancelled) setError(e.message);
+          if (!cancelled) {setError(e.message);}
         });
     };
     refresh();
@@ -46,7 +48,9 @@ export function SectionsProvider({ children }: { children: ReactNode }) {
     };
   }, [api]);
 
-  return <SectionsContext.Provider value={{ sections, error }}>{children}</SectionsContext.Provider>;
+  const value = useMemo(() => ({ sections, error }), [sections, error]);
+
+  return <SectionsContext.Provider value={value}>{children}</SectionsContext.Provider>;
 }
 
 export function useSections(): SectionsState {

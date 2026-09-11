@@ -1,8 +1,8 @@
 //! The authorization layer.
 //!
 //! One `middleware::from_fn_with_state` layer decides every request. It runs
-//! over the *composed* router — the documented API routes, the Swagger UI, and
-//! the config-gated MCP transport routes — so no surface can be mounted outside
+//! over the *composed* router - the documented API routes, the Swagger UI, and
+//! the config-gated MCP transport routes - so no surface can be mounted outside
 //! its reach.
 //!
 //! The decision is: resolve a principal from the request's credentials, look up
@@ -35,10 +35,8 @@ pub const CSRF_HEADER: &str = "x-operator-csrf";
 /// Paths served to an unauthenticated browser so it can render the login, bootstrap, and device-approval screens.
 ///
 /// This is the whole SPA bundle, unavoidably: the dashboard uses fragment
-/// routing, so `#/login` and `#/config` are indistinguishable to the server —
-/// it sees one request for `/` either way. The bundle carries no workspace data
-/// or credentials; everything it displays arrives over authenticated API calls.
-/// See `docs/security/#the-dashboard-bundle-is-public`.
+/// routing, so `#/login` and `#/config` are indistinguishable to the server.
+/// The bundle carries no workspace data or credentials; everything it displays arrives over authenticated API calls.
 fn is_public_asset(path: &str) -> bool {
     !(path.starts_with("/api/") || path.starts_with("/swagger-ui") || path.starts_with("/api-docs"))
 }
@@ -49,7 +47,7 @@ fn is_public_asset(path: &str) -> bool {
 /// `routes!` entry, so they never produce a `MatchedPath` and cannot be listed
 /// in `ROUTE_RULES`. They still need classifying: the spec enumerates every
 /// endpoint this server exposes, which is not something to hand out
-/// anonymously — but an authenticated admin should be able to open it.
+/// anonymously - but an authenticated admin should be able to open it.
 fn unmatched_access(path: &str) -> Option<Access> {
     if path.starts_with("/swagger-ui") || path.starts_with("/api-docs") {
         return Some(Access::Scoped(Scope::Read));
@@ -165,7 +163,7 @@ fn origin_authority(origin: &str) -> Option<&str> {
 /// Three cases count as acceptable, and the first is easy to forget: a browser
 /// sends `Origin` on a **same-origin** POST too. Checking only the configured
 /// CORS allowlist therefore blocked the dashboard's own mutations, since that
-/// list is empty by default — and a curl test never catches it, because curl
+/// list is empty by default - and a curl test never catches it, because curl
 /// sends no `Origin` at all.
 fn origin_is_acceptable(headers: &HeaderMap, allowed: &[String]) -> bool {
     let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) else {
@@ -206,7 +204,7 @@ pub async fn authorize(
 
     // Prefer the route table. Fall back to path-based classification when the
     // table has no entry: `SwaggerUi` mounts its own wildcard route, so it does
-    // produce a `MatchedPath` — just not one that can appear in `ROUTE_RULES`.
+    // produce a `MatchedPath` - just not one that can appear in `ROUTE_RULES`.
     // The fallback still denies any unclassified `/api/` path.
     let access = matched
         .as_deref()
@@ -479,7 +477,7 @@ mod tests {
     fn test_same_origin_mutation_is_accepted_with_no_configured_origins() {
         // Regression: the dashboard's own POSTs were rejected because browsers
         // send `Origin` on same-origin mutations too and the default
-        // `cors_origins` list is empty. curl never reproduced it — curl sends
+        // `cors_origins` list is empty. curl never reproduced it - curl sends
         // no Origin header, so the check passed there.
         for (origin, host) in [
             ("http://127.0.0.1:7008", "127.0.0.1:7008"),

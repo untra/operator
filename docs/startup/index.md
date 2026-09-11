@@ -77,11 +77,11 @@ Worktrees allow multiple agents to work on different tickets simultaneously with
 
 Operator has a single human account, `admin`.
 
-This terminal and the CLI need no password: a loopback process authenticates with an owner-only token file in the state directory. A browser cannot read that file, so the web dashboard stays locked until an admin password exists.
+This terminal and the CLI need no password: a loopback process             authenticates with an owner-only token file in the state directory.             A browser cannot read that file, so the web dashboard stays locked             until an admin password exists.
 
-Leave both fields blank to skip. You can set one later with `operator auth bootstrap` or from the /setup page.
+Leave both fields blank to skip. You can set one later with             `operator auth bootstrap` or from the /setup page.
 
-The password must be at least 12 characters. This step is hidden when an admin account already exists.
+The password must be at least 12 characters. This step is hidden             when an admin account already exists.
 
 **Navigation**: Tab to switch fields, Enter to continue (blank to skip), Esc to go back
 
@@ -170,9 +170,9 @@ Select a preset collection of issue types:
 
 *Browse and select hosted collections (only shown if Browse chosen)*
 
-Pick one or more curated collections published at operator.untra.io.
+Pick one or more curated collections published at             operator.untra.io.
 
-The list is fetched from the collections manifest; if it cannot be reached, the collections bundled with Operator are offered instead. Each collection brings its own issue types and workflow steps.
+The list is fetched from the collections manifest; if it cannot be             reached, the collections bundled with Operator are offered instead.             Each collection brings its own issue types and workflow steps.
 
 Selections are additive - choose as many as apply.
 

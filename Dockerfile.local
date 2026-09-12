@@ -2,7 +2,7 @@
 # Cargo.toml sets default = ["embed-ui"], and build.rs silently substitutes a
 # placeholder index.html when ui/dist is missing, which would produce an image
 # with no dashboard. Building the SPA here is required, not optional.
-FROM oven/bun:1.3.14 AS web
+FROM oven/bun:1.4.2 AS web
 
 # webcomponents' own build script shells out to `npm run copy-types`, which runs
 # `node scripts/copy-types.mjs`. The oven/bun image ships bun only; CI gets away

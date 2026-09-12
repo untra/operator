@@ -51,7 +51,7 @@ The `placement` setting controls how Operator creates new agent sessions:
 
 | Policy | Behavior |
 |--------|----------|
-| `auto` | **0–1 open windows**: creates a new workspace in the active window. **>1 open windows**: creates a new window for the ticket. |
+| `auto` | **0-1 open windows**: creates a new workspace in the active window. **>1 open windows**: creates a new window for the ticket. |
 | `workspace` | Always creates a new workspace in the active window |
 | `window` | Always creates a new window for each ticket |
 

@@ -5,7 +5,7 @@
  */
 export type GithubProjectInfoDto = { 
 /**
- * `GraphQL` node ID (e.g., `PVT_kwDOABcdefg`) — used as the project key
+ * `GraphQL` node ID (e.g., `PVT_kwDOABcdefg`) - used as the project key
  */
 node_id: string, 
 /**

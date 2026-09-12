@@ -13,19 +13,19 @@ use crate::config::{Config, GitProviderConfig};
 /// The resolved onboarding step for a provider.
 #[derive(Debug)]
 pub enum OnboardingStep {
-    /// CLI not installed — open install page.
+    /// CLI not installed - open install page.
     InstallCli {
         install_url: String,
         provider_display: String,
     },
-    /// CLI installed but no token — show PAT dialog.
+    /// CLI installed but no token - show PAT dialog.
     CollectToken {
         pat_url: String,
         provider: String,
         provider_display: String,
         placeholder: String,
     },
-    /// CLI installed and authenticated — token ready to use.
+    /// CLI installed and authenticated - token ready to use.
     AutoConfigured {
         username: String,
         token: String,

@@ -82,7 +82,7 @@ pub enum RestApiStatus {
 }
 
 impl RestApiStatus {
-    /// Returns true if a usable server is available — whether this process owns
+    /// Returns true if a usable server is available - whether this process owns
     /// it (`Running`) or we adopted a compatible external one (`RunningExternal`).
     pub fn is_running(&self) -> bool {
         matches!(
@@ -96,7 +96,7 @@ impl RestApiStatus {
 /// decide whether to adopt it as "connected" or report a clear conflict.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExternalApiProbe {
-    /// A same-version operator API serving the same project — safe to adopt.
+    /// A same-version operator API serving the same project - safe to adopt.
     AdoptableSameProject { port: u16, version: String },
     /// An operator API of a different version is on the port.
     VersionMismatch { found: String },
@@ -108,7 +108,7 @@ pub enum ExternalApiProbe {
     Unreachable,
 }
 
-/// Tolerant view of `/api/v1/health` — older or foreign servers may omit fields.
+/// Tolerant view of `/api/v1/health` - older or foreign servers may omit fields.
 #[derive(Debug, Clone, serde::Deserialize)]
 struct ProbeHealth {
     #[serde(default)]
@@ -128,7 +128,7 @@ fn classify_probe(
     health: &ProbeHealth,
 ) -> ExternalApiProbe {
     if health.version.is_empty() {
-        // Responded, but without a version — not an operator health endpoint.
+        // Responded, but without a version - not an operator health endpoint.
         ExternalApiProbe::NotOperator
     } else if health.version != local_version {
         ExternalApiProbe::VersionMismatch {

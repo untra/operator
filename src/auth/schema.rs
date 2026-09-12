@@ -3,7 +3,7 @@
 //! There is no migration framework in this repo, so this is the smallest thing
 //! that works: an ordered list of migrations applied inside one transaction and
 //! tracked by `SQLite`'s own `user_version` pragma. Appending is the only legal
-//! edit — editing a shipped migration would leave already-migrated databases
+//! edit - editing a shipped migration would leave already-migrated databases
 //! silently inconsistent with new ones.
 
 use anyhow::{Context, Result};
@@ -11,7 +11,7 @@ use rusqlite::{Connection, TransactionBehavior};
 
 /// Ordered schema migrations. **Append only.**
 const MIGRATIONS: &[&str] = &[
-    // v1 — initial schema.
+    // v1 - initial schema.
     r#"
     -- The single admin account. `id` is pinned to 1 by CHECK, so a second
     -- INSERT fails on the primary key rather than creating a second admin.
@@ -138,7 +138,7 @@ const MIGRATIONS: &[&str] = &[
 
 /// Apply any migrations the database has not seen.
 ///
-/// Two Operator processes can open the same workspace at once — the TUI runs an
+/// Two Operator processes can open the same workspace at once - the TUI runs an
 /// embedded API server while `operator api` may already be running, and the
 /// test suite opens many at once. So the version check and the migration must
 /// be one atomic step.

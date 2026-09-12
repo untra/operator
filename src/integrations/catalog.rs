@@ -1,4 +1,4 @@
-//! The vertical integration catalog — single source of truth for every
+//! The vertical integration catalog - single source of truth for every
 //! advertised integration and its [`SupportStatus`].
 //!
 //! Operator advertises integrations across several **verticals** (kanban
@@ -12,7 +12,7 @@
 //! - the `tests/vertical_parity.rs` soup-to-nuts alignment test, which also
 //!   cross-checks that every provider-enum variant (`KanbanProviderType::ALL`,
 //!   `ModelServerKind::ALL`, `GitProvider::ALL`, `SessionWrapperType::ALL`) has a
-//!   catalog entry — so a new variant can't ship without docs/badges/UI.
+//!   catalog entry - so a new variant can't ship without docs/badges/UI.
 //!
 //! Adding a new vertical entry here, plus its docs page (and README badge for
 //! `Alpha`+), is all that is required to keep the surfaces aligned.
@@ -66,7 +66,7 @@ impl Vertical {
         }
     }
 
-    /// Human label — matches the bold category in the README badge list.
+    /// Human label - matches the bold category in the README badge list.
     pub fn label(&self) -> &'static str {
         match self {
             Vertical::Kanban => "Kanban Provider",
@@ -83,7 +83,7 @@ impl Vertical {
     }
 
     /// Docs section directory (site-root-relative) that hosts this vertical's
-    /// entry pages — the sidebar nav item URL and the section `index.md`.
+    /// entry pages - the sidebar nav item URL and the section `index.md`.
     /// `Session` and `Editor` deliberately share one section.
     pub fn docs_section(&self) -> &'static str {
         match self {

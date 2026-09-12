@@ -363,7 +363,7 @@ REST API server configuration
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether the REST API is enabled |
-| `host` | `string` | No | Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server — which reports the project directory name — is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces. |
+| `host` | `string` | No | Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server - which reports the project directory name - is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces. |
 | `port` | `integer` | No | Port for the REST API server |
 | `cors_origins` | `array` | No | CORS allowed origins. Empty means **same-origin only** |
 | `public_url` | `string` \| `null` | No | Externally reachable base URL (e.g. `https://operator.example.com`).  OAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header, which a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy. |
@@ -455,7 +455,7 @@ Providers are keyed by domain/workspace:
 | --- | --- | --- | --- |
 | `jira` | `object` | No | Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net") |
 | `linear` | `object` | No | Linear instances keyed by workspace slug |
-| `github` | `object` | No | GitHub Projects v2 instances keyed by owner login (user or org)  NOTE: This is the *kanban* GitHub integration (Projects v2), distinct from `GitHubConfig` which is the *git provider* used for PRs and branches. The two use different env vars and different scopes — see `docs/getting-started/kanban/github.md` for the full disambiguation. |
+| `github` | `object` | No | GitHub Projects v2 instances keyed by owner login (user or org)  NOTE: This is the *kanban* GitHub integration (Projects v2), distinct from `GitHubConfig` which is the *git provider* used for PRs and branches. The two use different env vars and different scopes - see `docs/getting-started/kanban/github.md` for the full disambiguation. |
 | `openspec` | `object` | No | `OpenSpec` roots keyed by a free-form instance name (e.g., a repo alias). Experimental, pull-only: each active change under `<root_path>/changes/` acts as a kanban "project" whose issues are the tasks.md task groups. |
 
 ### JiraConfig
@@ -519,7 +519,7 @@ GitHub Projects v2 (kanban) provider configuration
 
 The owner login (user or org) is specified as the `HashMap` key in
 `KanbanConfig.github`. Project keys inside `projects` are `GraphQL` node
-IDs (e.g., `PVT_kwDOABcdefg`) — opaque, stable identifiers used directly
+IDs (e.g., `PVT_kwDOABcdefg`) - opaque, stable identifiers used directly
 by every GitHub Projects v2 mutation without needing a lookup.
 
 **Distinct from `GitHubConfig`** (the git provider used for PR/branch
@@ -531,7 +531,7 @@ require different OAuth scopes (`project` vs `repo`). See
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether this provider is enabled |
-| `api_key_env` | `string` | No | Environment variable name containing the GitHub token (default: `OPERATOR_GITHUB_TOKEN`). The token must have `project` (or `read:project`) scope, NOT just `repo` — see the disambiguation guide in the kanban github docs. |
+| `api_key_env` | `string` | No | Environment variable name containing the GitHub token (default: `OPERATOR_GITHUB_TOKEN`). The token must have `project` (or `read:project`) scope, NOT just `repo` - see the disambiguation guide in the kanban github docs. |
 | `projects` | `object` | No | Per-project sync configuration. Keys are `GraphQL` project node IDs. |
 
 ### OpenspecConfig
@@ -539,7 +539,7 @@ require different OAuth scopes (`project` vs `repo`). See
 `OpenSpec` provider configuration (experimental, pull-only)
 
 The instance name is the `HashMap` key in `KanbanConfig.openspec`. There
-are no credentials — the provider reads local markdown under `root_path`.
+are no credentials - the provider reads local markdown under `root_path`.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -574,7 +574,7 @@ that can be used to launch agents for tickets.
 | `model_properties` | `object` | No | Arbitrary model properties (e.g., `reasoning_effort`, sandbox) |
 | `launch_config` | object | No | Optional launch configuration |
 | `model_server` | `string` \| `null` | No | Name of a declared `ModelServer` (from `Config.model_servers`). `None` means use the `llm_tool`'s implicit vendor default (claude → anthropic-api, codex → openai-api, gemini → google-api). |
-| `remote_agent` | object | No | Declarative reference to a remote, named agent on another platform (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).  Export-only: Operator has no runtime client for those platforms, so a delegator carrying this CANNOT be launched locally — resolution errors out (see `delegator_resolution`). It is stored, listed, serialized into an `AgentProfile`, and — for `platform == "agnt"` — surfaced in the `--format agnt` workflow export as a native AGNT `agnt-agent` node, whose `agentId` is this reference's `id` (AGNT identifies agents by UUID, so the `id` must be the agent's UUID, not its display name). `None` = ordinary, locally launchable delegator. |
+| `remote_agent` | object | No | Declarative reference to a remote, named agent on another platform (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).  Export-only: Operator has no runtime client for those platforms, so a delegator carrying this CANNOT be launched locally - resolution errors out (see `delegator_resolution`). It is stored, listed, serialized into an `AgentProfile`, and - for `platform == "agnt"` - surfaced in the `--format agnt` workflow export as a native AGNT `agnt-agent` node, whose `agentId` is this reference's `id` (AGNT identifies agents by UUID, so the `id` must be the agent's UUID, not its display name). `None` = ordinary, locally launchable delegator. |
 | `x_agnt` | object | No | Opaque AGNT-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip so re-export is lossless (e.g. `memory`, `assignedWorkflows`, `creditLimit`). Operator never interprets this. |
 | `x_openai` | object | No | Opaque OpenAI-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`, `metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted. |
 | `unmapped_core` | object | No | Opaque carry for `AgentProfile` shared-core fields Operator cannot model first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an import→export round-trip is lossless. Distinct from `x_agnt`: these are shared-core fields, not AGNT-specific, so folding them into `x_agnt` would corrupt that namespace. Operator never interprets this. |
@@ -631,7 +631,7 @@ semantics: `None` = inherit from global config, `Some(true/false)` = override.
 
 A declarative reference to a remote, named agent hosted by another platform.
 
-`platform` is the hosting service (`"agnt"`, `"openai"`) — deliberately
+`platform` is the hosting service (`"agnt"`, `"openai"`) - deliberately
 distinct from the core `provider`/`llm_tool` (the model or coding CLI). These
 agents are API/memory-native and live on the remote side; Operator has no
 runtime client for them, so a delegator carrying one is **export-only** and
@@ -695,12 +695,12 @@ A named execution target agents can be launched on.
 ### CoderConfig
 
 Coder workspace target: lifecycle + alias provisioning around the shared
-SSH remote-launch path. There is no `enabled` field — presence in
+SSH remote-launch path. There is no `enabled` field - presence in
 `[[targets]]` is the enablement.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `template` | `string` | Yes | Coder template child workspaces are created from (an allowlist — never per-ticket input) |
+| `template` | `string` | Yes | Coder template child workspaces are created from (an allowlist - never per-ticket input) |
 | `url_env` | `string` | No | Env var NAME holding the Coder deployment URL |
 | `token_env` | `string` | No | Env var NAME holding the Coder session token. The variable is stripped from every agent's spawn environment on all target kinds. |
 | `name_prefix` | `string` | No | Workspace name prefix for deterministic per-ticket naming |

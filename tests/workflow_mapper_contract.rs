@@ -50,7 +50,7 @@ fn test_mapper_is_typed_against_generated_bindings() {
         !repo_root()
             .join("webcomponents/src/workflow/types.ts")
             .exists(),
-        "webcomponents/src/workflow/types.ts is back. Domain types are generated from Rust — \
+        "webcomponents/src/workflow/types.ts is back. Domain types are generated from Rust - \
          add the field or variant in src/templates/schema.rs (or src/issuetypes/schema.rs) \
          and regenerate with `make bindings`, rather than hand-mirroring it."
     );
@@ -64,7 +64,7 @@ fn test_mapper_switch_is_exhaustive_over_step_types() {
     let mapper = read(MAPPER);
     assert!(
         mapper.contains("const unhandled: never = type"),
-        "{MAPPER} must keep its `never` exhaustiveness check — it is what makes a new \
+        "{MAPPER} must keep its `never` exhaustiveness check - it is what makes a new \
          StepTypeTag variant fail the webcomponents typecheck instead of being dropped \
          from the graph"
     );
@@ -82,7 +82,7 @@ fn test_mapper_mirrors_the_rust_step_ordering_rule() {
     );
     assert!(
         read("src/workflow_gen/export.rs").contains("fn ordered_steps"),
-        "src/workflow_gen/export.rs no longer defines `ordered_steps` — the TypeScript \
+        "src/workflow_gen/export.rs no longer defines `ordered_steps` - the TypeScript \
          mapper's ordering rule was written to mirror it and needs revisiting"
     );
 }
@@ -148,7 +148,7 @@ fn test_workflow_domain_types_are_exported_to_bindings() {
         let path = repo_root().join(format!("bindings/{name}.ts"));
         assert!(
             path.is_file(),
-            "bindings/{name}.ts is missing — the Rust type lost its `#[ts(export)]`. \
+            "bindings/{name}.ts is missing - the Rust type lost its `#[ts(export)]`. \
              Regenerate with `make bindings`."
         );
     }

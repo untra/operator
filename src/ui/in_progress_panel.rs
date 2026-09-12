@@ -68,7 +68,7 @@ impl InProgressPanel {
                         Some("pending_visual") => ("\u{1f441}", Color::Magenta), // 👁 Visual review
                         Some("pending_proof") => (
                             "\u{1f52c}", // 🔬 Proof review
-                            // last_message is prefixed "Proof passed —" / "Proof FAILED (...) —" by sync/launch
+                            // last_message is prefixed "Proof passed -" / "Proof FAILED (...) -" by sync/launch
                             if a.last_message
                                 .as_deref()
                                 .is_some_and(|m| m.starts_with("Proof FAILED"))

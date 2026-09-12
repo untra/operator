@@ -230,13 +230,13 @@ pub struct LaunchTicketRequest {
     /// Named delegator to use (takes precedence over provider/model)
     #[serde(default)]
     pub delegator: Option<String>,
-    /// LLM provider to use (e.g., "claude") — legacy fallback when no delegator
+    /// LLM provider to use (e.g., "claude") - legacy fallback when no delegator
     #[serde(default)]
     pub provider: Option<String>,
-    /// Model to use (e.g., "sonnet", "opus") — legacy fallback when no delegator
+    /// Model to use (e.g., "sonnet", "opus") - legacy fallback when no delegator
     #[serde(default)]
     pub model: Option<String>,
-    /// Ad-hoc model server to target (e.g. "ollama-local") — legacy fallback when
+    /// Ad-hoc model server to target (e.g. "ollama-local") - legacy fallback when
     /// no delegator. Injects the server's base URL / API key env at spawn.
     #[serde(default)]
     pub model_server: Option<String>,

@@ -25,8 +25,8 @@
 //! are deliberately excluded: they are presentational and never executed, and a
 //! malformed one must not be able to fail an install.
 //!
-//! No workflow previews are emitted. The graph renders from `<KEY>.json` — the
-//! native Operator workflow that is already published and already checksummed —
+//! No workflow previews are emitted. The graph renders from `<KEY>.json` - the
+//! native Operator workflow that is already published and already checksummed -
 //! so there is nothing per-workflow to pre-generate.
 
 use std::path::{Path, PathBuf};

@@ -40,7 +40,7 @@ Launch agent for next available ticket
 | `--delegator` | Use a named delegator from config (mutually exclusive with --llm-tool/--model/--model-server) |
 | `--llm-tool` | LLM tool override (e.g., claude, codex, gemini, or configured tool) |
 | `--model` | Model override (e.g., opus, gpt-4o, qwen2.5-coder) |
-| `--model-server` | Named model server reference (e.g., ollama-local) — overrides the delegator's default. Pairs with --llm-tool/--model for ad-hoc ollama-backed launches. v1 accepts the flag and validates the name; env-var injection on spawn ships in v2 |
+| `--model-server` | Named model server reference (e.g., ollama-local) - overrides the delegator's default. Pairs with --llm-tool/--model for ad-hoc ollama-backed launches. v1 accepts the flag and validates the name; env-var injection on spawn ships in v2 |
 
 ### `agents`
 

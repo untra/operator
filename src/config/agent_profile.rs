@@ -7,12 +7,12 @@
 //! defines a namespaced interchange format both sides can serialize to and from
 //! *losslessly*: a shared core, an Operator-namespaced bag (`x_operator`), and an
 //! AGNT-namespaced bag (`x_agnt`). Each side reads the core and its own bag, and
-//! preserves the other side's bag verbatim — the same lossy-but-honest discipline
+//! preserves the other side's bag verbatim - the same lossy-but-honest discipline
 //! as the `OPERATOR-GAP` markers in [`crate::workflow_gen`].
 //!
 //! This is the schema half of the remote-agent bridge. There is deliberately
 //! **no** runtime client for any remote platform: a profile carrying
-//! [`AgentProfile::remote_agent`] is a *declarative* reference — surfaced in the
+//! [`AgentProfile::remote_agent`] is a *declarative* reference - surfaced in the
 //! `--format agnt` export when its platform is AGNT, but never executed by
 //! Operator (see the launch guard in `delegator_resolution`).
 
@@ -62,7 +62,7 @@ pub struct AgentProfile {
     pub x_openai: Option<serde_json::Value>,
 }
 
-/// The Operator-namespaced half of an [`AgentProfile`] — the fields a Delegator
+/// The Operator-namespaced half of an [`AgentProfile`] - the fields a Delegator
 /// carries that have no shared-core equivalent.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema)]
 #[ts(export)]
@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn openai_profile_roundtrips_with_x_openai() {
-        // The structural twin of the x_agnt test, for a second platform — proving
+        // The structural twin of the x_agnt test, for a second platform - proving
         // the per-tool cost is exactly one opaque bag + the generic remote ref.
         let p = AgentProfile {
             name: "openai-reviewer".to_string(),

@@ -23,7 +23,7 @@ pub struct LinearTeamInfo {
 
 /// Detailed validation result for Linear onboarding.
 ///
-/// Richer than `KanbanProvider::test_connection` — includes viewer, org, and
+/// Richer than `KanbanProvider::test_connection` - includes viewer, org, and
 /// the full list of teams available to the API key in a single round-trip.
 #[derive(Debug, Clone)]
 pub struct LinearValidationDetails {
@@ -1137,7 +1137,7 @@ impl KanbanProvider for LinearProvider {
 
         let timestamp = entry.completed_at.format("%Y-%m-%d %H:%M UTC");
         let mut body = format!(
-            "**opr8r activity** — step: `{}` | delegator: `{}` | {}",
+            "**opr8r activity** - step: `{}` | delegator: `{}` | {}",
             entry.step, entry.delegator, timestamp
         );
         if let Some(ref summary) = entry.summary {

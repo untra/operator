@@ -38,7 +38,7 @@ const BUCKET_TOKEN: &str = "token";
 /// Env var naming a file holding the out-of-band bootstrap password.
 ///
 /// A file rather than a plain env var: an env var is visible in `/proc`, in
-/// `docker inspect`, and to every child process Operator spawns — including the
+/// `docker inspect`, and to every child process Operator spawns - including the
 /// agent processes, which is precisely the thing that must not read it.
 pub const BOOTSTRAP_PASSWORD_FILE_ENV: &str = "OPERATOR_BOOTSTRAP_PASSWORD_FILE";
 
@@ -769,7 +769,7 @@ pub async fn token(
                 ));
             };
             // An access key is re-presented on each exchange, so it produces no
-            // refresh token — there is nothing to refresh.
+            // refresh token - there is nothing to refresh.
             (scopes, None)
         }
     };

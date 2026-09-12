@@ -4,7 +4,7 @@ description: "Connect Operator! to agent OS and automation platforms like AGNT.g
 layout: doc
 ---
 
-Operator is not just a standalone TUI — it exposes its ticket orchestration over
+Operator is not just a standalone TUI - it exposes its ticket orchestration over
 a **REST API** and a **stdio MCP server**, so external *automation platforms* and
 *agent operating systems* can drive it, and Operator can hand work out to them.
 
@@ -25,8 +25,8 @@ Operator connects to an automation platform in two complementary directions:
 
 ## The portable substrate
 
-Because the "platform → Operator" direction rides on **REST + MCP** — both
-portable, widely supported substrates — exposing them once connects Operator to
+Because the "platform → Operator" direction rides on **REST + MCP** - both
+portable, widely supported substrates - exposing them once connects Operator to
 the *whole category*, not just one tool. Platforms in this space include
 [AGNT.gg](https://agnt.gg), n8n, Activepieces, Windmill, Dify, Flowise,
 Langflow, OpenAI AgentKit, and Zapier/Make.
@@ -41,7 +41,7 @@ Operator already ships:
 
 ## Supported integrations
 
-- **[AGNT.gg](/getting-started/integrations/agnt/)** — export Operator workflows
+- **[AGNT.gg](/getting-started/integrations/agnt/)** - export Operator workflows
   as AGNT graphs, and drive Operator from AGNT workflows via the `operator-plugin`.
 
 > Write/launch tools mutate your repositories. Only connect platforms you trust,

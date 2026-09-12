@@ -4,8 +4,8 @@ Shared frontend components rendered by **both** operator surfaces:
 
 | Consumer | How it consumes this package |
 |---|---|
-| `ui/` — the embedded React SPA | Imports the **React** entry (`dist/index.js`) through a path alias, exactly like `@operator/bindings`. React stays external so the SPA keeps one React instance. |
-| `docs/` — the static Jekyll site | Loads the **custom-elements** entry (`dist/elements.js` + `.css`), which bundles React in. Generated markdown writes plain tags; the docs site has no build step of its own. |
+| `ui/` - the embedded React SPA | Imports the **React** entry (`dist/index.js`) through a path alias, exactly like `@operator/bindings`. React stays external so the SPA keeps one React instance. |
+| `docs/` - the static Jekyll site | Loads the **custom-elements** entry (`dist/elements.js` + `.css`), which bundles React in. Generated markdown writes plain tags; the docs site has no build step of its own. |
 
 The point is that there is one implementation. An Operator workflow drawn in
 the app and the same workflow drawn on the docs site come from the same source
@@ -28,24 +28,20 @@ src/
 
 ## The native projection
 
-`issuetype-to-ir.ts` reads an **Operator workflow** — the issue type's
-`steps[]`, which is the native JSON the runtime executes — and projects it onto
+`issuetype-to-ir.ts` reads an **Operator workflow** - the issue type's
+`steps[]`, which is the native JSON the runtime executes - and projects it onto
 the flat graph `@untra/naiveworkflow-react` draws. It deliberately does *not*
 render a Claude or AGNT export: those are lossy formats derived from this same
 source, and drawing one would present an export target as the source of truth.
 
-Step ordering mirrors `ordered_steps` in `src/workflow_gen/export.rs`, so the
-graph matches the order the runtime actually executes.
+Step ordering mirrors `ordered_steps` in `src/workflow_gen/export.rs`, so the graph matches the order the runtime actually executes.
 
-Drift protection lives in `tests/webcomponents_workflow_parity.rs`: adding a
-step type or a graph-bearing step field in Rust fails that test until the mapper
-handles it.
+Drift protection lives in `tests/webcomponents_workflow_parity.rs`: adding a step type or a graph-bearing step field in Rust fails that test until the mapper handles it.
 
 ## Theming
 
-Colors come from the shared brand tokens in `docs/assets/css/tokens.css`, which
-both surfaces already load, and components observe `data-theme` on `<html>`.
-Never declare a brand hex here — see `docs/design-system/`.
+Colors come from the shared brand tokens in `docs/assets/css/tokens.css`, which both surfaces already load, and components observe `data-theme` on `<html>`.
+Never declare a brand hex here - see `docs/design-system/`.
 
 ## Commands
 

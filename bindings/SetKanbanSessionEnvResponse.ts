@@ -4,7 +4,7 @@
  * Response from setting session env vars.
  *
  * `shell_export_block` uses `<your-token>` placeholders, NOT the actual
- * secret — it is meant for the user to copy into their shell profile.
+ * secret - it is meant for the user to copy into their shell profile.
  */
 export type SetKanbanSessionEnvResponse = { 
 /**

@@ -53,7 +53,7 @@ fn colon_to_curly(path: &str) -> String {
         .join("/")
 }
 
-/// The generated OpenAPI spec — the authoritative list of mounted REST routes
+/// The generated OpenAPI spec - the authoritative list of mounted REST routes
 /// since the router was migrated to `utoipa_axum::OpenApiRouter`.
 fn rest_spec() -> String {
     operator::rest::ApiDoc::json().expect("generate OpenAPI spec")

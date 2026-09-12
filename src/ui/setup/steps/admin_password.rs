@@ -1,6 +1,6 @@
 //! Optional admin-password step.
 //!
-//! Local use needs no password — the TUI, the CLI, and `opr8r` authenticate
+//! Local use needs no password - the TUI, the CLI, and `opr8r` authenticate
 //! with the owner-only local token file. A browser cannot read that file, so
 //! this step exists solely to unlock the web dashboard, which is why it is
 //! skippable and why the copy says so.

@@ -29,7 +29,7 @@ use crate::docs_gen::collections_search::{build_catalog, CatalogEntry};
 const VOCABULARY: &str = r"
 An **Operator workflow** is a process defined once in JSON: an ordered graph of
 typed steps, review gates, and retry edges that an LLM agent can follow. It is
-the native format — Operator runs it directly, and every
+the native format - Operator runs it directly, and every
 [export format](/getting-started/workflows/) (Claude, AGNT) is derived from it.
 
 Three terms, three different things:
@@ -37,7 +37,7 @@ Three terms, three different things:
 | Term | What it is |
 |------|-----------|
 | **Operator workflow** | The step graph itself. Lives in an issue type's `steps`. |
-| **Issue type** | One kind of work — `FEAT`, `PRD`, `ELVSTAGE`. Carries identity, input fields, and exactly one Operator workflow. |
+| **Issue type** | One kind of work - `FEAT`, `PRD`, `ELVSTAGE`. Carries identity, input fields, and exactly one Operator workflow. |
 | **Collection** | A named, versioned bundle of issue types: a complete, shareable way of working. This page lists them. |
 
 Collections are deliberately separate from your **kanban issue types**. Jira,
@@ -50,7 +50,7 @@ the workflow travels between projects, teams, and providers unchanged.
 const CONTRIBUTING: &str = r#"
 ## Contribute a collection
 
-There is no single best way to run agents — the right loop depends on the work.
+There is no single best way to run agents - the right loop depends on the work.
 That is exactly why these are shareable: a workflow that works for you is worth
 publishing, and one that does not fit is worth forking.
 
@@ -59,13 +59,13 @@ Official collections live in the [operator repository](https://github.com/untra/
 1. Create `collections/community/<id>/`, where `<id>` matches `^[a-z0-9_]{3,64}$`.
 2. Add a `collection.json` conforming to [the collection schema](/collections/schema.json),
    with `tier: "community"` plus `author`, `url`, and `license`.
-3. Add one `<KEY>.json` per issue type — see [the issue type schema](/schemas/issuetype/) —
+3. Add one `<KEY>.json` per issue type - see [the issue type schema](/schemas/issuetype/) -
    and an optional `<KEY>.md` ticket template.
 4. Add an `icon.svg` following the
    [Simple Icons](https://github.com/simple-icons/simple-icons) shape: a 24×24
    viewBox, a single `<path>`, and no `fill` or `stroke` so it inherits the
    page's color.
-5. Leave checksums out — they are computed at publish time.
+5. Leave checksums out - they are computed at publish time.
 6. Run the CI gate locally, then open a pull request:
 
 ```bash
@@ -163,7 +163,7 @@ fn card(entry: &CatalogEntry) -> String {
         badge = tier_badge(&entry.tier),
         count = issue_type_count(entry.issue_type_count),
         author = escape(entry.author.as_deref().unwrap_or("Operator!")),
-        updated = escape(entry.updated.as_deref().unwrap_or("—")),
+        updated = escape(entry.updated.as_deref().unwrap_or("-")),
     )
 }
 
@@ -186,11 +186,11 @@ fn table_row(entry: &CatalogEntry) -> String {
         name = escape(&entry.name),
         description = escape(&entry.description),
         count = entry.issue_type_count,
-        loop_kind = escape(entry.loop_kind.as_deref().unwrap_or("—")),
+        loop_kind = escape(entry.loop_kind.as_deref().unwrap_or("-")),
         author = escape(entry.author.as_deref().unwrap_or("Operator!")),
         badge = tier_badge(&entry.tier),
-        created = escape(entry.created.as_deref().unwrap_or("—")),
-        updated = escape(entry.updated.as_deref().unwrap_or("—")),
+        created = escape(entry.created.as_deref().unwrap_or("-")),
+        updated = escape(entry.updated.as_deref().unwrap_or("-")),
     )
 }
 
@@ -203,7 +203,7 @@ fn hub_page(entries: &[CatalogEntry]) -> String {
 
     out.push_str(VOCABULARY);
     out.push_str(
-        "\nEvery collection below is installable from Operator directly — they are \
+        "\nEvery collection below is installable from Operator directly - they are \
          published from this site as a [machine-readable index](/collections/index.json) \
          that operator instances read on startup.\n\n",
     );
@@ -367,7 +367,7 @@ mod tests {
         let entries = catalog();
         let page = hub_page(&entries);
         for entry in &entries {
-            // Once as a card, once as a table row — both filterable.
+            // Once as a card, once as a table row - both filterable.
             assert_eq!(
                 page.matches(&format!("data-search=\"{}\"", escape(&entry.search_text)))
                     .count(),
@@ -430,7 +430,7 @@ mod tests {
     fn test_icons_are_inlined_so_they_tint_with_the_theme() {
         let page = hub_page(&catalog());
         // An <img> would load the SVG as its own document, where currentColor
-        // cannot resolve — the icon would stay black and vanish in dark mode.
+        // cannot resolve - the icon would stay black and vanish in dark mode.
         assert!(
             !page.contains("<img class=\"collection-icon\""),
             "collection icons must be inlined, not linked"

@@ -2,7 +2,7 @@
 import type { JsonValue } from "./serde_json/JsonValue";
 
 /**
- * A single stage in a pipeline — deliberately flat (not a recursive
+ * A single stage in a pipeline - deliberately flat (not a recursive
  * `StepSchema`): "prompt + optional agent/model/schema" only. It has no
  * `next_step`/`review_type`/`on_reject`, so a stage cannot reopen the
  * step-graph linearity question.

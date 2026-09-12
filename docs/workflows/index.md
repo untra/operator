@@ -10,7 +10,7 @@ section: workflows
 
 An **Operator workflow** is a process defined once in JSON: an ordered graph of
 typed steps, review gates, and retry edges that an LLM agent can follow. It is
-the native format — Operator runs it directly, and every
+the native format - Operator runs it directly, and every
 [export format](/getting-started/workflows/) (Claude, AGNT) is derived from it.
 
 Three terms, three different things:
@@ -18,7 +18,7 @@ Three terms, three different things:
 | Term | What it is |
 |------|-----------|
 | **Operator workflow** | The step graph itself. Lives in an issue type's `steps`. |
-| **Issue type** | One kind of work — `FEAT`, `PRD`, `ELVSTAGE`. Carries identity, input fields, and exactly one Operator workflow. |
+| **Issue type** | One kind of work - `FEAT`, `PRD`, `ELVSTAGE`. Carries identity, input fields, and exactly one Operator workflow. |
 | **Collection** | A named, versioned bundle of issue types: a complete, shareable way of working. This page lists them. |
 
 Collections are deliberately separate from your **kanban issue types**. Jira,
@@ -26,7 +26,7 @@ Linear, and GitHub Projects types describe how *your* team labels work; a
 collection describes how the *agents* do it. Map one onto the other once, and
 the workflow travels between projects, teams, and providers unchanged.
 
-Every collection below is installable from Operator directly — they are published from this site as a [machine-readable index](/collections/index.json) that operator instances read on startup.
+Every collection below is installable from Operator directly - they are published from this site as a [machine-readable index](/collections/index.json) that operator instances read on startup.
 
 <operator-collection-search for="collection-catalog"></operator-collection-search>
 
@@ -260,7 +260,7 @@ Every collection below is installable from Operator directly — they are publis
 
 ## Contribute a collection
 
-There is no single best way to run agents — the right loop depends on the work.
+There is no single best way to run agents - the right loop depends on the work.
 That is exactly why these are shareable: a workflow that works for you is worth
 publishing, and one that does not fit is worth forking.
 
@@ -269,13 +269,13 @@ Official collections live in the [operator repository](https://github.com/untra/
 1. Create `collections/community/<id>/`, where `<id>` matches `^[a-z0-9_]{3,64}$`.
 2. Add a `collection.json` conforming to [the collection schema](/collections/schema.json),
    with `tier: "community"` plus `author`, `url`, and `license`.
-3. Add one `<KEY>.json` per issue type — see [the issue type schema](/schemas/issuetype/) —
+3. Add one `<KEY>.json` per issue type - see [the issue type schema](/schemas/issuetype/) -
    and an optional `<KEY>.md` ticket template.
 4. Add an `icon.svg` following the
    [Simple Icons](https://github.com/simple-icons/simple-icons) shape: a 24×24
    viewBox, a single `<path>`, and no `fill` or `stroke` so it inherits the
    page's color.
-5. Leave checksums out — they are computed at publish time.
+5. Leave checksums out - they are computed at publish time.
 6. Run the CI gate locally, then open a pull request:
 
 ```bash

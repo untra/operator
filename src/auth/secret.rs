@@ -3,7 +3,7 @@
 //! Two distinct jobs live here, and conflating them is a classic mistake:
 //!
 //! * **Passwords** are low-entropy and human-chosen, so they need a slow,
-//!   salted KDF (Argon2id — see [`super::password`]).
+//!   salted KDF (Argon2id - see [`super::password`]).
 //! * **Opaque tokens** (session cookies, refresh tokens, device codes, access
 //!   keys) are 256-bit random values *we* generate. They need only a fast
 //!   pre-image-resistant hash; Argon2 on a lookup path would add latency for
@@ -17,7 +17,7 @@ use rand::TryRngCore;
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
-/// Bytes of entropy in a generated credential. 256 bits — well beyond any
+/// Bytes of entropy in a generated credential. 256 bits - well beyond any
 /// offline search, and the reason a fast hash suffices for storage.
 const SECRET_BYTES: usize = 32;
 

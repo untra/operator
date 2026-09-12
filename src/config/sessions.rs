@@ -51,7 +51,7 @@ impl SessionWrapperType {
     /// tmux sets `TMUX`, cmux sets `CMUX_WORKSPACE_ID`, zellij sets `ZELLIJ`, and
     /// VS Code's integrated terminal sets `TERM_PROGRAM=vscode`. These are the
     /// same env names checked by the wrapper detection in `status_panel` and
-    /// `agents::{cmux,zellij}` — reuse, don't invent new ones.
+    /// `agents::{cmux,zellij}` - reuse, don't invent new ones.
     pub fn is_active_context(&self) -> bool {
         match self {
             SessionWrapperType::Tmux => std::env::var("TMUX").is_ok(),

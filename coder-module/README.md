@@ -12,7 +12,7 @@ Run [Operator](https://github.com/untra/operator) as a background REST API serve
 
 The module downloads the operator binary and the `opr8r` client from GitHub releases, generates configuration, starts the API server, and exposes the dashboard through the Coder workspace UI with automatic healthchecks.
 
-> This module runs Operator **inside** a workspace. To run Operator elsewhere (a Kubernetes deployment, say) and have it *spawn* Coder workspaces as agent targets, you do not need this module at all — configure a `[[targets]]` entry with `kind = "coder"` instead. See the [Coder platform guide](https://operator.untra.io/getting-started/platforms/coder/).
+> This module runs Operator **inside** a workspace. To run Operator elsewhere (eg. a Kubernetes deployment) and have it *spawn* Coder workspaces as agent targets, you do not need this module at all - configure a `[[targets]]` entry with `kind = "coder"` instead. See the [Coder platform guide](https://operator.untra.io/getting-started/platforms/coder/).
 
 ## Usage
 
@@ -23,7 +23,7 @@ module "operator" {
 }
 ```
 
-Pin `version` to a published module release for reproducible builds. `install_version` is separate — it selects the Operator release the module downloads, and defaults to the version this module shipped with.
+Pin `version` to a published module release for reproducible builds. `install_version` is separate - it selects the Operator release the module downloads, and defaults to the version this module shipped with.
 
 ### Custom configuration
 
@@ -39,7 +39,7 @@ module "operator" {
 
 ### Full TOML override
 
-`config_toml` is written verbatim — quotes, `$` and backticks all survive, because the value is base64-encoded on the way into the startup script.
+`config_toml` is written verbatim - quotes, `$` and backticks all survive, because the value is base64-encoded on the way into the startup script.
 
 ```tf
 module "operator" {
@@ -59,7 +59,7 @@ module "operator" {
 }
 ```
 
-Setting `config_toml` replaces the generated config entirely, including the `[[targets]]` block described below — declare the target yourself if you need both.
+Setting `config_toml` replaces the generated config entirely, including the `[[targets]]` block described below - declare the target yourself if you need both.
 
 ### Spawning child agent workspaces
 
@@ -74,7 +74,7 @@ module "operator" {
 }
 ```
 
-This mode has prerequisites the basic mode does not — see below.
+This mode has prerequisites the basic mode does not - see below.
 
 ## Variables
 
@@ -98,7 +98,7 @@ This mode has prerequisites the basic mode does not — see below.
 
 ### Child-workspace spawning
 
-All optional. `agent_template` is the switch — leave it empty and no `[[targets]]` entry is written and the rest are ignored. Keys left unset are omitted from the config so Operator's own defaults apply.
+All optional. `agent_template` is the switch - leave it empty and no `[[targets]]` entry is written and the rest are ignored. Keys left unset are omitted from the config so Operator's own defaults apply.
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -117,7 +117,7 @@ The workspace image must include `tmux` (or your chosen `session_wrapper`) for O
 Setting `agent_template` adds two more:
 
 - **`ssh` in the workspace image** (`openssh-client`). Operator launches child-workspace agents over real `ssh`. The `coder` CLI is used too, but Operator fetches it from your deployment if it is not already on `PATH`.
-- **A Coder user session token** in the variable named by `coder_token_env`. This is **not** the ambient `CODER_AGENT_TOKEN` (see below) and the module does not provision it — supply it yourself, e.g. through a template `env` block backed by a Coder parameter or secret.
+- **A Coder user session token** in the variable named by `coder_token_env`. This is **not** the ambient `CODER_AGENT_TOKEN` (see below) and the module does not provision it - supply it yourself, e.g. through a template `env` block backed by a Coder parameter or secret.
 
 > **Blast radius:** a Coder user session token can create, delete, and SSH into every workspace its user owns. Scope the account accordingly.
 
@@ -130,4 +130,4 @@ Coder automatically injects environment variables into every workspace that oper
 - `CODER_URL` - deployment URL, which is what the coder target reads by default
 - `CODER_AGENT_TOKEN` - **agent** authentication token, scoped to this one workspace
 
-No operator configuration is needed to access these. Note that `CODER_AGENT_TOKEN` is not a substitute for the user session token child-workspace spawning needs — it cannot create workspaces. Operator also strips the session-token variable from every agent's environment before launching it, on every target kind.
+No operator configuration is needed to access these. Note that `CODER_AGENT_TOKEN` is not a substitute for the user session token child-workspace spawning needs - it cannot create workspaces. Operator also strips the session-token variable from every agent's environment before launching it, on every target kind.

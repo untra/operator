@@ -586,7 +586,7 @@ mod review_signals {
 
     #[test]
     fn test_review_rejection_blocked_for_running_state() {
-        // Mirrors approval tests but for rejection path — same guard logic applies
+        // Mirrors approval tests but for rejection path - same guard logic applies
         let review_state: Option<&str> = Some("running");
 
         let can_reject = matches!(

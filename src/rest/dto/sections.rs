@@ -8,7 +8,7 @@
 //! To keep that boundary while still running the real section logic, the binary
 //! injects a provider via [`register_section_provider`] at startup. In lib-only
 //! and test contexts no provider is registered, so the endpoint returns an empty
-//! list — the section logic is exercised by the ui-side builder's own tests.
+//! list - the section logic is exercised by the ui-side builder's own tests.
 
 use std::sync::{Arc, OnceLock};
 
@@ -81,7 +81,7 @@ pub struct SectionDto {
 /// The `/api/v1/sections` handler is, by definition, proof the API (and embedded
 /// Web UI) are up; it passes these runtime facts to the provider so the
 /// connections section reflects reality rather than the config defaults. Internal
-/// provider input only — never serialized over the wire.
+/// provider input only - never serialized over the wire.
 #[derive(Debug, Clone)]
 pub struct LiveConnectionStatus {
     /// Whether the REST API is currently serving.

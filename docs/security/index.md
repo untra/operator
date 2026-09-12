@@ -8,7 +8,7 @@ Operator launches AI coding agents against your source code, holds credentials f
 
 This page is the threat model for that surface: what Operator trusts, what it does not, and what remains your responsibility to control.
 
-For the authentication mechanism itself — accounts, tokens, scopes, and recovery — see [Authentication](/security/authentication/).
+For the authentication mechanism itself - accounts, tokens, scopes, and recovery - see [Authentication](/security/authentication/).
 
 ## Trust boundaries
 
@@ -59,7 +59,7 @@ Two deliberate choices in that table:
 authority. 
 Model servers, delegators, and execution targets have focused endpoints with their own response types.
 
-**Health and status are not public.** They report the workspace directory name and a directory identifier. That is workspace identity, and it is exactly the sort of detail a public probe should not disclose — hence the separate, metadata-free `/livez` and `/readyz` endpoints for Kubernetes.
+**Health and status are not public.** They report the workspace directory name and a directory identifier. That is workspace identity, and it is exactly the sort of detail a public probe should not disclose - hence the separate, metadata-free `/livez` and `/readyz` endpoints for Kubernetes.
 
 ### The dashboard bundle is public
 
@@ -75,8 +75,8 @@ shell; every data request returns `401`, and the client redirects to the login
 screen.
 
 **Residual risk:** the set of route names and the structure of the UI are
-public. No workspace data, configuration, or credentials are in the bundle —
-all of it arrives over authenticated API calls — but the shape of the
+public. No workspace data, configuration, or credentials are in the bundle -
+all of it arrives over authenticated API calls - but the shape of the
 application is discoverable. This is accepted deliberately; the alternative is
 a separately served login document, which is a larger change for a small
 reduction in disclosure.
@@ -112,17 +112,17 @@ controls:
 
 Untreated, the model-server probe is the sharpest of these: an authenticated
 caller sets a base URL, triggers a probe, and Operator makes the request *with a
-provider API key attached*. Redirects compound it — a permitted host can
+provider API key attached*. Redirects compound it - a permitted host can
 redirect to a forbidden one.
 
 Four controls apply together, and none is sufficient alone:
 
-1. **Authentication and scopes** — probing requires `execute`; changing a
+1. **Authentication and scopes** - probing requires `execute`; changing a
    model-server URL requires `admin`. An anonymous caller cannot reach either.
-2. **Destination validation** — loopback, link-local, multicast, and cloud-metadata addresses are rejected unless explicitly allowed, and schemes and CIDR ranges are validated against configuration.
-3. **Redirect re-validation** — every redirect hop is re-checked against the
+2. **Destination validation** - loopback, link-local, multicast, and cloud-metadata addresses are rejected unless explicitly allowed, and schemes and CIDR ranges are validated against configuration.
+3. **Redirect re-validation** - every redirect hop is re-checked against the
    same policy, not just the initial URL.
-4. **NetworkPolicy** — in Kubernetes, egress is restricted at the network
+4. **NetworkPolicy** - in Kubernetes, egress is restricted at the network
    layer, so a validation bug does not become cluster-internal access.
 
 Control 2 is code, control 4 is cluster configuration, and **you must configure control 4 yourself**; the chart ships the template but leaves it disabled by default.
@@ -138,7 +138,7 @@ The chart is deliberately minimal about what it can touch:
 
 Operator running in your cluster cannot enumerate, create, or delete cluster resources, because it has neither the credential nor the tooling to try.
 
-Ingress is disabled by default. Enabling it publishes an authenticated service, which is the intended posture — but it is your TLS certificate, your DNS name, and your decision.
+Ingress is disabled by default. Enabling it publishes an authenticated service, which is the intended posture - but it is your TLS certificate, your DNS name, and your decision.
 
 ### Secrets are not encrypted by default
 
@@ -165,7 +165,7 @@ See the [Kubernetes guide](/getting-started/platforms/kubernetes/) for the mecha
 
 The persistent volume also holds the workspace, the ticket queue, and
 `state.json`. A backup that captures the volume captures all of it, including
-the authentication database — so the volume snapshot inherits the same
+the authentication database - so the volume snapshot inherits the same
 sensitivity.
 
 Forgotten-password recovery is **local only**: `operator auth reset-admin-password` operates directly on the database.

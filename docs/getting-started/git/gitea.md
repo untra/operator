@@ -13,7 +13,7 @@ provider = "gitea"
 
 [git.gitea]
 enabled = true
-host = "https://gitea.kube.untra.casa"
+host = "https://gitea.kube.your.site"
 token_env = "GITEA_TOKEN"
 wip_prefix = "WIP: "
 ```
@@ -30,7 +30,7 @@ name = "Operator agent {ticket_id}"
 email = "agent-{ticket_id}@example.org"
 
 [delegators.git.credentials]
-repository_url = "https://gitea.kube.untra.casa/team/project.git"
+repository_url = "https://gitea.kube.your.site/team/project.git"
 username = "operator-agent"
 token_env = "PROJECT_AGENT_TOKEN"
 

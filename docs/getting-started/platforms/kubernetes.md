@@ -9,7 +9,7 @@ layout: doc
 Run [Operator](https://operator.untra.io) in a cluster from the official Helm chart.
 The chart deploys a single-replica StatefulSet with a persistent workspace volume, a ClusterIP Service.
 
-**Chart:** `oci://ghcr.io/untra/charts/operator` — **Image:** [`untra/operator`](https://hub.docker.com/r/untra/operator)
+**Chart:** `oci://ghcr.io/untra/charts/operator` - **Image:** [`untra/operator`](https://hub.docker.com/r/untra/operator)
 
 ## What the chart does not contain
 
@@ -30,7 +30,7 @@ helm install operator oci://ghcr.io/untra/charts/operator \
   --set publicUrl=https://operator.example.com
 ```
 
-The chart's `appVersion` is the image tag. It is pinned to an exact release — the chart never deploys `latest`.
+The chart's `appVersion` is the image tag. It is pinned to an exact release - the chart never deploys `latest`.
 
 ### Bootstrap the admin account
 
@@ -113,7 +113,7 @@ persistence:
   storageClass: fast-ssd
 ```
 
-The volume is mounted at `/op` and holds the workspace, repositories, `.tickets/`, and the authentication database. It is the only durable state — `$HOME` and `/tmp` are emptyDir mounts and are discarded on every restart.
+The volume is mounted at `/op` and holds the workspace, repositories, `.tickets/`, and the authentication database. It is the only durable state - `$HOME` and `/tmp` are emptyDir mounts and are discarded on every restart.
 
 Two things land here that are easy to overlook, both under `.tickets/operator/`: `ssh/` holds the per-workspace SSH config fragments for [Coder targets](#coder-targets), and `bin/` caches the `coder` CLI when Operator downloads one. Keeping them on the volume is why a pod restart does not re-download the CLI.
 
@@ -125,7 +125,7 @@ volume, and the chart does not offer the option.
 ## NetworkPolicy
 
 Optional and disabled by default. Enabling it is how you bound Operator's
-egress — the code-level destination validation described in
+egress - the code-level destination validation described in
 [Security](/security/#server-side-request-forgery) is one control, and this is
 the other.
 
@@ -149,13 +149,13 @@ networkPolicy:
             - 192.168.0.0/16
 ```
 
-Operator needs egress to the model provider, kanban provider, and Git host. It does not need egress to the rest of the cluster — unless you use [Coder targets](#coder-targets), which need to reach the Coder deployment.
+Operator needs egress to the model provider, kanban provider, and Git host. It does not need egress to the rest of the cluster - unless you use [Coder targets](#coder-targets), which need to reach the Coder deployment.
 
 Note default: with `enabled: true` and an empty `egress.to`, the rendered policy permits DNS. An empty list is deny-all, not allow-all.
 
 ## Custom agent images
 
-The base image ships `git`, `tmux`, `openssh-client`, `curl`, and `ca-certificates`, but **no agent CLI** — no `claude`, `codex`, or `gemini`, and no credentials for them.
+The base image ships `git`, `tmux`, `openssh-client`, `curl`, and `ca-certificates`, but **no agent CLI** - no `claude`, `codex`, or `gemini`, and no credentials for them.
 
 ```dockerfile
 FROM untra/operator:0.2.7
@@ -181,7 +181,7 @@ extraEnvFrom:
 ```
 
 Note that an agent process runs as the same user as Operator and can read
-these. That is inherent to the current execution model — see
+these. That is inherent to the current execution model - see
 [the trust boundary discussion](/security/#the-agent-process-is-inside-the-trust-boundary).
 
 ## Coder targets
@@ -189,7 +189,7 @@ these. That is inherent to the current execution model — see
 Operator can run agents in per-ticket [Coder](/getting-started/platforms/coder/#operator-targeting-coder)
 workspaces instead of in its own pod. From a Kubernetes deployment that needs three things.
 
-**1. Credentials, by name.** Operator reads the deployment URL and a user session token from environment variables. Put them in a Secret and reference it — the chart has no dedicated values for this:
+**1. Credentials, by name.** Operator reads the deployment URL and a user session token from environment variables. Put them in a Secret and reference it - the chart has no dedicated values for this:
 
 ```yaml
 extraEnvFrom:
@@ -222,7 +222,7 @@ Coder's own ingress NetworkPolicy has to admit Operator's namespace too.
 kubectl -n operator exec operator-0 --   curl -sSf https://coder.example.com/api/v2/buildinfo
 ```
 
-**3. Nothing else.** The image already ships `openssh-client`, and Operator downloads the `coder` CLI from the deployment on first use, caching it on the persistent volume at `.tickets/operator/bin/coder`. No custom image, no initContainer, and no relaxing of `readOnlyRootFilesystem` — the cache and the SSH fragments both live under `/op`.
+**3. Nothing else.** The image already ships `openssh-client`, and Operator downloads the `coder` CLI from the deployment on first use, caching it on the persistent volume at `.tickets/operator/bin/coder`. No custom image, no initContainer, and no relaxing of `readOnlyRootFilesystem` - the cache and the SSH fragments both live under `/op`.
 
 ## Security context
 
@@ -259,7 +259,7 @@ The authentication database migrates forward automatically on start.
 
 Back up the persistent volume. It holds everything: workspace, tickets, state, and `auth.sqlite3`.
 
-Treat the backup as sensitive — it contains the authentication database, which holds the token signing key.
+Treat the backup as sensitive - it contains the authentication database, which holds the token signing key.
 
 To restore, pre-create the PersistentVolumeClaim the StatefulSet expects, backed by the snapshot, before installing the chart. A StatefulSet adopts an existing claim whose name matches its `volumeClaimTemplate`, which is `workspace-<release>-0`:
 
@@ -310,7 +310,7 @@ The chart uses **HTTP probes** against `/livez` (liveness) and `/readyz`
 (readiness). Both are public and carry no workspace metadata. `/livez` answers as
 soon as the server is serving; `/readyz` additionally checks that the
 authentication database on the persistent volume is reachable, returning `503`
-with `auth store unavailable` when it is not — so a pod stuck `NotReady` with a
+with `auth store unavailable` when it is not - so a pod stuck `NotReady` with a
 healthy `/livez` points at the volume, not the process.
 
 Do not repoint either probe at `/api/v1/health`: that endpoint reports workspace

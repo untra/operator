@@ -61,7 +61,7 @@ fn handle_multi_agent_completion(
         .map(|o| serde_json::to_value(o).unwrap_or(serde_json::Value::Null))
         .unwrap_or(serde_json::Value::Null);
 
-    // Persist the per-sub-agent file — the sync loop picks it up.
+    // Persist the per-sub-agent file - the sync loop picks it up.
     crate::steps::manager::StepManager::write_agent_step_output(
         ticket,
         step_name,
@@ -84,7 +84,7 @@ fn handle_multi_agent_completion(
         Some("sub-agent complete".to_string()),
     );
 
-    // Build a minimal response — the group aggregation/advancement happens
+    // Build a minimal response - the group aggregation/advancement happens
     // in the sync loop, not here.
     let (previous_summary, previous_recommendation, cumulative_files_modified, cumulative_errors) =
         request.output.as_ref().map_or((None, None, 0, 0), |o| {
@@ -418,14 +418,14 @@ fn build_next_step_command(
 
 /// Advance the ticket file to the next step and persist the minted session id
 /// and agent step, so chain bookkeeping matches what will execute. Best-effort:
-/// failures are logged, not fatal — opr8r already holds the command.
+/// failures are logged, not fatal - opr8r already holds the command.
 ///
 /// opr8r retries the completion POST up to 3 times, and the artifact-sync
 /// loop (src/agents/sync.rs) can also advance the ticket independently, so a
 /// re-entrant call must not advance twice: re-read the ticket fresh and only
 /// call `advance_step()` when it is still sitting on `completed_step`. On a
 /// duplicate (already advanced), still record the session id for the next
-/// step — that part is idempotent.
+/// step - that part is idempotent.
 fn record_step_transition(
     state: &ApiState,
     ticket: &crate::queue::Ticket,
@@ -525,7 +525,7 @@ fn set_proof_status_message(
 /// Run a Proof step's assertion synchronously after a successful command
 /// exit, recording pass/fail evidence under `.proof/{ticket}/{step}/` and
 /// annotating the agent's status message. The caller's status logic already
-/// yields `awaiting_review` for this step either way — a human still
+/// yields `awaiting_review` for this step either way - a human still
 /// confirms; this only attaches evidence.
 ///
 /// Worktree resolution mirrors `build_next_step_command`'s fallback: the
@@ -542,7 +542,7 @@ async fn run_proof_review_hook(
             state,
             ticket,
             request.session_id.as_deref(),
-            "Proof review (no config) — awaiting review",
+            "Proof review (no config) - awaiting review",
         );
         return;
     };
@@ -584,21 +584,21 @@ async fn run_proof_review_hook(
             let proof_ref = format!(".proof/{}/{}", ticket.id, step.name);
             if result.timed_out {
                 format!(
-                    "Proof FAILED (timeout, exit {}) — awaiting review ({proof_ref})",
+                    "Proof FAILED (timeout, exit {}) - awaiting review ({proof_ref})",
                     result.exit_code
                 )
             } else if result.passed {
-                format!("Proof passed — awaiting review ({proof_ref})")
+                format!("Proof passed - awaiting review ({proof_ref})")
             } else {
                 format!(
-                    "Proof FAILED (exit {}) — awaiting review ({proof_ref})",
+                    "Proof FAILED (exit {}) - awaiting review ({proof_ref})",
                     result.exit_code
                 )
             }
         }
         Err(e) => {
             tracing::warn!(ticket = %ticket.id, step = %step.name, error = %e, "Proof runner error");
-            "Proof runner error — awaiting review".to_string()
+            "Proof runner error - awaiting review".to_string()
         }
     };
 
@@ -673,7 +673,7 @@ pub async fn complete_step(
     // Clone what the rest of the function needs from the registry, then drop
     // the read guard before any `.await`. The proof hook below runs an
     // assertion command synchronously (up to its configured timeout, default
-    // 120s) — holding `registry.read()` across that would stall every
+    // 120s) - holding `registry.read()` across that would stall every
     // `registry.write()` caller (issuetypes/collections/steps routes) for
     // the duration of each Proof-reviewed step completion.
     let current_step = current_step.clone();
@@ -692,7 +692,7 @@ pub async fn complete_step(
 
     // Proof review: run the assertion synchronously on a clean exit so its
     // evidence (result.json + status message) is ready before the response
-    // goes out. Status stays `awaiting_review` either way (below) — a human
+    // goes out. Status stays `awaiting_review` either way (below) - a human
     // still confirms.
     if request.exit_code == 0
         && current_step.review_type == crate::templates::schema::ReviewType::Proof
@@ -738,7 +738,7 @@ pub async fn complete_step(
 
     // Build next command if auto-proceeding: the same builder the launcher
     // uses for step one, fed by the launch context persisted with the agent.
-    // Never target-wrapped — exec() happens inside the already-wrapped
+    // Never target-wrapped - exec() happens inside the already-wrapped
     // environment (see step_command module docs).
     let next_command = if auto_proceed {
         match next_step_schema {
@@ -1291,7 +1291,7 @@ mod tests {
         let api_state = make_state_with_temp(&temp_dir);
         let ticket = make_multi_agent_ticket(&temp_dir);
 
-        // Fresh state — no groups, no agents.
+        // Fresh state - no groups, no agents.
         let req = StepCompleteRequest {
             exit_code: 0,
             output_valid: true,

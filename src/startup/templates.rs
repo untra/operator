@@ -126,7 +126,7 @@ fn write_collection_icon(dir: &Path, manifest: &CollectionManifest, icon_svg: Op
 /// Write a fetched (or synthesized) collection into its collection-scoped
 /// directory: `templates/<id>/collection.json` + `<KEY>.json`/`<KEY>.md`.
 ///
-/// `files` entries are `(key, schema_json, optional template_md)` — the shape
+/// `files` entries are `(key, schema_json, optional template_md)` - the shape
 /// hosted fetches produce.
 pub fn write_fetched_collection(
     templates_path: &Path,

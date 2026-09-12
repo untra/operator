@@ -4,13 +4,13 @@ import type { SupportStatus } from "./SupportStatus";
 /**
  * One workflow export format operator can emit, for `GET /api/v1/workflow-formats`.
  *
- * A projection of [`WorkflowFormat`] joined to its `Workflows` catalog entry —
+ * A projection of [`WorkflowFormat`] joined to its `Workflows` catalog entry -
  * the single source of truth for the format's [`SupportStatus`] and docs. Lets
  * the UIs render a format picker without hardcoding the list.
  */
 export type WorkflowFormatDto = { 
 /**
- * Stable slug (e.g. "claude", "agnt") — the value the `format` query param takes.
+ * Stable slug (e.g. "claude", "agnt") - the value the `format` query param takes.
  */
 slug: string, 
 /**

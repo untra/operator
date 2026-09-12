@@ -14,7 +14,7 @@ name: string,
  */
 scopes: Array<Scope>, 
 /**
- * Days until the key expires. Expiry is mandatory — there is no
+ * Days until the key expires. Expiry is mandatory - there is no
  * non-expiring key.
  */
 expires_in_days: bigint, };

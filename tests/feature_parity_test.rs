@@ -185,7 +185,7 @@ const CANONICAL_VIEWS: &[(&str, &str, &str)] = &[
 ];
 
 /// The canonical status-section ids, parsed from the committed ts-rs export
-/// `bindings/SectionId.ts` — itself generated from the `SectionId` enum in
+/// `bindings/SectionId.ts` - itself generated from the `SectionId` enum in
 /// `src/ui/status_panel.rs` (the single source of truth). The VS Code copy under
 /// `vscode-extension/src/generated/` is gitignored (it's produced by
 /// `npm run copy-types`), so we read the tracked `bindings/` original to stay

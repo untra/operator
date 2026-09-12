@@ -257,7 +257,7 @@ pub async fn update(
 
 /// List the models a server offers, via a live probe of its inference endpoint.
 ///
-/// The probe doubles as a reachability check — `reachable: false` with an `error`
+/// The probe doubles as a reachability check - `reachable: false` with an `error`
 /// when the endpoint is unreachable or rejects the request.
 #[utoipa::path(
     operation_id = "model_servers_models",
@@ -334,7 +334,7 @@ pub async fn kinds() -> Json<Vec<ModelServerKindEntry>> {
 /// List the models a *provider kind* offers, via a live probe.
 ///
 /// Resolves to the declared instance of that kind (if the user has one) else a
-/// transient instance built from the kind's probe defaults — so the Model
+/// transient instance built from the kind's probe defaults - so the Model
 /// Providers catalog can show connection state + live models for every supported
 /// provider without first declaring one. `reachable` doubles as "connected".
 #[utoipa::path(
@@ -489,7 +489,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_models_unreachable_endpoint_reports_error() {
-        // Probe a declared server pointing at a closed local port — deterministic
+        // Probe a declared server pointing at a closed local port - deterministic
         // and offline (connection refused), exercising the unreachable path
         // without any external network dependency.
         let mut config = Config::default();
@@ -538,7 +538,7 @@ mod tests {
     #[tokio::test]
     async fn test_kind_models_bring_your_own_endpoint_unreachable_from_defaults() {
         // `openai-compat` has no default base_url and no declared instance, so a
-        // kind-level probe has nowhere to connect — reachable:false, offline.
+        // kind-level probe has nowhere to connect - reachable:false, offline.
         let config = Config::default();
         let state = ApiState::new(config, PathBuf::from("/tmp/test-ms-km-byo"));
         let resp = kind_models(State(state), Path("openai-compat".to_string()))

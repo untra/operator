@@ -1,8 +1,8 @@
 //! Integration tests enforcing strict packaging constraints on the frontend.
 //!
 //! Two packages are covered: `ui/` (the embedded SPA) and `webcomponents/` (the
-//! components `ui/` and the docs site share). Both ship to users — the SPA
-//! inside the binary, the web components on the docs site — so both are held to
+//! components `ui/` and the docs site share). Both ship to users - the SPA
+//! inside the binary, the web components on the docs site - so both are held to
 //! the same dependency, size, and source-map rules.
 //!
 //! These tests run without the `embed-ui` feature: they validate the source
@@ -29,9 +29,9 @@ const ALLOWED_WEBCOMPONENT_DEPS: &[&str] = &[
     // Workflow-graph rendering. First-party (same author as operator): renders
     // a flat node/edge graph with React Flow. Operator supplies the graph itself
     // via webcomponents/src/workflow/issuetype-to-ir.ts, which projects an
-    // issue type's native steps — no workflow source is parsed or executed.
+    // issue type's native steps - no workflow source is parsed or executed.
     "@untra/naiveworkflow-react",
-    // React Flow — peer dependency of @untra/naiveworkflow-react; the graph
+    // React Flow - peer dependency of @untra/naiveworkflow-react; the graph
     // renderer/canvas. (dagre, its layout engine, comes in transitively.)
     "@xyflow/react",
 ];
@@ -95,7 +95,7 @@ fn assert_no_source_maps(dist: &str) {
     let map_files = find_files_with_extension(&dist_path, "map");
     assert!(
         map_files.is_empty(),
-        "Source maps found in {dist}/ — these should not ship to users: {map_files:?}",
+        "Source maps found in {dist}/ - these should not ship to users: {map_files:?}",
     );
 }
 
@@ -116,7 +116,7 @@ fn test_frontend_packages_have_no_css_in_js() {
     assert_no_banned_libraries("vscode-extension/package.json");
 }
 
-/// The SPA must not depend on the graph stack directly — that would let the
+/// The SPA must not depend on the graph stack directly - that would let the
 /// in-app graph drift from the one the docs site draws.
 #[test]
 fn test_ui_does_not_depend_on_the_graph_stack_directly() {
@@ -137,13 +137,13 @@ fn test_ui_does_not_depend_on_the_graph_stack_directly() {
 fn test_ui_dist_size_budget_uncompressed() {
     let dist_path = repo_path("ui/dist");
     if !dist_path.exists() || !dist_path.join("index.html").exists() {
-        return; // Not built yet — skip
+        return; // Not built yet - skip
     }
 
     let total = walk_dir_size(&dist_path);
     assert!(
         total < UNCOMPRESSED_BUDGET_BYTES,
-        "ui/dist/ is {}B ({:.1}MB) uncompressed — exceeds the {:.0}MB budget",
+        "ui/dist/ is {}B ({:.1}MB) uncompressed - exceeds the {:.0}MB budget",
         total,
         total as f64 / 1_048_576.0,
         UNCOMPRESSED_BUDGET_BYTES as f64 / 1_048_576.0

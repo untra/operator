@@ -21,7 +21,7 @@ pub const PLACEHOLDER_MARKER: &str = "operator:placeholder";
 pub enum EmbeddedUiState {
     /// A real built SPA is embedded.
     Ready,
-    /// The build.rs placeholder is embedded — `ui/dist` wasn't built before
+    /// The build.rs placeholder is embedded - `ui/dist` wasn't built before
     /// the cargo build.
     Placeholder,
     /// No SPA assets at all (should be unreachable when this module compiles).
@@ -103,7 +103,7 @@ mod tests {
 
         assert!(
             compressed_total < TEN_MB,
-            "Embedded UI assets: {compressed_total}B ({:.1}MB) gzipped — exceeds 10MB budget \
+            "Embedded UI assets: {compressed_total}B ({:.1}MB) gzipped - exceeds 10MB budget \
              (uncompressed: {uncompressed_total}B / {:.1}MB)",
             compressed_total as f64 / 1_048_576.0,
             uncompressed_total as f64 / 1_048_576.0,
@@ -119,7 +119,7 @@ mod tests {
 
         assert!(
             total < FIFTEEN_MB,
-            "Embedded UI assets: {total}B ({:.1}MB) uncompressed — exceeds 15MB budget",
+            "Embedded UI assets: {total}B ({:.1}MB) uncompressed - exceeds 15MB budget",
             total as f64 / 1_048_576.0,
         );
     }

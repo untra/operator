@@ -33,9 +33,9 @@ pub const ADMIN_SUBJECT: &str = "admin";
 
 /// Browser session lifetime.
 const SESSION_TTL: Duration = Duration::hours(12);
-/// Refresh token idle lifetime — using a token resets this.
+/// Refresh token idle lifetime - using a token resets this.
 const REFRESH_IDLE_TTL: Duration = Duration::days(30);
-/// Refresh token absolute lifetime — fixed at issuance, never extended.
+/// Refresh token absolute lifetime - fixed at issuance, never extended.
 const REFRESH_ABSOLUTE_TTL: Duration = Duration::days(90);
 /// Device code lifetime in seconds.
 pub const DEVICE_CODE_TTL_SECS: u64 = 15 * 60;
@@ -55,7 +55,7 @@ pub enum RefreshOutcome {
         scopes: Vec<Scope>,
     },
     /// The token was valid once but has already been redeemed. The family is
-    /// now revoked — see [`AuthStore::redeem_refresh_token`].
+    /// now revoked - see [`AuthStore::redeem_refresh_token`].
     Reused,
     /// No such token, or it is expired or revoked.
     Invalid,
@@ -83,7 +83,7 @@ pub enum DevicePollOutcome {
         client_id: String,
         scopes: Vec<Scope>,
     },
-    /// Not approved yet — keep polling.
+    /// Not approved yet - keep polling.
     Pending,
     /// Polled faster than the advertised interval.
     SlowDown,
@@ -592,7 +592,7 @@ impl AuthStore {
     /// Redeem a refresh token, rotating it.
     ///
     /// Presenting an **already-consumed** token means two parties hold the same
-    /// credential — the legitimate client and a thief — and there is no way to
+    /// credential - the legitimate client and a thief - and there is no way to
     /// tell which is calling. The whole family is revoked rather than guessing:
     /// a forced re-authentication is a far better outcome than silently serving
     /// an attacker.

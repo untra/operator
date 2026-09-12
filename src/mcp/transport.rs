@@ -32,7 +32,7 @@ pub struct MessageQuery {
     session_id: String,
 }
 
-/// SSE endpoint — opens an event stream and sends the message endpoint URL
+/// SSE endpoint - opens an event stream and sends the message endpoint URL
 ///
 /// The client connects here first, receives the message endpoint URL,
 /// then sends JSON-RPC requests to that endpoint.
@@ -95,7 +95,7 @@ pub async fn sse_handler(
     )
 }
 
-/// Message endpoint — receives JSON-RPC requests and sends responses via SSE
+/// Message endpoint - receives JSON-RPC requests and sends responses via SSE
 #[utoipa::path(
     post,
     path = "/api/v1/mcp/message",

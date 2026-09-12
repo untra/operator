@@ -4,7 +4,7 @@ description: "Multi-agent peer-to-peer communication hub embedded in Operator."
 layout: doc
 ---
 
-<span class="operator-brand">Operator!</span> embeds a relay hub that lets agents launched for different tickets discover and message each other in real time. When a delegator sets `operator_relay = true` in its `launch_config`, Operator injects the `relay` MCP server into Claude Code launches for that delegator — provided the relay hub socket is available. Injection does **not** happen automatically for all launches; the global default is `relay.auto_inject_mcp = false`.
+<span class="operator-brand">Operator!</span> embeds a relay hub that lets agents launched for different tickets discover and message each other in real time. When a delegator sets `operator_relay = true` in its `launch_config`, Operator injects the `relay` MCP server into Claude Code launches for that delegator - provided the relay hub socket is available. Injection does **not** happen automatically for all launches; the global default is `relay.auto_inject_mcp = false`.
 
 The MCP server runs as `opr8r relay` (a subcommand of the signed `opr8r` binary) so no additional executable needs to be signed or distributed. Codex and other tools receive the env vars but require manual MCP configuration.
 
@@ -12,9 +12,9 @@ The MCP server runs as `opr8r relay` (a subcommand of the signed `opr8r` binary)
 
 Operator ships two complementary executables for agent orchestration:
 
-### opr8r — step wrapper and API client
+### opr8r - step wrapper and API client
 
-`opr8r` wraps LLM tool invocations (Claude Code, Codex, Gemini CLI) inside multi-step ticket workflows. It runs as the **parent process** of the LLM tool, intercepts its exit code, and reports step completion to the Operator REST API. The API then decides what happens next — another step, a review gate, or workflow completion.
+`opr8r` wraps LLM tool invocations (Claude Code, Codex, Gemini CLI) inside multi-step ticket workflows. It runs as the **parent process** of the LLM tool, intercepts its exit code, and reports step completion to the Operator REST API. The API then decides what happens next - another step, a review gate, or workflow completion.
 
 ```
 opr8r --ticket-id FEAT-042 --step build -- claude --prompt "implement the feature"
@@ -26,7 +26,7 @@ opr8r --ticket-id FEAT-042 --step build -- claude --prompt "implement the featur
 
 See the [opr8r CLI reference](/cli/) for full flag documentation.
 
-### relay — MCP client for the relay hub
+### relay - MCP client for the relay hub
 
 `relay` is the MCP stdio server that Operator ships so agents can communicate with each other. It runs as a **child process** of the LLM tool (spawned by the MCP host), connects to the relay hub over a Unix socket, and exposes five relay tools via the MCP protocol:
 
@@ -54,7 +54,7 @@ operator process
           relay_reply(ask_id, "yes, pushed to feat/auth")
 ```
 
-The hub runs for the lifetime of the Operator process. Unlike the standalone `claude-relay` tool, there is no idle-shutdown timer — the hub stays up as long as Operator is running.
+The hub runs for the lifetime of the Operator process. Unlike the standalone `claude-relay` tool, there is no idle-shutdown timer - the hub stays up as long as Operator is running.
 
 ## Hub socket
 
@@ -62,11 +62,11 @@ The hub binds to a Unix domain socket. The path is resolved in this priority ord
 
 | Priority | Source | Default |
 |----------|--------|---------|
-| 1 | `$RELAY_HUB_SOCKET` | — |
-| 2 | `$CLAUDE_PLUGIN_DATA/hub.sock` | — |
+| 1 | `$RELAY_HUB_SOCKET` | - |
+| 2 | `$CLAUDE_PLUGIN_DATA/hub.sock` | - |
 | 3 | fallback | `~/.claude-relay/hub.sock` |
 
-Operator exports `RELAY_HUB_SOCKET` automatically at startup, so every child process it spawns can find the hub. For Claude Code, Operator also writes a per-session `relay-mcp.json` and passes `--mcp-config <path>` at launch time, so `relay` starts automatically alongside the agent — no manual setup needed. For other tools, the socket env var is exported but MCP wiring requires manual configuration.
+Operator exports `RELAY_HUB_SOCKET` automatically at startup, so every child process it spawns can find the hub. For Claude Code, Operator also writes a per-session `relay-mcp.json` and passes `--mcp-config <path>` at launch time, so `relay` starts automatically alongside the agent - no manual setup needed. For other tools, the socket env var is exported but MCP wiring requires manual configuration.
 
 ## Agent naming
 
@@ -107,4 +107,4 @@ The protocol is byte-compatible with TypeScript claude-relay. Existing TS channe
 
 - [Claude agent setup](/getting-started/agents/claude/)
 - [Codex agent setup](/getting-started/agents/codex/)
-- [Delegators](/delegators/) — named tool + model pairings that launch agents
+- [Delegators](/delegators/) - named tool + model pairings that launch agents

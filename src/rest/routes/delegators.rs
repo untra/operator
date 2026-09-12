@@ -570,8 +570,8 @@ mod tests {
 
     #[tokio::test]
     async fn import_profile_conflicts_on_existing_name() {
-        // The happy path calls Config::save() (a fixed global path), so — like the
-        // create() tests — we only exercise the pre-save conflict branch here. The
+        // The happy path calls Config::save() (a fixed global path), so - like the
+        // create() tests - we only exercise the pre-save conflict branch here. The
         // profile→delegator conversion (incl. x_agnt/shared-core preservation) is
         // covered by the unit tests in `config::agent_profile`.
         let mut config = Config::default();

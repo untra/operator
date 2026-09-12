@@ -39,7 +39,7 @@ through the same three directories:
 
 **Queue.** New tickets land in `.tickets/queue/` and are ordered by their issue
 type's position in the active collection, then FIFO by timestamp within the same
-type. The ordering is a property of the collection, not a hard-coded table — see
+type. The ordering is a property of the collection, not a hard-coded table - see
 [Workflows](/workflows/).
 
 **Assignment.** When an agent slot frees up, Operator selects the next ticket,
@@ -57,7 +57,7 @@ Operator bounds concurrent work so agents do not collide:
 
 - **Max agents** = min(configured_max, cpu_cores - reserved_cores)
 - **Autonomous agents** can run in parallel across different projects
-- **Paired agents** run one at a time — they need your attention
+- **Paired agents** run one at a time - they need your attention
 - **Same project** is sequential, to avoid conflicting edits
 
 Whether an issue type is autonomous or paired is declared by its `mode`. See
@@ -66,8 +66,8 @@ practice.
 
 ## Column Mapping (todo / doing / done)
 
-Operator is strict about its three internal states — **todo**, **doing**,
-**done** — because they represent the work actually inflight at operator's
+Operator is strict about its three internal states - **todo**, **doing**,
+**done** - because they represent the work actually inflight at operator's
 level. External boards have flexible columns, so each synced project declares
 a `status_mapping` linking the two:
 

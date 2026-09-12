@@ -2,7 +2,7 @@
 //!
 //! This is the single code path every surface goes through: the CLI and TUI
 //! call it directly in-process, and the REST handler calls it after resolving
-//! the ticket — so the web UI and VS Code extension reach the same logic over
+//! the ticket - so the web UI and VS Code extension reach the same logic over
 //! HTTP. Ticket resolution (filesystem/queue I/O) stays at the edges; this
 //! function takes an already-resolved ticket plus the issue-type registry.
 
@@ -99,7 +99,7 @@ pub fn export_workflow_for_ticket(
 ///
 /// Used by the UI to visualize an issue type's workflow shape. A placeholder
 /// ticket is synthesized so the existing renderer can interpolate handlebars
-/// variables — values are illustrative, not real. This is filesystem-safe:
+/// variables - values are illustrative, not real. This is filesystem-safe:
 /// `worktree_path: None` short-circuits any step-output loading, and the
 /// handlebars renderer runs with strict mode off, so missing variables render
 /// as empty strings rather than erroring.
@@ -110,7 +110,7 @@ pub fn export_workflow_for_issuetype(
     let ticket = preview_ticket(issuetype);
     // No config/filesystem context in a preview: environment-dependent pipeline
     // item sources (projects/glob) render as symbolic placeholders, and with an
-    // empty delegator set the AGNT target never resolves a native `agnt-agent` node —
+    // empty delegator set the AGNT target never resolves a native `agnt-agent` node -
     // so those nodes appear only in real ticket exports, by design.
     let contents = render(
         &ticket,

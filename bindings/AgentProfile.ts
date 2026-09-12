@@ -52,6 +52,6 @@ x_operator?: XOperator | null,
  */
 x_agnt?: JsonValue | null, 
 /**
- * OpenAI-owned extension fields, opaque (`instructions`, `tools`, `tool_resources`, `metadata`, thread refs, ...). 
+ * OpenAI-owned extension fields, opaque (`instructions`, `tools`, `tool_resources`, `metadata`, thread refs, ...).
  */
 x_openai?: JsonValue | null, };

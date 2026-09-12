@@ -150,7 +150,7 @@ const SECTIONS: &[Section] = &[
     Section {
         heading: "Optional",
         // `docs/architecture/index.md` is `published: false`, so Jekyll never
-        // builds it — listing it here produced a live link to a 404. Re-add it
+        // builds it - listing it here produced a live link to a 404. Re-add it
         // when the page is published.
         links: &[],
         extra: &[(
@@ -181,7 +181,7 @@ impl DocGenerator for LlmsTxtDocGenerator {
         let docs_root = Path::new("docs");
         let mut out = String::new();
 
-        // Auto-gen marker (HTML comment — valid markdown, ignored by llms.txt
+        // Auto-gen marker (HTML comment - valid markdown, ignored by llms.txt
         // parsers, and not YAML front matter so Jekyll copies the file as-is).
         out.push_str("<!-- AUTO-GENERATED FROM docs/*/index.md - DO NOT EDIT MANUALLY -->\n");
         out.push_str("<!-- Regenerate with: cargo run -- docs --only llms -->\n\n");
@@ -311,7 +311,7 @@ mod tests {
                 let content = std::fs::read_to_string(path).expect("page reads");
                 assert!(
                     !content.contains("published: false"),
-                    "llms.txt lists '{}', but {} is `published: false` — Jekyll will not \
+                    "llms.txt lists '{}', but {} is `published: false` - Jekyll will not \
                      build it and the link will 404.",
                     link.slug,
                     path.display()
@@ -349,7 +349,7 @@ mod tests {
     fn test_generate_is_spec_shaped() {
         let out = LlmsTxtDocGenerator.generate().unwrap();
 
-        // No YAML front matter — must be served verbatim, not wrapped in a layout.
+        // No YAML front matter - must be served verbatim, not wrapped in a layout.
         assert!(!out.starts_with("---"));
         assert!(!out.contains("layout:"));
 

@@ -4,7 +4,7 @@ description: "Connect OpenAI as a first-party model provider and list its models
 layout: doc
 ---
 
-[**OpenAI**](https://openai.com/) is a first-party model provider — it produces
+[**OpenAI**](https://openai.com/) is a first-party model provider - it produces
 the GPT family and serves them from its own API. It is the zero-config default
 for the `codex` llm tool, and a first-class [model provider](./): once connected,
 operator lists its available models live for delegators to pick from.
@@ -15,7 +15,7 @@ operator lists its available models live for delegators to pick from.
 
 ## Connect
 
-Operator references your key by env-var name — it never stores the secret:
+Operator references your key by env-var name - it never stores the secret:
 
 ```bash
 export OPENAI_API_KEY="sk-..."
@@ -47,5 +47,5 @@ model = "gpt-4o"
 
 Declare an `openai-api` server with an explicit `base_url` to point Codex at a
 proxy; that base URL is then injected at spawn (`OPENAI_BASE_URL`). The probe
-default (`https://api.openai.com`) is **probe-only** — it never changes the
+default (`https://api.openai.com`) is **probe-only** - it never changes the
 launch path on its own.

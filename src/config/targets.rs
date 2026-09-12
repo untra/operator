@@ -1,4 +1,4 @@
-//! Named execution targets — where a launched agent process runs.
+//! Named execution targets - where a launched agent process runs.
 //!
 //! `[[targets]]` entries collapse the legacy trio of environment knobs
 //! (`launch.docker` + `DelegatorLaunchConfig.docker`, `[[hosts]]` +
@@ -118,12 +118,12 @@ pub struct SshTarget {
 }
 
 /// Coder workspace target: lifecycle + alias provisioning around the shared
-/// SSH remote-launch path. There is no `enabled` field — presence in
+/// SSH remote-launch path. There is no `enabled` field - presence in
 /// `[[targets]]` is the enablement.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct CoderConfig {
-    /// Coder template child workspaces are created from (an allowlist —
+    /// Coder template child workspaces are created from (an allowlist -
     /// never per-ticket input)
     pub template: String,
     /// Env var NAME holding the Coder deployment URL
@@ -200,7 +200,7 @@ pub fn validate_targets(config: &super::Config) -> anyhow::Result<()> {
             if d.enabled {
                 tracing::warn!(
                     target = %target.name,
-                    "`enabled` is ignored inside a [[targets]] entry — presence is enablement"
+                    "`enabled` is ignored inside a [[targets]] entry - presence is enablement"
                 );
             }
         }
@@ -229,7 +229,7 @@ pub fn validate_targets(config: &super::Config) -> anyhow::Result<()> {
         } else if lc.docker == Some(true) && lc.host.is_some() {
             tracing::warn!(
                 delegator = %delegator.name,
-                "launch_config sets both `docker` and `host` (deprecated); host wins — \
+                "launch_config sets both `docker` and `host` (deprecated); host wins - \
                  migrate to `target`"
             );
         }
@@ -253,7 +253,7 @@ pub fn launchable_target_names(config: &super::Config) -> Vec<String> {
 
 /// Env-var NAMES holding Coder session tokens across all configured coder
 /// targets. These are stripped from every agent's spawn environment on ALL
-/// target kinds — an agent launched with a Local target inside the operator's
+/// target kinds - an agent launched with a Local target inside the operator's
 /// own Coder workspace would otherwise read the token straight out of `env`.
 pub fn coder_token_envs(config: &super::Config) -> Vec<String> {
     let mut names: Vec<String> = config

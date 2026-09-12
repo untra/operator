@@ -10,7 +10,7 @@ export type MatrixedConfig = {
  */
 delegators: Array<string>, 
 /**
- * Prompt variations (M) — Handlebars templates, minimum 2
+ * Prompt variations (M) - Handlebars templates, minimum 2
  */
 prompt_variations: Array<string>, 
 /**

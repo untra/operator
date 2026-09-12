@@ -317,7 +317,7 @@ pub async fn list_statuses(
 
 /// Write or upsert a kanban config section to `config.toml`.
 ///
-/// `config_override_path` is optional — when `None`, falls back to
+/// `config_override_path` is optional - when `None`, falls back to
 /// `Config::operator_config_path()` (which is what production uses).
 /// When `Some`, the config is loaded from and saved to that path instead
 /// (used by unit tests).
@@ -326,7 +326,7 @@ pub fn write_config(
     req: WriteKanbanConfigRequest,
     config_override_path: Option<&PathBuf>,
 ) -> Result<WriteKanbanConfigResponse, ApiError> {
-    // Load existing config (from disk — not from in-memory ApiState, so that
+    // Load existing config (from disk - not from in-memory ApiState, so that
     // concurrent writes don't clobber each other). If load fails, start with
     // a default config.
     let mut config = match config_override_path {
@@ -493,12 +493,12 @@ pub fn set_session_env(req: SetKanbanSessionEnvRequest) -> SetKanbanSessionEnvRe
                 };
             }
         }
-        // OpenSpec has no secrets — nothing to set; fall through to the
+        // OpenSpec has no secrets - nothing to set; fall through to the
         // empty envelope below.
         KanbanProviderKind::Openspec => {}
     }
 
-    // No body supplied for the selected provider — return empty envelope.
+    // No body supplied for the selected provider - return empty envelope.
     SetKanbanSessionEnvResponse {
         env_vars_set,
         shell_export_block: String::new(),
@@ -507,7 +507,7 @@ pub fn set_session_env(req: SetKanbanSessionEnvRequest) -> SetKanbanSessionEnvRe
 
 /// Build a copy-paste-ready `export` block for Jira's env vars.
 ///
-/// Uses placeholders — never embeds the actual token in the returned
+/// Uses placeholders - never embeds the actual token in the returned
 /// string.
 pub fn build_shell_export_block_jira(api_key_env: &str) -> String {
     format!("export {api_key_env}=\"<your-jira-api-token>\"")
@@ -515,7 +515,7 @@ pub fn build_shell_export_block_jira(api_key_env: &str) -> String {
 
 /// Build a copy-paste-ready `export` block for Linear's env var.
 ///
-/// Uses placeholders — never embeds the actual token in the returned
+/// Uses placeholders - never embeds the actual token in the returned
 /// string.
 pub fn build_shell_export_block_linear(api_key_env: &str) -> String {
     format!("export {api_key_env}=\"<your-linear-api-key>\"")
@@ -523,7 +523,7 @@ pub fn build_shell_export_block_linear(api_key_env: &str) -> String {
 
 /// Build a copy-paste-ready `export` block for the GitHub Projects token.
 ///
-/// Uses placeholders — never embeds the actual token in the returned string.
+/// Uses placeholders - never embeds the actual token in the returned string.
 /// The placeholder text reminds the user this is the *projects* token, not
 /// the repo token used by `GITHUB_TOKEN` (Token Disambiguation rule 4).
 pub fn build_shell_export_block_github(api_key_env: &str) -> String {

@@ -7,7 +7,7 @@
 //! `next_step` chain becomes edges, and concepts AGNT cannot faithfully
 //! represent (human review gates, RAG/MCP sandboxing, fan-out shapes) are
 //! recorded honestly in the node `config` under a `gap` field rather than
-//! silently dropped — mirroring the `OPERATOR-GAP` comments in the `.js` target.
+//! silently dropped - mirroring the `OPERATOR-GAP` comments in the `.js` target.
 //!
 //! The emitted nodes use the `operator-*` type vocabulary defined by the
 //! companion AGNT plugin (`agnt-plugin/`), so an exported workflow runs in AGNT
@@ -191,7 +191,7 @@ fn build_node(
         }
         StepTypeTag::Rag => {
             gaps.push(format!(
-                "{GAP_MARKER}: rag step — the workflow sandbox has no filesystem; context sources must be gathered by the agent."
+                "{GAP_MARKER}: rag step - the workflow sandbox has no filesystem; context sources must be gathered by the agent."
             ));
             if let Some(cfg) = &step.rag_config {
                 let srcs: Vec<Value> = cfg
@@ -206,7 +206,7 @@ fn build_node(
         }
         StepTypeTag::Mcp => {
             gaps.push(format!(
-                "{GAP_MARKER}: mcp step — the workflow sandbox cannot guarantee MCP tool availability."
+                "{GAP_MARKER}: mcp step - the workflow sandbox cannot guarantee MCP tool availability."
             ));
             if let Some(cfg) = &step.mcp_config {
                 let tools: Vec<Value> = cfg
@@ -481,7 +481,7 @@ mod tests {
     /// `operator-run-step` plugin tool (`agnt-plugin/run-step.js`), which reads
     /// `params.ticket` (resolved from `node.parameters`). If the emitter stops
     /// writing the keys the tool requires, an exported graph would fail at
-    /// runtime in AGNT — this catches that.
+    /// runtime in AGNT - this catches that.
     #[test]
     fn agnt_nodes_carry_keys_the_run_step_tool_requires() {
         let v = export("FEAT");
@@ -692,7 +692,7 @@ mod tests {
     #[test]
     fn agnt_export_skips_agnt_node_for_non_agnt_remote_delegator() {
         // An OpenAI remote agent is export-only too, but it has no AGNT workflow
-        // analog — so the export must NOT emit an agnt-agent node for it. Proves
+        // analog - so the export must NOT emit an agnt-agent node for it. Proves
         // the export branch is keyed on platform, not just "is remote".
         let it = issuetype_with_step_agent("openai-reviewer");
         let out = export_workflow_agnt(

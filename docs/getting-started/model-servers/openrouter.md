@@ -13,12 +13,12 @@ OpenAI-compatible endpoint and one API key. Declare it once as a
 
 - An OpenRouter account and an API key from
   [openrouter.ai/keys](https://openrouter.ai/keys)
-- An OpenAI-protocol LLM tool — **codex** works directly; claude/gemini need a
+- An OpenAI-protocol LLM tool - **codex** works directly; claude/gemini need a
   bridge (see [Protocol compatibility](./#protocol-compatibility))
 
 ## Configuration
 
-Export your key (kept out of config — Operator references it by name):
+Export your key (kept out of config - Operator references it by name):
 
 ```bash
 export OPENROUTER_API_KEY="sk-or-..."
@@ -69,6 +69,6 @@ Operator exports:
 | `OPENAI_BASE_URL` | `https://openrouter.ai/api/v1` |
 | `OPENAI_API_KEY`  | `${OPENROUTER_API_KEY}` (by reference) |
 
-The key is injected **by reference**, never by value — the secret is never
+The key is injected **by reference**, never by value - the secret is never
 written into the on-disk command script. See the
 [Model Providers overview](./#how-env-injection-works) for the full mechanism.

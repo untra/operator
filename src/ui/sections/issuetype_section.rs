@@ -2,7 +2,7 @@ use crate::ui::status_panel::{
     ActionSet, SectionHealth, SectionId, StatusIcon, StatusSection, StatusSnapshot, TreeRow,
 };
 
-/// Issue Types section — mirrors the VS Code extension's `IssueTypeSection`.
+/// Issue Types section - mirrors the VS Code extension's `IssueTypeSection`.
 /// Visible once Kanban is configured; lists the active issue types.
 pub struct IssueTypeSection;
 

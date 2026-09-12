@@ -1,7 +1,7 @@
 //! Vertical integration catalog DTO for `GET /api/v1/integrations`.
 //!
-//! A thin projection of [`crate::integrations::catalog::all_integrations`] —
-//! the single source of truth — exposing each advertised integration with its
+//! A thin projection of [`crate::integrations::catalog::all_integrations`] -
+//! the single source of truth - exposing each advertised integration with its
 //! [`SupportStatus`]. Consumed by the docs site and reserved for future
 //! entitlement control.
 

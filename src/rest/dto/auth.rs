@@ -147,7 +147,7 @@ pub struct BootstrapSubmitRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct BootstrapSubmitResponse {
-    /// The state after submission — `Complete` on success.
+    /// The state after submission - `Complete` on success.
     pub state: BootstrapState,
     /// The account name created by bootstrap.
     pub username: String,
@@ -204,7 +204,7 @@ pub struct ResetPasswordResponse {
 }
 
 /// Successful login. The session itself rides in a `Set-Cookie` header, not in
-/// this body — a body-borne session identifier would be readable by script.
+/// this body - a body-borne session identifier would be readable by script.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct LoginResponse {
@@ -229,7 +229,7 @@ pub struct LogoutResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CurrentSessionResponse {
-    /// Account name — always `admin`, the single human account.
+    /// Account name - always `admin`, the single human account.
     pub subject: String,
     /// Scopes this credential holds.
     pub scopes: Vec<Scope>,
@@ -380,7 +380,7 @@ pub struct TokenResponse {
 }
 
 /// Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can
-/// interpret it — notably `authorization_pending` and `slow_down`, which a
+/// interpret it - notably `authorization_pending` and `slow_down`, which a
 /// device-flow client polls against.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -400,7 +400,7 @@ pub struct OAuthErrorResponse {
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum OAuthErrorCode {
-    /// The device code is valid but the human has not approved yet — keep polling.
+    /// The device code is valid but the human has not approved yet - keep polling.
     AuthorizationPending,
     /// Polling faster than `interval`; back off.
     SlowDown,
@@ -434,14 +434,14 @@ pub struct CreateAccessKeyRequest {
     /// Scopes to grant. Only what the integration needs.
     #[schema(min_items = 1, max_items = 4)]
     pub scopes: Vec<Scope>,
-    /// Days until the key expires. Expiry is mandatory — there is no
+    /// Days until the key expires. Expiry is mandatory - there is no
     /// non-expiring key.
     #[schema(minimum = 1, maximum = 365)]
     pub expires_in_days: u64,
 }
 
 /// A newly created access key. **The secret appears here and nowhere else,
-/// ever** — only its hash is stored, so it cannot be shown again.
+/// ever** - only its hash is stored, so it cannot be shown again.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateAccessKeyResponse {
@@ -498,7 +498,7 @@ pub struct RevokeAccessKeyResponse {
 // Session and device metadata
 // =============================================================================
 
-/// An active or expired browser session. Carries no session identifier — the
+/// An active or expired browser session. Carries no session identifier - the
 /// cookie value is never readable back out, only the session's `id` for
 /// revocation.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]

@@ -541,7 +541,7 @@ fn test_admin_password_mismatch_shows_error_and_stays() {
 
 #[test]
 fn test_admin_password_mismatch_is_reported_before_length() {
-    // A mismatched pair that is also too short should say "do not match" —
+    // A mismatched pair that is also too short should say "do not match" -
     // telling someone their password is too short when they simply mistyped the
     // confirmation sends them to fix the wrong thing.
     let mut screen = at_admin_password();

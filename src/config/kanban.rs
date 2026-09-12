@@ -23,7 +23,7 @@ pub struct KanbanConfig {
     ///
     /// NOTE: This is the *kanban* GitHub integration (Projects v2), distinct
     /// from `GitHubConfig` which is the *git provider* used for PRs and
-    /// branches. The two use different env vars and different scopes — see
+    /// branches. The two use different env vars and different scopes - see
     /// `docs/getting-started/kanban/github.md` for the full disambiguation.
     #[serde(default)]
     pub github: std::collections::HashMap<String, GithubProjectsConfig>,
@@ -104,7 +104,7 @@ impl Default for LinearConfig {
 ///
 /// The owner login (user or org) is specified as the `HashMap` key in
 /// `KanbanConfig.github`. Project keys inside `projects` are `GraphQL` node
-/// IDs (e.g., `PVT_kwDOABcdefg`) — opaque, stable identifiers used directly
+/// IDs (e.g., `PVT_kwDOABcdefg`) - opaque, stable identifiers used directly
 /// by every GitHub Projects v2 mutation without needing a lookup.
 ///
 /// **Distinct from `GitHubConfig`** (the git provider used for PR/branch
@@ -120,7 +120,7 @@ pub struct GithubProjectsConfig {
     pub enabled: bool,
     /// Environment variable name containing the GitHub token (default:
     /// `OPERATOR_GITHUB_TOKEN`). The token must have `project` (or
-    /// `read:project`) scope, NOT just `repo` — see the disambiguation
+    /// `read:project`) scope, NOT just `repo` - see the disambiguation
     /// guide in the kanban github docs.
     #[serde(default = "default_github_projects_api_key_env")]
     pub api_key_env: String,
@@ -146,7 +146,7 @@ impl Default for GithubProjectsConfig {
 /// `OpenSpec` provider configuration (experimental, pull-only)
 ///
 /// The instance name is the `HashMap` key in `KanbanConfig.openspec`. There
-/// are no credentials — the provider reads local markdown under `root_path`.
+/// are no credentials - the provider reads local markdown under `root_path`.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, Default)]
 #[ts(export)]
 pub struct OpenspecConfig {
@@ -383,7 +383,7 @@ pub struct ProjectSyncConfig {
 
 impl ProjectSyncConfig {
     /// Statuses to pull from the external board: the mapped `todo` column
-    /// (queued work) plus `doing` (resume in-flight). Empty when unmapped —
+    /// (queued work) plus `doing` (resume in-flight). Empty when unmapped -
     /// providers then fall back to their default status filter.
     pub fn pull_statuses(&self) -> Vec<String> {
         [&self.status_mapping.todo, &self.status_mapping.doing]

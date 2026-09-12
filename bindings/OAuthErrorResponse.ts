@@ -3,7 +3,7 @@ import type { OAuthErrorCode } from "./OAuthErrorCode";
 
 /**
  * Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can
- * interpret it — notably `authorization_pending` and `slow_down`, which a
+ * interpret it - notably `authorization_pending` and `slow_down`, which a
  * device-flow client polls against.
  */
 export type OAuthErrorResponse = { 

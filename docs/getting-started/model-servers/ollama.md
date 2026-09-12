@@ -6,7 +6,7 @@ layout: doc
 
 [**Ollama**](https://ollama.com/) runs open models (Llama, Qwen, Mistral, …)
 locally and serves them over an OpenAI-compatible API. Declare it as a
-[model server](./) to drive agents against models on your own machine — no cloud
+[model server](./) to drive agents against models on your own machine - no cloud
 key required.
 
 ## Prerequisites
@@ -14,7 +14,7 @@ key required.
 - Ollama installed and running: [ollama.com/download](https://ollama.com/download),
   then `ollama serve` (default `http://localhost:11434`)
 - At least one model pulled, e.g. `ollama pull qwen2.5-coder`
-- An OpenAI-protocol LLM tool — **codex** works directly; claude/gemini need a
+- An OpenAI-protocol LLM tool - **codex** works directly; claude/gemini need a
   bridge (see [Protocol compatibility](./#protocol-compatibility))
 
 ## Configuration

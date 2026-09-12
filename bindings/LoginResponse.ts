@@ -3,7 +3,7 @@ import type { Scope } from "./Scope";
 
 /**
  * Successful login. The session itself rides in a `Set-Cookie` header, not in
- * this body — a body-borne session identifier would be readable by script.
+ * this body - a body-borne session identifier would be readable by script.
  */
 export type LoginResponse = { 
 /**

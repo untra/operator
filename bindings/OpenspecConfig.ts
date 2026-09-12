@@ -4,7 +4,7 @@
  * `OpenSpec` provider configuration (experimental, pull-only)
  *
  * The instance name is the `HashMap` key in `KanbanConfig.openspec`. There
- * are no credentials — the provider reads local markdown under `root_path`.
+ * are no credentials - the provider reads local markdown under `root_path`.
  */
 export type OpenspecConfig = { 
 /**

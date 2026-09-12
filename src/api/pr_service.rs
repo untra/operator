@@ -283,9 +283,8 @@ type Resolver =
 ///
 /// `provider_name()`, `check_available()`, and `get_authenticated_user()`
 /// take no `RepoInfo`, so there's no per-call provider to route on. They
-/// fall back to GitHub (the pre-router default) — `provider_name()` reports
-/// `"auto"` so callers can tell it's the router rather than a concrete
-/// provider.
+/// fall back to GitHub (the pre-router default) - `provider_name()` reports
+/// `"auto"` so callers can tell it's the router rather than a concrete provider.
 pub struct PrServiceRouter {
     default_provider: GitProvider,
     resolve: Resolver,

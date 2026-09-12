@@ -1,9 +1,8 @@
 # operator/ui
 
-The embedded web UI for Operator — a [Vite](https://vite.dev) + React 19 single-page app that talks to the operator REST API (`/api/v1/*`). It is one of Operator's **four rendering surfaces** (alongside the Ratatui TUI, the Jekyll docs site, and the VS Code webview); see the root `CLAUDE.md` "Design & UI Consistency" section for how they stay consistent.
+The embedded web UI for Operator - a [Vite](https://vite.dev) + React 19 single-page app that talks to the operator REST API (`/api/v1/*`). It is one of Operator's **four rendering surfaces** (alongside the Ratatui TUI, the Jekyll docs site, and the VS Code webview); see the root `CLAUDE.md` "Design & UI Consistency" section for how they stay consistent.
 
-At runtime this SPA is compiled and **baked into the Rust binary** — there is no separate
-web server to deploy. The TUI opens it in a browser (or the VS Code extension hosts it in a
+At runtime this SPA is compiled and **baked into the Rust binary** - there is no separate web server to deploy. The TUI opens it in a browser (or the VS Code extension hosts it in a
 webview).
 
 ## Toolchain (bun)
@@ -34,19 +33,19 @@ server's `/api` proxy has something to talk to.
 
 If `ui/dist` wasn't built, `build.rs` writes a placeholder so the TUI can show an actionable
 message instead of a blank page. There are size-budget tests in `web_ui.rs` (10 MB gzipped /
-15 MB uncompressed) — keep new assets well under them.
+15 MB uncompressed) - keep new assets well under them.
 
 ## Routing model
 
 [`HashRouter`](src/main.tsx) (`#/path`), because the app is served from a `file:`-style
 embedded context. Two kinds of routes:
 
-- **Status sections** — one route per concept in the `SectionId` model shared with the TUI
+- **Status sections** - one route per concept in the `SectionId` model shared with the TUI
   and VS Code extension (`src/ui/status_panel.rs`): `#/config`, `#/connections`, `#/kanban`,
   `#/llm`, `#/model-servers`, `#/git`, `#/issuetypes`, `#/delegators`, `#/projects`. Each
   renders the live status of that section from `GET /api/v1/sections`. `#/status` is the
   "all sections" overview (reachable from the Dashboard).
-- **Web-only pages** — `#/` (Dashboard) and `#/queue`, which have no section analog.
+- **Web-only pages** - `#/` (Dashboard) and `#/queue`, which have no section analog.
 
 The sidebar (`src/Layout.tsx`) reflects each section's health and gates not-yet-available
 sections (disabled with a tooltip naming the unmet prerequisites). Section data is polled
@@ -59,7 +58,7 @@ Brand colors come from the single shared source of truth,
 [`src/index.css`](src/index.css). On top of that palette `index.css` layers app-only
 **semantic tokens** (`--surface`, `--border`, `--text`, `--danger`, `--warning`, `--success`,
 radii, fonts) with light/dark variants. Components use **CSS Modules** (`*.module.css`) and
-reference semantic tokens — never raw hex (per `CLAUDE.md`).
+reference semantic tokens - never raw hex (per `CLAUDE.md`).
 
 ## Icons
 
@@ -68,5 +67,5 @@ Sidebar and page icons use [`@vscode/codicons`](https://github.com/microsoft/vsc
 font is imported once in `src/main.tsx`; Vite fingerprints `codicon.ttf` into `dist/assets`,
 so it stays embedded and offline. The concept→icon mapping lives in
 [`src/concepts.ts`](src/concepts.ts) and follows the **canonical table** documented at
-[`/design-system/`](../docs/design-system/index.md) — the single place to consult or update
+[`/design-system/`](../docs/design-system/index.md) - the single place to consult or update
 when giving an operator concept an icon.

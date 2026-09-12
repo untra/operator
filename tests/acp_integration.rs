@@ -287,7 +287,7 @@ async fn test_cancel_kills_delegator() {
         .expect("sessionId")
         .to_string();
 
-    // 3. session/prompt (delegator runs `sleep 60` — a long-running process)
+    // 3. session/prompt (delegator runs `sleep 60` - a long-running process)
     let prompt = format!(
         r#"{{"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{{"sessionId":"{session_id}","prompt":[{{"type":"text","text":"ignored"}}]}}}}"#
     );
@@ -298,7 +298,7 @@ async fn test_cancel_kills_delegator() {
     // Give the delegator a moment to start
     tokio::time::sleep(Duration::from_millis(500)).await;
 
-    // 4. Send cancel notification (no id — it's a notification)
+    // 4. Send cancel notification (no id - it's a notification)
     let cancel = format!(
         r#"{{"jsonrpc":"2.0","method":"session/cancel","params":{{"sessionId":"{session_id}"}}}}"#
     );

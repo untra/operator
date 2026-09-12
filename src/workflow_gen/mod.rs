@@ -4,7 +4,7 @@
 //! `.js` file.
 //!
 //! This is **export-only**: operator never parses `.js` back. The unit of
-//! export is a ticket *and* its issuetype together — the issuetype supplies the
+//! export is a ticket *and* its issuetype together - the issuetype supplies the
 //! step structure, the ticket supplies the concrete field values. Rendering
 //! them produces a workflow specialized to that exact ticket.
 //!
@@ -350,14 +350,14 @@ mod tests {
                    "item_source":{"type":"from_step","step":"find"},
                    "stages":[{"prompt":"Fix the module"}]}}]"#,
         );
-        // Items expression is the prior step's result var — a runtime value, so
+        // Items expression is the prior step's result var - a runtime value, so
         // the compiled graph shows a symbolic (not static) fan-out width.
         assert!(
             out.contains("const r_fix = await pipeline(r_find,"),
             "from_step identifier items missing:\n{out}"
         );
         // Operator cannot statically check that the prior step returns an
-        // array — that gap must be marked.
+        // array - that gap must be marked.
         assert!(
             out.contains(GAP_MARKER) && out.contains("array"),
             "array-ness GAP marker missing:\n{out}"

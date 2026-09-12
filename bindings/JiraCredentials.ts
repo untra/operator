@@ -4,7 +4,7 @@
  * Ephemeral Jira credentials supplied by a client during onboarding.
  *
  * These are never persisted to disk by the onboarding endpoints that take
- * this struct — the actual secret stays in the env var named in
+ * this struct - the actual secret stays in the env var named in
  * `api_key_env` once set via `/api/v1/kanban/session-env`.
  */
 export type JiraCredentials = { 

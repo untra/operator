@@ -60,7 +60,7 @@ pub struct DiscoveredProject {
     pub provider_native_id: Option<String>,
 }
 
-/// Sibling trait for onboarding flows — does NOT replace `KanbanProvider`.
+/// Sibling trait for onboarding flows - does NOT replace `KanbanProvider`.
 ///
 /// Provides a uniform interface across Jira, Linear, and GitHub Projects
 /// for credential validation and project discovery during onboarding.

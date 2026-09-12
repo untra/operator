@@ -69,7 +69,7 @@ use crate::rest::error::ErrorResponse;
     ),
     // NOTE: `paths(...)` is intentionally omitted. Routes self-register in the
     // OpenAPI spec when mounted via `utoipa_axum::routes!` in
-    // `crate::rest::build_router` — mounting a route *is* documenting it, so the
+    // `crate::rest::build_router` - mounting a route *is* documenting it, so the
     // two can no longer drift. See `crate::rest::openapi_spec`.
     components(
         schemas(
@@ -503,7 +503,7 @@ impl ApiDoc {
     ///
     /// Sourced from the fully-mounted router via [`crate::rest::openapi_spec`]
     /// so every live route appears in the spec (the bare `ApiDoc` derive carries
-    /// only info/components/tags — paths self-register on mount). `openapi_spec`
+    /// only info/components/tags - paths self-register on mount). `openapi_spec`
     /// also stamps `info.version` from `CARGO_PKG_VERSION`, so it stays in sync
     /// with the release version and `/api/v1/health`.
     pub fn json() -> Result<String, serde_json::Error> {
@@ -538,7 +538,7 @@ mod tests {
     #[test]
     fn test_openapi_declares_both_security_schemes() {
         // The schemes are added by a `Modify` addon, which is easy to drop from
-        // the derive without noticing — the spec still builds, just without any
+        // the derive without noticing - the spec still builds, just without any
         // way for a client to learn how to authenticate.
         let spec = ApiDoc::json().expect("generate spec");
         let parsed: serde_json::Value = serde_json::from_str(&spec).expect("spec is JSON");

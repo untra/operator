@@ -130,7 +130,7 @@ pub struct SkillDirectoriesOverride {
 
 /// A declarative reference to a remote, named agent hosted by another platform.
 ///
-/// `platform` is the hosting service (`"agnt"`, `"openai"`) — deliberately
+/// `platform` is the hosting service (`"agnt"`, `"openai"`) - deliberately
 /// distinct from the core `provider`/`llm_tool` (the model or coding CLI). These
 /// agents are API/memory-native and live on the remote side; Operator has no
 /// runtime client for them, so a delegator carrying one is **export-only** and
@@ -178,9 +178,9 @@ pub struct Delegator {
     /// (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).
     ///
     /// Export-only: Operator has no runtime client for those platforms, so a
-    /// delegator carrying this CANNOT be launched locally — resolution errors out
+    /// delegator carrying this CANNOT be launched locally - resolution errors out
     /// (see `delegator_resolution`). It is stored, listed, serialized into an
-    /// `AgentProfile`, and — for `platform == "agnt"` — surfaced in the
+    /// `AgentProfile`, and - for `platform == "agnt"` - surfaced in the
     /// `--format agnt` workflow export as a native AGNT `agnt-agent` node, whose
     /// `agentId` is this reference's `id` (AGNT identifies agents by UUID, so the
     /// `id` must be the agent's UUID, not its display name). `None` = ordinary,

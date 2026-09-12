@@ -54,7 +54,7 @@ impl App {
             | KanbanOnboardingAction::PickedProvider(_)
             | KanbanOnboardingAction::Cancelled
             | KanbanOnboardingAction::Done => {
-                // Pure UI transitions — no async work needed.
+                // Pure UI transitions - no async work needed.
             }
             KanbanOnboardingAction::SubmitJiraCreds {
                 domain,
@@ -213,11 +213,11 @@ impl App {
                 }
             }
             KanbanOnboardingAction::CopyExportBlock => {
-                // No-op on the Rust side — the dialog displays the block;
+                // No-op on the Rust side - the dialog displays the block;
                 // the user can manually copy from the terminal. Future
                 // enhancement: integrate with arboard for system clipboard.
                 self.sync_status_message = Some(
-                    "Export block displayed in dialog — copy manually from the terminal"
+                    "Export block displayed in dialog - copy manually from the terminal"
                         .to_string(),
                 );
             }
@@ -275,7 +275,7 @@ impl App {
                 };
                 let env_resp = kanban_onboarding::set_session_env(env_req);
 
-                // Sync issue types (best effort — non-fatal)
+                // Sync issue types (best effort - non-fatal)
                 self.try_sync_kanban_issue_types("jira", &project_key).await;
 
                 self.kanban_onboarding_dialog.set_success(
@@ -335,7 +335,7 @@ impl App {
     }
 
     /// Best-effort issue type sync after onboarding completes.
-    /// Non-fatal — onboarding succeeds even if the sync fails.
+    /// Non-fatal - onboarding succeeds even if the sync fails.
     async fn try_sync_kanban_issue_types(&mut self, provider: &str, project_key: &str) {
         use crate::api::providers::kanban::get_provider_from_config;
         use crate::config::Config;

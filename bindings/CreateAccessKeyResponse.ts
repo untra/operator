@@ -3,7 +3,7 @@ import type { AccessKeySummary } from "./AccessKeySummary";
 
 /**
  * A newly created access key. **The secret appears here and nowhere else,
- * ever** — only its hash is stored, so it cannot be shown again.
+ * ever** - only its hash is stored, so it cannot be shown again.
  */
 export type CreateAccessKeyResponse = { 
 /**

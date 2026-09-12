@@ -6,7 +6,7 @@ layout: doc
 
 <span class="badge alpha">Alpha</span>
 
-[Operator](https://operator.untra.io) and [Coder](https://coder.com) fit together in two directions. They are independent — pick the one that matches where Operator runs.
+[Operator](https://operator.untra.io) and [Coder](https://coder.com) fit together in two directions. They are independent - pick the one that matches where Operator runs.
 
 | | Operator runs | Agents run | Set up with |
 |---|---|---|---|
@@ -21,7 +21,7 @@ A Terraform module runs Operator as a background REST API server in the workspac
 
 **Registry:** [`registry.coder.com/untra/operator/coder`](https://registry.coder.com/modules/operator)
 
-Templates and modules do different jobs here: a **template** is the whole workspace blueprint (cloud, compute, storage), while a **module** adds one feature inside it. Operator is a module — you drop it into a template you already have.
+Templates and modules do different jobs here: a **template** is the whole workspace blueprint (cloud, compute, storage), while a **module** adds one feature inside it. Operator is a module - you drop it into a template you already have.
 
 ### Usage
 
@@ -100,7 +100,7 @@ Set `agent_template` and the generated config gains a `[[targets]]` entry with `
 | `stop_on_complete` | `bool` | `null` | Stop a spawned workspace when its ticket completes (never deletes) |
 | `create_timeout_secs` | `number` | `null` | Bound on workspace create plus agent-ready wait, in seconds |
 
-This mode needs a **user session token**, which is not the ambient `CODER_AGENT_TOKEN` — that one is scoped to a single workspace and cannot create others. The module does not provision it; supply it through your template. A user session token can create, delete, and SSH into every workspace its user owns, so scope the account accordingly.
+This mode needs a **user session token**, which is not the ambient `CODER_AGENT_TOKEN` - that one is scoped to a single workspace and cannot create others. The module does not provision it; supply it through your template. A user session token can create, delete, and SSH into every workspace its user owns, so scope the account accordingly.
 
 ### Prerequisites
 
@@ -112,12 +112,12 @@ For child agent workspaces, the image also needs `ssh` (`openssh-client`), since
 
 Coder automatically injects environment variables into every workspace that Operator can reference in ticket templates and agent prompts:
 
-- `CODER_WORKSPACE_NAME` — workspace identifier
-- `CODER_WORKSPACE_OWNER` — workspace owner username
-- `CODER_URL` — deployment URL, which the coder target reads by default
-- `CODER_AGENT_TOKEN` — agent authentication token, scoped to this workspace
+- `CODER_WORKSPACE_NAME` - workspace identifier
+- `CODER_WORKSPACE_OWNER` - workspace owner username
+- `CODER_URL` - deployment URL, which the coder target reads by default
+- `CODER_AGENT_TOKEN` - agent authentication token, scoped to this workspace
 
-No Operator configuration is needed to access these — they are ambient in the workspace environment.
+No Operator configuration is needed to access these - they are ambient in the workspace environment.
 
 ### How it works
 
@@ -129,7 +129,7 @@ No Operator configuration is needed to access these — they are ambient in the 
 
 ## Operator targeting Coder
 
-Here Operator runs outside Coder — most often as the [Kubernetes deployment](/getting-started/platforms/kubernetes/) — and provisions a Coder workspace per ticket. The Terraform module is not involved.
+Here Operator runs outside Coder - most often as the [Kubernetes deployment](/getting-started/platforms/kubernetes/) - and provisions a Coder workspace per ticket. The Terraform module is not involved.
 
 Declare a target. `template` is an allowlist: agents can only ever land on the template you name here.
 
@@ -151,7 +151,7 @@ Operator reads two environment variables, resolved **by name** so the values nev
 | `url_env` | `CODER_URL` | Your deployment URL, e.g. `https://coder.example.com` |
 | `token_env` | `CODER_SESSION_TOKEN` | A Coder user session token |
 
-A session token can create, delete, and SSH into every workspace its user owns, so give Operator its own service account rather than a human's credentials. Operator strips the token variable from every agent's spawn environment, on every target kind — including `local` agents, which would otherwise read it straight out of `env`.
+A session token can create, delete, and SSH into every workspace its user owns, so give Operator its own service account rather than a human's credentials. Operator strips the token variable from every agent's spawn environment, on every target kind - including `local` agents, which would otherwise read it straight out of `env`.
 
 Keep both variables at their default names unless you have a reason not to. The SSH `ProxyCommand` runs the `coder` CLI as a subprocess, and the CLI reads these canonical names from the inherited environment.
 
@@ -161,7 +161,7 @@ Operator does not bundle the CLI. It resolves one in this order:
 
 1. `coder` on `PATH`
 2. A previously downloaded copy in the state directory, at `.tickets/operator/bin/coder`
-3. Otherwise it downloads `{CODER_URL}/bin/coder-linux-{amd64,arm64}` — your deployment serves a CLI matching its own version — and caches it at (2)
+3. Otherwise it downloads `{CODER_URL}/bin/coder-linux-{amd64,arm64}` - your deployment serves a CLI matching its own version - and caches it at (2)
 
 So a container needs no CLI baked in, and the CLI can never drift from the server it talks to. It does need `ssh` and outbound network access to the deployment. The official image ships `openssh-client`; if you supply your own, include it.
 
@@ -200,8 +200,8 @@ Change the `port` variable to an unused port. Remember to update any other servi
 
 Operator fails fast and names what is missing. In order:
 
-1. **A missing environment variable** — the error names it. Confirm `CODER_URL` and the session token are present in Operator's own environment, not just the agent's.
-2. **The CLI download fails** — the error names the URL it tried. Usually egress: from a container, check reachability directly, e.g. `curl -sSf $CODER_URL/api/v2/buildinfo`. In Kubernetes this is commonly Coder's *own* ingress NetworkPolicy declining to admit Operator's namespace, which is a fix on the Coder side.
-3. **`coder create` fails** — the message is Coder's own, verbatim. Template permissions and workspace quotas surface here.
-4. **The workspace never becomes reachable over SSH** within `create_timeout_secs` — the template's agent is not starting, or `ssh` is missing from Operator's environment.
-5. **A refused name collision** — a workspace of that name already exists on another template. Rename or remove it.
+1. **A missing environment variable** - the error names it. Confirm `CODER_URL` and the session token are present in Operator's own environment, not just the agent's.
+2. **The CLI download fails** - the error names the URL it tried. Usually egress: from a container, check reachability directly, e.g. `curl -sSf $CODER_URL/api/v2/buildinfo`. In Kubernetes this is commonly Coder's *own* ingress NetworkPolicy declining to admit Operator's namespace, which is a fix on the Coder side.
+3. **`coder create` fails** - the message is Coder's own, verbatim. Template permissions and workspace quotas surface here.
+4. **The workspace never becomes reachable over SSH** within `create_timeout_secs` - the template's agent is not starting, or `ssh` is missing from Operator's environment.
+5. **A refused name collision** - a workspace of that name already exists on another template. Rename or remove it.

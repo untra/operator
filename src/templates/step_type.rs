@@ -259,7 +259,7 @@ pub fn aggregate_multi_model(
         .collect();
 
     // For now, voting is represented as a placeholder structure.
-    // Actual voting requires a Phase 2 agent round — the votes will be
+    // Actual voting requires a Phase 2 agent round - the votes will be
     // filled in by the sync loop after the voting phase completes.
     // Here we select the winner based on strategy from the raw outputs.
     let (winner_index, winner_delegator) = select_winner_by_strategy(outputs, config);

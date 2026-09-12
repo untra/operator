@@ -49,17 +49,17 @@ Operator preflights all of this (reachability, tmux, tool, workdir) before creat
 ## Disconnects and reconnecting
 
 If the SSH link drops (laptop sleep, network change), the local pane dies and
-the agent shows as dead — but the **remote tmux session and agent survive**.
+the agent shows as dead - but the **remote tmux session and agent survive**.
 Relaunch the ticket from the TUI: the wrapper regenerates and `tmux new-session -A` reattaches the surviving remote session with scrollback intact.
 
 ## limitations
 
-- **No git worktrees** for remote agents — the agent works directly in
+- **No git worktrees** for remote agents - the agent works directly in
   `workdir`, regardless of `use_worktrees`.
 - **No hook signals or artifact detection** (both read the local filesystem);
   liveness relies on pane presence and screen content, the same posture cmux
   agents have.
 - **No relay MCP injection** (the relay hub is a local Unix socket).
-- **No docker mode** and **no zellij wrapper** with a remote host — both are rejected at resolution time.
+- **No docker mode** and **no zellij wrapper** with a remote host - both are rejected at resolution time.
 - **One remote agent per host at a time** is the safe posture: concurrent  agents to the same host would collide on the reverse-tunnel port, and the second launch fails loudly.
 - Ticket files live on the local machine; remote agents signal progress through `opr8r` callbacks rather than moving ticket files.

@@ -2,11 +2,11 @@
 //!
 //! Two layers:
 //!
-//! **Layer 1** — `ChannelSession` over a real `RelayHub` Unix socket.
+//! **Layer 1** - `ChannelSession` over a real `RelayHub` Unix socket.
 //! Exercises ask/reply, broadcast, rename, timeout, and peer-gone flows
 //! using only in-process async code (no external services needed).
 //!
-//! **Layer 2** — `opr8r relay` binary driven via JSON-RPC stdio.
+//! **Layer 2** - `opr8r relay` binary driven via JSON-RPC stdio.
 //! Verifies the MCP protocol surface: initialize, tools/list, `relay_peers`.
 //! Binary tests skip gracefully if the binary hasn't been built yet.
 //!
@@ -700,7 +700,7 @@ async fn test_binary_relay_ask_returns_immediately() {
     .await;
     let _ = rpc_recv(&mut stdout, 1).await;
 
-    // Ask a non-existent peer — the tool call should return immediately with ask_id
+    // Ask a non-existent peer - the tool call should return immediately with ask_id
     let before = std::time::Instant::now();
     rpc_send(
         &mut stdin,
@@ -950,7 +950,7 @@ async fn test_binary_incoming_reply_notification_content_is_raw_text() {
     .await;
     let _ = rpc_recv(&mut asker_stdout, 2).await;
 
-    // Wait for the reply notification (no id — it's a JSON-RPC notification)
+    // Wait for the reply notification (no id - it's a JSON-RPC notification)
     let notification = tokio::time::timeout(Duration::from_secs(5), async {
         let mut line = String::new();
         loop {

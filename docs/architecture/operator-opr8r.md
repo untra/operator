@@ -16,7 +16,7 @@ Operator ships as **two executables built from one repository**: `operator`, a l
 | **Runs where** | The operator's own terminal/host | Inside each agent's session (tmux/cmux/Zellij pane, VS Code terminal) |
 | **Lifetime** | For the duration of the workspace | For the duration of a single ticket step |
 | **Role in the relationship** | Server: owns ticket/queue state, exposes a REST API, hosts the relay hub | Client: wraps an LLM tool invocation, reports back over HTTP, optionally speaks MCP |
-| **Binary size** | Full application (~tens of MB) | Optimized for size (~3–5 MB): stripped, LTO, single codegen unit, `panic = abort` |
+| **Binary size** | Full application (~tens of MB) | Optimized for size (~3-5 MB): stripped, LTO, single codegen unit, `panic = abort` |
 
 `opr8r` is deliberately minimal so it can be signed and distributed as an independent artifact alongside `operator` releases and the VS Code extension, without needing the full application dependency tree.
 

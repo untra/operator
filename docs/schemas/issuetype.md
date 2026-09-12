@@ -386,7 +386,7 @@ Configuration for matrixed work output steps (N x M delegators x prompts)
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `delegators` | `array` | Yes | Named delegator references (N), minimum 2 |
-| `prompt_variations` | `array` | Yes | Prompt variations (M) — Handlebars templates, minimum 2 |
+| `prompt_variations` | `array` | Yes | Prompt variations (M) - Handlebars templates, minimum 2 |
 | `output_format` | → `MatrixedOutputFormat` | Yes | How to organize/present the N x M output |
 | `aggregation_prompt` | `string` \| `null` | No | Optional aggregation prompt (receives the full matrix of results) |
 
@@ -399,7 +399,7 @@ Output format for matrixed steps
 Configuration for pipeline steps: iterate a list of items through ordered
 stages with no barrier (each item flows through all stages independently).
 
-The step graph stays linear — a pipeline step still has exactly one
+The step graph stays linear - a pipeline step still has exactly one
 `next_step`. The fan-out (N items x M stages) lives entirely inside this one
 step; iteration is an intra-step concern, never a step-to-step edge.
 
@@ -416,7 +416,7 @@ the compiled graph) vs runtime (an identifier → symbolic width).
 
 ### Definition: PipelineStage
 
-A single stage in a pipeline — deliberately flat (not a recursive
+A single stage in a pipeline - deliberately flat (not a recursive
 `StepSchema`): "prompt + optional agent/model/schema" only. It has no
 `next_step`/`review_type`/`on_reject`, so a stage cannot reopen the
 step-graph linearity question.

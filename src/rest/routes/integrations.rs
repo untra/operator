@@ -1,7 +1,7 @@
 //! Vertical integration catalog endpoint.
 //!
-//! Serves [`crate::integrations::catalog`] — the single source of truth for
-//! advertised integrations and their support status — to the docs site and any
+//! Serves [`crate::integrations::catalog`] - the single source of truth for
+//! advertised integrations and their support status - to the docs site and any
 //! future entitlement layer. Static (config-independent), so it needs no state.
 
 use axum::Json;

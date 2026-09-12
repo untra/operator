@@ -2,7 +2,7 @@
 //!
 //! [`SupportStatus`] is the single, low-level designation attached to every
 //! entry in the vertical catalog ([`crate::integrations::catalog`]). It is the
-//! canonical DTO for "how supported is X" — every surface (the REST
+//! canonical DTO for "how supported is X" - every surface (the REST
 //! `/api/v1/integrations` endpoint, the generated TypeScript bindings, the
 //! JSON-Schema, and the generated `docs/maturity/` page) derives its notion of
 //! maturity from here, so the four surfaces can't drift.
@@ -34,7 +34,7 @@ use utoipa::ToSchema;
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum SupportStatus {
-    /// Experimental — wired in code with no guarantees. Not publicly advertised
+    /// Experimental - wired in code with no guarantees. Not publicly advertised
     /// (no README badge); docs optional.
     Proto,
     /// Usable, but expect breaking change. Advertised with caveats.
@@ -90,7 +90,7 @@ impl SupportStatus {
     pub fn blurb(&self) -> &'static str {
         match self {
             SupportStatus::Proto => {
-                "Experimental — present in code with no guarantees. Not advertised yet."
+                "Experimental - present in code with no guarantees. Not advertised yet."
             }
             SupportStatus::Alpha => "Usable, but expect breaking changes. Advertised with caveats.",
             SupportStatus::Beta => "Stable-ish and hardening toward general availability.",

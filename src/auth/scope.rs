@@ -294,7 +294,7 @@ mod tests {
 
         assert_eq!(
             public, expected,
-            "the public route allowlist changed — this is a security boundary, \
+            "the public route allowlist changed - this is a security boundary, \
              not a routing detail. Update the threat model and docs/security/ too."
         );
     }

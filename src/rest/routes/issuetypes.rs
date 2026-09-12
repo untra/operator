@@ -97,8 +97,8 @@ pub async fn get_one(
 ///
 /// Returns the issue type verbatim, in the same shape as the `<KEY>.json` files
 /// in a hosted collection bundle (`/schemas/issuetype.json`). This is the
-/// *native* Operator workflow — the ordered step graph every export format is
-/// derived from — so the web UI and the docs site render identical graphs from
+/// *native* Operator workflow - the ordered step graph every export format is
+/// derived from - so the web UI and the docs site render identical graphs from
 /// identical bytes. Prefer [`get_one`] for display metadata; use this when you
 /// need the full step structure including step types, reject edges, and
 /// per-type fan-out configuration.
@@ -162,7 +162,7 @@ pub async fn create(
     })?;
 
     // Resolve target collection (default: active) and check for a duplicate
-    // within it — the same key in another collection is fine.
+    // within it - the same key in another collection is fine.
     let target = {
         let registry = state.registry.read().await;
         let target =

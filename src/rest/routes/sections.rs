@@ -1,4 +1,4 @@
-//! Status sections endpoint — the canonical section tree shared with the TUI
+//! Status sections endpoint - the canonical section tree shared with the TUI
 //! and VS Code extension, rendered for the web UI's Status page.
 
 use axum::{extract::State, Json};

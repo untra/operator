@@ -1,7 +1,7 @@
 //! Feature-maturity documentation generator.
 //!
 //! Emits `docs/maturity/index.md` from the vertical catalog
-//! ([`crate::integrations::catalog::all_integrations`]) — a human-facing
+//! ([`crate::integrations::catalog::all_integrations`]) - a human-facing
 //! companion to the machine-checked `tests/vertical_parity.rs`. Because it is
 //! derived from the same source of truth as the REST `/api/v1/integrations`
 //! endpoint and the README badges, the page can never drift from reality.
@@ -49,7 +49,7 @@ impl DocGenerator for MaturityDocGenerator {
              ## Support levels\n\n",
         );
 
-        // Legend — one colored badge + blurb per level, most→least mature.
+        // Legend - one colored badge + blurb per level, most→least mature.
         for status in [
             SupportStatus::Ga,
             SupportStatus::Beta,
@@ -57,7 +57,7 @@ impl DocGenerator for MaturityDocGenerator {
             SupportStatus::Proto,
         ] {
             content.push_str(&format!(
-                "- {badge} — {blurb}\n",
+                "- {badge} - {blurb}\n",
                 badge = status_badge(status),
                 blurb = status.blurb(),
             ));
@@ -75,7 +75,7 @@ impl DocGenerator for MaturityDocGenerator {
             for e in rows {
                 let docs = match e.docs_url() {
                     Some(url) => format!("[{}]({})", e.label, url),
-                    None => "—".to_string(),
+                    None => "-".to_string(),
                 };
                 content.push_str(&format!(
                     "| {label} | {badge} | {docs} |\n",

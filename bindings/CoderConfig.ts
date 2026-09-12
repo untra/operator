@@ -2,12 +2,12 @@
 
 /**
  * Coder workspace target: lifecycle + alias provisioning around the shared
- * SSH remote-launch path. There is no `enabled` field — presence in
+ * SSH remote-launch path. There is no `enabled` field - presence in
  * `[[targets]]` is the enablement.
  */
 export type CoderConfig = { 
 /**
- * Coder template child workspaces are created from (an allowlist —
+ * Coder template child workspaces are created from (an allowlist -
  * never per-ticket input)
  */
 template: string, 

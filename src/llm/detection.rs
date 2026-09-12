@@ -17,7 +17,7 @@ pub fn detect_all_tools() -> LlmToolsConfig {
 }
 
 /// Rebuild detection state from the currently loaded tool configs, preserving
-/// user prefs. Cached entries keep their probed fields (`path`, `version` — no
+/// user prefs. Cached entries keep their probed fields (`path`, `version` - no
 /// process spawns); config-sourced fields are re-derived so config edits and
 /// runtime-loaded tools take effect every startup. Tools whose config no longer
 /// exists are dropped; new configs are probed fresh.
@@ -64,8 +64,8 @@ fn refresh_with_configs(existing: &LlmToolsConfig, configs: &[ToolConfig]) -> Ll
 }
 
 /// Re-derive config-sourced fields on a cached tool, keeping its probed
-/// `path`/`version` (no version re-spawn). Health is always recomputed — a
-/// cached `health_ok` is never trusted — so an uninstalled binary or a newly
+/// `path`/`version` (no version re-spawn). Health is always recomputed - a
+/// cached `health_ok` is never trusted - so an uninstalled binary or a newly
 /// failing health command demotes the tool on the next startup. Also repairs
 /// partial entries written by external detectors (e.g. the VS Code extension
 /// caches only name/path/version).

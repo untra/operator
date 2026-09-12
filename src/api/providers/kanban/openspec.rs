@@ -1,4 +1,4 @@
-//! `OpenSpec` (spec-driven development) kanban provider — alpha.
+//! `OpenSpec` (spec-driven development) kanban provider - alpha.
 //!
 //! Reads local `OpenSpec` change bundles (`openspec/changes/<id>/{proposal,tasks}.md`)
 //! and exposes each change as a kanban "project" whose issues are the `## N.`
@@ -276,7 +276,7 @@ impl OpenspecProvider {
 
         let mut description = String::new();
         if let Some(title) = &proposal.title {
-            description.push_str(&format!("OpenSpec change **{change_id}** — {title}\n\n"));
+            description.push_str(&format!("OpenSpec change **{change_id}** - {title}\n\n"));
         } else {
             description.push_str(&format!("OpenSpec change **{change_id}**\n\n"));
         }

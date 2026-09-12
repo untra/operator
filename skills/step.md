@@ -18,7 +18,7 @@ Create or update the file `.operator/step-complete.json` with the following cont
 }
 ```
 
-Then **stop and wait** — the operator will detect completion and provide the next step's prompt.
+Then **stop and wait** - the operator will detect completion and provide the next step's prompt.
 
 ## Important
 

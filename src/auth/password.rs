@@ -49,7 +49,7 @@ pub fn hash_password(password: &str) -> Result<String> {
 /// Verify a password against a stored PHC hash.
 ///
 /// Returns `Ok(false)` for a wrong password and `Err` only when the stored hash
-/// is unreadable — the caller must not treat a corrupt hash as a failed login,
+/// is unreadable - the caller must not treat a corrupt hash as a failed login,
 /// because that would silently lock the account instead of surfacing the fault.
 pub fn verify_password(password: &str, phc: &str) -> Result<bool> {
     let parsed =

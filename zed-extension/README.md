@@ -2,9 +2,9 @@
 
 Zed extension for [Operator](https://operator.untra.io), a multi-agent orchestration system for Claude Code. Provides three integration layers:
 
-1. **MCP Context Server** — registers `operator mcp` natively so all operator tools and ticket resources appear in Zed's Agent Panel
-2. **ACP Agent Setup** — `/op-setup-agent` generates the config to register Operator as an ACP agent server
-3. **Slash Commands** — thin AI/human inference layer for quick operations with tab completion
+1. **MCP Context Server** - registers `operator mcp` natively so all operator tools and ticket resources appear in Zed's Agent Panel
+2. **ACP Agent Setup** - `/op-setup-agent` generates the config to register Operator as an ACP agent server
+3. **Slash Commands** - thin AI/human inference layer for quick operations with tab completion
 
 ## Prerequisites
 
@@ -66,19 +66,19 @@ Then run `/op-setup` in the Zed assistant to verify everything is connected.
 
 After installing the extension, Zed automatically launches `operator mcp` as a context server. All MCP tools appear in the Agent Panel:
 
-- `operator_health` / `operator_status` — system health
-- `operator_list_tickets` — query queue, in-progress, completed tickets
-- `operator_claim_ticket` / `operator_complete_ticket` / `operator_return_to_queue` — ticket lifecycle
-- `operator_create_ticket` — create tickets from templates
-- `operator_list_issue_types` / `operator_list_collections` / `operator_list_skills` — registry queries
-- `operator_launch_ticket` / `operator_pause_queue` / `operator_resume_queue` — queue operations
-- `operator_approve_agent` / `operator_reject_agent` — review actions
+- `operator_health` / `operator_status` - system health
+- `operator_list_tickets` - query queue, in-progress, completed tickets
+- `operator_claim_ticket` / `operator_complete_ticket` / `operator_return_to_queue` - ticket lifecycle
+- `operator_create_ticket` - create tickets from templates
+- `operator_list_issue_types` / `operator_list_collections` / `operator_list_skills` - registry queries
+- `operator_launch_ticket` / `operator_pause_queue` / `operator_resume_queue` - queue operations
+- `operator_approve_agent` / `operator_reject_agent` - review actions
 
 If the `operator` binary is not found, the extension shows installation instructions.
 
 ### ACP Agent Server (one-time setup)
 
-Run `/op-setup-agent` in the AI assistant to generate the config snippet, then paste it into `~/.config/zed/settings.json`. After restarting Zed, Operator appears as an agent in the Agent Panel — you can send prompts that flow through ACP to a Claude Code delegator.
+Run `/op-setup-agent` in the AI assistant to generate the config snippet, then paste it into `~/.config/zed/settings.json`. After restarting Zed, Operator appears as an agent in the Agent Panel - you can send prompts that flow through ACP to a Claude Code delegator.
 
 ## Slash Commands
 

@@ -70,7 +70,7 @@ impl StatusSection for LlmSection {
                 health: SectionHealth::Gray,
             });
 
-            // Depth 2: model aliases — selecting sets as default
+            // Depth 2: model aliases - selecting sets as default
             for model in &tool.model_aliases {
                 let is_default = snapshot.default_llm_tool.as_deref() == Some(&tool.name)
                     && snapshot.default_llm_model.as_deref() == Some(model.as_str());

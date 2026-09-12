@@ -819,7 +819,10 @@ async function downloadOperatorCommand(ctx: CommandContext): Promise<void> {
   }
 }
 
-async function startOperatorServerCommand(ctx: CommandContext): Promise<void> {
+async function startOperatorServerCommand(
+  ctx: CommandContext,
+  promptOnMissingBinary = true
+): Promise<void> {
   const hasConfig = await configFileExists();
   if (!hasConfig) {
     showConfigMissingNotification();
@@ -829,6 +832,12 @@ async function startOperatorServerCommand(ctx: CommandContext): Promise<void> {
   const operatorPath = await getOperatorPath(ctx.extensionContext);
 
   if (!operatorPath) {
+    if (!promptOnMissingBinary) {
+      ctx.outputChannel.appendLine(
+        '[Operator] Auto-start skipped: Operator binary not found'
+      );
+      return;
+    }
     const choice = await vscode.window.showErrorMessage(
       'Operator binary not found',
       'Download Operator',
@@ -1267,7 +1276,7 @@ export async function activate(
     if (!ctx.attachedServer && autoStart) {
       const hasConfig = await configFileExists();
       if (hasConfig) {
-        await startOperatorServerCommand(ctx);
+        await startOperatorServerCommand(ctx, false);
       } else {
         void vscode.window.showInformationMessage(
           'No Operator server. Set operator.apiUrl.'

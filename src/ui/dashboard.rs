@@ -91,10 +91,10 @@ impl Dashboard {
     /// Determine the best panel to focus on startup.
     ///
     /// Priority:
-    /// 1. Status panel — if any section needs attention (Yellow/Red), focus there
+    /// 1. Status panel - if any section needs attention (Yellow/Red), focus there
     ///    and select the first section that needs attention
-    /// 2. In Progress — if there are active agents
-    /// 3. Queue — default fallback
+    /// 2. In Progress - if there are active agents
+    /// 3. Queue - default fallback
     pub fn compute_initial_focus(&mut self) {
         let snapshot = self.build_status_snapshot();
         if self.status_panel.has_attention_needed(&snapshot) {
@@ -320,7 +320,7 @@ impl Dashboard {
             self.focused == FocusedPanel::Completed,
         );
 
-        // Status bar — show dynamic hints when status panel is focused
+        // Status bar - show dynamic hints when status panel is focused
         let row_hints = if self.focused == FocusedPanel::Status {
             let snapshot = self.build_status_snapshot();
             self.status_panel.current_row_hints(&snapshot)

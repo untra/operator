@@ -26,7 +26,7 @@ linear: { [key in string]: LinearConfig },
  *
  * NOTE: This is the *kanban* GitHub integration (Projects v2), distinct
  * from `GitHubConfig` which is the *git provider* used for PRs and
- * branches. The two use different env vars and different scopes — see
+ * branches. The two use different env vars and different scopes - see
  * `docs/getting-started/kanban/github.md` for the full disambiguation.
  */
 github: { [key in string]: GithubProjectsConfig }, 

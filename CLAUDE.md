@@ -175,7 +175,7 @@ Execution mode is declared per issue type (`mode` in the issuetype schema):
 - **Paired** (e.g. SPIKE, INV): require human interaction, track "awaiting input"
 
 ### Parallelism Rules
-- Effective max agents = max(1, min(`agents.max_parallel`, cpu_cores − `agents.cores_reserved`))
+- Effective max agents = max(1, min(`agents.max_parallel`, cpu_cores - `agents.cores_reserved`))
 - Same repo is sequential unless `git.use_worktrees = true`, which allows up to
   `agents.max_agents_per_repo` agents in per-ticket worktrees
 - Paired agents run one at a time per operator attention

@@ -106,7 +106,7 @@ pub async fn preview(
 /// List the workflow export formats operator can emit.
 ///
 /// Returns each [`WorkflowFormat`] with its label, file extension, support
-/// status, and docs link — derived from `WorkflowFormat::ALL` joined to the
+/// status, and docs link - derived from `WorkflowFormat::ALL` joined to the
 /// `Workflows` catalog vertical. Lets UIs render a format picker for the
 /// `format` query param accepted by export/preview.
 #[utoipa::path(

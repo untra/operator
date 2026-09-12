@@ -19,7 +19,7 @@ use crate::config::Config;
 /// Lifetime of a callback token.
 ///
 /// Deliberately far longer than the 15-minute access-token TTL. A step may legitimately run for hours, and a credential that expired mid-run would
-/// strand an agent holding completed work it cannot report — turning a security control into a reliability bug. The token is bounded by its claims instead of by the clock.
+/// strand an agent holding completed work it cannot report - turning a security control into a reliability bug. The token is bounded by its claims instead of by the clock.
 const CALLBACK_TTL: Duration = Duration::hours(24);
 
 /// Mint a callback token for one ticket, step, and agent session.

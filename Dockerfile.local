@@ -33,7 +33,7 @@ RUN cd ui && bun install --frozen-lockfile && bun run build
 # --- Stage 2: Rust binaries -----------------------------------------------
 # The full image rather than -slim: rusqlite is features = ["bundled"], so a C
 # toolchain is required.
-FROM rust:1.95 AS build
+FROM rust:1.98 AS build
 
 WORKDIR /src
 COPY . .

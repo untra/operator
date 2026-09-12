@@ -57,11 +57,13 @@ LABEL org.opencontainers.image.title="Operator" \
       org.opencontainers.image.licenses="MIT"
 
 # Substrate Operator needs to launch agents: git (VCS ops), tmux (session
-# wrapper), ca-certificates (TLS to LLM/kanban APIs). The LLM CLI (claude /
-# codex / gemini) and its auth are supplied by the user via a derived image or
-# a mount + env vars -- not baked in here.
+# wrapper), ca-certificates (TLS to LLM/kanban APIs), openssh-client (every
+# ssh and coder target launch, and git over SSH remotes), curl (in-pod
+# reachability checks). The LLM CLI (claude / codex / gemini) and its auth are
+# supplied by the user via a derived image or a mount + env vars -- not baked
+# in here.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates git tmux \
+ && apt-get install -y --no-install-recommends ca-certificates curl git openssh-client tmux \
  && rm -rf /var/lib/apt/lists/*
 
 # Both halves ship: agent sessions launched by the operator server call the

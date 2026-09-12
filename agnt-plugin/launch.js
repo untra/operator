@@ -1,4 +1,4 @@
-// operator-launch-agent — POST /api/v1/tickets/{id}/launch
+// operator-launch-agent - POST /api/v1/tickets/{id}/launch
 import { callOperator } from "./lib/operator-client.js";
 
 class LaunchAgentTool {

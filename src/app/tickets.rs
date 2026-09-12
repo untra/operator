@@ -484,8 +484,7 @@ mod admin_password_tests {
 
     #[test]
     fn test_invalid_password_surfaces_as_an_error() {
-        // The wizard validates first, so this only happens if that check is
-        // bypassed — it must still not create a weak account silently.
+        // The wizard validates first, so this only happens if that check is bypassed
         let store = AuthStore::in_memory().unwrap();
         assert!(persist_admin_password(&store, Some("short")).is_err());
     }

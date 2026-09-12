@@ -74,6 +74,31 @@
   margin-bottom: 6px;
 }
 
+.signOut {
+  margin-top: auto;
+  padding: 8px 12px;
+  color: var(--color-green-l1);
+  background: transparent;
+  border: 1px solid var(--color-green-l1);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.signOutError {
+  margin: auto 0 8px;
+  color: var(--danger);
+  font-size: 0.75rem;
+}
+
+.signOutError + .signOut {
+  margin-top: 0;
+}
+
+.signOut:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .navLink {
   display: flex;
   align-items: center;

@@ -7,6 +7,8 @@ import type { ModelServerKindEntry } from '../../src/generated/ModelServerKindEn
 import type { ModelServerModelsResponse } from '../../src/generated/ModelServerModelsResponse';
 import type { DelegatorResponse } from '../../src/generated/DelegatorResponse';
 import type { CreateDelegatorRequest } from '../../src/generated/CreateDelegatorRequest';
+import type { CreateIssueTypeRequest } from '../../src/generated/CreateIssueTypeRequest';
+import type { UpdateIssueTypeRequest } from '../../src/generated/UpdateIssueTypeRequest';
 
 // Re-export generated types for consumers
 export type { IssueTypeSummary, IssueTypeResponse, CollectionResponse, ExternalIssueTypeSummary };
@@ -70,8 +72,8 @@ export type WebviewToExtensionMessage =
   | { type: 'activateCollection'; name: string }
   | { type: 'getExternalIssueTypes'; provider: string; domain: string; projectKey: string }
   | { type: 'getKanbanStatuses'; provider: string; projectKey: string }
-  | { type: 'createIssueType'; request: import('../../src/generated/CreateIssueTypeRequest').CreateIssueTypeRequest }
-  | { type: 'updateIssueType'; key: string; request: import('../../src/generated/UpdateIssueTypeRequest').UpdateIssueTypeRequest }
+  | { type: 'createIssueType'; request: CreateIssueTypeRequest }
+  | { type: 'updateIssueType'; key: string; request: UpdateIssueTypeRequest }
   | { type: 'deleteIssueType'; key: string }
   | { type: 'openOperatorUi'; route: 'issuetypes' | 'projects' }
   | { type: 'getModelProviders' }

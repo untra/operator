@@ -4,7 +4,7 @@ description: "Create and manage tickets with markdown format, naming conventions
 layout: doc
 ---
 
-Tickets are the unit of work in <span class="operator-brand">Operator!</span>. Each one describes a task for an agent to complete, and carries an **issue type** that decides *how* the work is done — see [Workflows](/workflows/) for the process behind the ticket.
+Tickets are the unit of work in <span class="operator-brand">Operator!</span>. Each one describes a task for an agent to complete, and carries an **issue type** that decides *how* the work is done - see [Workflows](/workflows/) for the process behind the ticket.
 
 ## Ticket Format
 
@@ -14,7 +14,7 @@ Tickets are markdown files with a specific naming convention:
 {TYPE}-{ID}-{project}-{description}.md
 ```
 
-`{TYPE}` is the issue type key (`FEAT`, `FIX`, `PRD`, …), which is why keys never contain hyphens — the hyphen separates the key from the ticket number.
+`{TYPE}` is the issue type key (`FEAT`, `FIX`, `PRD`, …), which is why keys never contain hyphens - the hyphen separates the key from the ticket number.
 
 ### Examples
 

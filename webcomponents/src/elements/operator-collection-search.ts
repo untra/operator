@@ -22,7 +22,7 @@ export class OperatorCollectionSearch extends HTMLElement {
   private input?: HTMLInputElement;
 
   connectedCallback() {
-    if (this.dataset.enhanced === 'true') return;
+    if (this.dataset.enhanced === 'true') {return;}
     this.dataset.enhanced = 'true';
     this.render();
   }
@@ -72,7 +72,7 @@ export class OperatorCollectionSearch extends HTMLElement {
 
   private toggleView(toggle: HTMLButtonElement) {
     const catalog = this.catalog;
-    if (!catalog) return;
+    if (!catalog) {return;}
     catalog.dataset.view = this.currentView() === 'cards' ? 'table' : 'cards';
     this.syncToggleLabel(toggle);
     this.applyFilter(this.input?.value ?? '');
@@ -80,7 +80,7 @@ export class OperatorCollectionSearch extends HTMLElement {
 
   private applyFilter(query: string) {
     const catalog = this.catalog;
-    if (!catalog) return;
+    if (!catalog) {return;}
 
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
     // Filter every copy so both views stay in sync, but count only the copies
@@ -97,7 +97,7 @@ export class OperatorCollectionSearch extends HTMLElement {
       entry.hidden = !matches;
       if (active?.contains(entry)) {
         total += 1;
-        if (matches) visible += 1;
+        if (matches) {visible += 1;}
       }
     }
 

@@ -6,7 +6,7 @@ import type { PipelineStage } from "./PipelineStage";
  * Configuration for pipeline steps: iterate a list of items through ordered
  * stages with no barrier (each item flows through all stages independently).
  *
- * The step graph stays linear — a pipeline step still has exactly one
+ * The step graph stays linear - a pipeline step still has exactly one
  * `next_step`. The fan-out (N items x M stages) lives entirely inside this one
  * step; iteration is an intra-step concern, never a step-to-step edge.
  */

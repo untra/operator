@@ -1,4 +1,4 @@
-// operator-alert — POST /api/v1/alerts
+// operator-alert - POST /api/v1/alerts
 import { callOperator } from "./lib/operator-client.js";
 
 class AlertTool {

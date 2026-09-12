@@ -9,8 +9,8 @@
 //! * The `/workflows/` docs page renders its cards and table from these same
 //!   values at generation time, and ships each row a `data-search` haystack
 //!   derived from `search_text` so filtering needs no fetch.
-//! * Anything else that wants to enumerate the catalog — an operator instance,
-//!   a third-party tool — can read this instead of walking every manifest.
+//! * Anything else that wants to enumerate the catalog - an operator instance,
+//!   a third-party tool - can read this instead of walking every manifest.
 //!
 //! Issue-type details are read from the published `<KEY>.json` files via
 //! `TemplateSchema`, so the step counts here are the real ones.
@@ -212,7 +212,7 @@ pub fn icon_svg_for(id: &str) -> Option<String> {
 }
 
 /// Build the full catalog: embedded collections in `EMBEDDED_COLLECTIONS`
-/// order, then community collections sorted by id — matching `index.json`.
+/// order, then community collections sorted by id - matching `index.json`.
 pub fn build_catalog() -> Result<CollectionCatalog> {
     let mut collections = Vec::new();
 

@@ -32,8 +32,8 @@ pub mod web_ui;
 /// Shim exposing the same `EmbeddedUiState` API when the SPA isn't compiled
 /// in. Callers can treat the two modules identically without `#[cfg]` blocks.
 ///
-/// `Ready` and `Placeholder` are never constructed in this configuration —
-/// `embedded_ui_state()` always returns `Missing` when `embed-ui` is off —
+/// `Ready` and `Placeholder` are never constructed in this configuration -
+/// `embedded_ui_state()` always returns `Missing` when `embed-ui` is off -
 /// but they must exist so call-site `match` arms remain exhaustive across
 /// both feature configurations.
 #[cfg(not(feature = "embed-ui"))]
@@ -67,7 +67,7 @@ pub const DEFAULT_PORT: u16 = 7008;
 /// OpenAPI spec exactly like the rest.
 fn auth_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
-        // Kubernetes probes — public, and deliberately metadata-free.
+        // Kubernetes probes - public, and deliberately metadata-free.
         .routes(routes!(routes::probes::livez))
         .routes(routes!(routes::probes::readyz))
         // Obtaining a credential.
@@ -76,6 +76,8 @@ fn auth_router() -> OpenApiRouter<ApiState> {
             routes::auth::bootstrap_submit
         ))
         .routes(routes!(routes::auth::login))
+        .routes(routes!(routes::auth::forgot_password))
+        .routes(routes!(routes::auth::reset_password))
         .routes(routes!(routes::auth::device_code))
         .routes(routes!(routes::auth::token))
         // Managing credentials (authenticated).
@@ -95,7 +97,7 @@ fn auth_router() -> OpenApiRouter<ApiState> {
 /// Build the documented API surface as a `utoipa_axum::OpenApiRouter`.
 ///
 /// Every always-on route is mounted here via `routes!`, so mounting a route
-/// *is* registering it in the OpenAPI spec — the router and the spec cannot
+/// *is* registering it in the OpenAPI spec - the router and the spec cannot
 /// drift. Handlers sharing a path (different HTTP methods) are grouped in a
 /// single `routes!` call. Config-gated routes (MCP `sse`/`message`) are NOT
 /// documented and are added separately in [`build_router`].
@@ -194,7 +196,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         ))
         .routes(routes!(routes::delegators::create_from_tool))
         // AgentProfile interchange (import is a distinct static path; export is a
-        // static suffix on the `{name}` param path — neither collides with CRUD).
+        // static suffix on the `{name}` param path - neither collides with CRUD).
         .routes(routes!(routes::delegators::import_profile))
         .routes(routes!(routes::delegators::export_profile))
         .routes(routes!(
@@ -221,7 +223,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
             routes::model_servers::update,
             routes::model_servers::delete
         ))
-        // MCP descriptor — always mounted so non-HTTP MCP clients can still
+        // MCP descriptor - always mounted so non-HTTP MCP clients can still
         // discover the stdio entrypoint.
         .routes(routes!(crate::mcp::descriptor::descriptor))
 }
@@ -232,7 +234,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
 /// Config-gated MCP transport routes remain in the contract so clients can
 /// discover their wire format even when a particular deployment disables them.
 ///
-/// The `info.version` is stamped here from `CARGO_PKG_VERSION` — the compiled
+/// The `info.version` is stamped here from `CARGO_PKG_VERSION` - the compiled
 /// release version that CI writes into `Cargo.toml`/`VERSION` on every release.
 /// This is the single source of version truth for *every* consumer (served
 /// swagger-ui, generated `docs/schemas/openapi.json`, and `ApiDoc::json/yaml`),
@@ -251,7 +253,7 @@ pub fn openapi_spec() -> utoipa::openapi::OpenApi {
 /// browser refuses to send cookies to a wildcard origin, so the permissive
 /// version could not have supported an authenticated dashboard anyway.
 ///
-/// An empty `cors_origins` means **same-origin only** — no `Access-Control-Allow-Origin`
+/// An empty `cors_origins` means **same-origin only** - no `Access-Control-Allow-Origin`
 /// is emitted, the same-origin dashboard still works, and no other site can
 /// read a response.
 fn cors_layer(config: &crate::config::Config) -> CorsLayer {
@@ -308,7 +310,7 @@ pub fn build_router(state: ApiState) -> Router {
     // Ordering is load-bearing: `Router::fallback` registered *after* `.layer`
     // is not wrapped by that layer. With the fallback added last, an unknown
     // `/api/...` path bypassed authorization entirely and was answered with the
-    // SPA shell instead of a 401 — which also meant a route mounted without a
+    // SPA shell instead of a 401 - which also meant a route mounted without a
     // `ROUTE_RULES` entry would silently serve HTML rather than fail closed.
     let router =
         router.merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi_spec()));

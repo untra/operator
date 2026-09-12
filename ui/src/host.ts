@@ -16,8 +16,8 @@ class BrowserHost implements Host {
     window.open(url, '_blank');
   }
 
-  async browseFolder(): Promise<string | null> {
-    return null;
+  browseFolder(): Promise<string | null> {
+    return Promise.resolve(null);
   }
 
   openFile(_path: string): void {

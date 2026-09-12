@@ -175,7 +175,7 @@ export class KanbanSection implements StatusSection {
 
   getChildren(_ctx: SectionContext, element?: StatusItem): StatusItem[] {
     // Workspace-level expansion: show project children
-    if (element && element.provider && element.workspaceKey && !element.projectKey) {
+    if (element?.provider && element.workspaceKey && !element.projectKey) {
       return this.getKanbanProjectChildren(element.provider, element.workspaceKey);
     }
 

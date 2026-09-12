@@ -279,6 +279,16 @@ cors_origins = []
 branch_format = "{type}/{ticket_id}"
 use_worktrees = false
 
+[git.gitea]
+enabled = false
+token_env = "GITEA_TOKEN"
+wip_prefix = "WIP: "
+
+[git.forgejo]
+enabled = false
+token_env = "FORGEJO_TOKEN"
+wip_prefix = "WIP: "
+
 [git.github]
 enabled = false
 token_env = ""

@@ -1,6 +1,6 @@
 //! Access-token minting and verification (`EdDSA` / Ed25519).
 //!
-//! Access tokens are deliberately **not revocable individually** — checking a
+//! Access tokens are deliberately **not revocable individually** - checking a
 //! revocation list on every request would put a database read in the hot path.
 //! Their blast radius is bounded by a short expiry instead, which is why
 //! [`ACCESS_TOKEN_TTL`] is 15 minutes and why anything longer-lived (sessions,
@@ -36,7 +36,7 @@ pub struct Claims {
     pub iss: String,
     /// Audience.
     pub aud: String,
-    /// Subject — the account the token acts as.
+    /// Subject - the account the token acts as.
     pub sub: String,
     /// Space-separated scopes, per OAuth convention.
     pub scope: String,
@@ -196,7 +196,7 @@ pub fn api_claims(subject: &str, scopes: &[Scope], now: DateTime<Utc>, jti: Stri
 /// The lifetime is the step's, not [`ACCESS_TOKEN_TTL`]: a step may legitimately
 /// run for hours, and a callback that expired mid-run would strand the agent
 /// with completed work it cannot report. What bounds this token is not time but
-/// its claims — it carries only `execute`, is pinned to one ticket, step, and
+/// its claims - it carries only `execute`, is pinned to one ticket, step, and
 /// session, and is issued for the `opr8r-callback` audience, so it is useless
 /// against any other route.
 pub fn callback_claims(

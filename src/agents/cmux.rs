@@ -42,7 +42,7 @@ pub enum CmuxError {
     NotInCmux,
 
     #[error(
-        "cmux {found} is not supported; operator requires cmux >= {minimum} — please update cmux"
+        "cmux {found} is not supported; operator requires cmux >= {minimum} - please update cmux"
     )]
     UnsupportedVersion { found: String, minimum: String },
 
@@ -190,7 +190,7 @@ pub trait CmuxClient: Send + Sync {
 }
 
 // ============================================================================
-// SystemCmuxClient — real CLI calls
+// SystemCmuxClient - real CLI calls
 // ============================================================================
 
 /// Real implementation using the cmux binary
@@ -335,7 +335,7 @@ impl CmuxClient for SystemCmuxClient {
 }
 
 // ============================================================================
-// MockCmuxClient — in-memory state for testing
+// MockCmuxClient - in-memory state for testing
 // ============================================================================
 
 /// Mock workspace for testing
@@ -672,7 +672,7 @@ impl CmuxClient for MockCmuxClient {
 }
 
 // ============================================================================
-// CmuxWrapper — SessionWrapper implementation for cmux
+// CmuxWrapper - SessionWrapper implementation for cmux
 // ============================================================================
 
 /// Wrapper around `CmuxClient` that implements `SessionWrapper` trait
@@ -1244,7 +1244,7 @@ mod tests {
             require_in_cmux: true,
             placement: CmuxPlacementPolicy::Auto,
         };
-        let wrapper = CmuxWrapper::new(client_arc.clone(), &config);
+        let wrapper = CmuxWrapper::new(Arc::<MockCmuxClient>::clone(&client_arc), &config);
 
         wrapper
             .create_session("op-TASK-006", "/tmp/project")
@@ -1318,7 +1318,7 @@ mod tests {
             require_in_cmux: true,
             placement: CmuxPlacementPolicy::Auto,
         };
-        let wrapper = CmuxWrapper::new(client_arc.clone(), &config);
+        let wrapper = CmuxWrapper::new(Arc::<MockCmuxClient>::clone(&client_arc), &config);
 
         wrapper
             .create_session("op-TASK-009", "/tmp/project")

@@ -12,7 +12,7 @@ owner: string,
 /**
  * Env var name where the project-scoped token is set
  * (default: `OPERATOR_GITHUB_TOKEN`). MUST be distinct from `GITHUB_TOKEN`
- * — see Token Disambiguation in the kanban github docs.
+ * - see Token Disambiguation in the kanban github docs.
  */
 api_key_env: string, 
 /**

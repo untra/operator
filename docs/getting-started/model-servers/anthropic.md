@@ -4,7 +4,7 @@ description: "Connect Anthropic as a first-party model provider and list its mod
 layout: doc
 ---
 
-[**Anthropic**](https://www.anthropic.com/) is a first-party model provider — it
+[**Anthropic**](https://www.anthropic.com/) is a first-party model provider - it
 produces the Claude family of models and serves them from its own API. It is the
 zero-config default for the `claude` llm tool, and a first-class
 [model provider](./) in its own right: once connected, operator lists its
@@ -16,7 +16,7 @@ available models live so delegators can pick one.
 
 ## Connect
 
-Operator references your key by env-var name — it never stores the secret. Set
+Operator references your key by env-var name - it never stores the secret. Set
 the standard Anthropic key and operator can probe the provider:
 
 ```bash
@@ -30,7 +30,7 @@ VS Code section) Anthropic then shows ● connected with its live model list.
 ## Listing models
 
 Operator probes `https://api.anthropic.com/v1/models` and stays agnostic to which
-models exist — it lists whatever the API returns rather than hardcoding names:
+models exist - it lists whatever the API returns rather than hardcoding names:
 
 ```bash
 GET /api/v1/model-servers/kinds/anthropic-api/models   # { reachable, models[], error? }

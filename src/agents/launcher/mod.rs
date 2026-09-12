@@ -294,7 +294,7 @@ impl Launcher {
         config: &Config,
         project_path: impl AsRef<std::path::Path>,
     ) -> Option<crate::types::pr::GitProvider> {
-        if let Some(configured) = config.git.provider.clone() {
+        if let Some(configured) = config.git.provider {
             return Some(configured.into());
         }
         let hosts = crate::types::pr::ProviderHosts::from_config(&config.git).ok()?;
@@ -405,7 +405,7 @@ impl Launcher {
         working_dir_str: &str,
         options: &mut LaunchOptions,
     ) -> Result<()> {
-        if let crate::config::TargetKind::Coder(coder_cfg) = options.target.kind.clone() {
+        if let crate::config::TargetKind::Coder(coder_cfg) = &options.target.kind {
             let remote_url =
                 crate::git::GitCli::get_remote_url(std::path::Path::new(working_dir_str))
                     .await
@@ -413,7 +413,7 @@ impl Launcher {
             let branch = ticket.branch_name();
             let host = coder::provision_workspace(
                 &self.config,
-                &coder_cfg,
+                coder_cfg,
                 &ticket.project,
                 &ticket.id,
                 remote_url.as_deref(),
@@ -425,7 +425,8 @@ impl Launcher {
                 )?
                 .as_ref(),
             )?;
-            options.api_url_override = coder_cfg.callback_url.clone().filter(|u| !u.is_empty());
+            let callback_url = coder_cfg.callback_url.clone().filter(|u| !u.is_empty());
+            options.api_url_override = callback_url;
             options.provisioned_host = Some(host);
         }
         Ok(())
@@ -848,7 +849,7 @@ impl Launcher {
     ) -> Result<String> {
         if pending.is_empty() {
             anyhow::bail!(
-                "multi-agent step '{}' produced zero sub-agents — check config",
+                "multi-agent step '{}' produced zero sub-agents - check config",
                 step.name
             );
         }

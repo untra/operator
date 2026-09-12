@@ -67,10 +67,6 @@ pub trait ZellijClient: Send + Sync {
     fn close_tab(&self, tab_name: &str) -> Result<(), ZellijError>;
 }
 
-// ============================================================================
-// SystemZellijClient — real CLI calls
-// ============================================================================
-
 /// Real implementation using the zellij binary.
 ///
 /// Operates via `zellij action` commands inside the current Zellij session.
@@ -169,10 +165,6 @@ impl ZellijClient for SystemZellijClient {
         Ok(())
     }
 }
-
-// ============================================================================
-// MockZellijClient — in-memory state for testing
-// ============================================================================
 
 /// Mock tab for testing
 #[derive(Debug, Clone)]
@@ -351,15 +343,10 @@ impl ZellijClient for MockZellijClient {
     }
 }
 
-// ============================================================================
-// ZellijWrapper — SessionWrapper implementation for Zellij
-// ============================================================================
-
 /// Wrapper around `ZellijClient` that implements `SessionWrapper` trait.
 ///
 /// This provides the `SessionWrapper` interface for Zellij-based session
-/// management. Each "session" maps to a Zellij tab within the current
-/// Zellij instance.
+/// management. Each "session" maps to a Zellij tab within the current Zellij instance.
 pub struct ZellijWrapper {
     client: Arc<dyn ZellijClient>,
     /// Map of session name -> tab name
@@ -714,7 +701,7 @@ mod tests {
     #[tokio::test]
     async fn test_zellij_wrapper_send_command() {
         let client = Arc::new(MockZellijClient::new());
-        let wrapper = ZellijWrapper::new(client.clone());
+        let wrapper = ZellijWrapper::new(Arc::<MockZellijClient>::clone(&client));
 
         wrapper
             .create_session("op-TASK-001", "/tmp/project")
@@ -782,7 +769,7 @@ mod tests {
     #[tokio::test]
     async fn test_zellij_wrapper_capture_content() {
         let client = Arc::new(MockZellijClient::new());
-        let wrapper = ZellijWrapper::new(client.clone());
+        let wrapper = ZellijWrapper::new(Arc::<MockZellijClient>::clone(&client));
 
         wrapper
             .create_session("op-TASK-001", "/tmp/project")

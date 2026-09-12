@@ -1,4 +1,4 @@
-//! ACP session registry — maps `SessionId` to operator tickets.
+//! ACP session registry - maps `SessionId` to operator tickets.
 //!
 //! When an editor calls `session/new`, [`SessionRegistry::create_or_attach`]
 //! either attaches to an existing in-progress ACP ticket (if exactly one
@@ -175,7 +175,7 @@ fn write_new_acp_ticket(in_progress: &Path, session_id: &SessionId, cwd: &Path) 
     Ok(path)
 }
 
-/// First 8 hex chars of the session UUID — short enough for a filename, long
+/// First 8 hex chars of the session UUID - short enough for a filename, long
 /// enough that random collisions inside one in-progress dir are negligible.
 fn session_short(session_id: &SessionId) -> String {
     session_id

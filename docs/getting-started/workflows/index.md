@@ -5,14 +5,14 @@ layout: doc
 ---
 
 Operator is a kanban-shaped orchestrator: each **ticket** carries the work, and
-its **issue type** carries an **Operator workflow** — an ordered graph of steps
+its **issue type** carries an **Operator workflow** - an ordered graph of steps
 (tasks, classifiers, delegators, fan-outs, pipelines, human review gates). That
 JSON-defined workflow is the *native* format, and it is what
 [collections](/workflows/) share.
 
 A **workflow export** renders a `ticket + issue type` pair into a concrete
 orchestration format some *other* tool or model can execute. Exports are
-derived from the native workflow — never the other way round.
+derived from the native workflow - never the other way round.
 
 This is **export-only and lossy-by-design**: Operator emits the format; it does
 not parse one back. Shapes a target can't represent natively (human review

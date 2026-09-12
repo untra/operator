@@ -24,8 +24,7 @@ provider: string,
  */
 model: string, 
 /**
- * System prompt. Operator has no first-class system prompt, so this is
- * preserved opaquely across import (see [`Delegator::unmapped_core`]).
+ * System prompt. This is preserved opaquely across import (see [`Delegator::unmapped_core`]).
  */
 system_prompt?: string | null, 
 /**
@@ -41,24 +40,18 @@ mcp_servers: Array<string>,
  */
 tools: Array<string>, 
 /**
- * Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...).
- * `None` = a locally launchable agent, not bound to a remote platform.
+ * Declarative reference to a remote, named agent. `None` = a locally launchable agent, not bound to a remote target.
  */
 remote_agent?: RemoteAgentRef | null, 
 /**
- * Operator-owned extension fields (typed). `None` when the agent carries no
- * Operator-specific configuration.
+ * Operator-owned extension fields (typed). `None` when the agent carries no Operator-specific configuration.
  */
 x_operator?: XOperator | null, 
 /**
- * AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`,
- * `creditLimit`, ...). Operator never interprets this — pure pass-through.
+ * AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`, `creditLimit`, ...).
  */
 x_agnt?: JsonValue | null, 
 /**
- * OpenAI-owned extension fields, opaque (`instructions`, `tools`,
- * `tool_resources`, `metadata`, thread refs, ...). Mirror of `x_agnt` for a
- * second platform — never interpreted. This field is the whole per-tool cost
- * of adding `OpenAI`: a passthrough bag, no mapping logic.
+ * OpenAI-owned extension fields, opaque (`instructions`, `tools`, `tool_resources`, `metadata`, thread refs, ...).
  */
 x_openai?: JsonValue | null, };

@@ -70,7 +70,7 @@ fn build_llm_command_impl(
 
     // A recorded pass is trusted; anything else is re-verified here rather than
     // failing on a value the launching process never checked (only the TUI runs
-    // startup detection — `launch`, `api`, `mcp` and `acp` do not).
+    // startup detection - `launch`, `api`, `mcp` and `acp` do not).
     if !tool.health_ok && !verify_health(tool_name) {
         anyhow::bail!(
             "LLM tool '{tool_name}' is not launchable: its health check failed. Check the binary is installed and on PATH, or fix its detection.health_command."
@@ -127,7 +127,7 @@ pub fn apply_yolo_flags(config: &Config, cmd: &str, tool_name: &str) -> String {
 /// Wrap an inner LLM command for a resolved execution target.
 ///
 /// `Local` is the identity; `Docker` wraps in `docker run`. `Ssh` and `Coder`
-/// are NOT command wraps — they dispatch through the remote session launch
+/// are NOT command wraps - they dispatch through the remote session launch
 /// path before the command pipeline, so reaching them here is a bug.
 pub fn wrap_for_target(
     config: &Config,
@@ -186,7 +186,7 @@ fn is_containerized() -> bool {
 ///
 /// `docker_config` is the resolved target's payload (not necessarily the
 /// global `launch.docker`). Values are shell-escaped where they can contain
-/// hostile characters; `extra_args` are passed verbatim — users may embed
+/// hostile characters; `extra_args` are passed verbatim - users may embed
 /// their own quoting.
 pub fn build_docker_command(
     config: &Config,
@@ -235,7 +235,7 @@ pub fn build_docker_command(
     }
 
     // Route the containerised opr8r's completion POST to the host-side REST
-    // API. On Linux the gateway alias must be mapped explicitly — omitting it
+    // API. On Linux the gateway alias must be mapped explicitly - omitting it
     // produces a silent stall, not an error. Injected before operator_env so
     // an explicit caller value (e.g. a callback URL) wins (last -e wins).
     #[cfg(target_os = "linux")]
@@ -270,7 +270,7 @@ pub fn build_docker_command(
     // Add the image
     docker_args.push(docker_config.image.clone());
 
-    // Add the inner command. Quoted as one argument to the container's shell —
+    // Add the inner command. Quoted as one argument to the container's shell -
     // unquoted, every flag after the binary name would bind to $0/$1 and be
     // silently dropped.
     docker_args.push("sh".to_string());
@@ -610,7 +610,7 @@ fn relay_mcp_config_flag_with_command(
     write_mcp_server_config(session_dir, "relay", relay_entry)
 }
 
-/// Locate the opr8r binary itself — alongside the running operator binary
+/// Locate the opr8r binary itself - alongside the running operator binary
 /// first (primary: signed distribution), then on PATH. Used by the step
 /// wrapper. Distinct from `locate_relay_command`, which also accepts the
 /// legacy standalone relay binary.
@@ -657,7 +657,7 @@ fn locate_relay_command() -> Option<(PathBuf, Vec<String>)> {
             }
         }
     }
-    // 2. OPERATOR_RELAY env var (user override — treated as opr8r path)
+    // 2. OPERATOR_RELAY env var (user override - treated as opr8r path)
     if let Ok(path) = std::env::var("OPERATOR_RELAY") {
         let p = PathBuf::from(&path);
         if p.exists() {
@@ -1045,7 +1045,7 @@ mod tests {
         let cmd = result.unwrap();
         assert!(
             cmd.contains("sh -c 'claude --model sonnet'"),
-            "inner command must be quoted as ONE sh -c argument — unquoted, every \
+            "inner command must be quoted as ONE sh -c argument - unquoted, every \
              flag after the binary binds to $0/$1 and is silently dropped, got: {cmd}"
         );
     }

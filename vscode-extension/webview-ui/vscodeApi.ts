@@ -11,9 +11,7 @@ declare function acquireVsCodeApi(): VSCodeApi;
 let _api: VSCodeApi | undefined;
 
 function getApi(): VSCodeApi {
-  if (!_api) {
-    _api = acquireVsCodeApi();
-  }
+  _api ??= acquireVsCodeApi();
   return _api;
 }
 

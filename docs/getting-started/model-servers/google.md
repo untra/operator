@@ -4,7 +4,7 @@ description: "Connect Google (Gemini) as a first-party model provider and list i
 layout: doc
 ---
 
-[**Google**](https://ai.google.dev/) is a first-party model provider — it
+[**Google**](https://ai.google.dev/) is a first-party model provider - it
 produces the Gemini family and serves them from its own API. It is the
 zero-config default for the `gemini` llm tool, and a first-class
 [model provider](./): once connected, operator lists its available models live
@@ -16,7 +16,7 @@ for delegators.
 
 ## Connect
 
-Operator references your key by env-var name — it never stores the secret:
+Operator references your key by env-var name - it never stores the secret:
 
 ```bash
 export GEMINI_API_KEY="..."

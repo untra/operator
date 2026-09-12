@@ -5,7 +5,7 @@
 //! A *model server* is a named inference endpoint a delegator can target
 //! (anthropic-api / openai-api / google-api builtins, plus user-declared
 //! ollama / openai-compat / lmstudio hosts). The [`ModelServerKind`] enum is the
-//! single source of truth for the closed set of supported protocols — every
+//! single source of truth for the closed set of supported protocols - every
 //! surface (TUI status section, web `/#/model-servers` projection, the REST
 //! catalog endpoint, and the VS Code status tree) derives its list from
 //! [`ModelServerKind::ALL`] so the options can't drift apart.
@@ -35,7 +35,7 @@ use crate::config::ModelServer;
 ///   (takes precedence over the derived vars).
 ///
 /// Pure (no environment reads), so the secret never transits this function.
-/// Returns an empty map for implicit builtins with no `base_url` — preserving the
+/// Returns an empty map for implicit builtins with no `base_url` - preserving the
 /// vendor-default path exactly as before.
 pub fn env_for_server(server: &ModelServer) -> HashMap<String, String> {
     let mut env = HashMap::new();
@@ -66,7 +66,7 @@ pub fn env_for_server(server: &ModelServer) -> HashMap<String, String> {
 /// badges, docs nav, the REST `/kinds` catalog, the web Model Providers view,
 /// and the VS Code section).
 ///
-/// Distinct from [`ModelServerKind::is_builtin`] — `is_builtin` governs
+/// Distinct from [`ModelServerKind::is_builtin`] - `is_builtin` governs
 /// delete-protection / the zero-config implicit default, whereas
 /// `provider_class` is about *first-party vendor* vs *gateway/host*. They happen
 /// to partition the same way today, but they answer different questions, so both
@@ -118,7 +118,7 @@ pub enum ModelServerKind {
 impl ModelServerKind {
     /// The canonical list of supported model-server kinds, in display order.
     ///
-    /// Single source of truth — every surface derives its catalog from here.
+    /// Single source of truth - every surface derives its catalog from here.
     pub const ALL: [ModelServerKind; 7] = [
         ModelServerKind::AnthropicApi,
         ModelServerKind::OpenAiApi,
@@ -129,7 +129,7 @@ impl ModelServerKind {
         ModelServerKind::LmStudio,
     ];
 
-    /// Which sub-class of the Model Provider vertical this kind belongs to —
+    /// Which sub-class of the Model Provider vertical this kind belongs to -
     /// drives the grouping across every surface.
     pub fn provider_class(&self) -> ModelProviderClass {
         match self {
@@ -143,7 +143,7 @@ impl ModelServerKind {
         }
     }
 
-    /// Stable wire slug — matches the `kind` string stored on
+    /// Stable wire slug - matches the `kind` string stored on
     /// [`crate::config::ModelServer`] and used in config, the REST catalog, and
     /// the `ConfigureModelServer` action.
     pub fn slug(&self) -> &'static str {
@@ -236,7 +236,7 @@ impl ModelServerKind {
     ///
     /// One basename feeds every surface: docs map it to
     /// `/assets/icons/{b}.svg`, VS Code to the `operator-{b}` `ThemeIcon`, and the
-    /// web UI to `/icons/{b}.svg` — so the brand set can't drift between them.
+    /// web UI to `/icons/{b}.svg` - so the brand set can't drift between them.
     /// `openai-api` deliberately stays on a codicon (no first-party logo asset).
     pub fn brand_icon(&self) -> Option<&'static str> {
         match self {
@@ -252,7 +252,7 @@ impl ModelServerKind {
 
     /// Path appended to a server's `base_url` to list the models it serves.
     ///
-    /// The protocol determines the shape of the response — see
+    /// The protocol determines the shape of the response - see
     /// [`probe::probe_models`] for parsing. Endpoints reflect each vendor's
     /// documented model-list route.
     pub fn models_endpoint(&self) -> &'static str {
@@ -309,7 +309,7 @@ impl ModelServerKind {
     /// be declared with an explicit `base_url` before it can be probed
     /// (`openai-compat` / `lmstudio` are bring-your-own-endpoint).
     ///
-    /// Probe-only: this is **never** injected into the agent spawn environment —
+    /// Probe-only: this is **never** injected into the agent spawn environment -
     /// see [`env_for_server`], which only exports a `base_url` a server sets
     /// explicitly, preserving the vendor-default / OAuth launch path for the
     /// implicit builtins.
@@ -329,7 +329,7 @@ impl ModelServerKind {
     /// ollama server) or the provider must declare its own.
     ///
     /// Distinct from [`api_key_env_var`](Self::api_key_env_var), which is the
-    /// canonical var the *agent CLI* reads at spawn — this is the var the
+    /// canonical var the *agent CLI* reads at spawn - this is the var the
     /// *operator probe* reads from its own environment to list models.
     pub fn default_api_key_env(&self) -> Option<&'static str> {
         match self {
@@ -521,7 +521,7 @@ mod tests {
     #[test]
     fn test_probe_defaults_do_not_leak_into_spawn_env() {
         // The provider has a probe-only default_base_url, but a builtin server
-        // declares no base_url — so the spawn env must stay empty. This keeps the
+        // declares no base_url - so the spawn env must stay empty. This keeps the
         // vendor-default / OAuth launch path intact; defaults are probe-only.
         for kind in [
             ModelServerKind::AnthropicApi,
@@ -543,7 +543,7 @@ mod tests {
         let mut s = server("openai-compat", Some("http://gpu:8000"));
         s.api_key_env = Some("MY_SECRET_KEY".into());
         let env = env_for_server(&s);
-        // Mapped to the canonical var by reference — the secret value is never read.
+        // Mapped to the canonical var by reference - the secret value is never read.
         assert_eq!(
             env.get("OPENAI_API_KEY").map(String::as_str),
             Some("${MY_SECRET_KEY}")

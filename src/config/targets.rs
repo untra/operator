@@ -1,4 +1,4 @@
-//! Named execution targets — where a launched agent process runs.
+//! Named execution targets - where a launched agent process runs.
 //!
 //! `[[targets]]` entries collapse the legacy trio of environment knobs
 //! (`launch.docker` + `DelegatorLaunchConfig.docker`, `[[hosts]]` +
@@ -118,12 +118,12 @@ pub struct SshTarget {
 }
 
 /// Coder workspace target: lifecycle + alias provisioning around the shared
-/// SSH remote-launch path. There is no `enabled` field — presence in
+/// SSH remote-launch path. There is no `enabled` field - presence in
 /// `[[targets]]` is the enablement.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct CoderConfig {
-    /// Coder template child workspaces are created from (an allowlist —
+    /// Coder template child workspaces are created from (an allowlist -
     /// never per-ticket input)
     pub template: String,
     /// Env var NAME holding the Coder deployment URL
@@ -136,7 +136,7 @@ pub struct CoderConfig {
     /// Workspace name prefix for deterministic per-ticket naming
     #[serde(default = "default_coder_name_prefix")]
     pub name_prefix: String,
-    /// Project root inside the workspace (None = workspace $HOME)
+    /// Project root inside the workspace (None = /home/coder/{project})
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workdir: Option<String>,
     /// Stop the workspace when the ticket completes (never delete)
@@ -149,7 +149,7 @@ pub struct CoderConfig {
     /// multi-step (empty/None = reverse tunnel default)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub callback_url: Option<String>,
-    /// Passthrough `-p` template parameters for `coder create`
+    /// Passthrough `--parameter` template parameters for `coder create`
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub parameters: std::collections::HashMap<String, String>,
 }
@@ -200,7 +200,7 @@ pub fn validate_targets(config: &super::Config) -> anyhow::Result<()> {
             if d.enabled {
                 tracing::warn!(
                     target = %target.name,
-                    "`enabled` is ignored inside a [[targets]] entry — presence is enablement"
+                    "`enabled` is ignored inside a [[targets]] entry - presence is enablement"
                 );
             }
         }
@@ -229,7 +229,7 @@ pub fn validate_targets(config: &super::Config) -> anyhow::Result<()> {
         } else if lc.docker == Some(true) && lc.host.is_some() {
             tracing::warn!(
                 delegator = %delegator.name,
-                "launch_config sets both `docker` and `host` (deprecated); host wins — \
+                "launch_config sets both `docker` and `host` (deprecated); host wins - \
                  migrate to `target`"
             );
         }
@@ -253,7 +253,7 @@ pub fn launchable_target_names(config: &super::Config) -> Vec<String> {
 
 /// Env-var NAMES holding Coder session tokens across all configured coder
 /// targets. These are stripped from every agent's spawn environment on ALL
-/// target kinds — an agent launched with a Local target inside the operator's
+/// target kinds - an agent launched with a Local target inside the operator's
 /// own Coder workspace would otherwise read the token straight out of `env`.
 pub fn coder_token_envs(config: &super::Config) -> Vec<String> {
     let mut names: Vec<String> = config
@@ -345,6 +345,38 @@ template = "operator-agent"
                 assert_eq!(c.create_timeout_secs, 300);
                 assert!(c.callback_url.is_none());
                 assert!(c.parameters.is_empty());
+            }
+            other => panic!("expected coder kind, got {other:?}"),
+        }
+    }
+
+    /// The coder-module's `run.sh` writes exactly this block. Parsing it here
+    /// keeps the Terraform module and `CoderConfig` from drifting apart.
+    #[test]
+    fn test_target_def_coder_toml_matches_coder_module_output() {
+        let toml_src = r#"
+name = "coder-agents"
+kind = "coder"
+template = "operator-agent"
+token_env = "CODER_SESSION_TOKEN"
+callback_url = "https://op.example.com"
+name_prefix = "op"
+workdir = "/home/coder/proj"
+stop_on_complete = true
+create_timeout_secs = 600
+"#;
+        let def: TargetDef = toml::from_str(toml_src).unwrap();
+        assert_eq!(def.name, "coder-agents");
+        match &def.kind {
+            TargetKind::Coder(c) => {
+                assert_eq!(c.template, "operator-agent");
+                assert_eq!(c.name_prefix, "op");
+                assert_eq!(c.workdir.as_deref(), Some("/home/coder/proj"));
+                assert_eq!(c.callback_url.as_deref(), Some("https://op.example.com"));
+                assert_eq!(c.create_timeout_secs, 600);
+                assert!(c.stop_on_complete);
+                // Not emitted by the module: the workspace gets CODER_URL ambiently.
+                assert_eq!(c.url_env, "CODER_URL");
             }
             other => panic!("expected coder kind, got {other:?}"),
         }

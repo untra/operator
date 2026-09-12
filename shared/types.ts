@@ -425,9 +425,16 @@ host: string,
  */
 port: number, 
 /**
- * CORS allowed origins (empty = allow all)
+ * CORS allowed origins. Empty means **same-origin only**
  */
-cors_origins: Array<string>, };
+cors_origins: Array<string>, 
+/**
+ * Externally reachable base URL (e.g. `https://operator.example.com`).
+ *
+ * OAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header,
+ * which a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy.
+ */
+public_url: string | null, };
 
 export type LlmToolsConfig = { 
 /**
@@ -557,6 +564,10 @@ global: Array<string>,
 project: Array<string>, };
 
 export type Delegator = { 
+/**
+ * Optional Git identity, HTTPS credential reference, and runtime settings.
+ */
+git?: GitExecutionConfig | null, 
 /**
  * Unique name for this delegator (e.g., "claude-opus-auto")
  */
@@ -727,6 +738,10 @@ x_openai?: JsonValue | null, };
 
 export type XOperator = { 
 /**
+ * Optional Git identity, HTTPS credential reference, and runtime settings.
+ */
+git?: GitExecutionConfig | null, 
+/**
  * Optional display name for UI.
  */
 display_name?: string | null, 
@@ -825,7 +840,11 @@ project_collection_prefs: { [key in string]: string },
  */
 multi_agent_groups: Array<MultiAgentGroup>, };
 
-export type AgentState = { id: string, ticket_id: string, ticket_type: string, project: string, status: string, started_at: string, last_activity: string, last_message: string | null, paired: boolean, 
+export type AgentState = { 
+/**
+ * Non-secret Git configuration captured at launch.
+ */
+git_context: GitExecutionConfig | null, id: string, ticket_id: string, ticket_type: string, project: string, status: string, started_at: string, last_activity: string, last_message: string | null, paired: boolean, 
 /**
  * The terminal session name for this agent (for recovery)
  */
@@ -1282,6 +1301,10 @@ total: number, };
 
 export type DelegatorResponse = { 
 /**
+ * Optional Git identity, HTTPS credential reference, and runtime settings.
+ */
+git?: GitExecutionConfig | null, 
+/**
  * Unique name
  */
 name: string, 
@@ -1326,6 +1349,10 @@ delegators: Array<DelegatorResponse>,
 total: number, };
 
 export type CreateDelegatorRequest = { 
+/**
+ * Optional Git identity, HTTPS credential reference, and runtime settings.
+ */
+git?: GitExecutionConfig | null, 
 /**
  * Unique name for the delegator
  */

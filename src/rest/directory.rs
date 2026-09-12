@@ -4,8 +4,8 @@
 //! belongs to the *same* project before adopting it as "connected". We expose:
 //!
 //! - `directory_name`: the top-level directory name (basename of the working
-//!   root). This is intentionally human-readable — operator's purpose is to
-//!   report on the projects/repos under that directory — and is the value the
+//!   root). This is intentionally human-readable - operator's purpose is to
+//!   report on the projects/repos under that directory - and is the value the
 //!   code-projects API also surfaces.
 //! - `directory_id`: a non-reversible fingerprint (first 12 hex chars of
 //!   `SHA-256(canonical absolute path)`). Used *only* for exact same-directory

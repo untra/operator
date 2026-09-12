@@ -10,15 +10,16 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as os from 'os';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import { TerminalManager } from './terminal-manager';
 import { WebhookServer } from './webhook-server';
-import { TicketTreeProvider, TicketItem } from './ticket-provider';
+import type { TicketItem } from './ticket-provider';
+import { TicketTreeProvider } from './ticket-provider';
 import { StatusTreeProvider, StatusItem } from './status-provider';
 import { LaunchManager } from './launch-manager';
 import { IssueTypeService } from './issuetype-service';
-import { TicketInfo } from './types';
+import type { TicketInfo } from './types';
 import { OperatorApiClient, discoverApiUrl } from './api-client';
 import {
   OperatorCredentials,
@@ -334,7 +335,7 @@ async function focusTicketTerminal(
 
 function openTicketFile(filePath: string): void {
   void vscode.workspace.openTextDocument(filePath).then((doc) => {
-    void vscode.window.showTextDocument(doc);
+    return vscode.window.showTextDocument(doc);
   });
 }
 
@@ -696,12 +697,13 @@ function showConfigMissingNotification(): void {
     'Open Setup'
   ).then((choice) => {
     if (choice === 'Open Setup') {
-      void vscode.commands.executeCommand(
+      return vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
         'untra.operator-terminals#operator-setup',
         true
       );
     }
+    return undefined;
   });
 }
 
@@ -751,9 +753,15 @@ async function runSetupCommand(ctx: CommandContext): Promise<void> {
     const watcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(ticketsDir, '**/*.md')
     );
-    watcher.onDidChange(() => void ctx.refreshAllProviders());
-    watcher.onDidCreate(() => void ctx.refreshAllProviders());
-    watcher.onDidDelete(() => void ctx.refreshAllProviders());
+    watcher.onDidChange(() => {
+      void ctx.refreshAllProviders();
+    });
+    watcher.onDidCreate(() => {
+      void ctx.refreshAllProviders();
+    });
+    watcher.onDidDelete(() => {
+      void ctx.refreshAllProviders();
+    });
     ctx.extensionContext.subscriptions.push(watcher);
 
     await updateOperatorContext(ctx);
@@ -779,7 +787,7 @@ async function downloadOperatorCommand(ctx: CommandContext): Promise<void> {
         vscode.Uri.parse('https://operator.untra.io/downloads/')
       );
       return;
-    } else if (choice !== 'Reinstall/Update') {
+    }if (choice !== 'Reinstall/Update') {
       return;
     }
   }
@@ -811,7 +819,10 @@ async function downloadOperatorCommand(ctx: CommandContext): Promise<void> {
   }
 }
 
-async function startOperatorServerCommand(ctx: CommandContext): Promise<void> {
+async function startOperatorServerCommand(
+  ctx: CommandContext,
+  promptOnMissingBinary = true
+): Promise<void> {
   const hasConfig = await configFileExists();
   if (!hasConfig) {
     showConfigMissingNotification();
@@ -821,6 +832,12 @@ async function startOperatorServerCommand(ctx: CommandContext): Promise<void> {
   const operatorPath = await getOperatorPath(ctx.extensionContext);
 
   if (!operatorPath) {
+    if (!promptOnMissingBinary) {
+      ctx.outputChannel.appendLine(
+        '[Operator] Auto-start skipped: Operator binary not found'
+      );
+      return;
+    }
     const choice = await vscode.window.showErrorMessage(
       'Operator binary not found',
       'Download Operator',
@@ -1223,9 +1240,15 @@ export async function activate(
       const watcher = vscode.workspace.createFileSystemWatcher(
         new vscode.RelativePattern(currentTicketsDir, '**/*.md')
       );
-      watcher.onDidChange(() => void ctx.refreshAllProviders());
-      watcher.onDidCreate(() => void ctx.refreshAllProviders());
-      watcher.onDidDelete(() => void ctx.refreshAllProviders());
+      watcher.onDidChange(() => {
+        void ctx.refreshAllProviders();
+      });
+      watcher.onDidCreate(() => {
+        void ctx.refreshAllProviders();
+      });
+      watcher.onDidDelete(() => {
+        void ctx.refreshAllProviders();
+      });
       context.subscriptions.push(watcher);
     }
 
@@ -1253,7 +1276,7 @@ export async function activate(
     if (!ctx.attachedServer && autoStart) {
       const hasConfig = await configFileExists();
       if (hasConfig) {
-        await startOperatorServerCommand(ctx);
+        await startOperatorServerCommand(ctx, false);
       } else {
         void vscode.window.showInformationMessage(
           'No Operator server. Set operator.apiUrl.'

@@ -10,51 +10,13 @@
 export type TicketType = string;
 
 // Re-export generated types with original names for backwards compatibility
-export {
-  VsCodeTicketStatus as TicketStatus,
-  VsCodeTicketInfo as TicketInfo,
-  VsCodeTerminalCreateOptions as TerminalCreateOptions,
-  VsCodeTerminalState as TerminalState,
-  VsCodeActivityState as ActivityState,
-  VsCodeHealthResponse as HealthResponse,
-  VsCodeSuccessResponse as SuccessResponse,
-  VsCodeExistsResponse as ExistsResponse,
-  VsCodeActivityResponse as ActivityResponse,
-  VsCodeListResponse as ListResponse,
-  VsCodeErrorResponse as ErrorResponse,
-  VsCodeSendCommandRequest as SendCommandRequest,
-  VsCodeSessionInfo as SessionInfo,
-  VsCodeModelOption as ModelOption,
-  VsCodeLaunchOptions as LaunchOptions,
-  VsCodeTicketMetadata as TicketMetadata,
-} from './generated';
+export type { VsCodeTicketStatus as TicketStatus, VsCodeTicketInfo as TicketInfo, VsCodeTerminalCreateOptions as TerminalCreateOptions, VsCodeTerminalState as TerminalState, VsCodeActivityState as ActivityState, VsCodeHealthResponse as HealthResponse, VsCodeSuccessResponse as SuccessResponse, VsCodeExistsResponse as ExistsResponse, VsCodeActivityResponse as ActivityResponse, VsCodeListResponse as ListResponse, VsCodeErrorResponse as ErrorResponse, VsCodeSendCommandRequest as SendCommandRequest, VsCodeSessionInfo as SessionInfo, VsCodeModelOption as ModelOption, VsCodeLaunchOptions as LaunchOptions, VsCodeTicketMetadata as TicketMetadata } from './generated';
 
 // Also export the VsCode-prefixed versions for direct use
-export {
-  VsCodeTicketStatus,
-  VsCodeTicketInfo,
-  VsCodeTerminalCreateOptions,
-  VsCodeTerminalState,
-  VsCodeActivityState,
-  VsCodeHealthResponse,
-  VsCodeSuccessResponse,
-  VsCodeExistsResponse,
-  VsCodeActivityResponse,
-  VsCodeListResponse,
-  VsCodeErrorResponse,
-  VsCodeSendCommandRequest,
-  VsCodeSessionInfo,
-  VsCodeModelOption,
-  VsCodeLaunchOptions,
-  VsCodeTicketMetadata,
-} from './generated';
+export type { VsCodeTicketStatus, VsCodeTicketInfo, VsCodeTerminalCreateOptions, VsCodeTerminalState, VsCodeActivityState, VsCodeHealthResponse, VsCodeSuccessResponse, VsCodeExistsResponse, VsCodeActivityResponse, VsCodeListResponse, VsCodeErrorResponse, VsCodeSendCommandRequest, VsCodeSessionInfo, VsCodeModelOption, VsCodeLaunchOptions, VsCodeTicketMetadata } from './generated';
 
 // Export issue type metadata (for dynamic styling)
-export { IssueTypeSummary } from './generated';
+export type { IssueTypeSummary } from './generated';
 
 // Export REST API types
-export {
-  LaunchTicketRequest,
-  LaunchTicketResponse,
-  LlmProvider,
-} from './generated';
+export type { LaunchTicketRequest, LaunchTicketResponse, LlmProvider } from './generated';

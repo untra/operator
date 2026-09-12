@@ -128,7 +128,7 @@ impl GithubProjectsProvider {
     /// Create from environment.
     ///
     /// Reads **only** `OPERATOR_GITHUB_TOKEN`. Does **not** fall back to
-    /// `GITHUB_TOKEN` even if it exists — that env var belongs to operator's
+    /// `GITHUB_TOKEN` even if it exists - that env var belongs to operator's
     /// git provider (PR/branch workflows) and almost certainly lacks the
     /// `project` scope, which would surface confusing 403s deeper in the
     /// stack. See module-level Token Disambiguation note.
@@ -234,7 +234,7 @@ impl GithubProjectsProvider {
             // with the friendly disambiguation hint so users see it via the
             // generic provider_error_message helper. Preserve the raw error so
             // legitimate bugs (field-level permission failures, feature-gated
-            // fields, etc.) are still debuggable — the hint alone was masking
+            // fields, etc.) are still debuggable - the hint alone was masking
             // real root causes.
             let lower = combined.to_lowercase();
             if lower.contains("project")
@@ -396,7 +396,7 @@ impl GithubProjectsProvider {
             }
         }
 
-        // Scope verification — header scrape (classic PATs).
+        // Scope verification - header scrape (classic PATs).
         let scopes_header = self.fetch_oauth_scopes().await;
 
         if let Some(scopes) = &scopes_header {
@@ -573,7 +573,7 @@ impl GithubProjectsProvider {
                 }
             }
             // `GraphQL` errors here usually mean the schema doesn't expose
-            // `issueTypes` (older orgs) — treat that as "no types available"
+            // `issueTypes` (older orgs) - treat that as "no types available"
             // and let the caller fall back to labels.
             Err(ApiError::HttpError { message, .. }) if message.contains("issueTypes") => {
                 warn!("issueTypes field not available, falling back to labels");
@@ -943,7 +943,7 @@ impl KanbanProvider for GithubProjectsProvider {
     }
 
     async fn list_projects(&self) -> Result<Vec<ProjectInfo>, ApiError> {
-        // Reuse the validate_detailed query — it's the canonical projects discovery.
+        // Reuse the validate_detailed query - it's the canonical projects discovery.
         let details = self.validate_detailed().await?;
         Ok(details
             .projects
@@ -1399,7 +1399,7 @@ impl KanbanProvider for GithubProjectsProvider {
             "optionId": option_id,
         });
 
-        // Discard the response — we only care that it didn't error.
+        // Discard the response - we only care that it didn't error.
         let _: serde_json::Value = self.graphql(mutation, Some(variables)).await?;
 
         // Return a minimal updated ExternalIssue. Re-fetching the full item
@@ -1772,12 +1772,12 @@ impl KanbanProvider for GithubProjectsProvider {
 
             let comment_body = if summary_text.is_empty() {
                 format!(
-                    "🤖 **opr8r activity** — step: `{}` | delegator: `{}` | {}",
+                    "🤖 **opr8r activity** - step: `{}` | delegator: `{}` | {}",
                     entry.step, entry.delegator, timestamp
                 )
             } else {
                 format!(
-                    "🤖 **opr8r activity** — step: `{}` | delegator: `{}` | {}\n\n> {}",
+                    "🤖 **opr8r activity** - step: `{}` | delegator: `{}` | {}\n\n> {}",
                     entry.step, entry.delegator, timestamp, summary_text
                 )
             };
@@ -1812,7 +1812,7 @@ impl GithubProjectsProvider {
         project_id: &str,
         after: Option<&str>,
     ) -> Result<ItemsPage, ApiError> {
-        // NOTE: assignees.nodes must NOT request `email` — GitHub gates the
+        // NOTE: assignees.nodes must NOT request `email` - GitHub gates the
         // `User.email` field behind `user:email` or `read:user` scope, which
         // is orthogonal to the `project` scope this provider requires and
         // would break any token scoped to projects-only. `RawAssignee.email`
@@ -2005,7 +2005,7 @@ mod tests {
         let result = GithubProjectsProvider::from_env();
         assert!(
             result.is_err(),
-            "from_env must not fall back to GITHUB_TOKEN — see Token Disambiguation rule 1"
+            "from_env must not fall back to GITHUB_TOKEN - see Token Disambiguation rule 1"
         );
         env::remove_var("GITHUB_TOKEN");
     }

@@ -9,22 +9,23 @@
  * - `connectMcpServer` end-to-end dispatch
  */
 
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as sinon from 'sinon';
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import * as mcpConnect from '../../src/mcp-connect';
 import * as apiClient from '../../src/api-client';
+import type {
+  McpDescriptorResponse} from '../../src/mcp-connect';
 import {
   fetchMcpDescriptor,
   detectHostApp,
   registerInCursorUserConfig,
   registerInVscodeWorkspaceConfig,
   connectMcpServer,
-  _testable,
-  McpDescriptorResponse,
+  _testable
 } from '../../src/mcp-connect';
 
 const fixturesDir = path.join(

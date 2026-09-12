@@ -7,12 +7,12 @@
 //! defines a namespaced interchange format both sides can serialize to and from
 //! *losslessly*: a shared core, an Operator-namespaced bag (`x_operator`), and an
 //! AGNT-namespaced bag (`x_agnt`). Each side reads the core and its own bag, and
-//! preserves the other side's bag verbatim — the same lossy-but-honest discipline
+//! preserves the other side's bag verbatim - the same lossy-but-honest discipline
 //! as the `OPERATOR-GAP` markers in [`crate::workflow_gen`].
 //!
 //! This is the schema half of the remote-agent bridge. There is deliberately
 //! **no** runtime client for any remote platform: a profile carrying
-//! [`AgentProfile::remote_agent`] is a *declarative* reference — surfaced in the
+//! [`AgentProfile::remote_agent`] is a *declarative* reference - surfaced in the
 //! `--format agnt` export when its platform is AGNT, but never executed by
 //! Operator (see the launch guard in `delegator_resolution`).
 
@@ -36,8 +36,7 @@ pub struct AgentProfile {
     pub provider: String,
     /// Model alias or id (maps to [`Delegator::model`]).
     pub model: String,
-    /// System prompt. Operator has no first-class system prompt, so this is
-    /// preserved opaquely across import (see [`Delegator::unmapped_core`]).
+    /// System prompt. This is preserved opaquely across import (see [`Delegator::unmapped_core`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<String>,
     /// Named skills. Preserved opaquely across import.
@@ -49,29 +48,22 @@ pub struct AgentProfile {
     /// Tool names. Preserved opaquely across import.
     #[serde(default)]
     pub tools: Vec<String>,
-    /// Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...).
-    /// `None` = a locally launchable agent, not bound to a remote platform.
+    /// Declarative reference to a remote, named agent. `None` = a locally launchable agent, not bound to a remote target.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_agent: Option<RemoteAgentRef>,
-    /// Operator-owned extension fields (typed). `None` when the agent carries no
-    /// Operator-specific configuration.
+    /// Operator-owned extension fields (typed). `None` when the agent carries no Operator-specific configuration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x_operator: Option<XOperator>,
-    /// AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`,
-    /// `creditLimit`, ...). Operator never interprets this — pure pass-through.
+    /// AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`, `creditLimit`, ...).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x_agnt: Option<serde_json::Value>,
-    /// OpenAI-owned extension fields, opaque (`instructions`, `tools`,
-    /// `tool_resources`, `metadata`, thread refs, ...). Mirror of `x_agnt` for a
-    /// second platform — never interpreted. This field is the whole per-tool cost
-    /// of adding `OpenAI`: a passthrough bag, no mapping logic.
+    /// OpenAI-owned extension fields, opaque (`instructions`, `tools`, `tool_resources`, `metadata`, thread refs, ...).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x_openai: Option<serde_json::Value>,
 }
 
-/// The Operator-namespaced half of an [`AgentProfile`] — the fields a Delegator
-/// carries that have no shared-core equivalent. AGNT ignores this bag; Operator
-/// round-trips it losslessly.
+/// The Operator-namespaced half of an [`AgentProfile`] - the fields a Delegator
+/// carries that have no shared-core equivalent.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub struct XOperator {
@@ -337,7 +329,7 @@ mod tests {
 
     #[test]
     fn openai_profile_roundtrips_with_x_openai() {
-        // The structural twin of the x_agnt test, for a second platform — proving
+        // The structural twin of the x_agnt test, for a second platform - proving
         // the per-tool cost is exactly one opaque bag + the generic remote ref.
         let p = AgentProfile {
             name: "openai-reviewer".to_string(),

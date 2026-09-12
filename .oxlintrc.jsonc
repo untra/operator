@@ -1,0 +1,243 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "react-perf",
+    "jsx-a11y",
+    "promise"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error",
+    "pedantic": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+
+  "options": { "typeAware": true },
+
+  "env": { "es2022": true },
+
+  "settings": {
+    "react": { "version": "19.0" }
+  },
+
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/out/**",
+    "**/*.d.ts",
+    "webcomponents/src/generated/**",
+    "vscode-extension/src/generated/**",
+    "vscode-extension/shared/**",
+    "vscode-extension/.vscode-test/**",
+    "**/.claude/**",
+    "target/**",
+    "docs/_site/**",
+    "docs/assets/js/**",
+    "agnt-plugin/**",
+    "coder-module/**",
+    "bindings/**",
+    "shared/**",
+    "scripts/**",
+    "zed-extension/**",
+    "opr8r/**"
+  ],
+
+  "rules": {
+    "eslint/no-unused-vars": ["error", {
+      "args": "after-used",
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_",
+      "caughtErrorsIgnorePattern": "^_",
+      "ignoreRestSiblings": true
+    }],
+    "eslint/no-void": ["error", { "allowAsStatement": true }],
+    "typescript/no-explicit-any": "error",
+    "eslint/curly": ["error", "all"],
+    "eslint/eqeqeq": ["error", "always", { "null": "ignore" }],
+    "typescript/explicit-function-return-type": "off",
+    "typescript/explicit-module-boundary-types": "off",
+    // Was webview-ui-only under eslint; no reason for that scoping.
+    "typescript/consistent-type-assertions": ["error", {
+      "assertionStyle": "as",
+      "objectLiteralTypeAssertions": "never"
+    }],
+
+    // ---- Disabled: these fire on deliberate repo-wide conventions ----
+    // React 19 automatic runtime ("jsx": "react-jsx").
+    "react/react-in-jsx-scope": "off",
+    // Collides with the ^_ unused-arg convention above.
+    "eslint/no-underscore-dangle": "off",
+    // Sequential awaits are deliberate in vscode-extension orchestration.
+    "eslint/no-await-in-loop": "off",
+    // Fires on every `(await res.json()) as T`; recommended or strict either.
+    "typescript/no-unsafe-type-assertion": "off",
+    "react/rules-of-hooks": "error",
+    "react/jsx-no-target-blank": "error",
+    "react/jsx-no-useless-fragment": "error",
+    "jsx-a11y/anchor-ambiguous-text": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/adjacent-overload-signatures": "error",
+    "typescript/consistent-type-exports": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-unsafe-function-type": "error",
+    "typescript/prefer-enum-initializers": "error",
+    "typescript/prefer-literal-enum-member": "error",
+    "typescript/prefer-optional-chain": "error",
+    "eslint/prefer-const": ["error", { "destructuring": "all" }],
+    "eslint/no-else-return": ["error", { "allowElseIf": false }],
+    "eslint/one-var": ["error", "never"],
+    "eslint/no-use-before-define": ["error", {
+      "functions": false,
+      "classes": false,
+      "variables": false
+    }],
+    "eslint/no-array-constructor": "error",
+    "eslint/no-case-declarations": "error",
+    "eslint/no-constructor-return": "error",
+    "eslint/no-inner-declarations": "error",
+    "eslint/no-prototype-builtins": "error",
+    "eslint/no-self-compare": "error",
+    "eslint/no-label-var": "error",
+    "eslint/no-labels": "error",
+    "eslint/no-extra-label": "error",
+    "eslint/no-lone-blocks": "error",
+    "eslint/no-proto": "error",
+    "eslint/no-regex-spaces": "error",
+    "eslint/no-script-url": "error",
+    "eslint/no-sequences": "error",
+    "eslint/default-case-last": "error",
+    "eslint/radix": "error",
+    "eslint/prefer-arrow-callback": "error",
+    "eslint/prefer-exponentiation-operator": "error",
+    "eslint/prefer-numeric-literals": "error",
+    "eslint/prefer-regex-literals": "error",
+    "eslint/prefer-rest-params": "error",
+    "oxc/no-const-enum": "error",
+    "unicorn/new-for-builtins": "error",
+    "unicorn/no-document-cookie": "error",
+    "unicorn/no-instanceof-array": "error",
+    "unicorn/no-useless-switch-case": "error",
+    "unicorn/prefer-array-index-of": "error",
+    "unicorn/prefer-date-now": "error",
+    "unicorn/prefer-node-protocol": "error",
+    "unicorn/prefer-number-properties": ["error", { "checkInfinity": true }],
+    "unicorn/require-post-message-target-origin": "off",
+    "eslint/no-console": "error",
+    "eslint/no-fallthrough": "error",
+    "eslint/no-redeclare": "error",
+    "eslint/prefer-template": "error",
+    "react/jsx-curly-brace-presence": "error",
+    "react/no-danger": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/no-empty-interface": "error",
+    "typescript/no-inferrable-types": "error",
+    "typescript/no-invalid-void-type": "error",
+    "typescript/prefer-function-type": "error",
+
+    // ---- type-aware (tsgolint); these are pedantic so must be listed ----
+    "typescript/no-misused-promises": ["error", {
+      "checksVoidReturn": { "attributes": false }
+    }],
+    "typescript/only-throw-error": "error",
+    "typescript/require-await": "error",
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/restrict-plus-operands": "error",
+    "typescript/return-await": ["error", "in-try-catch"],
+    "typescript/switch-exhaustiveness-check": ["error", {
+      "allowDefaultCaseForExhaustiveSwitch": true,
+      "considerDefaultExhaustiveForUnions": true
+    }],
+    "typescript/prefer-nullish-coalescing": ["error", {
+      "ignoreTernaryTests": true,
+      "ignorePrimitives": { "string": true }
+    }],
+    "typescript/no-deprecated": "warn",
+
+    // ---- type-aware deferred (noisy or structurally wrong here) ----
+    // bindings/ types are ts-rs-generated and assert more than the wire
+    // guarantees, so defensive runtime checks look "unnecessary".
+    "typescript/no-unnecessary-condition": "off",
+    "typescript/strict-boolean-expressions": "off",
+    "typescript/no-confusing-void-expression": "off",
+    "typescript/promise-function-async": "off",
+    "typescript/prefer-readonly-parameter-types": "off",
+    "typescript/strict-void-return": "off",
+
+    // no-unsafe-* is error only in vscode-extension/src (eslint parity there).
+    "typescript/no-unsafe-argument": "off",
+    "typescript/no-unsafe-assignment": "off",
+    "typescript/no-unsafe-call": "off",
+    "typescript/no-unsafe-member-access": "off",
+    "typescript/no-unsafe-return": "off",
+
+    // ---- react-perf: new class of finding, land as warn ----
+    "react-perf/jsx-no-new-object-as-prop": "warn",
+    "react-perf/jsx-no-new-array-as-prop": "warn",
+    "react-perf/jsx-no-new-function-as-prop": "warn",
+    "react-perf/jsx-no-jsx-as-prop": "warn"
+  },
+
+  "overrides": [
+    {
+      "files": ["ui/src/**/*.ts", "ui/src/**/*.tsx"],
+      "env": { "browser": true, "es2022": true }
+    },
+    {
+      "files": ["webcomponents/src/**/*.ts", "webcomponents/src/**/*.tsx"],
+      "env": { "browser": true, "es2022": true }
+    },
+    {
+      "files": ["webcomponents/src/**/*.test.ts", "webcomponents/src/**/*.test.tsx"],
+      "globals": { "Bun": "readonly" },
+      "rules": { "eslint/no-console": "off" }
+    },
+    {
+      "files": ["vscode-extension/src/**/*.ts"],
+      "env": { "node": true, "es2022": true },
+      "rules": {
+        // Parity with the recommendedTypeChecked config this replaces
+        "typescript/no-unsafe-argument": "error",
+        "typescript/no-unsafe-assignment": "error",
+        "typescript/no-unsafe-call": "error",
+        "typescript/no-unsafe-member-access": "error",
+        "typescript/no-unsafe-return": "error",
+        "typescript/no-require-imports": "error",
+        "typescript/no-namespace": "error"
+      }
+    },
+    {
+      "files": ["vscode-extension/test/**/*.ts"],
+      "env": { "node": true, "mocha": true, "es2022": true },
+      "rules": {
+        "eslint/no-console": "off",
+        "unicorn/consistent-function-scoping": "off",
+        "typescript/unbound-method": "off",
+        "typescript/no-misused-promises": "off"
+      }
+    },
+    {
+      "files": [
+        "webcomponents/scripts/**",
+        "vscode-extension/scripts/**",
+        "vscode-extension/src/webhook-server.ts",
+        "vscode-extension/src/walkthrough.ts"
+      ],
+      "rules": { "eslint/no-console": "off" }
+    },
+    {
+      "files": [
+        "vscode-extension/webview-ui/**/*.ts",
+        "vscode-extension/webview-ui/**/*.tsx"
+      ],
+      "env": { "browser": true, "es2022": true }
+    }
+  ]
+}

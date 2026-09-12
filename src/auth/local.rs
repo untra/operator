@@ -1,7 +1,7 @@
 //! Local auto-unlock for loopback processes.
 //!
-//! A local `operator` run — the TUI, the CLI, and the `opr8r` client talking to
-//! `127.0.0.1` — needs no login. This is **not** an authentication bypass: the
+//! A local `operator` run - the TUI, the CLI, and the `opr8r` client talking to
+//! `127.0.0.1` - needs no login. This is **not** an authentication bypass: the
 //! credential is real and is checked like any other. It is issued
 //! automatically to a caller who has already proven, by reading a file only its
 //! owner can read, that they are the user who started the process.
@@ -9,8 +9,8 @@
 //! The proof is file ownership rather than peer-credential inspection
 //! (`SO_PEERCRED` / `LOCAL_PEERCRED`). Those are Unix-socket mechanisms and
 //! Operator listens on TCP, where they do not apply; mode `0600` establishes
-//! the same boundary — only the owning uid (and root, which can bypass any
-//! check anyway) can read the token — and works identically on Windows, where
+//! the same boundary - only the owning uid (and root, which can bypass any
+//! check anyway) can read the token - and works identically on Windows, where
 //! the file inherits the user profile's ACL.
 //!
 //! Two conditions must both hold before a token is written:
@@ -35,7 +35,7 @@ pub const LOCAL_TOKEN_FILENAME: &str = "local-token";
 ///
 /// The mode is set **as the file is created**, not afterwards. A
 /// write-then-chmod sequence leaves a window in which the token is
-/// world-readable, and — as the test suite found — it also fails outright if
+/// world-readable, and - as the test suite found - it also fails outright if
 /// anything removes the file in between.
 #[cfg(unix)]
 fn write_owner_only(path: &Path, contents: &str) -> std::io::Result<()> {
@@ -48,7 +48,7 @@ fn write_owner_only(path: &Path, contents: &str) -> std::io::Result<()> {
     // Two subtleties this avoids. `mode()` applies only when a file is
     // *created*, so writing straight to an existing token file would keep its
     // old permissions. And `create_new` on a fixed path fails when two
-    // processes start at once, which is normal here — the TUI's embedded
+    // processes start at once, which is normal here - the TUI's embedded
     // server and a separate `operator api` share a state directory. Rename is
     // atomic and indifferent to an existing target, so both succeed and the
     // last writer wins.

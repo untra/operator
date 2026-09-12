@@ -129,7 +129,7 @@ pub trait SessionWrapper: Send + Sync {
     }
 
     /// Get topology info for a session (hierarchy refs, placement info)
-    /// Default returns `NotSupported` — only wrappers with rich hierarchy implement this.
+    /// Default returns `NotSupported` - only wrappers with rich hierarchy implement this.
     fn session_topology(&self, _session: &str) -> Result<SessionTopology, SessionError> {
         Err(SessionError::NotSupported(
             "topology not available for this wrapper".into(),

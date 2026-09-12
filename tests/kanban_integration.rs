@@ -17,14 +17,14 @@
 //!
 //! ### For GitHub Projects:
 //! - `OPERATOR_GITHUB_TOKEN`: PAT with `project` (or `read:project`) scope.
-//!   MUST be distinct from `GITHUB_TOKEN` used for PR workflows — the kanban
+//!   MUST be distinct from `GITHUB_TOKEN` used for PR workflows - the kanban
 //!   provider deliberately does not fall back. See
 //!   `docs/getting-started/kanban/github.md`.
 //! - `OPERATOR_GITHUB_TEST_PROJECT`: `ProjectV2` `GraphQL` node ID
 //!   (starts with `PVT_`). Fetch via:
 //!   `gh api graphql -f query='query { viewer { projectsV2(first: 20) { nodes { id number title } } } }'`.
 //!   The project must have a Status single-select field with at least one
-//!   terminal option (Done/Complete/Closed/Resolved) — default GitHub
+//!   terminal option (Done/Complete/Closed/Resolved) - default GitHub
 //!   project templates satisfy this.
 //!
 //! ## Running Tests
@@ -94,7 +94,7 @@ fn linear_configured() -> bool {
 
 /// Check if GitHub Projects credentials are configured (non-empty env vars).
 ///
-/// Only `OPERATOR_GITHUB_TOKEN` is consulted — the provider deliberately does
+/// Only `OPERATOR_GITHUB_TOKEN` is consulted - the provider deliberately does
 /// NOT fall back to `GITHUB_TOKEN` (which is reserved for the git/PR provider
 /// and typically lacks the `project` scope). See
 /// `src/api/providers/kanban/github_projects.rs` module docs.
@@ -808,7 +808,7 @@ mod github_tests {
 
         // GitHub derives users from assignees on existing project items
         // (list_users scans items). A fresh test project with only draft
-        // issues may legitimately return an empty list — unlike Jira/Linear
+        // issues may legitimately return an empty list - unlike Jira/Linear
         // where team members/assignable users are a separate endpoint.
         let users = provider
             .list_users(&project)
@@ -834,7 +834,7 @@ mod github_tests {
             .await
             .expect("Should list statuses");
 
-        // A configured Status field is a hard prerequisite — the create/
+        // A configured Status field is a hard prerequisite - the create/
         // update_status tests below depend on it. Fail loudly if missing.
         assert!(
             !statuses.is_empty(),
@@ -929,7 +929,7 @@ mod github_tests {
 
         // ─── Cleanup: Move draft to terminal status ────────────────────────────────
         // The provider exposes no deletion API; we move to Done so the test
-        // project remains visually sane. Drafts still accumulate — see file
+        // project remains visually sane. Drafts still accumulate - see file
         // doc comment.
         let statuses = provider
             .list_statuses(&project)
@@ -974,7 +974,7 @@ mod github_tests {
             .await
             .expect("Should create draft issue");
 
-        // GitHub create_issue returns status="" — the draft does not yet
+        // GitHub create_issue returns status="" - the draft does not yet
         // have a Status field value assigned. That's fine for this test.
         eprintln!(
             "Created draft {} (initial status: {:?})",
@@ -1007,7 +1007,7 @@ mod github_tests {
                 status: target.clone(),
             };
 
-            // update_issue_status returns a minimal ExternalIssue — only
+            // update_issue_status returns a minimal ExternalIssue - only
             // id/key/status are populated (github_projects.rs:1404-1415),
             // so we only assert on status here.
             let updated = provider

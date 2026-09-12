@@ -6,12 +6,12 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs/promises';
-import { TerminalManager } from './terminal-manager';
-import { IssueTypeService } from './issuetype-service';
-import { TicketInfo } from './types';
-import { OperatorApiClient } from './api-client';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import type { TerminalManager } from './terminal-manager';
+import type { IssueTypeService } from './issuetype-service';
+import type { TicketInfo } from './types';
+import type { OperatorApiClient } from './api-client';
 import { parseTicketContent } from './ticket-parser';
 import type { KanbanTicketCard } from './generated';
 
@@ -124,12 +124,14 @@ export class TicketTreeProvider
   ): TicketInfo {
     const { id: filenameId, type } =
       this.issueTypeService.parseTicketFilename(filename);
-    const id = parseTicketContent(content)?.id || filenameId;
+    const parsedId = parseTicketContent(content)?.id;
+    const id = parsedId ? parsedId : filenameId;
 
     // Parse title from first heading or frontmatter
     const titleMatch =
-      content.match(/^#\s+(.+)$/m) || content.match(/^title:\s*(.+)$/m);
-    const title = titleMatch?.[1]?.trim() || id;
+      content.match(/^#\s+(.+)$/m) ?? content.match(/^title:\s*(.+)$/m);
+    const parsedTitle = titleMatch?.[1]?.trim();
+    const title = parsedTitle ? parsedTitle : id;
 
     // Sanitize ID for terminal name (same as Rust sanitize_session_name)
     const sanitizedId = id.replace(/[^a-zA-Z0-9_-]/g, '-');

@@ -1,6 +1,6 @@
 //! cmux session creation and management for agent launches
 //!
-//! Parallel to `tmux_session.rs` — provides cmux-specific launch functions
+//! Parallel to `tmux_session.rs` - provides cmux-specific launch functions
 //! that create workspaces/windows and send commands via `CmuxClient`.
 
 use std::sync::Arc;
@@ -25,7 +25,7 @@ use super::prompt::{
 use super::step_command;
 use super::SESSION_PREFIX;
 
-/// Result of launching in cmux — includes refs needed for state tracking
+/// Result of launching in cmux - includes refs needed for state tracking
 #[derive(Debug, Clone)]
 pub struct CmuxLaunchResult {
     pub session_name: String,

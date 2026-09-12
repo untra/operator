@@ -4,9 +4,9 @@
 //! Two rules hold across every type in this module, and the tests at the
 //! bottom enforce both:
 //!
-//! 1. **A secret crosses the wire at most once, outbound.** Bootstrap and
-//!    login accept a password inbound; access-key and token creation return a
-//!    secret exactly once at creation. No other type carries one.
+//! 1. **A secret crosses the wire only where authentication requires it.**
+//!    Bootstrap, login, and password reset accept passwords inbound;
+//!    access-key and token creation return a secret exactly once at creation.
 //! 2. **No summary type ever carries a hash.** Metadata DTOs describe a
 //!    credential (created, expires, last used, revoked) so it can be managed
 //!    without ever exposing the material used to authenticate with it.
@@ -147,8 +147,10 @@ pub struct BootstrapSubmitRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct BootstrapSubmitResponse {
-    /// The state after submission — `Complete` on success.
+    /// The state after submission - `Complete` on success.
     pub state: BootstrapState,
+    /// The account name created by bootstrap.
+    pub username: String,
 }
 
 // =============================================================================
@@ -159,13 +161,50 @@ pub struct BootstrapSubmitResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct LoginRequest {
+    /// The account name. Required even while Operator supports one human account.
+    #[schema(min_length = 1, max_length = 128)]
+    pub username: String,
     /// The admin password. Never persisted in plaintext or logged.
     #[schema(write_only, format = Password, min_length = 12, max_length = 1024)]
     pub password: String,
 }
 
+/// Request recovery instructions without revealing whether an account exists.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ForgotPasswordRequest {
+    #[schema(min_length = 1, max_length = 128)]
+    pub username: String,
+}
+
+/// Generic recovery guidance for a self-hosted Operator deployment.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ForgotPasswordResponse {
+    pub message: String,
+}
+
+/// Change the account password after proving knowledge of the current one.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ResetPasswordRequest {
+    #[schema(min_length = 1, max_length = 128)]
+    pub username: String,
+    #[schema(write_only, format = Password, min_length = 12, max_length = 1024)]
+    pub current_password: String,
+    #[schema(write_only, format = Password, min_length = 12, max_length = 1024)]
+    pub new_password: String,
+}
+
+/// Result of changing the account password.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ResetPasswordResponse {
+    pub changed: bool,
+}
+
 /// Successful login. The session itself rides in a `Set-Cookie` header, not in
-/// this body — a body-borne session identifier would be readable by script.
+/// this body - a body-borne session identifier would be readable by script.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct LoginResponse {
@@ -190,7 +229,7 @@ pub struct LogoutResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CurrentSessionResponse {
-    /// Account name — always `admin`, the single human account.
+    /// Account name - always `admin`, the single human account.
     pub subject: String,
     /// Scopes this credential holds.
     pub scopes: Vec<Scope>,
@@ -341,7 +380,7 @@ pub struct TokenResponse {
 }
 
 /// Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can
-/// interpret it — notably `authorization_pending` and `slow_down`, which a
+/// interpret it - notably `authorization_pending` and `slow_down`, which a
 /// device-flow client polls against.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -361,7 +400,7 @@ pub struct OAuthErrorResponse {
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum OAuthErrorCode {
-    /// The device code is valid but the human has not approved yet — keep polling.
+    /// The device code is valid but the human has not approved yet - keep polling.
     AuthorizationPending,
     /// Polling faster than `interval`; back off.
     SlowDown,
@@ -395,14 +434,14 @@ pub struct CreateAccessKeyRequest {
     /// Scopes to grant. Only what the integration needs.
     #[schema(min_items = 1, max_items = 4)]
     pub scopes: Vec<Scope>,
-    /// Days until the key expires. Expiry is mandatory — there is no
+    /// Days until the key expires. Expiry is mandatory - there is no
     /// non-expiring key.
     #[schema(minimum = 1, maximum = 365)]
     pub expires_in_days: u64,
 }
 
 /// A newly created access key. **The secret appears here and nowhere else,
-/// ever** — only its hash is stored, so it cannot be shown again.
+/// ever** - only its hash is stored, so it cannot be shown again.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateAccessKeyResponse {
@@ -459,7 +498,7 @@ pub struct RevokeAccessKeyResponse {
 // Session and device metadata
 // =============================================================================
 
-/// An active or expired browser session. Carries no session identifier — the
+/// An active or expired browser session. Carries no session identifier - the
 /// cookie value is never readable back out, only the session's `id` for
 /// revocation.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]

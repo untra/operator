@@ -109,7 +109,7 @@ pub enum KanbanProviderKind {
 /// Ephemeral Jira credentials supplied by a client during onboarding.
 ///
 /// These are never persisted to disk by the onboarding endpoints that take
-/// this struct — the actual secret stays in the env var named in
+/// this struct - the actual secret stays in the env var named in
 /// `api_key_env` once set via `/api/v1/kanban/session-env`.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -145,7 +145,7 @@ pub struct GithubCredentials {
     pub token: String,
 }
 
-/// `OpenSpec` source location supplied during onboarding. Not a credential —
+/// `OpenSpec` source location supplied during onboarding. Not a credential -
 /// `OpenSpec` reads local markdown; there is no secret to validate or store.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -203,7 +203,7 @@ pub struct LinearValidationDetailsDto {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct GithubProjectInfoDto {
-    /// `GraphQL` node ID (e.g., `PVT_kwDOABcdefg`) — used as the project key
+    /// `GraphQL` node ID (e.g., `PVT_kwDOABcdefg`) - used as the project key
     pub node_id: String,
     /// Project number (e.g., 42) within the owner
     pub number: i32,
@@ -233,8 +233,8 @@ pub struct GithubValidationDetailsDto {
 
 /// Response from validating kanban credentials.
 ///
-/// `valid: false` is returned for auth failures — never a 4xx/5xx HTTP
-/// status — so clients can display `error` inline without exception handling.
+/// `valid: false` is returned for auth failures - never a 4xx/5xx HTTP
+/// status - so clients can display `error` inline without exception handling.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct ValidateKanbanCredentialsResponse {
@@ -315,7 +315,7 @@ pub struct WriteGithubConfigBody {
     pub owner: String,
     /// Env var name where the project-scoped token is set
     /// (default: `OPERATOR_GITHUB_TOKEN`). MUST be distinct from `GITHUB_TOKEN`
-    /// — see Token Disambiguation in the kanban github docs.
+    /// - see Token Disambiguation in the kanban github docs.
     pub api_key_env: String,
     /// `GraphQL` project node ID (e.g., `PVT_kwDOABcdefg`)
     pub project_key: String,
@@ -340,7 +340,7 @@ pub struct WriteOpenspecConfigBody {
 }
 
 /// Request to list workflow statuses/columns for a specific project using
-/// ephemeral creds (onboarding wizard — before any config is persisted).
+/// ephemeral creds (onboarding wizard - before any config is persisted).
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct ListKanbanStatusesRequest {
@@ -367,7 +367,7 @@ pub struct ListKanbanStatusesResponse {
 
 /// Request to write or upsert a kanban config section.
 ///
-/// This endpoint does NOT take the secret — only the env var NAME
+/// This endpoint does NOT take the secret - only the env var NAME
 /// (`api_key_env`). The secret is set via `/api/v1/kanban/session-env`.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -394,7 +394,7 @@ pub struct WriteKanbanConfigResponse {
     pub section_header: String,
 }
 
-/// Jira session env body — includes the actual secret to set in env.
+/// Jira session env body - includes the actual secret to set in env.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct JiraSessionEnv {
@@ -405,7 +405,7 @@ pub struct JiraSessionEnv {
     pub api_key_env: String,
 }
 
-/// Linear session env body — includes the actual secret to set in env.
+/// Linear session env body - includes the actual secret to set in env.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct LinearSessionEnv {
@@ -414,7 +414,7 @@ pub struct LinearSessionEnv {
     pub api_key_env: String,
 }
 
-/// GitHub Projects session env body — includes the actual secret to set in env.
+/// GitHub Projects session env body - includes the actual secret to set in env.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct GithubSessionEnv {
@@ -440,7 +440,7 @@ pub struct SetKanbanSessionEnvRequest {
 /// Response from setting session env vars.
 ///
 /// `shell_export_block` uses `<your-token>` placeholders, NOT the actual
-/// secret — it is meant for the user to copy into their shell profile.
+/// secret - it is meant for the user to copy into their shell profile.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct SetKanbanSessionEnvResponse {
@@ -578,7 +578,7 @@ mod tests {
 
     #[test]
     fn test_write_config_body_deserializes_without_status_mapping() {
-        // Older clients omit status_mapping — must default to None.
+        // Older clients omit status_mapping - must default to None.
         let json = r#"{
             "domain": "acme.atlassian.net", "email": "a@b.com",
             "api_key_env": "OPERATOR_JIRA_API_KEY",
@@ -601,7 +601,7 @@ mod tests {
 
     #[test]
     fn test_write_kanban_config_body_carries_env_name_not_secret() {
-        // The config-write path stores only the env-var NAME (`api_key_env`) — it
+        // The config-write path stores only the env-var NAME (`api_key_env`) - it
         // must never carry the raw secret. (Contrast with the *SessionEnv bodies
         // below, which deliberately DO carry the secret to set server env.)
         let body = WriteJiraConfigBody {

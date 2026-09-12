@@ -325,7 +325,7 @@ impl SessionMonitor {
                     }
                 }
 
-                // 3. Fallback: Silence flag check (tmux only — cmux/zellij don't have silence monitoring)
+                // 3. Fallback: Silence flag check (tmux only - cmux/zellij don't have silence monitoring)
                 if !detected_awaiting && !is_cmux && !is_zellij {
                     if let Ok(is_silent) = self.tmux.check_silence_flag(&session_name) {
                         if is_silent {
@@ -828,7 +828,8 @@ mod tests {
         mock.add_session("op-STALE-1", "/tmp");
         mock.add_session("op-STALE-2", "/tmp");
 
-        let monitor = SessionMonitor::with_tmux_client(&config, mock.clone());
+        let monitor =
+            SessionMonitor::with_tmux_client(&config, Arc::<MockTmuxClient>::clone(&mock));
 
         // Verify sessions exist
         assert!(mock.session_exists("op-STALE-1").unwrap());
@@ -1057,7 +1058,7 @@ mod tests {
         // Write hook signal to trigger idle detection
         let signal_path = write_hook_signal(&agent_id);
 
-        // Empty worktree — no artifact files
+        // Empty worktree - no artifact files
         let worktree = TempDir::new().unwrap();
 
         let mut artifact_context: HashMap<String, (PathBuf, Vec<String>)> = HashMap::new();
@@ -1106,7 +1107,7 @@ mod tests {
         let mock = Arc::new(MockTmuxClient::new());
         mock.add_session("op-FEAT-ART-3", "/tmp");
         mock.set_session_content("op-FEAT-ART-3", "Actively working...");
-        // No hook signal, no silence flag — agent is NOT idle
+        // No hook signal, no silence flag - agent is NOT idle
 
         // Artifacts exist but agent isn't idle
         let worktree = TempDir::new().unwrap();
@@ -1126,7 +1127,7 @@ mod tests {
         let mut monitor = SessionMonitor::with_tmux_client(&config, mock);
         let result = monitor.check_health(&artifact_context).unwrap();
 
-        // Not idle — artifacts should not be checked
+        // Not idle - artifacts should not be checked
         assert!(
             result.awaiting_input.is_empty(),
             "Session should NOT be in awaiting_input"

@@ -88,15 +88,32 @@ fi
 
 mkdir -p .tickets/operator .tickets/queue
 
-# Bind template values to shell variables so conditionals below are real runtime checks
-config_toml="${CONFIG_TOML}"
+CONFIG_FILE=.tickets/operator/config.toml
+
+# Bind template values to shell variables so conditionals below are real runtime checks.
+# CONFIG_TOML arrives base64-encoded: templatefile() escapes only the interpolation
+# marker, so a raw value's quotes and dollar signs are mangled before reaching the file.
+config_toml_b64="${CONFIG_TOML_B64}"
 agent_template="${AGENT_TEMPLATE}"
 callback_url="${CALLBACK_URL}"
+name_prefix="${NAME_PREFIX}"
+workdir="${WORKDIR}"
+stop_on_complete="${STOP_ON_COMPLETE}"
+create_timeout_secs="${CREATE_TIMEOUT_SECS}"
 
-if [ -n "$config_toml" ]; then
-  echo "$config_toml" > .tickets/operator/config.toml
+append_kv() {
+  [ -n "$2" ] || return 0
+  if [ "$3" = quoted ]; then
+    echo "$1 = \"$2\"" >> "$CONFIG_FILE"
+  else
+    echo "$1 = $2" >> "$CONFIG_FILE"
+  fi
+}
+
+if [ -n "$config_toml_b64" ]; then
+  printf '%s' "$config_toml_b64" | base64 -d > "$CONFIG_FILE"
 else
-  cat > .tickets/operator/config.toml <<CONF
+  cat > "$CONFIG_FILE" <<CONF
 [rest_api]
 enabled = true
 port = ${PORT}
@@ -109,7 +126,7 @@ wrapper = "${SESSION_WRAPPER}"
 CONF
 
   if [ -n "$agent_template" ]; then
-    cat >> .tickets/operator/config.toml <<CONF
+    cat >> "$CONFIG_FILE" <<CONF
 
 [[targets]]
 name = "coder-agents"
@@ -117,9 +134,11 @@ kind = "coder"
 template = "$agent_template"
 token_env = "${CODER_TOKEN_ENV}"
 CONF
-    if [ -n "$callback_url" ]; then
-      echo "callback_url = \"$callback_url\"" >> .tickets/operator/config.toml
-    fi
+    append_kv callback_url "$callback_url" quoted
+    append_kv name_prefix "$name_prefix" quoted
+    append_kv workdir "$workdir" quoted
+    append_kv stop_on_complete "$stop_on_complete" bare
+    append_kv create_timeout_secs "$create_timeout_secs" bare
   fi
 fi
 

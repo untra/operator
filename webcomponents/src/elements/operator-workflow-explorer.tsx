@@ -30,7 +30,7 @@ interface Manifest {
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${url}`);
+  if (!response.ok) {throw new Error(`${response.status} ${response.statusText} for ${url}`);}
   return (await response.json()) as T;
 }
 
@@ -44,10 +44,12 @@ function Explorer({ base, initial }: { base: string; initial?: string | null }) 
     let cancelled = false;
     fetchJson<Manifest>(`${base}collection.json`)
       .then((manifest) => {
-        if (cancelled) return;
-        const list = manifest.issue_types ?? [];
-        setEntries(list);
-        setSelected((current) => current ?? list[0]?.key ?? null);
+        if (!cancelled) {
+          const list = manifest.issue_types ?? [];
+          setEntries(list);
+          setSelected((current) => current ?? list[0]?.key ?? null);
+        }
+        return undefined;
       })
       .catch((e: Error) => !cancelled && setError(e.message));
     return () => {
@@ -56,18 +58,24 @@ function Explorer({ base, initial }: { base: string; initial?: string | null }) 
   }, [base]);
 
   useEffect(() => {
-    if (!entries || !selected) return;
+    if (!entries || !selected) {return undefined;}
     const entry = entries.find((e) => e.key === selected);
-    if (!entry) return;
+    if (!entry) {return undefined;}
     let cancelled = false;
-    setDocument(null);
     fetchJson<IssueType>(`${base}${entry.schema_path}`)
-      .then((doc) => !cancelled && setDocument(doc))
+      .then((doc) => {
+        if (!cancelled) {
+          setDocument(doc);
+        }
+        return undefined;
+      })
       .catch((e: Error) => !cancelled && setError(e.message));
     return () => {
       cancelled = true;
     };
   }, [base, entries, selected]);
+
+  const selectedDocument = document_?.key === selected ? document_ : null;
 
   if (error) {
     return <div className="workflow-explorer-error">Could not load this collection: {error}</div>;
@@ -95,16 +103,16 @@ function Explorer({ base, initial }: { base: string; initial?: string | null }) 
         </ul>
       </nav>
       <div className="workflow-explorer-canvas">
-        {document_ ? (
+        {selectedDocument ? (
           <>
             <h3 className="workflow-explorer-title">
-              {document_.name} <code>{document_.key}</code>
+              {selectedDocument.name} <code>{selectedDocument.key}</code>
             </h3>
-            {document_.description && (
-              <p className="workflow-explorer-description">{document_.description}</p>
+            {selectedDocument.description && (
+              <p className="workflow-explorer-description">{selectedDocument.description}</p>
             )}
             {/* The docs prose column is narrow; vertical keeps labels legible. */}
-            <WorkflowGraph issueType={document_} vertical />
+            <WorkflowGraph issueType={selectedDocument} vertical />
           </>
         ) : (
           <div className="workflow-explorer-loading">Loading workflow…</div>
@@ -118,7 +126,7 @@ export class OperatorWorkflowExplorer extends HTMLElement {
   private root?: Root;
 
   connectedCallback() {
-    if (this.root) return;
+    if (this.root) {return;}
     const base = this.getAttribute('base');
     if (!base) {
       this.textContent = 'operator-workflow-explorer: missing required "base" attribute.';

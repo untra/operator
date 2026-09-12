@@ -126,7 +126,7 @@ fn adhoc_model_server_env(
     Ok(crate::api::providers::model_server::env_for_server(&server))
 }
 
-/// Resolve the execution target for a launch — the one pure decision point.
+/// Resolve the execution target for a launch.
 ///
 /// Precedence:
 /// 1. `target` name set → look up (explicit `[[targets]]`, builtin
@@ -163,7 +163,7 @@ pub fn resolve_target(
             if lc.docker == Some(true) {
                 HOST_WINS.call_once(|| {
                     tracing::warn!(
-                        "launch_config sets both `docker` and `host` (deprecated); host wins — \
+                        "launch_config sets both `docker` and `host` (deprecated); host wins - \
                          migrate to `target`"
                     );
                 });
@@ -331,7 +331,7 @@ pub fn resolve_launch_options(
                 apply_delegator_launch_config(&mut options, &delegator.launch_config, config)?;
                 return Ok(options);
             }
-            // Step agent name doesn't match any delegator — fall through
+            // Step agent name doesn't match any delegator - fall through
         }
 
         // 3. Issuetype-level agent
@@ -386,7 +386,7 @@ pub fn resolve_launch_options(
         return Ok(options);
     }
 
-    // 5. No explicit selection — resolve default delegator
+    // 5. No explicit selection - resolve default delegator
     if let Some(delegator) = resolve_default_delegator(config) {
         options.provider = Some(delegator_to_provider(config, delegator)?);
         options.delegator_name = Some(delegator.name.clone());
@@ -394,7 +394,7 @@ pub fn resolve_launch_options(
         return Ok(options);
     }
 
-    // 6. No delegators at all — fall back to default tool/model or first detected
+    // 6. No delegators at all - fall back to default tool/model or first detected
     let tool = config
         .llm_tools
         .default_tool
@@ -788,7 +788,7 @@ mod tests {
 
     #[test]
     fn resolve_remote_only_is_platform_agnostic() {
-        // The guard fires for any platform, not just AGNT — an OpenAI Assistant
+        // The guard fires for any platform, not just AGNT - an OpenAI Assistant
         // delegator is equally export-only. Proves the generalization.
         let mut config = Config::default();
         let mut d = make_delegator("openai-reviewer", "openai", "gpt-4o");
@@ -817,7 +817,7 @@ mod tests {
     #[test]
     fn resolve_remote_only_step_agent_errors() {
         // The guard sits in the single resolution choke point, so the step-agent
-        // path errors too — proving the export-only contract holds on every path.
+        // path errors too - proving the export-only contract holds on every path.
         let mut config = Config::default();
         let mut d = make_delegator("agnt-researcher", "anthropic", "claude-3-5-sonnet");
         d.remote_agent = Some(crate::config::RemoteAgentRef {

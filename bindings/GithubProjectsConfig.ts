@@ -6,7 +6,7 @@ import type { ProjectSyncConfig } from "./ProjectSyncConfig";
  *
  * The owner login (user or org) is specified as the `HashMap` key in
  * `KanbanConfig.github`. Project keys inside `projects` are `GraphQL` node
- * IDs (e.g., `PVT_kwDOABcdefg`) — opaque, stable identifiers used directly
+ * IDs (e.g., `PVT_kwDOABcdefg`) - opaque, stable identifiers used directly
  * by every GitHub Projects v2 mutation without needing a lookup.
  *
  * **Distinct from `GitHubConfig`** (the git provider used for PR/branch
@@ -23,7 +23,7 @@ enabled: boolean,
 /**
  * Environment variable name containing the GitHub token (default:
  * `OPERATOR_GITHUB_TOKEN`). The token must have `project` (or
- * `read:project`) scope, NOT just `repo` — see the disambiguation
+ * `read:project`) scope, NOT just `repo` - see the disambiguation
  * guide in the kanban github docs.
  */
 api_key_env: string, 

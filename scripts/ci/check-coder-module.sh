@@ -27,7 +27,7 @@ VARS='
     PORT            = 7008,
     INSTALL_PREFIX  = "/tmp/operator",
     LOG_PATH        = "/tmp/operator.log",
-    CONFIG_TOML     = "",
+    CONFIG_TOML_B64 = "",
     MAX_PARALLEL    = 2,
     SESSION_WRAPPER = "tmux",
     OFFLINE         = false,
@@ -35,6 +35,32 @@ VARS='
     AGENT_TEMPLATE  = "operator-agent",
     CODER_TOKEN_ENV = "CODER_SESSION_TOKEN",
     CALLBACK_URL    = "",
+    NAME_PREFIX     = "",
+    WORKDIR         = "",
+    STOP_ON_COMPLETE    = "",
+    CREATE_TIMEOUT_SECS = "",
+'
+
+# Second pass: every optional branch populated, and a config_toml carrying the
+# quotes and `$` that the base64 hand-off exists to protect. Rendering only the
+# empty case is how a value-mangling bug stays invisible to bash -n.
+VARS_POPULATED='
+    VERSION         = "0.0.0",
+    PORT            = 7008,
+    INSTALL_PREFIX  = "/tmp/operator",
+    LOG_PATH        = "/tmp/operator.log",
+    CONFIG_TOML_B64 = base64encode("[sessions]\nwrapper = \"tmux\"\nhome = \"$HOME\"\n"),
+    MAX_PARALLEL    = 2,
+    SESSION_WRAPPER = "tmux",
+    OFFLINE         = false,
+    USE_CACHED      = false,
+    AGENT_TEMPLATE  = "operator-agent",
+    CODER_TOKEN_ENV = "CODER_SESSION_TOKEN",
+    CALLBACK_URL    = "https://operator.example.com",
+    NAME_PREFIX     = "op",
+    WORKDIR         = "/home/coder/proj",
+    STOP_ON_COMPLETE    = "true",
+    CREATE_TIMEOUT_SECS = "600",
 '
 
 extract_keys() {
@@ -54,18 +80,23 @@ fi
 RENDER="$(mktemp -d)"
 trap 'rm -rf "$RENDER"' EXIT
 
-cat > "$RENDER/main.tf" <<EOF
+render_and_check() {
+  local label="$1" vars="$2" dir="$RENDER/$1"
+  mkdir -p "$dir"
+  cat > "$dir/main.tf" <<EOF
 output "s" {
   value = templatefile("$RUN_SH", {
-$VARS
+$vars
   })
 }
 EOF
+  "$TF" -chdir="$dir" init -input=false >/dev/null
+  "$TF" -chdir="$dir" apply -auto-approve -input=false >/dev/null
+  "$TF" -chdir="$dir" output -raw s > "$dir/rendered.sh"
+  bash -n "$dir/rendered.sh"
+  shellcheck -S error "$dir/rendered.sh"
+  echo "coder-module rendered startup script OK ($label)"
+}
 
-"$TF" -chdir="$RENDER" init -input=false >/dev/null
-"$TF" -chdir="$RENDER" apply -auto-approve -input=false >/dev/null
-"$TF" -chdir="$RENDER" output -raw s > "$RENDER/rendered.sh"
-
-bash -n "$RENDER/rendered.sh"
-shellcheck -S error "$RENDER/rendered.sh"
-echo "coder-module rendered startup script OK"
+render_and_check defaults "$VARS"
+render_and_check populated "$VARS_POPULATED"

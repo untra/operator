@@ -742,19 +742,19 @@ mod tests {
     #[test]
     fn configured_gitea_host_is_exact_and_supports_ssh_and_https() {
         let mut config = crate::config::GitConfig::default();
-        config.gitea.host = Some("gitea.kube.untra.casa".into());
+        config.gitea.host = Some("gitea.kube.untra.io".into());
         let hosts = ProviderHosts::from_config(&config).unwrap();
         for remote in [
-            "https://GITEA.KUBE.UNTRA.CASA/team/repo.git",
-            "git@gitea.kube.untra.casa:team/repo.git",
-            "ssh://git@gitea.kube.untra.casa:2222/team/repo.git",
+            "https://GITEA.KUBE.UNTRA.io/team/repo.git",
+            "git@gitea.kube.untra.io:team/repo.git",
+            "ssh://git@gitea.kube.untra.io:2222/team/repo.git",
         ] {
             let repo = RepoInfo::from_remote_url_with_hosts(remote, &hosts).unwrap();
             assert_eq!(repo.provider, GitProvider::Gitea);
             assert_eq!(repo.full_name(), "team/repo");
         }
         assert!(GitProvider::from_remote_url_with_hosts(
-            "https://gitea.kube.untra.casa.evil/team/repo",
+            "https://gitea.kube.untra.io.evil/team/repo",
             &hosts
         )
         .is_none());

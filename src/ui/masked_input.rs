@@ -5,8 +5,8 @@
 //! rather than hand-roll a third `String` + cursor pair.
 //!
 //! The cursor is a **character** index, not a byte index. The original code
-//! mixed the two — incrementing the cursor per character while indexing the
-//! `String` by byte — so any multi-byte character panicked on the next edit.
+//! mixed the two - incrementing the cursor per character while indexing the
+//! `String` by byte - so any multi-byte character panicked on the next edit.
 //! Passwords are exactly where someone types an accented character or an emoji,
 //! and `validate_password` counts characters too
 //! (`crate::auth::password::validate_password`), so characters are the unit
@@ -43,7 +43,7 @@ impl MaskedInput {
         self.value.is_empty()
     }
 
-    /// Length in characters — what the cursor and any length rule count in.
+    /// Length in characters - what the cursor and any length rule count in.
     pub fn char_count(&self) -> usize {
         self.value.chars().count()
     }
@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_char_count_counts_characters_not_bytes() {
-        // A password rule counts characters, so the mask length must too —
+        // A password rule counts characters, so the mask length must too -
         // otherwise "éé" would render four bullets for two typed characters.
         let input = typed("éé🔐");
         assert_eq!(input.char_count(), 3);

@@ -1,7 +1,7 @@
 //! ACP agent status/count handle for the dashboard.
 //!
 //! Unlike [`crate::rest::server::RestApiServer`], this is **not** a listener
-//! lifecycle — editor-spawned `operator acp` runs in a separate stdio
+//! lifecycle - editor-spawned `operator acp` runs in a separate stdio
 //! subprocess that the TUI never hosts. [`AcpAgentServer`] just records
 //! whether ACP is advertised in the dashboard and how many sessions are
 //! currently active (always `0` in v1, since out-of-process ACP runs don't
@@ -18,7 +18,7 @@ use crate::config::Config;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AcpAgentStatus {
-    /// `[acp].stdio_advertised = false` — operator is intentionally not
+    /// `[acp].stdio_advertised = false` - operator is intentionally not
     /// advertising itself as an ACP agent.
     Disabled,
     /// Advertised. No active sessions are visible to the TUI (the editor

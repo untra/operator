@@ -1,11 +1,11 @@
 //! Zed Extension for Operator
 //!
 //! Provides three integration layers:
-//! 1. MCP context server — registers `operator mcp` so Zed's agent panel
+//! 1. MCP context server - registers `operator mcp` so Zed's agent panel
 //!    has native access to all operator tools and ticket resources.
-//! 2. ACP agent setup — `/op-setup-agent` generates the config snippet
+//! 2. ACP agent setup - `/op-setup-agent` generates the config snippet
 //!    for Zed's `agent_servers` settings.
-//! 3. Slash commands — thin AI/human inference layer for quick operations
+//! 3. Slash commands - thin AI/human inference layer for quick operations
 //!    with tab completion.
 
 use serde::Deserialize;
@@ -445,15 +445,15 @@ impl OperatorExtension {
         lines.push("## Operator Setup Status\n".to_string());
 
         // 1. Extension installed (always true if we're running)
-        lines.push("- [x] **Extension installed** — Operator Zed extension v0.2.0".to_string());
+        lines.push("- [x] **Extension installed** - Operator Zed extension v0.2.0".to_string());
 
         // 2. Binary found?
         match find_operator_binary_oneshot(worktree) {
             Some(path) => {
-                lines.push(format!("- [x] **Binary found** — `{}`", path));
+                lines.push(format!("- [x] **Binary found** - `{}`", path));
             }
             None => {
-                lines.push("- [ ] **Binary not found** — `operator` is not on PATH".to_string());
+                lines.push("- [ ] **Binary not found** - `operator` is not on PATH".to_string());
                 next_steps.push(
                     "Install operator: download from https://github.com/untra/operator/releases/latest"
                         .to_string(),
@@ -466,16 +466,16 @@ impl OperatorExtension {
             Ok(json) => {
                 if let Ok(health) = serde_json::from_str::<HealthResponse>(&json) {
                     lines.push(format!(
-                        "- [x] **API server running** — v{}, {} queued, {} active",
+                        "- [x] **API server running** - v{}, {} queued, {} active",
                         health.version, health.queue_count, health.active_agents
                     ));
                 } else {
-                    lines.push("- [x] **API server running** — connected".to_string());
+                    lines.push("- [x] **API server running** - connected".to_string());
                 }
             }
             Err(_) => {
                 lines.push(format!(
-                    "- [ ] **API server not running** — could not reach `{}`",
+                    "- [ ] **API server not running** - could not reach `{}`",
                     self.api_url
                 ));
                 next_steps.push("Start the Operator server: `operator api`".to_string());
@@ -484,23 +484,23 @@ impl OperatorExtension {
 
         // 4. MCP context server (always active if extension is loaded)
         lines.push(
-            "- [x] **MCP context server** — active (tools available in Agent Panel)".to_string(),
+            "- [x] **MCP context server** - active (tools available in Agent Panel)".to_string(),
         );
 
-        if !next_steps.is_empty() {
+        if next_steps.is_empty() {
+            lines.push(
+                "\nAll prerequisites met. Use `/op-help` to see available commands.".to_string(),
+            );
+        } else {
             lines.push("\n### Next Steps\n".to_string());
             for (i, step) in next_steps.iter().enumerate() {
                 lines.push(format!("{}. {}", i + 1, step));
             }
-        } else {
-            lines.push(
-                "\nAll prerequisites met. Use `/op-help` to see available commands.".to_string(),
-            );
         }
 
-        // ACP is optional — show as a tip, not a checkbox
+        // ACP is optional - show as a tip, not a checkbox
         lines.push(
-            "\n> **Tip — ACP agent (optional):** Run `/op-setup-agent` to enable AI-to-Operator prompt delegation via `~/.config/zed/settings.json`."
+            "\n> **Tip - ACP agent (optional):** Run `/op-setup-agent` to enable AI-to-Operator prompt delegation via `~/.config/zed/settings.json`."
                 .to_string(),
         );
 

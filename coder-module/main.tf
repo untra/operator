@@ -38,7 +38,7 @@ variable "slug" {
 variable "install_version" {
   type        = string
   description = "The version of operator to install (must match a GitHub release tag)."
-  default     = "0.2.7"
+  default     = "0.2.8"
 }
 
 variable "install_prefix" {
@@ -59,6 +59,31 @@ variable "config_toml" {
   default     = ""
 }
 
+# Optional coder-target knobs. Empty/null means "leave it out of the generated config"
+variable "name_prefix" {
+  type        = string
+  description = "Workspace name prefix for deterministic per-ticket naming. Empty uses Operator's default."
+  default     = ""
+}
+
+variable "workdir" {
+  type        = string
+  description = "Project root inside spawned agent workspaces. Empty uses Operator's default."
+  default     = ""
+}
+
+variable "stop_on_complete" {
+  type        = bool
+  description = "Stop a spawned workspace when its ticket completes (never deletes). Null uses Operator's default."
+  default     = null
+}
+
+variable "create_timeout_secs" {
+  type        = number
+  description = "Bound on workspace create plus agent-ready wait, in seconds. Null uses Operator's default."
+  default     = null
+}
+
 variable "max_parallel_agents" {
   type        = number
   description = "Maximum number of parallel agents operator can run."
@@ -76,8 +101,9 @@ variable "session_wrapper" {
 }
 
 variable "share" {
-  type    = string
-  default = "owner"
+  type        = string
+  description = "Dashboard sharing level for the Operator app."
+  default     = "owner"
   validation {
     condition     = contains(["owner", "authenticated", "public"], var.share)
     error_message = "share must be one of: owner, authenticated, public."
@@ -134,18 +160,22 @@ resource "coder_script" "operator" {
   display_name = "Operator"
   icon         = "/icon/terminal.svg"
   script = templatefile("${path.module}/run.sh", {
-    VERSION         = var.install_version,
-    PORT            = var.port,
-    INSTALL_PREFIX  = var.install_prefix,
-    LOG_PATH        = var.log_path,
-    CONFIG_TOML     = var.config_toml,
-    MAX_PARALLEL    = var.max_parallel_agents,
-    SESSION_WRAPPER = var.session_wrapper,
-    OFFLINE         = var.offline,
-    USE_CACHED      = var.use_cached,
-    AGENT_TEMPLATE  = var.agent_template,
-    CODER_TOKEN_ENV = var.coder_token_env,
-    CALLBACK_URL    = var.callback_url,
+    VERSION             = var.install_version,
+    PORT                = var.port,
+    INSTALL_PREFIX      = var.install_prefix,
+    LOG_PATH            = var.log_path,
+    CONFIG_TOML_B64     = base64encode(var.config_toml),
+    MAX_PARALLEL        = var.max_parallel_agents,
+    SESSION_WRAPPER     = var.session_wrapper,
+    OFFLINE             = var.offline,
+    USE_CACHED          = var.use_cached,
+    AGENT_TEMPLATE      = var.agent_template,
+    CODER_TOKEN_ENV     = var.coder_token_env,
+    CALLBACK_URL        = var.callback_url,
+    NAME_PREFIX         = var.name_prefix,
+    WORKDIR             = var.workdir,
+    STOP_ON_COMPLETE    = var.stop_on_complete == null ? "" : tostring(var.stop_on_complete),
+    CREATE_TIMEOUT_SECS = var.create_timeout_secs == null ? "" : tostring(var.create_timeout_secs),
   })
   run_on_start = true
 

@@ -824,8 +824,6 @@ impl State {
             .collect()
     }
 
-    // ─── LLM Stats Methods ────────────────────────────────────────────────────
-
     /// Complete an agent and record LLM usage statistics
     pub fn complete_agent_with_stats(
         &mut self,

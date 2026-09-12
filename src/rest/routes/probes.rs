@@ -2,7 +2,7 @@
 //!
 //! These exist as a separate, public pair precisely so `/api/v1/health` does
 //! not have to be. That endpoint reports the workspace directory name and a
-//! directory identifier — workspace identity, which an unauthenticated probe
+//! directory identifier - workspace identity, which an unauthenticated probe
 //! should not disclose. These two carry no metadata at all: the HTTP status is
 //! the entire signal.
 
@@ -16,7 +16,7 @@ use crate::rest::state::ApiState;
 ///
 /// Answers only "is the process serving HTTP". It deliberately does not touch
 /// the database: a liveness failure restarts the pod, and restarting will not
-/// fix a corrupt database — it would just crash-loop.
+/// fix a corrupt database - it would just crash-loop.
 #[utoipa::path(
     operation_id = "livez",
     get,

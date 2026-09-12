@@ -6,11 +6,11 @@
  */
 
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 // smol-toml is ESM-only, must use dynamic import
 async function importSmolToml() {
-  return await import('smol-toml');
+  return  import('smol-toml');
 }
 import { detectInstalledLlmTools } from './walkthrough';
 import {
@@ -71,7 +71,7 @@ export class ConfigPanel {
     const panel = vscode.window.createWebviewPanel(
       'operatorSettings',
       'Operator Settings',
-      column || vscode.ViewColumn.One,
+      column ?? vscode.ViewColumn.One,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
@@ -626,12 +626,12 @@ export const KANBAN_PROVIDERS: Record<string, KanbanProviderMeta> = {
 export const KANBAN_PROVIDER_SLUGS: string[] = Object.keys(KANBAN_PROVIDERS);
 
 /** Project-level fields written into the first project sub-table by shorthand. */
-const KANBAN_PROJECT_LEVEL_KEYS = [
+const KANBAN_PROJECT_LEVEL_KEYS = new Set([
   'status_mapping',
   'collection_name',
   'sync_user_id',
   'type_mappings',
-];
+]);
 
 /**
  * Apply a single field update to a kanban provider's sub-table (mutates
@@ -680,7 +680,7 @@ export function applyKanbanProviderField(
     } else {
       projects[value as string] = { sync_user_id: '' };
     }
-  } else if (KANBAN_PROJECT_LEVEL_KEYS.includes(key)) {
+  } else if (KANBAN_PROJECT_LEVEL_KEYS.has(key)) {
     // Write to the first project sub-table
     if (!ws.projects) { ws.projects = {}; }
     const projects = ws.projects as TomlConfig;

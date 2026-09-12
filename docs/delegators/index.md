@@ -138,11 +138,11 @@ variables, and the token variable is stripped from every agent's spawn
 environment on all target kinds. **Blast radius:** a Coder session token can
 create, delete, and SSH into every workspace its user owns - scope accordingly.
 
-Known limitation: prompt files are written on the operator side, so a coder
-target currently requires the workspace to reach them (e.g. Operator itself
-running inside a Coder workspace via the
-[coder module](/getting-started/platforms/coder/)); `callback_url` keeps
-multi-step chains reporting when the SSH tunnel drops.
+No shared filesystem is required: the prompt and command payload are written on the operator side and pushed over SSH into the workspace before the session starts, so Operator can drive Coder from anywhere it can reach the deployment - a [Kubernetes deployment](/getting-started/platforms/kubernetes/#coder-targets), a server, or a laptop.
+`callback_url` keeps multi-step chains reporting when the SSH tunnel drops.
+
+The `coder` CLI is resolved from `PATH`, then a cache in the state directory, and is otherwise downloaded from the deployment itself - so nothing has to be baked into an image and the CLI cannot drift from the server. `ssh` does have to be present. Keep `url_env` and `token_env` at their default names unless you have a reason not to: the SSH `ProxyCommand` runs the CLI as a subprocess, and
+it reads `CODER_URL` / `CODER_SESSION_TOKEN` from the environment it inherits.
 
 Remote constraints for ssh and coder targets: worktrees and relay MCP
 injection are forced off, and the zellij session wrapper is unsupported. See

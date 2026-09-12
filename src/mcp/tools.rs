@@ -101,7 +101,7 @@ pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
         },
         McpToolDefinition {
             name: "operator_list_tickets".to_string(),
-            description: "List tickets in the operator queue. Filter by status: queue, in-progress, completed. Returns id, project, type, summary, priority, branch, and external links — not body content.".to_string(),
+            description: "List tickets in the operator queue. Filter by status: queue, in-progress, completed. Returns id, project, type, summary, priority, branch, and external links - not body content.".to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {

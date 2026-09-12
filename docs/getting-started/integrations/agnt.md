@@ -88,8 +88,7 @@ plugin via AGNT's MCP settings:
 
 This surfaces Operator's ~18 MCP tools in AGNT immediately. The plugin's
 advantages over the raw bridge are first-class canvas nodes with typed
-parameters and marketplace discoverability — but the bridge is zero-build and
-the same `operator mcp` server works with any MCP-capable platform.
+parameters and marketplace discoverability - but the bridge is zero-build and the same `operator mcp` server works with any MCP-capable platform.
 
 ## Trust & permissions
 

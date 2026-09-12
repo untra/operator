@@ -7,7 +7,7 @@ import type { OpenspecSourceDto } from "./OpenspecSourceDto";
 
 /**
  * Request to list workflow statuses/columns for a specific project using
- * ephemeral creds (onboarding wizard — before any config is persisted).
+ * ephemeral creds (onboarding wizard - before any config is persisted).
  */
 export type ListKanbanStatusesRequest = { provider: KanbanProviderKind, 
 /**

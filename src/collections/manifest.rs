@@ -19,7 +19,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 
 /// Provenance tier of a collection: who authored and maintains it.
 ///
-/// Orthogonal to distribution — curated community-authored collections may
+/// Orthogonal to distribution - curated community-authored collections may
 /// ship embedded in the binary, while community submissions under
 /// `collections/community/` are hosted-only.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

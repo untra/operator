@@ -500,7 +500,7 @@ impl SetupScreen {
 
     /// Validate the password fields.
     ///
-    /// `Ok(None)` means the step was skipped — both fields empty. The step is
+    /// `Ok(None)` means the step was skipped - both fields empty. The step is
     /// optional, so an empty pair is a deliberate choice, not an error.
     /// `Err(message)` is shown inline and keeps the wizard on this step.
     fn validate_admin_password(&self) -> Result<Option<String>, String> {
@@ -830,7 +830,7 @@ impl SetupScreen {
             return;
         }
 
-        match self.step.clone() {
+        match self.step {
             SetupStep::Welcome => self.render_welcome_step(frame),
             SetupStep::CollectionSource => self.render_collection_source_step(frame),
             SetupStep::HostedCollectionFetch => self.render_hosted_collection_step(frame),

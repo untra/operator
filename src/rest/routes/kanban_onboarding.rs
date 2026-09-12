@@ -1,6 +1,6 @@
 //! Kanban onboarding REST endpoints.
 //!
-//! Thin wrappers around `services::kanban_onboarding` — each handler
+//! Thin wrappers around `services::kanban_onboarding` - each handler
 //! deserializes its DTO, delegates to the service, and serializes the
 //! response. Business logic lives in the service module.
 
@@ -88,7 +88,7 @@ pub async fn list_statuses(
 /// PUT /`api/v1/kanban/config`
 ///
 /// Write or upsert a kanban provider+project section into `config.toml`.
-/// Does NOT receive the actual secret — only the env var name (`api_key_env`).
+/// Does NOT receive the actual secret - only the env var name (`api_key_env`).
 #[utoipa::path(
     put,
     path = "/api/v1/kanban/config",

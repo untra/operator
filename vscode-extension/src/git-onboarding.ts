@@ -8,9 +8,9 @@
  */
 
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import * as fs from 'node:fs/promises';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { getConfigDir, getResolvedConfigPath, resolveWorkingDirectory } from './config-paths';
 import { showEnvVarInstructions } from './kanban-onboarding';
 

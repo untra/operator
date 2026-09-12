@@ -283,9 +283,8 @@ type Resolver =
 ///
 /// `provider_name()`, `check_available()`, and `get_authenticated_user()`
 /// take no `RepoInfo`, so there's no per-call provider to route on. They
-/// fall back to GitHub (the pre-router default) — `provider_name()` reports
-/// `"auto"` so callers can tell it's the router rather than a concrete
-/// provider.
+/// fall back to GitHub (the pre-router default) - `provider_name()` reports
+/// `"auto"` so callers can tell it's the router rather than a concrete provider.
 pub struct PrServiceRouter {
     default_provider: GitProvider,
     resolve: Resolver,
@@ -298,7 +297,7 @@ impl PrServiceRouter {
     ) -> Self {
         let git = config.git.clone();
         Self {
-            default_provider: git.provider.clone().map(Into::into).unwrap_or_default(),
+            default_provider: git.provider.map(Into::into).unwrap_or_default(),
             resolve: Box::new(move |provider| {
                 let service = pr_service_for(provider, &git)?;
                 let auth = match provider {
@@ -775,7 +774,7 @@ mod tests {
     fn router_with_mocks(calls: Arc<AtomicUsize>) -> PrServiceRouter {
         let github: Arc<dyn PrService> = Arc::new(MockPrService {
             provider: "github",
-            calls: calls.clone(),
+            calls: Arc::clone(&calls),
         });
         let gitlab: Arc<dyn PrService> = Arc::new(MockPrService {
             provider: "gitlab",
@@ -783,8 +782,8 @@ mod tests {
         });
 
         PrServiceRouter::with_resolver(move |provider| match provider {
-            GitProvider::GitHub => Ok(github.clone()),
-            GitProvider::GitLab => Ok(gitlab.clone()),
+            GitProvider::GitHub => Ok(Arc::clone(&github)),
+            GitProvider::GitLab => Ok(Arc::clone(&gitlab)),
             other => Err(UnsupportedProviderError { provider: other }),
         })
     }
@@ -792,7 +791,7 @@ mod tests {
     #[tokio::test]
     async fn test_router_dispatches_to_github_mock() {
         let calls = Arc::new(AtomicUsize::new(0));
-        let router = router_with_mocks(calls.clone());
+        let router = router_with_mocks(Arc::clone(&calls));
         let repo = RepoInfo::new(GitProvider::GitHub, "owner", "repo");
 
         let pr = router.get_pr(&repo, 1).await.unwrap();
@@ -804,7 +803,7 @@ mod tests {
     #[tokio::test]
     async fn test_router_dispatches_to_gitlab_mock() {
         let calls = Arc::new(AtomicUsize::new(0));
-        let router = router_with_mocks(calls.clone());
+        let router = router_with_mocks(Arc::clone(&calls));
         let repo = RepoInfo::new(GitProvider::GitLab, "owner", "repo");
 
         let pr = router.get_pr(&repo, 2).await.unwrap();

@@ -21,7 +21,7 @@ fn exe_string() -> String {
     current_exe().to_string_lossy().into_owned()
 }
 
-/// Zed `~/.config/zed/settings.json` — `agent_servers` block.
+/// Zed `~/.config/zed/settings.json` - `agent_servers` block.
 pub fn zed_snippet() -> Value {
     json!({
         "agent_servers": {
@@ -44,7 +44,7 @@ pub fn jetbrains_snippet() -> Value {
     })
 }
 
-/// Emacs `agent-shell` — elisp form to add to your init file.
+/// Emacs `agent-shell` - elisp form to add to your init file.
 pub fn emacs_snippet() -> String {
     format!(
         "(add-to-list 'agent-shell-acp-agents\n  '(:name \"operator\" :command \"{}\" :args (\"acp\")))",

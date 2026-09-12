@@ -7,7 +7,7 @@
 //! credentials; pointed at an internal address, it is a port scanner with a
 //! bearer token.
 //!
-//! Authentication and scopes are the first control — probing needs `execute`,
+//! Authentication and scopes are the first control - probing needs `execute`,
 //! changing a URL needs `admin`. This module is the second: even an authorized
 //! caller cannot aim Operator at the loopback interface, link-local space, or
 //! the cloud metadata endpoint.
@@ -33,7 +33,7 @@ const ALLOWED_SCHEMES: &[&str] = &["http", "https"];
 pub struct EgressPolicy {
     /// Permit loopback destinations.
     ///
-    /// On by default because Operator's normal local workflow talks to `localhost` model servers — Ollama, LM Studio, an OpenAI-compatible proxy.
+    /// On by default because Operator's normal local workflow talks to `localhost` model servers - Ollama, LM Studio, an OpenAI-compatible proxy.
     /// It is turned **off** in a published deployment, where loopback means the container's own interfaces rather than the user's laptop.
     pub allow_loopback: bool,
     /// Permit RFC 1918 / unique-local addresses, for a self-hosted provider on the same network.
@@ -133,7 +133,7 @@ pub fn check_addr(ip: IpAddr, policy: &EgressPolicy) -> Result<()> {
 /// A hostname is *not* resolved here. DNS resolution followed by a separate
 /// connection is a time-of-check/time-of-use gap (DNS rebinding), so the
 /// authoritative check is [`check_addr`] applied to the address actually
-/// connected to — see [`validated_client`].
+/// connected to - see [`validated_client`].
 pub fn check_url(url: &Url, policy: &EgressPolicy) -> Result<()> {
     if !ALLOWED_SCHEMES.contains(&url.scheme()) {
         return Err(anyhow!(
@@ -144,7 +144,7 @@ pub fn check_url(url: &Url, policy: &EgressPolicy) -> Result<()> {
 
     // Match on the parsed host rather than the string. `host_str()` renders an
     // IPv6 literal in its bracketed form (`[::1]`), which does not parse as an
-    // `IpAddr` — so string-parsing silently treated every IPv6 literal as a hostname and skipped the address checks entirely.
+    // `IpAddr` - so string-parsing silently treated every IPv6 literal as a hostname and skipped the address checks entirely.
     match url.host() {
         Some(url::Host::Ipv4(v4)) => check_addr(IpAddr::V4(v4), policy),
         Some(url::Host::Ipv6(v6)) => check_addr(IpAddr::V6(v6), policy),

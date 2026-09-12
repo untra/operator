@@ -26,7 +26,7 @@ export interface OperatorWorkflowGraph {
 }
 
 /** Step types that run a model. Everything else gets a distinct node kind. */
-const AGENT_STEP_TYPES: StepTypeTag[] = [
+const AGENT_STEP_TYPES: ReadonlySet<StepTypeTag> = new Set([
   'task',
   'classifier',
   'rag',
@@ -36,7 +36,7 @@ const AGENT_STEP_TYPES: StepTypeTag[] = [
   'multi_prompt',
   'matrixed',
   'pipeline',
-];
+]);
 
 /**
  * A step's type, defaulting the way serde does.
@@ -66,7 +66,9 @@ export function orderedSteps(steps: StepSchema[]): StepSchema[] {
 
   let current: StepSchema | undefined = steps[0];
   while (current) {
-    if (seen.has(current.name)) break;
+    if (seen.has(current.name)) {
+      break;
+    }
     seen.add(current.name);
     order.push(current);
     current = current.next_step ? byName.get(current.next_step) : undefined;
@@ -124,13 +126,17 @@ function expandStep(step: StepSchema): {
   switch (type) {
     case 'multi_model': {
       const delegators = step.multi_model_config?.delegators ?? [];
-      if (!delegators.length) break;
+      if (!delegators.length) {
+        break;
+      }
       const strategy = step.multi_model_config?.voting_strategy ?? 'vote';
       return { nodes, edges, exit: fanOut(delegators, 'parallel', `vote: ${strategy}`) };
     }
     case 'multi_prompt': {
       const variations = step.multi_prompt_config?.prompt_variations ?? [];
-      if (!variations.length) break;
+      if (!variations.length) {
+        break;
+      }
       const strategy = step.multi_prompt_config?.selection_strategy ?? 'select';
       const labels = variations.map((_, i) => `variation ${i + 1}`);
       return { nodes, edges, exit: fanOut(labels, 'parallel', `select: ${strategy}`) };
@@ -138,7 +144,9 @@ function expandStep(step: StepSchema): {
     case 'matrixed': {
       const delegators = step.matrixed_config?.delegators ?? [];
       const variations = step.matrixed_config?.prompt_variations ?? [];
-      if (!delegators.length || !variations.length) break;
+      if (!delegators.length || !variations.length) {
+        break;
+      }
       const cells = delegators.flatMap((d) =>
         variations.map((_, i) => `${d} · variation ${i + 1}`)
       );
@@ -146,7 +154,9 @@ function expandStep(step: StepSchema): {
     }
     case 'pipeline': {
       const stages = step.pipeline_config?.stages ?? [];
-      if (!stages.length) break;
+      if (!stages.length) {
+        break;
+      }
       let previous = step.name;
       for (const [i, stage] of stages.entries()) {
         const id = `${step.name}::stage${i}`;
@@ -197,7 +207,7 @@ export function issueTypeToGraph(issueType: IssueType): OperatorWorkflowGraph {
     const type = stepType(step);
     nodes.push({
       id: step.name,
-      kind: AGENT_STEP_TYPES.includes(type) ? 'agent' : 'note',
+      kind: AGENT_STEP_TYPES.has(type) ? 'agent' : 'note',
       label: label(step),
       phase: step.name,
       prompt: step.prompt ?? undefined,
@@ -225,7 +235,7 @@ export function issueTypeToGraph(issueType: IssueType): OperatorWorkflowGraph {
   const known = new Set(steps.map((s) => s.name));
   for (const step of steps) {
     const target = step.on_reject?.goto_step;
-    if (!target || !known.has(target)) continue;
+    if (!target || !known.has(target)) {continue;}
     edges.push({
       id: `${step.name}~reject~${target}`,
       source: step.name,

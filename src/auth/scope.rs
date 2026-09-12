@@ -79,6 +79,8 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     public("GET", "/api/v1/auth/bootstrap"),
     public("POST", "/api/v1/auth/bootstrap"),
     public("POST", "/api/v1/auth/login"),
+    public("POST", "/api/v1/auth/forgot-password"),
+    public("POST", "/api/v1/auth/reset-password"),
     public("POST", "/api/v1/auth/device/code"),
     public("POST", "/api/v1/auth/token"),
     // --- Auth: authenticated session management -----------------------------
@@ -282,6 +284,8 @@ mod tests {
             ("GET", "/api/v1/auth/bootstrap"),
             ("POST", "/api/v1/auth/bootstrap"),
             ("POST", "/api/v1/auth/login"),
+            ("POST", "/api/v1/auth/forgot-password"),
+            ("POST", "/api/v1/auth/reset-password"),
             ("POST", "/api/v1/auth/device/code"),
             ("POST", "/api/v1/auth/token"),
         ]
@@ -290,7 +294,7 @@ mod tests {
 
         assert_eq!(
             public, expected,
-            "the public route allowlist changed — this is a security boundary, \
+            "the public route allowlist changed - this is a security boundary, \
              not a routing detail. Update the threat model and docs/security/ too."
         );
     }

@@ -5,13 +5,13 @@
  * Tests IssueTypeService class methods for icon/color lookup and type extraction.
  */
 
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import * as sinon from 'sinon';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { IssueTypeService } from '../../src/issuetype-service';
-import { IssueTypeSummary } from '../../src/generated';
+import type { IssueTypeSummary } from '../../src/generated';
 
 // Path to fixtures relative to the workspace root
 // __dirname in compiled code is out/test/suite, so we go up 3 levels to workspace root
@@ -35,16 +35,17 @@ suite('IssueType Service Test Suite', () => {
 
   setup(() => {
     // Create a mock output channel
-    outputChannel = {
+    const channel = {
       name: 'test',
       append: sinon.stub(),
       appendLine: sinon.stub(),
       clear: sinon.stub(),
-      show: sinon.stub(),
+      show: (_preserveFocus?: boolean) => undefined,
       hide: sinon.stub(),
       dispose: sinon.stub(),
       replace: sinon.stub(),
-    } as unknown as vscode.OutputChannel;
+    };
+    outputChannel = channel as vscode.OutputChannel;
 
     // Stub global fetch
     fetchStub = sinon.stub(global, 'fetch');

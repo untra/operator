@@ -399,7 +399,8 @@ async fn test_launch_creates_session_with_correct_working_dir() {
     )
     .unwrap();
 
-    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let launcher =
+        Launcher::with_tmux_client(&config, Arc::<MockTmuxClient>::clone(&mock)).unwrap();
     let result = launcher.launch(&ticket).await;
 
     // The launch should succeed
@@ -435,7 +436,8 @@ async fn test_launch_command_includes_cd_to_project() {
     )
     .unwrap();
 
-    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let launcher =
+        Launcher::with_tmux_client(&config, Arc::<MockTmuxClient>::clone(&mock)).unwrap();
     let result = launcher.launch(&ticket).await;
     assert!(result.is_ok(), "Launch failed: {:?}", result.err());
 
@@ -481,7 +483,8 @@ async fn test_launch_global_ticket_uses_root() {
     )
     .unwrap();
 
-    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let launcher =
+        Launcher::with_tmux_client(&config, Arc::<MockTmuxClient>::clone(&mock)).unwrap();
     let result = launcher.launch(&ticket).await;
     assert!(result.is_ok(), "Launch failed: {:?}", result.err());
 
@@ -571,7 +574,7 @@ fn test_launch_in_tmux_existing_session_returns_error() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -608,7 +611,7 @@ fn test_launch_in_tmux_sends_cd_command() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -654,7 +657,7 @@ fn test_launch_in_tmux_remote_host_sends_wrapper_and_skips_relay() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -688,7 +691,7 @@ fn test_launch_in_tmux_remote_host_sends_wrapper_and_skips_relay() {
     let keys_sent = mock.get_session_keys_sent(&session_name).unwrap();
 
     // Exactly one command typed into the pane: the remote wrapper. No relay
-    // export line — the relay unix socket is meaningless on a remote host.
+    // export line - the relay unix socket is meaningless on a remote host.
     assert_eq!(keys_sent.len(), 1, "got: {keys_sent:?}");
     let sent_cmd = keys_sent[0].trim_end_matches(" [Enter]");
     assert!(
@@ -723,7 +726,7 @@ fn test_launch_in_tmux_sends_llm_command() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -766,7 +769,7 @@ fn test_launch_in_tmux_yolo_mode_applies_flags() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -808,7 +811,7 @@ fn test_launch_in_tmux_yolo_mode_disabled_no_flags() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -850,7 +853,7 @@ fn test_launch_in_tmux_docker_mode_wraps() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config_with_docker(&temp_dir, "my-claude:latest");
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -888,7 +891,7 @@ fn test_launch_in_tmux_docker_mode_wraps() {
 }
 
 /// FEAT ticket positioned on "plan", the first step of the embedded FEAT
-/// schema — satisfies `step_command::chain_step` so the launch wraps in opr8r.
+/// schema - satisfies `step_command::chain_step` so the launch wraps in opr8r.
 fn make_chain_ticket(project: &str) -> Ticket {
     Ticket {
         ticket_type: "FEAT".to_string(),
@@ -902,7 +905,7 @@ fn test_launch_in_tmux_wraps_command_in_opr8r() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_chain_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -952,7 +955,7 @@ fn test_launch_in_tmux_docker_wrap_is_outermost() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config_with_docker(&temp_dir, "my-claude:latest");
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_chain_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -995,7 +998,7 @@ fn test_launch_in_tmux_docker_wrap_is_outermost() {
 
     // The token immediately preceding "--ticket-id=" must be the bare literal
     // "opr8r" (per resolve_opr8r_invocation(true)), not an absolute host path
-    // like "/Users/x/operator/opr8r" — `contains("opr8r --ticket-id=")` alone
+    // like "/Users/x/operator/opr8r" - `contains("opr8r --ticket-id=")` alone
     // would match either, since a path only has safe characters and isn't
     // quoted by escape_if_needed.
     let before_ticket_id = script_content
@@ -1021,7 +1024,7 @@ fn test_launched_session_uuid_returns_backend_minted_uuid() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_chain_ticket("test-project");
 
     // The backend records the uuid on the in-progress ticket file.
@@ -1072,7 +1075,7 @@ fn test_launch_in_tmux_no_wrap_for_unknown_ticket_type() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = Ticket {
         ticket_type: "UNKNOWNTYPE".to_string(),
         ..make_test_ticket("test-project")
@@ -1113,7 +1116,7 @@ fn test_launch_in_tmux_both_modes() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config_with_docker(&temp_dir, "my-claude:latest");
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1175,7 +1178,7 @@ fn test_launch_in_tmux_uses_provider_from_options() {
         health_ok: true,
     });
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1338,7 +1341,7 @@ fn test_relaunch_remote_resume_reuses_session_and_adds_resume_flag() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1408,7 +1411,7 @@ fn test_relaunch_inherits_yolo_mode() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1454,7 +1457,7 @@ fn test_relaunch_inherits_docker_mode() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config_with_docker(&temp_dir, "my-claude:latest");
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1500,7 +1503,7 @@ fn test_relaunch_existing_session_errors() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1538,7 +1541,7 @@ fn test_relaunch_with_resume_adds_flag() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1600,7 +1603,7 @@ fn test_relaunch_missing_prompt_fresh_start() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn TmuxClient> = mock.clone();
+    let tmux: Arc<dyn TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1687,7 +1690,7 @@ fn test_launch_correct_project_directory_from_ticket() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn crate::agents::tmux::TmuxClient> = mock.clone();
+    let tmux: Arc<dyn crate::agents::tmux::TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1759,7 +1762,7 @@ fn test_launch_provider_from_delegator_determines_tool() {
     });
 
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn crate::agents::tmux::TmuxClient> = mock.clone();
+    let tmux: Arc<dyn crate::agents::tmux::TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1809,7 +1812,7 @@ fn test_launch_yolo_flags_per_tool() {
     let temp_dir = TempDir::new().unwrap();
     let config = make_test_config(&temp_dir);
     let mock = Arc::new(MockTmuxClient::new());
-    let tmux: Arc<dyn crate::agents::tmux::TmuxClient> = mock.clone();
+    let tmux: Arc<dyn crate::agents::tmux::TmuxClient> = Arc::<MockTmuxClient>::clone(&mock);
     let ticket = make_test_ticket("test-project");
     let project_path = temp_dir
         .path()
@@ -1882,7 +1885,8 @@ async fn test_launch_pending_sub_agents_launches_all_when_slots_allow() {
     add_delegators(&mut config, &["claude-opus", "gemini-pro"]);
 
     let mock = Arc::new(MockTmuxClient::new());
-    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let launcher =
+        Launcher::with_tmux_client(&config, Arc::<MockTmuxClient>::clone(&mock)).unwrap();
     let ticket = make_test_ticket("test-project");
 
     // Seed a group with 2 pending sub-agents
@@ -1958,7 +1962,8 @@ async fn test_launch_pending_sub_agents_respects_slot_budget() {
     add_delegators(&mut config, &["claude-opus", "gemini-pro"]);
 
     let mock = Arc::new(MockTmuxClient::new());
-    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let launcher =
+        Launcher::with_tmux_client(&config, Arc::<MockTmuxClient>::clone(&mock)).unwrap();
     let ticket = make_test_ticket("test-project");
 
     let group_id = {
@@ -2020,7 +2025,8 @@ async fn test_launch_pending_sub_agents_errors_on_unknown_delegator() {
     // Intentionally do NOT add any delegators.
 
     let mock = Arc::new(MockTmuxClient::new());
-    let launcher = Launcher::with_tmux_client(&config, mock.clone()).unwrap();
+    let launcher =
+        Launcher::with_tmux_client(&config, Arc::<MockTmuxClient>::clone(&mock)).unwrap();
     let ticket = make_test_ticket("test-project");
 
     let group_id = {

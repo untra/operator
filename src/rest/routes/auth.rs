@@ -19,9 +19,10 @@ use crate::rest::dto::auth::{
     AccessKeyListResponse, BootstrapState, BootstrapStatusResponse, BootstrapSubmitRequest,
     BootstrapSubmitResponse, CreateAccessKeyRequest, CreateAccessKeyResponse, CsrfTokenResponse,
     CurrentSessionResponse, DeviceApprovalRequest, DeviceApprovalResponse,
-    DeviceAuthorizationRequest, DeviceAuthorizationResponse, LoginRequest, LoginResponse,
-    LogoutResponse, OAuthErrorCode, OAuthErrorResponse, RevokeAccessKeyResponse, Scope,
-    SessionListResponse, TokenRequest, TokenResponse,
+    DeviceAuthorizationRequest, DeviceAuthorizationResponse, ForgotPasswordRequest,
+    ForgotPasswordResponse, LoginRequest, LoginResponse, LogoutResponse, OAuthErrorCode,
+    OAuthErrorResponse, ResetPasswordRequest, ResetPasswordResponse, RevokeAccessKeyResponse,
+    Scope, SessionListResponse, TokenRequest, TokenResponse,
 };
 use crate::rest::error::ApiError;
 use crate::rest::middleware::auth::{enforce_backoff, Authenticated, SESSION_COOKIE};
@@ -30,13 +31,14 @@ use crate::rest::state::ApiState;
 /// Rate-limit bucket names.
 const BUCKET_BOOTSTRAP: &str = "bootstrap";
 const BUCKET_LOGIN: &str = "login";
+const BUCKET_PASSWORD_RESET: &str = "password_reset";
 const BUCKET_DEVICE_CODE: &str = "device_code";
 const BUCKET_TOKEN: &str = "token";
 
 /// Env var naming a file holding the out-of-band bootstrap password.
 ///
 /// A file rather than a plain env var: an env var is visible in `/proc`, in
-/// `docker inspect`, and to every child process Operator spawns — including the
+/// `docker inspect`, and to every child process Operator spawns - including the
 /// agent processes, which is precisely the thing that must not read it.
 pub const BOOTSTRAP_PASSWORD_FILE_ENV: &str = "OPERATOR_BOOTSTRAP_PASSWORD_FILE";
 
@@ -82,6 +84,11 @@ fn valid_client_id(client_id: &str) -> bool {
         && client_id
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'))
+}
+
+fn valid_username(username: &str) -> bool {
+    let length = username.chars().count();
+    length > 0 && length <= crate::rest::dto::auth::MAX_IDENTIFIER_LENGTH
 }
 
 // =============================================================================
@@ -183,6 +190,7 @@ pub async fn bootstrap_submit(
 
             Ok(Json(BootstrapSubmitResponse {
                 state: BootstrapState::Complete,
+                username: ADMIN_SUBJECT.to_string(),
             }))
         }
 
@@ -219,6 +227,7 @@ pub async fn bootstrap_submit(
 
             Ok(Json(BootstrapSubmitResponse {
                 state: BootstrapState::Complete,
+                username: ADMIN_SUBJECT.to_string(),
             }))
         }
     }
@@ -246,7 +255,7 @@ fn session_cookie(token: &str) -> String {
     request_body = LoginRequest,
     responses(
         (status = 200, description = "Logged in", body = LoginResponse),
-        (status = 401, description = "Bad password"),
+        (status = 401, description = "Bad username or password"),
         (status = 429, description = "Too many attempts"),
     )
 )]
@@ -258,20 +267,21 @@ pub async fn login(
         return Err(limited);
     }
 
+    if !valid_username(&req.username)
+        || req.password.chars().count() > crate::auth::password::MAX_PASSWORD_LENGTH
+    {
+        return Err(reject_login(&state, "invalid credentials").await);
+    }
+
+    let username = req.username.clone();
     let password = req.password.clone();
     let s = store(&state);
-    let ok = blocking(move || s.verify_admin_password(&password))
+    let ok = blocking(move || s.verify_credentials(&username, &password))
         .await
         .map_err(IntoResponse::into_response)?;
 
     if !ok {
-        let s = store(&state);
-        let _ = blocking(move || {
-            s.record_failure(BUCKET_LOGIN)?;
-            s.audit("login", Some("bad password"), false)
-        })
-        .await;
-        return Err(ApiError::Unauthorized("incorrect password".to_string()).into_response());
+        return Err(reject_login(&state, "invalid credentials").await);
     }
 
     let s = store(&state);
@@ -296,6 +306,93 @@ pub async fn login(
         Json(body),
     )
         .into_response())
+}
+
+async fn reject_login(state: &ApiState, detail: &'static str) -> Response {
+    let s = store(state);
+    let _ = blocking(move || {
+        s.record_failure(BUCKET_LOGIN)?;
+        s.audit("login", Some(detail), false)
+    })
+    .await;
+    ApiError::Unauthorized("incorrect username or password".to_string()).into_response()
+}
+
+/// Return recovery guidance without confirming whether the username exists.
+#[utoipa::path(
+    operation_id = "auth_forgot_password",
+    post,
+    path = "/api/v1/auth/forgot-password",
+    tag = "Auth",
+    request_body = ForgotPasswordRequest,
+    responses((status = 200, description = "Recovery guidance", body = ForgotPasswordResponse))
+)]
+pub async fn forgot_password(
+    Json(_req): Json<ForgotPasswordRequest>,
+) -> Json<ForgotPasswordResponse> {
+    Json(ForgotPasswordResponse {
+        message: "If this account exists, an administrator can reset it locally with `operator auth reset-admin-password`.".to_string(),
+    })
+}
+
+/// Change the password using the current username and password.
+#[utoipa::path(
+    operation_id = "auth_reset_password",
+    post,
+    path = "/api/v1/auth/reset-password",
+    tag = "Auth",
+    request_body = ResetPasswordRequest,
+    responses(
+        (status = 200, description = "Password changed", body = ResetPasswordResponse),
+        (status = 401, description = "Invalid current credentials"),
+        (status = 429, description = "Too many attempts"),
+    )
+)]
+pub async fn reset_password(
+    State(state): State<ApiState>,
+    Json(req): Json<ResetPasswordRequest>,
+) -> Result<Json<ResetPasswordResponse>, Response> {
+    if let Some(limited) = enforce_backoff(&state, BUCKET_PASSWORD_RESET).await {
+        return Err(limited);
+    }
+    if !valid_username(&req.username)
+        || req.current_password.chars().count() > crate::auth::password::MAX_PASSWORD_LENGTH
+    {
+        return Err(reject_password_reset(&state).await);
+    }
+    crate::auth::password::validate_password(&req.new_password)
+        .map_err(|error| ApiError::ValidationError(error.to_string()).into_response())?;
+
+    let s = store(&state);
+    let changed =
+        blocking(move || s.reset_password(&req.username, &req.current_password, &req.new_password))
+            .await
+            .map_err(IntoResponse::into_response)?;
+    if !changed {
+        return Err(reject_password_reset(&state).await);
+    }
+
+    let s = store(&state);
+    let _ = blocking(move || {
+        s.clear_rate_limit(BUCKET_PASSWORD_RESET)?;
+        s.audit(
+            "password reset",
+            Some("via HTTP with current credentials"),
+            true,
+        )
+    })
+    .await;
+    Ok(Json(ResetPasswordResponse { changed: true }))
+}
+
+async fn reject_password_reset(state: &ApiState) -> Response {
+    let s = store(state);
+    let _ = blocking(move || {
+        s.record_failure(BUCKET_PASSWORD_RESET)?;
+        s.audit("password reset", Some("invalid credentials"), false)
+    })
+    .await;
+    ApiError::Unauthorized("incorrect username or password".to_string()).into_response()
 }
 
 /// Log out
@@ -672,7 +769,7 @@ pub async fn token(
                 ));
             };
             // An access key is re-presented on each exchange, so it produces no
-            // refresh token — there is nothing to refresh.
+            // refresh token - there is nothing to refresh.
             (scopes, None)
         }
     };

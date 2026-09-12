@@ -1,7 +1,7 @@
 //! Tool configuration loading and templating
 //!
-//! This module loads LLM CLI tool configurations — embedded builtin JSONs plus
-//! user JSONs from `<config dir>/operator/tools/` — and provides template-based
+//! This module loads LLM CLI tool configurations - embedded builtin JSONs plus
+//! user JSONs from `<config dir>/operator/tools/` - and provides template-based
 //! command building. User configs are only ever read from the user-global
 //! config dir, never from repo-local paths (see [`load_user_tool_configs`]).
 
@@ -212,7 +212,7 @@ fn load_builtin_tool_configs() -> Vec<ToolConfig> {
 /// duplicate `tool_name`s resolve deterministically (last wins). Malformed or
 /// unreadable files are skipped with a warning.
 ///
-/// Only the user-global config dir is ever scanned — never repo-local paths:
+/// Only the user-global config dir is ever scanned - never repo-local paths:
 /// `command_template` is arbitrary shell executed at launch, so loading tool
 /// configs from a checked-out repository would be a supply-chain hazard.
 fn load_user_tool_configs(dir: &std::path::Path) -> Vec<ToolConfig> {

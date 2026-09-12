@@ -235,7 +235,7 @@ pub async fn reject_review(
 /// The web UI's launch panel calls this for **cmux** launches: cmux exposes no
 /// browser URL scheme, so the operator control plane (which runs inside cmux)
 /// shells out to `cmux focus-workspace` for the agent's saved workspace ref to
-/// bring its pane to the foreground. Other wrappers are unsupported here — VS
+/// bring its pane to the foreground. Other wrappers are unsupported here - VS
 /// Code focuses through its extension's URI handler, and tmux/zellij are
 /// display-only in the UI, so it never calls this for them.
 #[utoipa::path(

@@ -11,10 +11,11 @@ LABEL org.opencontainers.image.title="Operator" \
 ARG TARGETARCH
 
 # Substrate Operator needs to launch agents: git (VCS ops), tmux (session
-# wrapper), ca-certificates (TLS to LLM/kanban APIs). The LLM CLI (claude /
-# codex / gemini) and its auth are supplied by the user via a derived image or env vars
+# wrapper), ca-certificates (TLS to LLM/kanban APIs), openssh-client (every
+# ssh and coder target launch, and git over SSH remotes), curl (in-pod reachability checks).
+# The LLM CLI (claude / codex / gemini) and its auth are supplied by the user via a derived image or env vars
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates git tmux \
+ && apt-get install -y --no-install-recommends ca-certificates curl git openssh-client tmux \
  && rm -rf /var/lib/apt/lists/*
 
 # CI stages the prebuilt release binaries as {operator,opr8r}-linux-${TARGETARCH}

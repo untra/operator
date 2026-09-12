@@ -1,4 +1,4 @@
-//! MCP resources — exposes tickets as URI-addressable resources.
+//! MCP resources - exposes tickets as URI-addressable resources.
 //!
 //! Each ticket is reachable at `operator://tickets/{status}/{id}` where status
 //! is one of `queue`, `in-progress`, `completed`. Resource reads return the

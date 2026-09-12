@@ -279,7 +279,7 @@ mod tests {
         let rows = ModelServerSection.children(&snapshot);
 
         let add_rows: Vec<&TreeRow> = rows.iter().filter(|r| r.id.starts_with("add-")).collect();
-        // ollama, openrouter, openai-compat, lmstudio — the addable kinds.
+        // ollama, openrouter, openai-compat, lmstudio - the addable kinds.
         assert_eq!(add_rows.len(), 4);
         assert!(add_rows
             .iter()

@@ -3,7 +3,7 @@
 /**
  * A declarative reference to a remote, named agent hosted by another platform.
  *
- * `platform` is the hosting service (`"agnt"`, `"openai"`) — deliberately
+ * `platform` is the hosting service (`"agnt"`, `"openai"`) - deliberately
  * distinct from the core `provider`/`llm_tool` (the model or coding CLI). These
  * agents are API/memory-native and live on the remote side; Operator has no
  * runtime client for them, so a delegator carrying one is **export-only** and

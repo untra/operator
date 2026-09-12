@@ -95,6 +95,22 @@ export function App() {
           // Status discovery failed; the dropdowns fall back to free-form
           // entry of the current mapping values, so no extra handling here.
           break;
+        case 'assessTicketCreated':
+        case 'assessTicketError':
+        case 'collectionActivated':
+        case 'collectionsError':
+        case 'delegatorCreated':
+        case 'issueTypeCreated':
+        case 'issueTypeDeleted':
+        case 'issueTypeError':
+        case 'issueTypeLoaded':
+        case 'issueTypeUpdated':
+        case 'modelProvidersError':
+        case 'modelProvidersLoaded':
+        case 'projectsError':
+        case 'projectsLoaded':
+        case 'providerProbed':
+          break;
       }
     });
 

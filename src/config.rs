@@ -286,9 +286,7 @@ pub struct RestApiConfig {
     /// Whether the REST API is enabled
     #[serde(default = "default_rest_enabled")]
     pub enabled: bool,
-    /// Address the REST API binds to. Defaults to `127.0.0.1` (local only) so
-    /// the server — which reports the project directory name — is not reachable
-    /// from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
+    /// Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
     #[serde(default = "default_rest_host")]
     pub host: String,
     /// Port for the REST API server
@@ -297,10 +295,7 @@ pub struct RestApiConfig {
     /// CORS allowed origins. Empty means **same-origin only**
     #[serde(default)]
     pub cors_origins: Vec<String>,
-    /// Externally reachable base URL (e.g. `https://operator.example.com`).
-    ///
-    /// OAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header,
-    /// which a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy.
+    /// Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host.
     #[serde(default)]
     pub public_url: Option<String>,
 }
@@ -625,8 +620,6 @@ impl Default for ApiConfig {
     }
 }
 
-// ─── Version Check Configuration ────────────────────────────────────────────
-
 /// Version check configuration for automatic update notifications
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
@@ -665,8 +658,6 @@ impl Default for VersionCheckConfig {
         }
     }
 }
-
-// ─── Relay Configuration ─────────────────────────────────────────────────────
 
 /// Relay MCP injection configuration
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
@@ -956,8 +947,6 @@ impl Default for Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // --- Default value function tests (private functions — must stay inline) ---
 
     #[test]
     fn test_default_generation_timeout_is_300() {

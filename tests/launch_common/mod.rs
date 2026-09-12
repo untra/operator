@@ -14,8 +14,6 @@ use std::process::Command;
 use serde::Deserialize;
 use tempfile::TempDir;
 
-// ─── Configuration ────────────────────────────────────────────────────────────
-
 /// Which wrapper the test context should generate config for
 #[derive(Clone, Copy)]
 pub enum WrapperTestMode {
@@ -30,8 +28,6 @@ pub fn launch_tests_enabled() -> bool {
         .map(|v| v == "true" || v == "1")
         .unwrap_or(false)
 }
-
-// ─── Test Data Structures ───────────────────────────────────────────────────
 
 /// Captured invocation data from mock LLM
 #[derive(Debug, Deserialize)]
@@ -49,12 +45,8 @@ pub struct MockInvocation {
     pub cwd: String,
 }
 
-// ─── Test Context ───────────────────────────────────────────────────────────
-
 /// Test context holding temporary directories and providing helpers.
-///
-/// Generic across all wrappers — the `WrapperTestMode` controls which
-/// `[sessions]` block is written to the config TOML.
+/// Generic across all wrappers. Rhe `WrapperTestMode` controls which `[sessions]` block is written to the config TOML.
 pub struct LaunchTestContext {
     pub temp_dir: TempDir,
     pub output_dir: TempDir,

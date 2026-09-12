@@ -2,7 +2,7 @@
 //!
 //! [`probe_models`] hits a server's [`ModelServerKind::models_endpoint`] and
 //! returns the models it serves. The same request doubles as a reachability
-//! health check — a successful probe means the endpoint is up and (where
+//! health check - a successful probe means the endpoint is up and (where
 //! relevant) the API key is accepted, so there is no separate "test connection".
 //!
 //! Parsing is split out from the HTTP call ([`parse_models`]) so the per-protocol
@@ -16,7 +16,7 @@ use serde_json::Value;
 use super::ModelServerKind;
 use crate::config::ModelServer;
 
-/// A single model offered by a server. Minimal by design — id is the wire name
+/// A single model offered by a server. Minimal by design - id is the wire name
 /// passed to `--model`; `display_name` is shown in UIs when the server provides one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelInfo {
@@ -174,19 +174,19 @@ pub fn parse_models(kind: ModelServerKind, body: &str) -> Result<Vec<ModelInfo>,
 /// Whether a single raw model entry is an LLM text/chat model suitable for an
 /// agent model dropdown.
 ///
-/// Listing endpoints return more than chat models — `OpenAI` and Google mix in
+/// Listing endpoints return more than chat models - `OpenAI` and Google mix in
 /// embeddings, audio (TTS/Whisper), image, and moderation models that must never
 /// surface in a model picker. Each provider exposes a different capability signal
 /// (or none), so the rule is per-kind:
 ///
-/// - Google: authoritative — keep iff `supportedGenerationMethods` advertises
+/// - Google: authoritative - keep iff `supportedGenerationMethods` advertises
 ///   `generateContent`. Absent field ⇒ keep (tolerant of API drift / fixtures).
 /// - `OpenRouter`: keep iff the architecture's output modalities include `text`.
 ///   Absent ⇒ keep.
 /// - `OpenAI`: no capability field, so classify by id family (deny embeddings /
 ///   audio / image / moderation; allow the gpt / o-series / chatgpt families;
 ///   deny anything unrecognized so unknown non-text families stay out).
-/// - Anthropic / ollama / openai-compat / lmstudio: pass-through — Anthropic
+/// - Anthropic / ollama / openai-compat / lmstudio: pass-through - Anthropic
 ///   lists only chat models, and BYO/local hosts serve whatever the user runs.
 fn is_text_model(kind: ModelServerKind, raw: &Value, id: &str) -> bool {
     match kind {
@@ -263,7 +263,7 @@ fn parse_ollama(value: &Value) -> Vec<ModelInfo> {
 ///
 /// Shared by `OpenAI` / Anthropic / openai-compat / lmstudio, so it takes the
 /// `kind` to apply the per-protocol text-model filter (only `OpenAI` filters; the
-/// others pass through — see [`is_text_model`]).
+/// others pass through - see [`is_text_model`]).
 fn parse_openai_like(kind: ModelServerKind, value: &Value) -> Vec<ModelInfo> {
     value
         .get("data")
@@ -463,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_parse_compat_and_lmstudio_passthrough() {
-        // BYO/local hosts are not filtered — an "embedding"-looking id is kept,
+        // BYO/local hosts are not filtered - an "embedding"-looking id is kept,
         // guarding against the OpenAI deny-list bleeding into compat kinds.
         let body = r#"{"data":[{"id":"nomic-embed-text","object":"model"},
             {"id":"qwen2.5-coder","object":"model"}]}"#;

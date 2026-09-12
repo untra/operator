@@ -27,6 +27,29 @@ type ProbeMap = Record<string, ModelServerModelsResponse | undefined>;
 /** A detected llm tool offered in the delegator form; unhealthy ones can't launch. */
 type DetectedToolOption = { name: string; healthOk: boolean };
 
+type GitSettingDraft = GitExecutionConfig['settings'][number] & { id: string };
+type GitExecutionDraft = Omit<GitExecutionConfig, 'settings'> & { settings: GitSettingDraft[] };
+
+function createGitDraft(config: GitExecutionConfig | null): GitExecutionDraft | null {
+  if (!config) {
+    return null;
+  }
+  return {
+    ...config,
+    settings: config.settings.map((entry) => ({ ...entry, id: crypto.randomUUID() })),
+  };
+}
+
+function serializeGitDraft(draft: GitExecutionDraft | null): GitExecutionConfig | null {
+  if (!draft) {
+    return null;
+  }
+  return {
+    ...draft,
+    settings: draft.settings.map(({ id: _id, ...entry }) => entry),
+  };
+}
+
 export function ModelProvidersPage() {
   const host = useHost();
   const [api] = useState(() => new OperatorApi(host));
@@ -50,25 +73,27 @@ export function ModelProvidersPage() {
     let cancelled = false;
     Promise.all([api.listProviderKinds(), api.listLlmTools()])
       .then(([catalog, tools]: [ModelServerKindEntry[], LlmToolsResponse]) => {
-        if (cancelled) return;
-        setKinds(catalog);
-        setDetectedTools(
-          tools.tools.map((t) => ({ name: t.name, healthOk: t.health_ok })),
-        );
-        // Probe each provider concurrently; fill the map as results land.
-        for (const k of catalog) {
-          api
-            .providerModels(k.slug)
-            .then((r) => !cancelled && setProbes((p) => ({ ...p, [k.slug]: r })))
-            .catch(
-              () =>
-                !cancelled &&
-                setProbes((p) => ({
-                  ...p,
-                  [k.slug]: { server: k.slug, reachable: false, models: [], error: 'probe failed' },
-                })),
+        if (!cancelled) {
+          setKinds(catalog);
+          setDetectedTools(
+            tools.tools.map((t) => ({ name: t.name, healthOk: t.health_ok })),
+          );
+          // Probe each provider concurrently; fill the map as results land.
+          for (const k of catalog) {
+            api
+              .providerModels(k.slug)
+              .then((r) => !cancelled && setProbes((p) => ({ ...p, [k.slug]: r })))
+              .catch(
+                () =>
+                  !cancelled &&
+                  setProbes((p) => ({
+                    ...p,
+                    [k.slug]: { server: k.slug, reachable: false, models: [], error: 'probe failed' },
+                  })),
             );
+          }
         }
+        return undefined;
       })
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => !cancelled && setLoading(false));
@@ -101,7 +126,7 @@ export function ModelProvidersPage() {
   const firstParty = useMemo(() => kinds.filter((k) => k.category === 'first-party'), [kinds]);
   const gateways = useMemo(() => kinds.filter((k) => k.category === 'gateway'), [kinds]);
 
-  if (loading) return <div className={styles.loading}>Loading model providers…</div>;
+  if (loading) {return <div className={styles.loading}>Loading model providers…</div>;}
 
   return (
     <div className={styles.page}>
@@ -155,7 +180,12 @@ export function ModelProvidersPage() {
                   {d.llm_tool}:{d.model}
                   {d.model_server ? ` @ ${d.model_server}` : ''}
                 </span>
-                <DelegatorGitEditor api={api} delegator={d} onSaved={refreshDelegators} />
+                <DelegatorGitEditor
+                  key={`${d.name}:${JSON.stringify(d.git)}`}
+                  api={api}
+                  delegator={d}
+                  onSaved={refreshDelegators}
+                />
               </li>
             ))}
           </ul>
@@ -169,8 +199,8 @@ function connectionLabel(probe: ModelServerModelsResponse | undefined): {
   state: 'connected' | 'disconnected' | 'checking';
   text: string;
 } {
-  if (probe === undefined) return { state: 'checking', text: 'checking…' };
-  if (probe.reachable) return { state: 'connected', text: `${probe.models.length} models` };
+  if (probe === undefined) {return { state: 'checking', text: 'checking…' };}
+  if (probe.reachable) {return { state: 'connected', text: `${probe.models.length} models` };}
   return { state: 'disconnected', text: 'not connected' };
 }
 
@@ -185,9 +215,9 @@ function ProviderGroup({
   blurb: string;
   kinds: ModelServerKindEntry[];
   probes: ProbeMap;
-  onConnect: (k: ModelServerKindEntry) => void;
+  onConnect: (k: ModelServerKindEntry) => Promise<void>;
 }) {
-  if (kinds.length === 0) return null;
+  if (kinds.length === 0) {return null;}
   return (
     <section className={styles.group}>
       <h2 className={styles.groupHeading}>{heading}</h2>
@@ -245,35 +275,31 @@ function CreateDelegatorForm({
   const [provider, setProvider] = useState('');
   const [model, setModel] = useState('');
   const [name, setName] = useState('');
-  const [git, setGit] = useState<GitExecutionConfig | null>(null);
+  const [git, setGit] = useState<GitExecutionDraft | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Default the tool once detection lands, preferring one that can actually launch.
-  useEffect(() => {
-    if (tool || detectedTools.length === 0) return;
-    const preferred = detectedTools.find((t) => t.healthOk) ?? detectedTools[0];
-    setTool(preferred.name);
-  }, [detectedTools, tool]);
+  const preferredTool = detectedTools.find((candidate) => candidate.healthOk) ?? detectedTools[0];
+  const selectedTool = tool || preferredTool?.name || '';
 
   const probe = provider ? probes[provider] : undefined;
   const liveModels = probe?.reachable ? probe.models : [];
 
   const submit = async () => {
-    if (!tool || !provider || !model) {
+    if (!selectedTool || !provider || !model) {
       onError('Pick a tool, a provider, and a model.');
       return;
     }
     setSubmitting(true);
     try {
-      const delegatorName = name.trim() || `${tool}-${model}`;
+      const delegatorName = name.trim() || `${selectedTool}-${model}`;
       await api.createDelegator({
         name: delegatorName,
-        llm_tool: tool,
+        llm_tool: selectedTool,
         model,
         display_name: null,
         model_properties: {},
         model_server: provider,
-        git,
+        git: serializeGitDraft(git),
         launch_config: null,
         remote_agent: null,
       });
@@ -296,7 +322,7 @@ function CreateDelegatorForm({
       <div className={styles.form}>
         <label className={styles.field}>
           <span className={styles.fieldLabel}>LLM tool</span>
-          <select value={tool} onChange={(e) => setTool(e.target.value)} className={styles.select}>
+          <select value={selectedTool} onChange={(e) => setTool(e.target.value)} className={styles.select}>
             {detectedTools.length === 0 && <option value="">(none detected)</option>}
             {detectedTools.map((t) => (
               <option key={t.name} value={t.name}>
@@ -361,7 +387,7 @@ function CreateDelegatorForm({
           <input
             className={styles.input}
             value={name}
-            placeholder={tool && model ? `${tool}-${model}` : 'delegator name'}
+            placeholder={selectedTool && model ? `${selectedTool}-${model}` : 'delegator name'}
             onChange={(e) => setName(e.target.value)}
           />
         </label>
@@ -376,11 +402,11 @@ function CreateDelegatorForm({
 }
 
 function GitFields({ value, onChange, disabled }: {
-  value: GitExecutionConfig | null;
-  onChange: (value: GitExecutionConfig | null) => void;
+  value: GitExecutionDraft | null;
+  onChange: (value: GitExecutionDraft | null) => void;
   disabled: boolean;
 }) {
-  const config: GitExecutionConfig = value ?? { identity: null, credentials: null, settings: [] };
+  const config: GitExecutionDraft = value ?? { identity: null, credentials: null, settings: [] };
   const identity = config.identity ?? { name: '', email: '' };
   const credentials = config.credentials ?? { repository_url: '', username: '', token_env: '' };
   return <fieldset disabled={disabled}>
@@ -400,21 +426,20 @@ function GitFields({ value, onChange, disabled }: {
         <label className={styles.field}>Token environment variable<input className={styles.input} value={credentials.token_env} onChange={e => onChange({ ...config, credentials: { ...credentials, token_env: e.target.value } })} /></label>
         <p>Enter the variable name configured on Operator, such as AGENT_GIT_TOKEN.</p>
       </>}
-      {config.settings.map((entry, index) => <div key={index}>
+      {config.settings.map((entry, index) => <div key={entry.id}>
         <label>Git setting<input className={styles.input} value={entry.key} onChange={e => onChange({ ...config, settings: config.settings.map((v, i) => i === index ? { ...v, key: e.target.value } : v) })} /></label>
         <label>Value<input className={styles.input} value={entry.value} onChange={e => onChange({ ...config, settings: config.settings.map((v, i) => i === index ? { ...v, value: e.target.value } : v) })} /></label>
         <button type="button" onClick={() => onChange({ ...config, settings: config.settings.filter((_, i) => i !== index) })}>Remove setting</button>
       </div>)}
-      <button type="button" onClick={() => onChange({ ...config, settings: [...config.settings, { key: '', value: '' }] })}>Add Git setting</button>
+      <button type="button" onClick={() => onChange({ ...config, settings: [...config.settings, { id: crypto.randomUUID(), key: '', value: '' }] })}>Add Git setting</button>
     </>}
   </fieldset>;
 }
 
 function DelegatorGitEditor({ api, delegator, onSaved }: { api: OperatorApi; delegator: DelegatorResponse; onSaved: () => void }) {
-  const [git, setGit] = useState<GitExecutionConfig | null>(delegator.git ?? null);
+  const [git, setGit] = useState<GitExecutionDraft | null>(() => createGitDraft(delegator.git ?? null));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => setGit(delegator.git ?? null), [delegator]);
   const save = async () => {
     setBusy(true);
     setError('');
@@ -423,7 +448,7 @@ function DelegatorGitEditor({ api, delegator, onSaved }: { api: OperatorApi; del
         name: delegator.name, llm_tool: delegator.llm_tool, model: delegator.model,
         display_name: delegator.display_name ?? null, model_properties: delegator.model_properties,
         model_server: delegator.model_server ?? null, launch_config: delegator.launch_config ?? null,
-        remote_agent: delegator.remote_agent ?? null, git,
+        remote_agent: delegator.remote_agent ?? null, git: serializeGitDraft(git),
       });
       onSaved();
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to save Git settings'); }

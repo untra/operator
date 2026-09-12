@@ -6,6 +6,10 @@ import type { BootstrapState } from "./BootstrapState";
  */
 export type BootstrapSubmitResponse = { 
 /**
- * The state after submission — `Complete` on success.
+ * The state after submission - `Complete` on success.
  */
-state: BootstrapState, };
+state: BootstrapState, 
+/**
+ * The account name created by bootstrap.
+ */
+username: string, };

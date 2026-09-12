@@ -9,9 +9,9 @@
  * without also being wired into `config-panel.ts`.
  */
 
-import * as assert from 'assert';
-import * as path from 'path';
-import { readFileSync } from 'fs';
+import * as assert from 'node:assert';
+import * as path from 'node:path';
+import { readFileSync } from 'node:fs';
 import {
   KANBAN_PROVIDERS,
   KANBAN_PROVIDER_SLUGS,
@@ -70,8 +70,8 @@ suite('Config Panel Kanban Providers', () => {
   });
 
   test('KANBAN_PROVIDER_SLUGS matches the generated schema exactly', () => {
-    const generated = generatedProviderSlugs().sort();
-    const known = [...KANBAN_PROVIDER_SLUGS].sort();
+    const generated = generatedProviderSlugs().toSorted();
+    const known = [...KANBAN_PROVIDER_SLUGS].toSorted();
     assert.deepStrictEqual(known, generated);
   });
 

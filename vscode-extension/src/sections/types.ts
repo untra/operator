@@ -1,5 +1,5 @@
-import * as vscode from 'vscode';
-import { StatusItem } from '../status-item';
+import type * as vscode from 'vscode';
+import type { StatusItem } from '../status-item';
 import type { DetectedToolResult } from '../walkthrough';
 import type { SectionId, SectionHealth } from '../generated';
 

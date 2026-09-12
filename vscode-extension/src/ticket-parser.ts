@@ -5,8 +5,8 @@
  * metadata stored in YAML frontmatter.
  */
 
-import * as fs from 'fs/promises';
-import { TicketMetadata } from './types';
+import * as fs from 'node:fs/promises';
+import type { TicketMetadata } from './types';
 
 /**
  * Parse YAML frontmatter from ticket markdown file

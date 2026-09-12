@@ -8,7 +8,7 @@
 
 import * as vscode from 'vscode';
 import { ApiError, OperatorApiClient } from './api-client';
-import { IssueTypeSummary } from './generated';
+import type { IssueTypeSummary } from './generated';
 
 /**
  * Default issue types used when API is unavailable

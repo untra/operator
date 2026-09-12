@@ -6,12 +6,12 @@
  * Supports dynamic port binding with session file registration.
  */
 
-import * as http from 'http';
-import * as path from 'path';
-import * as fs from 'fs/promises';
+import * as http from 'node:http';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
-import { TerminalManager } from './terminal-manager';
-import {
+import type { TerminalManager } from './terminal-manager';
+import type {
   TerminalCreateOptions,
   SendCommandRequest,
   HealthResponse,
@@ -31,7 +31,7 @@ export class WebhookServer {
   private server: http.Server | null = null;
   private terminalManager: TerminalManager;
   private configuredPort: number;
-  private actualPort: number = 0;
+  private actualPort = 0;
   private sessionFilePath: string | null = null;
 
   constructor(terminalManager: TerminalManager) {
@@ -315,19 +315,16 @@ export class WebhookServer {
   /**
    * Parse JSON request body
    */
-  private parseBody<T>(req: http.IncomingMessage): Promise<T> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        try {
-          resolve(JSON.parse(body || '{}') as T);
-        } catch {
-          reject(new Error('Invalid JSON'));
-        }
-      });
-      req.on('error', reject);
-    });
+  private async parseBody<T>(req: http.IncomingMessage): Promise<T> {
+    let body = '';
+    for await (const chunk of req) {
+      body += chunk;
+    }
+    try {
+      return JSON.parse(body || '{}') as T;
+    } catch {
+      throw new Error('Invalid JSON');
+    }
   }
 
   /**

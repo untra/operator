@@ -55,7 +55,7 @@ impl Default for GitConfig {
 }
 
 /// Git provider selection
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum GitProviderConfig {

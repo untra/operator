@@ -567,7 +567,7 @@ pub enum SelectionStrategy {
 pub struct MatrixedConfig {
     /// Named delegator references (N), minimum 2
     pub delegators: Vec<String>,
-    /// Prompt variations (M) — Handlebars templates, minimum 2
+    /// Prompt variations (M) - Handlebars templates, minimum 2
     pub prompt_variations: Vec<String>,
     /// How to organize/present the N x M output
     pub output_format: MatrixedOutputFormat,
@@ -592,7 +592,7 @@ pub enum MatrixedOutputFormat {
 /// Configuration for pipeline steps: iterate a list of items through ordered
 /// stages with no barrier (each item flows through all stages independently).
 ///
-/// The step graph stays linear — a pipeline step still has exactly one
+/// The step graph stays linear - a pipeline step still has exactly one
 /// `next_step`. The fan-out (N items x M stages) lives entirely inside this one
 /// step; iteration is an intra-step concern, never a step-to-step edge.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -604,7 +604,7 @@ pub struct PipelineConfig {
     pub stages: Vec<PipelineStage>,
 }
 
-/// A single stage in a pipeline — deliberately flat (not a recursive
+/// A single stage in a pipeline - deliberately flat (not a recursive
 /// `StepSchema`): "prompt + optional agent/model/schema" only. It has no
 /// `next_step`/`review_type`/`on_reject`, so a stage cannot reopen the
 /// step-graph linearity question.
@@ -640,7 +640,7 @@ pub enum ItemSource {
     /// projects" mechanism.
     Projects,
     /// An array produced by a prior step. Emits that step's result identifier
-    /// (`r_<step>`) — a runtime value, so the graph width is symbolic.
+    /// (`r_<step>`) - a runtime value, so the graph width is symbolic.
     FromStep {
         /// Name of the prior step whose (array) output is iterated.
         step: String,
@@ -656,9 +656,9 @@ pub enum ItemSource {
         /// The items to iterate.
         items: Vec<String>,
     },
-    /// A ticket field value split into a list. Resolution is deferred — there
+    /// A ticket field value split into a list. Resolution is deferred - there
     /// is no list `FieldType` and ticket field values are not captured at
-    /// export time yet — so this currently emits a symbolic placeholder.
+    /// export time yet - so this currently emits a symbolic placeholder.
     Field {
         /// Name of the ticket field to read.
         name: String,

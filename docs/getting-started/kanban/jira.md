@@ -95,7 +95,7 @@ done = "Done"           # Column pushed when a ticket completes
 
 ### Column Mapping (todo / doing / done)
 
-Operator is strict about its three internal states — todo, doing, done — while
+Operator is strict about its three internal states - todo, doing, done - while
 Jira boards have arbitrary columns. `status_mapping` declares which Jira status
 corresponds to each operator state:
 
@@ -107,7 +107,7 @@ corresponds to each operator state:
 
 Discover the board's real column names via
 `POST /api/v1/kanban/statuses` (onboarding) or
-`GET /api/v1/kanban/jira/PROJ/statuses` (configured project) — the VS Code
+`GET /api/v1/kanban/jira/PROJ/statuses` (configured project) - the VS Code
 config panel uses these to populate the mapping dropdowns.
 
 > **Migrating from `sync_statuses`:** the old

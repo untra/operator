@@ -122,7 +122,7 @@ impl SetupScreen {
                             if author.is_empty() {
                                 String::new()
                             } else {
-                                format!("  — by {author}")
+                                format!("  - by {author}")
                             },
                             Style::default().fg(Color::DarkGray),
                         ),
@@ -145,7 +145,7 @@ impl SetupScreen {
             if let Some(hints) = &r.manifest.workflow_hints {
                 let mut hint_spans = vec![Span::styled("Loop: ", Style::default().fg(Color::Cyan))];
                 hint_spans.push(Span::raw(
-                    hints.loop_kind.clone().unwrap_or_else(|| "—".to_string()),
+                    hints.loop_kind.clone().unwrap_or_else(|| "-".to_string()),
                 ));
                 if !hints.review_gates.is_empty() {
                     hint_spans.push(Span::styled("  Gates: ", Style::default().fg(Color::Cyan)));

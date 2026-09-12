@@ -26,7 +26,7 @@ export function DevicePage() {
     });
   }, [host]);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setBusy(true);
@@ -75,7 +75,6 @@ export function DevicePage() {
             value={userCode}
             onChange={(e) => setUserCode(e.target.value.toUpperCase())}
             placeholder="XXXX-XXXX"
-            autoFocus
             required
           />
         </label>

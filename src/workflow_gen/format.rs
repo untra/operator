@@ -3,8 +3,8 @@
 //! Operator can render a ticket+issuetype into more than one orchestration
 //! format. `Claude` is the original Claude Code dynamic-workflow `.js`; `Agnt`
 //! is the AGNT.gg workflow graph JSON. The same shared code path
-//! (`export_workflow_for_ticket`) dispatches on this enum so every surface — CLI,
-//! REST, TUI, VS Code — selects a format uniformly.
+//! (`export_workflow_for_ticket`) dispatches on this enum so every surface - CLI,
+//! REST, TUI, VS Code - selects a format uniformly.
 
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ impl WorkflowFormat {
     /// `tests/vertical_parity.rs` against the `Workflows` catalog vertical.
     pub const ALL: [WorkflowFormat; 2] = [WorkflowFormat::Claude, WorkflowFormat::Agnt];
 
-    /// Stable lowercase slug — must equal the `Workflows` catalog entry slug.
+    /// Stable lowercase slug - must equal the `Workflows` catalog entry slug.
     pub fn slug(&self) -> &'static str {
         match self {
             WorkflowFormat::Claude => "claude",

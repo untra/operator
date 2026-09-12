@@ -5,27 +5,29 @@
  * produces for the same queue, and fall back to disk when no server answers.
  */
 
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as sinon from 'sinon';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import type { OutputChannel } from 'vscode';
 import { TicketTreeProvider } from '../../src/ticket-provider';
 import { OperatorApiClient } from '../../src/api-client';
 import { IssueTypeService } from '../../src/issuetype-service';
 import type { KanbanBoardResponse } from '../../src/generated';
 
-function mockOutputChannel(): import('vscode').OutputChannel {
-  return {
+function mockOutputChannel(): OutputChannel {
+  const channel = {
     append: () => undefined,
     appendLine: () => undefined,
     clear: () => undefined,
-    show: () => undefined,
+    show: (_preserveFocus?: boolean) => undefined,
     hide: () => undefined,
     dispose: () => undefined,
     replace: () => undefined,
     name: 'test',
-  } as unknown as import('vscode').OutputChannel;
+  };
+  return channel as OutputChannel;
 }
 
 function board(partial: Partial<KanbanBoardResponse>): KanbanBoardResponse {

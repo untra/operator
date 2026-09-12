@@ -6,25 +6,21 @@ layout: doc
 
 A **model server** is a named host that serves models via an inference API. It's orthogonal to the LLM tool that runs your coding agent:
 
-- **LLM tools** (claude, codex, gemini) are the agentic CLIs that drive the coding session — they use tools, edit files, resume sessions.
-- **Model servers** are where the model weights live — Anthropic's API, OpenAI's API, Google's API, or a many-model provider like [OpenRouter](/getting-started/model-servers/openrouter/), a local [Ollama](/getting-started/model-servers/ollama/) server, lmstudio, or vllm.
+- **LLM tools** (claude, codex, gemini) are the agentic CLIs that drive the coding session - they use tools, edit files, resume sessions.
+- **Model servers** are where the model weights live - Anthropic's API, OpenAI's API, Google's API, or a many-model provider like [OpenRouter](/getting-started/model-servers/openrouter/), a local [Ollama](/getting-started/model-servers/ollama/) server, lmstudio, or vllm.
 
 A delegator pairs an LLM tool with a model (and, optionally, a model server).
 
 ## Two families
 
-Every kind is a **model provider**. They split into two classes — the grouping
-every surface (README badges, the status tree, the REST `/kinds` catalog) derives
-from `ModelServerKind::provider_class()`:
-
-- **First-party** — a single vendor's own API: [Anthropic](/getting-started/model-servers/anthropic/)
+- **First-party** - a single vendor's own API: [Anthropic](/getting-started/model-servers/anthropic/)
   (`anthropic-api`), [OpenAI](/getting-started/model-servers/openai/) (`openai-api`),
   [Google](/getting-started/model-servers/google/)
   (`google-api`). These double as the zero-config defaults for the
-  claude/codex/gemini tools, so you rarely declare them — but they're first-class:
+  claude/codex/gemini tools, so you rarely declare them - but they're first-class:
   operator lists each one's live models from its `/models` endpoint when the
   corresponding key env is set.
-- **Gateways** — a host or aggregator that fronts *many* models behind one
+- **Gateways** - a host or aggregator that fronts *many* models behind one
   endpoint: [OpenRouter](/getting-started/model-servers/openrouter/) (`openrouter`),
   a local [Ollama](/getting-started/model-servers/ollama/)
   server (`ollama`), or any `openai-compat` / `lmstudio` server. Declare one to
@@ -121,7 +117,7 @@ operator launch \
 
 Each kind knows how to enumerate the models its endpoint serves (ollama `/api/tags`,
 OpenAI-protocol `/v1/models`, Anthropic `/v1/models`, Gemini `/v1beta/models`). The
-same probe doubles as a reachability check — there is no separate "test connection".
+same probe doubles as a reachability check - there is no separate "test connection".
 
 - **REST**: `GET /api/v1/model-servers/{name}/models` returns `{ reachable, models[], error? }`.
 - **VS Code**: expand a server in the status tree to see its live model list (or an
@@ -156,7 +152,7 @@ The API key is injected **by reference**, not by value: if `api_key_env = "MY_KE
 the script exports `OPENAI_API_KEY="${MY_KEY}"`, which the shell resolves from the
 inherited environment at run time. The secret is never written into the on-disk
 command script. Any `extra_env` entries are exported verbatim and take precedence.
-Implicit builtins with no `base_url` inject nothing — the vendor-default path is unchanged.
+Implicit builtins with no `base_url` inject nothing - the vendor-default path is unchanged.
 
 **Still deferred:**
 

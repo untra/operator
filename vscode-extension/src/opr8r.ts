@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs/promises';
-import { spawn } from 'child_process';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 
 /**
  * Discovers the opr8r binary path using priority order:

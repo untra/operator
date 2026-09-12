@@ -19,9 +19,9 @@ export function StatusPage() {
 
   // Scroll to a deep-linked section (e.g. /status?s=git) once sections load.
   useEffect(() => {
-    if (!sections || !targetSection) return;
+    if (!sections || !targetSection) {return;}
     const el = document.getElementById(targetSection);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) {el.scrollIntoView({ behavior: 'smooth', block: 'start' });}
   }, [sections, targetSection]);
 
   return (

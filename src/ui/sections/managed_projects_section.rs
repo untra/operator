@@ -2,7 +2,7 @@ use crate::ui::status_panel::{
     ActionSet, SectionHealth, SectionId, StatusIcon, StatusSection, StatusSnapshot, TreeRow,
 };
 
-/// Managed Projects section — mirrors the VS Code extension's `ManagedProjectsSection`.
+/// Managed Projects section - mirrors the VS Code extension's `ManagedProjectsSection`.
 /// Visible once Git is configured; lists the projects operator can assign work to.
 pub struct ManagedProjectsSection;
 

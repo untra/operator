@@ -19,9 +19,9 @@
  */
 
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
-import * as os from 'os';
-import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { ApiError, discoverApiUrl, OperatorApiClient } from './api-client';
 
 /**
@@ -131,7 +131,7 @@ export async function fetchMcpDescriptor(
  */
 export function isMcpServerRegistered(): boolean {
   const mcpConfig = vscode.workspace.getConfiguration('mcp');
-  const servers = mcpConfig.get<Record<string, unknown>>('servers') || {};
+  const servers = mcpConfig.get<Record<string, unknown>>('servers') ?? {};
   return 'operator' in servers;
 }
 
@@ -166,7 +166,7 @@ export async function registerInVscodeWorkspaceConfig(
   descriptor: McpDescriptorResponse
 ): Promise<void> {
   const mcpConfig = vscode.workspace.getConfiguration('mcp');
-  const servers = mcpConfig.get<Record<string, unknown>>('servers') || {};
+  const servers = mcpConfig.get<Record<string, unknown>>('servers') ?? {};
 
   servers['operator'] = buildVscodeServerEntry(descriptor);
 
@@ -249,7 +249,7 @@ export async function registerInCursorUserConfig(
   const merged = { ...existing, mcpServers };
   await fs.writeFile(
     configPath,
-    JSON.stringify(merged, null, 2) + '\n',
+    `${JSON.stringify(merged, null, 2)  }\n`,
     'utf-8'
   );
 

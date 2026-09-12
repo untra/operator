@@ -15,7 +15,7 @@ import type {
   TokenResponse,
 } from '../generated';
 import { CLIENT_ID, TOKEN_PATH, secondsToMs } from './credentials';
-import { TokenStore } from './token-store';
+import type { TokenStore } from './token-store';
 
 export const DEVICE_CODE_PATH = '/api/v1/auth/device/code';
 /** RFC 8628 §3.5: on `slow_down` the client adds 5 seconds to its interval. */

@@ -31,16 +31,19 @@ export function IssueTypesPage() {
   // Lazily fetch the native Operator workflow document when the graph opens.
   // Same bytes the docs site renders, so the two graphs cannot disagree.
   useEffect(() => {
-    if (view !== 'graph' || !selected) return;
-    if (document_?.key === selected.key) return;
+    if (view !== 'graph' || !selected) {return undefined;}
+    if (document_?.key === selected.key) {return undefined;}
     let cancelled = false;
     api
       .getIssueTypeDocument(selected.key)
       .then((doc) => {
-        if (!cancelled) setDocument(doc);
+        if (!cancelled) {
+          setDocument(doc);
+        }
+        return undefined;
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load workflow');
+        if (!cancelled) {setError(e instanceof Error ? e.message : 'Failed to load workflow');}
       });
     return () => {
       cancelled = true;
@@ -56,7 +59,7 @@ export function IssueTypesPage() {
     }
   };
 
-  if (loading) return <div className={styles.loading}>Loading issue types...</div>;
+  if (loading) {return <div className={styles.loading}>Loading issue types...</div>;}
 
   return (
     <div className={styles.page}>

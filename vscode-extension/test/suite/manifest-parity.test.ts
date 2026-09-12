@@ -1,4 +1,4 @@
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 
 /**
@@ -36,8 +36,8 @@ suite('Manifest Parity Tests', () => {
     const match = enginesVscode.match(/(\d+)\.(\d+)/);
     assert.ok(match, `Could not parse version from engines.vscode: ${enginesVscode}`);
 
-    const major = parseInt(match[1]!, 10);
-    const minor = parseInt(match[2]!, 10);
+    const major = Number.parseInt(match[1]!, 10);
+    const minor = Number.parseInt(match[2]!, 10);
 
     // onDidStartTerminalShellExecution was added in 1.93
     const meetsMinimum = major > 1 || (major === 1 && minor >= 93);

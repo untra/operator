@@ -5,12 +5,12 @@
  * version checking, and path resolution functions.
  */
 
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as sinon from 'sinon';
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs/promises';
-import * as os from 'os';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import {
   getExtensionVersion,
   getDownloadUrl,
@@ -19,6 +19,11 @@ import {
   isOperatorAvailable,
   getOperatorVersion,
 } from '../../src/operator-binary';
+
+function extensionWithPackageJson(packageJSON: unknown): vscode.Extension<unknown> {
+  const extension = { packageJSON };
+  return extension as vscode.Extension<unknown>;
+}
 
 suite('Operator Binary Test Suite', () => {
   let sandbox: sinon.SinonSandbox;
@@ -36,9 +41,9 @@ suite('Operator Binary Test Suite', () => {
 
   suite('getExtensionVersion()', () => {
     test('returns version from extension packageJSON', () => {
-      sandbox.stub(vscode.extensions, 'getExtension').returns({
-        packageJSON: { version: '1.2.3' },
-      } as vscode.Extension<unknown>);
+      sandbox.stub(vscode.extensions, 'getExtension').returns(
+        extensionWithPackageJson({ version: '1.2.3' })
+      );
 
       const version = getExtensionVersion();
       assert.strictEqual(version, '1.2.3');
@@ -52,9 +57,7 @@ suite('Operator Binary Test Suite', () => {
     });
 
     test('falls back to 0.2.0 when packageJSON has no version', () => {
-      sandbox.stub(vscode.extensions, 'getExtension').returns({
-        packageJSON: {},
-      } as vscode.Extension<unknown>);
+      sandbox.stub(vscode.extensions, 'getExtension').returns(extensionWithPackageJson({}));
 
       const version = getExtensionVersion();
       assert.strictEqual(version, '0.2.0');
@@ -70,9 +73,9 @@ suite('Operator Binary Test Suite', () => {
     });
 
     test('uses extension version when none provided', () => {
-      sandbox.stub(vscode.extensions, 'getExtension').returns({
-        packageJSON: { version: '2.3.4' },
-      } as vscode.Extension<unknown>);
+      sandbox.stub(vscode.extensions, 'getExtension').returns(
+        extensionWithPackageJson({ version: '2.3.4' })
+      );
 
       const url = getDownloadUrl();
 
@@ -410,7 +413,7 @@ suite('Operator Binary Test Suite', () => {
 
       // Use a unique temp storage path where operator won't exist
       const mockContext = {
-        globalStorageUri: { fsPath: path.join(tempDir, 'empty-storage-' + Date.now()) },
+        globalStorageUri: { fsPath: path.join(tempDir, `empty-storage-${  Date.now()}`) },
       } as unknown as vscode.ExtensionContext;
 
       const result = await isOperatorAvailable(mockContext);

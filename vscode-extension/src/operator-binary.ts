@@ -6,11 +6,11 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs/promises';
-import { createWriteStream } from 'fs';
-import { spawn } from 'child_process';
-import * as https from 'https';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { spawn } from 'node:child_process';
+import * as https from 'node:https';
 
 const GITHUB_REPO = 'untra/operator';
 
@@ -225,7 +225,7 @@ async function downloadWithRedirects(
         return;
       }
 
-      const totalSize = parseInt(response.headers['content-length'] ?? '0', 10);
+      const totalSize = Number.parseInt(response.headers['content-length'] ?? '0', 10);
       let downloadedSize = 0;
 
       // Create write stream

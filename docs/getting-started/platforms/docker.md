@@ -8,7 +8,7 @@ layout: doc
 
 Run [Operator](https://operator.untra.io) from an official multi-arch container image. The image bundles the Operator binary (with the embedded web dashboard and REST API) and the `opr8r` client on a slim Debian base, plus the `git` and `tmux` substrate Operator needs to launch agents. Mount your projects root into the container and Operator treats it as the workspace.
 
-**Image:** [`untra/operator`](https://hub.docker.com/r/untra/operator) — `linux/amd64` and `linux/arm64`.
+**Image:** [`untra/operator`](https://hub.docker.com/r/untra/operator) - `linux/amd64` and `linux/arm64`.
 
 
 ## Usage
@@ -34,7 +34,7 @@ docker run --rm -v $(pwd):/op:rw \
 
 **`OPERATOR_REST_API__HOST=0.0.0.0` is required to publish the port at all.**
 
-Operator binds `127.0.0.1` by default, which inside a container means the *container's* loopback — unreachable from the host no matter how you publish it.
+Operator binds `127.0.0.1` by default, which inside a container means the *container's* loopback - unreachable from the host no matter how you publish it.
 Setting the bind address to `0.0.0.0` makes it reachable from the container network; `-p 127.0.0.1:7008:7008` then restricts which host interface it appears on. Both halves are needed, and they do different jobs.
 
 Outside a container the default is unchanged: Operator binds loopback, and you do not need to set this.
@@ -75,7 +75,7 @@ docker run --rm -v $(pwd):/op:rw -it untra/operator:{{ site.version }}
 **Not included: the LLM CLI and its auth.** Operator launches agents via an LLM tool
 (`claude`, `codex`, or `gemini`) that you supply. Two ways to provide it:
 
-1. **Derived image** — extend the official image with your tool of choice:
+1. **Derived image** - extend the official image with your tool of choice:
 
    ```dockerfile
    FROM untra/operator
@@ -88,7 +88,7 @@ docker run --rm -v $(pwd):/op:rw -it untra/operator:{{ site.version }}
    USER 10001
    ```
 
-2. **Mount + env vars** — mount an already-installed, authenticated CLI from the host
+2. **Mount + env vars** - mount an already-installed, authenticated CLI from the host
    and pass credentials. The container runs as uid/gid 10001 with `$HOME=/home/operator`:
 
    ```bash
@@ -102,7 +102,7 @@ docker run --rm -v $(pwd):/op:rw -it untra/operator:{{ site.version }}
 
 Operator reads `.tickets/operator/config.toml` relative to its working directory. Because
 the image uses `WORKDIR /op` and you mount your projects root at `/op`, an existing config
-is picked up automatically — no flags required. Run from a directory without one and
+is picked up automatically - no flags required. Run from a directory without one and
 Operator uses its built-in defaults.
 
 A global override at `~/.config/operator/config.toml` (i.e.
@@ -111,8 +111,8 @@ A global override at `~/.config/operator/config.toml` (i.e.
 ## Prerequisites
 
 - Docker (with `buildx` for multi-arch hosts, which is the default on modern Docker).
-- The host directory you mount at `/op` should be your **projects root** — the directory
-  containing your code repositories and `.tickets/` — so Operator can start work in the
+- The host directory you mount at `/op` should be your **projects root** - the directory
+  containing your code repositories and `.tickets/` - so Operator can start work in the
   right place.
 - Use `-it` for the interactive TUI; omit it for one-shot subcommands and `api`.
 

@@ -1,4 +1,4 @@
-//! Relay hub — tokio actor that owns the peer registry and routes ask/reply/broadcast messages.
+//! Relay hub - tokio actor that owns the peer registry and routes ask/reply/broadcast messages.
 //!
 //! The hub runs embedded in operator's async runtime (lifetime = operator lifetime).
 //! No idle-shutdown timer: the hub exits only when operator exits.
@@ -61,7 +61,7 @@ impl RelayHub {
                     ));
                 }
                 _ => {
-                    // Stale socket — remove it
+                    // Stale socket - remove it
                     let _ = std::fs::remove_file(&socket_path);
                 }
             }
@@ -373,7 +373,7 @@ impl HubState {
         if let Some(entry) = self.id_to_entry.get_mut(&conn_id) {
             entry.name = new_name.clone();
         }
-        // Update pending asks — must happen before ack (matches TS ordering)
+        // Update pending asks - must happen before ack (matches TS ordering)
         self.update_name_on_rename(&old_name, &new_name);
         self.send_to_id(conn_id, ServerMsg::Ack { req_id });
     }
@@ -542,7 +542,7 @@ impl HubState {
             let cmd_tx_clone = cmd_tx.clone();
             let timeout_task = tokio::spawn(async move {
                 tokio::time::sleep(Duration::from_millis(timeout_ms)).await;
-                // Broadcast timeouts don't send errors — replies just stop arriving
+                // Broadcast timeouts don't send errors - replies just stop arriving
                 let _ = cmd_tx_clone
                     .send(HubCommand::TimeoutExpired {
                         ask_id: ask_id_clone,
@@ -1248,7 +1248,7 @@ mod tests {
             .await;
         let _ = caller.recv().await; // ack
 
-        // bob replies — should reach carol (formerly alice)
+        // bob replies - should reach carol (formerly alice)
         target
             .send(&ClientMsg::Reply {
                 ask_id: "a6".into(),

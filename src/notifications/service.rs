@@ -93,7 +93,7 @@ impl NotificationService {
 
         for integration in &self.integrations {
             if integration.is_enabled() && integration.handles_event(&event) {
-                let integration = integration.clone();
+                let integration = Arc::clone(integration);
                 let event = event.clone();
 
                 // Fire-and-forget - spawn task and don't await
@@ -126,7 +126,7 @@ impl NotificationService {
                 && integration.handles_event(&event)
                 && integration.name() == "os"
             {
-                let integration = integration.clone();
+                let integration = Arc::clone(integration);
                 let event = event.clone();
 
                 // Try to get current runtime handle
@@ -310,13 +310,13 @@ mod tests {
                     name: "all".into(),
                     enabled: true,
                     events: vec![], // All events
-                    send_count: count1.clone(),
+                    send_count: Arc::clone(&count1),
                 }),
                 Arc::new(MockIntegration {
                     name: "completed-only".into(),
                     enabled: true,
                     events: vec!["agent.completed".into()],
-                    send_count: count2.clone(),
+                    send_count: Arc::clone(&count2),
                 }),
             ],
             enabled: true,
@@ -348,7 +348,7 @@ mod tests {
                 name: "disabled".into(),
                 enabled: false,
                 events: vec![],
-                send_count: count.clone(),
+                send_count: Arc::clone(&count),
             })],
             enabled: true,
         };
@@ -376,7 +376,7 @@ mod tests {
                 name: "test".into(),
                 enabled: true,
                 events: vec![],
-                send_count: count.clone(),
+                send_count: Arc::clone(&count),
             })],
             enabled: false, // Globally disabled
         };

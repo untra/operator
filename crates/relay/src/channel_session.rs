@@ -105,8 +105,8 @@ impl ChannelSession {
 
         // Background reader task: route all subsequent ServerMsg
         {
-            let req_map = req_map.clone();
-            let bcast_map = bcast_map.clone();
+            let req_map = Arc::clone(&req_map);
+            let bcast_map = Arc::clone(&bcast_map);
             tokio::spawn(async move {
                 let mut line = String::new();
                 loop {
@@ -173,7 +173,7 @@ impl ChannelSession {
         {
             ServerMsg::Peers { peers, .. } => Ok(peers),
             ServerMsg::Err { code, message, .. } => {
-                Err(anyhow::anyhow!("list_peers error: {code:?} — {message:?}"))
+                Err(anyhow::anyhow!("list_peers error: {code:?} - {message:?}"))
             }
             other => Err(anyhow::anyhow!("unexpected list_peers response: {other:?}")),
         }
@@ -235,7 +235,7 @@ impl ChannelSession {
         {
             ServerMsg::Ack { .. } => Ok(()),
             ServerMsg::Err { code, message, .. } => {
-                Err(anyhow::anyhow!("rename error: {code:?} — {message:?}"))
+                Err(anyhow::anyhow!("rename error: {code:?} - {message:?}"))
             }
             other => Err(anyhow::anyhow!("unexpected rename response: {other:?}")),
         }
@@ -289,7 +289,7 @@ async fn route_msg(
                 let _ = tx.send(count);
             }
         }
-        // Ack/Peers/Err without correlation ID — ignore
+        // Ack/Peers/Err without correlation ID - ignore
         _ => {}
     }
 }

@@ -33,9 +33,9 @@ pub const ADMIN_SUBJECT: &str = "admin";
 
 /// Browser session lifetime.
 const SESSION_TTL: Duration = Duration::hours(12);
-/// Refresh token idle lifetime — using a token resets this.
+/// Refresh token idle lifetime - using a token resets this.
 const REFRESH_IDLE_TTL: Duration = Duration::days(30);
-/// Refresh token absolute lifetime — fixed at issuance, never extended.
+/// Refresh token absolute lifetime - fixed at issuance, never extended.
 const REFRESH_ABSOLUTE_TTL: Duration = Duration::days(90);
 /// Device code lifetime in seconds.
 pub const DEVICE_CODE_TTL_SECS: u64 = 15 * 60;
@@ -55,7 +55,7 @@ pub enum RefreshOutcome {
         scopes: Vec<Scope>,
     },
     /// The token was valid once but has already been redeemed. The family is
-    /// now revoked — see [`AuthStore::redeem_refresh_token`].
+    /// now revoked - see [`AuthStore::redeem_refresh_token`].
     Reused,
     /// No such token, or it is expired or revoked.
     Invalid,
@@ -83,7 +83,7 @@ pub enum DevicePollOutcome {
         client_id: String,
         scopes: Vec<Scope>,
     },
-    /// Not approved yet — keep polling.
+    /// Not approved yet - keep polling.
     Pending,
     /// Polled faster than the advertised interval.
     SlowDown,
@@ -255,20 +255,84 @@ impl AuthStore {
 
     /// Verify a password against the stored admin hash.
     pub fn verify_admin_password(&self, password: &str) -> Result<bool> {
-        let phc: Option<String> = self.with_conn(|conn| {
+        self.verify_credentials(ADMIN_SUBJECT, password)
+    }
+
+    /// Verify both parts of a human credential without treating the single
+    /// current username as an implicit client-side constant.
+    pub fn verify_credentials(&self, username: &str, password: &str) -> Result<bool> {
+        let account: Option<(String, String)> = self.with_conn(|conn| {
             Ok(conn
                 .query_row(
-                    "SELECT password_hash FROM admin_account WHERE id = 1",
+                    "SELECT subject, password_hash FROM admin_account WHERE id = 1",
                     [],
-                    |r| r.get(0),
+                    |r| Ok((r.get(0)?, r.get(1)?)),
                 )
                 .optional()?)
         })?;
 
-        match phc {
-            Some(phc) => verify_password(password, &phc),
+        match account {
+            Some((subject, phc)) => {
+                let password_matches = verify_password(password, &phc)?;
+                Ok(crate::auth::local::matches(&subject, username) && password_matches)
+            }
             None => Ok(false),
         }
+    }
+
+    /// Change a password and revoke existing credentials as one serialized
+    /// operation. Concurrent reset attempts cannot both authenticate against
+    /// the old password and race to choose the final value.
+    pub fn reset_password(
+        &self,
+        username: &str,
+        current_password: &str,
+        new_password: &str,
+    ) -> Result<bool> {
+        validate_password(new_password)?;
+
+        self.with_conn(|conn| {
+            let account: Option<(String, String)> = conn
+                .query_row(
+                    "SELECT subject, password_hash FROM admin_account WHERE id = 1",
+                    [],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .optional()?;
+            let Some((subject, current_phc)) = account else {
+                return Ok(false);
+            };
+            let password_matches = verify_password(current_password, &current_phc)?;
+            if !crate::auth::local::matches(&subject, username) || !password_matches {
+                return Ok(false);
+            }
+
+            let new_phc = hash_password(new_password)?;
+            let now = Utc::now().to_rfc3339();
+            let tx = conn.transaction()?;
+            tx.execute(
+                "UPDATE admin_account SET password_hash = ?1, awaiting_reset = 0, updated_at = ?2 WHERE id = 1",
+                rusqlite::params![new_phc, now],
+            )?;
+            tx.execute(
+                "UPDATE session SET revoked_at = ?1 WHERE revoked_at IS NULL",
+                [&now],
+            )?;
+            tx.execute(
+                "UPDATE refresh_family SET revoked_at = ?1, revoked_reason = ?2 WHERE revoked_at IS NULL",
+                rusqlite::params![now, "password reset"],
+            )?;
+            tx.execute(
+                "UPDATE access_key SET revoked_at = ?1 WHERE revoked_at IS NULL",
+                [&now],
+            )?;
+            tx.execute(
+                "UPDATE device_authorization SET denied_at = ?1 WHERE approved_at IS NULL AND denied_at IS NULL",
+                [&now],
+            )?;
+            tx.commit()?;
+            Ok(true)
+        })
     }
 
     /// Revoke every credential: sessions, refresh families, access keys, and
@@ -528,7 +592,7 @@ impl AuthStore {
     /// Redeem a refresh token, rotating it.
     ///
     /// Presenting an **already-consumed** token means two parties hold the same
-    /// credential — the legitimate client and a thief — and there is no way to
+    /// credential - the legitimate client and a thief - and there is no way to
     /// tell which is calling. The whole family is revoked rather than guessing:
     /// a forced re-authentication is a far better outcome than silently serving
     /// an attacker.
@@ -1134,6 +1198,51 @@ mod tests {
         // The first password still works; the loser did not overwrite it.
         assert!(s.verify_admin_password(GOOD_PASSWORD).unwrap());
         assert!(!s.verify_admin_password("some other long password").unwrap());
+    }
+
+    #[test]
+    fn test_credentials_require_the_stored_username_and_password() {
+        let s = store();
+        s.create_admin(GOOD_PASSWORD, false).unwrap();
+
+        assert!(s.verify_credentials(ADMIN_SUBJECT, GOOD_PASSWORD).unwrap());
+        assert!(!s.verify_credentials("not-admin", GOOD_PASSWORD).unwrap());
+        assert!(!s
+            .verify_credentials(ADMIN_SUBJECT, "some other long password")
+            .unwrap());
+    }
+
+    #[test]
+    fn test_password_reset_requires_both_credentials() {
+        let s = store();
+        let replacement = "a replacement password";
+        s.create_admin(GOOD_PASSWORD, false).unwrap();
+
+        assert!(!s
+            .reset_password("not-admin", GOOD_PASSWORD, replacement)
+            .unwrap());
+        assert!(!s.verify_credentials(ADMIN_SUBJECT, replacement).unwrap());
+        assert!(s
+            .reset_password(ADMIN_SUBJECT, GOOD_PASSWORD, replacement)
+            .unwrap());
+        assert!(!s.verify_credentials(ADMIN_SUBJECT, GOOD_PASSWORD).unwrap());
+        assert!(s.verify_credentials(ADMIN_SUBJECT, replacement).unwrap());
+    }
+
+    #[test]
+    fn test_password_reset_revokes_existing_credentials() {
+        let s = store();
+        s.create_admin(GOOD_PASSWORD, false).unwrap();
+        let (session, _, _) = s.create_session().unwrap();
+        let (_, access_key) = s.create_access_key("test", &[Scope::Read], 1).unwrap();
+        assert!(s.authenticate_session(&session).unwrap().is_some());
+        assert!(s.redeem_access_key(&access_key).unwrap().is_some());
+
+        s.reset_password(ADMIN_SUBJECT, GOOD_PASSWORD, "a replacement password")
+            .unwrap();
+
+        assert!(s.authenticate_session(&session).unwrap().is_none());
+        assert!(s.redeem_access_key(&access_key).unwrap().is_none());
     }
 
     #[test]

@@ -21,10 +21,11 @@ static WORKTREE_CREATION_LOCKS: std::sync::LazyLock<Mutex<HashMap<PathBuf, Arc<M
 /// Get or create a lock for a specific path
 async fn get_path_lock(path: &Path) -> Arc<Mutex<()>> {
     let mut locks = WORKTREE_CREATION_LOCKS.lock().await;
-    locks
-        .entry(path.to_path_buf())
-        .or_insert_with(|| Arc::new(Mutex::new(())))
-        .clone()
+    Arc::clone(
+        locks
+            .entry(path.to_path_buf())
+            .or_insert_with(|| Arc::new(Mutex::new(()))),
+    )
 }
 
 /// Information about a created worktree

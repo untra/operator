@@ -1,4 +1,4 @@
-//! Bidirectional kanban sync — pushes operator ticket state changes upstream.
+//! Bidirectional kanban sync - pushes operator ticket state changes upstream.
 
 use std::sync::Arc;
 
@@ -59,7 +59,7 @@ impl KanbanBidirectionalSync {
     }
 
     /// Called when a ticket is returned to the queue (doing → todo). Pushes the
-    /// mapped "todo" status to the provider — no-op unless `status_mapping.todo`
+    /// mapped "todo" status to the provider - no-op unless `status_mapping.todo`
     /// is explicitly configured (there is no safe universal default column).
     pub async fn on_ticket_requeued(&self, ticket: &Ticket) {
         if let Some((provider, sync_cfg)) = self.resolve(ticket) {

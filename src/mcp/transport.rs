@@ -6,6 +6,7 @@
 //!   sends responses back through the SSE stream
 
 use std::convert::Infallible;
+use std::sync::Arc;
 use std::time::Duration;
 
 use super::Host;
@@ -31,7 +32,7 @@ pub struct MessageQuery {
     session_id: String,
 }
 
-/// SSE endpoint — opens an event stream and sends the message endpoint URL
+/// SSE endpoint - opens an event stream and sends the message endpoint URL
 ///
 /// The client connects here first, receives the message endpoint URL,
 /// then sends JSON-RPC requests to that endpoint.
@@ -68,7 +69,7 @@ pub async fn sse_handler(
     let message_url = format!("{base}/api/v1/mcp/message?sessionId={session_id}");
 
     let session_id_cleanup = session_id.clone();
-    let sessions_cleanup = state.mcp_sessions.clone();
+    let sessions_cleanup = Arc::clone(&state.mcp_sessions);
 
     // Build SSE stream: first event is the endpoint URL, then relay messages
     let endpoint_event = tokio_stream::once(Ok::<_, Infallible>(
@@ -94,7 +95,7 @@ pub async fn sse_handler(
     )
 }
 
-/// Message endpoint — receives JSON-RPC requests and sends responses via SSE
+/// Message endpoint - receives JSON-RPC requests and sends responses via SSE
 #[utoipa::path(
     post,
     path = "/api/v1/mcp/message",

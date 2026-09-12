@@ -23,9 +23,7 @@ curated embedded set lives in `src/collections/`.
    - `id` equal to the directory name
    - `tier: "community"` with **`author`, `url`, and `license`** (SPDX id) -
      required for community submissions
-   - `issue_types`: 1–32 entries; keys match `^[A-Z][A-Z0-9_]{1,15}$`
-     (hyphens are reserved for the `{KEY}-{number}` ticket-id separator);
-     paths are bare filenames next to the manifest
+   - `issue_types`: 1-32 entries; keys match `^[A-Z][A-Z0-9_]{1,15}$` (hyphens are reserved for the `{KEY}-{number}` ticket-id     separator); paths are bare filenames next to the manifest
    - optional `workflow_hints` (loop shape, memory surfaces, review gates,
      stop conditions) and `kanban_defaults.suggested_type_mappings`
      (descriptive only - they inform users and onboarding, not execution)

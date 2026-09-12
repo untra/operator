@@ -5,27 +5,29 @@
  * Tests OperatorApiClient class methods and discoverApiUrl function.
  */
 
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 import * as sinon from 'sinon';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import type {
+  QueueControlResponse,
+  KanbanSyncResponse,
+  ReviewResponse} from '../../src/api-client';
 import {
   AuthRequiredError,
   LIVEZ_PATH,
   OperatorApiClient,
   discoverApiUrl,
-  toJson,
-  QueueControlResponse,
-  KanbanSyncResponse,
-  ReviewResponse,
+  toJson
 } from '../../src/api-client';
 import {
   clearCredentialProvider,
   setCredentialProvider,
 } from '../../src/auth/credentials';
-import { FakeCredentials, fakeCredentials } from './helpers/credentials';
-import {
+import type { FakeCredentials} from './helpers/credentials';
+import { fakeCredentials } from './helpers/credentials';
+import type {
   HealthResponse,
   LaunchTicketRequest,
   LaunchTicketResponse,
@@ -788,7 +790,7 @@ suite('API Client Test Suite', () => {
         ok: true,
         json: () => Promise.reject(new Error('Invalid JSON')),
       };
-      fetchStub.resolves(mockResponse as unknown as Response);
+      fetchStub.resolves(mockResponse);
 
       await assert.rejects(() => client.health(), /Invalid JSON/);
     });

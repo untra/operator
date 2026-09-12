@@ -9,15 +9,15 @@ export type LaunchTicketRequest = {
  */
 delegator: string | null, 
 /**
- * LLM provider to use (e.g., "claude") — legacy fallback when no delegator
+ * LLM provider to use (e.g., "claude") - legacy fallback when no delegator
  */
 provider: string | null, 
 /**
- * Model to use (e.g., "sonnet", "opus") — legacy fallback when no delegator
+ * Model to use (e.g., "sonnet", "opus") - legacy fallback when no delegator
  */
 model: string | null, 
 /**
- * Ad-hoc model server to target (e.g. "ollama-local") — legacy fallback when
+ * Ad-hoc model server to target (e.g. "ollama-local") - legacy fallback when
  * no delegator. Injects the server's base URL / API key env at spawn.
  */
 model_server: string | null, 

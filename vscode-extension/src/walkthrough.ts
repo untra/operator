@@ -8,10 +8,10 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs/promises';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const execAsync = promisify(exec);
 
@@ -96,18 +96,19 @@ const TOOL_META: Record<string, { versionCmd: string; minVersion: string }> = {
   gemini: { versionCmd: 'gemini --version',  minVersion: '0.1.0' },
 };
 
+function parseVersion(value: string): number[] {
+  const match = value.match(/(\d+(?:\.\d+)*)/);
+  if (!match?.[1]) { return [0]; }
+  return match[1].split('.').map(Number);
+}
+
 /**
  * Compare two semver-like version strings.
  * Returns true if `version` >= `minVersion`.
  */
 export function compareVersions(version: string, minVersion: string): boolean {
-  const parse = (v: string): number[] => {
-    const match = v.match(/(\d+(?:\.\d+)*)/);
-    if (!match?.[1]) { return [0]; }
-    return match[1].split('.').map(Number);
-  };
-  const a = parse(version);
-  const b = parse(minVersion);
+  const a = parseVersion(version);
+  const b = parseVersion(minVersion);
   const len = Math.max(a.length, b.length);
   for (let i = 0; i < len; i++) {
     const av = a[i] ?? 0;

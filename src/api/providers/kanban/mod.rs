@@ -227,7 +227,7 @@ pub trait KanbanProvider: Send + Sync {
 
     /// Append an agent activity entry to the upstream issue.
     ///
-    /// Implementations append (not replace) a structured log entry — as a comment
+    /// Implementations append (not replace) a structured log entry - as a comment
     /// on Jira/Linear, or as a body update on GitHub draft issues.
     /// Default: no-op (returns `Ok(())`).
     async fn append_activity_log(
@@ -301,7 +301,7 @@ impl KanbanProviderType {
         }
     }
 
-    /// Lowercase wire slug — the stable identifier used in config keys, the
+    /// Lowercase wire slug - the stable identifier used in config keys, the
     /// `ConfigureKanbanProvider` action, and the REST catalog.
     pub fn slug(&self) -> &'static str {
         match self {
@@ -331,7 +331,7 @@ impl KanbanProviderType {
 
     /// The provider's credential/token page. Opened by the TUI "Configure"
     /// action and surfaced as the clickable link on the web `/#/kanban` rows
-    /// (there is no in-browser onboarding wizard — this opens the token page).
+    /// (there is no in-browser onboarding wizard - this opens the token page).
     pub fn setup_url(&self) -> &'static str {
         match self {
             KanbanProviderType::Jira => {
@@ -339,7 +339,7 @@ impl KanbanProviderType {
             }
             KanbanProviderType::Linear => "https://linear.app/settings/api",
             KanbanProviderType::Github => "https://github.com/settings/personal-access-tokens",
-            // No token page exists — OpenSpec is local files; link the docs.
+            // No token page exists - OpenSpec is local files; link the docs.
             KanbanProviderType::Openspec => {
                 "https://operator.untra.io/getting-started/kanban/openspec/"
             }
@@ -420,13 +420,13 @@ impl DetectedKanbanProvider {
             }
             KanbanProviderType::Github => {
                 // GitHub Projects just needs the token. Note: only
-                // OPERATOR_GITHUB_TOKEN counts here — see Token
+                // OPERATOR_GITHUB_TOKEN counts here - see Token
                 // Disambiguation rule 5 in github_projects.rs.
                 self.env_vars_found
                     .iter()
                     .any(|v| v.contains("TOKEN") || v.contains("API_KEY"))
             }
-            // OpenSpec needs no env vars — configuration is a local path.
+            // OpenSpec needs no env vars - configuration is a local path.
             KanbanProviderType::Openspec => true,
         }
     }
@@ -699,7 +699,7 @@ pub fn get_provider(name: &str) -> Option<Box<dyn KanbanProvider>> {
         "github" => GithubProjectsProvider::from_env()
             .ok()
             .map(|p| Box::new(p) as Box<dyn KanbanProvider>),
-        // openspec cannot be built from env — use get_provider_from_config
+        // openspec cannot be built from env - use get_provider_from_config
         _ => None,
     }
 }

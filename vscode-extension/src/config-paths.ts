@@ -6,8 +6,8 @@
  * `operator.workingDirectory`, falling back to the workspace parent.
  */
 
-import * as path from 'path';
-import * as fs from 'fs/promises';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 
 /** Build the config.toml path from a working directory */

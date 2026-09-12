@@ -5,7 +5,7 @@ layout: doc
 ---
 
 The default export target. Renders a `ticket + issue type` into a **Claude Code
-dynamic workflow** — a `.js` module the
+dynamic workflow** - a `.js` module the
 [`@untra/naiveworkflow-compiler`](https://operator.untra.io/getting-started/workflows/)
 walks to drive Claude Code agents.
 
@@ -24,7 +24,7 @@ curl -X POST "http://localhost:7008/api/v1/tickets/FEAT-1234/workflow-export?for
 
 The emitted module is deterministic (no wallclock, `Date.now`, or
 `Math.random`). It begins with an `export const meta = { name, description,
-phases }` block, followed by **top-level statements** (one per step) — not a
+phases }` block, followed by **top-level statements** (one per step) - not a
 wrapped `export default async function`, because that is the form the compiler
 expects.
 

@@ -125,7 +125,7 @@ pub fn validate_manifest(manifest: &CollectionManifest, dir_name: &str) -> Resul
     Ok(())
 }
 
-/// File references must be bare filenames next to the manifest — no
+/// File references must be bare filenames next to the manifest - no
 /// separators or traversal, matching the flat hosted/embedded layout.
 fn validate_path(path: &str) -> Result<()> {
     if path.is_empty()

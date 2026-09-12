@@ -244,7 +244,7 @@ impl App {
         // Resolve launch options via the delegator chain
         let options = match crate::agents::delegator_resolution::resolve_launch_options(
             &self.config,
-            None, // no explicit delegator — let the chain resolve
+            None, // no explicit delegator - let the chain resolve
             None, // no explicit provider
             None, // no explicit model
             None, // no explicit model_server
@@ -493,7 +493,7 @@ impl App {
     }
 
     /// Focus the cmux window containing the selected agent's workspace.
-    /// This is a cmux power-user action — other wrappers show a status message.
+    /// This is a cmux power-user action - other wrappers show a status message.
     pub(super) fn focus_agent_window(&mut self) -> Result<()> {
         let agent = self.dashboard.selected_agent().cloned();
         let Some(agent) = agent else {
@@ -502,7 +502,7 @@ impl App {
 
         if agent.session_wrapper.as_deref() != Some("cmux") {
             self.dashboard
-                .set_status("F: cmux window focus — not a cmux agent");
+                .set_status("F: cmux window focus - not a cmux agent");
             return Ok(());
         }
 

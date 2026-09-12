@@ -8,8 +8,9 @@
 import * as vscode from 'vscode';
 import { OperatorApiClient } from '../api-client';
 import type { CredentialProvider } from './credentials';
-import { DeviceFlowOutcome, runDeviceFlow } from './device-flow';
-import { TokenStore } from './token-store';
+import type { DeviceFlowOutcome} from './device-flow';
+import { runDeviceFlow } from './device-flow';
+import type { TokenStore } from './token-store';
 
 const COPY_CODE = 'Copy code';
 
@@ -45,6 +46,10 @@ export function describeOutcome(apiUrl: string, outcome: DeviceFlowOutcome): str
       return 'Sign-in cancelled.';
     case 'error':
       return `Sign-in failed: ${outcome.message}`;
+    default: {
+      const exhaustive: never = outcome;
+      throw new Error(`Unknown device flow outcome: ${JSON.stringify(exhaustive)}`);
+    }
   }
 }
 

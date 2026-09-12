@@ -2,6 +2,6 @@
 import type { SectionId } from "./SectionId";
 
 /**
- * Declarative section metadata — shared between TUI and `VSCode`.
+ * Declarative section metadata - shared between TUI and `VSCode`.
  */
 export type SectionDefinition = { id: SectionId, label: string, prerequisites: Array<SectionId>, };

@@ -10,7 +10,7 @@
 //! - Command file creation
 //! - Ticket state transitions
 //!
-//! No VS Code instance is required — these test the Rust API path only.
+//! No VS Code instance is required - these test the Rust API path only.
 //!
 //! ## Environment Variables
 //!

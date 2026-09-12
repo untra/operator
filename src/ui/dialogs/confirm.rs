@@ -961,7 +961,7 @@ mod tests {
     #[test]
     fn test_focus_options_noop_when_no_options() {
         let mut dialog = ConfirmDialog::new();
-        // No options configured — has_options() is false
+        // No options configured - has_options() is false
         dialog.focus_options();
         assert!(matches!(dialog.focus, ConfirmDialogFocus::Buttons));
     }

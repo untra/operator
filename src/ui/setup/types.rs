@@ -325,7 +325,7 @@ impl WorktreeOption {
 }
 
 /// Steps in the setup process
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SetupStep {
     /// Welcome splash screen with discovered projects
     Welcome,
@@ -370,7 +370,7 @@ pub enum PasswordField {
 }
 
 impl PasswordField {
-    /// The other field — Tab toggles between exactly two.
+    /// The other field - Tab toggles between exactly two.
     pub fn toggled(self) -> Self {
         match self {
             PasswordField::Password => PasswordField::Confirm,

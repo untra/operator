@@ -1,4 +1,4 @@
-//! Stdio transport for MCP — line-delimited JSON-RPC over stdin/stdout.
+//! Stdio transport for MCP - line-delimited JSON-RPC over stdin/stdout.
 //!
 //! Each line on stdin is one JSON-RPC request. Each response is one JSON
 //! object written to stdout terminated by `\n`. Logs and diagnostics go to

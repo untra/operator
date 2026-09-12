@@ -1,7 +1,7 @@
 //! The **Workflows** status section: the export formats a ticket + issuetype can
 //! be rendered into (Claude dynamic workflow `.js`, AGNT graph `.json`).
 //!
-//! Info-only — formats are always available (no credentials), so the section is
+//! Info-only - formats are always available (no credentials), so the section is
 //! `Gray`. Each row names a format, its support status + file extension, and
 //! links to its docs. The primary action opens the web UI's Workflows page where
 //! per-issuetype preview / per-ticket export run against the existing endpoints.

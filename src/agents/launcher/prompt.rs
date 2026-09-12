@@ -232,7 +232,7 @@ pub fn write_command_file(
         .unwrap_or_default();
 
     // Strip Coder session tokens from the agent's environment on every target
-    // kind — Operator needs them to drive the control plane; no agent CLI does.
+    // kind - Operator needs them to drive the control plane; no agent CLI does.
     let strip_block = {
         let names = crate::config::coder_token_envs(config);
         if names.is_empty() {
@@ -292,7 +292,7 @@ pub fn write_command_file(
 ///
 /// Keys are sorted for deterministic output. Values are shell-escaped, *except*
 /// a pure shell-variable reference like `${OLLAMA_API_KEY}` is emitted unquoted
-/// so the shell expands it at run time — this lets an API key be passed by
+/// so the shell expands it at run time - this lets an API key be passed by
 /// reference (inherited from operator's env) without writing the secret value
 /// into the on-disk command script.
 fn render_env_exports(env: &std::collections::HashMap<String, String>) -> String {
@@ -354,7 +354,7 @@ mod tests {
     #[test]
     fn test_command_file_strips_coder_token_env_on_local_target() {
         // The token variable is stripped from EVERY agent spawn environment,
-        // including Local launches — the likeliest exposure is a local agent
+        // including Local launches - the likeliest exposure is a local agent
         // inside the operator's own Coder workspace.
         let temp = tempfile::tempdir().unwrap();
         let mut config = Config::default();
@@ -674,7 +674,7 @@ mod tests {
 
         let mut provider_env = std::collections::HashMap::new();
         provider_env.insert("OPENAI_BASE_URL".to_string(), "http://gpu:8000".to_string());
-        // API key passed by reference — must NOT be written as a literal secret.
+        // API key passed by reference - must NOT be written as a literal secret.
         provider_env.insert("OPENAI_API_KEY".to_string(), "${MY_SECRET_KEY}".to_string());
 
         let result = write_command_file(

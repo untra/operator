@@ -39,7 +39,7 @@ pub mod integrations;
 // MCP server bridge
 pub mod mcp;
 
-// ACP agent bridge (Agent Client Protocol — editor-hosted sessions over stdio)
+// ACP agent bridge (Agent Client Protocol - editor-hosted sessions over stdio)
 pub mod acp;
 
 // Re-export env_vars for potential external use

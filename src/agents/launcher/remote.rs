@@ -142,8 +142,8 @@ pub(crate) fn remote_payload_path(host: &RemoteHost, session_uuid: &str) -> Stri
 
 /// Build the agent CLI command executed on the remote host.
 ///
-/// Uses the *loaded* tool config template — builtin or user-provided (see
-/// `crate::llm::tool_config`) — with the bare tool name, resolved via the
+/// Uses the *loaded* tool config template - builtin or user-provided (see
+/// `crate::llm::tool_config`) - with the bare tool name, resolved via the
 /// remote PATH, rather than the locally detected binary path, which would be
 /// wrong on the remote machine. `{{config_flags}}` is dropped: permission
 /// translation, MCP config, and statusline all write local files
@@ -163,7 +163,7 @@ pub(crate) fn build_remote_llm_command(
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "~/.config/operator/tools".to_string());
             anyhow::anyhow!(
-                "LLM tool '{tool_name}' has no tool config; builtins are claude/codex/gemini — \
+                "LLM tool '{tool_name}' has no tool config; builtins are claude/codex/gemini - \
                  add a JSON under {tools_dir} to support others"
             )
         })?;

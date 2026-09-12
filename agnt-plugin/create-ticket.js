@@ -1,4 +1,4 @@
-// operator-create-ticket — POST /api/v1/tickets
+// operator-create-ticket - POST /api/v1/tickets
 import { callOperator } from "./lib/operator-client.js";
 
 class CreateTicketTool {

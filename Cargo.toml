@@ -124,11 +124,22 @@ flate2 = "1"
 unsafe_code = "deny"
 
 [lints.clippy]
+all = { level = "warn", priority = -2 }
 pedantic = { level = "warn", priority = -1 }
 
 # Nursery lints for cohesion
 cognitive_complexity = "warn"
-redundant_clone = "warn"
+redundant_clone = "deny"
+
+# Clone and borrow discipline
+clone_on_copy = "deny"
+unnecessary_to_owned = "deny"
+borrowed_box = "deny"
+explicit_auto_deref = "deny"
+borrow_deref_ref = "deny"
+deref_addrof = "deny"
+needless_borrow = "deny"
+clone_on_ref_ptr = "warn"
 
 # Allow noisy pedantic lints that don't add value here
 module_name_repetitions = "allow"
@@ -181,6 +192,13 @@ needless_for_each = "allow"
 needless_continue = "allow"
 # Wildcard matches are intentional for future-proofing
 match_wildcard_for_single_variants = "allow"
+# Legacy style cleanup is outside ownership lint enforcement
+redundant_else = "allow"
+needless_raw_string_hashes = "allow"
+doc_markdown = "allow"
+uninlined_format_args = "allow"
+single_match_else = "allow"
+nonminimal_bool = "allow"
 
 # Platform-specific notifications
 [target.'cfg(target_os = "macos")'.dependencies]

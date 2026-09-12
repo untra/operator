@@ -3,7 +3,7 @@
 //! AGNT's `PluginManager` registers and routes each tool instance by its
 //! `this.name` property. Ironclad rule: the constructor's `this.name` MUST equal
 //! the tool's `type` in `agnt-plugin/manifest.json`. A class missing `this.name`
-//! registers under `undefined` — it installs but the node never fires.
+//! registers under `undefined` - it installs but the node never fires.
 //!
 //! This test reads files only (no JS runtime): it parses the manifest for the
 //! source-of-truth `type` -> `entryPoint` pairs, then confirms each referenced

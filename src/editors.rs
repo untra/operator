@@ -142,8 +142,6 @@ mod tests {
     fn test_partial_env_override() {
         with_clean_env(|| {
             std::env::set_var("EDITOR", "nano");
-            // VISUAL not set — should get vscode default
-
             let config = EditorConfig::detect(SessionWrapperType::Vscode);
             assert_eq!(config.editor, "nano");
             assert_eq!(config.visual, "code --wait");

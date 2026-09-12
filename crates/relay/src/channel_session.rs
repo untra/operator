@@ -105,8 +105,8 @@ impl ChannelSession {
 
         // Background reader task: route all subsequent ServerMsg
         {
-            let req_map = req_map.clone();
-            let bcast_map = bcast_map.clone();
+            let req_map = Arc::clone(&req_map);
+            let bcast_map = Arc::clone(&bcast_map);
             tokio::spawn(async move {
                 let mut line = String::new();
                 loop {

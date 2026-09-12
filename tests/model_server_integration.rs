@@ -1,7 +1,7 @@
 //! Live model-listing integration tests for the cloud model providers.
 //!
 //! These drive the real [`probe_models`] path against each provider's
-//! model-listing endpoint — the same call the REST `/model-servers/.../models`
+//! model-listing endpoint - the same call the REST `/model-servers/.../models`
 //! routes use to populate model dropdowns. Listing models consumes **no
 //! inference tokens**, so these are cheap to run.
 //!
@@ -12,13 +12,13 @@
 //! the instance's `api_key_env` (distinct from the operator's own runtime vars so
 //! test keys never collide with a developer's live `ANTHROPIC_API_KEY`, etc.):
 //!
-//! - `OPERATOR_ANTHROPIC_API_KEY`  — <https://console.anthropic.com/settings/keys>
-//! - `OPERATOR_OPENAI_API_KEY`     — <https://platform.openai.com/api-keys>
-//! - `OPERATOR_GEMINI_API_KEY`     — <https://aistudio.google.com/app/apikey>
-//! - `OPERATOR_OPENROUTER_API_KEY` — <https://openrouter.ai/keys> (optional)
+//! - `OPERATOR_ANTHROPIC_API_KEY`  - <https://console.anthropic.com/settings/keys>
+//! - `OPERATOR_OPENAI_API_KEY`     - <https://platform.openai.com/api-keys>
+//! - `OPERATOR_GEMINI_API_KEY`     - <https://aistudio.google.com/app/apikey>
+//! - `OPERATOR_OPENROUTER_API_KEY` - <https://openrouter.ai/keys> (optional)
 //!
-//! The `openrouter_keyless` test needs **no key** — `OpenRouter`'s `/models` list
-//! is public — so it runs on every CI run as the always-on baseline. It skips
+//! The `openrouter_keyless` test needs **no key** - `OpenRouter`'s `/models` list
+//! is public - so it runs on every CI run as the always-on baseline. It skips
 //! gracefully (rather than failing) if the network is unreachable.
 //!
 //! ## Running
@@ -134,7 +134,7 @@ mod openrouter_keyless {
 
     #[tokio::test]
     async fn test_public_models_list_is_text_filtered() {
-        // No api_key_env and no OPENROUTER_API_KEY needed — the list is public.
+        // No api_key_env and no OPENROUTER_API_KEY needed - the list is public.
         let outcome = probe_models(&server_for("openrouter", None), &EgressPolicy::default()).await;
 
         if !outcome.reachable {
@@ -258,7 +258,7 @@ mod openrouter_keyed {
 // ─── Cross-provider consistency ───────────────────────────────────────────────
 
 /// Every configured + reachable provider returns the same uniform
-/// `ModelInfo { id, display_name }` shape — a non-empty id for each model — so a
+/// `ModelInfo { id, display_name }` shape - a non-empty id for each model - so a
 /// single dropdown component can render all of them. Skips when nothing is
 /// configured.
 #[tokio::test]

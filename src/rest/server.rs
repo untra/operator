@@ -268,10 +268,10 @@ impl RestApiServer {
         let router = build_router(state);
         let port = self.port;
         let host_ip = self.config.rest_api.host_ip();
-        let status = self.status.clone();
+        let status = Arc::clone(&self.status);
         let tickets_path = self.tickets_path.clone();
         let state_path = self.config.state_path();
-        let api_state_handle = self.api_state.clone();
+        let api_state_handle = Arc::clone(&self.api_state);
 
         *status.lock().unwrap() = RestApiStatus::Starting;
 

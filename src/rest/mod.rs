@@ -76,6 +76,8 @@ fn auth_router() -> OpenApiRouter<ApiState> {
             routes::auth::bootstrap_submit
         ))
         .routes(routes!(routes::auth::login))
+        .routes(routes!(routes::auth::forgot_password))
+        .routes(routes!(routes::auth::reset_password))
         .routes(routes!(routes::auth::device_code))
         .routes(routes!(routes::auth::token))
         // Managing credentials (authenticated).

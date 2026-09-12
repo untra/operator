@@ -487,15 +487,15 @@ impl OperatorExtension {
             "- [x] **MCP context server** - active (tools available in Agent Panel)".to_string(),
         );
 
-        if !next_steps.is_empty() {
+        if next_steps.is_empty() {
+            lines.push(
+                "\nAll prerequisites met. Use `/op-help` to see available commands.".to_string(),
+            );
+        } else {
             lines.push("\n### Next Steps\n".to_string());
             for (i, step) in next_steps.iter().enumerate() {
                 lines.push(format!("{}. {}", i + 1, step));
             }
-        } else {
-            lines.push(
-                "\nAll prerequisites met. Use `/op-help` to see available commands.".to_string(),
-            );
         }
 
         // ACP is optional - show as a tip, not a checkbox

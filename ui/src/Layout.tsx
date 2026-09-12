@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import styles from './Layout.module.css';
 import { useTheme } from './theme';
 import type { Concept } from './concepts';
@@ -7,6 +8,8 @@ import { ConceptIcon } from './components/ConceptIcon';
 import { SectionsProvider, useSections } from './sections-context';
 import { RightPanelProvider, useRightPanel } from './right-panel';
 import type { SectionDto } from './api-client';
+import { OperatorApi, setCsrfToken } from './api-client';
+import { useHost } from './host';
 
 // The "Status" group mirrors the canonical section order shared with the TUI and
 // VS Code extension (the SectionId enum in src/ui/status_panel.rs) and reflects
@@ -99,6 +102,26 @@ function RightPanel() {
 
 export function Layout() {
   const { theme, toggleTheme } = useTheme();
+  const host = useHost();
+  const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState(false);
+
+  async function signOut() {
+    setSigningOut(true);
+    setSignOutError(false);
+    try {
+      const api = new OperatorApi(host);
+      await api.refreshCsrf();
+      await api.logout();
+      setCsrfToken(null);
+      void navigate('/login', { replace: true });
+    } catch {
+      setSignOutError(true);
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
     <SectionsProvider>
@@ -119,6 +142,10 @@ export function Layout() {
             </div>
             <NavGroup label="Status" keys={STATUS_KEYS} />
             <NavGroup label="Pages" keys={PAGE_KEYS} />
+            {signOutError && <p className={styles.signOutError}>Could not sign out.</p>}
+            <button className={styles.signOut} type="button" onClick={signOut} disabled={signingOut}>
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </button>
           </nav>
           <main className={styles.main}>
             <Outlet />

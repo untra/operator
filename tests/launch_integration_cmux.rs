@@ -113,8 +113,8 @@ This is a test task to verify cmux workspace creation via mock client.
     ctx.create_ticket("TASK", "TASK-C01", ticket_content);
 
     let mock = Arc::new(MockCmuxClient::new());
-    let launcher =
-        Launcher::with_cmux_client(&config, mock.clone()).expect("Failed to create launcher");
+    let launcher = Launcher::with_cmux_client(&config, Arc::<MockCmuxClient>::clone(&mock))
+        .expect("Failed to create launcher");
 
     // Load the ticket from file
     let queue_dir = ctx.tickets_path.join("queue");
@@ -168,8 +168,8 @@ CMUX_PROMPT_MARKER_77777
     ctx.create_ticket("TASK", "TASK-C02", ticket_content);
 
     let mock = Arc::new(MockCmuxClient::new());
-    let launcher =
-        Launcher::with_cmux_client(&config, mock.clone()).expect("Failed to create launcher");
+    let launcher = Launcher::with_cmux_client(&config, Arc::<MockCmuxClient>::clone(&mock))
+        .expect("Failed to create launcher");
 
     let queue_dir = ctx.tickets_path.join("queue");
     let ticket_file = std::fs::read_dir(&queue_dir)
@@ -213,8 +213,8 @@ status: queued
     ctx.create_ticket("TASK", "TASK-C03", ticket_content);
 
     let mock = Arc::new(MockCmuxClient::new());
-    let launcher =
-        Launcher::with_cmux_client(&config, mock.clone()).expect("Failed to create launcher");
+    let launcher = Launcher::with_cmux_client(&config, Arc::<MockCmuxClient>::clone(&mock))
+        .expect("Failed to create launcher");
 
     let queue_dir = ctx.tickets_path.join("queue");
     let ticket_file = std::fs::read_dir(&queue_dir)
@@ -267,8 +267,8 @@ status: queued
     ctx.create_ticket("TASK", "TASK-C04", ticket_content);
 
     let mock = Arc::new(MockCmuxClient::new());
-    let launcher =
-        Launcher::with_cmux_client(&config, mock.clone()).expect("Failed to create launcher");
+    let launcher = Launcher::with_cmux_client(&config, Arc::<MockCmuxClient>::clone(&mock))
+        .expect("Failed to create launcher");
 
     let queue_dir = ctx.tickets_path.join("queue");
     let ticket_file = std::fs::read_dir(&queue_dir)

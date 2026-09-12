@@ -4,8 +4,7 @@ import type { GitExecutionConfig } from "./GitExecutionConfig";
 
 /**
  * The Operator-namespaced half of an [`AgentProfile`] — the fields a Delegator
- * carries that have no shared-core equivalent. AGNT ignores this bag; Operator
- * round-trips it losslessly.
+ * carries that have no shared-core equivalent.
  */
 export type XOperator = { 
 /**

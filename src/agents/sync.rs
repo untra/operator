@@ -32,14 +32,14 @@ use crate::templates::schema::ReviewType;
 fn proof_result_message(result: &ProofResult, proof_ref: &str) -> String {
     if result.timed_out {
         format!(
-            "Proof FAILED (timeout, exit {}) — awaiting review ({proof_ref})",
+            "Proof FAILED (timeout, exit {}) - awaiting review ({proof_ref})",
             result.exit_code
         )
     } else if result.passed {
-        format!("Proof passed — awaiting review ({proof_ref})")
+        format!("Proof passed - awaiting review ({proof_ref})")
     } else {
         format!(
-            "Proof FAILED (exit {}) — awaiting review ({proof_ref})",
+            "Proof FAILED (exit {}) - awaiting review ({proof_ref})",
             result.exit_code
         )
     }
@@ -476,7 +476,7 @@ impl TicketSessionSync {
                         error = %e,
                         "Proof runner error"
                     );
-                    "Proof runner error — awaiting review".to_string()
+                    "Proof runner error - awaiting review".to_string()
                 }
             };
             match State::load(&config) {
@@ -1206,7 +1206,7 @@ mod tests {
 
         let mut health = HealthCheckResult::default();
         health.awaiting_input.push("op-FEAT-123".to_string());
-        // artifact_ready is empty — agent is idle but no artifacts found
+        // artifact_ready is empty - agent is idle but no artifacts found
 
         let ticket = Ticket {
             filename: "test.md".to_string(),

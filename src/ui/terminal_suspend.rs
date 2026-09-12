@@ -163,7 +163,7 @@ mod tests {
         }
 
         let called = Arc::new(AtomicBool::new(false));
-        let called_clone = called.clone();
+        let called_clone = Arc::clone(&called);
 
         let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
             let _guard = RestoreGuard {

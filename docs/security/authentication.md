@@ -155,6 +155,8 @@ This is not an authentication bypass. The credential is a real one, checked the 
 Run `operator auth reset-admin-password` only **locally**, against the database file.
 It sets a new admin password and revokes every session, refresh-token family, issued token record, and access key.
 
+The dashboard's password-change form also revokes all credentials.
+
 In Kubernetes that means `kubectl exec`, which is itself an audited, RBAC-gated action.
 
 ## Audit records

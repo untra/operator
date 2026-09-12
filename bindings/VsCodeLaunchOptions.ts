@@ -10,7 +10,7 @@ export type VsCodeLaunchOptions = {
  */
 delegator: string | null, 
 /**
- * Model to use (sonnet, opus, haiku) — fallback when no delegator
+ * Model to use (sonnet, opus, haiku) - fallback when no delegator
  */
 model: VsCodeModelOption, 
 /**

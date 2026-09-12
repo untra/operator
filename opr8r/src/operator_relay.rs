@@ -94,10 +94,10 @@ pub async fn run() -> ExitCode {
     if std::env::var("RELAY_AGENT_NAME").is_err() {
         use operator_relay::session_name::{ClaudeSessionNameSource, SessionNameSource};
         let src = ClaudeSessionNameSource::for_current_process();
-        let s = session.clone();
+        let s = Arc::clone(&session);
         if let Err(e) = src
             .watch(move |new_name| {
-                let s = s.clone();
+                let s = Arc::clone(&s);
                 tokio::spawn(async move {
                     let _ = s.rename(new_name).await;
                 });

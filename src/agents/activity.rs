@@ -276,7 +276,7 @@ impl ActivityDetector for CmuxActivityDetector {
     }
 
     fn configure(&self, _session_id: &str, _config: &ActivityConfig) -> Result<(), SessionError> {
-        // cmux doesn't have a monitor-silence equivalent — no-op
+        // cmux doesn't have a monitor-silence equivalent: no-op
         Ok(())
     }
 
@@ -377,7 +377,7 @@ impl ActivityDetector for ZellijActivityDetector {
     }
 
     fn configure(&self, _session_id: &str, _config: &ActivityConfig) -> Result<(), SessionError> {
-        // Zellij doesn't have a monitor-silence equivalent — no-op
+        // Zellij doesn't have a monitor-silence equivalent: no-op
         Ok(())
     }
 
@@ -565,20 +565,22 @@ mod tests {
             .unwrap();
         client.set_screen_content(&ws_id, "Initial content\n> ");
 
-        let detector =
-            CmuxActivityDetector::new(client.clone(), create_idle_detector_with_patterns());
+        let detector = CmuxActivityDetector::new(
+            Arc::<MockCmuxClient>::clone(&client),
+            create_idle_detector_with_patterns(),
+        );
         detector.register_workspace("session-1", &ws_id);
 
-        // First call — stores hash, returns false
+        // First call: stores hash, returns false
         assert!(!detector.has_resumed("session-1").unwrap());
 
         // Change content
         client.set_screen_content(&ws_id, "New output\nDoing things...\n");
 
-        // Second call — content changed, returns true
+        // Second call: content changed, returns true
         assert!(detector.has_resumed("session-1").unwrap());
 
-        // Third call — no change since last, returns false
+        // Third call: no change since last, returns false
         assert!(!detector.has_resumed("session-1").unwrap());
     }
 
@@ -637,20 +639,22 @@ mod tests {
         client.create_tab("agent-tab", "/tmp").unwrap();
         client.set_screen_content("agent-tab", "Initial content\n> ");
 
-        let detector =
-            ZellijActivityDetector::new(client.clone(), create_idle_detector_with_patterns());
+        let detector = ZellijActivityDetector::new(
+            Arc::<MockZellijClient>::clone(&client),
+            create_idle_detector_with_patterns(),
+        );
         detector.register_tab("session-1", "agent-tab");
 
-        // First call — stores hash, returns false
+        // First call: stores hash, returns false
         assert!(!detector.has_resumed("session-1").unwrap());
 
         // Change content
         client.set_screen_content("agent-tab", "New output\nDoing things...\n");
 
-        // Second call — content changed, returns true
+        // Second call: content changed, returns true
         assert!(detector.has_resumed("session-1").unwrap());
 
-        // Third call — no change since last, returns false
+        // Third call: no change since last, returns false
         assert!(!detector.has_resumed("session-1").unwrap());
     }
 

@@ -6,6 +6,7 @@
 //!   sends responses back through the SSE stream
 
 use std::convert::Infallible;
+use std::sync::Arc;
 use std::time::Duration;
 
 use super::Host;
@@ -68,7 +69,7 @@ pub async fn sse_handler(
     let message_url = format!("{base}/api/v1/mcp/message?sessionId={session_id}");
 
     let session_id_cleanup = session_id.clone();
-    let sessions_cleanup = state.mcp_sessions.clone();
+    let sessions_cleanup = Arc::clone(&state.mcp_sessions);
 
     // Build SSE stream: first event is the endpoint URL, then relay messages
     let endpoint_event = tokio_stream::once(Ok::<_, Infallible>(

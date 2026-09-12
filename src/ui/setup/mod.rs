@@ -830,7 +830,7 @@ impl SetupScreen {
             return;
         }
 
-        match self.step.clone() {
+        match self.step {
             SetupStep::Welcome => self.render_welcome_step(frame),
             SetupStep::CollectionSource => self.render_collection_source_step(frame),
             SetupStep::HostedCollectionFetch => self.render_hosted_collection_step(frame),

@@ -4,8 +4,7 @@
 //! project → write config + set session env + sync issue types → show
 //! shell export nudge. All async work (`validate_credentials` /
 //! `list_projects` / `write_config` / sync) is dispatched by the `App`
-//! event loop calling `services::kanban_onboarding` directly — this
-//! dialog is purely UI state + rendering + key handling.
+//! event loop calling `services::kanban_onboarding` directly.
 
 use crossterm::event::KeyCode;
 use ratatui::{
@@ -28,7 +27,7 @@ pub enum KanbanOnboardingProvider {
 /// Multi-state wizard state machine.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KanbanOnboardingState {
-    /// Initial state — pick Jira or Linear.
+    /// Initial state - pick Kanban Provider.
     PickProvider,
     /// Collecting Jira domain.
     JiraDomain,
@@ -46,7 +45,7 @@ pub enum KanbanOnboardingState {
     Writing,
     /// Showing the shell export nudge after success.
     EnvExportNudge,
-    /// Inline error — user can press Enter to retry from the relevant input.
+    /// Inline error - user can press Enter to retry from the relevant input.
     Error,
 }
 
@@ -56,19 +55,19 @@ pub enum KanbanOnboardingState {
 pub enum KanbanOnboardingAction {
     /// No state-machine transition; just a focus/cursor move.
     None,
-    /// User picked a provider — App should advance to the first input step.
+    /// User picked a provider - App should advance to the first input step.
     PickedProvider(KanbanOnboardingProvider),
-    /// User submitted full Jira credentials — App should call
+    /// User submitted full Jira credentials - App should call
     /// `services::kanban_onboarding::validate_credentials`.
     SubmitJiraCreds {
         domain: String,
         email: String,
         token: String,
     },
-    /// User submitted Linear API key — App should call
+    /// User submitted Linear API key - App should call
     /// `services::kanban_onboarding::validate_credentials`.
     SubmitLinearCreds { api_key: String },
-    /// User picked a project — App should call `write_config` +
+    /// User picked a project - App should call `write_config` +
     /// `set_session_env` + `sync_issue_types`.
     PickedProject {
         provider: KanbanOnboardingProvider,
@@ -103,14 +102,14 @@ pub struct KanbanOnboardingDialog {
     /// Picker selection on the `PickProvider` step.
     provider_index: usize,
 
-    // Input buffers (separate per field — we don't share across steps)
+    // Input buffers (separate per field - we don't share across steps)
     domain_buf: String,
     email_buf: String,
     token_buf: String,
     api_key_buf: String,
     cursor_position: usize,
 
-    // Validation results — populated by App after validate_credentials
+    // Validation results - populated by App after validate_credentials
     pub jira_account_id: String,
     pub jira_display_name: String,
     pub linear_user_id: String,
@@ -434,7 +433,7 @@ impl KanbanOnboardingDialog {
                         KanbanOnboardingAction::None
                     }
                     KanbanOnboardingState::JiraToken => {
-                        // Submit creds — App will dispatch validate
+                        // Submit creds - App will dispatch validate
                         self.state = KanbanOnboardingState::Validating;
                         KanbanOnboardingAction::SubmitJiraCreds {
                             domain: self.domain_buf.clone(),
@@ -771,7 +770,7 @@ impl KanbanOnboardingDialog {
                             .fg(Color::Cyan)
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Span::raw(" — "),
+                    Span::raw(" - "),
                     Span::styled(p.name.clone(), Style::default().fg(Color::White)),
                 ]))
             })

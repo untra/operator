@@ -1,6 +1,6 @@
 //! Zellij session creation and management for agent launches
 //!
-//! Parallel to `cmux_session.rs` — provides zellij-specific launch functions
+//! Parallel to `cmux_session.rs` - provides zellij-specific launch functions
 //! that create tabs and send commands via `ZellijClient`.
 
 use std::sync::Arc;
@@ -23,7 +23,7 @@ use super::prompt::{
     write_prompt_file, OperatorEnvVars,
 };
 use super::step_command;
-/// Result of launching in zellij — includes tab name for state tracking
+/// Result of launching in zellij - includes tab name for state tracking
 #[derive(Debug, Clone)]
 pub struct ZellijLaunchResult {
     pub session_name: String,

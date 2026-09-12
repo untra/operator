@@ -442,7 +442,7 @@ mod tests {
         // Set content to show shell prompt (agent exited immediately)
         mock.set_session_content("op-test", "user@host ~/project $ ");
 
-        let switcher = AgentSwitcher::new(mock.clone());
+        let switcher = AgentSwitcher::new(Arc::<MockTmuxClient>::clone(&mock));
         let _result = switcher.switch_agent("op-test", "claude", "gemini --model pro");
 
         // Should succeed (agent readiness poll will fail but that's ok for unit test)
@@ -460,7 +460,7 @@ mod tests {
         mock.add_session("op-test", "/tmp/project");
         mock.set_session_content("op-test", "user@host ~/project $ ");
 
-        let switcher = AgentSwitcher::new(mock.clone());
+        let switcher = AgentSwitcher::new(Arc::<MockTmuxClient>::clone(&mock));
         let _ = switcher.switch_agent("op-test", "gemini", "claude --model opus");
 
         let keys = mock.get_session_keys_sent("op-test").unwrap();
@@ -476,7 +476,7 @@ mod tests {
         mock.add_session("op-test", "/tmp/project");
         mock.set_session_content("op-test", "user@host ~/project $ ");
 
-        let switcher = AgentSwitcher::new(mock.clone());
+        let switcher = AgentSwitcher::new(Arc::<MockTmuxClient>::clone(&mock));
         let _ = switcher.switch_agent("op-test", "codex", "claude --model opus");
 
         let keys = mock.get_session_keys_sent("op-test").unwrap();

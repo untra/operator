@@ -16,7 +16,7 @@ pub(super) enum WebUiOutcome {
     StatusOnly(String),
 }
 
-/// Pure decision logic for "user pressed `w` / clicked Open Web UI".
+/// Decision logic for "user pressed `w` / clicked Open Web UI".
 ///
 /// Kept free of `&self` so it can be unit-tested without spinning up an `App`.
 /// Callers resolve the inputs from runtime state and act on the returned
@@ -28,17 +28,17 @@ pub(super) fn decide_open_web_ui(
 ) -> WebUiOutcome {
     if !api_running {
         return WebUiOutcome::StatusOnly(
-            "API not running — press Enter on the Operator API row to start it.".into(),
+            "API not running - press Enter on the Operator API row to start it.".into(),
         );
     }
     match state {
         EmbeddedUiState::Ready => WebUiOutcome::Open(url.to_string()),
         EmbeddedUiState::Placeholder => WebUiOutcome::StatusOnly(
-            "Web UI placeholder detected — run `cd ui && bun run build` and rebuild operator."
+            "Web UI placeholder detected - run `cd ui && bun run build` and rebuild operator."
                 .into(),
         ),
         EmbeddedUiState::Missing => WebUiOutcome::StatusOnly(
-            "Binary built without `embed-ui` feature — rebuild with `cargo build` (default) or `--features embed-ui`."
+            "Binary built without `embed-ui` feature - rebuild with `cargo build` (default) or `--features embed-ui`."
                 .into(),
         ),
     }
@@ -143,7 +143,7 @@ impl App {
                         .set_status(&format!("Failed to open {provider} setup: {e}"));
                 } else {
                     self.dashboard.set_status(&format!(
-                        "Opened {provider} API key page — add credentials to config.toml"
+                        "Opened {provider} API key page - add credentials to config.toml"
                     ));
                 }
             }
@@ -159,7 +159,7 @@ impl App {
                         .set_status(&format!("Failed to open {kind} setup: {e}"));
                 } else {
                     self.dashboard.set_status(&format!(
-                        "Opened {kind} setup page — add a [[model_servers]] entry to your config"
+                        "Opened {kind} setup page - add a [[model_servers]] entry to your config"
                     ));
                 }
             }
@@ -226,7 +226,7 @@ impl App {
             StatusAction::ResetConfig => {
                 // TODO: implement double-confirm dialog (type working dir name to confirm)
                 self.dashboard
-                    .set_status("Config reset requires confirmation — not yet implemented");
+                    .set_status("Config reset requires confirmation - not yet implemented");
             }
             StatusAction::ReloadConfig => match crate::config::Config::load(None) {
                 Ok(new_config) => {
@@ -244,9 +244,9 @@ impl App {
                 self.config.mcp.http_enabled = !self.config.mcp.http_enabled;
                 self.dashboard.update_config(&self.config);
                 self.dashboard.set_status(if self.config.mcp.http_enabled {
-                    "MCP HTTP enabled — restart the API to mount routes"
+                    "MCP HTTP enabled - restart the API to mount routes"
                 } else {
-                    "MCP HTTP disabled — restart the API to unmount routes"
+                    "MCP HTTP disabled - restart the API to unmount routes"
                 });
             }
             StatusAction::WriteAndOpenMcpClientConfig { client } => {
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn test_decide_open_web_ui_api_stopped_takes_precedence_over_missing() {
         // Even if the UI is missing, the user's first problem to solve is
-        // starting the API — surface that message, not the embed-ui one.
+        // starting the API - surface that message, not the embed-ui one.
         let outcome = decide_open_web_ui(false, URL, EmbeddedUiState::Missing);
         match outcome {
             WebUiOutcome::StatusOnly(msg) => {

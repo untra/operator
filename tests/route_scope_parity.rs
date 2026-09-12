@@ -2,7 +2,7 @@
 //!
 //! Authorization is decided by matching a request against
 //! `operator::auth::scope::ROUTE_RULES`. A route that is mounted but missing
-//! from that table is denied at runtime — which fails safe, but as a 401 on a
+//! from that table is denied at runtime - which fails safe, but as a 401 on a
 //! working endpoint rather than as anything a developer would notice locally.
 //! This suite turns that into a build failure instead, and pins the public
 //! allowlist so widening it cannot happen quietly.
@@ -19,13 +19,15 @@ const UNDOCUMENTED_MOUNTED_ROUTES: &[(&str, &str)] =
 
 /// The complete set of routes reachable without a credential.
 const EXPECTED_PUBLIC: &[(&str, &str)] = &[
-    // Kubernetes probes — no workspace metadata.
+    // Kubernetes probes - no workspace metadata.
     ("GET", "/livez"),
     ("GET", "/readyz"),
     // The endpoints needed to *obtain* a credential.
     ("GET", "/api/v1/auth/bootstrap"),
     ("POST", "/api/v1/auth/bootstrap"),
     ("POST", "/api/v1/auth/login"),
+    ("POST", "/api/v1/auth/forgot-password"),
+    ("POST", "/api/v1/auth/reset-password"),
     ("POST", "/api/v1/auth/device/code"),
     ("POST", "/api/v1/auth/token"),
 ];
@@ -108,7 +110,7 @@ fn test_route_table_has_no_entries_for_routes_that_do_not_exist() {
 
     assert!(
         stale.is_empty(),
-        "ROUTE_RULES names routes that are not mounted — remove them:\n{stale:#?}"
+        "ROUTE_RULES names routes that are not mounted - remove them:\n{stale:#?}"
     );
 }
 
@@ -130,7 +132,7 @@ fn test_public_routes_are_exactly_the_expected_allowlist() {
     assert!(
         added.is_empty(),
         "these routes became public. That is a change to the security boundary, \
-         not a routing detail — update docs/security/ and this allowlist \
+         not a routing detail - update docs/security/ and this allowlist \
          deliberately:\n{added:#?}"
     );
     assert!(

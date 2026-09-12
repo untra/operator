@@ -36,8 +36,7 @@ pub struct AgentProfile {
     pub provider: String,
     /// Model alias or id (maps to [`Delegator::model`]).
     pub model: String,
-    /// System prompt. Operator has no first-class system prompt, so this is
-    /// preserved opaquely across import (see [`Delegator::unmapped_core`]).
+    /// System prompt. This is preserved opaquely across import (see [`Delegator::unmapped_core`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<String>,
     /// Named skills. Preserved opaquely across import.
@@ -49,29 +48,22 @@ pub struct AgentProfile {
     /// Tool names. Preserved opaquely across import.
     #[serde(default)]
     pub tools: Vec<String>,
-    /// Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...).
-    /// `None` = a locally launchable agent, not bound to a remote platform.
+    /// Declarative reference to a remote, named agent. `None` = a locally launchable agent, not bound to a remote target.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_agent: Option<RemoteAgentRef>,
-    /// Operator-owned extension fields (typed). `None` when the agent carries no
-    /// Operator-specific configuration.
+    /// Operator-owned extension fields (typed). `None` when the agent carries no Operator-specific configuration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x_operator: Option<XOperator>,
-    /// AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`,
-    /// `creditLimit`, ...). Operator never interprets this — pure pass-through.
+    /// AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`, `creditLimit`, ...).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x_agnt: Option<serde_json::Value>,
-    /// OpenAI-owned extension fields, opaque (`instructions`, `tools`,
-    /// `tool_resources`, `metadata`, thread refs, ...). Mirror of `x_agnt` for a
-    /// second platform — never interpreted. This field is the whole per-tool cost
-    /// of adding `OpenAI`: a passthrough bag, no mapping logic.
+    /// OpenAI-owned extension fields, opaque (`instructions`, `tools`, `tool_resources`, `metadata`, thread refs, ...).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x_openai: Option<serde_json::Value>,
 }
 
 /// The Operator-namespaced half of an [`AgentProfile`] — the fields a Delegator
-/// carries that have no shared-core equivalent. AGNT ignores this bag; Operator
-/// round-trips it losslessly.
+/// carries that have no shared-core equivalent.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub struct XOperator {

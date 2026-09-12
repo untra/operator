@@ -168,8 +168,8 @@ The persistent volume also holds the workspace, the ticket queue, and
 the authentication database — so the volume snapshot inherits the same
 sensitivity.
 
-Password recovery is **local only**: `operator auth reset-admin-password` operates directly on the database.
-It is never exposed as an HTTP route, so there is no network-reachable password-reset path to attack.
+Forgotten-password recovery is **local only**: `operator auth reset-admin-password` operates directly on the database.
+The HTTP reset route requires the current username and password; it cannot recover a forgotten credential.
 
 ## Residual risks
 

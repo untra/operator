@@ -620,8 +620,6 @@ impl Default for ApiConfig {
     }
 }
 
-// ─── Version Check Configuration ────────────────────────────────────────────
-
 /// Version check configuration for automatic update notifications
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
@@ -660,8 +658,6 @@ impl Default for VersionCheckConfig {
         }
     }
 }
-
-// ─── Relay Configuration ─────────────────────────────────────────────────────
 
 /// Relay MCP injection configuration
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
@@ -951,8 +947,6 @@ impl Default for Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // --- Default value function tests (private functions — must stay inline) ---
 
     #[test]
     fn test_default_generation_timeout_is_300() {

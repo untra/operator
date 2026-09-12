@@ -14,6 +14,8 @@ import { SectionPage } from './routes/SectionPage';
 import { AgentDetailPage } from './routes/AgentDetailPage';
 import { ModelProvidersPage } from './routes/ModelProvidersPage';
 import { LoginPage } from './routes/LoginPage';
+import { ForgotPasswordPage } from './routes/ForgotPasswordPage';
+import { ResetPasswordPage } from './routes/ResetPasswordPage';
 import { SetupPage } from './routes/SetupPage';
 import { DevicePage } from './routes/DevicePage';
 import { SecurityPage } from './routes/SecurityPage';
@@ -28,6 +30,8 @@ createRoot(document.getElementById('root')!).render(
           {/* Unauthenticated screens render outside Layout: the shell's own
               API calls would 401 for a visitor who cannot yet authenticate. */}
           <Route path="login" element={<LoginPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="setup" element={<SetupPage />} />
           <Route element={<Layout />}>
             <Route path="device" element={<DevicePage />} />

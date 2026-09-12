@@ -47,6 +47,10 @@ import type { DeviceApprovalResponse } from '@operator/bindings/DeviceApprovalRe
 import type { LoginRequest } from '@operator/bindings/LoginRequest';
 import type { LoginResponse } from '@operator/bindings/LoginResponse';
 import type { LogoutResponse } from '@operator/bindings/LogoutResponse';
+import type { ForgotPasswordRequest } from '@operator/bindings/ForgotPasswordRequest';
+import type { ForgotPasswordResponse } from '@operator/bindings/ForgotPasswordResponse';
+import type { ResetPasswordRequest } from '@operator/bindings/ResetPasswordRequest';
+import type { ResetPasswordResponse } from '@operator/bindings/ResetPasswordResponse';
 import type { RevokeAccessKeyResponse } from '@operator/bindings/RevokeAccessKeyResponse';
 import type { SessionListResponse } from '@operator/bindings/SessionListResponse';
 
@@ -215,15 +219,31 @@ export class OperatorApi {
     });
   }
 
-  async login(password: string): Promise<LoginResponse> {
+  async login(username: string, password: string): Promise<LoginResponse> {
     const res = await request<LoginResponse>(this.base, '/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: toJson({ password } satisfies LoginRequest),
+      body: toJson({ username, password } satisfies LoginRequest),
     });
     // Every later mutation needs this, so capture it at the one point it is issued.
     setCsrfToken(res.csrf_token);
     return res;
+  }
+
+  forgotPassword(username: string): Promise<ForgotPasswordResponse> {
+    return request(this.base, '/api/v1/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson({ username } satisfies ForgotPasswordRequest),
+    });
+  }
+
+  resetPassword(body: ResetPasswordRequest): Promise<ResetPasswordResponse> {
+    return request(this.base, '/api/v1/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
   }
 
   async logout(): Promise<LogoutResponse> {

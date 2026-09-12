@@ -325,7 +325,7 @@ impl WorktreeOption {
 }
 
 /// Steps in the setup process
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SetupStep {
     /// Welcome splash screen with discovered projects
     Welcome,

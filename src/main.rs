@@ -172,7 +172,7 @@ enum Commands {
         #[arg(long)]
         model: Option<String>,
 
-        /// Named model server reference (e.g., ollama-local) — overrides the delegator's default.
+        /// Named model server reference (e.g., ollama-local) - overrides the delegator's default.
         /// Pairs with --llm-tool/--model for ad-hoc ollama-backed launches. v1 accepts the flag
         /// and validates the name; env-var injection on spawn ships in v2.
         #[arg(long = "model-server")]
@@ -381,7 +381,7 @@ async fn main() -> Result<()> {
     let logging_handle = logging::init_logging(&config, is_tui_mode, cli.debug)?;
 
     // Inject the status-section provider into the REST layer. The section logic
-    // lives in `ui` (which `rest` can't depend on — see rest::dto::sections), so
+    // lives in `ui` (which `rest` can't depend on - see rest::dto::sections), so
     // the binary registers it here, before any server starts. Covers all serving
     // paths (TUI app, `operator rest`, embedded UI) since they share one process.
     rest::dto::register_section_provider(std::sync::Arc::new(|config, registry, live| {

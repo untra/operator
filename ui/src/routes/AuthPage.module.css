@@ -99,3 +99,14 @@
   border: 1px solid var(--border);
   border-radius: 4px;
 }
+
+.links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+  font-size: 0.8125rem;
+}
+
+.links a {
+  color: var(--accent);
+}

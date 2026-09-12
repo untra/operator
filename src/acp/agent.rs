@@ -23,22 +23,19 @@ use crate::config::{Config, Delegator};
 
 /// Build the `InitializeResponse` operator advertises.
 ///
-/// Echoes the client's protocol version (the ACP convention — the agent
-/// accepts the protocol version requested unless it cannot satisfy it),
-/// advertises default agent capabilities, and attaches `agentInfo` so
-/// editors can identify operator in their UI.
+/// Echoes the client's protocol version, advertises default agent capabilities, and attaches `agentInfo`
+/// so that editors can identify operator in their UI.
 pub fn build_initialize_response(request: &InitializeRequest) -> InitializeResponse {
     InitializeResponse::new(request.protocol_version)
         .agent_capabilities(AgentCapabilities::default())
         .agent_info(Implementation::new("operator", env!("CARGO_PKG_VERSION")).title("Operator"))
 }
 
-/// Run operator as an ACP agent over stdin/stdout until the client
-/// disconnects.
+/// Run operator as an ACP agent over stdin/stdout until the client disconnects.
 ///
 /// Returns the protocol's `Result` so the binary entrypoint can surface
 /// transport errors. Logs go to stderr via `tracing`; stdout is reserved
-/// for line-delimited JSON-RPC (see `src/logging.rs` — global subscriber
+/// for line-delimited JSON-RPC (see `src/logging.rs` - global subscriber
 /// writes to stderr).
 pub async fn run_stdio(config: Config) -> agent_client_protocol::Result<()> {
     let registry = Arc::new(SessionRegistry::new());

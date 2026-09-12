@@ -2,7 +2,7 @@
 //!
 //! One builder produces the `opr8r --ticket-id … --step … -- <llm cmd>` wrapper
 //! for both the first step (launcher) and subsequent steps (`complete_step`
-//! route). The returned command is always the INNER command — target wrapping
+//! route). The returned command is always the INNER command - target wrapping
 //! (docker, remote) is applied once, to the outermost launch, by the launcher;
 //! `exec()` transitions happen inside the already-wrapped environment.
 
@@ -55,7 +55,7 @@ pub struct StepLaunchContext {
 }
 
 /// A step command plus the session UUID minted for it. The caller persists the
-/// UUID (ticket `session_ids`, agent state) — building is side-effect-free
+/// UUID (ticket `session_ids`, agent state) - building is side-effect-free
 /// with respect to ticket and state files.
 #[derive(Debug)]
 pub struct BuiltStepCommand {
@@ -479,7 +479,7 @@ mod tests {
     }
 
     /// A non-builtin issue type installed into the workspace registry must
-    /// wrap too — otherwise a collection issuetype's chain never engages.
+    /// wrap too - otherwise a collection issuetype's chain never engages.
     #[test]
     fn test_chain_step_wraps_registry_only_issuetype() {
         const GAST_JSON: &str = r#"{

@@ -4,9 +4,9 @@
 //! Two rules hold across every type in this module, and the tests at the
 //! bottom enforce both:
 //!
-//! 1. **A secret crosses the wire at most once, outbound.** Bootstrap and
-//!    login accept a password inbound; access-key and token creation return a
-//!    secret exactly once at creation. No other type carries one.
+//! 1. **A secret crosses the wire only where authentication requires it.**
+//!    Bootstrap, login, and password reset accept passwords inbound;
+//!    access-key and token creation return a secret exactly once at creation.
 //! 2. **No summary type ever carries a hash.** Metadata DTOs describe a
 //!    credential (created, expires, last used, revoked) so it can be managed
 //!    without ever exposing the material used to authenticate with it.
@@ -149,6 +149,8 @@ pub struct BootstrapSubmitRequest {
 pub struct BootstrapSubmitResponse {
     /// The state after submission — `Complete` on success.
     pub state: BootstrapState,
+    /// The account name created by bootstrap.
+    pub username: String,
 }
 
 // =============================================================================
@@ -159,9 +161,46 @@ pub struct BootstrapSubmitResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct LoginRequest {
+    /// The account name. Required even while Operator supports one human account.
+    #[schema(min_length = 1, max_length = 128)]
+    pub username: String,
     /// The admin password. Never persisted in plaintext or logged.
     #[schema(write_only, format = Password, min_length = 12, max_length = 1024)]
     pub password: String,
+}
+
+/// Request recovery instructions without revealing whether an account exists.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ForgotPasswordRequest {
+    #[schema(min_length = 1, max_length = 128)]
+    pub username: String,
+}
+
+/// Generic recovery guidance for a self-hosted Operator deployment.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ForgotPasswordResponse {
+    pub message: String,
+}
+
+/// Change the account password after proving knowledge of the current one.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ResetPasswordRequest {
+    #[schema(min_length = 1, max_length = 128)]
+    pub username: String,
+    #[schema(write_only, format = Password, min_length = 12, max_length = 1024)]
+    pub current_password: String,
+    #[schema(write_only, format = Password, min_length = 12, max_length = 1024)]
+    pub new_password: String,
+}
+
+/// Result of changing the account password.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct ResetPasswordResponse {
+    pub changed: bool,
 }
 
 /// Successful login. The session itself rides in a `Set-Cookie` header, not in

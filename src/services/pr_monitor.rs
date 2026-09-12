@@ -103,7 +103,7 @@ impl PrMonitorService {
 
     /// Get a clone of the tracked PRs map for external access
     pub fn tracked_prs(&self) -> Arc<RwLock<HashMap<String, TrackedPr>>> {
-        self.tracked_prs.clone()
+        Arc::clone(&self.tracked_prs)
     }
 
     /// Generate a key for a tracked PR

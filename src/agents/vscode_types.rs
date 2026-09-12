@@ -196,7 +196,7 @@ pub struct VsCodeLaunchOptions {
     /// Named delegator to use (takes precedence over model)
     #[serde(default)]
     pub delegator: Option<String>,
-    /// Model to use (sonnet, opus, haiku) — fallback when no delegator
+    /// Model to use (sonnet, opus, haiku) - fallback when no delegator
     pub model: VsCodeModelOption,
     /// YOLO mode - auto-accept all prompts
     pub yolo_mode: bool,

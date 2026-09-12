@@ -7,9 +7,8 @@ use crate::ui::status_panel::{
 pub struct ConnectionsSection;
 
 impl ConnectionsSection {
-    /// Whether the operator advertises at least one agent protocol — MCP (HTTP
-    /// mounted or stdio) or ACP (stdio). Drives the section header health so it
-    /// reflects the connectivity rows the section actually shows, rather than a
+    /// Whether the operator advertises at least one agent protocol - MCP (HTTP mounted or stdio) or ACP (stdio).
+    /// Drives the section header health so it reflects the connectivity rows the section actually shows, rather than a
     /// session-wrapper check that isn't attached in the web context.
     fn any_protocol_exposed(&self, snapshot: &StatusSnapshot) -> bool {
         let mcp = matches!(snapshot.mcp_http_status, McpHttpStatus::Mounted { .. })
@@ -76,11 +75,9 @@ impl StatusSection for ConnectionsSection {
                 actions: ActionSet::none(),
                 health: SectionHealth::Gray,
             },
-            // 1. Control wrapper — which session wrapper the operator control
-            // plane is running inside, and therefore how launched tickets are
-            // coordinated (VS Code terminal / cmux window / tmux / zellij tab).
-            // Mirrors the VS Code extension's "Session Wrapper" row. Informational
-            // only: does not drive the section header health.
+            // 1. Control wrapper - which session wrapper the operator control plane is running inside, and therefore how launched
+            // tickets are coordinated (VS Code terminal / cmux window / tmux / zellij tab).
+            // Mirrors the VS Code extension's "Session Wrapper" row. Informational only: does not drive the section header health.
             TreeRow {
                 section_id: SectionId::Connections,
                 id: "control-wrapper".into(),
@@ -348,7 +345,7 @@ mod tests {
     #[test]
     fn test_connections_health_ignores_wrapper() {
         // A disconnected session-wrapper must NOT downgrade the section when the
-        // API and at least one protocol are up — health follows the shown rows.
+        // API and at least one protocol are up - health follows the shown rows.
         let section = ConnectionsSection;
         let mut snap = base_snapshot();
         snap.wrapper_connection_status = WrapperConnectionStatus::Tmux {

@@ -6,10 +6,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useHost } from '../host';
 import { OperatorApi, ApiError } from '../api-client';
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../auth-constraints';
 import styles from './AuthPage.module.css';
-
-/** Mirrors the server's minimum; the server is still the authority. */
-const MIN_PASSWORD_LENGTH = 12;
 
 export function SetupPage() {
   const host = useHost();
@@ -49,12 +47,12 @@ export function SetupPage() {
     setBusy(true);
     try {
       const api = new OperatorApi(host);
-      await api.bootstrap({
+      const result = await api.bootstrap({
         temporary_password: needsTemporary ? temporary : null,
         new_password: password,
       });
       // Bootstrap creates the account but does not sign you in.
-      await api.login(password);
+      await api.login(result.username, password);
       void navigate('/', { replace: true });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
@@ -94,6 +92,7 @@ export function SetupPage() {
                 className={styles.input}
                 type="password"
                 autoComplete="one-time-code"
+                maxLength={MAX_PASSWORD_LENGTH}
                 value={temporary}
                 onChange={(e) => setTemporary(e.target.value)}
                 required
@@ -108,6 +107,7 @@ export function SetupPage() {
             className={styles.input}
             type="password"
             autoComplete="new-password"
+            maxLength={MAX_PASSWORD_LENGTH}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -125,6 +125,7 @@ export function SetupPage() {
             className={styles.input}
             type="password"
             autoComplete="new-password"
+            maxLength={MAX_PASSWORD_LENGTH}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required

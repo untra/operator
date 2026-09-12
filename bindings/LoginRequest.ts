@@ -5,6 +5,10 @@
  */
 export type LoginRequest = { 
 /**
+ * The account name. Required even while Operator supports one human account.
+ */
+username: string, 
+/**
  * The admin password. Never persisted in plaintext or logged.
  */
 password: string, };

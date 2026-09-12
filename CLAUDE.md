@@ -15,10 +15,13 @@
 
 ## Code Style
 Aim for functional software development with a focus on stateless, single responsibility focus.
-ABSOLUTELY NO UNNECESSARY CODE COMMENTS WITHIN FUNCTIONS OR CONFIGURATION.
 Minimize use of comments entirely; they should be terse and used judiciously, ideally one line tops.
 Data types come from rust; typescript and docs binds are generated from low-level rust types annotated with comments that embed as descriptions into configuration and reference files.
 Favor falsey defaults ; lets aim not to enforce `default=true` or some other javascript-truthy default value.
+
+### Comments
+
+Code comments are terse, short and punctual. Comments should not refer to implementation or current wip status.
 
 ## Plans & Specs Location
 
@@ -58,6 +61,11 @@ make install-hooks   # sets core.hooksPath=.githooks
 ```
 
 If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)]` attributes to silence warnings unless there's a documented reason (e.g., code used only in tests).
+
+#### Strict Linting
+
+Linting is strictly enforced; the rules are tighter than other software. Linting warnings are errors; address them as part of design.
+Always running lint step when finished working in a directory. Fix all found linting problems before declaring work done.
 
 ### Subproject Validation
 
@@ -300,10 +308,5 @@ When adding or changing UI: change a brand color in `tokens.css` (web surfaces
 follow automatically); reference semantic tokens in new web CSS; map a role to
 ANSI in the TUI; and leave the webview deferring to the editor theme.
 
-**Icons.** Every SVG icon follows the Operator icon standard - a single
-monochrome `<path>` on a 24×24 canvas with no `fill`/`stroke`/`width`/`height`,
-so it tints from `currentColor` and sizes to its container on all four
-surfaces. Governed directories: `icons/`, `docs/assets/icons/`,
-`ui/public/icons/`, and each collection's `icon.svg`. Enforced by
-`cargo test --test svg_icon_standard`; the rules and rationale are in
-`docs/design-system/`.
+**Icons.** Every SVG icon follows the Operator icon standard - a single monochrome `<path>` on a 24×24 canvas with no `fill`/`stroke`/`width`/`height`, so it tints from `currentColor` and sizes to its container on all four surfaces. Governed directories: `icons/`, `docs/assets/icons/`, `ui/public/icons/`, and each collection's `icon.svg`.
+Enforced by `cargo test --test svg_icon_standard`; the rules and rationale are in `docs/design-system/`.

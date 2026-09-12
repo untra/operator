@@ -68,7 +68,7 @@ pub struct ParsedLaunchMode {
 }
 
 /// Parse a persisted `launch_mode` string. Legacy values ("default", "yolo",
-/// "docker", "docker-yolo") and unknown strings all parse — old state files
+/// "docker", "docker-yolo") and unknown strings all parse - old state files
 /// predate the coder/ssh vocabulary.
 pub fn parse_launch_mode(s: &str) -> ParsedLaunchMode {
     let (base, yolo) = match s.strip_suffix("-yolo") {
@@ -109,7 +109,7 @@ impl LaunchOptions {
             .or_else(|| self.target.as_remote_host())
     }
 
-    /// Get the launch mode string for state tracking — the single derivation
+    /// Get the launch mode string for state tracking - the single derivation
     /// point for the persisted vocabulary:
     /// `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`.
     pub fn launch_mode_string(&self) -> String {

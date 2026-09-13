@@ -1,5 +1,5 @@
-import type { WebviewConfig } from './messages';
-import type { Config } from '../../src/generated/Config';
+import type { WebviewConfig } from "./messages";
+import type { Config } from "../../src/generated/Config";
 
 /** Sensible defaults matching Rust Config::default() */
 const DEFAULT_CONFIG: Config = {
@@ -22,45 +22,46 @@ const DEFAULT_CONFIG: Config = {
   },
   queue: {
     auto_assign: true,
-    priority_order: ['INV', 'FIX', 'FEAT', 'SPIKE'],
+    priority_order: ["INV", "FIX", "FEAT", "SPIKE"],
     poll_interval_ms: BigInt(2000),
   },
   paths: {
-    tickets: '.tickets',
-    projects: '.',
-    state: '.tickets/operator',
-    worktrees: '.worktrees',
+    tickets: ".tickets",
+    projects: ".",
+    state: ".tickets/operator",
+    worktrees: ".worktrees",
   },
   ui: {
     refresh_rate_ms: BigInt(1000),
     completed_history_hours: BigInt(24),
     summary_max_length: 80,
     panel_names: {
-      status: 'Status',
-      queue: 'Queue',
-      in_progress: 'In Progress',
-      completed: 'Completed',
+      status: "Status",
+      queue: "Queue",
+      in_progress: "In Progress",
+      completed: "Completed",
     },
   },
   launch: {
     confirm_autonomous: true,
     confirm_paired: true,
     launch_delay_ms: BigInt(2000),
+    target: null,
     docker: {
       enabled: false,
-      image: '',
+      image: "",
       extra_args: [],
-      mount_path: '/workspace',
+      mount_path: "/workspace",
       env_vars: [],
     },
     yolo: { enabled: false },
   },
   templates: {
-    preset: 'dev_kanban',
+    preset: "dev_kanban",
     collection: [],
     active_collection: null,
     collections_fetch_enabled: true,
-    collections_manifest_url: 'https://operator.untra.io/collections/index.json',
+    collections_manifest_url: "https://operator.untra.io/collections/index.json",
     collections_fetch_timeout_secs: BigInt(5),
   },
   api: {
@@ -69,30 +70,30 @@ const DEFAULT_CONFIG: Config = {
     rate_limit_warning_threshold: 80,
   },
   logging: {
-    level: 'info',
+    level: "info",
     to_file: false,
   },
   tmux: {
     config_generated: false,
   },
   sessions: {
-    wrapper: 'vscode',
+    wrapper: "vscode",
     tmux: {
       config_generated: false,
-      socket_name: 'operator',
+      socket_name: "operator",
     },
     vscode: {
       webhook_port: 7007,
       connect_timeout_ms: BigInt(5000),
     },
     cmux: {
-      binary_path: '/Applications/cmux.app/Contents/Resources/bin/cmux',
+      binary_path: "/Applications/cmux.app/Contents/Resources/bin/cmux",
       require_in_cmux: false,
-      placement: 'auto'
+      placement: "auto",
     },
     zellij: {
-      require_in_zellij: false
-    }
+      require_in_zellij: false,
+    },
   },
   llm_tools: {
     detected: [],
@@ -104,18 +105,18 @@ const DEFAULT_CONFIG: Config = {
   },
   rest_api: {
     enabled: false,
-    host: '127.0.0.1',
+    host: "127.0.0.1",
     port: 7008,
     cors_origins: [],
     public_url: null,
   },
   git: {
     provider: null,
-    github: { enabled: true, token_env: 'GITHUB_TOKEN' },
-    gitlab: { enabled: false, token_env: 'GITLAB_TOKEN', host: null },
-    gitea: { enabled: false, token_env: 'GITEA_TOKEN', host: null, wip_prefix: 'WIP: ' },
-    forgejo: { enabled: false, token_env: 'FORGEJO_TOKEN', host: null, wip_prefix: 'WIP: ' },
-    branch_format: '{type}/{ticket_id}',
+    github: { enabled: true, token_env: "GITHUB_TOKEN" },
+    gitlab: { enabled: false, token_env: "GITLAB_TOKEN", host: null },
+    gitea: { enabled: false, token_env: "GITEA_TOKEN", host: null, wip_prefix: "WIP: " },
+    forgejo: { enabled: false, token_env: "FORGEJO_TOKEN", host: null, wip_prefix: "WIP: " },
+    branch_format: "{type}/{ticket_id}",
     use_worktrees: false,
   },
   kanban: {
@@ -148,8 +149,8 @@ const DEFAULT_CONFIG: Config = {
 };
 
 export const DEFAULT_WEBVIEW_CONFIG: WebviewConfig = {
-  config_path: '',
-  working_directory: '',
+  config_path: "",
+  working_directory: "",
   config_exists: false,
   config: DEFAULT_CONFIG,
 };

@@ -65,6 +65,21 @@ jobs:
         with:
           bun-version: 1.3.14
 
+      # oxfmt/oxlint are installed once at the repo root and cover every hand-written JS/TS subproject.
+      # Runs before the builds so a formatting or lint failure reports
+      - name: Format and lint frontend
+        run: |
+          bun install --frozen-lockfile
+          bun run fmt:check
+          bun run lint:ui
+          bun run lint:webcomponents
+          bun run lint:vscode
+          bun run lint:agnt
+          bun run lint:coder-module
+
+      - name: Lint shell scripts
+        run: shellcheck -S warning scripts/*.sh scripts/ci/*.sh .githooks/*
+
       - name: Build shared web components
         run: |
           cd webcomponents
@@ -87,7 +102,7 @@ jobs:
           fi
 
       - name: Check formatting
-        run: cargo fmt -- --check
+        run: cargo fmt --all -- --check
 
       - name: Clippy
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
@@ -99,6 +114,22 @@ jobs:
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
           manifest-path: Cargo.toml
+          arguments: --all-features
+          command: check
+
+      # crates/relay has its own Cargo.lock and is not a workspace member, so
+      # the root fmt/clippy/deny above never reach it.
+      - name: crates/relay
+        run: |
+          cd crates/relay
+          cargo fmt -- --check
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo test --locked --all-features
+
+      - name: cargo-deny (crates/relay)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: crates/relay/Cargo.toml
           arguments: --all-features
           command: check
 

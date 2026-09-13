@@ -1,17 +1,21 @@
 // A single status section, rendered identically on the unified Status overview
 // and on each per-section page. Lifted out of StatusPage so both consume one
 // component. Locked sections (prerequisites not met) render collapsed with the
-// missing prerequisites shown as links to their pages — the "next steps."
+// missing prerequisites shown as links to their pages - the "next steps."
 
-import { Link } from 'react-router-dom';
-import type { SectionDto } from '../api-client';
-import { CONCEPTS } from '../concepts';
-import { BrandIcon } from './BrandIcon';
-import styles from './SectionCard.module.css';
+import { Link } from "react-router-dom";
+import type { SectionDto } from "../api-client";
+import { CONCEPTS } from "../concepts";
+import { BrandIcon } from "./BrandIcon";
+import styles from "./SectionCard.module.css";
 
 export function SectionCard({ section }: { section: SectionDto }) {
   return (
-    <section id={section.id} className={styles.card} data-locked={!section.met ? 'true' : undefined}>
+    <section
+      id={section.id}
+      className={styles.card}
+      data-locked={!section.met ? "true" : undefined}
+    >
       <details open={section.met}>
         <summary className={styles.header}>
           <span className={styles.dot} data-health={section.health} />
@@ -26,12 +30,12 @@ export function SectionCard({ section }: { section: SectionDto }) {
 
         {!section.met && section.prerequisites.length > 0 && (
           <p className={styles.prereq}>
-            Requires:{' '}
+            Requires:{" "}
             {section.prerequisites.map((id, i) => {
               const concept = CONCEPTS[id];
               return (
                 <span key={id}>
-                  {i > 0 && ', '}
+                  {i > 0 && ", "}
                   {concept ? (
                     <Link to={concept.route} className={styles.prereqLink}>
                       {concept.label}

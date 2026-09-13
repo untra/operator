@@ -14,7 +14,7 @@
 - **Config**: config crate (TOML); **File Watching**: notify crate
 
 ## Code Style
-Aim for functional software development with a focus on stateless, single responsibility focus.
+Aim for functional software development with a focus on stateless, single responsibility testable functions.
 Minimize use of comments entirely; they should be terse and used judiciously, ideally one line tops.
 Data types come from rust; typescript and docs binds are generated from low-level rust types annotated with comments that embed as descriptions into configuration and reference files.
 Favor falsey defaults ; lets aim not to enforce `default=true` or some other javascript-truthy default value.
@@ -45,7 +45,20 @@ make check
 cargo fmt --all -- --check                                   # Format check
 cargo clippy --locked --all-targets --all-features -- -D warnings  # Lint (warnings are errors)
 cargo test --locked                                          # Run all tests
+make relay                                                   # crates/relay (not a workspace member)
+make fmt-ts                                                  # oxfmt --check, every JS/TS subproject
+make lint-ts                                                 # oxlint, every JS/TS subproject
+make lint-shell                                              # shellcheck -S warning
 ```
+
+Formatting and linting are enforced for every subproject, not just the main
+crate. Rust uses `cargo fmt`/`clippy` (root, `crates/relay`, `opr8r`,
+`zed-extension`), JS/TS uses root-installed `oxfmt` + `oxlint` (`ui`,
+`webcomponents`, `vscode-extension`, `agnt-plugin`, the `coder-module` test
+harness), Terraform uses `terraform fmt`, charts use `helm lint`, and shell
+scripts use `shellcheck`. `bun run fmt` rewrites; `bun run fmt:check` reports.
+Generated output (`bindings/`, `shared/types.ts`, each `*/generated/`) is
+excluded by `.oxfmtrc.json` / `.oxlintrc.jsonc` and must never be reformatted.
 
 > The `--locked --all-targets --all-features` flags matter: plain
 > `cargo clippy` misses test-target and feature-gated lints (e.g. a dependency
@@ -78,7 +91,7 @@ cargo run
 
 **vscode-extension** (TypeScript/npm):
 ```bash
-cd vscode-extension && npm run lint && npm run compile
+cd vscode-extension && npm run lint && npm run fmt:check && npm run compile
 ```
 
 ### Test-Driven Development (TDD)
@@ -114,7 +127,9 @@ make check
 ## Quick Reference
 
 ```bash
-make check                     # Full CI-parity gate (fmt + clippy + test)
+make check                     # Full CI-parity gate (Rust + relay + JS/TS + shell)
+bun run fmt                    # Format every JS/TS subproject in place
+bun run lint                   # oxlint across every JS/TS subproject
 make install-hooks             # Install the lint-only pre-push hook (once per clone)
 cargo fmt                      # Format code
 cargo clippy --locked --all-targets --all-features -- -D warnings  # Lint (CI parity)

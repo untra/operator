@@ -48,5 +48,14 @@ jobs:
       - name: Shell-check the rendered startup script
         run: ../scripts/ci/check-coder-module.sh
 
+      # The .ts harness is linted/formatted from the repo root, where oxlint
+      # and oxfmt (and their configs) live.
+      - name: Lint and format TypeScript harness
+        working-directory: .
+        run: |
+          bun install --frozen-lockfile
+          bun run lint:coder-module
+          bun run fmt:check
+
       - name: Test
         run: bun test

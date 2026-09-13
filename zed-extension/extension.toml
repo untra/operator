@@ -1,6 +1,6 @@
 id = "operator"
 name = "Operator"
-description = "Multi-agent orchestration for Coding Agents — MCP tools, ACP agent, and slash commands"
+description = "Multi-agent orchestration for Coding Agents - MCP tools, ACP agent, and slash commands"
 version = "0.2.8"
 schema_version = 1
 authors = ["Samuel Volin <sam@untra.io>"]

@@ -1,19 +1,19 @@
-import * as vscode from 'vscode';
-import { StatusItem } from '../status-item';
-import type { SectionContext, StatusSection, GitState } from './types';
-import type { SectionId, SectionHealth } from '../generated';
+import * as vscode from "vscode";
+import { StatusItem } from "../status-item";
+import type { SectionContext, StatusSection, GitState } from "./types";
+import type { SectionId, SectionHealth } from "../generated";
 
 /** Map provider names to branded ThemeIcon IDs */
 const PROVIDER_ICONS: Record<string, string> = {
-  github: 'operator-github',
-  gitlab: 'operator-gitlab',
-  bitbucket: 'repo',
-  azuredevops: 'azure-devops',
+  github: "operator-github",
+  gitlab: "operator-gitlab",
+  bitbucket: "repo",
+  azuredevops: "azure-devops",
 };
 
 export class GitSection implements StatusSection {
-  readonly sectionId: SectionId = 'git';
-  readonly prerequisites: SectionId[] = ['connections'];
+  readonly sectionId: SectionId = "git";
+  readonly prerequisites: SectionId[] = ["connections"];
 
   private state: GitState = { configured: false };
 
@@ -22,9 +22,13 @@ export class GitSection implements StatusSection {
   }
 
   health(): SectionHealth {
-    if (!this.state.configured) { return 'Red'; }
-    if (!this.state.tokenSet) { return 'Yellow'; }
-    return 'Green';
+    if (!this.state.configured) {
+      return "Red";
+    }
+    if (!this.state.tokenSet) {
+      return "Yellow";
+    }
+    return "Green";
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -46,11 +50,11 @@ export class GitSection implements StatusSection {
 
     // Determine token status based on active provider
     let tokenSet: boolean;
-    if (provider === 'gitlab' || gitlabEnabled) {
-      const tokenEnv = (gitlab?.token_env as string) || 'GITLAB_TOKEN';
+    if (provider === "gitlab" || gitlabEnabled) {
+      const tokenEnv = (gitlab?.token_env as string) || "GITLAB_TOKEN";
       tokenSet = !!process.env[tokenEnv];
     } else {
-      const tokenEnv = (github?.token_env as string) || 'GITHUB_TOKEN';
+      const tokenEnv = (github?.token_env as string) || "GITHUB_TOKEN";
       tokenSet = !!process.env[tokenEnv];
     }
 
@@ -69,20 +73,22 @@ export class GitSection implements StatusSection {
   getTopLevelItem(_ctx: SectionContext): StatusItem {
     const providerLabel = this.state.provider
       ? this.state.provider.charAt(0).toUpperCase() + this.state.provider.slice(1)
-      : 'GitHub';
+      : "GitHub";
 
     return new StatusItem({
-      label: 'Git',
-      description: this.state.configured ? providerLabel : 'Not configured',
-      icon: this.state.configured ? 'check' : 'warning',
+      label: "Git",
+      description: this.state.configured ? providerLabel : "Not configured",
+      icon: this.state.configured ? "check" : "warning",
       collapsibleState: this.state.configured
         ? vscode.TreeItemCollapsibleState.Collapsed
         : vscode.TreeItemCollapsibleState.Expanded,
       sectionId: this.sectionId,
-      command: this.state.configured ? undefined : {
-        command: 'operator.startGitOnboarding',
-        title: 'Connect Git Provider',
-      },
+      command: this.state.configured
+        ? undefined
+        : {
+            command: "operator.startGitOnboarding",
+            title: "Connect Git Provider",
+          },
       health: this.health(),
     });
   }
@@ -92,67 +98,84 @@ export class GitSection implements StatusSection {
 
     if (this.state.configured) {
       // Provider with branded icon
-      const providerName = this.state.provider || 'github';
-      const providerIcon = PROVIDER_ICONS[providerName] || 'source-control';
+      const providerName = this.state.provider || "github";
+      const providerIcon = PROVIDER_ICONS[providerName] || "source-control";
       const providerLabel = providerName.charAt(0).toUpperCase() + providerName.slice(1);
-      items.push(new StatusItem({
-        label: 'Provider',
-        description: providerLabel,
-        icon: providerIcon,
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: "Provider",
+          description: providerLabel,
+          icon: providerIcon,
+          sectionId: this.sectionId,
+        }),
+      );
 
-      // Token status — clickable when not set
-      const tokenLabel = providerName === 'gitlab' ? 'GitLab Token' : 'GitHub Token';
-      items.push(new StatusItem({
-        label: tokenLabel,
-        description: this.state.tokenSet ? 'Set' : 'Not set',
-        icon: this.state.tokenSet ? 'key' : 'warning',
-        sectionId: this.sectionId,
-        command: this.state.tokenSet ? undefined : {
-          command: providerName === 'gitlab' ? 'operator.configureGitLab' : 'operator.configureGitHub',
-          title: 'Set Token',
-        },
-        health: this.state.tokenSet ? 'Green' : 'Yellow',
-      }));
+      // Token status - clickable when not set
+      const tokenLabel = providerName === "gitlab" ? "GitLab Token" : "GitHub Token";
+      items.push(
+        new StatusItem({
+          label: tokenLabel,
+          description: this.state.tokenSet ? "Set" : "Not set",
+          icon: this.state.tokenSet ? "key" : "warning",
+          sectionId: this.sectionId,
+          command: this.state.tokenSet
+            ? undefined
+            : {
+                command:
+                  providerName === "gitlab"
+                    ? "operator.configureGitLab"
+                    : "operator.configureGitHub",
+                title: "Set Token",
+              },
+          health: this.state.tokenSet ? "Green" : "Yellow",
+        }),
+      );
 
       // Branch Format
       if (this.state.branchFormat) {
-        items.push(new StatusItem({
-          label: 'Branch Format',
-          description: this.state.branchFormat,
-          icon: 'git-branch',
-          sectionId: this.sectionId,
-        }));
+        items.push(
+          new StatusItem({
+            label: "Branch Format",
+            description: this.state.branchFormat,
+            icon: "git-branch",
+            sectionId: this.sectionId,
+          }),
+        );
       }
 
       // Worktrees
-      items.push(new StatusItem({
-        label: 'Worktrees',
-        description: this.state.useWorktrees ? 'Enabled' : 'Disabled',
-        icon: 'git-merge',
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: "Worktrees",
+          description: this.state.useWorktrees ? "Enabled" : "Disabled",
+          icon: "git-merge",
+          sectionId: this.sectionId,
+        }),
+      );
     } else {
       // Unconfigured: show provider options
-      items.push(new StatusItem({
-        label: 'GitHub',
-        icon: 'operator-github',
-        command: {
-          command: 'operator.configureGitHub',
-          title: 'Connect GitHub',
-        },
-        sectionId: this.sectionId,
-      }));
-      items.push(new StatusItem({
-        label: 'GitLab',
-        icon: 'operator-gitlab',
-        command: {
-          command: 'operator.configureGitLab',
-          title: 'Connect GitLab',
-        },
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: "GitHub",
+          icon: "operator-github",
+          command: {
+            command: "operator.configureGitHub",
+            title: "Connect GitHub",
+          },
+          sectionId: this.sectionId,
+        }),
+      );
+      items.push(
+        new StatusItem({
+          label: "GitLab",
+          icon: "operator-gitlab",
+          command: {
+            command: "operator.configureGitLab",
+            title: "Connect GitLab",
+          },
+          sectionId: this.sectionId,
+        }),
+      );
     }
 
     return items;

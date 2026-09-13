@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { OperatorApi } from '../api-client';
-import type { AgentDetailResponse } from '../api-client';
-import { useHost } from '../host';
-import styles from './AgentDetailPage.module.css';
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { OperatorApi } from "../api-client";
+import type { AgentDetailResponse } from "../api-client";
+import { useHost } from "../host";
+import styles from "./AgentDetailPage.module.css";
 
 export function AgentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,17 +13,26 @@ export function AgentDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) {return undefined;}
+    if (!id) {
+      return undefined;
+    }
     const load = () => {
-      api.getAgent(id).then(setAgent).catch((e) => setError(e.message));
+      api
+        .getAgent(id)
+        .then(setAgent)
+        .catch((e) => setError(e.message));
     };
     load();
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, [api, id]);
 
-  if (error) {return <div className={styles.error}>Error: {error}</div>;}
-  if (!agent) {return <div className={styles.loading}>Loading...</div>;}
+  if (error) {
+    return <div className={styles.error}>Error: {error}</div>;
+  }
+  if (!agent) {
+    return <div className={styles.loading}>Loading...</div>;
+  }
 
   const elapsed = formatElapsed(agent.started_at);
 
@@ -50,7 +59,7 @@ export function AgentDetailPage() {
         <Field label="Step" value={agent.current_step} />
         <Field label="Review" value={agent.review_state} />
         <Field label="Elapsed" value={elapsed} />
-        <Field label="Paired" value={agent.paired ? 'Yes' : 'No'} />
+        <Field label="Paired" value={agent.paired ? "Yes" : "No"} />
       </div>
 
       {agent.pr_url && (
@@ -59,9 +68,7 @@ export function AgentDetailPage() {
           <a href={agent.pr_url} target="_blank" rel="noopener noreferrer">
             {agent.pr_url}
           </a>
-          {agent.pr_status && (
-            <span className={styles.prStatus}>{agent.pr_status}</span>
-          )}
+          {agent.pr_status && <span className={styles.prStatus}>{agent.pr_status}</span>}
         </div>
       )}
 
@@ -70,11 +77,11 @@ export function AgentDetailPage() {
           <h2>Completed Steps</h2>
           <ol className={styles.stepsList}>
             {agent.completed_steps.map((step) => (
-              <li key={step} className={styles.stepDone}>{step}</li>
+              <li key={step} className={styles.stepDone}>
+                {step}
+              </li>
             ))}
-            {agent.current_step && (
-              <li className={styles.stepActive}>{agent.current_step}</li>
-            )}
+            {agent.current_step && <li className={styles.stepActive}>{agent.current_step}</li>}
           </ol>
         </div>
       )}
@@ -96,7 +103,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   return (
     <div className={styles.field}>
       <div className={styles.fieldLabel}>{label}</div>
-      <div className={styles.fieldValue}>{value ?? '—'}</div>
+      <div className={styles.fieldValue}>{value ?? "-"}</div>
     </div>
   );
 }
@@ -104,9 +111,13 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 function formatElapsed(startedAt: string): string {
   const ms = Date.now() - new Date(startedAt).getTime();
   const secs = Math.floor(ms / 1000);
-  if (secs < 60) {return `${secs}s`;}
+  if (secs < 60) {
+    return `${secs}s`;
+  }
   const mins = Math.floor(secs / 60);
-  if (mins < 60) {return `${mins}m ${secs % 60}s`;}
+  if (mins < 60) {
+    return `${mins}m ${secs % 60}s`;
+  }
   const hrs = Math.floor(mins / 60);
   return `${hrs}h ${mins % 60}m`;
 }

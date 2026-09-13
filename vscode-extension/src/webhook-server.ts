@@ -6,11 +6,11 @@
  * Supports dynamic port binding with session file registration.
  */
 
-import * as http from 'node:http';
-import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
-import * as vscode from 'vscode';
-import type { TerminalManager } from './terminal-manager';
+import * as http from "node:http";
+import * as path from "node:path";
+import * as fs from "node:fs/promises";
+import * as vscode from "vscode";
+import type { TerminalManager } from "./terminal-manager";
 import type {
   TerminalCreateOptions,
   SendCommandRequest,
@@ -20,9 +20,9 @@ import type {
   ActivityResponse,
   ListResponse,
   SessionInfo,
-} from './types';
+} from "./types";
 
-const VERSION = '0.2.8';
+const VERSION = "0.2.8";
 
 /**
  * HTTP server for operator <-> extension communication
@@ -36,9 +36,7 @@ export class WebhookServer {
 
   constructor(terminalManager: TerminalManager) {
     this.terminalManager = terminalManager;
-    this.configuredPort = vscode.workspace
-      .getConfiguration('operator')
-      .get('webhookPort', 7009);
+    this.configuredPort = vscode.workspace.getConfiguration("operator").get("webhookPort", 7009);
   }
 
   /**
@@ -50,10 +48,8 @@ export class WebhookServer {
     try {
       await this.tryListen(this.configuredPort);
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') {
-        console.log(
-          `Port ${this.configuredPort} in use, requesting available port...`
-        );
+      if ((err as NodeJS.ErrnoException).code === "EADDRINUSE") {
+        console.log(`Port ${this.configuredPort} in use, requesting available port...`);
         await this.tryListen(0); // Let OS assign a port
       } else {
         throw err;
@@ -75,15 +71,12 @@ export class WebhookServer {
         void this.handleRequest(req, res);
       });
 
-      this.server.on('error', reject);
+      this.server.on("error", reject);
 
-      this.server.listen(port, '127.0.0.1', () => {
+      this.server.listen(port, "127.0.0.1", () => {
         const addr = this.server!.address();
-        this.actualPort =
-          typeof addr === 'object' && addr ? addr.port : port;
-        console.log(
-          `Operator webhook server listening on port ${this.actualPort}`
-        );
+        this.actualPort = typeof addr === "object" && addr ? addr.port : port;
+        console.log(`Operator webhook server listening on port ${this.actualPort}`);
         resolve();
       });
     });
@@ -94,23 +87,19 @@ export class WebhookServer {
    */
   private async writeSessionFile(ticketsDir: string): Promise<void> {
     const sessionInfo: SessionInfo = {
-      wrapper: 'vscode',
+      wrapper: "vscode",
       port: this.actualPort,
       pid: process.pid,
       version: VERSION,
       startedAt: new Date().toISOString(),
-      workspace:
-        vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
+      workspace: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
     };
 
-    const operatorDir = path.join(ticketsDir, 'operator');
+    const operatorDir = path.join(ticketsDir, "operator");
     await fs.mkdir(operatorDir, { recursive: true });
 
-    this.sessionFilePath = path.join(operatorDir, 'vscode-session.json');
-    await fs.writeFile(
-      this.sessionFilePath,
-      JSON.stringify(sessionInfo, null, 2)
-    );
+    this.sessionFilePath = path.join(operatorDir, "vscode-session.json");
+    await fs.writeFile(this.sessionFilePath, JSON.stringify(sessionInfo, null, 2));
     console.log(`Session file written to ${this.sessionFilePath}`);
   }
 
@@ -161,7 +150,9 @@ export class WebhookServer {
    * Re-write the session file if the server is running but the file was lost
    */
   async ensureSessionFile(ticketsDir: string): Promise<void> {
-    if (!this.server) { return; }
+    if (!this.server) {
+      return;
+    }
     await this.writeSessionFile(ticketsDir);
   }
 
@@ -175,29 +166,26 @@ export class WebhookServer {
   /**
    * Handle incoming HTTP requests
    */
-  private async handleRequest(
-    req: http.IncomingMessage,
-    res: http.ServerResponse
-  ) {
+  private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
     // CORS headers for local development
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-    if (req.method === 'OPTIONS') {
+    if (req.method === "OPTIONS") {
       res.writeHead(200);
       res.end();
       return;
     }
 
-    const url = new URL(req.url ?? '/', `http://localhost:${this.actualPort}`);
+    const url = new URL(req.url ?? "/", `http://localhost:${this.actualPort}`);
     const urlPath = url.pathname;
 
     try {
       // Health check
-      if (urlPath === '/health' && req.method === 'GET') {
+      if (urlPath === "/health" && req.method === "GET") {
         const response: HealthResponse = {
-          status: 'ok',
+          status: "ok",
           version: VERSION,
           port: this.actualPort,
         };
@@ -205,7 +193,7 @@ export class WebhookServer {
       }
 
       // Create terminal
-      if (urlPath === '/terminal/create' && req.method === 'POST') {
+      if (urlPath === "/terminal/create" && req.method === "POST") {
         const body = await this.parseBody<TerminalCreateOptions>(req);
         this.terminalManager.create(body);
         const response: SuccessResponse = { success: true, name: body.name };
@@ -213,12 +201,8 @@ export class WebhookServer {
       }
 
       // Send command to terminal
-      if (
-        urlPath.startsWith('/terminal/') &&
-        urlPath.endsWith('/send') &&
-        req.method === 'POST'
-      ) {
-        const name = this.extractName(urlPath, '/terminal/', '/send');
+      if (urlPath.startsWith("/terminal/") && urlPath.endsWith("/send") && req.method === "POST") {
+        const name = this.extractName(urlPath, "/terminal/", "/send");
         const body = await this.parseBody<SendCommandRequest>(req);
         this.terminalManager.send(name, body.command);
         const response: SuccessResponse = { success: true };
@@ -226,24 +210,16 @@ export class WebhookServer {
       }
 
       // Show terminal (reveal without focus)
-      if (
-        urlPath.startsWith('/terminal/') &&
-        urlPath.endsWith('/show') &&
-        req.method === 'POST'
-      ) {
-        const name = this.extractName(urlPath, '/terminal/', '/show');
+      if (urlPath.startsWith("/terminal/") && urlPath.endsWith("/show") && req.method === "POST") {
+        const name = this.extractName(urlPath, "/terminal/", "/show");
         this.terminalManager.show(name);
         const response: SuccessResponse = { success: true };
         return this.sendJson(res, response);
       }
 
       // Focus terminal (reveal with focus)
-      if (
-        urlPath.startsWith('/terminal/') &&
-        urlPath.endsWith('/focus') &&
-        req.method === 'POST'
-      ) {
-        const name = this.extractName(urlPath, '/terminal/', '/focus');
+      if (urlPath.startsWith("/terminal/") && urlPath.endsWith("/focus") && req.method === "POST") {
+        const name = this.extractName(urlPath, "/terminal/", "/focus");
         this.terminalManager.focus(name);
         const response: SuccessResponse = { success: true };
         return this.sendJson(res, response);
@@ -251,23 +227,19 @@ export class WebhookServer {
 
       // Kill terminal
       if (
-        urlPath.startsWith('/terminal/') &&
-        urlPath.endsWith('/kill') &&
-        req.method === 'DELETE'
+        urlPath.startsWith("/terminal/") &&
+        urlPath.endsWith("/kill") &&
+        req.method === "DELETE"
       ) {
-        const name = this.extractName(urlPath, '/terminal/', '/kill');
+        const name = this.extractName(urlPath, "/terminal/", "/kill");
         this.terminalManager.kill(name);
         const response: SuccessResponse = { success: true };
         return this.sendJson(res, response);
       }
 
       // Check if terminal exists
-      if (
-        urlPath.startsWith('/terminal/') &&
-        urlPath.endsWith('/exists') &&
-        req.method === 'GET'
-      ) {
-        const name = this.extractName(urlPath, '/terminal/', '/exists');
+      if (urlPath.startsWith("/terminal/") && urlPath.endsWith("/exists") && req.method === "GET") {
+        const name = this.extractName(urlPath, "/terminal/", "/exists");
         const response: ExistsResponse = {
           exists: this.terminalManager.exists(name),
         };
@@ -276,11 +248,11 @@ export class WebhookServer {
 
       // Get terminal activity
       if (
-        urlPath.startsWith('/terminal/') &&
-        urlPath.endsWith('/activity') &&
-        req.method === 'GET'
+        urlPath.startsWith("/terminal/") &&
+        urlPath.endsWith("/activity") &&
+        req.method === "GET"
       ) {
-        const name = this.extractName(urlPath, '/terminal/', '/activity');
+        const name = this.extractName(urlPath, "/terminal/", "/activity");
         const response: ActivityResponse = {
           activity: this.terminalManager.getActivity(name),
         };
@@ -288,7 +260,7 @@ export class WebhookServer {
       }
 
       // List all terminals
-      if (urlPath === '/terminal/list' && req.method === 'GET') {
+      if (urlPath === "/terminal/list" && req.method === "GET") {
         const response: ListResponse = {
           terminals: this.terminalManager.list(),
         };
@@ -297,9 +269,9 @@ export class WebhookServer {
 
       // 404 Not Found
       res.writeHead(404);
-      res.end(JSON.stringify({ error: 'Not found' }));
+      res.end(JSON.stringify({ error: "Not found" }));
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = err instanceof Error ? err.message : "Unknown error";
       res.writeHead(500);
       res.end(JSON.stringify({ error: message }));
     }
@@ -316,14 +288,14 @@ export class WebhookServer {
    * Parse JSON request body
    */
   private async parseBody<T>(req: http.IncomingMessage): Promise<T> {
-    let body = '';
+    let body = "";
     for await (const chunk of req) {
       body += chunk;
     }
     try {
-      return JSON.parse(body || '{}') as T;
+      return JSON.parse(body || "{}") as T;
     } catch {
-      throw new Error('Invalid JSON');
+      throw new Error("Invalid JSON");
     }
   }
 
@@ -331,7 +303,7 @@ export class WebhookServer {
    * Send JSON response
    */
   private sendJson(res: http.ServerResponse, data: object): void {
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
     res.writeHead(200);
     res.end(JSON.stringify(data));
   }

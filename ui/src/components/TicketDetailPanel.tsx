@@ -1,21 +1,21 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { KanbanTicketCard } from '@operator/bindings/KanbanTicketCard';
-import type { ConfigurationResponse } from '@operator/bindings/ConfigurationResponse';
-import type { DelegatorResponse } from '@operator/bindings/DelegatorResponse';
-import type { LaunchTicketResponse } from '@operator/bindings/LaunchTicketResponse';
-import { OperatorApi } from '../api-client';
-import { useHost } from '../host';
-import { useRightPanel } from '../right-panel';
-import { wrapperSessionLink } from '../session-links';
-import { WorkflowGraph } from '@operator/webcomponents';
-import type { IssueType } from '@operator/bindings/IssueType';
-import styles from './TicketDetailPanel.module.css';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { KanbanTicketCard } from "@operator/bindings/KanbanTicketCard";
+import type { ConfigurationResponse } from "@operator/bindings/ConfigurationResponse";
+import type { DelegatorResponse } from "@operator/bindings/DelegatorResponse";
+import type { LaunchTicketResponse } from "@operator/bindings/LaunchTicketResponse";
+import { OperatorApi } from "../api-client";
+import { useHost } from "../host";
+import { useRightPanel } from "../right-panel";
+import { wrapperSessionLink } from "../session-links";
+import { WorkflowGraph } from "@operator/webcomponents";
+import type { IssueType } from "@operator/bindings/IssueType";
+import styles from "./TicketDetailPanel.module.css";
 
 /**
  * Right-panel contents for a kanban ticket: detail, the issue-type workflow
  * graph (the launch steps), and a full launch form. Replaces the old centered
- * WorkflowModal — the graph now lives alongside the controls to launch the
+ * WorkflowModal - the graph now lives alongside the controls to launch the
  * ticket. After a launch, surfaces session links contextual to the operator's
  * control wrapper (clickable for VS Code/cmux, read-only for tmux/zellij).
  */
@@ -26,9 +26,9 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
   const [api] = useState(() => new OperatorApi(host));
 
   // Launch form state.
-  const [delegator, setDelegator] = useState<string>(''); // '' = default chain
-  const [wrapper, setWrapper] = useState<string>(''); // '' = configured default
-  const [target, setTarget] = useState<string>(''); // '' = delegator's target
+  const [delegator, setDelegator] = useState<string>(""); // '' = default chain
+  const [wrapper, setWrapper] = useState<string>(""); // '' = configured default
+  const [target, setTarget] = useState<string>(""); // '' = delegator's target
   const [yolo, setYolo] = useState(false);
 
   const [config, setConfig] = useState<ConfigurationResponse | null>(null);
@@ -54,7 +54,9 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
         if (!cancelled) {
           setConfig(configuration);
           setDelegators(delegatorResponse.delegators);
-          setTargets(targetResponse.targets.filter((item) => item.available).map((item) => item.name));
+          setTargets(
+            targetResponse.targets.filter((item) => item.available).map((item) => item.name),
+          );
         }
         return undefined;
       })
@@ -72,14 +74,16 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
       .getIssueTypeDocument(ticket.ticket_type)
       .then((doc) => !cancelled && setWorkflow(doc))
       .catch((e) => {
-        if (!cancelled) {setWorkflowError(e instanceof Error ? e.message : 'Failed to load workflow');}
+        if (!cancelled) {
+          setWorkflowError(e instanceof Error ? e.message : "Failed to load workflow");
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [api, ticket.ticket_type]);
 
-  const defaultWrapperLabel = config?.launch.session_wrapper ?? 'configured';
+  const defaultWrapperLabel = config?.launch.session_wrapper ?? "configured";
 
   const onLaunch = () => {
     setLaunching(true);
@@ -97,7 +101,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
         target: target || null,
       })
       .then((r) => setResult(r))
-      .catch((e) => setLaunchError(e instanceof Error ? e.message : 'Launch failed'))
+      .catch((e) => setLaunchError(e instanceof Error ? e.message : "Launch failed"))
       .finally(() => setLaunching(false));
   };
 
@@ -107,7 +111,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
     api
       .focusSession(agentId)
       .then(() => setFocused(true))
-      .catch((e) => setFocusError(e instanceof Error ? e.message : 'Focus failed'))
+      .catch((e) => setFocusError(e instanceof Error ? e.message : "Focus failed"))
       .finally(() => setFocusBusy(false));
   };
 
@@ -192,7 +196,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
             onClick={onLaunch}
             disabled={launching}
           >
-            {launching ? 'Launching…' : 'Launch ▸'}
+            {launching ? "Launching…" : "Launch ▸"}
           </button>
         </div>
       )}
@@ -211,7 +215,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
           >
             Open agent detail
           </button>
-          {link?.kind === 'open-url' && (
+          {link?.kind === "open-url" && (
             <button
               type="button"
               className={styles.linkBtn}
@@ -220,7 +224,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
               {link.label}
             </button>
           )}
-          {link?.kind === 'focus-api' && (
+          {link?.kind === "focus-api" && (
             <>
               <button
                 type="button"
@@ -228,12 +232,12 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
                 onClick={() => onFocus(result.agent_id)}
                 disabled={focusBusy}
               >
-                {focusBusy ? 'Focusing…' : focused ? `${link.label} ✓` : link.label}
+                {focusBusy ? "Focusing…" : focused ? `${link.label} ✓` : link.label}
               </button>
               {focusError && <div className={styles.error}>{focusError}</div>}
             </>
           )}
-          {link?.kind === 'display' && (
+          {link?.kind === "display" && (
             <div className={styles.sessionRef}>
               <span className={styles.fieldLabel}>{link.label}</span>
               <code>{link.detail}</code>

@@ -6,18 +6,18 @@
  * to hardcoded Claude models when the API is unavailable.
  */
 
-import * as vscode from 'vscode';
-import type { LaunchOptions, TicketInfo, ModelOption } from './types';
-import type { DelegatorResponse } from './generated/DelegatorResponse';
-import type { DelegatorsResponse } from './generated/DelegatorsResponse';
-import type { ModelServerModelsResponse } from './generated/ModelServerModelsResponse';
-import { discoverApiUrl, OperatorApiClient } from './api-client';
+import * as vscode from "vscode";
+import type { LaunchOptions, TicketInfo, ModelOption } from "./types";
+import type { DelegatorResponse } from "./generated/DelegatorResponse";
+import type { DelegatorsResponse } from "./generated/DelegatorsResponse";
+import type { ModelServerModelsResponse } from "./generated/ModelServerModelsResponse";
+import { discoverApiUrl, OperatorApiClient } from "./api-client";
 
 /**
  * Provider kind probed for the model fallback list when no delegators exist.
  * Matches the hardcoded Claude aliases this fallback replaces.
  */
-const FALLBACK_MODEL_KIND = 'anthropic-api';
+const FALLBACK_MODEL_KIND = "anthropic-api";
 
 interface TicketPickItem extends vscode.QuickPickItem {
   ticket: TicketInfo;
@@ -32,9 +32,7 @@ interface DelegatorPickItem extends vscode.QuickPickItem {
  * Fetch configured delegators from the Operator API.
  * Returns an empty array if the API is unavailable.
  */
-async function fetchDelegators(
-  ticketsDir: string | undefined
-): Promise<DelegatorResponse[]> {
+async function fetchDelegators(ticketsDir: string | undefined): Promise<DelegatorResponse[]> {
   try {
     const client = new OperatorApiClient(await discoverApiUrl(ticketsDir));
     const data: DelegatorsResponse = await client.listDelegators();
@@ -53,7 +51,7 @@ async function fetchDelegators(
  * The probe already filters to LLM text models, so every id is dropdown-ready.
  */
 async function fetchFallbackModels(
-  ticketsDir: string | undefined
+  ticketsDir: string | undefined,
 ): Promise<DelegatorPickItem[] | null> {
   try {
     const client = new OperatorApiClient(await discoverApiUrl(ticketsDir));
@@ -73,26 +71,26 @@ async function fetchFallbackModels(
   }
 }
 
-/** Hardcoded Claude aliases — the offline / not-connected safety net. */
+/** Hardcoded Claude aliases - the offline / not-connected safety net. */
 function hardcodedModelItems(): DelegatorPickItem[] {
   return [
     {
-      label: 'sonnet',
-      description: 'Claude Sonnet (recommended)',
+      label: "sonnet",
+      description: "Claude Sonnet (recommended)",
       delegatorName: undefined,
-      model: 'sonnet',
+      model: "sonnet",
     },
     {
-      label: 'opus',
-      description: 'Claude Opus (most capable)',
+      label: "opus",
+      description: "Claude Opus (most capable)",
       delegatorName: undefined,
-      model: 'opus',
+      model: "opus",
     },
     {
-      label: 'haiku',
-      description: 'Claude Haiku (fastest)',
+      label: "haiku",
+      description: "Claude Haiku (fastest)",
       delegatorName: undefined,
-      model: 'haiku',
+      model: "haiku",
     },
   ];
 }
@@ -100,11 +98,11 @@ function hardcodedModelItems(): DelegatorPickItem[] {
 /**
  * Build the model/delegator pick list. When delegators exist, list them (plus an
  * "Auto" default). When none exist, prefer live probed models, falling back to
- * hardcoded aliases — resolved by [`resolveFallbackItems`] before this is called.
+ * hardcoded aliases - resolved by [`resolveFallbackItems`] before this is called.
  */
 function buildDelegatorItems(
   delegators: DelegatorResponse[],
-  fallback?: DelegatorPickItem[] | null
+  fallback?: DelegatorPickItem[] | null,
 ): DelegatorPickItem[] {
   if (delegators.length === 0) {
     return fallback && fallback.length > 0 ? fallback : hardcodedModelItems();
@@ -112,15 +110,15 @@ function buildDelegatorItems(
 
   const items: DelegatorPickItem[] = [
     {
-      label: '$(rocket) Auto',
-      description: 'Use default delegator',
+      label: "$(rocket) Auto",
+      description: "Use default delegator",
       delegatorName: undefined,
-      model: 'sonnet', // fallback model if backend resolution fails
+      model: "sonnet", // fallback model if backend resolution fails
     },
   ];
 
   for (const d of delegators) {
-    const yoloFlag = d.launch_config?.yolo ? ' · yolo' : '';
+    const yoloFlag = d.launch_config?.yolo ? " · yolo" : "";
     items.push({
       label: d.display_name || d.name,
       description: `${d.llm_tool}:${d.model}${yoloFlag}`,
@@ -138,20 +136,17 @@ function buildDelegatorItems(
 export async function showLaunchOptionsDialog(
   ticket: TicketInfo,
   hasExistingSession: boolean,
-  ticketsDir?: string
+  ticketsDir?: string,
 ): Promise<LaunchOptions | undefined> {
   // Fetch delegators from API; when none, probe live models for the fallback.
   const delegators = await fetchDelegators(ticketsDir);
-  const fallback =
-    delegators.length === 0 ? await fetchFallbackModels(ticketsDir) : null;
+  const fallback = delegators.length === 0 ? await fetchFallbackModels(ticketsDir) : null;
   const delegatorItems = buildDelegatorItems(delegators, fallback);
 
   const delegatorChoice = await vscode.window.showQuickPick(delegatorItems, {
     title: `Launch ${ticket.id}: Select Delegator`,
     placeHolder:
-      delegators.length > 0
-        ? 'Choose a delegator or use auto'
-        : 'Choose the model to use',
+      delegators.length > 0 ? "Choose a delegator or use auto" : "Choose the model to use",
   });
 
   if (!delegatorChoice) {
@@ -161,23 +156,23 @@ export async function showLaunchOptionsDialog(
   // Options checkboxes
   const optionItems: vscode.QuickPickItem[] = [
     {
-      label: 'YOLO Mode',
-      description: 'Auto-accept all permission prompts',
+      label: "YOLO Mode",
+      description: "Auto-accept all permission prompts",
       picked: false,
     },
   ];
 
   if (hasExistingSession) {
     optionItems.push({
-      label: 'Resume Session',
-      description: 'Continue from previous session',
+      label: "Resume Session",
+      description: "Continue from previous session",
       picked: true,
     });
   }
 
   const optionChoices = await vscode.window.showQuickPick(optionItems, {
     title: `Launch ${ticket.id}: Options`,
-    placeHolder: 'Select launch options (Space to toggle)',
+    placeHolder: "Select launch options (Space to toggle)",
     canPickMany: true,
   });
 
@@ -197,8 +192,8 @@ export async function showLaunchOptionsDialog(
   return {
     delegator: delegatorChoice.delegatorName ?? null,
     model: delegatorChoice.model,
-    yoloMode: selectedLabels.has('YOLO Mode'),
-    resumeSession: selectedLabels.has('Resume Session'),
+    yoloMode: selectedLabels.has("YOLO Mode"),
+    resumeSession: selectedLabels.has("Resume Session"),
     target,
   };
 }
@@ -211,7 +206,7 @@ export async function showLaunchOptionsDialog(
  */
 async function pickTarget(
   ticket: TicketInfo,
-  ticketsDir?: string
+  ticketsDir?: string,
 ): Promise<string | undefined | null> {
   const names = await fetchTargetNames(ticketsDir);
   if (names.length === 0) {
@@ -219,23 +214,23 @@ async function pickTarget(
   }
   const items: vscode.QuickPickItem[] = [
     {
-      label: '$(rocket) Auto',
+      label: "$(rocket) Auto",
       description: "Use the delegator's configured target",
     },
     ...names.map((n) => ({ label: n })),
   ];
   const choice = await vscode.window.showQuickPick(items, {
     title: `Launch ${ticket.id}: Execution Target`,
-    placeHolder: 'Where should the agent run?',
+    placeHolder: "Where should the agent run?",
   });
   if (!choice) {
     return null;
   }
-  return choice.label.includes('Auto') ? undefined : choice.label;
+  return choice.label.includes("Auto") ? undefined : choice.label;
 }
 
 /** The implicit default; offering it as an override would be a no-op. */
-const LOCAL_TARGET = 'local';
+const LOCAL_TARGET = "local";
 
 /**
  * Named execution targets: [[targets]] entries, [[hosts]] synths, and docker
@@ -246,9 +241,7 @@ async function fetchTargetNames(ticketsDir?: string): Promise<string[]> {
   try {
     const client = new OperatorApiClient(await discoverApiUrl(ticketsDir));
     const { targets } = await client.listExecutionTargets();
-    return targets
-      .filter((t) => t.name !== LOCAL_TARGET && t.available)
-      .map((t) => t.name);
+    return targets.filter((t) => t.name !== LOCAL_TARGET && t.available).map((t) => t.name);
   } catch {
     return [];
   }
@@ -257,11 +250,9 @@ async function fetchTargetNames(ticketsDir?: string): Promise<string[]> {
 /**
  * Show ticket picker for launch command
  */
-export async function showTicketPicker(
-  tickets: TicketInfo[]
-): Promise<TicketInfo | undefined> {
+export async function showTicketPicker(tickets: TicketInfo[]): Promise<TicketInfo | undefined> {
   if (tickets.length === 0) {
-    void vscode.window.showInformationMessage('No tickets available');
+    void vscode.window.showInformationMessage("No tickets available");
     return undefined;
   }
 
@@ -273,8 +264,8 @@ export async function showTicketPicker(
   }));
 
   const choice = await vscode.window.showQuickPick(items, {
-    title: 'Select Ticket to Launch',
-    placeHolder: 'Choose a ticket',
+    title: "Select Ticket to Launch",
+    placeHolder: "Choose a ticket",
     matchOnDescription: true,
     matchOnDetail: true,
   });
@@ -286,19 +277,16 @@ export async function showTicketPicker(
  * Show quick delegator picker (for fast launches)
  */
 export async function showQuickDelegatorPicker(
-  ticketsDir?: string
-): Promise<Pick<LaunchOptions, 'delegator' | 'model'> | undefined> {
+  ticketsDir?: string,
+): Promise<Pick<LaunchOptions, "delegator" | "model"> | undefined> {
   const delegators = await fetchDelegators(ticketsDir);
-  const fallback =
-    delegators.length === 0 ? await fetchFallbackModels(ticketsDir) : null;
+  const fallback = delegators.length === 0 ? await fetchFallbackModels(ticketsDir) : null;
   const items = buildDelegatorItems(delegators, fallback);
 
   const choice = await vscode.window.showQuickPick(items, {
-    title: 'Select Delegator',
+    title: "Select Delegator",
     placeHolder:
-      delegators.length > 0
-        ? 'Choose a delegator for launch'
-        : 'Choose model for launch',
+      delegators.length > 0 ? "Choose a delegator for launch" : "Choose model for launch",
   });
 
   if (!choice) {

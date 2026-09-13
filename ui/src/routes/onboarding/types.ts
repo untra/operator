@@ -1,13 +1,13 @@
-import type { Dispatch, SetStateAction } from 'react';
-import type { CollectionPreset } from '@operator/bindings/CollectionPreset';
-import type { SessionWrapperType } from '@operator/bindings/SessionWrapperType';
-import type { SetupExecutionTarget } from '@operator/bindings/SetupExecutionTarget';
+import type { Dispatch, SetStateAction } from "react";
+import type { CollectionPreset } from "@operator/bindings/CollectionPreset";
+import type { SessionWrapperType } from "@operator/bindings/SessionWrapperType";
+import type { SetupExecutionTarget } from "@operator/bindings/SetupExecutionTarget";
 import type {
   IntegrationCatalogEntryDto,
   OperatorApi,
   SetupCollectionResponse,
   SetupStatusResponse,
-} from '../../api-client';
+} from "../../api-client";
 
 export type WizardDraft = {
   preset: CollectionPreset;

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { OperatorBrand } from './OperatorBrand';
+import React, { useEffect, useState, useCallback } from "react";
+import { OperatorBrand } from "./OperatorBrand";
 
 export interface NavItem {
   id: string;
@@ -13,19 +13,23 @@ interface SidebarNavProps {
 }
 
 export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
-  const [activeId, setActiveId] = useState<string>(items[0]?.id ?? '');
+  const [activeId, setActiveId] = useState<string>(items[0]?.id ?? "");
 
   const handleClick = useCallback((item: NavItem) => {
-    if (item.disabled) { return; }
+    if (item.disabled) {
+      return;
+    }
     const element = document.getElementById(item.id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, []);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
-    if (!container) { return undefined; }
+    if (!container) {
+      return undefined;
+    }
 
     const sectionElements = items
       .filter((item) => !item.disabled)
@@ -45,9 +49,9 @@ export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
       },
       {
         root: container,
-        rootMargin: '-10% 0px -80% 0px',
+        rootMargin: "-10% 0px -80% 0px",
         threshold: 0,
-      }
+      },
     );
 
     sectionElements.forEach((el) => observer.observe(el));
@@ -65,7 +69,7 @@ export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
           type="button"
           key={item.id}
           className="op-nav-item"
-          data-selected={activeId === item.id && !item.disabled ? 'true' : undefined}
+          data-selected={activeId === item.id && !item.disabled ? "true" : undefined}
           disabled={item.disabled}
           onClick={() => handleClick(item)}
         >

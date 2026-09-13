@@ -3,7 +3,7 @@ import path from 'node:path';
 import { defineConfig } from 'vite';
 
 /**
- * React library build — consumed by the operator SPA (`ui/`).
+ * React library build - consumed by the operator SPA (`ui/`).
  *
  * React and the graph renderer stay external so the SPA resolves a single copy
  * of each; `ui/` already depends on them directly.

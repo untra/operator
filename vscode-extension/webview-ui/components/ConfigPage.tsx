@@ -1,13 +1,13 @@
-import React, { useMemo, useRef } from 'react';
-import { Button } from './primitives';
-import { SidebarNav, type NavItem } from './SidebarNav';
-import { OperatorBrand } from './OperatorBrand';
-import { LinkOutCard } from './LinkOutCard';
-import { PrimaryConfigSection } from './sections/PrimaryConfigSection';
-import { CodingAgentsSection } from './sections/CodingAgentsSection';
-import { ModelProvidersSection } from './sections/ModelProvidersSection';
-import { KanbanProvidersSection } from './sections/KanbanProvidersSection';
-import { GitRepositoriesSection } from './sections/GitRepositoriesSection';
+import React, { useMemo, useRef } from "react";
+import { Button } from "./primitives";
+import { SidebarNav, type NavItem } from "./SidebarNav";
+import { OperatorBrand } from "./OperatorBrand";
+import { LinkOutCard } from "./LinkOutCard";
+import { PrimaryConfigSection } from "./sections/PrimaryConfigSection";
+import { CodingAgentsSection } from "./sections/CodingAgentsSection";
+import { ModelProvidersSection } from "./sections/ModelProvidersSection";
+import { KanbanProvidersSection } from "./sections/KanbanProvidersSection";
+import { GitRepositoriesSection } from "./sections/GitRepositoriesSection";
 import type {
   WebviewConfig,
   JiraValidationInfo,
@@ -15,7 +15,7 @@ import type {
   IssueTypeSummary,
   CollectionResponse,
   ExternalIssueTypeSummary,
-} from '../types/messages';
+} from "../types/messages";
 
 interface ConfigPageProps {
   config: WebviewConfig;
@@ -37,7 +37,7 @@ interface ConfigPageProps {
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
   kanbanStatuses: Map<string, string[]>;
   onGetKanbanStatuses: (provider: string, projectKey: string) => void;
-  onOpenOperatorUi: (route: 'issuetypes' | 'projects') => void;
+  onOpenOperatorUi: (route: "issuetypes" | "projects") => void;
 }
 
 export function ConfigPage({
@@ -68,20 +68,23 @@ export function ConfigPage({
   // setup walkthrough instead of trying to open a non-existent config.toml.
   const needsSetup = !config.config_exists;
 
-  const navItems: NavItem[] = useMemo(() => [
-    { id: 'section-primary', label: 'Workspace Configuration' },
-    { id: 'section-kanban', label: 'Kanban Providers', disabled: !hasWorkDir },
-    { id: 'section-agents', label: 'Coding Agents', disabled: !hasWorkDir },
-    { id: 'section-model-providers', label: 'Model Providers', disabled: !apiReachable },
-    { id: 'section-git', label: 'Git Version Control', disabled: !hasWorkDir },
-    { id: 'section-projects', label: 'Operator Managed Projects', disabled: !apiReachable },
-  ], [hasWorkDir, apiReachable]);
+  const navItems: NavItem[] = useMemo(
+    () => [
+      { id: "section-primary", label: "Workspace Configuration" },
+      { id: "section-kanban", label: "Kanban Providers", disabled: !hasWorkDir },
+      { id: "section-agents", label: "Coding Agents", disabled: !hasWorkDir },
+      { id: "section-model-providers", label: "Model Providers", disabled: !apiReachable },
+      { id: "section-git", label: "Git Version Control", disabled: !hasWorkDir },
+      { id: "section-projects", label: "Operator Managed Projects", disabled: !apiReachable },
+    ],
+    [hasWorkDir, apiReachable],
+  );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <SidebarNav items={navItems} scrollContainerRef={scrollRef} />
 
-      <div ref={scrollRef} style={{ flexGrow: 1, overflow: 'auto', padding: '16px 24px' }}>
+      <div ref={scrollRef} style={{ flexGrow: 1, overflow: "auto", padding: "16px 24px" }}>
         <div className="op-row op-space-between op-mb-2">
           <h1 className="op-h6">
             <OperatorBrand /> Settings
@@ -103,7 +106,7 @@ export function ConfigPage({
         </div>
         <PrimaryConfigSection
           working_directory={config.working_directory}
-          sessions_wrapper={config.config.sessions.wrapper ?? 'vscode'}
+          sessions_wrapper={config.config.sessions.wrapper ?? "vscode"}
           onUpdate={onUpdate}
           onBrowseFolder={onBrowseFolder}
         />
@@ -135,15 +138,12 @@ export function ConfigPage({
           detectedTools={config.config.llm_tools.detected.map((t) => t.name)}
           apiReachable={apiReachable}
         />
-        <GitRepositoriesSection
-          git={config.config.git}
-          onUpdate={onUpdate}
-        />
+        <GitRepositoriesSection git={config.config.git} onUpdate={onUpdate} />
         <LinkOutCard
           id="section-projects"
           title="Operator Managed Projects"
           description="Browse, assess, and open managed projects in the Operator UI."
-          onOpen={() => onOpenOperatorUi('projects')}
+          onOpen={() => onOpenOperatorUi("projects")}
         />
       </div>
     </div>

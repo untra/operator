@@ -5,45 +5,35 @@
  * Tests OperatorApiClient class methods and discoverApiUrl function.
  */
 
-import * as assert from 'node:assert';
-import * as sinon from 'sinon';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import * as os from 'node:os';
+import * as assert from "node:assert";
+import * as sinon from "sinon";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import * as os from "node:os";
 import type {
   QueueControlResponse,
   KanbanSyncResponse,
-  ReviewResponse} from '../../src/api-client';
+  ReviewResponse,
+} from "../../src/api-client";
 import {
   AuthRequiredError,
   LIVEZ_PATH,
   OperatorApiClient,
   discoverApiUrl,
-  toJson
-} from '../../src/api-client';
-import {
-  clearCredentialProvider,
-  setCredentialProvider,
-} from '../../src/auth/credentials';
-import type { FakeCredentials} from './helpers/credentials';
-import { fakeCredentials } from './helpers/credentials';
+  toJson,
+} from "../../src/api-client";
+import { clearCredentialProvider, setCredentialProvider } from "../../src/auth/credentials";
+import type { FakeCredentials } from "./helpers/credentials";
+import { fakeCredentials } from "./helpers/credentials";
 import type {
   HealthResponse,
   LaunchTicketRequest,
   LaunchTicketResponse,
-} from '../../src/generated';
+} from "../../src/generated";
 
 // Path to fixtures relative to the workspace root
 // __dirname in compiled code is out/test/suite, so we go up 3 levels to workspace root
-const fixturesDir = path.join(
-  __dirname,
-  '..',
-  '..',
-  '..',
-  'test',
-  'fixtures',
-  'api'
-);
+const fixturesDir = path.join(__dirname, "..", "..", "..", "test", "fixtures", "api");
 
 /** Shape of the fetch init argument captured from sinon stubs */
 interface FetchInit {
@@ -65,14 +55,14 @@ interface RejectRequestBody {
   reason: string;
 }
 
-suite('API Client Test Suite', () => {
+suite("API Client Test Suite", () => {
   let fetchStub: sinon.SinonStub;
   let credentials: FakeCredentials;
 
   setup(() => {
     // Stub global fetch
-    fetchStub = sinon.stub(global, 'fetch');
-    credentials = fakeCredentials('test-token');
+    fetchStub = sinon.stub(global, "fetch");
+    credentials = fakeCredentials("test-token");
     setCredentialProvider(credentials);
   });
 
@@ -81,31 +71,31 @@ suite('API Client Test Suite', () => {
     clearCredentialProvider();
   });
 
-  suite('authentication', () => {
-    test('sends the provider credential as a bearer token', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+  suite("authentication", () => {
+    test("sends the provider credential as a bearer token", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
       fetchStub.resolves(new Response(JSON.stringify([]), { status: 200 }));
 
       await client.listIssueTypes();
 
       const [, init] = fetchStub.firstCall.args as [string, FetchInit];
-      assert.strictEqual(init.headers.Authorization, 'Bearer test-token');
+      assert.strictEqual(init.headers.Authorization, "Bearer test-token");
     });
 
-    test('keeps Content-Type alongside the bearer token on bodied requests', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("keeps Content-Type alongside the bearer token on bodied requests", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
       fetchStub.resolves(new Response(JSON.stringify({}), { status: 200 }));
 
-      await client.rejectReview('agent-1', 'reason');
+      await client.rejectReview("agent-1", "reason");
 
       const [, init] = fetchStub.firstCall.args as [string, FetchInit];
-      assert.strictEqual(init.headers.Authorization, 'Bearer test-token');
-      assert.strictEqual(init.headers['Content-Type'], 'application/json');
+      assert.strictEqual(init.headers.Authorization, "Bearer test-token");
+      assert.strictEqual(init.headers["Content-Type"], "application/json");
     });
 
-    test('sends no Authorization header when the provider has nothing', async () => {
+    test("sends no Authorization header when the provider has nothing", async () => {
       credentials.token = undefined;
-      const client = new OperatorApiClient('http://localhost:7008');
+      const client = new OperatorApiClient("http://localhost:7008");
       fetchStub.resolves(new Response(JSON.stringify([]), { status: 200 }));
 
       await client.listIssueTypes();
@@ -114,10 +104,10 @@ suite('API Client Test Suite', () => {
       assert.strictEqual(init?.headers?.Authorization, undefined);
     });
 
-    test('refreshes once and retries after a 401', async () => {
-      credentials.refreshed = 'fresh-token';
-      const client = new OperatorApiClient('http://localhost:7008');
-      fetchStub.onFirstCall().resolves(new Response('{}', { status: 401 }));
+    test("refreshes once and retries after a 401", async () => {
+      credentials.refreshed = "fresh-token";
+      const client = new OperatorApiClient("http://localhost:7008");
+      fetchStub.onFirstCall().resolves(new Response("{}", { status: 401 }));
       fetchStub.onSecondCall().resolves(new Response(JSON.stringify([]), { status: 200 }));
 
       await client.listIssueTypes();
@@ -125,69 +115,72 @@ suite('API Client Test Suite', () => {
       assert.strictEqual(fetchStub.callCount, 2);
       assert.strictEqual(credentials.refreshCalls, 1);
       const [, init] = fetchStub.secondCall.args as [string, FetchInit];
-      assert.strictEqual(init.headers.Authorization, 'Bearer fresh-token');
+      assert.strictEqual(init.headers.Authorization, "Bearer fresh-token");
     });
 
-    test('throws AuthRequiredError when the retry is also rejected', async () => {
-      credentials.refreshed = 'fresh-token';
-      const client = new OperatorApiClient('http://localhost:7008');
-      fetchStub.resolves(new Response('{}', { status: 401 }));
+    test("throws AuthRequiredError when the retry is also rejected", async () => {
+      credentials.refreshed = "fresh-token";
+      const client = new OperatorApiClient("http://localhost:7008");
+      fetchStub.resolves(new Response("{}", { status: 401 }));
 
       await assert.rejects(
         () => client.listIssueTypes(),
         (err: unknown) =>
           err instanceof AuthRequiredError &&
           err.status === 401 &&
-          /Operator: Sign In/.test(err.message)
+          /Operator: Sign In/.test(err.message),
       );
       assert.strictEqual(fetchStub.callCount, 2);
     });
 
-    test('does not retry when refresh yields nothing new', async () => {
+    test("does not retry when refresh yields nothing new", async () => {
       credentials.refreshed = undefined;
-      const client = new OperatorApiClient('http://localhost:7008');
-      fetchStub.resolves(new Response('{}', { status: 401 }));
+      const client = new OperatorApiClient("http://localhost:7008");
+      fetchStub.resolves(new Response("{}", { status: 401 }));
 
       await assert.rejects(() => client.listIssueTypes(), AuthRequiredError);
       assert.strictEqual(fetchStub.callCount, 1);
     });
 
-    test('fails loudly when no provider is configured', async () => {
+    test("fails loudly when no provider is configured", async () => {
       clearCredentialProvider();
-      const client = new OperatorApiClient('http://localhost:7008');
+      const client = new OperatorApiClient("http://localhost:7008");
       await assert.rejects(() => client.listIssueTypes(), /setCredentialProvider/);
       assert.ok(fetchStub.notCalled);
     });
   });
 
-  suite('isReachable()', () => {
-    test('probes the public liveness route without a credential', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
-      fetchStub.resolves(new Response('ok', { status: 200 }));
+  suite("isReachable()", () => {
+    test("probes the public liveness route without a credential", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
+      fetchStub.resolves(new Response("ok", { status: 200 }));
 
       assert.strictEqual(await client.isReachable(), true);
       assert.strictEqual(fetchStub.firstCall.args[0], `http://localhost:7008${LIVEZ_PATH}`);
       assert.strictEqual(fetchStub.firstCall.args[1], undefined);
     });
 
-    test('is false when nothing is listening', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
-      fetchStub.rejects(new TypeError('fetch failed'));
+    test("is false when nothing is listening", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
+      fetchStub.rejects(new TypeError("fetch failed"));
       assert.strictEqual(await client.isReachable(), false);
     });
   });
 
-  suite('toJson()', () => {
-    test('serializes bigint fields as numbers', () => {
-      assert.strictEqual(toJson({ expires_in_days: 30n, name: 'k' }), '{"expires_in_days":30,"name":"k"}');
+  suite("toJson()", () => {
+    test("serializes bigint fields as numbers", () => {
+      assert.strictEqual(
+        toJson({ expires_in_days: 30n, name: "k" }),
+        '{"expires_in_days":30,"name":"k"}',
+      );
     });
   });
 
-  suite('discoverApiUrl()', () => {
+  suite("discoverApiUrl()", () => {
     let tempDir: string;
 
     setup(async () => {
-      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'api-client-test-'));
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "api-client-test-"));
     });
 
     teardown(async () => {
@@ -198,193 +191,175 @@ suite('API Client Test Suite', () => {
       }
     });
 
-    test('reads port from api-session.json when available', async () => {
+    test("reads port from api-session.json when available", async () => {
       // Create the operator directory and session file
-      const operatorDir = path.join(tempDir, 'operator');
+      const operatorDir = path.join(tempDir, "operator");
       await fs.mkdir(operatorDir, { recursive: true });
       await fs.writeFile(
-        path.join(operatorDir, 'api-session.json'),
+        path.join(operatorDir, "api-session.json"),
         JSON.stringify({
           port: 9999,
           pid: 12345,
-          started_at: '2024-01-01T00:00:00Z',
-          version: '0.1.14',
-        })
+          started_at: "2024-01-01T00:00:00Z",
+          version: "0.1.14",
+        }),
       );
 
       const url = await discoverApiUrl(tempDir);
-      assert.strictEqual(url, 'http://localhost:9999');
+      assert.strictEqual(url, "http://localhost:9999");
     });
 
-    test('falls back to configured URL when session file missing', async () => {
+    test("falls back to configured URL when session file missing", async () => {
       // No session file exists
       const url = await discoverApiUrl(tempDir);
       // Falls back to default from vscode config (mocked to http://localhost:7008)
-      assert.strictEqual(url, 'http://localhost:7008');
+      assert.strictEqual(url, "http://localhost:7008");
     });
 
-    test('falls back to configured URL when session file is invalid JSON', async () => {
-      const operatorDir = path.join(tempDir, 'operator');
+    test("falls back to configured URL when session file is invalid JSON", async () => {
+      const operatorDir = path.join(tempDir, "operator");
       await fs.mkdir(operatorDir, { recursive: true });
-      await fs.writeFile(
-        path.join(operatorDir, 'api-session.json'),
-        'not valid json'
-      );
+      await fs.writeFile(path.join(operatorDir, "api-session.json"), "not valid json");
 
       const url = await discoverApiUrl(tempDir);
-      assert.strictEqual(url, 'http://localhost:7008');
+      assert.strictEqual(url, "http://localhost:7008");
     });
 
-    test('falls back to configured URL when ticketsDir is undefined', async () => {
+    test("falls back to configured URL when ticketsDir is undefined", async () => {
       const url = await discoverApiUrl(undefined);
-      assert.strictEqual(url, 'http://localhost:7008');
+      assert.strictEqual(url, "http://localhost:7008");
     });
   });
 
-  suite('OperatorApiClient constructor', () => {
-    test('uses provided baseUrl', async () => {
-      const client = new OperatorApiClient('http://custom:9000');
+  suite("OperatorApiClient constructor", () => {
+    test("uses provided baseUrl", async () => {
+      const client = new OperatorApiClient("http://custom:9000");
 
       // Verify by making a request
       fetchStub.resolves(
-        new Response(JSON.stringify({ status: 'healthy', version: '1.0.0' }), {
+        new Response(JSON.stringify({ status: "healthy", version: "1.0.0" }), {
           status: 200,
-        })
+        }),
       );
 
       await client.health();
 
-      assert.ok(
-        fetchStub.calledWith('http://custom:9000/api/v1/health'),
-        'Should use custom URL'
-      );
+      assert.ok(fetchStub.calledWith("http://custom:9000/api/v1/health"), "Should use custom URL");
     });
 
-    test('uses default URL when none provided', async () => {
+    test("uses default URL when none provided", async () => {
       const client = new OperatorApiClient();
 
       fetchStub.resolves(
-        new Response(JSON.stringify({ status: 'healthy', version: '1.0.0' }), {
+        new Response(JSON.stringify({ status: "healthy", version: "1.0.0" }), {
           status: 200,
-        })
+        }),
       );
 
       await client.health();
 
       // Default is http://localhost:7008 from vscode config
       assert.ok(
-        fetchStub.calledWith('http://localhost:7008/api/v1/health'),
-        'Should use default URL'
+        fetchStub.calledWith("http://localhost:7008/api/v1/health"),
+        "Should use default URL",
       );
     });
   });
 
-  suite('health()', () => {
-    test('returns health response on success', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+  suite("health()", () => {
+    test("returns health response on success", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       const healthResponse: HealthResponse = JSON.parse(
-        await fs.readFile(path.join(fixturesDir, 'health-response.json'), 'utf-8')
+        await fs.readFile(path.join(fixturesDir, "health-response.json"), "utf-8"),
       ) as HealthResponse;
 
-      fetchStub.resolves(
-        new Response(JSON.stringify(healthResponse), { status: 200 })
-      );
+      fetchStub.resolves(new Response(JSON.stringify(healthResponse), { status: 200 }));
 
       const result = await client.health();
 
-      assert.strictEqual(result.status, 'healthy');
-      assert.strictEqual(result.version, '0.1.14');
+      assert.strictEqual(result.status, "healthy");
+      assert.strictEqual(result.version, "0.1.14");
     });
 
-    test('throws error when API not available', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("throws error when API not available", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
-      fetchStub.resolves(
-        new Response('Service Unavailable', { status: 503 })
-      );
+      fetchStub.resolves(new Response("Service Unavailable", { status: 503 }));
 
-      await assert.rejects(
-        () => client.health(),
-        /Operator API not available/
-      );
+      await assert.rejects(() => client.health(), /Operator API not available/);
     });
 
-    test('throws error on network failure', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("throws error on network failure", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
-      fetchStub.rejects(new Error('Network error'));
+      fetchStub.rejects(new Error("Network error"));
 
       await assert.rejects(() => client.health(), /Network error/);
     });
   });
 
-  suite('launchTicket()', () => {
-    test('sends POST request with correct body', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+  suite("launchTicket()", () => {
+    test("sends POST request with correct body", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       const launchResponse: LaunchTicketResponse = JSON.parse(
-        await fs.readFile(path.join(fixturesDir, 'launch-response.json'), 'utf-8')
+        await fs.readFile(path.join(fixturesDir, "launch-response.json"), "utf-8"),
       ) as LaunchTicketResponse;
 
-      fetchStub.resolves(
-        new Response(JSON.stringify(launchResponse), { status: 200 })
-      );
+      fetchStub.resolves(new Response(JSON.stringify(launchResponse), { status: 200 }));
 
       const options: LaunchTicketRequest = {
         delegator: null,
-        provider: 'claude',
-        model: 'sonnet',
+        provider: "claude",
+        model: "sonnet",
         model_server: null,
         yolo_mode: true,
-        wrapper: 'vscode',
+        wrapper: "vscode",
         retry_reason: null,
         resume_session_id: null,
         target: null,
       };
 
-      const result = await client.launchTicket('FEAT-123', options);
+      const result = await client.launchTicket("FEAT-123", options);
 
       // Verify the fetch call
       assert.ok(fetchStub.calledOnce);
       const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
-      assert.strictEqual(
-        url,
-        'http://localhost:7008/api/v1/tickets/FEAT-123/launch'
-      );
-      assert.strictEqual(init.method, 'POST');
-      assert.strictEqual(init.headers['Content-Type'], 'application/json');
+      assert.strictEqual(url, "http://localhost:7008/api/v1/tickets/FEAT-123/launch");
+      assert.strictEqual(init.method, "POST");
+      assert.strictEqual(init.headers["Content-Type"], "application/json");
 
       const body = JSON.parse(init.body) as LaunchRequestBody;
-      assert.strictEqual(body.provider, 'claude');
-      assert.strictEqual(body.model, 'sonnet');
+      assert.strictEqual(body.provider, "claude");
+      assert.strictEqual(body.model, "sonnet");
       assert.strictEqual(body.yolo_mode, true);
-      assert.strictEqual(body.wrapper, 'vscode');
+      assert.strictEqual(body.wrapper, "vscode");
 
       // Verify response
-      assert.strictEqual(result.ticket_id, 'FEAT-123');
-      assert.strictEqual(result.terminal_name, 'op-FEAT-123');
+      assert.strictEqual(result.ticket_id, "FEAT-123");
+      assert.strictEqual(result.terminal_name, "op-FEAT-123");
       assert.strictEqual(result.worktree_created, true);
     });
 
-    test('URL-encodes ticket ID', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("URL-encodes ticket ID", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            agent_id: 'agent-1',
-            ticket_id: 'FEAT-123/sub',
-            working_directory: '/path',
-            command: 'cmd',
-            terminal_name: 'term',
-            tmux_session_name: 'tmux',
-            session_id: 'sess',
+            agent_id: "agent-1",
+            ticket_id: "FEAT-123/sub",
+            working_directory: "/path",
+            command: "cmd",
+            terminal_name: "term",
+            tmux_session_name: "tmux",
+            session_id: "sess",
             worktree_created: false,
             branch: null,
           }),
-          { status: 200 }
-        )
+          { status: 200 },
+        ),
       );
 
       const options: LaunchTicketRequest = {
@@ -399,23 +374,23 @@ suite('API Client Test Suite', () => {
         target: null,
       };
 
-      await client.launchTicket('FEAT-123/sub', options);
+      await client.launchTicket("FEAT-123/sub", options);
 
       const [url] = fetchStub.firstCall.args as [string];
-      assert.ok(url.includes('FEAT-123%2Fsub'), 'Should URL-encode slash');
+      assert.ok(url.includes("FEAT-123%2Fsub"), "Should URL-encode slash");
     });
 
-    test('throws error with message on HTTP error', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("throws error with message on HTTP error", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            error: 'not_found',
-            message: 'Ticket FEAT-999 not found',
+            error: "not_found",
+            message: "Ticket FEAT-999 not found",
           }),
-          { status: 404 }
-        )
+          { status: 404 },
+        ),
       );
 
       const options: LaunchTicketRequest = {
@@ -431,17 +406,15 @@ suite('API Client Test Suite', () => {
       };
 
       await assert.rejects(
-        () => client.launchTicket('FEAT-999', options),
-        /Ticket FEAT-999 not found/
+        () => client.launchTicket("FEAT-999", options),
+        /Ticket FEAT-999 not found/,
       );
     });
 
-    test('handles non-JSON error response', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("handles non-JSON error response", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
-      fetchStub.resolves(
-        new Response('Internal Server Error', { status: 500 })
-      );
+      fetchStub.resolves(new Response("Internal Server Error", { status: 500 }));
 
       const options: LaunchTicketRequest = {
         delegator: null,
@@ -455,41 +428,38 @@ suite('API Client Test Suite', () => {
         target: null,
       };
 
-      await assert.rejects(
-        () => client.launchTicket('FEAT-123', options),
-        /HTTP 500/
-      );
+      await assert.rejects(() => client.launchTicket("FEAT-123", options), /HTTP 500/);
     });
 
-    test('defaults yolo_mode to false', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("defaults yolo_mode to false", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            agent_id: 'agent-1',
-            ticket_id: 'FEAT-123',
-            working_directory: '/path',
-            command: 'cmd',
-            terminal_name: 'term',
-            tmux_session_name: 'tmux',
-            session_id: 'sess',
+            agent_id: "agent-1",
+            ticket_id: "FEAT-123",
+            working_directory: "/path",
+            command: "cmd",
+            terminal_name: "term",
+            tmux_session_name: "tmux",
+            session_id: "sess",
             worktree_created: false,
             branch: null,
           }),
-          { status: 200 }
-        )
+          { status: 200 },
+        ),
       );
 
       // Note: yolo_mode is undefined in options
       const options: Partial<LaunchTicketRequest> = {
-        provider: 'claude',
-        model: 'sonnet',
+        provider: "claude",
+        model: "sonnet",
         model_server: null,
         wrapper: null,
       };
 
-      await client.launchTicket('FEAT-123', options as LaunchTicketRequest);
+      await client.launchTicket("FEAT-123", options as LaunchTicketRequest);
 
       const [, init] = fetchStub.firstCall.args as [string, FetchInit];
       const body = JSON.parse(init.body) as LaunchRequestBody;
@@ -497,348 +467,311 @@ suite('API Client Test Suite', () => {
     });
   });
 
-  suite('pauseQueue()', () => {
-    test('sends POST request and returns response', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+  suite("pauseQueue()", () => {
+    test("sends POST request and returns response", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       const pauseResponse: QueueControlResponse = JSON.parse(
-        await fs.readFile(path.join(fixturesDir, 'queue-paused-response.json'), 'utf-8')
+        await fs.readFile(path.join(fixturesDir, "queue-paused-response.json"), "utf-8"),
       ) as QueueControlResponse;
 
-      fetchStub.resolves(
-        new Response(JSON.stringify(pauseResponse), { status: 200 })
-      );
+      fetchStub.resolves(new Response(JSON.stringify(pauseResponse), { status: 200 }));
 
       const result = await client.pauseQueue();
 
       assert.ok(fetchStub.calledOnce);
       const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
-      assert.strictEqual(url, 'http://localhost:7008/api/v1/queue/pause');
-      assert.strictEqual(init.method, 'POST');
+      assert.strictEqual(url, "http://localhost:7008/api/v1/queue/pause");
+      assert.strictEqual(init.method, "POST");
 
       assert.strictEqual(result.paused, true);
-      assert.strictEqual(result.message, 'Queue processing paused');
+      assert.strictEqual(result.message, "Queue processing paused");
     });
 
-    test('throws error on failure', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("throws error on failure", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            error: 'failed',
-            message: 'Cannot pause queue',
+            error: "failed",
+            message: "Cannot pause queue",
           }),
-          { status: 500 }
-        )
+          { status: 500 },
+        ),
       );
 
       await assert.rejects(() => client.pauseQueue(), /Cannot pause queue/);
     });
   });
 
-  suite('resumeQueue()', () => {
-    test('sends POST request and returns response', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+  suite("resumeQueue()", () => {
+    test("sends POST request and returns response", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       const resumeResponse: QueueControlResponse = JSON.parse(
-        await fs.readFile(
-          path.join(fixturesDir, 'queue-resumed-response.json'),
-          'utf-8'
-        )
+        await fs.readFile(path.join(fixturesDir, "queue-resumed-response.json"), "utf-8"),
       ) as QueueControlResponse;
 
-      fetchStub.resolves(
-        new Response(JSON.stringify(resumeResponse), { status: 200 })
-      );
+      fetchStub.resolves(new Response(JSON.stringify(resumeResponse), { status: 200 }));
 
       const result = await client.resumeQueue();
 
       assert.ok(fetchStub.calledOnce);
       const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
-      assert.strictEqual(url, 'http://localhost:7008/api/v1/queue/resume');
-      assert.strictEqual(init.method, 'POST');
+      assert.strictEqual(url, "http://localhost:7008/api/v1/queue/resume");
+      assert.strictEqual(init.method, "POST");
 
       assert.strictEqual(result.paused, false);
-      assert.strictEqual(result.message, 'Queue processing resumed');
+      assert.strictEqual(result.message, "Queue processing resumed");
     });
 
-    test('throws error on failure', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("throws error on failure", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            error: 'failed',
-            message: 'Cannot resume queue',
+            error: "failed",
+            message: "Cannot resume queue",
           }),
-          { status: 500 }
-        )
+          { status: 500 },
+        ),
       );
 
       await assert.rejects(() => client.resumeQueue(), /Cannot resume queue/);
     });
   });
 
-  suite('syncKanban()', () => {
-    test('sends POST request and returns sync response', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+  suite("syncKanban()", () => {
+    test("sends POST request and returns sync response", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       const syncResponse: KanbanSyncResponse = JSON.parse(
-        await fs.readFile(path.join(fixturesDir, 'sync-response.json'), 'utf-8')
+        await fs.readFile(path.join(fixturesDir, "sync-response.json"), "utf-8"),
       ) as KanbanSyncResponse;
 
-      fetchStub.resolves(
-        new Response(JSON.stringify(syncResponse), { status: 200 })
-      );
+      fetchStub.resolves(new Response(JSON.stringify(syncResponse), { status: 200 }));
 
       const result = await client.syncKanban();
 
       assert.ok(fetchStub.calledOnce);
       const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
-      assert.strictEqual(url, 'http://localhost:7008/api/v1/queue/sync');
-      assert.strictEqual(init.method, 'POST');
+      assert.strictEqual(url, "http://localhost:7008/api/v1/queue/sync");
+      assert.strictEqual(init.method, "POST");
 
-      assert.deepStrictEqual(result.created, ['FEAT-201', 'FIX-202']);
-      assert.deepStrictEqual(result.skipped, ['FEAT-100']);
+      assert.deepStrictEqual(result.created, ["FEAT-201", "FIX-202"]);
+      assert.deepStrictEqual(result.skipped, ["FEAT-100"]);
       assert.deepStrictEqual(result.errors, []);
       assert.strictEqual(result.total_processed, 3);
     });
 
-    test('throws error on failure', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("throws error on failure", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            error: 'sync_failed',
-            message: 'Kanban sync failed: connection error',
+            error: "sync_failed",
+            message: "Kanban sync failed: connection error",
           }),
-          { status: 500 }
-        )
+          { status: 500 },
+        ),
       );
 
-      await assert.rejects(
-        () => client.syncKanban(),
-        /Kanban sync failed: connection error/
-      );
+      await assert.rejects(() => client.syncKanban(), /Kanban sync failed: connection error/);
     });
   });
 
-  suite('approveReview()', () => {
-    test('sends POST request with agent ID', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+  suite("approveReview()", () => {
+    test("sends POST request with agent ID", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       const approveResponse: ReviewResponse = JSON.parse(
-        await fs.readFile(
-          path.join(fixturesDir, 'review-approved-response.json'),
-          'utf-8'
-        )
+        await fs.readFile(path.join(fixturesDir, "review-approved-response.json"), "utf-8"),
       ) as ReviewResponse;
 
-      fetchStub.resolves(
-        new Response(JSON.stringify(approveResponse), { status: 200 })
-      );
+      fetchStub.resolves(new Response(JSON.stringify(approveResponse), { status: 200 }));
 
-      const result = await client.approveReview('agent-abc123');
+      const result = await client.approveReview("agent-abc123");
 
       assert.ok(fetchStub.calledOnce);
       const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
-      assert.strictEqual(
-        url,
-        'http://localhost:7008/api/v1/agents/agent-abc123/approve'
-      );
-      assert.strictEqual(init.method, 'POST');
+      assert.strictEqual(url, "http://localhost:7008/api/v1/agents/agent-abc123/approve");
+      assert.strictEqual(init.method, "POST");
 
-      assert.strictEqual(result.agent_id, 'agent-abc123');
-      assert.strictEqual(result.status, 'approved');
+      assert.strictEqual(result.agent_id, "agent-abc123");
+      assert.strictEqual(result.status, "approved");
     });
 
-    test('URL-encodes agent ID', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("URL-encodes agent ID", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            agent_id: 'agent/special',
-            status: 'approved',
-            message: 'ok',
+            agent_id: "agent/special",
+            status: "approved",
+            message: "ok",
           }),
-          { status: 200 }
-        )
+          { status: 200 },
+        ),
       );
 
-      await client.approveReview('agent/special');
+      await client.approveReview("agent/special");
 
       const [url] = fetchStub.firstCall.args as [string];
-      assert.ok(url.includes('agent%2Fspecial'), 'Should URL-encode slash');
+      assert.ok(url.includes("agent%2Fspecial"), "Should URL-encode slash");
     });
 
-    test('throws error on failure', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("throws error on failure", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            error: 'not_found',
-            message: 'Agent not found',
+            error: "not_found",
+            message: "Agent not found",
           }),
-          { status: 404 }
-        )
+          { status: 404 },
+        ),
       );
 
-      await assert.rejects(
-        () => client.approveReview('nonexistent'),
-        /Agent not found/
-      );
+      await assert.rejects(() => client.approveReview("nonexistent"), /Agent not found/);
     });
   });
 
-  suite('rejectReview()', () => {
-    test('sends POST request with agent ID and reason', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+  suite("rejectReview()", () => {
+    test("sends POST request with agent ID and reason", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       const rejectResponse: ReviewResponse = JSON.parse(
-        await fs.readFile(
-          path.join(fixturesDir, 'review-rejected-response.json'),
-          'utf-8'
-        )
+        await fs.readFile(path.join(fixturesDir, "review-rejected-response.json"), "utf-8"),
       ) as ReviewResponse;
 
-      fetchStub.resolves(
-        new Response(JSON.stringify(rejectResponse), { status: 200 })
-      );
+      fetchStub.resolves(new Response(JSON.stringify(rejectResponse), { status: 200 }));
 
-      const result = await client.rejectReview(
-        'agent-abc123',
-        'Tests are failing'
-      );
+      const result = await client.rejectReview("agent-abc123", "Tests are failing");
 
       assert.ok(fetchStub.calledOnce);
       const [url, init] = fetchStub.firstCall.args as [string, FetchInit];
-      assert.strictEqual(
-        url,
-        'http://localhost:7008/api/v1/agents/agent-abc123/reject'
-      );
-      assert.strictEqual(init.method, 'POST');
-      assert.strictEqual(init.headers['Content-Type'], 'application/json');
+      assert.strictEqual(url, "http://localhost:7008/api/v1/agents/agent-abc123/reject");
+      assert.strictEqual(init.method, "POST");
+      assert.strictEqual(init.headers["Content-Type"], "application/json");
 
       const body = JSON.parse(init.body) as RejectRequestBody;
-      assert.strictEqual(body.reason, 'Tests are failing');
+      assert.strictEqual(body.reason, "Tests are failing");
 
-      assert.strictEqual(result.agent_id, 'agent-abc123');
-      assert.strictEqual(result.status, 'rejected');
+      assert.strictEqual(result.agent_id, "agent-abc123");
+      assert.strictEqual(result.status, "rejected");
     });
 
-    test('handles empty reason', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("handles empty reason", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            agent_id: 'agent-abc123',
-            status: 'rejected',
-            message: 'Review rejected',
+            agent_id: "agent-abc123",
+            status: "rejected",
+            message: "Review rejected",
           }),
-          { status: 200 }
-        )
+          { status: 200 },
+        ),
       );
 
-      await client.rejectReview('agent-abc123', '');
+      await client.rejectReview("agent-abc123", "");
 
       const [, init] = fetchStub.firstCall.args as [string, FetchInit];
       const body = JSON.parse(init.body) as RejectRequestBody;
-      assert.strictEqual(body.reason, '');
+      assert.strictEqual(body.reason, "");
     });
 
-    test('throws error on failure', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("throws error on failure", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            error: 'not_found',
-            message: 'Agent not found',
+            error: "not_found",
+            message: "Agent not found",
           }),
-          { status: 404 }
-        )
+          { status: 404 },
+        ),
       );
 
-      await assert.rejects(
-        () => client.rejectReview('nonexistent', 'reason'),
-        /Agent not found/
-      );
+      await assert.rejects(() => client.rejectReview("nonexistent", "reason"), /Agent not found/);
     });
   });
 
-  suite('error handling edge cases', () => {
-    test('handles network timeout', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+  suite("error handling edge cases", () => {
+    test("handles network timeout", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
-      const timeoutError = new Error('timeout');
-      timeoutError.name = 'TimeoutError';
+      const timeoutError = new Error("timeout");
+      timeoutError.name = "TimeoutError";
       fetchStub.rejects(timeoutError);
 
       await assert.rejects(() => client.health(), /timeout/);
     });
 
-    test('handles response.json() failure', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("handles response.json() failure", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       // Mock response where json() throws
       const mockResponse = {
         ok: true,
-        json: () => Promise.reject(new Error('Invalid JSON')),
+        json: () => Promise.reject(new Error("Invalid JSON")),
       };
       fetchStub.resolves(mockResponse);
 
       await assert.rejects(() => client.health(), /Invalid JSON/);
     });
 
-    test('handles HTTP 401 Unauthorized', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("handles HTTP 401 Unauthorized", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            error: 'unauthorized',
-            message: 'Authentication required',
+            error: "unauthorized",
+            message: "Authentication required",
           }),
-          { status: 401 }
-        )
+          { status: 401 },
+        ),
       );
 
       // The server's wording is replaced by the actionable sign-in hint.
       await assert.rejects(() => client.pauseQueue(), AuthRequiredError);
     });
 
-    test('handles HTTP 403 Forbidden', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("handles HTTP 403 Forbidden", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            error: 'forbidden',
-            message: 'Permission denied',
+            error: "forbidden",
+            message: "Permission denied",
           }),
-          { status: 403 }
-        )
+          { status: 403 },
+        ),
       );
 
       await assert.rejects(() => client.resumeQueue(), /Permission denied/);
     });
 
-    test('handles HTTP 429 Rate Limited', async () => {
-      const client = new OperatorApiClient('http://localhost:7008');
+    test("handles HTTP 429 Rate Limited", async () => {
+      const client = new OperatorApiClient("http://localhost:7008");
 
       fetchStub.resolves(
         new Response(
           JSON.stringify({
-            error: 'rate_limited',
-            message: 'Too many requests',
+            error: "rate_limited",
+            message: "Too many requests",
           }),
-          { status: 429 }
-        )
+          { status: 429 },
+        ),
       );
 
       await assert.rejects(() => client.syncKanban(), /Too many requests/);

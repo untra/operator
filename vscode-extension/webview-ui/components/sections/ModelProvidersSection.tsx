@@ -1,15 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Chip, IconButton, SelectInput, TextInput } from '../primitives';
-import { SectionHeader } from '../SectionHeader';
-import { postMessage, onMessage } from '../../vscodeApi';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, Button, Chip, IconButton, SelectInput, TextInput } from "../primitives";
+import { SectionHeader } from "../SectionHeader";
+import { postMessage, onMessage } from "../../vscodeApi";
 import type {
   ExtensionToWebviewMessage,
   ModelServerKindEntry,
   ModelServerModelsResponse,
   DelegatorResponse,
-} from '../../types/messages';
+} from "../../types/messages";
 
-const BRAND_ICONS = new Set(['anthropic', 'google', 'ollama', 'openrouter']);
+const BRAND_ICONS = new Set(["anthropic", "google", "ollama", "openrouter"]);
 
 interface ModelProvidersSectionProps {
   detectedTools: string[];
@@ -23,7 +23,7 @@ function DismissableAlert({
   onClose,
   children,
 }: {
-  severity: 'error' | 'success';
+  severity: "error" | "success";
   onClose: () => void;
   children: React.ReactNode;
 }) {
@@ -31,7 +31,7 @@ function DismissableAlert({
     <Alert severity={severity} className="op-mt-1 op-mb-1">
       <span className="op-row op-gap-1">
         <span>{children}</span>
-        <IconButton aria-label="Close" onClick={onClose} style={{ padding: 0, color: 'inherit' }}>
+        <IconButton aria-label="Close" onClick={onClose} style={{ padding: 0, color: "inherit" }}>
           ✕
         </IconButton>
       </span>
@@ -47,52 +47,56 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    if (apiReachable) {postMessage({ type: 'getModelProviders' });}
+    if (apiReachable) {
+      postMessage({ type: "getModelProviders" });
+    }
   }, [apiReachable]);
 
   useEffect(() => {
     const cleanup = onMessage((msg: ExtensionToWebviewMessage) => {
       switch (msg.type) {
-        case 'modelProvidersLoaded':
+        case "modelProvidersLoaded":
           setKinds(msg.kinds);
           setDelegators(msg.delegators);
-          for (const k of msg.kinds) {postMessage({ type: 'probeProvider', slug: k.slug });}
+          for (const k of msg.kinds) {
+            postMessage({ type: "probeProvider", slug: k.slug });
+          }
           break;
-        case 'providerProbed':
+        case "providerProbed":
           setProbes((p) => ({ ...p, [msg.slug]: msg.result }));
           break;
-        case 'delegatorCreated':
+        case "delegatorCreated":
           setNotice(`Created delegator "${msg.name}".`);
           load();
           break;
-        case 'modelProvidersError':
+        case "modelProvidersError":
           setError(msg.error);
           break;
-        case 'apiHealthResult':
-        case 'assessTicketCreated':
-        case 'assessTicketError':
-        case 'browseResult':
-        case 'collectionActivated':
-        case 'collectionsError':
-        case 'collectionsLoaded':
-        case 'configError':
-        case 'configLoaded':
-        case 'configUpdated':
-        case 'externalIssueTypesError':
-        case 'externalIssueTypesLoaded':
-        case 'issueTypeCreated':
-        case 'issueTypeDeleted':
-        case 'issueTypeError':
-        case 'issueTypeLoaded':
-        case 'issueTypeUpdated':
-        case 'issueTypesLoaded':
-        case 'jiraValidationResult':
-        case 'kanbanStatusesError':
-        case 'kanbanStatusesLoaded':
-        case 'linearValidationResult':
-        case 'llmToolsDetected':
-        case 'projectsError':
-        case 'projectsLoaded':
+        case "apiHealthResult":
+        case "assessTicketCreated":
+        case "assessTicketError":
+        case "browseResult":
+        case "collectionActivated":
+        case "collectionsError":
+        case "collectionsLoaded":
+        case "configError":
+        case "configLoaded":
+        case "configUpdated":
+        case "externalIssueTypesError":
+        case "externalIssueTypesLoaded":
+        case "issueTypeCreated":
+        case "issueTypeDeleted":
+        case "issueTypeError":
+        case "issueTypeLoaded":
+        case "issueTypeUpdated":
+        case "issueTypesLoaded":
+        case "jiraValidationResult":
+        case "kanbanStatusesError":
+        case "kanbanStatusesLoaded":
+        case "linearValidationResult":
+        case "llmToolsDetected":
+        case "projectsError":
+        case "projectsLoaded":
           break;
       }
     });
@@ -101,15 +105,15 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
 
   useEffect(load, [load]);
 
-  const firstParty = useMemo(() => kinds.filter((k) => k.category === 'first-party'), [kinds]);
-  const gateways = useMemo(() => kinds.filter((k) => k.category === 'gateway'), [kinds]);
+  const firstParty = useMemo(() => kinds.filter((k) => k.category === "first-party"), [kinds]);
+  const gateways = useMemo(() => kinds.filter((k) => k.category === "gateway"), [kinds]);
 
   return (
     <div className="op-mb-4">
       <SectionHeader id="section-model-providers" title="Model Providers" />
       <p className="op-body1 op-text-secondary op-mb-1">
-        Connect model providers (distinct from the coding-agent CLIs) and create
-        delegators from their live models. See the{' '}
+        Connect model providers (distinct from the coding-agent CLIs) and create delegators from
+        their live models. See the{" "}
         <a href="https://operator.untra.io/getting-started/model-servers/">
           model providers documentation
         </a>
@@ -137,21 +141,17 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
 
       <CreateDelegatorForm kinds={kinds} probes={probes} detectedTools={detectedTools} />
 
-      <p className="op-body2 op-text-secondary op-mt-2 op-mb-05">
-        Delegators
-      </p>
+      <p className="op-body2 op-text-secondary op-mt-2 op-mb-05">Delegators</p>
       {delegators.length === 0 ? (
-        <p className="op-body2 op-text-secondary">
-          No delegators yet.
-        </p>
+        <p className="op-body2 op-text-secondary">No delegators yet.</p>
       ) : (
         <div className="op-col op-gap-05">
           {delegators.map((d) => (
             <p key={d.name} className="op-body2">
-              <strong>{d.display_name ?? d.name}</strong>{' '}
+              <strong>{d.display_name ?? d.name}</strong>{" "}
               <span className="op-caption op-text-secondary">
                 {d.llm_tool}:{d.model}
-                {d.model_server ? ` @ ${d.model_server}` : ''}
+                {d.model_server ? ` @ ${d.model_server}` : ""}
               </span>
             </p>
           ))}
@@ -162,12 +162,16 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
 }
 
 function connection(probe: ModelServerModelsResponse | undefined): {
-  color: 'success' | 'default' | 'warning';
+  color: "success" | "default" | "warning";
   label: string;
 } {
-  if (probe === undefined) {return { color: 'warning', label: 'checking…' };}
-  if (probe.reachable) {return { color: 'success', label: `connected · ${probe.models.length}` };}
-  return { color: 'default', label: 'not connected' };
+  if (probe === undefined) {
+    return { color: "warning", label: "checking…" };
+  }
+  if (probe.reachable) {
+    return { color: "success", label: `connected · ${probe.models.length}` };
+  }
+  return { color: "default", label: "not connected" };
 }
 
 function ProviderGroup({
@@ -179,12 +183,12 @@ function ProviderGroup({
   kinds: ModelServerKindEntry[];
   probes: ProbeMap;
 }) {
-  if (kinds.length === 0) {return null;}
+  if (kinds.length === 0) {
+    return null;
+  }
   return (
     <div style={{ marginBottom: 12 }}>
-      <p className="op-body2 op-text-secondary op-mb-05">
-        {heading}
-      </p>
+      <p className="op-body2 op-text-secondary op-mb-05">{heading}</p>
       <div className="op-col" style={{ gap: 6 }}>
         {kinds.map((k) => {
           const probe = probes[k.slug];
@@ -192,21 +196,22 @@ function ProviderGroup({
           return (
             <div key={k.slug} className="op-row op-gap-1 op-wrap">
               {k.brand_icon && BRAND_ICONS.has(k.brand_icon) && (
-                <i className={`opi-${k.brand_icon}`} style={{ fontSize: '1rem', lineHeight: 1 }} />
+                <i className={`opi-${k.brand_icon}`} style={{ fontSize: "1rem", lineHeight: 1 }} />
               )}
-              <span className="op-body2" style={{ fontWeight: 600, minWidth: '8rem' }}>
+              <span className="op-body2" style={{ fontWeight: 600, minWidth: "8rem" }}>
                 {k.display_name}
               </span>
               <Chip label={conn.label} color={conn.color} variant="outlined" />
-              {conn.label === 'not connected' && k.connectable && !k.is_builtin && (
-                <Button size="small" onClick={() => postMessage({ type: 'connectProvider', slug: k.slug })}>
+              {conn.label === "not connected" && k.connectable && !k.is_builtin && (
+                <Button
+                  size="small"
+                  onClick={() => postMessage({ type: "connectProvider", slug: k.slug })}
+                >
                   Connect
                 </Button>
               )}
-              {conn.label === 'not connected' && k.default_api_key_env && (
-                <span className="op-caption op-text-secondary">
-                  set {k.default_api_key_env}
-                </span>
+              {conn.label === "not connected" && k.default_api_key_env && (
+                <span className="op-caption op-text-secondary">set {k.default_api_key_env}</span>
               )}
               {!k.connectable && (
                 <a className="op-caption" href={k.setup_url} target="_blank" rel="noreferrer">
@@ -230,20 +235,22 @@ function CreateDelegatorForm({
   probes: ProbeMap;
   detectedTools: string[];
 }) {
-  const [tool, setTool] = useState('');
-  const [provider, setProvider] = useState('');
-  const [model, setModel] = useState('');
-  const [name, setName] = useState('');
+  const [tool, setTool] = useState("");
+  const [provider, setProvider] = useState("");
+  const [model, setModel] = useState("");
+  const [name, setName] = useState("");
 
-  const selectedTool = tool || detectedTools[0] || '';
+  const selectedTool = tool || detectedTools[0] || "";
 
   const probe = provider ? probes[provider] : undefined;
   const liveModels = probe?.reachable ? probe.models : [];
 
   const submit = () => {
-    if (!selectedTool || !provider || !model) {return;}
+    if (!selectedTool || !provider || !model) {
+      return;
+    }
     postMessage({
-      type: 'createDelegator',
+      type: "createDelegator",
       request: {
         name: name.trim() || `${selectedTool}-${model}`,
         llm_tool: selectedTool,
@@ -255,14 +262,14 @@ function CreateDelegatorForm({
         remote_agent: null,
       },
     });
-    setName('');
-    setModel('');
+    setName("");
+    setModel("");
   };
 
   return (
     <div className="op-mt-2 op-mb-1">
       <p className="op-body2 op-text-secondary op-mb-1">
-        Create delegator — pair a tool with a connected provider and a live model.
+        Create delegator - pair a tool with a connected provider and a live model.
       </p>
       <div className="op-col" style={{ gap: 12, maxWidth: 420 }}>
         <SelectInput
@@ -283,22 +290,18 @@ function CreateDelegatorForm({
           value={provider}
           onChange={(e) => {
             setProvider(e.target.value);
-            setModel('');
+            setModel("");
           }}
         >
           {kinds.map((k) => (
             <option key={k.slug} value={k.slug}>
-              {k.display_name} {probes[k.slug]?.reachable ? '●' : '○'}
+              {k.display_name} {probes[k.slug]?.reachable ? "●" : "○"}
             </option>
           ))}
         </SelectInput>
 
         {liveModels.length > 0 ? (
-          <SelectInput
-            label="Model"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-          >
+          <SelectInput label="Model" value={model} onChange={(e) => setModel(e.target.value)}>
             {liveModels.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.display_name ?? m.id}
@@ -309,7 +312,7 @@ function CreateDelegatorForm({
           <TextInput
             label="Model"
             value={model}
-            placeholder={provider ? 'model id (provider not connected)' : 'pick a provider first'}
+            placeholder={provider ? "model id (provider not connected)" : "pick a provider first"}
             onChange={(e) => setModel(e.target.value)}
           />
         )}
@@ -317,11 +320,16 @@ function CreateDelegatorForm({
         <TextInput
           label="Name (optional)"
           value={name}
-          placeholder={selectedTool && model ? `${selectedTool}-${model}` : 'delegator name'}
+          placeholder={selectedTool && model ? `${selectedTool}-${model}` : "delegator name"}
           onChange={(e) => setName(e.target.value)}
         />
 
-        <Button variant="outlined" size="small" onClick={submit} style={{ alignSelf: 'flex-start' }}>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={submit}
+          style={{ alignSelf: "flex-start" }}
+        >
           Create delegator
         </Button>
       </div>

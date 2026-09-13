@@ -6,7 +6,7 @@ class CreateTicketTool {
     this.name = "operator-create-ticket";
   }
   async execute(params, _inputData, _workflowEngine) {
-    if (!params || !params.template) {
+    if (!params?.template) {
       return { success: false, result: null, error: "missing required param: template" };
     }
     return callOperator({

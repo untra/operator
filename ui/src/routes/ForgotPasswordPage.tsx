@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useHost } from '../host';
-import { OperatorApi } from '../api-client';
-import { MAX_USERNAME_LENGTH } from '../auth-constraints';
-import styles from './AuthPage.module.css';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useHost } from "../host";
+import { OperatorApi } from "../api-client";
+import { MAX_USERNAME_LENGTH } from "../auth-constraints";
+import styles from "./AuthPage.module.css";
 
 export function ForgotPasswordPage() {
   const host = useHost();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -18,7 +18,9 @@ export function ForgotPasswordPage() {
       const response = await new OperatorApi(host).forgotPassword(username);
       setMessage(response.message);
     } catch {
-      setMessage('Recovery instructions are unavailable. Ask the server administrator to run `operator auth reset-admin-password` locally.');
+      setMessage(
+        "Recovery instructions are unavailable. Ask the server administrator to run `operator auth reset-admin-password` locally.",
+      );
     } finally {
       setBusy(false);
     }
@@ -28,7 +30,9 @@ export function ForgotPasswordPage() {
     <div className={styles.screen}>
       <form className={styles.card} onSubmit={submit}>
         <h1 className={styles.title}>Forgot password</h1>
-        <p className={styles.subtitle}>Operator recovery is performed by the server administrator.</p>
+        <p className={styles.subtitle}>
+          Operator recovery is performed by the server administrator.
+        </p>
         {message && <p className={styles.notice}>{message}</p>}
         <label className={styles.field}>
           <span className={styles.label}>Username</span>
@@ -42,9 +46,11 @@ export function ForgotPasswordPage() {
           />
         </label>
         <button className={styles.button} type="submit" disabled={busy || !username}>
-          {busy ? 'Checking…' : 'Get recovery instructions'}
+          {busy ? "Checking…" : "Get recovery instructions"}
         </button>
-        <div className={styles.links}><Link to="/login">Back to sign in</Link></div>
+        <div className={styles.links}>
+          <Link to="/login">Back to sign in</Link>
+        </div>
       </form>
     </div>
   );

@@ -1,0 +1,8 @@
+{
+  "ignorePatterns": [
+    "**/generated/**",
+    "bindings/**",
+    "shared/types.ts",
+    "vscode-extension/shared/**"
+  ]
+}

@@ -1,5 +1,5 @@
 /**
- * `<operator-workflow-explorer>` — the split view on a collection's docs page.
+ * `<operator-workflow-explorer>` - the split view on a collection's docs page.
  *
  * Left rail lists the collection's issue types; right pane draws the selected
  * one's Operator workflow. Everything is read from the hosted collection bundle
@@ -12,11 +12,11 @@
  * manifest's first entry wins.
  */
 
-import { StrictMode, useEffect, useState } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { StrictMode, useEffect, useState } from "react";
+import { createRoot, type Root } from "react-dom/client";
 
-import { WorkflowGraph } from '../workflow/WorkflowGraph';
-import type { IssueType } from '../generated/IssueType';
+import { WorkflowGraph } from "../workflow/WorkflowGraph";
+import type { IssueType } from "../generated/IssueType";
 
 interface ManifestEntry {
   key: string;
@@ -30,7 +30,9 @@ interface Manifest {
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
-  if (!response.ok) {throw new Error(`${response.status} ${response.statusText} for ${url}`);}
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText} for ${url}`);
+  }
   return (await response.json()) as T;
 }
 
@@ -58,9 +60,13 @@ function Explorer({ base, initial }: { base: string; initial?: string | null }) 
   }, [base]);
 
   useEffect(() => {
-    if (!entries || !selected) {return undefined;}
+    if (!entries || !selected) {
+      return undefined;
+    }
     const entry = entries.find((e) => e.key === selected);
-    if (!entry) {return undefined;}
+    if (!entry) {
+      return undefined;
+    }
     let cancelled = false;
     fetchJson<IssueType>(`${base}${entry.schema_path}`)
       .then((doc) => {
@@ -93,7 +99,7 @@ function Explorer({ base, initial }: { base: string; initial?: string | null }) 
               <button
                 type="button"
                 aria-current={entry.key === selected}
-                className={entry.key === selected ? 'is-selected' : undefined}
+                className={entry.key === selected ? "is-selected" : undefined}
                 onClick={() => setSelected(entry.key)}
               >
                 {entry.key}
@@ -126,8 +132,10 @@ export class OperatorWorkflowExplorer extends HTMLElement {
   private root?: Root;
 
   connectedCallback() {
-    if (this.root) {return;}
-    const base = this.getAttribute('base');
+    if (this.root) {
+      return;
+    }
+    const base = this.getAttribute("base");
     if (!base) {
       this.textContent = 'operator-workflow-explorer: missing required "base" attribute.';
       return;
@@ -135,8 +143,11 @@ export class OperatorWorkflowExplorer extends HTMLElement {
     this.root = createRoot(this);
     this.root.render(
       <StrictMode>
-        <Explorer base={base.endsWith('/') ? base : `${base}/`} initial={this.getAttribute('selected')} />
-      </StrictMode>
+        <Explorer
+          base={base.endsWith("/") ? base : `${base}/`}
+          initial={this.getAttribute("selected")}
+        />
+      </StrictMode>,
     );
   }
 
@@ -149,4 +160,4 @@ export class OperatorWorkflowExplorer extends HTMLElement {
   }
 }
 
-export const OPERATOR_WORKFLOW_EXPLORER_TAG = 'operator-workflow-explorer';
+export const OPERATOR_WORKFLOW_EXPLORER_TAG = "operator-workflow-explorer";

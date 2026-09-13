@@ -9,14 +9,14 @@ export type {
   LlmState,
   LlmToolInfo,
   GitState,
-} from './types';
+} from "./types";
 
-export { ConfigSection } from './config-section';
-export { ConnectionsSection } from './connections-section';
-export { KanbanSection } from './kanban-section';
-export { LlmSection } from './llm-section';
-export { GitSection } from './git-section';
-export { IssueTypeSection } from './issuetype-section';
-export { DelegatorSection } from './delegator-section';
-export { ModelServerSection } from './modelserver-section';
-export { ManagedProjectsSection } from './managed-projects-section';
+export { ConfigSection } from "./config-section";
+export { ConnectionsSection } from "./connections-section";
+export { KanbanSection } from "./kanban-section";
+export { LlmSection } from "./llm-section";
+export { GitSection } from "./git-section";
+export { IssueTypeSection } from "./issuetype-section";
+export { DelegatorSection } from "./delegator-section";
+export { ModelServerSection } from "./modelserver-section";
+export { ManagedProjectsSection } from "./managed-projects-section";

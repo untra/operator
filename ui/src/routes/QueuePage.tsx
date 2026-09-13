@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
-import { OperatorApi } from '../api-client';
-import type { KanbanBoardResponse } from '../api-client';
-import { useHost } from '../host';
-import { CONCEPTS } from '../concepts';
-import { PageHeader } from '../components/PageHeader';
-import { KanbanBoard } from '../components/KanbanBoard';
-import styles from './QueuePage.module.css';
+import { useEffect, useState } from "react";
+import { OperatorApi } from "../api-client";
+import type { KanbanBoardResponse } from "../api-client";
+import { useHost } from "../host";
+import { CONCEPTS } from "../concepts";
+import { PageHeader } from "../components/PageHeader";
+import { KanbanBoard } from "../components/KanbanBoard";
+import styles from "./QueuePage.module.css";
 
 const QUEUE = CONCEPTS.queue;
 
@@ -32,10 +32,14 @@ export function QueuePage() {
           return undefined;
         })
         .catch((e) => {
-          if (!cancelled) {setError(e.message);}
+          if (!cancelled) {
+            setError(e.message);
+          }
         })
         .finally(() => {
-          if (!cancelled) {setLoading(false);}
+          if (!cancelled) {
+            setLoading(false);
+          }
         });
     };
 
@@ -47,7 +51,9 @@ export function QueuePage() {
     };
   }, [api]);
 
-  if (loading) {return <div className={styles.loading}>Loading queue...</div>;}
+  if (loading) {
+    return <div className={styles.loading}>Loading queue...</div>;
+  }
 
   return (
     <div className={styles.page}>
@@ -63,7 +69,7 @@ export function QueuePage() {
       {board && (
         <>
           <div className={styles.meta}>
-            {board.total_count} tickets &middot; updated{' '}
+            {board.total_count} tickets &middot; updated{" "}
             {new Date(board.last_updated).toLocaleTimeString()}
           </div>
           <KanbanBoard board={board} />

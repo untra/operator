@@ -15,18 +15,18 @@
  * constructor parameter threaded through every client, panel, and section.
  */
 
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import type { TokenRequest, TokenResponse, OAuthErrorResponse } from '../generated';
-import type { TokenStore } from './token-store';
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import type { TokenRequest, TokenResponse, OAuthErrorResponse } from "../generated";
+import type { TokenStore } from "./token-store";
 
 /** The `client_id` device codes and refresh families are bound to server-side. */
-export const CLIENT_ID = 'vscode';
-export const LOCAL_TOKEN_FILENAME = 'local-token';
-export const SESSION_FILENAME = 'api-session.json';
+export const CLIENT_ID = "vscode";
+export const LOCAL_TOKEN_FILENAME = "local-token";
+export const SESSION_FILENAME = "api-session.json";
 /** Treat an access token as expired this long before it actually is. */
 export const EXPIRY_SKEW_MS = 30_000;
-export const TOKEN_PATH = '/api/v1/auth/token';
+export const TOKEN_PATH = "/api/v1/auth/token";
 
 /** ts-rs types Rust `u64` as `bigint`, but JSON.parse delivers a number; normalize before arithmetic. */
 export function secondsToMs(seconds: bigint | number): number {
@@ -56,7 +56,7 @@ export function clearCredentialProvider(): void {
 export function credentialProvider(): CredentialProvider {
   if (!active) {
     throw new Error(
-      'Operator credential provider is not configured; activate() must call setCredentialProvider()'
+      "Operator credential provider is not configured; activate() must call setCredentialProvider()",
     );
   }
   return active;
@@ -65,8 +65,8 @@ export function credentialProvider(): CredentialProvider {
 /** Only a loopback daemon issues a local token, and it must never be sent anywhere else. */
 export function isLoopbackUrl(apiUrl: string): boolean {
   try {
-    const host = new URL(apiUrl).hostname.replace(/^\[|\]$/g, '');
-    return host === 'localhost' || host === '::1' || /^127\.\d+\.\d+\.\d+$/.test(host);
+    const host = new URL(apiUrl).hostname.replace(/^\[|\]$/g, "");
+    return host === "localhost" || host === "::1" || /^127\.\d+\.\d+\.\d+$/.test(host);
   } catch {
     return false;
   }
@@ -74,9 +74,9 @@ export function isLoopbackUrl(apiUrl: string): boolean {
 
 /** The state directory advertised by the running daemon, else the default next to the session file. */
 export async function resolveStateDir(ticketsDir: string): Promise<string> {
-  const operatorDir = path.join(ticketsDir, 'operator');
+  const operatorDir = path.join(ticketsDir, "operator");
   try {
-    const raw = await fs.readFile(path.join(operatorDir, SESSION_FILENAME), 'utf-8');
+    const raw = await fs.readFile(path.join(operatorDir, SESSION_FILENAME), "utf-8");
     const session = JSON.parse(raw) as { state_dir?: string };
     if (session.state_dir) {
       return session.state_dir;
@@ -90,7 +90,7 @@ export async function resolveStateDir(ticketsDir: string): Promise<string> {
 export async function readLocalToken(ticketsDir: string): Promise<string | undefined> {
   try {
     const stateDir = await resolveStateDir(ticketsDir);
-    const token = (await fs.readFile(path.join(stateDir, LOCAL_TOKEN_FILENAME), 'utf-8')).trim();
+    const token = (await fs.readFile(path.join(stateDir, LOCAL_TOKEN_FILENAME), "utf-8")).trim();
     return token || undefined;
   } catch {
     return undefined;
@@ -143,15 +143,15 @@ export class OperatorCredentials implements CredentialProvider {
     }
 
     const body: TokenRequest = {
-      grant_type: 'refresh_token',
+      grant_type: "refresh_token",
       refresh_token: stored.refresh_token,
       client_id: CLIENT_ID,
     };
     let response: Response;
     try {
       response = await fetch(`${apiUrl}${TOKEN_PATH}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
     } catch {
@@ -171,7 +171,7 @@ export class OperatorCredentials implements CredentialProvider {
     }
 
     const error = (await response.json().catch(() => ({}))) as Partial<OAuthErrorResponse>;
-    if (error.error === 'invalid_grant' || error.error === 'invalid_client') {
+    if (error.error === "invalid_grant" || error.error === "invalid_client") {
       // The family is dead (expired, revoked, or reuse-detected); nothing to retry with.
       await this.store.clear(apiUrl);
     }

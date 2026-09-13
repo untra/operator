@@ -412,7 +412,7 @@ export type RestApiConfig = {
 enabled: boolean, 
 /**
  * Address the REST API binds to. Defaults to `127.0.0.1` (local only) so
- * the server — which reports the project directory name — is not reachable
+ * the server - which reports the project directory name - is not reachable
  * from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
  */
 host: string, 
@@ -584,9 +584,9 @@ model_server: string | null,
  * (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).
  *
  * Export-only: Operator has no runtime client for those platforms, so a
- * delegator carrying this CANNOT be launched locally — resolution errors out
+ * delegator carrying this CANNOT be launched locally - resolution errors out
  * (see `delegator_resolution`). It is stored, listed, serialized into an
- * `AgentProfile`, and — for `platform == "agnt"` — surfaced in the
+ * `AgentProfile`, and - for `platform == "agnt"` - surfaced in the
  * `--format agnt` workflow export as a native AGNT `agnt-agent` node, whose
  * `agentId` is this reference's `id` (AGNT identifies agents by UUID, so the
  * `id` must be the agent's UUID, not its display name). `None` = ordinary,
@@ -699,13 +699,13 @@ remote_agent?: RemoteAgentRef | null,
 x_operator?: XOperator | null, 
 /**
  * AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`,
- * `creditLimit`, ...). Operator never interprets this — pure pass-through.
+ * `creditLimit`, ...). Operator never interprets this - pure pass-through.
  */
 x_agnt?: JsonValue | null, 
 /**
  * OpenAI-owned extension fields, opaque (`instructions`, `tools`,
  * `tool_resources`, `metadata`, thread refs, ...). Mirror of `x_agnt` for a
- * second platform — never interpreted. This field is the whole per-tool cost
+ * second platform - never interpreted. This field is the whole per-tool cost
  * of adding `OpenAI`: a passthrough bag, no mapping logic.
  */
 x_openai?: JsonValue | null, };
@@ -1147,7 +1147,7 @@ contents: string, };
 
 export type WorkflowFormatDto = { 
 /**
- * Stable slug (e.g. "claude", "agnt") — the value the `format` query param takes.
+ * Stable slug (e.g. "claude", "agnt") - the value the `format` query param takes.
  */
 slug: string, 
 /**
@@ -1652,7 +1652,7 @@ export type VsCodeLaunchOptions = {
  */
 delegator: string | null, 
 /**
- * Model to use (sonnet, opus, haiku) — fallback when no delegator
+ * Model to use (sonnet, opus, haiku) - fallback when no delegator
  */
 model: VsCodeModelOption, 
 /**

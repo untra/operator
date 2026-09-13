@@ -1,20 +1,19 @@
 // Security settings: browser sessions, connected devices, and service access keys.
 
-import { useCallback, useEffect, useState } from 'react';
-import { useHost } from '../host';
-import { OperatorApi, ApiError } from '../api-client';
-import type {
-  AccessKeyListResponse,
-  SessionListResponse,
-} from '../api-client';
-import type { Scope } from '@operator/bindings/Scope';
-import { PageHeader } from '../components/PageHeader';
-import styles from './SecurityPage.module.css';
+import { useCallback, useEffect, useState } from "react";
+import { useHost } from "../host";
+import { OperatorApi, ApiError } from "../api-client";
+import type { AccessKeyListResponse, SessionListResponse } from "../api-client";
+import type { Scope } from "@operator/bindings/Scope";
+import { PageHeader } from "../components/PageHeader";
+import styles from "./SecurityPage.module.css";
 
-const ALL_SCOPES: Scope[] = ['read', 'write', 'execute', 'admin'];
+const ALL_SCOPES: Scope[] = ["read", "write", "execute", "admin"];
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) {return '—';}
+  if (!iso) {
+    return "-";
+  }
   return new Date(iso).toLocaleString();
 }
 
@@ -28,8 +27,8 @@ export function SecurityPage() {
   // so there is no second chance to display it.
   const [newSecret, setNewSecret] = useState<string | null>(null);
 
-  const [keyName, setKeyName] = useState('');
-  const [keyScopes, setKeyScopes] = useState<Scope[]>(['read']);
+  const [keyName, setKeyName] = useState("");
+  const [keyScopes, setKeyScopes] = useState<Scope[]>(["read"]);
   const [keyDays, setKeyDays] = useState(90);
   const [busy, setBusy] = useState(false);
 
@@ -44,7 +43,7 @@ export function SecurityPage() {
       setKeys(k);
       setError(null);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to load security settings.');
+      setError(e instanceof ApiError ? e.message : "Failed to load security settings.");
     }
   }, [host]);
 
@@ -65,7 +64,7 @@ export function SecurityPage() {
       })
       .catch(() => {
         if (!cancelled) {
-          setError('Failed to load security settings.');
+          setError("Failed to load security settings.");
         }
       });
     return () => {
@@ -84,10 +83,10 @@ export function SecurityPage() {
         expires_in_days: BigInt(keyDays),
       });
       setNewSecret(res.secret);
-      setKeyName('');
+      setKeyName("");
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to create the access key.');
+      setError(e instanceof ApiError ? e.message : "Failed to create the access key.");
     } finally {
       setBusy(false);
     }
@@ -98,7 +97,7 @@ export function SecurityPage() {
       await new OperatorApi(host).revokeAccessKey(id);
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to revoke the key.');
+      setError(e instanceof ApiError ? e.message : "Failed to revoke the key.");
     }
   }
 
@@ -107,7 +106,7 @@ export function SecurityPage() {
       await new OperatorApi(host).revokeSession(id);
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to revoke the session.');
+      setError(e instanceof ApiError ? e.message : "Failed to revoke the session.");
     }
   }
 
@@ -183,7 +182,7 @@ export function SecurityPage() {
             {sessions?.devices.map((d) => (
               <tr key={d.id} className={d.revoked_at ? styles.revoked : undefined}>
                 <td>{d.client_id}</td>
-                <td>{d.scopes.join(', ')}</td>
+                <td>{d.scopes.join(", ")}</td>
                 <td>{formatDate(d.created_at)}</td>
                 <td>{formatDate(d.last_used_at)}</td>
               </tr>
@@ -195,13 +194,12 @@ export function SecurityPage() {
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Service access keys</h2>
         <p className={styles.sectionHint}>
-          For integrations. Grant only the scopes the integration needs; every key
-          expires.
+          For integrations. Grant only the scopes the integration needs; every key expires.
         </p>
 
         {newSecret && (
           <div className={styles.secretBox}>
-            <strong>Copy this now — it is shown once and cannot be retrieved.</strong>
+            <strong>Copy this now - it is shown once and cannot be retrieved.</strong>
             <code className={styles.secret}>{newSecret}</code>
           </div>
         )}
@@ -262,7 +260,7 @@ export function SecurityPage() {
             {keys?.keys.map((k) => (
               <tr key={k.id} className={k.revoked_at ? styles.revoked : undefined}>
                 <td>{k.name}</td>
-                <td>{k.scopes.join(', ')}</td>
+                <td>{k.scopes.join(", ")}</td>
                 <td>{formatDate(k.expires_at)}</td>
                 <td>{formatDate(k.last_used_at)}</td>
                 <td>

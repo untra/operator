@@ -1,8 +1,8 @@
-import type { KanbanBoardResponse } from '@operator/bindings/KanbanBoardResponse';
-import type { KanbanTicketCard } from '@operator/bindings/KanbanTicketCard';
-import { useRightPanel } from '../right-panel';
-import { TicketDetailPanel } from './TicketDetailPanel';
-import styles from './KanbanBoard.module.css';
+import type { KanbanBoardResponse } from "@operator/bindings/KanbanBoardResponse";
+import type { KanbanTicketCard } from "@operator/bindings/KanbanTicketCard";
+import { useRightPanel } from "../right-panel";
+import { TicketDetailPanel } from "./TicketDetailPanel";
+import styles from "./KanbanBoard.module.css";
 
 /**
  * Three-column kanban board mirroring the operator TUI's ticket columns:
@@ -96,22 +96,22 @@ function Card({
 
 function statusIcon(status: string): string {
   switch (status) {
-    case 'running':
-      return '▶'; // ▶
-    case 'awaiting':
-    case 'waiting':
-    case 'blocked':
-      return '⏸'; // ⏸
-    case 'completed':
-    case 'done':
-      return '✓'; // ✓
+    case "running":
+      return "▶"; // ▶
+    case "awaiting":
+    case "waiting":
+    case "blocked":
+      return "⏸"; // ⏸
+    case "completed":
+    case "done":
+      return "✓"; // ✓
     default:
-      return '•'; // • queued
+      return "•"; // • queued
   }
 }
 
 /** Maps "P0-critical".."P3-low" to a stable key for priority-colored styling. */
 function priorityKey(priority: string): string {
   const match = priority.match(/^P([0-3])/i);
-  return match ? `p${match[1]}` : 'p2';
+  return match ? `p${match[1]}` : "p2";
 }

@@ -6,62 +6,62 @@
  * Falls back to sensible defaults if API is unavailable.
  */
 
-import * as vscode from 'vscode';
-import { ApiError, OperatorApiClient } from './api-client';
-import type { IssueTypeSummary } from './generated';
+import * as vscode from "vscode";
+import { ApiError, OperatorApiClient } from "./api-client";
+import type { IssueTypeSummary } from "./generated";
 
 /**
  * Default issue types used when API is unavailable
  */
 export const DEFAULT_ISSUE_TYPES: IssueTypeSummary[] = [
   {
-    key: 'FEAT',
-    name: 'Feature',
-    description: 'New functionality',
-    mode: 'autonomous',
-    glyph: '*',
-    color: 'cyan',
-    source: 'default',
+    key: "FEAT",
+    name: "Feature",
+    description: "New functionality",
+    mode: "autonomous",
+    glyph: "*",
+    color: "cyan",
+    source: "default",
     stepCount: 3,
   },
   {
-    key: 'FIX',
-    name: 'Bug Fix',
-    description: 'Fix a bug',
-    mode: 'autonomous',
-    glyph: '#',
-    color: 'red',
-    source: 'default',
+    key: "FIX",
+    name: "Bug Fix",
+    description: "Fix a bug",
+    mode: "autonomous",
+    glyph: "#",
+    color: "red",
+    source: "default",
     stepCount: 3,
   },
   {
-    key: 'TASK',
-    name: 'Task',
-    description: 'General task',
-    mode: 'autonomous',
-    glyph: '>',
-    color: 'green',
-    source: 'default',
+    key: "TASK",
+    name: "Task",
+    description: "General task",
+    mode: "autonomous",
+    glyph: ">",
+    color: "green",
+    source: "default",
     stepCount: 2,
   },
   {
-    key: 'SPIKE',
-    name: 'Spike',
-    description: 'Research and investigation',
-    mode: 'paired',
-    glyph: '?',
-    color: 'magenta',
-    source: 'default',
+    key: "SPIKE",
+    name: "Spike",
+    description: "Research and investigation",
+    mode: "paired",
+    glyph: "?",
+    color: "magenta",
+    source: "default",
     stepCount: 2,
   },
   {
-    key: 'INV',
-    name: 'Investigation',
-    description: 'Investigate a failure',
-    mode: 'paired',
-    glyph: '!',
-    color: 'yellow',
-    source: 'default',
+    key: "INV",
+    name: "Investigation",
+    description: "Investigate a failure",
+    mode: "paired",
+    glyph: "!",
+    color: "yellow",
+    source: "default",
     stepCount: 2,
   },
 ];
@@ -70,40 +70,40 @@ export const DEFAULT_ISSUE_TYPES: IssueTypeSummary[] = [
  * Map glyph characters to VSCode ThemeIcon names
  */
 export const GLYPH_TO_ICON: Record<string, string> = {
-  '*': 'sparkle',
-  '#': 'wrench',
-  '>': 'tasklist',
-  '?': 'beaker',
-  '!': 'search',
-  '+': 'add',
-  '-': 'dash',
-  '@': 'mention',
-  '%': 'graph',
-  '^': 'arrow-up',
-  '&': 'link',
-  '~': 'sync',
-  '=': 'check',
+  "*": "sparkle",
+  "#": "wrench",
+  ">": "tasklist",
+  "?": "beaker",
+  "!": "search",
+  "+": "add",
+  "-": "dash",
+  "@": "mention",
+  "%": "graph",
+  "^": "arrow-up",
+  "&": "link",
+  "~": "sync",
+  "=": "check",
 };
 
 /**
  * Map color names to VSCode ThemeColor references
  */
 export const COLOR_TO_THEME: Record<string, string> = {
-  cyan: 'terminal.ansiCyan',
-  red: 'terminal.ansiRed',
-  green: 'terminal.ansiGreen',
-  magenta: 'terminal.ansiMagenta',
-  yellow: 'terminal.ansiYellow',
-  blue: 'terminal.ansiBlue',
-  white: 'terminal.ansiWhite',
-  black: 'terminal.ansiBlack',
-  brightCyan: 'terminal.ansiBrightCyan',
-  brightRed: 'terminal.ansiBrightRed',
-  brightGreen: 'terminal.ansiBrightGreen',
-  brightMagenta: 'terminal.ansiBrightMagenta',
-  brightYellow: 'terminal.ansiBrightYellow',
-  brightBlue: 'terminal.ansiBrightBlue',
-  brightWhite: 'terminal.ansiBrightWhite',
+  cyan: "terminal.ansiCyan",
+  red: "terminal.ansiRed",
+  green: "terminal.ansiGreen",
+  magenta: "terminal.ansiMagenta",
+  yellow: "terminal.ansiYellow",
+  blue: "terminal.ansiBlue",
+  white: "terminal.ansiWhite",
+  black: "terminal.ansiBlack",
+  brightCyan: "terminal.ansiBrightCyan",
+  brightRed: "terminal.ansiBrightRed",
+  brightGreen: "terminal.ansiBrightGreen",
+  brightMagenta: "terminal.ansiBrightMagenta",
+  brightYellow: "terminal.ansiBrightYellow",
+  brightBlue: "terminal.ansiBrightBlue",
+  brightWhite: "terminal.ansiBrightWhite",
 };
 
 /**
@@ -119,8 +119,8 @@ export class IssueTypeService {
 
   constructor(outputChannel: vscode.OutputChannel, baseUrl?: string) {
     this.outputChannel = outputChannel;
-    const config = vscode.workspace.getConfiguration('operator');
-    this.baseUrl = baseUrl || config.get('apiUrl', 'http://localhost:7008');
+    const config = vscode.workspace.getConfiguration("operator");
+    this.baseUrl = baseUrl || config.get("apiUrl", "http://localhost:7008");
 
     // Initialize with defaults
     this.loadDefaults();
@@ -149,18 +149,18 @@ export class IssueTypeService {
       }
 
       this.outputChannel.appendLine(
-        `[IssueTypeService] Loaded ${data.length} issue types from API`
+        `[IssueTypeService] Loaded ${data.length} issue types from API`,
       );
     } catch (err) {
       // Keep using defaults either way; the log line says which failure it was.
       if (err instanceof ApiError) {
         this.outputChannel.appendLine(
-          `[IssueTypeService] Failed to fetch issue types: ${err.status}`
+          `[IssueTypeService] Failed to fetch issue types: ${err.status}`,
         );
         return;
       }
       this.outputChannel.appendLine(
-        `[IssueTypeService] API unavailable, using ${this.types.size} default types`
+        `[IssueTypeService] API unavailable, using ${this.types.size} default types`,
       );
     }
   }
@@ -198,8 +198,8 @@ export class IssueTypeService {
    */
   getIcon(key: string): vscode.ThemeIcon {
     const type = this.getType(key);
-    const glyph = type?.glyph ?? '?';
-    const iconName = GLYPH_TO_ICON[glyph] ?? 'file';
+    const glyph = type?.glyph ?? "?";
+    const iconName = GLYPH_TO_ICON[glyph] ?? "file";
     const color = this.getColor(key);
     return new vscode.ThemeIcon(iconName, color);
   }
@@ -209,8 +209,8 @@ export class IssueTypeService {
    */
   getIconName(key: string): string {
     const type = this.getType(key);
-    const glyph = type?.glyph ?? '?';
-    return GLYPH_TO_ICON[glyph] ?? 'file';
+    const glyph = type?.glyph ?? "?";
+    return GLYPH_TO_ICON[glyph] ?? "file";
   }
 
   /**
@@ -236,7 +236,7 @@ export class IssueTypeService {
    * - "invalid" -> "TASK" (default)
    */
   extractTypeFromId(ticketId: string): string {
-    const parts = ticketId.split('-');
+    const parts = ticketId.split("-");
     if (parts.length >= 2 && parts[0]) {
       const prefix = parts[0].toUpperCase();
       // Validate it looks like a type key (uppercase letters only)
@@ -244,7 +244,7 @@ export class IssueTypeService {
         return prefix;
       }
     }
-    return 'TASK'; // Default fallback
+    return "TASK"; // Default fallback
   }
 
   /**
@@ -260,7 +260,7 @@ export class IssueTypeService {
    * ticket has no frontmatter `id:`, mirroring `Ticket::from_file` in Rust.
    */
   parseTicketFilename(filename: string): { id: string; type: string } {
-    const baseName = filename.replace(/\.md$/, '');
+    const baseName = filename.replace(/\.md$/, "");
 
     // Canonical operator filenames: YYYYMMDD-HHMM-TYPE-project-description.md
     const canonical = baseName.match(/^(\d{8})-(\d{4})-([A-Z][A-Z0-9_]*)-[a-z0-9]+-/);
@@ -277,7 +277,7 @@ export class IssueTypeService {
       return { id, type };
     }
 
-    return { id: baseName, type: 'TASK' };
+    return { id: baseName, type: "TASK" };
   }
 
   /**
@@ -289,7 +289,7 @@ export class IssueTypeService {
     if (typeMatch?.[1]) {
       return this.getIcon(typeMatch[1]);
     }
-    return new vscode.ThemeIcon('terminal');
+    return new vscode.ThemeIcon("terminal");
   }
 
   /**
@@ -299,8 +299,8 @@ export class IssueTypeService {
     // Terminal names are like "op-FEAT-123"
     const typeMatch = name.match(/op-([A-Z]+)-/i);
     if (typeMatch?.[1]) {
-      return this.getColor(typeMatch[1]) ?? new vscode.ThemeColor('terminal.ansiWhite');
+      return this.getColor(typeMatch[1]) ?? new vscode.ThemeColor("terminal.ansiWhite");
     }
-    return new vscode.ThemeColor('terminal.ansiWhite');
+    return new vscode.ThemeColor("terminal.ansiWhite");
   }
 }

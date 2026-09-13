@@ -11,11 +11,12 @@
     "google": 61706,
     "gitlab": 61707,
     "github": 61708,
-    "gemini": 61709,
-    "codex": 61710,
-    "coder": 61711,
-    "cmux": 61712,
-    "claude": 61713,
-    "atlassian": 61714,
-    "anthropic": 61715
+    "gitea": 61709,
+    "gemini": 61710,
+    "codex": 61711,
+    "coder": 61712,
+    "cmux": 61713,
+    "claude": 61714,
+    "atlassian": 61715,
+    "anthropic": 61716
 }

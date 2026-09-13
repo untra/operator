@@ -16,6 +16,25 @@ const GIT_STEP_RS: &str = include_str!("../src/ui/setup/steps/git.rs");
 const MODEL_STEP_RS: &str = include_str!("../src/ui/setup/steps/model_server.rs");
 const WEB_STEPS_TSX: &str = include_str!("../ui/src/routes/onboarding/steps.tsx");
 
+/// The assertions below scrape TSX source, so collapse what the formatter is
+/// free to rewrite: quote style and line wrapping. Prose keeps single spaces.
+fn web_steps_tsx() -> String {
+    WEB_STEPS_TSX
+        .replace('\'', "\"")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Same, for code shapes: the formatter may break a call chain across lines, so
+/// compare with all whitespace removed.
+fn tsx_contains_code(needle: &str) -> bool {
+    fn compact(s: &str) -> String {
+        s.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+    compact(&WEB_STEPS_TSX.replace('\'', "\"")).contains(&compact(needle))
+}
+
 /// Variant names in `SetupStep::ALL`, in declaration order.
 fn catalog_order() -> Vec<String> {
     let all = STEPS_RS
@@ -166,13 +185,12 @@ fn test_wizard_derives_provider_lists_from_the_catalog() {
 #[test]
 fn test_web_wizard_has_an_exhaustive_component_map() {
     assert!(
-        WEB_STEPS_TSX.contains("satisfies Record<SetupStep, StepComponent>"),
+        tsx_contains_code("satisfies Record<SetupStep, StepComponent>"),
         "the web wizard must fail TypeScript compilation when the Rust step union grows"
     );
     for slug in catalog_slugs() {
         assert!(
-            WEB_STEPS_TSX.contains(&format!("{slug}:"))
-                || WEB_STEPS_TSX.contains(&format!("'{slug}':")),
+            tsx_contains_code(&format!("{slug}:")) || tsx_contains_code(&format!("\"{slug}\":")),
             "web component map is missing {slug:?}"
         );
     }
@@ -180,13 +198,13 @@ fn test_web_wizard_has_an_exhaustive_component_map() {
 
 #[test]
 fn test_web_wizard_derives_provider_lists_from_rest_catalogs() {
-    assert!(WEB_STEPS_TSX.contains("entry.vertical === 'model'"));
-    assert!(WEB_STEPS_TSX.contains("api.gitProviders()"));
-    assert!(WEB_STEPS_TSX.contains("api.kanbanProviders()"));
+    assert!(tsx_contains_code("entry.vertical === \"model\""));
+    assert!(tsx_contains_code("api.gitProviders()"));
+    assert!(tsx_contains_code("api.kanbanProviders()"));
 }
 
 #[test]
 fn test_web_parity_scope_cuts_are_explicit() {
-    assert!(WEB_STEPS_TSX.contains("Ticket creation is read-only"));
-    assert!(WEB_STEPS_TSX.contains("wrapperSteps.has(step)"));
+    assert!(web_steps_tsx().contains("Ticket creation is read-only"));
+    assert!(tsx_contains_code("wrapperSteps.has(step)"));
 }

@@ -9,11 +9,8 @@ const DEFAULT_BASE_URL = "http://localhost:7008";
  * Resolve the Operator REST base URL from params, env, or the default.
  */
 export function resolveBaseUrl(params) {
-  const fromParam = params && params.operatorBaseUrl;
-  const fromEnv =
-    typeof process !== "undefined" && process.env
-      ? process.env.OPERATOR_BASE_URL
-      : undefined;
+  const fromParam = params?.operatorBaseUrl;
+  const fromEnv = typeof process === "undefined" ? undefined : process.env?.OPERATOR_BASE_URL;
   return (fromParam || fromEnv || DEFAULT_BASE_URL).replace(/\/+$/, "");
 }
 
@@ -45,8 +42,7 @@ export async function callOperator({ params, path, method = "GET", body }) {
       parsed = text;
     }
     if (!res.ok) {
-      const detail =
-        parsed && parsed.error ? parsed.error : `HTTP ${res.status}`;
+      const detail = parsed?.error ? parsed.error : `HTTP ${res.status}`;
       return { success: false, result: parsed, error: `${method} ${url} failed: ${detail}` };
     }
     return { success: true, result: parsed, error: null };

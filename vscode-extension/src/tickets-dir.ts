@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
-import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
+import * as vscode from "vscode";
+import * as path from "node:path";
+import * as fs from "node:fs/promises";
 
 /**
  * Find .tickets directory - check parent directory first, then workspace
@@ -13,7 +13,7 @@ export async function findParentTicketsDir(): Promise<string | undefined> {
 
   // First check parent directory for .tickets (monorepo setup)
   const parentDir = path.dirname(workspaceFolder.uri.fsPath);
-  const parentTicketsPath = path.join(parentDir, '.tickets');
+  const parentTicketsPath = path.join(parentDir, ".tickets");
 
   try {
     await fs.access(parentTicketsPath);
@@ -24,8 +24,8 @@ export async function findParentTicketsDir(): Promise<string | undefined> {
 
   // Fall back to configured tickets directory in workspace
   const configuredDir = vscode.workspace
-    .getConfiguration('operator')
-    .get<string>('ticketsDir', '.tickets');
+    .getConfiguration("operator")
+    .get<string>("ticketsDir", ".tickets");
 
   const ticketsPath = path.isAbsolute(configuredDir)
     ? configuredDir
@@ -50,8 +50,8 @@ export async function findTicketsDir(): Promise<string | undefined> {
   }
 
   const configuredDir = vscode.workspace
-    .getConfiguration('operator')
-    .get<string>('ticketsDir', '.tickets');
+    .getConfiguration("operator")
+    .get<string>("ticketsDir", ".tickets");
 
   // If absolute path configured, check if it exists
   if (path.isAbsolute(configuredDir)) {
@@ -96,7 +96,7 @@ export async function findOperatorServerDir(): Promise<string | undefined> {
   const parentDir = path.dirname(workspaceDir);
 
   // Check if parent has .tickets/operator/ (initialized operator setup)
-  const parentOperatorPath = path.join(parentDir, '.tickets', 'operator');
+  const parentOperatorPath = path.join(parentDir, ".tickets", "operator");
   try {
     await fs.access(parentOperatorPath);
     return parentDir; // Parent has initialized operator

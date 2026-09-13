@@ -6,7 +6,7 @@ class AlertTool {
     this.name = "operator-alert";
   }
   async execute(params, _inputData, _workflowEngine) {
-    if (!params || !params.message) {
+    if (!params?.message) {
       return { success: false, result: null, error: "missing required param: message" };
     }
     return callOperator({

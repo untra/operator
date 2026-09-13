@@ -6,10 +6,10 @@
  * or configuration.
  */
 
-import type * as vscode from 'vscode';
-import type { Scope } from '../generated/Scope';
+import type * as vscode from "vscode";
+import type { Scope } from "../generated/Scope";
 
-const KEY_PREFIX = 'operator.auth.';
+const KEY_PREFIX = "operator.auth.";
 
 export interface StoredCredential {
   access_token: string;
@@ -21,7 +21,7 @@ export interface StoredCredential {
 
 /** Storage key for one daemon, so several daemons can be signed in at once. */
 export function credentialKey(apiUrl: string): string {
-  return `${KEY_PREFIX}${apiUrl.replace(/\/+$/, '')}`;
+  return `${KEY_PREFIX}${apiUrl.replace(/\/+$/, "")}`;
 }
 
 export class TokenStore {

@@ -1,27 +1,31 @@
 // The "All sections" overview: every status section in one scrollable list.
 // Reachable from the Dashboard (not the sidebar, which now links each section to
-// its own page). Consumes the shared sections context — no polling of its own.
+// its own page). Consumes the shared sections context - no polling of its own.
 // Keeps the legacy `?s=` deep-link scroll for backward compatibility.
 
-import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useSections } from '../sections-context';
-import { PageHeader } from '../components/PageHeader';
-import { SectionCard } from '../components/SectionCard';
-import styles from './StatusPage.module.css';
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useSections } from "../sections-context";
+import { PageHeader } from "../components/PageHeader";
+import { SectionCard } from "../components/SectionCard";
+import styles from "./StatusPage.module.css";
 
-const DOCS_URL = 'https://operator.untra.io/getting-started/';
+const DOCS_URL = "https://operator.untra.io/getting-started/";
 
 export function StatusPage() {
   const [searchParams] = useSearchParams();
-  const targetSection = searchParams.get('s');
+  const targetSection = searchParams.get("s");
   const { sections, error } = useSections();
 
   // Scroll to a deep-linked section (e.g. /status?s=git) once sections load.
   useEffect(() => {
-    if (!sections || !targetSection) {return;}
+    if (!sections || !targetSection) {
+      return;
+    }
     const el = document.getElementById(targetSection);
-    if (el) {el.scrollIntoView({ behavior: 'smooth', block: 'start' });}
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [sections, targetSection]);
 
   return (

@@ -6,10 +6,10 @@
 // only prose rendered at the top of each page).
 //
 // Icons come from @vscode/codicons (MIT-licensed code, CC-BY-4.0 icons). This is
-// the single place the SPA maps a concept to an icon — keep it in sync with the
+// the single place the SPA maps a concept to an icon - keep it in sync with the
 // canonical table in the design-system docs.
 
-const DOCS_BASE = 'https://operator.untra.io';
+const DOCS_BASE = "https://operator.untra.io";
 
 export interface Concept {
   /** SectionId serde rename for status concepts; route id for web-only pages. */
@@ -22,125 +22,125 @@ export interface Concept {
   route: string;
   /** Absolute docs URL (operator.untra.io). Must resolve to a real docs page. */
   docsUrl: string;
-  /** One-line page summary — the only prose at the top of the page. */
+  /** One-line page summary - the only prose at the top of the page. */
   summary: string;
 }
 
 export const CONCEPTS: Record<string, Concept> = {
   // --- Web-only pages (no status section) ---
   dashboard: {
-    key: 'dashboard',
-    icon: 'dashboard',
-    label: 'Dashboard',
-    route: '/',
+    key: "dashboard",
+    icon: "dashboard",
+    label: "Dashboard",
+    route: "/",
     docsUrl: `${DOCS_BASE}/`,
-    summary: 'At-a-glance queue counts, the kanban board, and active agents.',
+    summary: "At-a-glance queue counts, the kanban board, and active agents.",
   },
   queue: {
-    key: 'queue',
-    icon: 'list-ordered',
-    label: 'Queue',
-    route: '/queue',
+    key: "queue",
+    icon: "list-ordered",
+    label: "Queue",
+    route: "/queue",
     docsUrl: `${DOCS_BASE}/getting-started/tickets/`,
-    summary: 'The full kanban board of tickets across todo, in-progress, and done.',
+    summary: "The full kanban board of tickets across todo, in-progress, and done.",
   },
 
   // --- Status sections (mirror SectionId in src/ui/status_panel.rs) ---
   config: {
-    key: 'config',
-    icon: 'settings-gear',
-    label: 'Configuration',
-    route: '/config',
+    key: "config",
+    icon: "settings-gear",
+    label: "Configuration",
+    route: "/config",
     docsUrl: `${DOCS_BASE}/configuration/`,
-    summary: 'Operator configuration, collections, and managed projects.',
+    summary: "Operator configuration, collections, and managed projects.",
   },
   connections: {
-    key: 'connections',
-    icon: 'plug',
-    label: 'Connections',
-    route: '/connections',
+    key: "connections",
+    icon: "plug",
+    label: "Connections",
+    route: "/connections",
     docsUrl: `${DOCS_BASE}/configuration/`,
-    summary: 'Connectivity to the operator API and webhook endpoints.',
+    summary: "Connectivity to the operator API and webhook endpoints.",
   },
   kanban: {
-    key: 'kanban',
-    icon: 'layout',
-    label: 'Kanban',
-    route: '/kanban',
+    key: "kanban",
+    icon: "layout",
+    label: "Kanban",
+    route: "/kanban",
     docsUrl: `${DOCS_BASE}/getting-started/kanban/`,
-    summary: 'Kanban provider wiring that backs the ticket board.',
+    summary: "Kanban provider wiring that backs the ticket board.",
   },
   llm: {
-    key: 'llm',
-    icon: 'sparkle',
-    label: 'LLM Tools',
-    route: '/llm',
+    key: "llm",
+    icon: "sparkle",
+    label: "LLM Tools",
+    route: "/llm",
     docsUrl: `${DOCS_BASE}/llm-tools/`,
-    summary: 'Detected LLM CLIs and tools available to launch agents.',
+    summary: "Detected LLM CLIs and tools available to launch agents.",
   },
-  'model-servers': {
-    key: 'model-servers',
-    icon: 'server',
-    label: 'Model Providers',
-    route: '/model-providers',
+  "model-servers": {
+    key: "model-servers",
+    icon: "server",
+    label: "Model Providers",
+    route: "/model-providers",
     docsUrl: `${DOCS_BASE}/getting-started/model-servers/`,
-    summary: 'Connect model providers and list their models for delegators.',
+    summary: "Connect model providers and list their models for delegators.",
   },
   git: {
-    key: 'git',
-    icon: 'git-branch',
-    label: 'Git',
-    route: '/git',
+    key: "git",
+    icon: "git-branch",
+    label: "Git",
+    route: "/git",
     docsUrl: `${DOCS_BASE}/getting-started/git/`,
-    summary: 'Git provider and token wiring for branch and PR operations.',
+    summary: "Git provider and token wiring for branch and PR operations.",
   },
   issuetypes: {
-    key: 'issuetypes',
-    icon: 'issues',
-    label: 'Issue Types',
-    route: '/issuetypes',
+    key: "issuetypes",
+    icon: "issues",
+    label: "Issue Types",
+    route: "/issuetypes",
     docsUrl: `${DOCS_BASE}/workflows/`,
-    summary: 'The catalog of issue types, their modes, and workflow steps.',
+    summary: "The catalog of issue types, their modes, and workflow steps.",
   },
   delegators: {
-    key: 'delegators',
-    icon: 'rocket',
-    label: 'Delegators',
-    route: '/delegators',
+    key: "delegators",
+    icon: "rocket",
+    label: "Delegators",
+    route: "/delegators",
     docsUrl: `${DOCS_BASE}/delegators/`,
-    summary: 'Delegators that launch and supervise agents on your behalf.',
+    summary: "Delegators that launch and supervise agents on your behalf.",
   },
   projects: {
-    key: 'projects',
-    icon: 'project',
-    label: 'Managed Projects',
-    route: '/projects',
+    key: "projects",
+    icon: "project",
+    label: "Managed Projects",
+    route: "/projects",
     docsUrl: `${DOCS_BASE}/configuration/`,
-    summary: 'Projects operator manages and routes tickets into.',
+    summary: "Projects operator manages and routes tickets into.",
   },
   workflows: {
-    key: 'workflows',
-    icon: 'type-hierarchy',
-    label: 'Workflows',
-    route: '/workflows',
+    key: "workflows",
+    icon: "type-hierarchy",
+    label: "Workflows",
+    route: "/workflows",
     docsUrl: `${DOCS_BASE}/getting-started/workflows/`,
-    summary: 'Export formats a ticket + issue type can be rendered into for other tools.',
+    summary: "Export formats a ticket + issue type can be rendered into for other tools.",
   },
 };
 
 /** Sidebar order for the status sections (matches the TUI / VS Code ordering). */
 export const STATUS_KEYS = [
-  'config',
-  'connections',
-  'kanban',
-  'llm',
-  'model-servers',
-  'git',
-  'issuetypes',
-  'delegators',
-  'projects',
-  'workflows',
+  "config",
+  "connections",
+  "kanban",
+  "llm",
+  "model-servers",
+  "git",
+  "issuetypes",
+  "delegators",
+  "projects",
+  "workflows",
 ] as const;
 
 /** Sidebar order for the web-only pages. */
-export const PAGE_KEYS = ['dashboard', 'queue'] as const;
+export const PAGE_KEYS = ["dashboard", "queue"] as const;

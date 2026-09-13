@@ -10,17 +10,17 @@
  * and generates a barrel export (index.ts).
  */
 
-const fs = require('node:fs');
-const path = require('node:path');
+const fs = require("node:fs");
+const path = require("node:path");
 
-const BINDINGS_DIR = path.resolve(__dirname, '../../bindings');
-const GENERATED_DIR = path.resolve(__dirname, '../src/generated');
+const BINDINGS_DIR = path.resolve(__dirname, "../../bindings");
+const GENERATED_DIR = path.resolve(__dirname, "../src/generated");
 
 /**
  * Recursively copy all .ts files from src to dest, preserving directory structure.
  * Returns an array of relative paths (from dest root) that were copied.
  */
-function copyTsFiles(srcDir, destDir, relativeBase = '') {
+function copyTsFiles(srcDir, destDir, relativeBase = "") {
   const copied = [];
 
   if (!fs.existsSync(destDir)) {
@@ -36,7 +36,7 @@ function copyTsFiles(srcDir, destDir, relativeBase = '') {
     if (entry.isDirectory()) {
       const subCopied = copyTsFiles(srcPath, destPath, relativePath);
       copied.push(...subCopied);
-    } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
       fs.copyFileSync(srcPath, destPath);
       copied.push(relativePath);
     }
@@ -51,27 +51,27 @@ if (fs.existsSync(GENERATED_DIR)) {
 }
 fs.mkdirSync(GENERATED_DIR, { recursive: true });
 
-console.log('Copying generated TypeScript types...');
+console.log("Copying generated TypeScript types...");
 
 const copiedFiles = copyTsFiles(BINDINGS_DIR, GENERATED_DIR);
 
 // Generate barrel export (index.ts) for top-level .ts files only
 const topLevelTypes = copiedFiles
-  .filter(f => !f.includes('/')) // exclude subdirectory files
-  .map(f => f.replace('.ts', ''));
+  .filter((f) => !f.includes("/")) // exclude subdirectory files
+  .map((f) => f.replace(".ts", ""));
 
 const indexContent = `// AUTO-GENERATED - DO NOT EDIT
 // Copied from ../bindings/ by scripts/copy-types.js
 // Regenerate with: npm run copy-types
 
-${topLevelTypes.map(t => `export * from './${t}';`).join('\n')}
+${topLevelTypes.map((t) => `export * from './${t}';`).join("\n")}
 
 // Subdirectory re-exports
 export * from './serde_json/JsonValue';
 `;
 
-fs.writeFileSync(path.join(GENERATED_DIR, 'index.ts'), indexContent);
+fs.writeFileSync(path.join(GENERATED_DIR, "index.ts"), indexContent);
 
 console.log(`  Copied ${copiedFiles.length} type files`);
-console.log('  Generated: src/generated/index.ts');
-console.log('Done!');
+console.log("  Generated: src/generated/index.ts");
+console.log("Done!");

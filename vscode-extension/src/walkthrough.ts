@@ -7,16 +7,16 @@
  * 3. Installing an LLM tool (Claude Code/Codex/Gemini CLI)
  */
 
-import * as vscode from 'vscode';
-import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
+import * as vscode from "vscode";
+import * as path from "node:path";
+import * as fs from "node:fs/promises";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
 
 /** Kanban provider types */
-export type KanbanProviderType = 'jira' | 'linear' | 'github' | 'openspec';
+export type KanbanProviderType = "jira" | "linear" | "github" | "openspec";
 
 /** Detected kanban workspace with connection details */
 export interface KanbanWorkspace {
@@ -45,24 +45,24 @@ export interface WalkthroughState {
 /** Environment variable names for kanban providers */
 export const KANBAN_ENV_VARS = {
   jira: {
-    apiKey: ['OPERATOR_JIRA_API_KEY', 'JIRA_API_TOKEN'] as const,
-    domain: ['OPERATOR_JIRA_DOMAIN'] as const,
-    email: ['OPERATOR_JIRA_EMAIL'] as const,
+    apiKey: ["OPERATOR_JIRA_API_KEY", "JIRA_API_TOKEN"] as const,
+    domain: ["OPERATOR_JIRA_DOMAIN"] as const,
+    email: ["OPERATOR_JIRA_EMAIL"] as const,
   },
   linear: {
-    apiKey: ['OPERATOR_LINEAR_API_KEY', 'LINEAR_API_KEY'] as const,
+    apiKey: ["OPERATOR_LINEAR_API_KEY", "LINEAR_API_KEY"] as const,
   },
   github: {
     // Token Disambiguation: ONLY OPERATOR_GITHUB_TOKEN is checked here.
-    // We deliberately do NOT fall through to GITHUB_TOKEN — that env var
+    // We deliberately do NOT fall through to GITHUB_TOKEN - that env var
     // belongs to the git provider (PR/branch workflows) and detecting it
     // here would surface a spurious "GitHub kanban detected" prompt.
-    apiKey: ['OPERATOR_GITHUB_TOKEN'] as const,
+    apiKey: ["OPERATOR_GITHUB_TOKEN"] as const,
   },
 } as const;
 
 /** Linear GraphQL API URL */
-const LINEAR_API_URL = 'https://api.linear.app/graphql';
+const LINEAR_API_URL = "https://api.linear.app/graphql";
 
 /**
  * Find the first set environment variable from a list of keys
@@ -78,7 +78,7 @@ export function findEnvVar(keys: readonly string[]): string | undefined {
 }
 
 /** LLM tools to detect */
-export const LLM_TOOLS = ['claude', 'codex', 'gemini'] as const;
+export const LLM_TOOLS = ["claude", "codex", "gemini"] as const;
 
 /** Minimal detected tool info (mirrors Rust DetectedTool subset) */
 export interface DetectedToolResult {
@@ -91,15 +91,17 @@ export interface DetectedToolResult {
 
 /** Tool metadata for version detection (mirrors src/llm/tools/*.json) */
 const TOOL_META: Record<string, { versionCmd: string; minVersion: string }> = {
-  claude: { versionCmd: 'claude --version', minVersion: '2.1.0' },
-  codex:  { versionCmd: 'codex --version',  minVersion: '0.1.0' },
-  gemini: { versionCmd: 'gemini --version',  minVersion: '0.1.0' },
+  claude: { versionCmd: "claude --version", minVersion: "2.1.0" },
+  codex: { versionCmd: "codex --version", minVersion: "0.1.0" },
+  gemini: { versionCmd: "gemini --version", minVersion: "0.1.0" },
 };
 
 function parseVersion(value: string): number[] {
   const match = value.match(/(\d+(?:\.\d+)*)/);
-  if (!match?.[1]) { return [0]; }
-  return match[1].split('.').map(Number);
+  if (!match?.[1]) {
+    return [0];
+  }
+  return match[1].split(".").map(Number);
 }
 
 /**
@@ -113,8 +115,12 @@ export function compareVersions(version: string, minVersion: string): boolean {
   for (let i = 0; i < len; i++) {
     const av = a[i] ?? 0;
     const bv = b[i] ?? 0;
-    if (av > bv) { return true; }
-    if (av < bv) { return false; }
+    if (av > bv) {
+      return true;
+    }
+    if (av < bv) {
+      return false;
+    }
   }
   return true; // equal
 }
@@ -123,17 +129,17 @@ export function compareVersions(version: string, minVersion: string): boolean {
  * Detect a single LLM tool: resolve path, version, and version_ok
  */
 async function detectSingleTool(tool: string): Promise<DetectedToolResult | null> {
-  const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+  const whichCmd = process.platform === "win32" ? "where" : "which";
   let toolPath: string;
   try {
     const { stdout } = await execAsync(`${whichCmd} ${tool}`);
-    toolPath = stdout.trim().split('\n')[0] ?? '';
+    toolPath = stdout.trim().split("\n")[0] ?? "";
   } catch {
     return null;
   }
 
   const meta = TOOL_META[tool];
-  let version = 'unknown';
+  let version = "unknown";
   let versionOk = false;
 
   if (meta) {
@@ -161,7 +167,7 @@ export function checkKanbanEnvVars(): KanbanEnvResult {
   const jiraDomain = findEnvVar(KANBAN_ENV_VARS.jira.domain);
   if (jiraApiKey && jiraDomain) {
     workspaces.push({
-      provider: 'jira',
+      provider: "jira",
       name: jiraDomain,
       url: `https://${jiraDomain}`,
       configured: true,
@@ -172,9 +178,9 @@ export function checkKanbanEnvVars(): KanbanEnvResult {
   const linearApiKey = findEnvVar(KANBAN_ENV_VARS.linear.apiKey);
   if (linearApiKey) {
     workspaces.push({
-      provider: 'linear',
-      name: 'Linear', // Placeholder, updated by fetchLinearWorkspace
-      url: 'https://linear.app',
+      provider: "linear",
+      name: "Linear", // Placeholder, updated by fetchLinearWorkspace
+      url: "https://linear.app",
       configured: true,
     });
   }
@@ -183,9 +189,9 @@ export function checkKanbanEnvVars(): KanbanEnvResult {
   const githubToken = findEnvVar(KANBAN_ENV_VARS.github.apiKey);
   if (githubToken) {
     workspaces.push({
-      provider: 'github',
-      name: 'GitHub Projects',
-      url: 'https://github.com',
+      provider: "github",
+      name: "GitHub Projects",
+      url: "https://github.com",
       configured: true,
     });
   }
@@ -200,7 +206,7 @@ export function checkKanbanEnvVars(): KanbanEnvResult {
  * Fetch Linear organization details via GraphQL API
  */
 export async function fetchLinearWorkspace(
-  apiKey: string
+  apiKey: string,
 ): Promise<{ name: string; url: string } | null> {
   const query = `
     query {
@@ -214,10 +220,10 @@ export async function fetchLinearWorkspace(
 
   try {
     const response = await fetch(LINEAR_API_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization: apiKey,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ query }),
     });
@@ -251,7 +257,7 @@ export async function getKanbanWorkspaces(): Promise<KanbanWorkspace[]> {
   const workspaces = [...envResult.workspaces];
 
   // Enhance Linear workspace with org details
-  const linearIdx = workspaces.findIndex((w) => w.provider === 'linear');
+  const linearIdx = workspaces.findIndex((w) => w.provider === "linear");
   if (linearIdx >= 0) {
     const apiKey = findEnvVar(KANBAN_ENV_VARS.linear.apiKey);
     if (apiKey) {
@@ -274,7 +280,7 @@ export async function getKanbanWorkspaces(): Promise<KanbanWorkspace[]> {
  */
 export async function checkLlmToolInPath(tool: string): Promise<boolean> {
   try {
-    const command = process.platform === 'win32' ? 'where' : 'which';
+    const command = process.platform === "win32" ? "where" : "which";
     await execAsync(`${command} ${tool}`);
     return true;
   } catch {
@@ -286,9 +292,7 @@ export async function checkLlmToolInPath(tool: string): Promise<boolean> {
  * Detect all installed LLM tools with path, version, and version check
  */
 export async function detectInstalledLlmTools(): Promise<DetectedToolResult[]> {
-  const results = await Promise.all(
-    LLM_TOOLS.map((tool) => detectSingleTool(tool))
-  );
+  const results = await Promise.all(LLM_TOOLS.map((tool) => detectSingleTool(tool)));
   return results.filter((r): r is DetectedToolResult => r !== null);
 }
 
@@ -310,9 +314,9 @@ export async function validateWorkingDirectory(dirPath: string): Promise<boolean
  */
 export async function initializeTicketsDirectory(
   workingDir: string,
-  operatorPath?: string
+  operatorPath?: string,
 ): Promise<boolean> {
-  const ticketsDir = path.join(workingDir, '.tickets');
+  const ticketsDir = path.join(workingDir, ".tickets");
 
   try {
     // Try using operator CLI if available
@@ -320,11 +324,11 @@ export async function initializeTicketsDirectory(
       try {
         await execAsync(`"${operatorPath}" setup --working-dir "${workingDir}"`);
         // Ensure config.toml exists even if CLI didn't create it
-        const configPath = path.join(ticketsDir, 'operator', 'config.toml');
+        const configPath = path.join(ticketsDir, "operator", "config.toml");
         try {
           await fs.access(configPath);
         } catch {
-          await fs.writeFile(configPath, '', 'utf-8');
+          await fs.writeFile(configPath, "", "utf-8");
         }
         return true;
       } catch {
@@ -335,10 +339,10 @@ export async function initializeTicketsDirectory(
     // Manual creation of directory structure
     const dirs = [
       ticketsDir,
-      path.join(ticketsDir, 'queue'),
-      path.join(ticketsDir, 'in-progress'),
-      path.join(ticketsDir, 'completed'),
-      path.join(ticketsDir, 'operator'),
+      path.join(ticketsDir, "queue"),
+      path.join(ticketsDir, "in-progress"),
+      path.join(ticketsDir, "completed"),
+      path.join(ticketsDir, "operator"),
     ];
 
     for (const dir of dirs) {
@@ -346,16 +350,16 @@ export async function initializeTicketsDirectory(
     }
 
     // Create empty config.toml if it doesn't exist
-    const configPath = path.join(ticketsDir, 'operator', 'config.toml');
+    const configPath = path.join(ticketsDir, "operator", "config.toml");
     try {
       await fs.access(configPath);
     } catch {
-      await fs.writeFile(configPath, '', 'utf-8');
+      await fs.writeFile(configPath, "", "utf-8");
     }
 
     return true;
   } catch (error) {
-    console.error('Failed to initialize tickets directory:', error);
+    console.error("Failed to initialize tickets directory:", error);
     return false;
   }
 }
@@ -364,10 +368,10 @@ export async function initializeTicketsDirectory(
  * Update all walkthrough context keys in VS Code
  */
 export async function updateWalkthroughContext(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): Promise<WalkthroughState> {
   // Check working directory
-  const workingDirectory = context.globalState.get<string>('operator.workingDirectory');
+  const workingDirectory = context.globalState.get<string>("operator.workingDirectory");
   const workingDirectorySet = workingDirectory
     ? await validateWorkingDirectory(workingDirectory)
     : false;
@@ -382,20 +386,12 @@ export async function updateWalkthroughContext(
 
   // Update context keys
   await vscode.commands.executeCommand(
-    'setContext',
-    'operator.workingDirectorySet',
-    workingDirectorySet
+    "setContext",
+    "operator.workingDirectorySet",
+    workingDirectorySet,
   );
-  await vscode.commands.executeCommand(
-    'setContext',
-    'operator.kanbanConnected',
-    kanbanConnected
-  );
-  await vscode.commands.executeCommand(
-    'setContext',
-    'operator.llmToolInstalled',
-    llmToolInstalled
-  );
+  await vscode.commands.executeCommand("setContext", "operator.kanbanConnected", kanbanConnected);
+  await vscode.commands.executeCommand("setContext", "operator.llmToolInstalled", llmToolInstalled);
 
   const state: WalkthroughState = {
     workingDirectorySet,
@@ -414,14 +410,14 @@ export async function updateWalkthroughContext(
  */
 export async function selectWorkingDirectory(
   context: vscode.ExtensionContext,
-  operatorPath?: string
+  operatorPath?: string,
 ): Promise<void> {
   const folders = await vscode.window.showOpenDialog({
     canSelectFiles: false,
     canSelectFolders: true,
     canSelectMany: false,
-    openLabel: 'Select Working Directory',
-    title: 'Select parent directory for your repositories',
+    openLabel: "Select Working Directory",
+    title: "Select parent directory for your repositories",
   });
 
   if (!folders || folders.length === 0) {
@@ -433,62 +429,62 @@ export async function selectWorkingDirectory(
   // Validate directory
   const isValid = await validateWorkingDirectory(selectedPath);
   if (!isValid) {
-    void vscode.window.showErrorMessage('Selected path is not a valid directory');
+    void vscode.window.showErrorMessage("Selected path is not a valid directory");
     return;
   }
 
   // Initialize .tickets structure
   const initialized = await initializeTicketsDirectory(selectedPath, operatorPath);
   if (!initialized) {
-    void vscode.window.showErrorMessage('Failed to initialize tickets directory structure');
+    void vscode.window.showErrorMessage("Failed to initialize tickets directory structure");
     return;
   }
 
   // Store in global state
-  await context.globalState.update('operator.workingDirectory', selectedPath);
+  await context.globalState.update("operator.workingDirectory", selectedPath);
 
   // Persist to VS Code user settings for cross-workspace access
-  const config = vscode.workspace.getConfiguration('operator');
-  await config.update('workingDirectory', selectedPath, vscode.ConfigurationTarget.Global);
-  await config.update('ticketsDir', path.join(selectedPath, '.tickets'), vscode.ConfigurationTarget.Global);
+  const config = vscode.workspace.getConfiguration("operator");
+  await config.update("workingDirectory", selectedPath, vscode.ConfigurationTarget.Global);
+  await config.update(
+    "ticketsDir",
+    path.join(selectedPath, ".tickets"),
+    vscode.ConfigurationTarget.Global,
+  );
 
   // Update context
   await updateWalkthroughContext(context);
 
-  void vscode.window.showInformationMessage(
-    `Working directory set to: ${selectedPath}`
-  );
+  void vscode.window.showInformationMessage(`Working directory set to: ${selectedPath}`);
 }
 
 /**
  * Command: Check kanban connection
  */
-export async function checkKanbanConnection(
-  context: vscode.ExtensionContext
-): Promise<void> {
+export async function checkKanbanConnection(context: vscode.ExtensionContext): Promise<void> {
   const workspaces = await getKanbanWorkspaces();
 
   if (workspaces.length === 0) {
     const choice = await vscode.window.showWarningMessage(
-      'No kanban provider configured. Set up Jira or Linear environment variables.',
-      'Configure Jira',
-      'Configure Linear'
+      "No kanban provider configured. Set up Jira or Linear environment variables.",
+      "Configure Jira",
+      "Configure Linear",
     );
 
-    if (choice === 'Configure Jira') {
-      await vscode.commands.executeCommand('operator.configureJira');
-    } else if (choice === 'Configure Linear') {
-      await vscode.commands.executeCommand('operator.configureLinear');
+    if (choice === "Configure Jira") {
+      await vscode.commands.executeCommand("operator.configureJira");
+    } else if (choice === "Configure Linear") {
+      await vscode.commands.executeCommand("operator.configureLinear");
     }
   } else if (workspaces.length === 1) {
     const ws = workspaces[0]!;
     void vscode.window.showInformationMessage(
-      `Connected to ${ws.provider}: ${ws.name} (${ws.url})`
+      `Connected to ${ws.provider}: ${ws.name} (${ws.url})`,
     );
   } else {
-    const details = workspaces.map((ws) => `${ws.provider}: ${ws.name}`).join(', ');
+    const details = workspaces.map((ws) => `${ws.provider}: ${ws.name}`).join(", ");
     void vscode.window.showInformationMessage(
-      `Connected to ${workspaces.length} workspaces: ${details}`
+      `Connected to ${workspaces.length} workspaces: ${details}`,
     );
   }
 
@@ -496,7 +492,11 @@ export async function checkKanbanConnection(
 }
 
 // Re-export interactive onboarding flows (replaces old webview-based configureJira/configureLinear)
-export { onboardJira as configureJira, onboardLinear as configureLinear, startKanbanOnboarding } from './kanban-onboarding';
+export {
+  onboardJira as configureJira,
+  onboardLinear as configureLinear,
+  startKanbanOnboarding,
+} from "./kanban-onboarding";
 
 /**
  * Command: Detect LLM tools
@@ -506,39 +506,43 @@ export { onboardJira as configureJira, onboardLinear as configureLinear, startKa
  */
 export async function detectLlmTools(
   context: vscode.ExtensionContext,
-  getOperatorPathFn?: (ctx: vscode.ExtensionContext) => Promise<string | undefined>
+  getOperatorPathFn?: (ctx: vscode.ExtensionContext) => Promise<string | undefined>,
 ): Promise<void> {
   const tools = await detectInstalledLlmTools();
 
   if (tools.length === 0) {
     const choice = await vscode.window.showWarningMessage(
-      'No LLM tools detected. Install Claude Code, Codex, or Gemini CLI.',
-      'Install Claude Code',
-      'Install Codex',
-      'Install Gemini CLI'
+      "No LLM tools detected. Install Claude Code, Codex, or Gemini CLI.",
+      "Install Claude Code",
+      "Install Codex",
+      "Install Gemini CLI",
     );
 
-    if (choice === 'Install Claude Code') {
-      void vscode.env.openExternal(vscode.Uri.parse('https://docs.anthropic.com/en/docs/claude-code'));
-    } else if (choice === 'Install Codex') {
-      void vscode.env.openExternal(vscode.Uri.parse('https://github.com/openai/codex'));
-    } else if (choice === 'Install Gemini CLI') {
-      void vscode.env.openExternal(vscode.Uri.parse('https://github.com/google/generative-ai-docs'));
+    if (choice === "Install Claude Code") {
+      void vscode.env.openExternal(
+        vscode.Uri.parse("https://docs.anthropic.com/en/docs/claude-code"),
+      );
+    } else if (choice === "Install Codex") {
+      void vscode.env.openExternal(vscode.Uri.parse("https://github.com/openai/codex"));
+    } else if (choice === "Install Gemini CLI") {
+      void vscode.env.openExternal(
+        vscode.Uri.parse("https://github.com/google/generative-ai-docs"),
+      );
     }
   } else {
     // Build per-tool configure buttons
-    const buttons = tools.map(tool => `Configure ${tool.name}`);
-    const toolList = tools.map(tool => tool.name).join(', ');
+    const buttons = tools.map((tool) => `Configure ${tool.name}`);
+    const toolList = tools.map((tool) => tool.name).join(", ");
 
     const choice = await vscode.window.showInformationMessage(
       `Detected LLM tools: ${toolList}`,
       { modal: true },
-      ...buttons
+      ...buttons,
     );
 
     if (choice) {
       // Extract tool name from "Configure <tool>"
-      const toolName = choice.replace('Configure ', '');
+      const toolName = choice.replace("Configure ", "");
       await configureLlmTool(context, toolName, getOperatorPathFn);
     }
   }
@@ -552,52 +556,51 @@ export async function detectLlmTools(
 async function configureLlmTool(
   context: vscode.ExtensionContext,
   tool: string,
-  getOperatorPathFn?: (ctx: vscode.ExtensionContext) => Promise<string | undefined>
+  getOperatorPathFn?: (ctx: vscode.ExtensionContext) => Promise<string | undefined>,
 ): Promise<void> {
-  const operatorPath = getOperatorPathFn
-    ? await getOperatorPathFn(context)
-    : undefined;
+  const operatorPath = getOperatorPathFn ? await getOperatorPathFn(context) : undefined;
 
   if (!operatorPath) {
     void vscode.window.showWarningMessage(
-      `Operator binary not found. Download it first to configure ${tool}.`
+      `Operator binary not found. Download it first to configure ${tool}.`,
     );
     return;
   }
 
-  const workingDir = vscode.workspace.getConfiguration('operator').get<string>('workingDirectory')
-    || context.globalState.get<string>('operator.workingDirectory');
+  const workingDir =
+    vscode.workspace.getConfiguration("operator").get<string>("workingDirectory") ||
+    context.globalState.get<string>("operator.workingDirectory");
 
   if (!workingDir) {
     void vscode.window.showWarningMessage(
-      'Working directory not set. Select a working directory first.'
+      "Working directory not set. Select a working directory first.",
     );
     return;
   }
 
   // Check if operator config exists before trying to configure LLM tool
-  const configPath = path.join(workingDir, '.tickets', 'operator', 'config.toml');
+  const configPath = path.join(workingDir, ".tickets", "operator", "config.toml");
   try {
     await fs.access(configPath);
   } catch {
     const choice = await vscode.window.showWarningMessage(
       `Operator not yet configured in ${path.basename(workingDir)}. Run setup first?`,
-      'Run Setup',
-      'Cancel'
+      "Run Setup",
+      "Cancel",
     );
-    if (choice === 'Run Setup') {
-      await vscode.commands.executeCommand('operator.runSetup');
+    if (choice === "Run Setup") {
+      await vscode.commands.executeCommand("operator.runSetup");
     }
     return;
   }
 
   try {
     await execAsync(
-      `"${operatorPath}" setup --llm-tool "${tool}" --working-dir "${workingDir}" --skip-llm-detection`
+      `"${operatorPath}" setup --llm-tool "${tool}" --working-dir "${workingDir}" --skip-llm-detection`,
     );
     void vscode.window.showInformationMessage(`Configured ${tool} successfully.`);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
+    const msg = error instanceof Error ? error.message : "Unknown error";
     void vscode.window.showErrorMessage(`Failed to configure ${tool}: ${msg}`);
   }
 }
@@ -607,8 +610,8 @@ async function configureLlmTool(
  */
 export async function openWalkthrough(): Promise<void> {
   await vscode.commands.executeCommand(
-    'workbench.action.openWalkthrough',
-    'untra.operator-terminals#operator-setup',
-    false
+    "workbench.action.openWalkthrough",
+    "untra.operator-terminals#operator-setup",
+    false,
   );
 }

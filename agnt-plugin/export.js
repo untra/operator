@@ -6,7 +6,7 @@ class ExportWorkflowTool {
     this.name = "operator-export-workflow";
   }
   async execute(params, _inputData, _workflowEngine) {
-    if (!params || !params.id) {
+    if (!params?.id) {
       return { success: false, result: null, error: "missing required param: id" };
     }
     const format = params.format || "agnt";

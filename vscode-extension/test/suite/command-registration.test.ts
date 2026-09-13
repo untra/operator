@@ -1,5 +1,5 @@
-import * as assert from 'node:assert';
-import * as vscode from 'vscode';
+import * as assert from "node:assert";
+import * as vscode from "vscode";
 
 /**
  * Tests that verify command registration works correctly in the extension.
@@ -10,21 +10,21 @@ import * as vscode from 'vscode';
  * 3. Activation events include onView and onCommand triggers (not just onStartupFinished)
  * 4. Commands are available immediately after activation
  */
-suite('Command Registration Tests', () => {
+suite("Command Registration Tests", () => {
   let extension: vscode.Extension<unknown> | undefined;
   let packageJson: {
     activationEvents?: string[];
     contributes?: {
       commands?: Array<{ command: string }>;
       views?: {
-        'operator-sidebar'?: Array<{ id: string }>;
+        "operator-sidebar"?: Array<{ id: string }>;
       };
     };
   };
 
   suiteSetup(async () => {
-    extension = vscode.extensions.getExtension('untra.operator-terminals');
-    assert.ok(extension, 'Extension must be present');
+    extension = vscode.extensions.getExtension("untra.operator-terminals");
+    assert.ok(extension, "Extension must be present");
     packageJson = extension.packageJSON as typeof packageJson;
     if (!extension.isActive) {
       await extension.activate();
@@ -35,9 +35,9 @@ suite('Command Registration Tests', () => {
   // Manifest parity: every contributed command must be registered at runtime
   // -----------------------------------------------------------------------
 
-  test('All package.json commands are registered at runtime', async () => {
-    const manifestCommands = (packageJson.contributes?.commands ?? []).map(c => c.command);
-    assert.ok(manifestCommands.length > 0, 'package.json should contribute at least one command');
+  test("All package.json commands are registered at runtime", async () => {
+    const manifestCommands = (packageJson.contributes?.commands ?? []).map((c) => c.command);
+    assert.ok(manifestCommands.length > 0, "package.json should contribute at least one command");
 
     const registeredCommands = await vscode.commands.getCommands(true);
 
@@ -51,7 +51,7 @@ suite('Command Registration Tests', () => {
     assert.strictEqual(
       missing.length,
       0,
-      `Commands declared in package.json but NOT registered at runtime:\n  ${missing.join('\n  ')}`
+      `Commands declared in package.json but NOT registered at runtime:\n  ${missing.join("\n  ")}`,
     );
   });
 
@@ -59,13 +59,13 @@ suite('Command Registration Tests', () => {
   // Reverse parity: every registered operator.* command should be in manifest
   // -----------------------------------------------------------------------
 
-  test('All registered operator.* commands are declared in package.json', async () => {
+  test("All registered operator.* commands are declared in package.json", async () => {
     const manifestCommands = new Set(
-      (packageJson.contributes?.commands ?? []).map(c => c.command)
+      (packageJson.contributes?.commands ?? []).map((c) => c.command),
     );
 
     const registeredCommands = await vscode.commands.getCommands(true);
-    const operatorCommands = registeredCommands.filter(c => c.startsWith('operator.'));
+    const operatorCommands = registeredCommands.filter((c) => c.startsWith("operator."));
 
     const undeclared: string[] = [];
     for (const cmd of operatorCommands) {
@@ -77,7 +77,7 @@ suite('Command Registration Tests', () => {
     assert.strictEqual(
       undeclared.length,
       0,
-      `Commands registered at runtime but NOT in package.json:\n  ${undeclared.join('\n  ')}`
+      `Commands registered at runtime but NOT in package.json:\n  ${undeclared.join("\n  ")}`,
     );
   });
 
@@ -85,11 +85,11 @@ suite('Command Registration Tests', () => {
   // Activation events: extension must activate on view open AND commands
   // -----------------------------------------------------------------------
 
-  test('activationEvents includes onView triggers for sidebar views', () => {
+  test("activationEvents includes onView triggers for sidebar views", () => {
     const activationEvents = packageJson.activationEvents ?? [];
-    const viewIds = (packageJson.contributes?.views?.['operator-sidebar'] ?? []).map(v => v.id);
+    const viewIds = (packageJson.contributes?.views?.["operator-sidebar"] ?? []).map((v) => v.id);
 
-    assert.ok(viewIds.length > 0, 'Should have sidebar views defined');
+    assert.ok(viewIds.length > 0, "Should have sidebar views defined");
 
     const missingViews: string[] = [];
     for (const viewId of viewIds) {
@@ -101,22 +101,22 @@ suite('Command Registration Tests', () => {
     assert.strictEqual(
       missingViews.length,
       0,
-      `activationEvents missing onView triggers for:\n  ${missingViews.join('\n  ')}`
+      `activationEvents missing onView triggers for:\n  ${missingViews.join("\n  ")}`,
     );
   });
 
-  test('activationEvents includes onCommand triggers for key commands', () => {
+  test("activationEvents includes onCommand triggers for key commands", () => {
     const activationEvents = packageJson.activationEvents ?? [];
 
-    // These are commands users invoke from command palette or keybindings —
+    // These are commands users invoke from command palette or keybindings -
     // the extension MUST activate when they fire.
     const criticalCommands = [
-      'operator.showStatus',
-      'operator.startOperatorServer',
-      'operator.launchTicket',
-      'operator.openSettings',
-      'operator.openWalkthrough',
-      'operator.selectWorkingDirectory',
+      "operator.showStatus",
+      "operator.startOperatorServer",
+      "operator.launchTicket",
+      "operator.openSettings",
+      "operator.openWalkthrough",
+      "operator.selectWorkingDirectory",
     ];
 
     const missing: string[] = [];
@@ -129,7 +129,7 @@ suite('Command Registration Tests', () => {
     assert.strictEqual(
       missing.length,
       0,
-      `activationEvents missing onCommand triggers for:\n  ${missing.join('\n  ')}`
+      `activationEvents missing onCommand triggers for:\n  ${missing.join("\n  ")}`,
     );
   });
 
@@ -137,18 +137,18 @@ suite('Command Registration Tests', () => {
   // Key commands must be available immediately after activation
   // -----------------------------------------------------------------------
 
-  test('Critical commands are available after activation', async () => {
+  test("Critical commands are available after activation", async () => {
     const commands = await vscode.commands.getCommands(true);
 
     const critical = [
-      'operator.showStatus',
-      'operator.startOperatorServer',
-      'operator.launchTicket',
-      'operator.startWebhookServer',
-      'operator.refreshTickets',
-      'operator.openSettings',
-      'operator.selectWorkingDirectory',
-      'operator.detectLlmTools',
+      "operator.showStatus",
+      "operator.startOperatorServer",
+      "operator.launchTicket",
+      "operator.startWebhookServer",
+      "operator.refreshTickets",
+      "operator.openSettings",
+      "operator.selectWorkingDirectory",
+      "operator.detectLlmTools",
     ];
 
     const missing: string[] = [];
@@ -161,7 +161,7 @@ suite('Command Registration Tests', () => {
     assert.strictEqual(
       missing.length,
       0,
-      `Critical commands not registered:\n  ${missing.join('\n  ')}`
+      `Critical commands not registered:\n  ${missing.join("\n  ")}`,
     );
   });
 });

@@ -1,17 +1,17 @@
-import React from 'react';
-import { SectionHeader } from '../SectionHeader';
-import { LinkOutCard } from '../LinkOutCard';
-import { ProviderCard } from '../kanban/ProviderCard';
+import React from "react";
+import { SectionHeader } from "../SectionHeader";
+import { LinkOutCard } from "../LinkOutCard";
+import { ProviderCard } from "../kanban/ProviderCard";
 import type {
   JiraValidationInfo,
   LinearValidationInfo,
   IssueTypeSummary,
   CollectionResponse,
   ExternalIssueTypeSummary,
-} from '../../types/messages';
-import type { KanbanConfig } from '../../../src/generated/KanbanConfig';
-import type { JiraConfig } from '../../../src/generated/JiraConfig';
-import type { LinearConfig } from '../../../src/generated/LinearConfig';
+} from "../../types/messages";
+import type { KanbanConfig } from "../../../src/generated/KanbanConfig";
+import type { JiraConfig } from "../../../src/generated/JiraConfig";
+import type { LinearConfig } from "../../../src/generated/LinearConfig";
 
 interface KanbanProvidersSectionProps {
   kanban: KanbanConfig;
@@ -29,11 +29,20 @@ interface KanbanProvidersSectionProps {
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
   kanbanStatuses: Map<string, string[]>;
   onGetKanbanStatuses: (provider: string, projectKey: string) => void;
-  onOpenOperatorUi: (route: 'issuetypes' | 'projects') => void;
+  onOpenOperatorUi: (route: "issuetypes" | "projects") => void;
 }
 
-const DEFAULT_JIRA: JiraConfig = { enabled: false, api_key_env: 'OPERATOR_JIRA_API_KEY', email: '', projects: {} };
-const DEFAULT_LINEAR: LinearConfig = { enabled: false, api_key_env: 'OPERATOR_LINEAR_API_KEY', projects: {} };
+const DEFAULT_JIRA: JiraConfig = {
+  enabled: false,
+  api_key_env: "OPERATOR_JIRA_API_KEY",
+  email: "",
+  projects: {},
+};
+const DEFAULT_LINEAR: LinearConfig = {
+  enabled: false,
+  api_key_env: "OPERATOR_LINEAR_API_KEY",
+  projects: {},
+};
 
 export function KanbanProvidersSection({
   kanban,
@@ -56,23 +65,23 @@ export function KanbanProvidersSection({
   // Iterate all Jira domains
   const jiraEntries = Object.entries(kanban.jira ?? {});
   const hasJira = jiraEntries.length > 0;
-  const defaultJiraDomain = 'your-org.atlassian.net';
+  const defaultJiraDomain = "your-org.atlassian.net";
 
   // Iterate all Linear workspaces
   const linearEntries = Object.entries(kanban.linear ?? {});
   const hasLinear = linearEntries.length > 0;
-  const defaultLinearTeam = 'default-team';
+  const defaultLinearTeam = "default-team";
 
   // Viewing an issue type now links out to the hosted Operator UI.
   const handleViewIssueType = () => {
-    onOpenOperatorUi('issuetypes');
+    onOpenOperatorUi("issuetypes");
   };
 
   return (
     <div className="op-mb-4">
       <SectionHeader id="section-kanban" title="Kanban Providers" />
       <p className="op-body1 op-text-secondary op-mb-1">
-        Configure kanban board integrations for ticket management. For more details see the{' '}
+        Configure kanban board integrations for ticket management. For more details see the{" "}
         <a href="https://operator.untra.io/getting-started/kanban/">kanban documentation</a>
       </p>
 
@@ -165,7 +174,7 @@ export function KanbanProvidersSection({
             id="section-issuetypes"
             title="Issue Types & Collections"
             description="Create and manage issue types and collections in the Operator UI."
-            onOpen={() => onOpenOperatorUi('issuetypes')}
+            onOpen={() => onOpenOperatorUi("issuetypes")}
           />
         </div>
       )}

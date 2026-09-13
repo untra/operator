@@ -1,11 +1,11 @@
-import * as assert from 'node:assert';
-import * as vscode from 'vscode';
+import * as assert from "node:assert";
+import * as vscode from "vscode";
 
 /**
  * Tests that validate the extension manifest (package.json) is consistent
  * with runtime behavior and VS Code API requirements.
  */
-suite('Manifest Parity Tests', () => {
+suite("Manifest Parity Tests", () => {
   let extension: vscode.Extension<unknown> | undefined;
   let packageJson: {
     engines?: { vscode?: string };
@@ -13,14 +13,14 @@ suite('Manifest Parity Tests', () => {
     contributes?: {
       commands?: Array<{ command: string }>;
       views?: {
-        'operator-sidebar'?: Array<{ id: string }>;
+        "operator-sidebar"?: Array<{ id: string }>;
       };
     };
   };
 
   suiteSetup(() => {
-    extension = vscode.extensions.getExtension('untra.operator-terminals');
-    assert.ok(extension, 'Extension must be present');
+    extension = vscode.extensions.getExtension("untra.operator-terminals");
+    assert.ok(extension, "Extension must be present");
     packageJson = extension.packageJSON as typeof packageJson;
   });
 
@@ -28,9 +28,9 @@ suite('Manifest Parity Tests', () => {
   // engines.vscode must be >= 1.93 for terminal shell execution APIs
   // -----------------------------------------------------------------------
 
-  test('engines.vscode floor is at least 1.93 for shell execution APIs', () => {
+  test("engines.vscode floor is at least 1.93 for shell execution APIs", () => {
     const enginesVscode = packageJson.engines?.vscode;
-    assert.ok(enginesVscode, 'engines.vscode must be defined');
+    assert.ok(enginesVscode, "engines.vscode must be defined");
 
     // Extract the minimum version number from the semver range (e.g. "^1.93.0" -> "1.93.0")
     const match = enginesVscode.match(/(\d+)\.(\d+)/);
@@ -43,8 +43,8 @@ suite('Manifest Parity Tests', () => {
     const meetsMinimum = major > 1 || (major === 1 && minor >= 93);
     assert.ok(
       meetsMinimum,
-      `engines.vscode "${enginesVscode}" is below 1.93 — TerminalManager uses ` +
-      `onDidStartTerminalShellExecution/onDidEndTerminalShellExecution which require VS Code 1.93+`
+      `engines.vscode "${enginesVscode}" is below 1.93 - TerminalManager uses ` +
+        `onDidStartTerminalShellExecution/onDidEndTerminalShellExecution which require VS Code 1.93+`,
     );
   });
 
@@ -52,18 +52,18 @@ suite('Manifest Parity Tests', () => {
   // activationEvents must not be empty/too narrow
   // -----------------------------------------------------------------------
 
-  test('activationEvents should include more than just onStartupFinished', () => {
+  test("activationEvents should include more than just onStartupFinished", () => {
     const events = packageJson.activationEvents ?? [];
 
-    // onStartupFinished alone is too narrow — commands and views should also trigger activation
+    // onStartupFinished alone is too narrow - commands and views should also trigger activation
     const hasViewOrCommandTrigger = events.some(
-      e => e.startsWith('onView:') || e.startsWith('onCommand:')
+      (e) => e.startsWith("onView:") || e.startsWith("onCommand:"),
     );
 
     assert.ok(
       hasViewOrCommandTrigger,
-      `activationEvents only contains [${events.join(', ')}] — ` +
-      'should include onView: or onCommand: triggers for reliable activation'
+      `activationEvents only contains [${events.join(", ")}] - ` +
+        "should include onView: or onCommand: triggers for reliable activation",
     );
   });
 
@@ -71,11 +71,11 @@ suite('Manifest Parity Tests', () => {
   // Command count sanity
   // -----------------------------------------------------------------------
 
-  test('Extension contributes a reasonable number of commands', () => {
+  test("Extension contributes a reasonable number of commands", () => {
     const commands = packageJson.contributes?.commands ?? [];
     assert.ok(
       commands.length >= 10,
-      `Expected at least 10 contributed commands, got ${commands.length}`
+      `Expected at least 10 contributed commands, got ${commands.length}`,
     );
   });
 });

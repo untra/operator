@@ -1,10 +1,10 @@
-# Web Setup Wizard — design spec (D2 / D3)
+# Web Setup Wizard - design spec (D2 / D3)
 
 **Status:** ready to plan. Phase A (TUI alignment) is landed and verified.
 **Audience:** the agent that will plan and implement this. Read this whole file
 before writing a plan; it encodes decisions already made and traps already hit.
 
-**Related:** `superpowers/plans/2026-09-12-getting-started-parity-phase-a.md` —
+**Related:** `superpowers/plans/2026-09-12-getting-started-parity-phase-a.md` -
 the completed phase, including its audit and implementation log. This spec
 supersedes that plan's "Deferred (stages 6–10)" section, which was written
 before Phase A landed and is stale in two places called out below.
@@ -13,13 +13,13 @@ before Phase A landed and is stale in two places called out below.
 
 ## 1. Goal
 
-- **D2** — a multi-step first-run wizard in the web SPA that mirrors the TUI
+- **D2** - a multi-step first-run wizard in the web SPA that mirrors the TUI
   wizard and writes the same `config.toml`.
-- **D3** — **either** flow, run alone, ends with a `config.toml` the other
+- **D3** - **either** flow, run alone, ends with a `config.toml` the other
   surface can use. This is the acceptance bar, not a nice-to-have.
 
 Out of scope here: documentation (D4). Docs come after this lands, per the
-user's sequencing — "document as it exists". Do not write getting-started docs
+user's sequencing - "document as it exists". Do not write getting-started docs
 as part of this work.
 
 ## 2. Why this exists
@@ -37,7 +37,7 @@ browser to parity.
 
 ### 3.1 The step catalog is the source of truth
 
-`src/startup/steps.rs` — `SetupStep`, 17 variants, declared **in wizard order**:
+`src/startup/steps.rs` - `SetupStep`, 17 variants, declared **in wizard order**:
 
 ```
 welcome, kanban-info, model-server, git-provider, collection-source,
@@ -53,7 +53,7 @@ cmux-setup, zellij-setup, acceptance-criteria, startup-tickets, confirm
   union of the slugs above) via `make bindings`.
 - `setup_steps()` feeds `docs/startup/index.md` through `src/docs_gen/startup.rs`.
 
-The slugs are a **frozen public identifier** — they key docs URLs and will key
+The slugs are a **frozen public identifier** - they key docs URLs and will key
 your component map. `test_slugs_match_frozen_snapshot` guards renames.
 
 ### 3.2 One workspace writer
@@ -84,7 +84,7 @@ labels and docs links from it.
 | Model | anthropic-api, openai-api, google-api, ollama, openrouter |
 
 Proto entries (bitbucket, azure, forgejo, openai-compat, lmstudio) are
-deliberately **not** offered — they are unadvertised and have no docs page to
+deliberately **not** offered - they are unadvertised and have no docs page to
 link to. Promoting one into onboarding is a `SupportStatus` bump in
 `src/integrations/catalog.rs`, nothing else.
 
@@ -108,7 +108,7 @@ as prominently as the TUI does.
 
 Each of these cost real time to discover. Respect them or re-pay that cost.
 
-### 4.1 `setup` and `startup` are bin-only — this blocks the obvious approach
+### 4.1 `setup` and `startup` are bin-only - this blocks the obvious approach
 
 ```
 src/lib.rs :  mod startup;          (private)   pub mod integrations;
@@ -123,7 +123,7 @@ calls `initialize_workspace` **will not compile** without first moving
 The Phase A plan's deferred section assumed this was free. It is not. Budget it
 as the first task of the REST work, and check what else `setup.rs` pulls in
 (`projects`, `startup::templates`, `collections::fetch` are all lib-private
-today — visibility widening, not relocation).
+today - visibility widening, not relocation).
 
 `integrations` is already `pub mod`, which is why §3.3 routes cleanly to the
 browser with no move at all.
@@ -147,7 +147,7 @@ Add `onboarding` as a sibling of `setup`, not inside the `<Route element={<Layou
 `crate::llm::refresh_tool_detection` is called exactly once, at
 `src/app/mod.rs:121`. `operator api` never detects tools, so `llm_tools.detected`
 stays empty, the `llm` section stays Yellow, and **Model Providers + Delegators
-are disabled in the web sidebar** — on real, working routes.
+are disabled in the web sidebar** - on real, working routes.
 
 Fix this by hoisting detection into a shared entry point called from `cmd_api`
 as well. It is a **user-visible fix worth shipping on its own**, independent of
@@ -181,7 +181,7 @@ fails the build.
 `config.toml` (default `.tickets/operator/config.toml`, resolved against the
 process cwd). `operator api` started from a different directory silently uses a
 different config. Mention this in whatever the wizard shows as its destination
-path — `GET /setup/status` should return the resolved absolute path.
+path - `GET /setup/status` should return the resolved absolute path.
 
 ### 4.7 `ApiState::mutate_config` is the only REST write path
 
@@ -198,7 +198,7 @@ handler.
 
 `tests/route_scope_parity.rs` walks the generated OpenAPI spec and fails on any
 route missing from `ROUTE_RULES` in `src/auth/scope.rs` (`read` / `execute` /
-`admin` helpers). Add an entry per new route or the test fails — which is the
+`admin` helpers). Add an entry per new route or the test fails - which is the
 desired behaviour, since an unknown route denies.
 
 **Auth needs no other work.** Browser session principals carry `Scope::ALL`
@@ -207,15 +207,15 @@ wizard touches.
 
 ## 5. What already exists vs. what is new
 
-### Already built — zero or near-zero Rust work
+### Already built - zero or near-zero Rust work
 
 | Concern | Endpoints | Note |
 |---|---|---|
 | Admin bootstrap | `GET`/`POST /api/v1/auth/bootstrap`, `POST /auth/login` | already drives `SetupPage.tsx` |
-| **Kanban** | `POST /kanban/validate`, `/kanban/projects`, `/kanban/statuses`, `PUT /kanban/config`, `POST /kanban/session-env` | **fully built and proven — persists correctly.** Only `vscode-extension/src/kanban-onboarding.ts` calls it; `ui/src/api-client.ts` has no methods. Port that client. |
+| **Kanban** | `POST /kanban/validate`, `/kanban/projects`, `/kanban/statuses`, `PUT /kanban/config`, `POST /kanban/session-env` | **fully built and proven - persists correctly.** Only `vscode-extension/src/kanban-onboarding.ts` calls it; `ui/src/api-client.ts` has no methods. Port that client. |
 | Model servers | `GET /model-servers/kinds`, `GET /kinds/{slug}/models` (live probe), `POST /model-servers` | `ModelProvidersPage.tsx` already drives connect; extract its card grid |
 | Provider catalog | `GET /api/v1/integrations` | serves §3.3 to the browser with no new route |
-| Collections | `GET /collections`, `POST /collections/{name}/activate` | **activate is in-memory only** — see below |
+| Collections | `GET /collections`, `POST /collections/{name}/activate` | **activate is in-memory only** - see below |
 
 The kanban quartet being done is the single biggest head start here. Read
 `vscode-extension/src/kanban-onboarding.ts` as the working reference.
@@ -224,10 +224,10 @@ The kanban quartet being done is the single biggest head start here. Read
 
 1. **Move `setup.rs` into the lib** (§4.1). Prerequisite for everything else.
 2. **Detection in `cmd_api`** (§4.3). Independently shippable.
-3. **Persist collection activation** — `src/rest/routes/collections.rs:102`
+3. **Persist collection activation** - `src/rest/routes/collections.rs:102`
    mutates the in-memory registry only, so the wizard's collection choice
    evaporates on restart. A direct D3 violation. Wrap in `mutate_config`.
-4. **Git REST surface** — nothing exists; zero `/api/v1/git*` routes. Mirror
+4. **Git REST surface** - nothing exists; zero `/api/v1/git*` routes. Mirror
    the kanban quartet exactly, including its convention that `validate` returns
    `{valid, error}` rather than a 4xx on a bad token:
 
@@ -247,12 +247,12 @@ The kanban quartet being done is the single biggest head start here. Read
    ```
 
    `initialized` **must** use the existing shared predicate
-   `startup::workspace_initialized(&config)` — already extracted in Phase A and
+   `startup::workspace_initialized(&config)` - already extracted in Phase A and
    already used by `App::new`. If the two surfaces compute "is this set up?"
    differently, D3 is unenforceable.
 
-6. **`ui/src/api-client.ts`** — kanban, git, setup, integrations methods.
-7. **The wizard itself** — `ui/src/routes/onboarding/`, one component per slug,
+6. **`ui/src/api-client.ts`** - kanban, git, setup, integrations methods.
+7. **The wizard itself** - `ui/src/routes/onboarding/`, one component per slug,
    map declared `satisfies Record<SetupStep, StepComponent>` so `tsc` errors
    when a Rust variant lands without a web component. That is the TypeScript-side
    compile-time guard, replacing a drift test.
@@ -264,18 +264,18 @@ The kanban quartet being done is the single biggest head start here. Read
   half-working ticket creation and calling it parity is worse than an honest gap.
 - **Per-wrapper steps** (tmux/vscode/cmux/zellij onboarding) are terminal-centric
   help screens. Decide deliberately whether the browser shows them, shows one
-  combined "session target" screen, or skips them — and record the decision in
+  combined "session target" screen, or skips them - and record the decision in
   the parity test's allowlist either way.
 
-## 7. Acceptance — how to prove D3
+## 7. Acceptance - how to prove D3
 
 The bar is not "tests pass". It is two clean rooms producing interchangeable
 config.
 
 1. `rm -rf /tmp/opr-tui && mkdir -p /tmp/opr-tui && cd /tmp/opr-tui && operator`
-   — walk the wizard, choosing a non-default on every screen.
+   - walk the wizard, choosing a non-default on every screen.
 2. `rm -rf /tmp/opr-web && mkdir -p /tmp/opr-web && cd /tmp/opr-web && operator api --open`
-   — bootstrap at `/#/setup`, complete `/#/onboarding`, choosing the same options.
+   - bootstrap at `/#/setup`, complete `/#/onboarding`, choosing the same options.
 3. **Diff the two `config.toml` files.** Differences must be explainable by the
    choices made, not by which surface wrote them. This is the D3 check.
 4. Start `operator` in `/tmp/opr-web`: the TUI must read the web-produced config
@@ -309,7 +309,7 @@ From `CLAUDE.md` and established over Phase A:
 - **TDD.** Write the failing test first; confirm it fails for the right reason.
 - **Verify guards are not vacuous.** Every parity test added in Phase A was
   confirmed by deliberately breaking it and watching it fail. Do the same.
-- **`make check` before declaring done** — and read its *actual* exit code. A
+- **`make check` before declaring done** - and read its *actual* exit code. A
   grep over its output that matches nothing is not evidence of success; that
   mistake hid a real failure during Phase A.
 - **Do not commit.** The user handles all git operations manually.

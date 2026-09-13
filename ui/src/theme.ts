@@ -1,23 +1,23 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 
-export type Theme = 'light' | 'dark';
+export type Theme = "light" | "dark";
 
-const STORAGE_KEY = 'operator-theme';
+const STORAGE_KEY = "operator-theme";
 
 function readStoredTheme(): Theme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark') {
+    if (stored === "light" || stored === "dark") {
       return stored;
     }
   } catch {
-    // localStorage unavailable (e.g. restricted webview) — fall through
+    // localStorage unavailable (e.g. restricted webview) - fall through
   }
-  return 'light';
+  return "light";
 }
 
 function applyTheme(theme: Theme): void {
-  document.documentElement.setAttribute('data-theme', theme);
+  document.documentElement.setAttribute("data-theme", theme);
 }
 
 /**
@@ -38,7 +38,7 @@ export function useTheme(): { theme: Theme; toggleTheme: () => void } {
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
 
   return { theme, toggleTheme };

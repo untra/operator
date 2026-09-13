@@ -359,6 +359,51 @@ mod tests {
     }
 
     #[test]
+    fn test_simultaneous_first_opens_all_reach_wal() {
+        // The one-time WAL conversion takes an exclusive lock and reports
+        // `SQLITE_BUSY` without consulting the busy handler, so `busy_timeout`
+        // does not cover it. The collision is a race, so repeat it: one round
+        // catches a regression ~15% of the time, these odds are ~99%.
+        const OPENERS: usize = 16;
+        const ROUNDS: usize = 30;
+
+        let mut failures: Vec<String> = Vec::new();
+        for _ in 0..ROUNDS {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("auth.sqlite3");
+            let start = std::sync::Barrier::new(OPENERS);
+
+            failures.extend(std::thread::scope(|scope| {
+                let handles: Vec<_> = (0..OPENERS)
+                    .map(|_| {
+                        let path = path.clone();
+                        let start = &start;
+                        scope.spawn(move || {
+                            let conn = Connection::open(&path)?;
+                            start.wait();
+                            apply_pragmas(&conn)?;
+                            let mode: String =
+                                conn.query_row("PRAGMA journal_mode", [], |r| r.get(0))?;
+                            anyhow::ensure!(mode == "wal", "journal_mode is {mode}, not wal");
+                            anyhow::Ok(())
+                        })
+                    })
+                    .collect();
+                handles
+                    .into_iter()
+                    .filter_map(|h| h.join().expect("thread should not panic").err())
+                    .map(|e| format!("{e:#}"))
+                    .collect::<Vec<_>>()
+            }));
+        }
+
+        assert!(
+            failures.is_empty(),
+            "every simultaneous opener must reach WAL, got: {failures:#?}"
+        );
+    }
+
+    #[test]
     fn test_downgrade_is_refused_rather_than_silently_accepted() {
         let mut conn = Connection::open_in_memory().unwrap();
         apply_pragmas(&conn).unwrap();

@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 
 interface RightPanelState {
   /** The node currently shown in the panel, or null when the panel is closed. */
-  content: ReactNode | null;
+  content: ReactNode;
   /** Optional heading shown in the panel's header row. */
   title: string | null;
   /** Open the panel with `content` and an optional `title`. */
@@ -26,7 +26,7 @@ const RightPanelContext = createContext<RightPanelState>({
 });
 
 export function RightPanelProvider({ children }: { children: ReactNode }) {
-  const [content, setContent] = useState<ReactNode | null>(null);
+  const [content, setContent] = useState<ReactNode>(null);
   const [title, setTitle] = useState<string | null>(null);
 
   const open = useCallback((node: ReactNode, t?: string) => {

@@ -586,8 +586,8 @@
     "watch:webview": "webpack --config webpack.webview.config.js --mode development --watch",
     "pretest": "npm run compile && npm run lint && npm run fmt:check",
     "lint": "oxlint --type-aware src test webview-ui",
-    "fmt": "oxfmt --write 'src/**/*.ts' 'test/**/*.ts' 'webview-ui/**/*.{ts,tsx}' 'scripts/**/*.js'",
-    "fmt:check": "oxfmt --check 'src/**/*.ts' 'test/**/*.ts' 'webview-ui/**/*.{ts,tsx}' 'scripts/**/*.js'",
+    "fmt": "oxfmt --write \"src/**/*.ts\" \"test/**/*.ts\" \"webview-ui/**/*.{ts,tsx}\" \"scripts/**/*.js\"",
+    "fmt:check": "oxfmt --check \"src/**/*.ts\" \"test/**/*.ts\" \"webview-ui/**/*.{ts,tsx}\" \"scripts/**/*.js\"",
     "test": "vscode-test",
     "test:coverage": "node out/test/runTest.js",
     "package": "vsce package",
@@ -602,7 +602,6 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@types/glob": "^9.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "26.x",
     "@types/react": "^19.2.0",

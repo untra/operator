@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SetupStep } from "@operator/bindings/SetupStep";
+import type { SetupStatusResponse } from "../../api-client";
 import { ApiError, OperatorApi } from "../../api-client";
 import { useHost } from "../../host";
 import { STEP_COMPONENTS, visibleSteps } from "./steps";
@@ -11,7 +12,7 @@ export function OnboardingPage() {
   const host = useHost();
   const navigate = useNavigate();
   const [api] = useState(() => new OperatorApi(host));
-  const [status, setStatus] = useState<Awaited<ReturnType<typeof api.setupStatus>> | null>(null);
+  const [status, setStatus] = useState<SetupStatusResponse | null>(null);
   const [steps, setSteps] = useState<Awaited<ReturnType<typeof api.setupSteps>>>([]);
   const [integrations, setIntegrations] = useState<Awaited<ReturnType<typeof api.integrations>>>(
     [],

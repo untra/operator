@@ -3,7 +3,19 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// Session wrapper type for terminal session management
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    TS,
+    utoipa::ToSchema,
+)]
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum SessionWrapperType {

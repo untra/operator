@@ -15,6 +15,8 @@ pub mod editors;
 pub mod git;
 pub mod queue;
 pub mod rest;
+pub mod setup;
+pub mod startup;
 pub mod state;
 pub mod types;
 
@@ -24,9 +26,8 @@ mod llm;
 mod notifications;
 mod permissions;
 mod pr_config;
-mod projects;
-mod services;
-mod startup;
+pub mod projects;
+pub mod services;
 mod steps;
 #[allow(dead_code)]
 pub mod taxonomy;

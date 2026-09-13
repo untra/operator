@@ -91,6 +91,7 @@ Agent launch behavior and confirmations
 | `confirm_autonomous` * | `boolean` | true |  |
 | `confirm_paired` * | `boolean` | true |  |
 | `launch_delay_ms` * | `integer` | 2000 |  |
+| `target` | `string` \| `null` | - | Default named execution target. Per-launch and per-delegator choices take precedence. |
 | `docker` | → `DockerConfig` | - | Docker execution configuration |
 | `yolo` | → `YoloConfig` | - | YOLO (auto-accept) mode configuration |
 

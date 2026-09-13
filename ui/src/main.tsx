@@ -19,6 +19,8 @@ import { ResetPasswordPage } from './routes/ResetPasswordPage';
 import { SetupPage } from './routes/SetupPage';
 import { DevicePage } from './routes/DevicePage';
 import { SecurityPage } from './routes/SecurityPage';
+import { OnboardingPage } from './routes/onboarding/OnboardingPage';
+import { WorkspaceGate } from './WorkspaceGate';
 
 const host = createBrowserHost();
 
@@ -33,7 +35,9 @@ createRoot(document.getElementById('root')!).render(
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="setup" element={<SetupPage />} />
-          <Route element={<Layout />}>
+          <Route path="onboarding" element={<OnboardingPage />} />
+          <Route element={<WorkspaceGate />}>
+            <Route element={<Layout />}>
             <Route path="device" element={<DevicePage />} />
             <Route path="settings/security" element={<SecurityPage />} />
             <Route index element={<DashboardPage />} />
@@ -50,6 +54,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="queue" element={<QueuePage />} />
             <Route path="status" element={<StatusPage />} />
             <Route path="agent/:id" element={<AgentDetailPage />} />
+            </Route>
           </Route>
         </Routes>
       </HashRouter>

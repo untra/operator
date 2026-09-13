@@ -3,7 +3,9 @@
 use std::collections::HashMap;
 
 use crate::agents::{SystemTmuxClient, TmuxClient, TmuxError};
+use crate::api::providers::model_server::ModelServerKind;
 use crate::config::{CollectionPreset, SessionWrapperType};
+use crate::integrations::catalog::{onboardable, CatalogEntry, Vertical};
 use crate::ui::masked_input::MaskedInput;
 use ratatui::{widgets::ListState, Frame};
 
@@ -14,6 +16,10 @@ pub use types::*;
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) const LOCAL_TARGET_OPTION_INDEX: usize = 0;
+pub(crate) const CODER_TARGET_OPTION_INDEX: usize = 1;
+const EXECUTION_TARGET_OPTION_COUNT: usize = 2;
 
 /// Setup screen shown when .tickets/ directory doesn't exist
 pub struct SetupScreen {
@@ -67,23 +73,41 @@ pub struct SetupScreen {
     /// Detected kanban providers from environment variables
     pub detected_kanban_providers: Vec<crate::api::providers::kanban::DetectedKanbanProvider>,
     /// Indices of providers with valid credentials
-    pub valid_kanban_providers: Vec<usize>,
-    /// Projects fetched from current provider being configured
-    pub kanban_projects:
-        super::paginated_list::PaginatedList<crate::api::providers::kanban::ProjectInfo>,
-    /// Issue types for the currently selected project
-    pub kanban_issue_types: Vec<String>,
-    /// Member count for the currently selected project
-    pub kanban_member_count: usize,
+    /// Highlighted row on the kanban info step (0 = connect, 1 = skip)
+    pub(crate) kanban_choice_state: ListState,
+    /// Set when the user chose "connect"; the key handler opens the dialog
+    pub(crate) kanban_dialog_requested: bool,
+    // ─── Model Server State ─────────────────────────────────────────────────
+    /// Cursor over `model_providers()`
+    pub(crate) model_server_state: ListState,
+    /// Live probe result per kind slug, filled on entering the step
+    pub(crate) model_server_probes: std::collections::HashMap<String, String>,
+    /// Kind slugs the user declared, written as `[[model_servers]]` entries
+    pub model_servers_declared: Vec<String>,
+    /// Whether the probe pass has run
+    pub model_servers_probed: bool,
+    // ─── Git Provider State ─────────────────────────────────────────────────
+    /// Cursor over `git_providers()`
+    pub(crate) git_provider_state: ListState,
+    /// Slug the user asked to connect; the key handler resolves onboarding
+    pub(crate) git_connect_requested: Option<String>,
+    /// Per-slug outcome line rendered next to the provider
+    pub(crate) git_provider_status: std::collections::HashMap<String, String>,
+    /// Shell line that persists the connected provider's token
+    pub(crate) git_export_hint: Option<String>,
     /// Whether kanban detection/testing has run
     pub kanban_detection_complete: bool,
-    /// Whether the user chose to skip kanban setup
-    pub kanban_skipped: bool,
     // ─── Session Wrapper Setup State ────────────────────────────────────────────
     /// Selected session wrapper type
     pub selected_wrapper: SessionWrapperType,
     /// List state for wrapper selection
     pub(crate) wrapper_state: ListState,
+    // ─── Execution Target State ─────────────────────────────────────────────
+    pub(crate) execution_target_state: ListState,
+    pub(crate) coder_target_name: String,
+    pub(crate) coder_template: String,
+    pub(crate) coder_field: CoderSetupField,
+    pub(crate) execution_target_error: Option<String>,
     /// Tmux availability status (checked during `TmuxOnboarding` step)
     pub tmux_status: TmuxDetectionStatus,
     /// VS Code extension status (checked during `VSCodeSetup` step)
@@ -130,6 +154,9 @@ impl SetupScreen {
         let mut worktree_state = ListState::default();
         worktree_state.select(Some(0));
 
+        let mut execution_target_state = ListState::default();
+        execution_target_state.select(Some(LOCAL_TARGET_OPTION_INDEX));
+
         let mut hosted_state = ListState::default();
         hosted_state.select(Some(0));
 
@@ -162,15 +189,37 @@ impl SetupScreen {
                 .to_string(),
             // Kanban setup state
             detected_kanban_providers: Vec::new(),
-            valid_kanban_providers: Vec::new(),
-            kanban_projects: super::paginated_list::PaginatedList::new(8),
-            kanban_issue_types: Vec::new(),
-            kanban_member_count: 0,
+            kanban_choice_state: {
+                let mut st = ListState::default();
+                st.select(Some(0));
+                st
+            },
+            kanban_dialog_requested: false,
+            model_server_state: {
+                let mut st = ListState::default();
+                st.select(Some(0));
+                st
+            },
+            model_server_probes: std::collections::HashMap::new(),
+            model_servers_declared: Vec::new(),
+            model_servers_probed: false,
+            git_provider_state: {
+                let mut st = ListState::default();
+                st.select(Some(0));
+                st
+            },
+            git_connect_requested: None,
+            git_provider_status: std::collections::HashMap::new(),
+            git_export_hint: None,
             kanban_detection_complete: false,
-            kanban_skipped: false,
             // Session wrapper state
             selected_wrapper: SessionWrapperType::Tmux,
             wrapper_state,
+            execution_target_state,
+            coder_target_name: crate::config::DEFAULT_CODER_TARGET_NAME.to_string(),
+            coder_template: String::new(),
+            coder_field: CoderSetupField::TargetName,
+            execution_target_error: None,
             tmux_status: TmuxDetectionStatus::NotChecked,
             vscode_status: VSCodeDetectionStatus::NotChecked,
             // Git worktree state
@@ -311,6 +360,7 @@ impl SetupScreen {
     /// Toggle selection (Space key)
     pub fn toggle_selection(&mut self) {
         match self.step {
+            SetupStep::ModelServer => self.toggle_model_server(),
             SetupStep::HostedCollectionFetch => {
                 // Toggle the highlighted collection in the multi-select picker.
                 if let Some(r) = self.highlighted_hosted() {
@@ -344,6 +394,9 @@ impl SetupScreen {
                     }
                 }
             }
+            SetupStep::ExecutionTarget => {
+                self.coder_field = self.coder_field.toggled();
+            }
             SetupStep::WorktreePreference => {
                 // Select the currently highlighted worktree option
                 if let Some(i) = self.worktree_state.selected() {
@@ -375,6 +428,29 @@ impl SetupScreen {
     /// Move to next item in list
     pub fn select_next(&mut self) {
         match self.step {
+            SetupStep::KanbanInfo => {
+                let i = self
+                    .kanban_choice_state
+                    .selected()
+                    .map_or(0, |i| (i + 1) % 2);
+                self.kanban_choice_state.select(Some(i));
+            }
+            SetupStep::ModelServer => {
+                let len = Self::model_providers().len();
+                let i = self
+                    .model_server_state
+                    .selected()
+                    .map_or(0, |i| (i + 1) % len);
+                self.model_server_state.select(Some(i));
+            }
+            SetupStep::GitProvider => {
+                let len = Self::git_providers().len() + 1;
+                let i = self
+                    .git_provider_state
+                    .selected()
+                    .map_or(0, |i| (i + 1) % len);
+                self.git_provider_state.select(Some(i));
+            }
             SetupStep::CollectionSource => {
                 let len = self.source_options.len();
                 if len > 0 {
@@ -399,6 +475,16 @@ impl SetupScreen {
                 let i = self.wrapper_state.selected().map_or(0, |i| (i + 1) % len);
                 self.wrapper_state.select(Some(i));
             }
+            SetupStep::ExecutionTarget => {
+                let i = self
+                    .execution_target_state
+                    .selected()
+                    .map_or(LOCAL_TARGET_OPTION_INDEX, |i| {
+                        (i + 1) % EXECUTION_TARGET_OPTION_COUNT
+                    });
+                self.execution_target_state.select(Some(i));
+                self.execution_target_error = None;
+            }
             SetupStep::WorktreePreference => {
                 let len = WorktreeOption::all().len();
                 let i = self.worktree_state.selected().map_or(0, |i| (i + 1) % len);
@@ -416,6 +502,35 @@ impl SetupScreen {
     /// Move to previous item in list
     pub fn select_prev(&mut self) {
         match self.step {
+            SetupStep::KanbanInfo => {
+                let i = self
+                    .kanban_choice_state
+                    .selected()
+                    .map_or(0, |i| (i + 1) % 2);
+                self.kanban_choice_state.select(Some(i));
+            }
+            SetupStep::ModelServer => {
+                let len = Self::model_providers().len();
+                let i = self.model_server_state.selected().map_or(0, |i| {
+                    if i == 0 {
+                        len - 1
+                    } else {
+                        i - 1
+                    }
+                });
+                self.model_server_state.select(Some(i));
+            }
+            SetupStep::GitProvider => {
+                let len = Self::git_providers().len() + 1;
+                let i = self.git_provider_state.selected().map_or(0, |i| {
+                    if i == 0 {
+                        len - 1
+                    } else {
+                        i - 1
+                    }
+                });
+                self.git_provider_state.select(Some(i));
+            }
             SetupStep::CollectionSource => {
                 let len = self.source_options.len();
                 if len > 0 {
@@ -457,6 +572,16 @@ impl SetupScreen {
                         .selected()
                         .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
                 self.wrapper_state.select(Some(i));
+            }
+            SetupStep::ExecutionTarget => {
+                let i = self
+                    .execution_target_state
+                    .selected()
+                    .map_or(CODER_TARGET_OPTION_INDEX, |i| {
+                        usize::from(i == LOCAL_TARGET_OPTION_INDEX)
+                    });
+                self.execution_target_state.select(Some(i));
+                self.execution_target_error = None;
             }
             SetupStep::WorktreePreference => {
                 let len = WorktreeOption::all().len();
@@ -547,6 +672,160 @@ impl SetupScreen {
         self.password_error = None;
     }
 
+    pub fn handle_execution_target_key(&mut self, code: ratatui::crossterm::event::KeyCode) {
+        use ratatui::crossterm::event::KeyCode;
+
+        if self.execution_target_state.selected() != Some(CODER_TARGET_OPTION_INDEX) {
+            return;
+        }
+        let value = match self.coder_field {
+            CoderSetupField::TargetName => &mut self.coder_target_name,
+            CoderSetupField::Template => &mut self.coder_template,
+        };
+        match code {
+            KeyCode::Char(c) => value.push(c),
+            KeyCode::Backspace | KeyCode::Delete => {
+                value.pop();
+            }
+            _ => return,
+        }
+        self.execution_target_error = None;
+    }
+
+    pub fn selected_execution_target(&self) -> crate::config::TargetDef {
+        if self.execution_target_state.selected() != Some(CODER_TARGET_OPTION_INDEX) {
+            return crate::config::TargetDef::local();
+        }
+        crate::config::TargetDef {
+            name: self.coder_target_name.trim().to_string(),
+            display_name: Some("Coder".to_string()),
+            kind: crate::config::TargetKind::Coder(crate::config::CoderConfig {
+                template: self.coder_template.trim().to_string(),
+                ..Default::default()
+            }),
+        }
+    }
+
+    fn coder_target_selected(&self) -> bool {
+        self.execution_target_state.selected() == Some(CODER_TARGET_OPTION_INDEX)
+    }
+
+    /// Declare or undeclare the highlighted provider. Kinds without a default
+    /// base URL need one supplied by hand, so they are not selectable here.
+    fn toggle_model_server(&mut self) {
+        let Some(kind) = self
+            .model_server_state
+            .selected()
+            .and_then(|i| Self::model_providers().get(i).map(|(_, k)| *k))
+        else {
+            return;
+        };
+        if !kind.connectable_from_defaults() {
+            return;
+        }
+        let slug = kind.slug().to_string();
+        if let Some(pos) = self.model_servers_declared.iter().position(|s| s == &slug) {
+            self.model_servers_declared.remove(pos);
+        } else {
+            self.model_servers_declared.push(slug);
+        }
+    }
+
+    /// Probe every connectable kind against its defaults, mirroring what the
+    /// web UI's provider cards show.
+    pub async fn probe_model_servers(&mut self, config: &crate::config::Config) {
+        if self.model_servers_probed {
+            return;
+        }
+        self.model_servers_probed = true;
+        let policy = crate::auth::egress::EgressPolicy::from_config(config);
+        for (_, kind) in Self::model_providers() {
+            if !kind.connectable_from_defaults() {
+                continue;
+            }
+            let server = crate::config::ModelServer {
+                name: kind.slug().to_string(),
+                kind: kind.slug().to_string(),
+                base_url: kind.default_base_url().map(str::to_string),
+                api_key_env: kind.default_api_key_env().map(str::to_string),
+                extra_env: std::collections::HashMap::new(),
+                display_name: None,
+            };
+            let outcome = crate::api::providers::model_server::probe_models(&server, &policy).await;
+            let status = if outcome.reachable {
+                format!("{} models", outcome.models.len())
+            } else if kind
+                .default_api_key_env()
+                .is_some_and(|e| std::env::var(e).is_err())
+            {
+                "key missing".to_string()
+            } else {
+                outcome
+                    .error
+                    .unwrap_or_else(|| "unreachable".to_string())
+                    .chars()
+                    .take(40)
+                    .collect()
+            };
+            self.model_server_probes
+                .insert(kind.slug().to_string(), status);
+        }
+    }
+
+    /// The declared providers, as `[[model_servers]]` entries.
+    pub fn declared_model_servers(&self) -> Vec<crate::config::ModelServer> {
+        self.model_servers_declared
+            .iter()
+            .filter_map(|slug| ModelServerKind::from_slug(slug))
+            .map(|kind| crate::config::ModelServer {
+                name: kind.slug().to_string(),
+                kind: kind.slug().to_string(),
+                base_url: kind.default_base_url().map(str::to_string),
+                api_key_env: kind.default_api_key_env().map(str::to_string),
+                extra_env: std::collections::HashMap::new(),
+                display_name: Some(kind.display_name().to_string()),
+            })
+            .collect()
+    }
+
+    /// Git providers the wizard offers, from the integration catalog.
+    pub(crate) fn git_providers() -> Vec<CatalogEntry> {
+        onboardable(Vertical::Git)
+    }
+
+    /// Model providers the wizard offers, from the integration catalog. Each
+    /// resolves to a `ModelServerKind` (guaranteed by `tests/vertical_parity.rs`).
+    pub(crate) fn model_providers() -> Vec<(CatalogEntry, ModelServerKind)> {
+        onboardable(Vertical::Model)
+            .into_iter()
+            .filter_map(|e| ModelServerKind::from_slug(e.slug).map(|k| (e, k)))
+            .collect()
+    }
+
+    /// The highlighted provider slug, or `None` for the trailing "skip" row.
+    pub(crate) fn selected_git_provider(&self) -> Option<String> {
+        let providers = Self::git_providers();
+        self.git_provider_state
+            .selected()
+            .and_then(|i| providers.get(i))
+            .map(|e| e.slug.to_string())
+    }
+
+    /// Consume a pending request to connect a git provider.
+    pub fn take_git_connect_request(&mut self) -> Option<String> {
+        self.git_connect_requested.take()
+    }
+
+    /// Record the outcome of a connect attempt for display.
+    pub fn set_git_provider_status(&mut self, slug: &str, status: String) {
+        self.git_provider_status.insert(slug.to_string(), status);
+    }
+
+    /// Consume a pending request to open the kanban onboarding dialog.
+    pub fn take_kanban_dialog_request(&mut self) -> bool {
+        std::mem::take(&mut self.kanban_dialog_requested)
+    }
+
     pub fn confirm(&mut self) -> SetupResult {
         match self.step {
             SetupStep::Welcome => {
@@ -562,23 +841,24 @@ impl SetupScreen {
                 SetupResult::Continue
             }
             SetupStep::KanbanInfo => {
-                // Configure valid providers, otherwise proceed to the collection step.
-                if self.valid_kanban_providers.is_empty() || self.kanban_skipped {
-                    self.enter_collection_source();
+                // Row 0 hands off to the shared onboarding dialog, which
+                // collects credentials and writes the provider section.
+                if self.kanban_choice_state.selected() == Some(0) {
+                    self.kanban_dialog_requested = true;
                 } else {
-                    self.step = SetupStep::KanbanProviderSetup { provider_index: 0 };
+                    self.step = SetupStep::ModelServer;
                 }
                 SetupResult::Continue
             }
-            SetupStep::KanbanProviderSetup { provider_index } => {
-                // Move to the next provider or on to the collection step.
-                let next_index = provider_index + 1;
-                if next_index < self.valid_kanban_providers.len() {
-                    self.step = SetupStep::KanbanProviderSetup {
-                        provider_index: next_index,
-                    };
-                } else {
-                    self.enter_collection_source();
+            SetupStep::ModelServer => {
+                self.step = SetupStep::GitProvider;
+                SetupResult::Continue
+            }
+            SetupStep::GitProvider => {
+                // Row 0..n connect; the last row moves on without a provider.
+                match self.selected_git_provider() {
+                    Some(slug) => self.git_connect_requested = Some(slug),
+                    None => self.enter_collection_source(),
                 }
                 SetupResult::Continue
             }
@@ -643,7 +923,38 @@ impl SetupScreen {
                         self.selected_wrapper = options[i].to_wrapper_type();
                     }
                 }
-                // Navigate to worktree preference step
+                self.step = SetupStep::ExecutionTarget;
+                SetupResult::Continue
+            }
+            SetupStep::ExecutionTarget => {
+                if self.coder_target_selected() {
+                    if self.selected_wrapper == SessionWrapperType::Zellij {
+                        self.execution_target_error =
+                            Some("Coder targets cannot use the Zellij session wrapper".to_string());
+                        return SetupResult::Continue;
+                    }
+                    if self.coder_target_name.trim().is_empty() {
+                        self.execution_target_error =
+                            Some("Coder target name is required".to_string());
+                        return SetupResult::Continue;
+                    }
+                    if matches!(
+                        self.coder_target_name.trim(),
+                        crate::config::TARGET_LOCAL | crate::config::TARGET_DOCKER
+                    ) {
+                        self.execution_target_error = Some(format!(
+                            "'{}' is reserved for a built-in target",
+                            self.coder_target_name.trim()
+                        ));
+                        return SetupResult::Continue;
+                    }
+                    if self.coder_template.trim().is_empty() {
+                        self.execution_target_error =
+                            Some("Coder template is required".to_string());
+                        return SetupResult::Continue;
+                    }
+                    self.use_worktrees = false;
+                }
                 self.step = SetupStep::WorktreePreference;
                 SetupResult::Continue
             }
@@ -652,7 +963,8 @@ impl SetupScreen {
                 if let Some(i) = self.worktree_state.selected() {
                     let options = WorktreeOption::all();
                     if i < options.len() {
-                        self.use_worktrees = options[i].to_use_worktrees();
+                        self.use_worktrees =
+                            !self.coder_target_selected() && options[i].to_use_worktrees();
                     }
                 }
                 // The wrapper fan-out now lives on the AdminPassword arm, so
@@ -724,26 +1036,16 @@ impl SetupScreen {
                 self.step = SetupStep::Welcome;
                 SetupResult::Continue
             }
-            SetupStep::KanbanProviderSetup { provider_index } => {
-                if provider_index > 0 {
-                    self.step = SetupStep::KanbanProviderSetup {
-                        provider_index: provider_index - 1,
-                    };
-                } else {
-                    self.step = SetupStep::KanbanInfo;
-                }
+            SetupStep::ModelServer => {
+                self.step = SetupStep::KanbanInfo;
+                SetupResult::Continue
+            }
+            SetupStep::GitProvider => {
+                self.step = SetupStep::ModelServer;
                 SetupResult::Continue
             }
             SetupStep::CollectionSource => {
-                // Return to the kanban step that preceded the collection step.
-                if !self.valid_kanban_providers.is_empty() && !self.kanban_skipped {
-                    let last_index = self.valid_kanban_providers.len() - 1;
-                    self.step = SetupStep::KanbanProviderSetup {
-                        provider_index: last_index,
-                    };
-                } else {
-                    self.step = SetupStep::KanbanInfo;
-                }
+                self.step = SetupStep::GitProvider;
                 SetupResult::Continue
             }
             SetupStep::HostedCollectionFetch => {
@@ -764,6 +1066,10 @@ impl SetupScreen {
                 SetupResult::Continue
             }
             SetupStep::WorktreePreference => {
+                self.step = SetupStep::ExecutionTarget;
+                SetupResult::Continue
+            }
+            SetupStep::ExecutionTarget => {
                 self.step = SetupStep::SessionWrapperChoice;
                 SetupResult::Continue
             }
@@ -836,15 +1142,15 @@ impl SetupScreen {
             SetupStep::HostedCollectionFetch => self.render_hosted_collection_step(frame),
             SetupStep::TaskFieldConfig => self.render_task_field_config_step(frame),
             SetupStep::SessionWrapperChoice => self.render_session_wrapper_choice_step(frame),
+            SetupStep::ExecutionTarget => self.render_execution_target_step(frame),
             SetupStep::WorktreePreference => self.render_worktree_preference_step(frame),
             SetupStep::TmuxOnboarding => self.render_tmux_onboarding_step(frame),
             SetupStep::VSCodeSetup => self.render_vscode_setup_step(frame),
             SetupStep::CmuxSetup => self.render_cmux_setup_step(frame),
             SetupStep::ZellijSetup => self.render_zellij_setup_step(frame),
             SetupStep::KanbanInfo => self.render_kanban_info_step(frame),
-            SetupStep::KanbanProviderSetup { provider_index } => {
-                self.render_kanban_provider_setup_step(frame, provider_index);
-            }
+            SetupStep::ModelServer => self.render_model_server_step(frame),
+            SetupStep::GitProvider => self.render_git_provider_step(frame),
             SetupStep::AdminPassword => self.render_admin_password_step(frame),
             SetupStep::AcceptanceCriteria => self.render_acceptance_criteria_step(frame),
             SetupStep::StartupTickets => self.render_startup_tickets_step(frame),

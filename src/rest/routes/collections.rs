@@ -103,9 +103,20 @@ pub async fn activate(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<CollectionResponse>, ApiError> {
-    let mut registry = state.registry.write().await;
+    if state.registry.read().await.get_collection(&name).is_none() {
+        return Err(ApiError::NotFound(format!("Collection '{name}' not found")));
+    }
+    state
+        .mutate_config({
+            let name = name.clone();
+            move |config| {
+                config.templates.active_collection = Some(name);
+                Ok(())
+            }
+        })
+        .await?;
 
-    // Activate the collection
+    let mut registry = state.registry.write().await;
     registry
         .activate_collection(&name)
         .map_err(|e| ApiError::NotFound(format!("Failed to activate collection: {e}")))?;
@@ -124,10 +135,12 @@ mod tests {
     use crate::config::Config;
 
     fn make_state() -> ApiState {
-        let config = Config::default();
-        // Use a unique temp directory for each test to avoid state pollution
+        let mut config = Config::default();
         let temp_dir = tempfile::TempDir::new().unwrap();
-        ApiState::new(config, temp_dir.keep())
+        let root = temp_dir.keep();
+        config.paths.tickets = root.join("tickets").display().to_string();
+        config.paths.state = root.join("state").display().to_string();
+        ApiState::new(config, root.join("tickets"))
     }
 
     #[tokio::test]
@@ -183,5 +196,11 @@ mod tests {
         // Verify it's now active
         let registry = state.registry.read().await;
         assert_eq!(registry.active_collection_name(), "simple");
+        assert_eq!(
+            state.config().templates.active_collection.as_deref(),
+            Some("simple")
+        );
+        let saved = std::fs::read_to_string(state.config().operator_config_path_for()).unwrap();
+        assert!(saved.contains("active_collection = \"simple\""));
     }
 }

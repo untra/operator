@@ -178,8 +178,15 @@ fn wrap_for_target_impl(
 
 /// Whether Operator itself is running inside a container (docker/podman).
 fn is_containerized() -> bool {
-    std::path::Path::new("/.dockerenv").exists()
-        || std::path::Path::new("/run/.containerenv").exists()
+    container_signals(
+        std::path::Path::new("/.dockerenv").exists(),
+        std::path::Path::new("/run/.containerenv").exists(),
+        std::env::var_os("KUBERNETES_SERVICE_HOST").is_some(),
+    )
+}
+
+fn container_signals(docker: bool, podman: bool, kubernetes: bool) -> bool {
+    docker || podman || kubernetes
 }
 
 /// Build a docker command that wraps the LLM command.
@@ -1149,6 +1156,14 @@ mod tests {
             err.to_string().contains("container IS the sandbox"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn test_container_signals_include_kubernetes() {
+        assert!(container_signals(true, false, false));
+        assert!(container_signals(false, true, false));
+        assert!(container_signals(false, false, true));
+        assert!(!container_signals(false, false, false));
     }
 
     // ========================================

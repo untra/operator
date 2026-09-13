@@ -432,6 +432,21 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
 }
 
 /// Find the catalog entry for a `(vertical, slug)` pair, if present.
+/// Entries a first-run wizard may offer for this vertical.
+///
+/// `Alpha`+ and documented: onboarding links out to each provider's page, and
+/// `Proto` entries are by definition not advertised. This is what keeps the TUI
+/// wizard, the web wizard and the docs offering the same providers - promoting
+/// one is a status bump here, not an edit in each surface.
+pub fn onboardable(vertical: Vertical) -> Vec<CatalogEntry> {
+    all_integrations()
+        .into_iter()
+        .filter(|e| {
+            e.vertical == vertical && e.status >= SupportStatus::Alpha && e.docs_path.is_some()
+        })
+        .collect()
+}
+
 pub fn entry_for(vertical: Vertical, slug: &str) -> Option<CatalogEntry> {
     all_integrations()
         .into_iter()
@@ -529,5 +544,60 @@ mod tests {
         let jira = entry_for(Vertical::Kanban, "jira").expect("jira entry");
         assert_eq!(jira.status, SupportStatus::Beta);
         assert!(entry_for(Vertical::Kanban, "nope").is_none());
+    }
+
+    // --- Onboarding surface ---
+
+    fn slugs(vertical: Vertical) -> Vec<&'static str> {
+        onboardable(vertical).iter().map(|e| e.slug).collect()
+    }
+
+    #[test]
+    fn test_onboardable_git_is_the_alpha_or_better_set() {
+        assert_eq!(slugs(Vertical::Git), vec!["github", "gitlab", "gitea"]);
+    }
+
+    #[test]
+    fn test_onboardable_model_excludes_proto_entries() {
+        let model = slugs(Vertical::Model);
+        assert!(model.contains(&"anthropic-api"));
+        assert!(model.contains(&"ollama"));
+        assert!(!model.contains(&"openai-compat"), "openai-compat is Proto");
+        assert!(!model.contains(&"lmstudio"), "lmstudio is Proto");
+    }
+
+    /// Onboarding links out to each provider's page, so an entry without docs
+    /// must never reach a wizard.
+    #[test]
+    fn test_onboardable_entries_are_all_documented() {
+        for vertical in Vertical::ALL {
+            for entry in onboardable(vertical) {
+                assert!(
+                    entry.docs_path.is_some(),
+                    "{}/{} is offered for onboarding but has no docs page",
+                    vertical.slug(),
+                    entry.slug
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_onboardable_never_includes_proto() {
+        for vertical in Vertical::ALL {
+            for entry in onboardable(vertical) {
+                assert!(entry.status >= SupportStatus::Alpha, "{}", entry.slug);
+            }
+        }
+    }
+
+    #[test]
+    fn test_onboardable_preserves_catalog_order() {
+        let all: Vec<&str> = all_integrations()
+            .iter()
+            .filter(|e| e.vertical == Vertical::Model && e.status >= SupportStatus::Alpha)
+            .map(|e| e.slug)
+            .collect();
+        assert_eq!(slugs(Vertical::Model), all);
     }
 }

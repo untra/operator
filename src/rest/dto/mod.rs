@@ -10,20 +10,24 @@
 pub mod agents;
 pub mod auth;
 pub mod configuration;
+pub mod git_onboarding;
 pub mod integrations;
 pub mod issue_types;
 pub mod kanban;
 pub mod sections;
+pub mod setup;
 pub mod tickets;
 pub mod workflow;
 
 pub use agents::*;
 pub use auth::*;
 pub use configuration::*;
+pub use git_onboarding::*;
 pub use integrations::*;
 pub use issue_types::*;
 pub use kanban::*;
 pub use sections::*;
+pub use setup::*;
 pub use tickets::*;
 pub use workflow::*;
 

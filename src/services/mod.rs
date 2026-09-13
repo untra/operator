@@ -5,6 +5,7 @@
 
 #![allow(unused_imports)] // Re-exports for future integration
 
+pub mod git_onboarding;
 pub mod kanban_issuetype_service;
 pub mod kanban_onboarding;
 pub mod kanban_sync;

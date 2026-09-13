@@ -107,9 +107,7 @@ pub async fn write_config(
         .mutate_config(move |config| {
             let section_header = kanban_onboarding::apply_config_request(config, req)?;
             Ok(WriteKanbanConfigResponse {
-                written_path: crate::config::Config::operator_config_path()
-                    .display()
-                    .to_string(),
+                written_path: config.operator_config_path_for().display().to_string(),
                 section_header,
             })
         })

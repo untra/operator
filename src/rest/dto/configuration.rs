@@ -507,6 +507,7 @@ pub struct LaunchConfiguration {
     pub confirm_autonomous: bool,
     pub confirm_paired: bool,
     pub launch_delay_ms: u64,
+    pub target: Option<String>,
     pub docker_enabled: bool,
     pub docker_image: String,
     pub yolo_enabled: bool,
@@ -616,6 +617,7 @@ pub struct LaunchConfigurationPatch {
     pub confirm_autonomous: Option<bool>,
     pub confirm_paired: Option<bool>,
     pub launch_delay_ms: Option<u64>,
+    pub target: Option<String>,
     pub docker_enabled: Option<bool>,
     pub docker_image: Option<String>,
     pub yolo_enabled: Option<bool>,
@@ -627,6 +629,7 @@ impl LaunchConfigurationPatch {
         self.confirm_autonomous.is_none()
             && self.confirm_paired.is_none()
             && self.launch_delay_ms.is_none()
+            && self.target.is_none()
             && self.docker_enabled.is_none()
             && self.docker_image.is_none()
             && self.yolo_enabled.is_none()

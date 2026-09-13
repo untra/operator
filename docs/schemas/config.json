@@ -528,6 +528,14 @@
           "format": "uint64",
           "minimum": 0
         },
+        "target": {
+          "description": "Default named execution target. Per-launch and per-delegator choices\ntake precedence.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "docker": {
           "description": "Docker execution configuration",
           "$ref": "#/$defs/DockerConfig",
@@ -1118,7 +1126,7 @@
           "default": true
         },
         "host": {
-          "description": "Address the REST API binds to. Defaults to `127.0.0.1` (local only) so\nthe server — which reports the project directory name — is not reachable\nfrom other hosts. Set to `0.0.0.0` to expose it on all interfaces.",
+          "description": "Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces.",
           "type": "string",
           "default": "127.0.0.1"
         },
@@ -1139,7 +1147,7 @@
           "default": []
         },
         "public_url": {
-          "description": "Externally reachable base URL (e.g. `https://operator.example.com`).\n\nOAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header,\nwhich a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy.",
+          "description": "Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host.",
           "type": [
             "string",
             "null"
@@ -1384,7 +1392,7 @@
           "default": {}
         },
         "github": {
-          "description": "GitHub Projects v2 instances keyed by owner login (user or org)\n\nNOTE: This is the *kanban* GitHub integration (Projects v2), distinct\nfrom `GitHubConfig` which is the *git provider* used for PRs and\nbranches. The two use different env vars and different scopes — see\n`docs/getting-started/kanban/github.md` for the full disambiguation.",
+          "description": "GitHub Projects v2 instances keyed by owner login (user or org)\n\nNOTE: This is the *kanban* GitHub integration (Projects v2), distinct\nfrom `GitHubConfig` which is the *git provider* used for PRs and\nbranches. The two use different env vars and different scopes - see\n`docs/getting-started/kanban/github.md` for the full disambiguation.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/GithubProjectsConfig"
@@ -1524,7 +1532,7 @@
       }
     },
     "GithubProjectsConfig": {
-      "description": "GitHub Projects v2 (kanban) provider configuration\n\nThe owner login (user or org) is specified as the `HashMap` key in\n`KanbanConfig.github`. Project keys inside `projects` are `GraphQL` node\nIDs (e.g., `PVT_kwDOABcdefg`) — opaque, stable identifiers used directly\nby every GitHub Projects v2 mutation without needing a lookup.\n\n**Distinct from `GitHubConfig`** (the git provider used for PR/branch\noperations). They live in different parts of the config tree, use\ndifferent env vars (`OPERATOR_GITHUB_TOKEN` vs `GITHUB_TOKEN`), and\nrequire different OAuth scopes (`project` vs `repo`). See\n`docs/getting-started/kanban/github.md` for the full rationale.",
+      "description": "GitHub Projects v2 (kanban) provider configuration\n\nThe owner login (user or org) is specified as the `HashMap` key in\n`KanbanConfig.github`. Project keys inside `projects` are `GraphQL` node\nIDs (e.g., `PVT_kwDOABcdefg`) - opaque, stable identifiers used directly\nby every GitHub Projects v2 mutation without needing a lookup.\n\n**Distinct from `GitHubConfig`** (the git provider used for PR/branch\noperations). They live in different parts of the config tree, use\ndifferent env vars (`OPERATOR_GITHUB_TOKEN` vs `GITHUB_TOKEN`), and\nrequire different OAuth scopes (`project` vs `repo`). See\n`docs/getting-started/kanban/github.md` for the full rationale.",
       "type": "object",
       "properties": {
         "enabled": {
@@ -1533,7 +1541,7 @@
           "default": false
         },
         "api_key_env": {
-          "description": "Environment variable name containing the GitHub token (default:\n`OPERATOR_GITHUB_TOKEN`). The token must have `project` (or\n`read:project`) scope, NOT just `repo` — see the disambiguation\nguide in the kanban github docs.",
+          "description": "Environment variable name containing the GitHub token (default:\n`OPERATOR_GITHUB_TOKEN`). The token must have `project` (or\n`read:project`) scope, NOT just `repo` - see the disambiguation\nguide in the kanban github docs.",
           "type": "string",
           "default": "OPERATOR_GITHUB_TOKEN"
         },
@@ -1548,7 +1556,7 @@
       }
     },
     "OpenspecConfig": {
-      "description": "`OpenSpec` provider configuration (experimental, pull-only)\n\nThe instance name is the `HashMap` key in `KanbanConfig.openspec`. There\nare no credentials — the provider reads local markdown under `root_path`.",
+      "description": "`OpenSpec` provider configuration (experimental, pull-only)\n\nThe instance name is the `HashMap` key in `KanbanConfig.openspec`. There\nare no credentials - the provider reads local markdown under `root_path`.",
       "type": "object",
       "properties": {
         "enabled": {
@@ -1660,7 +1668,7 @@
           "default": null
         },
         "remote_agent": {
-          "description": "Declarative reference to a remote, named agent on another platform\n(e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).\n\nExport-only: Operator has no runtime client for those platforms, so a\ndelegator carrying this CANNOT be launched locally — resolution errors out\n(see `delegator_resolution`). It is stored, listed, serialized into an\n`AgentProfile`, and — for `platform == \"agnt\"` — surfaced in the\n`--format agnt` workflow export as a native AGNT `agnt-agent` node, whose\n`agentId` is this reference's `id` (AGNT identifies agents by UUID, so the\n`id` must be the agent's UUID, not its display name). `None` = ordinary,\nlocally launchable delegator.",
+          "description": "Declarative reference to a remote, named agent on another platform\n(e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).\n\nExport-only: Operator has no runtime client for those platforms, so a\ndelegator carrying this CANNOT be launched locally - resolution errors out\n(see `delegator_resolution`). It is stored, listed, serialized into an\n`AgentProfile`, and - for `platform == \"agnt\"` - surfaced in the\n`--format agnt` workflow export as a native AGNT `agnt-agent` node, whose\n`agentId` is this reference's `id` (AGNT identifies agents by UUID, so the\n`id` must be the agent's UUID, not its display name). `None` = ordinary,\nlocally launchable delegator.",
           "anyOf": [
             {
               "$ref": "#/$defs/RemoteAgentRef"
@@ -1846,7 +1854,7 @@
       }
     },
     "RemoteAgentRef": {
-      "description": "A declarative reference to a remote, named agent hosted by another platform.\n\n`platform` is the hosting service (`\"agnt\"`, `\"openai\"`) — deliberately\ndistinct from the core `provider`/`llm_tool` (the model or coding CLI). These\nagents are API/memory-native and live on the remote side; Operator has no\nruntime client for them, so a delegator carrying one is **export-only** and\ncannot be launched locally (see the guard in `delegator_resolution`).",
+      "description": "A declarative reference to a remote, named agent hosted by another platform.\n\n`platform` is the hosting service (`\"agnt\"`, `\"openai\"`) - deliberately\ndistinct from the core `provider`/`llm_tool` (the model or coding CLI). These\nagents are API/memory-native and live on the remote side; Operator has no\nruntime client for them, so a delegator carrying one is **export-only** and\ncannot be launched locally (see the guard in `delegator_resolution`).",
       "type": "object",
       "properties": {
         "platform": {
@@ -2029,11 +2037,11 @@
       ]
     },
     "CoderConfig": {
-      "description": "Coder workspace target: lifecycle + alias provisioning around the shared\nSSH remote-launch path. There is no `enabled` field — presence in\n`[[targets]]` is the enablement.",
+      "description": "Coder workspace target: lifecycle + alias provisioning around the shared\nSSH remote-launch path. There is no `enabled` field - presence in\n`[[targets]]` is the enablement.",
       "type": "object",
       "properties": {
         "template": {
-          "description": "Coder template child workspaces are created from (an allowlist —\nnever per-ticket input)",
+          "description": "Coder template child workspaces are created from (an allowlist -\nnever per-ticket input)",
           "type": "string"
         },
         "url_env": {

@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::agents::{generate_status_script, generate_tmux_conf};
-use crate::config::{CollectionPreset, Config};
+use crate::config::{CollectionPreset, Config, SessionWrapperType};
 use crate::templates::TemplateType;
 
 /// Common optional fields that can be configured for TASK and propagated to other types
@@ -32,7 +32,28 @@ pub struct SetupOptions {
     pub llm_tool: Option<String>,
     /// Whether to use git worktrees for per-ticket isolation (default: false)
     pub use_worktrees: bool,
+    /// Session wrapper chosen during setup; `None` leaves the configured value
+    pub wrapper: Option<SessionWrapperType>,
+    /// Acceptance criteria body; `None` writes the shipped template
+    pub acceptance_criteria: Option<String>,
+    /// Issue types for a `Custom` preset (e.g. a merged hosted selection)
+    pub custom_collection: Vec<String>,
+    /// Collection to activate after scaffolding
+    pub active_collection: Option<String>,
+    /// Hosted collections to scaffold: (manifest, files, `icon_svg`)
+    pub hosted_collections: Vec<FetchedCollection>,
+    /// Model providers declared during setup
+    pub model_servers: Vec<crate::config::ModelServer>,
+    /// Default execution target selected during setup.
+    pub execution_target: Option<crate::config::TargetDef>,
 }
+
+/// A hosted collection resolved for scaffolding.
+pub type FetchedCollection = (
+    crate::collections::manifest::CollectionManifest,
+    Vec<(String, String, Option<String>)>,
+    Option<String>,
+);
 
 /// Result of setup operation
 #[derive(Debug)]
@@ -41,6 +62,8 @@ pub struct SetupResult {
     pub files_created: Vec<PathBuf>,
     pub files_skipped: Vec<PathBuf>,
     pub config_path: PathBuf,
+    /// Projects discovered during initialization, with git info
+    pub discovered: Vec<crate::projects::DiscoveredProject>,
 }
 
 /// Parse collection preset from string
@@ -62,7 +85,8 @@ pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Resu
         directories_created: Vec::new(),
         files_created: Vec::new(),
         files_skipped: Vec::new(),
-        config_path: tickets_path.join("operator").join("config.toml"),
+        config_path: config.operator_config_path_for(),
+        discovered: Vec::new(),
     };
 
     // Create directories
@@ -85,7 +109,11 @@ pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Resu
 
     // Get effective issue types from preset
     let issue_types = if options.preset == CollectionPreset::Custom {
-        config.templates.collection.clone()
+        if options.custom_collection.is_empty() {
+            config.templates.collection.clone()
+        } else {
+            options.custom_collection.clone()
+        }
     } else {
         options.preset.issue_types()
     };
@@ -118,7 +146,10 @@ pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Resu
     let operator_templates = tickets_path.join("operator").join("templates");
     write_file_if_allowed(
         &operator_templates.join("ACCEPTANCE_CRITERIA.md"),
-        include_str!("templates/ACCEPTANCE_CRITERIA.md"),
+        options
+            .acceptance_criteria
+            .as_deref()
+            .unwrap_or(include_str!("templates/ACCEPTANCE_CRITERIA.md")),
         options.force,
         &mut result,
     )?;
@@ -135,26 +166,53 @@ pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Resu
         &mut result,
     )?;
 
-    // Update config with preset
-    config.templates.preset = options.preset;
-    if options.preset == CollectionPreset::Custom {
-        // Keep existing collection
-    } else {
-        config.templates.collection = issue_types;
+    for (manifest, files, icon_svg) in &options.hosted_collections {
+        crate::startup::templates::write_fetched_collection(
+            &tickets_path.join("templates"),
+            manifest,
+            files,
+            icon_svg.as_deref(),
+        )?;
     }
 
-    // Configure git worktree preference
+    config.templates.preset = options.preset;
+    if options.preset == CollectionPreset::Custom {
+        config.templates.collection = issue_types;
+    } else {
+        config.templates.collection.clear();
+    }
+    if let Some(active) = &options.active_collection {
+        config.templates.active_collection = Some(active.clone());
+    }
+
     config.git.use_worktrees = options.use_worktrees;
 
-    // Generate tmux config
+    if let Some(wrapper) = options.wrapper {
+        config.sessions.wrapper = wrapper;
+    }
+    if let Some(tool) = &options.llm_tool {
+        config.llm_tools.default_tool = Some(tool.clone());
+    }
+    for server in &options.model_servers {
+        if !config.model_servers.iter().any(|s| s.name == server.name) {
+            config.model_servers.push(server.clone());
+        }
+    }
+    if let Some(target) = &options.execution_target {
+        config.launch.target = Some(target.name.clone());
+        if !matches!(target.kind, crate::config::TargetKind::Local) {
+            if let Some(existing) = config.targets.iter_mut().find(|t| t.name == target.name) {
+                existing.clone_from(target);
+            } else {
+                config.targets.push(target.clone());
+            }
+        }
+    }
+
     generate_tmux_config(config)?;
 
-    // Discover projects (git repos and/or LLM marker files)
-    let discovered = crate::projects::discover_projects_with_git(&config.projects_path());
-    config.projects = discovered.iter().map(|p| p.name.clone()).collect();
-
-    // Save config (must be after directories are created)
-    config.save()?;
+    result.discovered = crate::projects::discover_projects_with_git(&config.projects_path());
+    config.projects = result.discovered.iter().map(|p| p.name.clone()).collect();
 
     Ok(result)
 }
@@ -500,5 +558,133 @@ mod tests {
 
         // No projects should be discovered
         assert!(config.projects.is_empty());
+    }
+
+    // --- Wizard choices that were previously collected and dropped ---
+
+    fn workspace_config(temp_dir: &TempDir) -> Config {
+        let tickets_path = temp_dir.path().join(".tickets");
+        let mut config = Config::default();
+        config.paths.tickets = tickets_path.to_string_lossy().to_string();
+        config.paths.state = tickets_path.join("operator").to_string_lossy().to_string();
+        config.paths.projects = temp_dir.path().to_string_lossy().to_string();
+        config
+    }
+
+    #[test]
+    fn test_initialize_workspace_persists_session_wrapper() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = workspace_config(&temp_dir);
+
+        let options = SetupOptions {
+            wrapper: Some(SessionWrapperType::Zellij),
+            ..Default::default()
+        };
+        initialize_workspace(&mut config, &options).unwrap();
+
+        assert_eq!(config.sessions.wrapper, SessionWrapperType::Zellij);
+    }
+
+    #[test]
+    fn test_initialize_workspace_leaves_wrapper_untouched_when_unset() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = workspace_config(&temp_dir);
+        config.sessions.wrapper = SessionWrapperType::Cmux;
+
+        initialize_workspace(&mut config, &SetupOptions::default()).unwrap();
+
+        assert_eq!(config.sessions.wrapper, SessionWrapperType::Cmux);
+    }
+
+    #[test]
+    fn test_initialize_workspace_persists_use_worktrees() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = workspace_config(&temp_dir);
+
+        let options = SetupOptions {
+            use_worktrees: true,
+            ..Default::default()
+        };
+        initialize_workspace(&mut config, &options).unwrap();
+
+        assert!(config.git.use_worktrees);
+    }
+
+    #[test]
+    fn test_initialize_workspace_writes_custom_acceptance_criteria() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = workspace_config(&temp_dir);
+
+        let options = SetupOptions {
+            acceptance_criteria: Some("- ships on a tuesday".to_string()),
+            ..Default::default()
+        };
+        initialize_workspace(&mut config, &options).unwrap();
+
+        let written = fs::read_to_string(
+            temp_dir
+                .path()
+                .join(".tickets/operator/templates/ACCEPTANCE_CRITERIA.md"),
+        )
+        .unwrap();
+        assert_eq!(written, "- ships on a tuesday");
+    }
+
+    #[test]
+    fn test_initialize_workspace_applies_llm_tool() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = workspace_config(&temp_dir);
+
+        let options = SetupOptions {
+            llm_tool: Some("claude".to_string()),
+            ..Default::default()
+        };
+        initialize_workspace(&mut config, &options).unwrap();
+
+        assert_eq!(config.llm_tools.default_tool.as_deref(), Some("claude"));
+    }
+
+    #[test]
+    fn test_initialize_workspace_upserts_default_coder_target() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = workspace_config(&temp_dir);
+        let target = crate::config::TargetDef {
+            name: crate::config::DEFAULT_CODER_TARGET_NAME.to_string(),
+            display_name: Some("Coder".to_string()),
+            kind: crate::config::TargetKind::Coder(crate::config::CoderConfig {
+                template: "operator-agent".to_string(),
+                ..Default::default()
+            }),
+        };
+
+        for _ in 0..2 {
+            initialize_workspace(
+                &mut config,
+                &SetupOptions {
+                    execution_target: Some(target.clone()),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        }
+
+        assert_eq!(
+            config.launch.target.as_deref(),
+            Some(crate::config::DEFAULT_CODER_TARGET_NAME)
+        );
+        assert_eq!(config.targets, [target]);
+    }
+
+    #[test]
+    fn test_initialize_workspace_does_not_save() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = workspace_config(&temp_dir);
+
+        initialize_workspace(&mut config, &SetupOptions::default()).unwrap();
+
+        assert!(
+            !config.operator_config_path_for().exists(),
+            "initialize_workspace must leave persistence to the caller"
+        );
     }
 }

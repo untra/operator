@@ -36,8 +36,10 @@ export function LoginPage() {
     setError(null);
     setBusy(true);
     try {
-      await new OperatorApi(host).login(username, password);
-      void navigate('/', { replace: true });
+      const api = new OperatorApi(host);
+      await api.login(username, password);
+      const setup = await api.setupStatus();
+      void navigate(setup.initialized ? '/' : '/onboarding', { replace: true });
     } catch (e) {
       // 429 carries a wait, not a wrong password; saying "incorrect" would
       // send the operator hunting for a password problem they do not have.

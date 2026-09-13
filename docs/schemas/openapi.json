@@ -181,7 +181,7 @@
           "Agents"
         ],
         "summary": "Focus the terminal session of a running agent in its session wrapper.",
-        "description": "The web UI's launch panel calls this for **cmux** launches: cmux exposes no\nbrowser URL scheme, so the operator control plane (which runs inside cmux)\nshells out to `cmux focus-workspace` for the agent's saved workspace ref to\nbring its pane to the foreground. Other wrappers are unsupported here — VS\nCode focuses through its extension's URI handler, and tmux/zellij are\ndisplay-only in the UI, so it never calls this for them.",
+        "description": "The web UI's launch panel calls this for **cmux** launches: cmux exposes no\nbrowser URL scheme, so the operator control plane (which runs inside cmux)\nshells out to `cmux focus-workspace` for the agent's saved workspace ref to\nbring its pane to the foreground. Other wrappers are unsupported here - VS\nCode focuses through its extension's URI handler, and tmux/zellij are\ndisplay-only in the UI, so it never calls this for them.",
         "operationId": "agents_focus_session",
         "parameters": [
           {
@@ -623,6 +623,38 @@
         "security": []
       }
     },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Return recovery guidance without confirming whether the username exists.",
+        "operationId": "auth_forgot_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Recovery guidance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForgotPasswordResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/api/v1/auth/keys": {
       "get": {
         "tags": [
@@ -817,7 +849,7 @@
             }
           },
           "401": {
-            "description": "Bad password",
+            "description": "Bad username or password",
             "headers": {
               "WWW-Authenticate": {
                 "schema": {
@@ -909,6 +941,74 @@
           }
         ],
         "x-operator-scope": "write"
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Change the password using the current username and password.",
+        "operationId": "auth_reset_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetPasswordResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid current credentials",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Authentication challenge naming the accepted schemes."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds the client must wait before retrying."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
       }
     },
     "/api/v1/auth/session": {
@@ -2385,7 +2485,7 @@
           "Issue Types"
         ],
         "summary": "Get an issue type's Operator workflow document",
-        "description": "Returns the issue type verbatim, in the same shape as the `<KEY>.json` files\nin a hosted collection bundle (`/schemas/issuetype.json`). This is the\n*native* Operator workflow — the ordered step graph every export format is\nderived from — so the web UI and the docs site render identical graphs from\nidentical bytes. Prefer [`get_one`] for display metadata; use this when you\nneed the full step structure including step types, reject edges, and\nper-type fan-out configuration.",
+        "description": "Returns the issue type verbatim, in the same shape as the `<KEY>.json` files\nin a hosted collection bundle (`/schemas/issuetype.json`). This is the\n*native* Operator workflow - the ordered step graph every export format is\nderived from - so the web UI and the docs site render identical graphs from\nidentical bytes. Prefer [`get_one`] for display metadata; use this when you\nneed the full step structure including step types, reject edges, and\nper-type fan-out configuration.",
         "operationId": "issuetypes_get_document",
         "parameters": [
           {
@@ -2746,7 +2846,7 @@
           "Kanban"
         ],
         "summary": "PUT /`api/v1/kanban/config`",
-        "description": "Write or upsert a kanban provider+project section into `config.toml`.\nDoes NOT receive the actual secret — only the env var name (`api_key_env`).",
+        "description": "Write or upsert a kanban provider+project section into `config.toml`.\nDoes NOT receive the actual secret - only the env var name (`api_key_env`).",
         "operationId": "kanban_write_config",
         "parameters": [
           {
@@ -3492,7 +3592,7 @@
         "tags": [
           "MCP"
         ],
-        "summary": "Message endpoint — receives JSON-RPC requests and sends responses via SSE",
+        "summary": "Message endpoint - receives JSON-RPC requests and sends responses via SSE",
         "operationId": "mcp_message",
         "parameters": [
           {
@@ -3566,7 +3666,7 @@
         "tags": [
           "MCP"
         ],
-        "summary": "SSE endpoint — opens an event stream and sends the message endpoint URL",
+        "summary": "SSE endpoint - opens an event stream and sends the message endpoint URL",
         "description": "The client connects here first, receives the message endpoint URL,\nthen sends JSON-RPC requests to that endpoint.",
         "operationId": "mcp_sse",
         "responses": {
@@ -3744,7 +3844,7 @@
           "ModelServers"
         ],
         "summary": "List the models a *provider kind* offers, via a live probe.",
-        "description": "Resolves to the declared instance of that kind (if the user has one) else a\ntransient instance built from the kind's probe defaults — so the Model\nProviders catalog can show connection state + live models for every supported\nprovider without first declaring one. `reachable` doubles as \"connected\".",
+        "description": "Resolves to the declared instance of that kind (if the user has one) else a\ntransient instance built from the kind's probe defaults - so the Model\nProviders catalog can show connection state + live models for every supported\nprovider without first declaring one. `reachable` doubles as \"connected\".",
         "operationId": "model_servers_kind_models",
         "parameters": [
           {
@@ -4018,7 +4118,7 @@
           "ModelServers"
         ],
         "summary": "List the models a server offers, via a live probe of its inference endpoint.",
-        "description": "The probe doubles as a reachability check — `reachable: false` with an `error`\nwhen the endpoint is unreachable or rejects the request.",
+        "description": "The probe doubles as a reachability check - `reachable: false` with an `error`\nwhen the endpoint is unreachable or rejects the request.",
         "operationId": "model_servers_models",
         "parameters": [
           {
@@ -5059,7 +5159,7 @@
           "Workflow"
         ],
         "summary": "List the workflow export formats operator can emit.",
-        "description": "Returns each [`WorkflowFormat`] with its label, file extension, support\nstatus, and docs link — derived from `WorkflowFormat::ALL` joined to the\n`Workflows` catalog vertical. Lets UIs render a format picker for the\n`format` query param accepted by export/preview.",
+        "description": "Returns each [`WorkflowFormat`] with its label, file extension, support\nstatus, and docs link - derived from `WorkflowFormat::ALL` joined to the\n`Workflows` catalog vertical. Lets UIs render a format picker for the\n`format` query param accepted by export/preview.",
         "operationId": "workflow_formats",
         "responses": {
           "200": {
@@ -5099,7 +5199,7 @@
           "Health"
         ],
         "summary": "Liveness probe",
-        "description": "Answers only \"is the process serving HTTP\". It deliberately does not touch\nthe database: a liveness failure restarts the pod, and restarting will not\nfix a corrupt database — it would just crash-loop.",
+        "description": "Answers only \"is the process serving HTTP\". It deliberately does not touch\nthe database: a liveness failure restarts the pod, and restarting will not\nfix a corrupt database - it would just crash-loop.",
         "operationId": "livez",
         "responses": {
           "200": {
@@ -5463,7 +5563,7 @@
               },
               {
                 "$ref": "#/components/schemas/RemoteAgentRef",
-                "description": "Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...).\n`None` = a locally launchable agent, not bound to a remote platform."
+                "description": "Declarative reference to a remote, named agent. `None` = a locally launchable agent, not bound to a remote target."
               }
             ]
           },
@@ -5479,7 +5579,7 @@
               "string",
               "null"
             ],
-            "description": "System prompt. Operator has no first-class system prompt, so this is\npreserved opaquely across import (see [`Delegator::unmapped_core`])."
+            "description": "System prompt. This is preserved opaquely across import (see [`Delegator::unmapped_core`])."
           },
           "tools": {
             "type": "array",
@@ -5489,10 +5589,10 @@
             "description": "Tool names. Preserved opaquely across import."
           },
           "x_agnt": {
-            "description": "AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`,\n`creditLimit`, ...). Operator never interprets this — pure pass-through."
+            "description": "AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`, `creditLimit`, ...)."
           },
           "x_openai": {
-            "description": "OpenAI-owned extension fields, opaque (`instructions`, `tools`,\n`tool_resources`, `metadata`, thread refs, ...). Mirror of `x_agnt` for a\nsecond platform — never interpreted. This field is the whole per-tool cost\nof adding `OpenAI`: a passthrough bag, no mapping logic."
+            "description": "OpenAI-owned extension fields, opaque (`instructions`, `tools`, `tool_resources`, `metadata`, thread refs, ...)."
           },
           "x_operator": {
             "oneOf": [
@@ -5501,7 +5601,7 @@
               },
               {
                 "$ref": "#/components/schemas/XOperator",
-                "description": "Operator-owned extension fields (typed). `None` when the agent carries no\nOperator-specific configuration."
+                "description": "Operator-owned extension fields (typed). `None` when the agent carries no Operator-specific configuration."
               }
             ]
           }
@@ -5717,12 +5817,17 @@
         "type": "object",
         "description": "Result of a successful bootstrap.",
         "required": [
-          "state"
+          "state",
+          "username"
         ],
         "properties": {
           "state": {
             "$ref": "#/components/schemas/BootstrapState",
-            "description": "The state after submission — `Complete` on success."
+            "description": "The state after submission - `Complete` on success."
+          },
+          "username": {
+            "type": "string",
+            "description": "The account name created by bootstrap."
           }
         }
       },
@@ -5862,7 +5967,7 @@
           "expires_in_days": {
             "type": "integer",
             "format": "int64",
-            "description": "Days until the key expires. Expiry is mandatory — there is no\nnon-expiring key.",
+            "description": "Days until the key expires. Expiry is mandatory - there is no\nnon-expiring key.",
             "maximum": 365,
             "minimum": 1
           },
@@ -5885,7 +5990,7 @@
       },
       "CreateAccessKeyResponse": {
         "type": "object",
-        "description": "A newly created access key. **The secret appears here and nowhere else,\never** — only its hash is stored, so it cannot be shown again.",
+        "description": "A newly created access key. **The secret appears here and nowhere else,\never** - only its hash is stored, so it cannot be shown again.",
         "required": [
           "key",
           "secret"
@@ -6403,7 +6508,7 @@
           },
           "subject": {
             "type": "string",
-            "description": "Account name — always `admin`, the single human account."
+            "description": "Account name - always `admin`, the single human account."
           }
         }
       },
@@ -7054,6 +7159,32 @@
           }
         }
       },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "description": "Request recovery instructions without revealing whether an account exists.",
+        "required": [
+          "username"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          }
+        }
+      },
+      "ForgotPasswordResponse": {
+        "type": "object",
+        "description": "Generic recovery guidance for a self-hosted Operator deployment.",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "GitConfigEntry": {
         "type": "object",
         "required": [
@@ -7165,7 +7296,7 @@
         "properties": {
           "node_id": {
             "type": "string",
-            "description": "`GraphQL` node ID (e.g., `PVT_kwDOABcdefg`) — used as the project key"
+            "description": "`GraphQL` node ID (e.g., `PVT_kwDOABcdefg`) - used as the project key"
           },
           "number": {
             "type": "integer",
@@ -7188,7 +7319,7 @@
       },
       "GithubSessionEnv": {
         "type": "object",
-        "description": "GitHub Projects session env body — includes the actual secret to set in env.",
+        "description": "GitHub Projects session env body - includes the actual secret to set in env.",
         "required": [
           "token",
           "api_key_env"
@@ -7421,7 +7552,7 @@
       },
       "JiraCredentials": {
         "type": "object",
-        "description": "Ephemeral Jira credentials supplied by a client during onboarding.\n\nThese are never persisted to disk by the onboarding endpoints that take\nthis struct — the actual secret stays in the env var named in\n`api_key_env` once set via `/api/v1/kanban/session-env`.",
+        "description": "Ephemeral Jira credentials supplied by a client during onboarding.\n\nThese are never persisted to disk by the onboarding endpoints that take\nthis struct - the actual secret stays in the env var named in\n`api_key_env` once set via `/api/v1/kanban/session-env`.",
         "required": [
           "domain",
           "email",
@@ -7446,7 +7577,7 @@
       },
       "JiraSessionEnv": {
         "type": "object",
-        "description": "Jira session env body — includes the actual secret to set in env.",
+        "description": "Jira session env body - includes the actual secret to set in env.",
         "required": [
           "domain",
           "email",
@@ -7815,6 +7946,12 @@
           "session_wrapper": {
             "$ref": "#/components/schemas/SessionWrapper"
           },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "yolo_enabled": {
             "type": "boolean"
           }
@@ -7872,6 +8009,13 @@
             ],
             "default": null
           },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
           "yolo_enabled": {
             "type": [
               "boolean",
@@ -7898,21 +8042,21 @@
               "string",
               "null"
             ],
-            "description": "Model to use (e.g., \"sonnet\", \"opus\") — legacy fallback when no delegator"
+            "description": "Model to use (e.g., \"sonnet\", \"opus\") - legacy fallback when no delegator"
           },
           "model_server": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Ad-hoc model server to target (e.g. \"ollama-local\") — legacy fallback when\nno delegator. Injects the server's base URL / API key env at spawn."
+            "description": "Ad-hoc model server to target (e.g. \"ollama-local\") - legacy fallback when\nno delegator. Injects the server's base URL / API key env at spawn."
           },
           "provider": {
             "type": [
               "string",
               "null"
             ],
-            "description": "LLM provider to use (e.g., \"claude\") — legacy fallback when no delegator"
+            "description": "LLM provider to use (e.g., \"claude\") - legacy fallback when no delegator"
           },
           "resume_session_id": {
             "type": [
@@ -8045,7 +8189,7 @@
       },
       "LinearSessionEnv": {
         "type": "object",
-        "description": "Linear session env body — includes the actual secret to set in env.",
+        "description": "Linear session env body - includes the actual secret to set in env.",
         "required": [
           "api_key",
           "api_key_env"
@@ -8178,7 +8322,7 @@
       },
       "ListKanbanStatusesRequest": {
         "type": "object",
-        "description": "Request to list workflow statuses/columns for a specific project using\nephemeral creds (onboarding wizard — before any config is persisted).",
+        "description": "Request to list workflow statuses/columns for a specific project using\nephemeral creds (onboarding wizard - before any config is persisted).",
         "required": [
           "provider",
           "project_key"
@@ -8274,6 +8418,7 @@
         "type": "object",
         "description": "Password login, exchanged for an opaque server-side session cookie.",
         "required": [
+          "username",
           "password"
         ],
         "properties": {
@@ -8284,12 +8429,18 @@
             "writeOnly": true,
             "maxLength": 1024,
             "minLength": 12
+          },
+          "username": {
+            "type": "string",
+            "description": "The account name. Required even while Operator supports one human account.",
+            "maxLength": 128,
+            "minLength": 1
           }
         }
       },
       "LoginResponse": {
         "type": "object",
-        "description": "Successful login. The session itself rides in a `Set-Cookie` header, not in\nthis body — a body-borne session identifier would be readable by script.",
+        "description": "Successful login. The session itself rides in a `Set-Cookie` header, not in\nthis body - a body-borne session identifier would be readable by script.",
         "required": [
           "scopes",
           "expires_at",
@@ -8631,7 +8782,7 @@
       },
       "OAuthErrorResponse": {
         "type": "object",
-        "description": "Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can\ninterpret it — notably `authorization_pending` and `slow_down`, which a\ndevice-flow client polls against.",
+        "description": "Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can\ninterpret it - notably `authorization_pending` and `slow_down`, which a\ndevice-flow client polls against.",
         "required": [
           "error"
         ],
@@ -8658,7 +8809,7 @@
       },
       "OpenspecSourceDto": {
         "type": "object",
-        "description": "`OpenSpec` source location supplied during onboarding. Not a credential —\n`OpenSpec` reads local markdown; there is no secret to validate or store.",
+        "description": "`OpenSpec` source location supplied during onboarding. Not a credential -\n`OpenSpec` reads local markdown; there is no secret to validate or store.",
         "required": [
           "root_path"
         ],
@@ -9109,7 +9260,7 @@
       },
       "RemoteAgentRef": {
         "type": "object",
-        "description": "A declarative reference to a remote, named agent hosted by another platform.\n\n`platform` is the hosting service (`\"agnt\"`, `\"openai\"`) — deliberately\ndistinct from the core `provider`/`llm_tool` (the model or coding CLI). These\nagents are API/memory-native and live on the remote side; Operator has no\nruntime client for them, so a delegator carrying one is **export-only** and\ncannot be launched locally (see the guard in `delegator_resolution`).",
+        "description": "A declarative reference to a remote, named agent hosted by another platform.\n\n`platform` is the hosting service (`\"agnt\"`, `\"openai\"`) - deliberately\ndistinct from the core `provider`/`llm_tool` (the model or coding CLI). These\nagents are API/memory-native and live on the remote side; Operator has no\nruntime client for them, so a delegator carrying one is **export-only** and\ncannot be launched locally (see the guard in `delegator_resolution`).",
         "required": [
           "platform",
           "id"
@@ -9122,6 +9273,48 @@
           "platform": {
             "type": "string",
             "description": "Hosting platform (e.g. `\"agnt\"`, `\"openai\"`)."
+          }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "description": "Change the account password after proving knowledge of the current one.",
+        "required": [
+          "username",
+          "current_password",
+          "new_password"
+        ],
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true,
+            "maxLength": 1024,
+            "minLength": 12
+          },
+          "new_password": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true,
+            "maxLength": 1024,
+            "minLength": 12
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          }
+        }
+      },
+      "ResetPasswordResponse": {
+        "type": "object",
+        "description": "Result of changing the account password.",
+        "required": [
+          "changed"
+        ],
+        "properties": {
+          "changed": {
+            "type": "boolean"
           }
         }
       },
@@ -9321,7 +9514,7 @@
       },
       "SessionSummary": {
         "type": "object",
-        "description": "An active or expired browser session. Carries no session identifier — the\ncookie value is never readable back out, only the session's `id` for\nrevocation.",
+        "description": "An active or expired browser session. Carries no session identifier - the\ncookie value is never readable back out, only the session's `id` for\nrevocation.",
         "required": [
           "id",
           "created_at",
@@ -9437,7 +9630,7 @@
       },
       "SetKanbanSessionEnvResponse": {
         "type": "object",
-        "description": "Response from setting session env vars.\n\n`shell_export_block` uses `<your-token>` placeholders, NOT the actual\nsecret — it is meant for the user to copy into their shell profile.",
+        "description": "Response from setting session env vars.\n\n`shell_export_block` uses `<your-token>` placeholders, NOT the actual\nsecret - it is meant for the user to copy into their shell profile.",
         "required": [
           "env_vars_set",
           "shell_export_block"
@@ -10446,7 +10639,7 @@
       },
       "ValidateKanbanCredentialsResponse": {
         "type": "object",
-        "description": "Response from validating kanban credentials.\n\n`valid: false` is returned for auth failures — never a 4xx/5xx HTTP\nstatus — so clients can display `error` inline without exception handling.",
+        "description": "Response from validating kanban credentials.\n\n`valid: false` is returned for auth failures - never a 4xx/5xx HTTP\nstatus - so clients can display `error` inline without exception handling.",
         "required": [
           "valid"
         ],
@@ -10530,7 +10723,7 @@
       },
       "WorkflowFormatDto": {
         "type": "object",
-        "description": "One workflow export format operator can emit, for `GET /api/v1/workflow-formats`.\n\nA projection of [`WorkflowFormat`] joined to its `Workflows` catalog entry —\nthe single source of truth for the format's [`SupportStatus`] and docs. Lets\nthe UIs render a format picker without hardcoding the list.",
+        "description": "One workflow export format operator can emit, for `GET /api/v1/workflow-formats`.\n\nA projection of [`WorkflowFormat`] joined to its `Workflows` catalog entry -\nthe single source of truth for the format's [`SupportStatus`] and docs. Lets\nthe UIs render a format picker without hardcoding the list.",
         "required": [
           "slug",
           "label",
@@ -10555,7 +10748,7 @@
           },
           "slug": {
             "type": "string",
-            "description": "Stable slug (e.g. \"claude\", \"agnt\") — the value the `format` query param takes."
+            "description": "Stable slug (e.g. \"claude\", \"agnt\") - the value the `format` query param takes."
           },
           "status": {
             "$ref": "#/components/schemas/SupportStatus",
@@ -10640,7 +10833,7 @@
         "properties": {
           "api_key_env": {
             "type": "string",
-            "description": "Env var name where the project-scoped token is set\n(default: `OPERATOR_GITHUB_TOKEN`). MUST be distinct from `GITHUB_TOKEN`\n— see Token Disambiguation in the kanban github docs."
+            "description": "Env var name where the project-scoped token is set\n(default: `OPERATOR_GITHUB_TOKEN`). MUST be distinct from `GITHUB_TOKEN`\n- see Token Disambiguation in the kanban github docs."
           },
           "owner": {
             "type": "string",
@@ -10708,7 +10901,7 @@
       },
       "WriteKanbanConfigRequest": {
         "type": "object",
-        "description": "Request to write or upsert a kanban config section.\n\nThis endpoint does NOT take the secret — only the env var NAME\n(`api_key_env`). The secret is set via `/api/v1/kanban/session-env`.",
+        "description": "Request to write or upsert a kanban config section.\n\nThis endpoint does NOT take the secret - only the env var NAME\n(`api_key_env`). The secret is set via `/api/v1/kanban/session-env`.",
         "required": [
           "provider"
         ],
@@ -10838,7 +11031,7 @@
       },
       "XOperator": {
         "type": "object",
-        "description": "The Operator-namespaced half of an [`AgentProfile`] — the fields a Delegator\ncarries that have no shared-core equivalent. AGNT ignores this bag; Operator\nround-trips it losslessly.",
+        "description": "The Operator-namespaced half of an [`AgentProfile`] - the fields a Delegator\ncarries that have no shared-core equivalent.",
         "properties": {
           "display_name": {
             "type": [

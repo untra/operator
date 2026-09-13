@@ -33,6 +33,30 @@ import type { CreateModelServerRequest } from '@operator/bindings/CreateModelSer
 import type { DelegatorsResponse } from '@operator/bindings/DelegatorsResponse';
 import type { DelegatorResponse } from '@operator/bindings/DelegatorResponse';
 import type { CreateDelegatorRequest } from '@operator/bindings/CreateDelegatorRequest';
+import type { IntegrationCatalogEntryDto } from '@operator/bindings/IntegrationCatalogEntryDto';
+import type { SetupStatusResponse } from '@operator/bindings/SetupStatusResponse';
+import type { SetupStepResponse } from '@operator/bindings/SetupStepResponse';
+import type { SetupCollectionResponse } from '@operator/bindings/SetupCollectionResponse';
+import type { SetupInitializeRequest } from '@operator/bindings/SetupInitializeRequest';
+import type { SetupInitializeResponse } from '@operator/bindings/SetupInitializeResponse';
+import type { GitProviderOnboardingResponse } from '@operator/bindings/GitProviderOnboardingResponse';
+import type { ValidateGitTokenRequest } from '@operator/bindings/ValidateGitTokenRequest';
+import type { ValidateGitTokenResponse } from '@operator/bindings/ValidateGitTokenResponse';
+import type { WriteGitConfigRequest } from '@operator/bindings/WriteGitConfigRequest';
+import type { WriteGitConfigResponse } from '@operator/bindings/WriteGitConfigResponse';
+import type { SetGitSessionEnvRequest } from '@operator/bindings/SetGitSessionEnvRequest';
+import type { SetGitSessionEnvResponse } from '@operator/bindings/SetGitSessionEnvResponse';
+import type { KanbanProviderCatalogEntry } from '@operator/bindings/KanbanProviderCatalogEntry';
+import type { ValidateKanbanCredentialsRequest } from '@operator/bindings/ValidateKanbanCredentialsRequest';
+import type { ValidateKanbanCredentialsResponse } from '@operator/bindings/ValidateKanbanCredentialsResponse';
+import type { ListKanbanProjectsRequest } from '@operator/bindings/ListKanbanProjectsRequest';
+import type { ListKanbanProjectsResponse } from '@operator/bindings/ListKanbanProjectsResponse';
+import type { ListKanbanStatusesRequest } from '@operator/bindings/ListKanbanStatusesRequest';
+import type { ListKanbanStatusesResponse } from '@operator/bindings/ListKanbanStatusesResponse';
+import type { WriteKanbanConfigRequest } from '@operator/bindings/WriteKanbanConfigRequest';
+import type { WriteKanbanConfigResponse } from '@operator/bindings/WriteKanbanConfigResponse';
+import type { SetKanbanSessionEnvRequest } from '@operator/bindings/SetKanbanSessionEnvRequest';
+import type { SetKanbanSessionEnvResponse } from '@operator/bindings/SetKanbanSessionEnvResponse';
 
 import type { AccessKeyListResponse } from '@operator/bindings/AccessKeyListResponse';
 import type { BootstrapStatusResponse } from '@operator/bindings/BootstrapStatusResponse';
@@ -94,6 +118,22 @@ export type {
   DelegatorsResponse,
   DelegatorResponse,
   CreateDelegatorRequest,
+  IntegrationCatalogEntryDto,
+  SetupStatusResponse,
+  SetupStepResponse,
+  SetupCollectionResponse,
+  SetupInitializeRequest,
+  SetupInitializeResponse,
+  GitProviderOnboardingResponse,
+  ValidateGitTokenResponse,
+  WriteGitConfigResponse,
+  SetGitSessionEnvResponse,
+  KanbanProviderCatalogEntry,
+  ValidateKanbanCredentialsResponse,
+  ListKanbanProjectsResponse,
+  ListKanbanStatusesResponse,
+  WriteKanbanConfigResponse,
+  SetKanbanSessionEnvResponse,
 };
 
 export class ApiError extends Error {
@@ -315,6 +355,110 @@ export class OperatorApi {
 
   sections(): Promise<SectionDto[]> {
     return request(this.base, '/api/v1/sections');
+  }
+
+  integrations(): Promise<IntegrationCatalogEntryDto[]> {
+    return request(this.base, '/api/v1/integrations');
+  }
+
+  // --- First-run setup ---
+
+  setupStatus(): Promise<SetupStatusResponse> {
+    return request(this.base, '/api/v1/setup/status');
+  }
+
+  setupSteps(): Promise<SetupStepResponse[]> {
+    return request(this.base, '/api/v1/setup/steps');
+  }
+
+  setupCollections(): Promise<SetupCollectionResponse[]> {
+    return request(this.base, '/api/v1/setup/collections');
+  }
+
+  initializeSetup(body: SetupInitializeRequest): Promise<SetupInitializeResponse> {
+    return request(this.base, '/api/v1/setup/initialize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  // --- Git onboarding ---
+
+  gitProviders(): Promise<GitProviderOnboardingResponse[]> {
+    return request(this.base, '/api/v1/git/providers');
+  }
+
+  validateGitToken(body: ValidateGitTokenRequest): Promise<ValidateGitTokenResponse> {
+    return request(this.base, '/api/v1/git/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  writeGitConfig(body: WriteGitConfigRequest): Promise<WriteGitConfigResponse> {
+    return request(this.base, '/api/v1/git/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  setGitSessionEnv(body: SetGitSessionEnvRequest): Promise<SetGitSessionEnvResponse> {
+    return request(this.base, '/api/v1/git/session-env', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  // --- Kanban onboarding ---
+
+  kanbanProviders(): Promise<KanbanProviderCatalogEntry[]> {
+    return request(this.base, '/api/v1/kanban/providers');
+  }
+
+  validateKanbanCredentials(
+    body: ValidateKanbanCredentialsRequest,
+  ): Promise<ValidateKanbanCredentialsResponse> {
+    return request(this.base, '/api/v1/kanban/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  listKanbanProjects(body: ListKanbanProjectsRequest): Promise<ListKanbanProjectsResponse> {
+    return request(this.base, '/api/v1/kanban/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  listKanbanStatuses(body: ListKanbanStatusesRequest): Promise<ListKanbanStatusesResponse> {
+    return request(this.base, '/api/v1/kanban/statuses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  writeKanbanConfig(body: WriteKanbanConfigRequest): Promise<WriteKanbanConfigResponse> {
+    return request(this.base, '/api/v1/kanban/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
+  }
+
+  setKanbanSessionEnv(body: SetKanbanSessionEnvRequest): Promise<SetKanbanSessionEnvResponse> {
+    return request(this.base, '/api/v1/kanban/session-env', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: toJson(body),
+    });
   }
 
   // --- Queue ---

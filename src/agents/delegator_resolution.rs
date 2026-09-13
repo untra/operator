@@ -134,8 +134,9 @@ fn adhoc_model_server_env(
 /// 2. `host` name set (deprecated) → ssh target of that name
 /// 3. `docker: Some(true)` (deprecated) → synthesized docker target
 /// 4. `docker: Some(false)` → local
-/// 5. `launch.docker.enabled` → synthesized docker target
-/// 6. → local
+/// 5. `launch.target` → named global default
+/// 6. `launch.docker.enabled` → synthesized docker target
+/// 7. → local
 ///
 /// Deprecated combinations resolve deterministically (`target` wins over
 /// `host`/`docker`; `host` wins over `docker: true`) with one deprecation
@@ -180,6 +181,9 @@ pub fn resolve_target(
             Some(false) => return Ok(TargetDef::local()),
             None => {}
         }
+    }
+    if let Some(name) = &config.launch.target {
+        return resolve_named_target(config, name);
     }
     if config.launch.docker.enabled {
         return Ok(TargetDef::docker(config.launch.docker.clone()));
@@ -926,7 +930,16 @@ mod tests {
     }
 
     #[test]
-    fn test_target_row5_enabled_true_now_targets_docker_for_auto_launches() {
+    fn test_target_row5_global_target_beats_docker_fallback() {
+        let mut config = Config::default();
+        config.launch.target = Some("local".to_string());
+        config.launch.docker.enabled = true;
+        let target = resolve_target(None, &config).unwrap();
+        assert_eq!(target.kind, TargetKind::Local);
+    }
+
+    #[test]
+    fn test_target_row6_enabled_true_now_targets_docker_for_auto_launches() {
         // BEHAVIOR CHANGE (approved): launch.docker.enabled was previously only
         // a TUI dialog gate; it is now a real resolution fallback, so REST/CLI/
         // auto launches with enabled = true run in docker.
@@ -942,7 +955,7 @@ mod tests {
     }
 
     #[test]
-    fn test_target_row6_default_is_local() {
+    fn test_target_row7_default_is_local() {
         let config = Config::default();
         assert_eq!(
             resolve_target(None, &config).unwrap().kind,

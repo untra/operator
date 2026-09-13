@@ -18,6 +18,11 @@ use super::DockerConfig;
 pub const TARGET_LOCAL: &str = "local";
 /// Reserved target name synthesized from `[launch.docker]`.
 pub const TARGET_DOCKER: &str = "docker";
+pub const DEFAULT_CODER_TARGET_NAME: &str = "coder-agents";
+pub const DEFAULT_CODER_URL_ENV: &str = "CODER_URL";
+pub const DEFAULT_CODER_TOKEN_ENV: &str = "CODER_SESSION_TOKEN";
+const DEFAULT_CODER_NAME_PREFIX: &str = "op";
+const DEFAULT_CODER_CREATE_TIMEOUT_SECS: u64 = 300;
 
 /// A named execution target agents can be launched on.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -154,20 +159,36 @@ pub struct CoderConfig {
     pub parameters: std::collections::HashMap<String, String>,
 }
 
+impl Default for CoderConfig {
+    fn default() -> Self {
+        Self {
+            template: String::new(),
+            url_env: default_coder_url_env(),
+            token_env: default_coder_token_env(),
+            name_prefix: default_coder_name_prefix(),
+            workdir: None,
+            stop_on_complete: true,
+            create_timeout_secs: default_coder_create_timeout_secs(),
+            callback_url: None,
+            parameters: std::collections::HashMap::new(),
+        }
+    }
+}
+
 fn default_coder_url_env() -> String {
-    "CODER_URL".to_string()
+    DEFAULT_CODER_URL_ENV.to_string()
 }
 
 fn default_coder_token_env() -> String {
-    "CODER_SESSION_TOKEN".to_string()
+    DEFAULT_CODER_TOKEN_ENV.to_string()
 }
 
 fn default_coder_name_prefix() -> String {
-    "op".to_string()
+    DEFAULT_CODER_NAME_PREFIX.to_string()
 }
 
 fn default_coder_create_timeout_secs() -> u64 {
-    300
+    DEFAULT_CODER_CREATE_TIMEOUT_SECS
 }
 
 fn default_true() -> bool {
@@ -203,6 +224,27 @@ pub fn validate_targets(config: &super::Config) -> anyhow::Result<()> {
                     "`enabled` is ignored inside a [[targets]] entry - presence is enablement"
                 );
             }
+        }
+        if let TargetKind::Coder(coder) = &target.kind {
+            if coder.template.trim().is_empty() {
+                anyhow::bail!("Coder target '{}' requires a template", target.name);
+            }
+            if coder.url_env.trim().is_empty() || coder.token_env.trim().is_empty() {
+                anyhow::bail!(
+                    "Coder target '{}' requires url_env and token_env names",
+                    target.name
+                );
+            }
+        }
+    }
+
+    if let Some(name) = &config.launch.target {
+        if !known_target_name(config, name) {
+            anyhow::bail!(
+                "launch.target references unknown target '{}' (known: {})",
+                name,
+                known_target_names(config).join(", ")
+            );
         }
     }
 
@@ -443,6 +485,17 @@ create_timeout_secs = 600
         }
     }
 
+    fn coder_def(template: &str) -> TargetDef {
+        TargetDef {
+            name: "coder-agents".to_string(),
+            display_name: None,
+            kind: TargetKind::Coder(CoderConfig {
+                template: template.to_string(),
+                ..Default::default()
+            }),
+        }
+    }
+
     #[test]
     fn test_validate_targets_duplicate_names_error() {
         let config = config_with_targets(vec![ssh_def("a"), ssh_def("a")]);
@@ -474,6 +527,22 @@ create_timeout_secs = 600
     }
 
     #[test]
+    fn test_validate_targets_rejects_incomplete_coder_target() {
+        let config = config_with_targets(vec![coder_def(" ")]);
+        let err = validate_targets(&config).unwrap_err().to_string();
+        assert!(err.contains("requires a template"), "{err}");
+
+        let mut target = coder_def("operator-agent");
+        let TargetKind::Coder(coder) = &mut target.kind else {
+            unreachable!();
+        };
+        coder.token_env.clear();
+        let config = config_with_targets(vec![target]);
+        let err = validate_targets(&config).unwrap_err().to_string();
+        assert!(err.contains("requires url_env and token_env"), "{err}");
+    }
+
+    #[test]
     fn test_validate_targets_unknown_delegator_reference_error() {
         let mut config = config_with_targets(vec![]);
         config.delegators.push(crate::config::Delegator {
@@ -499,6 +568,15 @@ create_timeout_secs = 600
             err.contains("local"),
             "error should list known names: {err}"
         );
+    }
+
+    #[test]
+    fn test_validate_targets_unknown_global_reference_error() {
+        let mut config = config_with_targets(vec![]);
+        config.launch.target = Some("nope".to_string());
+        let err = validate_targets(&config).unwrap_err().to_string();
+        assert!(err.contains("launch.target"), "{err}");
+        assert!(err.contains("unknown target 'nope'"), "{err}");
     }
 
     #[test]

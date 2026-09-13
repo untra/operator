@@ -1070,6 +1070,8 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
 }
 
 async fn cmd_api(config: &Config, port: Option<u16>, open: bool) -> Result<()> {
+    let mut config = config.clone();
+    crate::llm::refresh_config_detection(&mut config);
     let port = port.unwrap_or(config.rest_api.port);
 
     println!("Starting REST API server...");
@@ -1219,6 +1221,7 @@ fn cmd_setup(
     println!();
 
     let result = initialize_workspace(&mut config, &options)?;
+    config.save()?;
 
     // Report results
     if !result.directories_created.is_empty() {

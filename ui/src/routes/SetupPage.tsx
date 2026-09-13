@@ -53,7 +53,7 @@ export function SetupPage() {
       });
       // Bootstrap creates the account but does not sign you in.
       await api.login(result.username, password);
-      void navigate('/', { replace: true });
+      void navigate('/onboarding', { replace: true });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         setError('This server already has an admin account. Sign in instead.');

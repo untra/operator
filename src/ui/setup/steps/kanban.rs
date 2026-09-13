@@ -35,7 +35,9 @@ impl SetupScreen {
                 Constraint::Length(6), // Supported providers list (4 providers)
                 Constraint::Length(1), // Spacer
                 Constraint::Length(2), // Detected header
-                Constraint::Min(6),    // Detected providers list
+                Constraint::Min(4),    // Detected providers list
+                Constraint::Length(1), // Spacer
+                Constraint::Length(2), // Action rows
                 Constraint::Length(2), // Footer/help
             ])
             .split(inner);
@@ -126,8 +128,7 @@ impl SetupScreen {
                 Style::default().fg(Color::DarkGray),
             )]));
         } else {
-            for (i, provider) in self.detected_kanban_providers.iter().enumerate() {
-                let is_valid = self.valid_kanban_providers.contains(&i);
+            for provider in &self.detected_kanban_providers {
                 let (icon, icon_color) = match &provider.status {
                     ProviderStatus::Untested => ("?", Color::Yellow),
                     ProviderStatus::Testing => ("~", Color::Yellow),
@@ -155,14 +156,7 @@ impl SetupScreen {
                     Span::raw("  ["),
                     Span::styled(icon, Style::default().fg(icon_color)),
                     Span::raw("] "),
-                    Span::styled(
-                        provider_name,
-                        Style::default().fg(if is_valid {
-                            Color::White
-                        } else {
-                            Color::DarkGray
-                        }),
-                    ),
+                    Span::styled(provider_name, Style::default().fg(Color::White)),
                     Span::raw(" - "),
                     Span::styled(&provider.domain, Style::default().fg(Color::Cyan)),
                     Span::raw(" ("),
@@ -174,153 +168,38 @@ impl SetupScreen {
         let detected_list = Paragraph::new(detected_lines);
         frame.render_widget(detected_list, chunks[7]);
 
-        // Footer
-        let footer = if self.valid_kanban_providers.is_empty() {
-            Line::from(vec![
-                Span::styled("[Enter]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Continue  "),
-                Span::styled("[Esc]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Back"),
-            ])
-        } else {
-            Line::from(vec![
-                Span::styled("[Enter]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Configure providers  "),
-                Span::styled("[S]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Skip  "),
-                Span::styled("[Esc]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Back"),
-            ])
-        };
-        let footer_para = Paragraph::new(footer).alignment(Alignment::Center);
-        frame.render_widget(footer_para, chunks[8]);
-    }
+        // Actions. Connecting hands off to the shared onboarding dialog, so
+        // credentials are collected the same way here and from the dashboard.
+        let selected = self.kanban_choice_state.selected().unwrap_or(0);
+        let action_rows = Paragraph::new(vec![
+            choice_line("Connect a kanban provider", selected == 0),
+            choice_line("Skip for now", selected == 1),
+        ]);
+        frame.render_widget(action_rows, chunks[9]);
 
-    pub(crate) fn render_kanban_provider_setup_step(
-        &mut self,
-        frame: &mut Frame,
-        provider_index: usize,
-    ) {
-        let area = centered_rect(70, 80, frame.area());
-        frame.render_widget(Clear, area);
-
-        // Get the provider being configured
-        let provider_idx = self
-            .valid_kanban_providers
-            .get(provider_index)
-            .copied()
-            .unwrap_or(0);
-        let provider = self.detected_kanban_providers.get(provider_idx);
-
-        let title = if let Some(p) = provider {
-            let provider_name = match p.provider_type {
-                KanbanProviderType::Jira => "Jira",
-                KanbanProviderType::Linear => "Linear",
-                KanbanProviderType::Github => "GitHub",
-                KanbanProviderType::Openspec => "OpenSpec",
-            };
-            format!(" Setup: {} - {} ", provider_name, p.domain)
-        } else {
-            " Kanban Provider Setup ".to_string()
-        };
-
-        let block = Block::default()
-            .title(title)
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan));
-
-        let inner = block.inner(area);
-        frame.render_widget(block, area);
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .margin(2)
-            .constraints([
-                Constraint::Length(2), // Instructions
-                Constraint::Length(1), // Spacer
-                Constraint::Min(10),   // Project list
-                Constraint::Length(1), // Spacer
-                Constraint::Length(3), // Preview info
-                Constraint::Length(2), // Footer
-            ])
-            .split(inner);
-
-        // Instructions
-        let instructions =
-            Paragraph::new("Select a project to sync:").style(Style::default().fg(Color::Gray));
-        frame.render_widget(instructions, chunks[0]);
-
-        // Project list
-        if self.kanban_projects.is_empty() {
-            let loading = Paragraph::new(vec![
-                Line::from(""),
-                Line::from(vec![Span::styled(
-                    "Loading projects...",
-                    Style::default().fg(Color::Yellow),
-                )]),
-                Line::from(""),
-                Line::from(vec![Span::styled(
-                    "(Projects will be fetched when you enter this step)",
-                    Style::default().fg(Color::DarkGray),
-                )]),
-            ])
-            .alignment(Alignment::Center);
-            frame.render_widget(loading, chunks[2]);
-        } else {
-            crate::ui::paginated_list::render_paginated_list(
-                frame,
-                chunks[2],
-                &mut self.kanban_projects,
-                "Projects",
-                |project, _selected| {
-                    ratatui::widgets::ListItem::new(Line::from(vec![
-                        Span::styled(
-                            format!("{:8}", project.key),
-                            Style::default()
-                                .fg(Color::Cyan)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                        Span::raw(" - "),
-                        Span::styled(project.name.clone(), Style::default().fg(Color::White)),
-                    ]))
-                },
-            );
-        }
-
-        // Preview info
-        let preview = if self.kanban_issue_types.is_empty() {
-            Line::from(vec![Span::styled(
-                "Select a project to see details",
-                Style::default().fg(Color::DarkGray),
-            )])
-        } else {
-            Line::from(vec![
-                Span::styled("Issue Types: ", Style::default().fg(Color::Yellow)),
-                Span::styled(
-                    self.kanban_issue_types.join(", "),
-                    Style::default().fg(Color::White),
-                ),
-                Span::raw("  |  "),
-                Span::styled("Members: ", Style::default().fg(Color::Yellow)),
-                Span::styled(
-                    self.kanban_member_count.to_string(),
-                    Style::default().fg(Color::White),
-                ),
-            ])
-        };
-        let preview_para = Paragraph::new(preview);
-        frame.render_widget(preview_para, chunks[4]);
-
-        // Footer
         let footer = Line::from(vec![
-            Span::styled("[Enter]", Style::default().fg(Color::Yellow)),
+            Span::styled("[↑/↓]", Style::default().fg(Color::Yellow)),
             Span::raw(" Select  "),
-            Span::styled("[n/p]", Style::default().fg(Color::Yellow)),
-            Span::raw(" Page  "),
+            Span::styled("[Enter]", Style::default().fg(Color::Yellow)),
+            Span::raw(" Confirm  "),
             Span::styled("[Esc]", Style::default().fg(Color::Yellow)),
-            Span::raw(" Skip provider"),
+            Span::raw(" Back"),
         ]);
         let footer_para = Paragraph::new(footer).alignment(Alignment::Center);
-        frame.render_widget(footer_para, chunks[5]);
+        frame.render_widget(footer_para, chunks[10]);
     }
+}
+
+/// A selectable action row on the kanban info step.
+fn choice_line(label: &str, selected: bool) -> Line<'_> {
+    let (marker, color) = if selected {
+        ("> ", Color::Cyan)
+    } else {
+        ("  ", Color::Gray)
+    };
+    Line::from(vec![
+        Span::raw("  "),
+        Span::styled(marker, Style::default().fg(color)),
+        Span::styled(label.to_string(), Style::default().fg(color)),
+    ])
 }

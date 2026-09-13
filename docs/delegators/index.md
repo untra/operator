@@ -105,6 +105,9 @@ llm_tool = "claude"
 model  = "opus"
 [delegators.launch_config]
 target = "cloud"
+
+[launch]
+target = "cloud"                 # default when a launch/delegator does not override it
 ```
 
 **Resolution precedence** (first match wins):
@@ -115,10 +118,11 @@ target = "cloud"
 2. `host` name (deprecated) - the `[[hosts]]` entry of that name
 3. `docker = true` (deprecated) - the synthesized docker target
 4. `docker = false` - local
-5. `launch.docker.enabled = true` - the synthesized docker target.
+5. `launch.target` - the named global default target.
+6. `launch.docker.enabled = true` - the synthesized docker target.
    **Behavior change:** this was previously only a TUI dialog gate; it is now
    a real fallback, so REST/CLI/auto launches with it set run in docker.
-6. otherwise - local
+7. otherwise - local
 
 Legacy inputs are synthesized rather than special-cased: `[launch.docker]`
 becomes a target named `docker`, and every `[[hosts]]` entry becomes an ssh

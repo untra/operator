@@ -317,8 +317,8 @@ pub async fn list_statuses(
 
 /// Write or upsert a kanban config section to `config.toml`.
 ///
-/// `config_override_path` is optional - when `None`, falls back to
-/// `Config::operator_config_path()` (which is what production uses).
+/// `config_override_path` is optional - when `None`, the config's own
+/// `operator_config_path_for()` is used (which is what production uses).
 /// When `Some`, the config is loaded from and saved to that path instead
 /// (used by unit tests).
 #[allow(dead_code)]
@@ -344,7 +344,7 @@ pub fn write_config(
         config
             .save()
             .map_err(|e| ApiError::InternalError(format!("Failed to save config: {e}")))?;
-        Config::operator_config_path().display().to_string()
+        config.operator_config_path_for().display().to_string()
     };
 
     info!(section = %section_header, "Wrote kanban config section");

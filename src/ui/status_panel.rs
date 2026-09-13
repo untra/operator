@@ -668,7 +668,8 @@ impl StatusSnapshot {
         let working_dir = std::env::current_dir()
             .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_default();
-        let config_path = Config::operator_config_path()
+        let config_path = config
+            .operator_config_path_for()
             .to_string_lossy()
             .into_owned();
         let tickets_dir = config.paths.tickets.clone();

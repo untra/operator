@@ -101,6 +101,12 @@ impl LaunchOptions {
         matches!(self.target.kind, TargetKind::Docker(_))
     }
 
+    /// Whether the launched command executes outside this machine and must
+    /// resolve executables from the target's PATH.
+    pub fn resolves_on_target_path(&self) -> bool {
+        !matches!(self.target.kind, TargetKind::Local)
+    }
+
     /// The remote host this launch runs on, if any: the provisioned coder
     /// workspace when set, else an ssh target's declared host.
     pub fn remote_host(&self) -> Option<crate::config::RemoteHost> {
@@ -206,6 +212,17 @@ mod tests {
         for (kind, yolo, expected) in cases {
             assert_eq!(options_with(kind, yolo).launch_mode_string(), expected);
         }
+    }
+
+    #[test]
+    fn test_resolves_on_target_path_for_execution_targets() {
+        assert!(!options_with(TargetKind::Local, false).resolves_on_target_path());
+        assert!(
+            options_with(TargetKind::Docker(DockerConfig::default()), false)
+                .resolves_on_target_path()
+        );
+        assert!(options_with(TargetKind::Coder(coder_config()), false).resolves_on_target_path());
+        assert!(options_with(TargetKind::Ssh(ssh_target()), false).resolves_on_target_path());
     }
 
     #[test]

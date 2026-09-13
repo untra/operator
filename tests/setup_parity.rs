@@ -1,0 +1,192 @@
+//! Setup wizard parity tests.
+//!
+//! The wizard's step catalog (`src/startup/steps.rs`) is the single source of
+//! truth for the ratatui renderer, the generated TypeScript binding and the
+//! hosted docs page. These tests keep the three in step.
+//!
+//! Uses `include_str!` to scan source files (same pattern as
+//! `surface_parity.rs`) because `startup` is a crate-private module and the
+//! wizard itself is bin-only, so neither is reachable from an integration test.
+
+const STEPS_RS: &str = include_str!("../src/startup/steps.rs");
+const BINDING_TS: &str = include_str!("../bindings/SetupStep.ts");
+const STARTUP_DOC: &str = include_str!("../docs/startup/index.md");
+const SETUP_MOD_RS: &str = include_str!("../src/ui/setup/mod.rs");
+const GIT_STEP_RS: &str = include_str!("../src/ui/setup/steps/git.rs");
+const MODEL_STEP_RS: &str = include_str!("../src/ui/setup/steps/model_server.rs");
+const WEB_STEPS_TSX: &str = include_str!("../ui/src/routes/onboarding/steps.tsx");
+
+/// Variant names in `SetupStep::ALL`, in declaration order.
+fn catalog_order() -> Vec<String> {
+    let all = STEPS_RS
+        .split_once("pub const ALL:")
+        .expect("steps.rs must declare SetupStep::ALL")
+        .1;
+    let body = all.split_once('[').unwrap().1.split_once("];").unwrap().0;
+    body.lines()
+        .filter_map(|l| l.trim().strip_prefix("SetupStep::"))
+        .map(|v| v.trim_end_matches(',').to_string())
+        .collect()
+}
+
+/// Slugs in the order `slug()` matches them.
+fn catalog_slugs() -> Vec<String> {
+    let arm = STEPS_RS
+        .split_once("pub fn slug(self)")
+        .expect("steps.rs must define slug()")
+        .1;
+    let body = arm.split_once('{').unwrap().1;
+    body.lines()
+        .filter_map(|l| l.trim().split_once("=> \""))
+        .map(|(_, rest)| rest.split('"').next().unwrap_or("").to_string())
+        .take_while(|s| !s.is_empty())
+        .collect()
+}
+
+/// Step display names from the generated docs page headings.
+fn doc_step_names() -> Vec<String> {
+    STARTUP_DOC
+        .lines()
+        .filter_map(|l| l.strip_prefix("### "))
+        .filter_map(|h| h.split_once(". "))
+        .map(|(_, name)| name.trim().to_string())
+        .collect()
+}
+
+/// `name:` literals from the `info()` match, in declaration order.
+fn catalog_names() -> Vec<String> {
+    let arm = STEPS_RS
+        .split_once("pub fn info(self)")
+        .expect("steps.rs must define info()")
+        .1;
+    arm.lines()
+        .filter_map(|l| l.trim().strip_prefix("name: \""))
+        .map(|rest| rest.split('"').next().unwrap_or("").to_string())
+        .collect()
+}
+
+#[test]
+fn test_catalog_is_non_empty() {
+    assert!(
+        !catalog_order().is_empty(),
+        "failed to parse SetupStep::ALL"
+    );
+    assert_eq!(catalog_order().len(), catalog_slugs().len());
+    assert_eq!(catalog_order().len(), catalog_names().len());
+}
+
+/// Defect E regression: the generated docs page drifted out of the wizard's
+/// real order and nothing caught it, because the only guard was a step count.
+#[test]
+fn test_docs_page_lists_steps_in_catalog_order() {
+    assert_eq!(
+        doc_step_names(),
+        catalog_names(),
+        "docs/startup/index.md is stale - run `cargo run -- docs --only startup`"
+    );
+}
+
+#[test]
+fn test_binding_union_matches_catalog_slugs() {
+    let union = BINDING_TS
+        .split_once("export type SetupStep =")
+        .expect("binding must declare SetupStep")
+        .1;
+    let members: Vec<String> = union
+        .split('|')
+        .map(|m| m.trim().trim_end_matches(';').trim_matches('"').to_string())
+        .collect();
+    assert_eq!(
+        members,
+        catalog_slugs(),
+        "bindings/SetupStep.ts is stale - run `make bindings`"
+    );
+}
+
+/// Every variant must be reachable from the wizard state machine; a step the
+/// renderer never selects is dead code (defect A's failure mode).
+#[test]
+fn test_every_catalog_step_is_referenced_by_the_wizard() {
+    for variant in catalog_order() {
+        assert!(
+            SETUP_MOD_RS.contains(&format!("SetupStep::{variant}")),
+            "SetupStep::{variant} is never referenced in src/ui/setup/mod.rs"
+        );
+    }
+}
+
+/// Provider slugs the wizard must never hardcode: the offered set comes from
+/// `integrations::catalog::onboardable`, so promoting a provider into
+/// onboarding is a `SupportStatus` bump rather than an edit in each surface.
+/// The same list will back the web wizard over REST.
+#[test]
+fn test_wizard_steps_do_not_hardcode_provider_slugs() {
+    const SLUGS: &[&str] = &[
+        "github",
+        "gitlab",
+        "gitea",
+        "bitbucket",
+        "forgejo",
+        "anthropic-api",
+        "openai-api",
+        "google-api",
+        "ollama",
+        "openrouter",
+        "openai-compat",
+        "lmstudio",
+    ];
+    for (name, source) in [
+        ("steps/git.rs", GIT_STEP_RS),
+        ("steps/model_server.rs", MODEL_STEP_RS),
+    ] {
+        for slug in SLUGS {
+            assert!(
+                !source.contains(&format!("\"{slug}\"")),
+                "{name} hardcodes the provider slug {slug:?}; derive the list from \
+                 integrations::catalog::onboardable instead"
+            );
+        }
+    }
+}
+
+/// The wizard must key its provider rows off the catalog, not a per-vertical
+/// enum - the enums include Proto entries that onboarding does not advertise.
+#[test]
+fn test_wizard_derives_provider_lists_from_the_catalog() {
+    assert!(
+        SETUP_MOD_RS.contains("onboardable(Vertical::Git)"),
+        "git rows must come from the catalog"
+    );
+    assert!(
+        SETUP_MOD_RS.contains("onboardable(Vertical::Model)"),
+        "model rows must come from the catalog"
+    );
+}
+
+#[test]
+fn test_web_wizard_has_an_exhaustive_component_map() {
+    assert!(
+        WEB_STEPS_TSX.contains("satisfies Record<SetupStep, StepComponent>"),
+        "the web wizard must fail TypeScript compilation when the Rust step union grows"
+    );
+    for slug in catalog_slugs() {
+        assert!(
+            WEB_STEPS_TSX.contains(&format!("{slug}:"))
+                || WEB_STEPS_TSX.contains(&format!("'{slug}':")),
+            "web component map is missing {slug:?}"
+        );
+    }
+}
+
+#[test]
+fn test_web_wizard_derives_provider_lists_from_rest_catalogs() {
+    assert!(WEB_STEPS_TSX.contains("entry.vertical === 'model'"));
+    assert!(WEB_STEPS_TSX.contains("api.gitProviders()"));
+    assert!(WEB_STEPS_TSX.contains("api.kanbanProviders()"));
+}
+
+#[test]
+fn test_web_parity_scope_cuts_are_explicit() {
+    assert!(WEB_STEPS_TSX.contains("Ticket creation is read-only"));
+    assert!(WEB_STEPS_TSX.contains("wrapperSteps.has(step)"));
+}

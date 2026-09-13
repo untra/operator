@@ -136,7 +136,7 @@ pub fn launch_in_zellij_with_options(
     // Wrap in the opr8r step wrapper when the issuetype defines this step,
     // so completion reporting and exec-chain transitions engage.
     if step_command::chain_step(config, ticket, &step_name) {
-        let opr8r = step_command::resolve_opr8r_invocation(options.is_docker());
+        let opr8r = step_command::resolve_opr8r_invocation(options.resolves_on_target_path());
         llm_cmd = step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
     }
 
@@ -316,7 +316,9 @@ pub fn launch_in_zellij_with_relaunch_options(
     // Wrap in the opr8r step wrapper when the issuetype defines this step,
     // so completion reporting and exec-chain transitions engage.
     if step_command::chain_step(config, ticket, &step_name) {
-        let opr8r = step_command::resolve_opr8r_invocation(options.launch_options.is_docker());
+        let opr8r = step_command::resolve_opr8r_invocation(
+            options.launch_options.resolves_on_target_path(),
+        );
         llm_cmd = step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
     }
 

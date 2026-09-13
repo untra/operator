@@ -156,6 +156,21 @@ pub enum SetupResult {
     Initialize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CoderSetupField {
+    TargetName,
+    Template,
+}
+
+impl CoderSetupField {
+    pub fn toggled(self) -> Self {
+        match self {
+            Self::TargetName => Self::Template,
+            Self::Template => Self::TargetName,
+        }
+    }
+}
+
 /// Startup ticket options for project initialization
 #[derive(Debug, Clone)]
 pub struct StartupTicketOption {
@@ -324,42 +339,7 @@ impl WorktreeOption {
     }
 }
 
-/// Steps in the setup process
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SetupStep {
-    /// Welcome splash screen with discovered projects
-    Welcome,
-    /// Select template collection source
-    CollectionSource,
-    /// Browse and multi-select hosted collections (fetched from the manifest URL)
-    HostedCollectionFetch,
-    /// Configure TASK optional fields
-    TaskFieldConfig,
-    /// Select session wrapper (tmux or vscode)
-    SessionWrapperChoice,
-    /// Git worktree preference (use worktrees vs in-place branches)
-    WorktreePreference,
-    /// Optional admin password for the web dashboard. Skipped entirely when an admin account already exists.
-    AdminPassword,
-    /// Tmux onboarding/help (only shown if tmux selected)
-    TmuxOnboarding,
-    /// VS Code extension setup (only shown if vscode selected)
-    VSCodeSetup,
-    /// cmux setup (only shown if cmux selected)
-    CmuxSetup,
-    /// Zellij setup (only shown if zellij selected)
-    ZellijSetup,
-    /// Kanban integration info and provider detection
-    KanbanInfo,
-    /// Per-provider setup with project selection (index into `valid_providers`)
-    KanbanProviderSetup { provider_index: usize },
-    /// Review and configure acceptance criteria
-    AcceptanceCriteria,
-    /// Optional startup tickets creation
-    StartupTickets,
-    /// Confirm initialization
-    Confirm,
-}
+pub use crate::startup::steps::SetupStep;
 
 /// Which of the two password fields has focus.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

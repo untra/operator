@@ -302,7 +302,7 @@ summary.nav-item-row::-webkit-details-marker {
   color: inherit;
 }
 
-/* Workflows nav button — the collection catalog.
+/* Workflows nav button . The collection catalog.
  * A shade apart from both the sage (--color-green-l1) used by every ordinary
  * nav link and the salmon Downloads button below it, so the two read as a pair
  * of distinct calls to action rather than one repeated. */

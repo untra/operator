@@ -38,7 +38,7 @@ variable "slug" {
 variable "install_version" {
   type        = string
   description = "The version of operator to install (must match a GitHub release tag)."
-  default     = "0.2.9"
+  default     = "0.2.10"
 }
 
 variable "install_prefix" {

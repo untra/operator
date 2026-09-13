@@ -25,7 +25,7 @@
     },
     {
       "name": "relay_reply",
-      "description": "Reply to an incoming ask by its ask_id. text is a plain string. Replies are one-shot — no streaming, no cancellation, no structured payload. If you need structured data, serialize JSON inside the string; the asker parses it.",
+      "description": "Reply to an incoming ask by its ask_id. text is a plain string. Replies are one-shot - no streaming, no cancellation, no structured payload. If you need structured data, serialize JSON inside the string; the asker parses it.",
       "inputSchema": {
         "type": "object",
         "properties": {

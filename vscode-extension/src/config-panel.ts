@@ -5,21 +5,17 @@
  * settings with live editing, validation, and theme synchronization.
  */
 
-import * as vscode from 'vscode';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
+import * as vscode from "vscode";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 // smol-toml is ESM-only, must use dynamic import
 async function importSmolToml() {
-  return  import('smol-toml');
+  return import("smol-toml");
 }
-import { detectInstalledLlmTools } from './walkthrough';
-import {
-  getConfigDir,
-  getResolvedConfigPath,
-  resolveWorkingDirectory,
-} from './config-paths';
-import { OperatorApiClient, discoverApiUrl } from './api-client';
-import type { CreateDelegatorRequest } from './generated';
+import { detectInstalledLlmTools } from "./walkthrough";
+import { getConfigDir, getResolvedConfigPath, resolveWorkingDirectory } from "./config-paths";
+import { OperatorApiClient, discoverApiUrl } from "./api-client";
+import type { CreateDelegatorRequest } from "./generated";
 
 /** Message types from the webview */
 interface WebviewMessage {
@@ -53,7 +49,7 @@ export class ConfigPanel {
     this._panel.webview.onDidReceiveMessage(
       (msg: WebviewMessage) => this._handleMessage(msg),
       null,
-      this._disposables
+      this._disposables,
     );
   }
 
@@ -69,16 +65,14 @@ export class ConfigPanel {
     }
 
     const panel = vscode.window.createWebviewPanel(
-      'operatorSettings',
-      'Operator Settings',
+      "operatorSettings",
+      "Operator Settings",
       column ?? vscode.ViewColumn.One,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-        localResourceRoots: [
-          vscode.Uri.joinPath(extensionUri, 'dist', 'webview'),
-        ],
-      }
+        localResourceRoots: [vscode.Uri.joinPath(extensionUri, "dist", "webview")],
+      },
     );
 
     ConfigPanel.currentPanel = new ConfigPanel(panel, extensionUri);
@@ -88,7 +82,7 @@ export class ConfigPanel {
   public static navigateTo(section: string, prefill?: Record<string, unknown>): void {
     if (ConfigPanel.currentPanel) {
       void ConfigPanel.currentPanel._panel.webview.postMessage({
-        type: 'navigateTo',
+        type: "navigateTo",
         section,
         prefill,
       });
@@ -99,7 +93,7 @@ export class ConfigPanel {
     const webview = this._panel.webview;
 
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'configPage.js')
+      vscode.Uri.joinPath(this._extensionUri, "dist", "webview", "configPage.js"),
     );
 
     const nonce = getNonce();
@@ -122,39 +116,35 @@ export class ConfigPanel {
   /** Resolve the running operator REST base URL from the current workspace. */
   private async apiUrl(): Promise<string> {
     const workDir = resolveWorkingDirectory();
-    const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+    const ticketsDir = workDir ? path.join(workDir, ".tickets") : undefined;
     return discoverApiUrl(ticketsDir);
   }
 
   private async _handleMessage(message: WebviewMessage): Promise<void> {
     switch (message.type) {
-      case 'ready':
+      case "ready":
         // Webview is ready, send config
         await this._sendConfig();
         break;
 
-      case 'getConfig':
+      case "getConfig":
         await this._sendConfig();
         break;
 
-      case 'updateConfig':
-        await this._updateConfig(
-          message.section as string,
-          message.key as string,
-          message.value
-        );
+      case "updateConfig":
+        await this._updateConfig(message.section as string, message.key as string, message.value);
         break;
 
-      case 'browseFile': {
+      case "browseFile": {
         const fileUri = await vscode.window.showOpenDialog({
           canSelectFiles: true,
           canSelectFolders: false,
           canSelectMany: false,
-          openLabel: 'Select File',
+          openLabel: "Select File",
         });
         if (fileUri && fileUri.length > 0) {
           void this._panel.webview.postMessage({
-            type: 'browseResult',
+            type: "browseResult",
             field: message.field,
             path: fileUri[0]!.fsPath,
           });
@@ -162,43 +152,43 @@ export class ConfigPanel {
         break;
       }
 
-      case 'browseFolder': {
+      case "browseFolder": {
         const folderUri = await vscode.window.showOpenDialog({
           canSelectFiles: false,
           canSelectFolders: true,
           canSelectMany: false,
-          openLabel: 'Select Folder',
+          openLabel: "Select Folder",
         });
         if (folderUri && folderUri.length > 0) {
           void this._panel.webview.postMessage({
-            type: 'browseResult',
+            type: "browseResult",
             field: message.field,
             path: folderUri[0]!.fsPath,
           });
           // Also persist to VS Code settings
           await vscode.workspace
-            .getConfiguration('operator')
-            .update('workingDirectory', folderUri[0]!.fsPath, vscode.ConfigurationTarget.Global);
+            .getConfiguration("operator")
+            .update("workingDirectory", folderUri[0]!.fsPath, vscode.ConfigurationTarget.Global);
         }
         break;
       }
 
-      case 'validateJira': {
+      case "validateJira": {
         // Delegate credential validation to the Operator REST API.
         const workDir = resolveWorkingDirectory();
-        const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+        const ticketsDir = workDir ? path.join(workDir, ".tickets") : undefined;
         const apiUrl = await discoverApiUrl(ticketsDir);
         const client = new OperatorApiClient(apiUrl);
 
-        let displayName = '';
-        let accountId = '';
+        let displayName = "";
+        let accountId = "";
         let errorMsg: string | undefined;
         let projects: Array<{ key: string; name: string }> = [];
         let valid: boolean;
 
         try {
           const result = await client.validateKanbanCredentials({
-            provider: 'jira',
+            provider: "jira",
             jira: {
               domain: message.domain as string,
               email: message.email as string,
@@ -216,7 +206,7 @@ export class ConfigPanel {
 
           if (valid) {
             const projs = await client.listKanbanProjects({
-              provider: 'jira',
+              provider: "jira",
               jira: {
                 domain: message.domain as string,
                 email: message.email as string,
@@ -229,11 +219,11 @@ export class ConfigPanel {
           }
         } catch (err) {
           valid = false;
-          errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          errorMsg = err instanceof Error ? err.message : "Unknown error";
         }
 
         void this._panel.webview.postMessage({
-          type: 'jiraValidationResult',
+          type: "jiraValidationResult",
           result: {
             valid,
             displayName,
@@ -245,22 +235,22 @@ export class ConfigPanel {
         break;
       }
 
-      case 'validateLinear': {
+      case "validateLinear": {
         const workDir = resolveWorkingDirectory();
-        const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+        const ticketsDir = workDir ? path.join(workDir, ".tickets") : undefined;
         const apiUrl = await discoverApiUrl(ticketsDir);
         const client = new OperatorApiClient(apiUrl);
 
-        let userName = '';
-        let orgName = '';
-        let userId = '';
+        let userName = "";
+        let orgName = "";
+        let userId = "";
         let teams: Array<{ id: string; name: string; key: string }> = [];
         let errorMsg: string | undefined;
         let valid: boolean;
 
         try {
           const result = await client.validateKanbanCredentials({
-            provider: 'linear',
+            provider: "linear",
             jira: null,
             linear: { api_key: message.apiKey as string },
             github: null,
@@ -279,11 +269,11 @@ export class ConfigPanel {
           errorMsg = result.error ?? undefined;
         } catch (err) {
           valid = false;
-          errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          errorMsg = err instanceof Error ? err.message : "Unknown error";
         }
 
         void this._panel.webview.postMessage({
-          type: 'linearValidationResult',
+          type: "linearValidationResult",
           result: {
             valid,
             userName,
@@ -296,13 +286,13 @@ export class ConfigPanel {
         break;
       }
 
-      case 'detectLlmTools': {
+      case "detectLlmTools": {
         const tools = await detectInstalledLlmTools();
         // Update config with detected tools and send back full WebviewConfig
         const configPath = getResolvedConfigPath();
         if (configPath) {
           try {
-            await writeConfigField('llm_tools', 'detected', tools);
+            await writeConfigField("llm_tools", "detected", tools);
           } catch {
             // Non-fatal: config may not exist yet
           }
@@ -310,15 +300,15 @@ export class ConfigPanel {
         try {
           const config = await readConfig();
           void this._panel.webview.postMessage({
-            type: 'llmToolsDetected',
+            type: "llmToolsDetected",
             config,
           });
         } catch {
           // If we can't read config, just send tool names for compatibility
           void this._panel.webview.postMessage({
-            type: 'llmToolsDetected',
+            type: "llmToolsDetected",
             config: {
-              config_path: configPath || '',
+              config_path: configPath || "",
               working_directory: resolveWorkingDirectory(),
               config_exists: Boolean(configPath),
               config: { llm_tools: { detected: tools, providers: [], detection_complete: true } },
@@ -328,43 +318,43 @@ export class ConfigPanel {
         break;
       }
 
-      case 'checkApiHealth': {
+      case "checkApiHealth": {
         try {
           const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const ticketsDir = workDir ? path.join(workDir, ".tickets") : undefined;
           const apiUrl = await discoverApiUrl(ticketsDir);
           const client = new OperatorApiClient(apiUrl);
           await client.health();
-          void this._panel.webview.postMessage({ type: 'apiHealthResult', reachable: true });
+          void this._panel.webview.postMessage({ type: "apiHealthResult", reachable: true });
         } catch {
-          void this._panel.webview.postMessage({ type: 'apiHealthResult', reachable: false });
+          void this._panel.webview.postMessage({ type: "apiHealthResult", reachable: false });
         }
         break;
       }
 
-      case 'openOperatorUi': {
+      case "openOperatorUi": {
         // The webview now links out to the daemon-hosted Operator UI for
         // surfaces it no longer reimplements (issue types, projects, …).
         const route = message.route as string;
         const command =
-          route === 'projects'
-            ? 'operator.openProjects'
-            : route === 'issuetypes'
-              ? 'operator.openIssueTypes'
-              : 'operator.openUi';
+          route === "projects"
+            ? "operator.openProjects"
+            : route === "issuetypes"
+              ? "operator.openIssueTypes"
+              : "operator.openUi";
         await vscode.commands.executeCommand(command);
         break;
       }
 
-      case 'openExternal':
+      case "openExternal":
         void vscode.env.openExternal(vscode.Uri.parse(message.url as string));
         break;
 
-      case 'openWalkthrough':
-        await vscode.commands.executeCommand('operator.openWalkthrough');
+      case "openWalkthrough":
+        await vscode.commands.executeCommand("operator.openWalkthrough");
         break;
 
-      case 'openFile': {
+      case "openFile": {
         const filePath = message.filePath as string;
         if (filePath) {
           const doc = await vscode.workspace.openTextDocument(filePath);
@@ -373,41 +363,41 @@ export class ConfigPanel {
         break;
       }
 
-      case 'getIssueTypes': {
+      case "getIssueTypes": {
         try {
           const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const ticketsDir = workDir ? path.join(workDir, ".tickets") : undefined;
           const apiUrl = await discoverApiUrl(ticketsDir);
           const client = new OperatorApiClient(apiUrl);
           const issueTypes = await client.listIssueTypes();
-          void this._panel.webview.postMessage({ type: 'issueTypesLoaded', issueTypes });
+          void this._panel.webview.postMessage({ type: "issueTypesLoaded", issueTypes });
         } catch (err) {
           void this._panel.webview.postMessage({
-            type: 'issueTypeError',
-            error: err instanceof Error ? err.message : 'Failed to load issue types',
+            type: "issueTypeError",
+            error: err instanceof Error ? err.message : "Failed to load issue types",
           });
         }
         break;
       }
 
-      case 'getCollections': {
+      case "getCollections": {
         try {
           const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const ticketsDir = workDir ? path.join(workDir, ".tickets") : undefined;
           const apiUrl = await discoverApiUrl(ticketsDir);
           const client = new OperatorApiClient(apiUrl);
           const collections = await client.listCollections();
-          void this._panel.webview.postMessage({ type: 'collectionsLoaded', collections });
+          void this._panel.webview.postMessage({ type: "collectionsLoaded", collections });
         } catch (err) {
           void this._panel.webview.postMessage({
-            type: 'collectionsError',
-            error: err instanceof Error ? err.message : 'Failed to load collections',
+            type: "collectionsError",
+            error: err instanceof Error ? err.message : "Failed to load collections",
           });
         }
         break;
       }
 
-      case 'getModelProviders': {
+      case "getModelProviders": {
         try {
           const client = new OperatorApiClient(await this.apiUrl());
           const [kinds, delegatorsResp] = await Promise.all([
@@ -415,36 +405,36 @@ export class ConfigPanel {
             client.listDelegators(),
           ]);
           void this._panel.webview.postMessage({
-            type: 'modelProvidersLoaded',
+            type: "modelProvidersLoaded",
             kinds,
             delegators: delegatorsResp.delegators,
           });
         } catch (err) {
           void this._panel.webview.postMessage({
-            type: 'modelProvidersError',
-            error: err instanceof Error ? err.message : 'Failed to load model providers',
+            type: "modelProvidersError",
+            error: err instanceof Error ? err.message : "Failed to load model providers",
           });
         }
         break;
       }
 
-      case 'probeProvider': {
+      case "probeProvider": {
         const slug = message.slug as string;
         try {
           const client = new OperatorApiClient(await this.apiUrl());
           const result = await client.providerModels(slug);
-          void this._panel.webview.postMessage({ type: 'providerProbed', slug, result });
+          void this._panel.webview.postMessage({ type: "providerProbed", slug, result });
         } catch {
           void this._panel.webview.postMessage({
-            type: 'providerProbed',
+            type: "providerProbed",
             slug,
-            result: { server: slug, reachable: false, models: [], error: 'probe failed' },
+            result: { server: slug, reachable: false, models: [], error: "probe failed" },
           });
         }
         break;
       }
 
-      case 'connectProvider': {
+      case "connectProvider": {
         const slug = message.slug as string;
         try {
           const client = new OperatorApiClient(await this.apiUrl());
@@ -459,77 +449,77 @@ export class ConfigPanel {
             display_name: kind?.display_name ?? null,
           });
           const result = await client.providerModels(slug);
-          void this._panel.webview.postMessage({ type: 'providerProbed', slug, result });
+          void this._panel.webview.postMessage({ type: "providerProbed", slug, result });
         } catch (err) {
           void this._panel.webview.postMessage({
-            type: 'modelProvidersError',
-            error: err instanceof Error ? err.message : 'Failed to connect provider',
+            type: "modelProvidersError",
+            error: err instanceof Error ? err.message : "Failed to connect provider",
           });
         }
         break;
       }
 
-      case 'createDelegator': {
+      case "createDelegator": {
         try {
           const client = new OperatorApiClient(await this.apiUrl());
           const created = await client.createDelegator(message.request as CreateDelegatorRequest);
-          void this._panel.webview.postMessage({ type: 'delegatorCreated', name: created.name });
+          void this._panel.webview.postMessage({ type: "delegatorCreated", name: created.name });
         } catch (err) {
           void this._panel.webview.postMessage({
-            type: 'modelProvidersError',
-            error: err instanceof Error ? err.message : 'Failed to create delegator',
+            type: "modelProvidersError",
+            error: err instanceof Error ? err.message : "Failed to create delegator",
           });
         }
         break;
       }
 
-      case 'getExternalIssueTypes': {
+      case "getExternalIssueTypes": {
         const provider = message.provider as string;
         const projectKey = message.projectKey as string;
         try {
           const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const ticketsDir = workDir ? path.join(workDir, ".tickets") : undefined;
           const apiUrl = await discoverApiUrl(ticketsDir);
           const client = new OperatorApiClient(apiUrl);
           const types = await client.getExternalIssueTypes(provider, projectKey);
           void this._panel.webview.postMessage({
-            type: 'externalIssueTypesLoaded',
+            type: "externalIssueTypesLoaded",
             provider,
             projectKey,
             types,
           });
         } catch (err) {
           void this._panel.webview.postMessage({
-            type: 'externalIssueTypesError',
+            type: "externalIssueTypesError",
             provider,
             projectKey,
-            error: err instanceof Error ? err.message : 'Failed to load external issue types',
+            error: err instanceof Error ? err.message : "Failed to load external issue types",
           });
         }
         break;
       }
 
-      case 'getKanbanStatuses': {
+      case "getKanbanStatuses": {
         const provider = message.provider as string;
         const projectKey = message.projectKey as string;
         try {
           const workDir = resolveWorkingDirectory();
-          const ticketsDir = workDir ? path.join(workDir, '.tickets') : undefined;
+          const ticketsDir = workDir ? path.join(workDir, ".tickets") : undefined;
           const apiUrl = await discoverApiUrl(ticketsDir);
           const client = new OperatorApiClient(apiUrl);
           const statuses = await client.getKanbanStatuses(provider, projectKey);
           void this._panel.webview.postMessage({
-            type: 'kanbanStatusesLoaded',
+            type: "kanbanStatusesLoaded",
             provider,
             projectKey,
             statuses,
           });
         } catch (err) {
           void this._panel.webview.postMessage({
-            type: 'kanbanStatusesError',
+            type: "kanbanStatusesError",
             provider,
             projectKey,
-            error: err instanceof Error ? err.message : 'Failed to load kanban statuses',
+            error: err instanceof Error ? err.message : "Failed to load kanban statuses",
           });
         }
         break;
@@ -542,35 +532,31 @@ export class ConfigPanel {
     try {
       const config = await readConfig();
       void this._panel.webview.postMessage({
-        type: 'configLoaded',
+        type: "configLoaded",
         config,
       });
     } catch (err) {
       void this._panel.webview.postMessage({
-        type: 'configError',
-        error: err instanceof Error ? err.message : 'Failed to load config',
+        type: "configError",
+        error: err instanceof Error ? err.message : "Failed to load config",
       });
     }
   }
 
   /** Apply a field update to config.toml and send updated config back */
-  private async _updateConfig(
-    section: string,
-    key: string,
-    value: unknown
-  ): Promise<void> {
+  private async _updateConfig(section: string, key: string, value: unknown): Promise<void> {
     try {
       await writeConfigField(section, key, value);
 
       const config = await readConfig();
       void this._panel.webview.postMessage({
-        type: 'configUpdated',
+        type: "configUpdated",
         config,
       });
     } catch (err) {
       void this._panel.webview.postMessage({
-        type: 'configError',
-        error: err instanceof Error ? err.message : 'Failed to update config',
+        type: "configError",
+        error: err instanceof Error ? err.message : "Failed to update config",
       });
     }
   }
@@ -580,7 +566,9 @@ export class ConfigPanel {
     this._panel.dispose();
     while (this._disposables.length) {
       const d = this._disposables.pop();
-      if (d) { d.dispose(); }
+      if (d) {
+        d.dispose();
+      }
     }
   }
 }
@@ -597,13 +585,13 @@ interface TomlConfig {
 // `KanbanProviderType::ALL` catalog and is projected into the generated
 // `KanbanConfig` type (one keyed sub-table per provider). This table mirrors
 // that catalog for the webview's config write path. Every provider in the
-// generated schema MUST have an entry here — `config-panel.test.ts` enforces
+// generated schema MUST have an entry here - `config-panel.test.ts` enforces
 // it so a new provider can't be added to the schema without being wired up.
 
 /** Per-provider metadata for the kanban config write path. */
 export interface KanbanProviderMeta {
   /**
-   * The form field whose value renames the provider's HashMap key — the Jira
+   * The form field whose value renames the provider's HashMap key - the Jira
    * domain, Linear workspace slug, or GitHub owner login.
    */
   instanceKeyField: string;
@@ -616,10 +604,10 @@ export interface KanbanProviderMeta {
  * generated `KanbanConfig` keys and `KanbanProviderType::slug()`).
  */
 export const KANBAN_PROVIDERS: Record<string, KanbanProviderMeta> = {
-  jira: { instanceKeyField: 'domain', defaultInstanceKey: 'your-org.atlassian.net' },
-  linear: { instanceKeyField: 'team_id', defaultInstanceKey: 'default-team' },
-  github: { instanceKeyField: 'owner', defaultInstanceKey: 'your-org' },
-  openspec: { instanceKeyField: 'instance', defaultInstanceKey: 'my-repo' },
+  jira: { instanceKeyField: "domain", defaultInstanceKey: "your-org.atlassian.net" },
+  linear: { instanceKeyField: "team_id", defaultInstanceKey: "default-team" },
+  github: { instanceKeyField: "owner", defaultInstanceKey: "your-org" },
+  openspec: { instanceKeyField: "instance", defaultInstanceKey: "my-repo" },
 };
 
 /** Slugs of every supported kanban provider, in catalog order. */
@@ -627,16 +615,16 @@ export const KANBAN_PROVIDER_SLUGS: string[] = Object.keys(KANBAN_PROVIDERS);
 
 /** Project-level fields written into the first project sub-table by shorthand. */
 const KANBAN_PROJECT_LEVEL_KEYS = new Set([
-  'status_mapping',
-  'collection_name',
-  'sync_user_id',
-  'type_mappings',
+  "status_mapping",
+  "collection_name",
+  "sync_user_id",
+  "type_mappings",
 ]);
 
 /**
  * Apply a single field update to a kanban provider's sub-table (mutates
  * `kanban`). Shared by every provider so adding a provider is a one-line entry
- * in {@link KANBAN_PROVIDERS} — no new branch here or in the message handler.
+ * in {@link KANBAN_PROVIDERS} - no new branch here or in the message handler.
  *
  * @param kanban the `[kanban]` table from the parsed config
  * @param slug   provider slug (`jira`, `linear`, `github`, …)
@@ -648,29 +636,35 @@ export function applyKanbanProviderField(
   kanban: TomlConfig,
   slug: string,
   key: string,
-  value: unknown
+  value: unknown,
 ): void {
   const meta = KANBAN_PROVIDERS[slug];
   if (!meta) {
     throw new Error(`Unknown kanban provider: ${slug}`);
   }
 
-  if (!kanban[slug]) { kanban[slug] = {}; }
+  if (!kanban[slug]) {
+    kanban[slug] = {};
+  }
   const providerMap = kanban[slug] as TomlConfig;
 
   const instanceKeys = Object.keys(providerMap);
   const instanceKey = instanceKeys[0] ?? meta.defaultInstanceKey;
-  if (!providerMap[instanceKey]) { providerMap[instanceKey] = {}; }
+  if (!providerMap[instanceKey]) {
+    providerMap[instanceKey] = {};
+  }
   const ws = providerMap[instanceKey] as TomlConfig;
 
-  if (key === meta.instanceKeyField && typeof value === 'string' && value !== instanceKey) {
+  if (key === meta.instanceKeyField && typeof value === "string" && value !== instanceKey) {
     // Rename the instance key (e.g. the Jira domain / GitHub owner)
     const existing = providerMap[instanceKey];
     delete providerMap[instanceKey];
     providerMap[value] = existing;
-  } else if (key === 'project_key') {
+  } else if (key === "project_key") {
     // Rename (or create) the first project sub-table
-    if (!ws.projects) { ws.projects = {}; }
+    if (!ws.projects) {
+      ws.projects = {};
+    }
     const projects = ws.projects as TomlConfig;
     const oldKeys = Object.keys(projects);
     if (oldKeys.length > 0 && oldKeys[0]) {
@@ -678,25 +672,33 @@ export function applyKanbanProviderField(
       delete projects[oldKeys[0]];
       projects[value as string] = oldProject;
     } else {
-      projects[value as string] = { sync_user_id: '' };
+      projects[value as string] = { sync_user_id: "" };
     }
   } else if (KANBAN_PROJECT_LEVEL_KEYS.has(key)) {
     // Write to the first project sub-table
-    if (!ws.projects) { ws.projects = {}; }
+    if (!ws.projects) {
+      ws.projects = {};
+    }
     const projects = ws.projects as TomlConfig;
     const projectKeys = Object.keys(projects);
-    const projectKey = projectKeys[0] ?? 'default';
-    if (!projects[projectKey]) { projects[projectKey] = {}; }
+    const projectKey = projectKeys[0] ?? "default";
+    if (!projects[projectKey]) {
+      projects[projectKey] = {};
+    }
     (projects[projectKey] as TomlConfig)[key] = value;
-  } else if (key.startsWith('projects.')) {
+  } else if (key.startsWith("projects.")) {
     // Multi-project writes: projects.{projectKey}.{field}
-    const parts = key.split('.');
+    const parts = key.split(".");
     if (parts.length >= 3 && parts[1]) {
       const pKey = parts[1];
-      const field = parts.slice(2).join('.');
-      if (!ws.projects) { ws.projects = {}; }
+      const field = parts.slice(2).join(".");
+      if (!ws.projects) {
+        ws.projects = {};
+      }
       const projects = ws.projects as TomlConfig;
-      if (!projects[pKey]) { projects[pKey] = { sync_user_id: '' }; }
+      if (!projects[pKey]) {
+        projects[pKey] = { sync_user_id: "" };
+      }
       (projects[pKey] as TomlConfig)[field] = value;
     }
   } else {
@@ -710,12 +712,12 @@ async function readConfig(): Promise<WebviewConfig> {
   const configPath = getResolvedConfigPath();
   const workDir = resolveWorkingDirectory();
 
-  let raw = '';
+  let raw = "";
   if (configPath) {
     try {
-      raw = await fs.readFile(configPath, 'utf-8');
+      raw = await fs.readFile(configPath, "utf-8");
     } catch {
-      // File doesn't exist — return defaults
+      // File doesn't exist - return defaults
     }
   }
 
@@ -729,9 +731,9 @@ async function readConfig(): Promise<WebviewConfig> {
     parsed = parse(raw);
   }
 
-  // Return the parsed TOML directly — field names already match generated types
+  // Return the parsed TOML directly - field names already match generated types
   return {
-    config_path: configPath || '',
+    config_path: configPath || "",
     working_directory: workDir,
     config_exists: configExists,
     config: parsed,
@@ -739,22 +741,18 @@ async function readConfig(): Promise<WebviewConfig> {
 }
 
 /** Write a single field update to config.toml */
-async function writeConfigField(
-  section: string,
-  key: string,
-  value: unknown
-): Promise<void> {
+async function writeConfigField(section: string, key: string, value: unknown): Promise<void> {
   const configPath = getResolvedConfigPath();
   if (!configPath) {
-    throw new Error('No working directory configured');
+    throw new Error("No working directory configured");
   }
 
   const configDir = getConfigDir(resolveWorkingDirectory());
   await fs.mkdir(configDir, { recursive: true });
 
-  let raw = '';
+  let raw = "";
   try {
-    raw = await fs.readFile(configPath, 'utf-8');
+    raw = await fs.readFile(configPath, "utf-8");
   } catch {
     // file doesn't exist yet
   }
@@ -766,69 +764,83 @@ async function writeConfigField(
   }
 
   // Kanban providers share one write path so every provider in
-  // KANBAN_PROVIDERS — current and future — is handled identically. This
+  // KANBAN_PROVIDERS - current and future - is handled identically. This
   // covers `kanban.jira`, `kanban.linear`, `kanban.github`, and any provider
   // added to the catalog later.
-  if (section.startsWith('kanban.')) {
-    if (!parsed.kanban) { parsed.kanban = {}; }
+  if (section.startsWith("kanban.")) {
+    if (!parsed.kanban) {
+      parsed.kanban = {};
+    }
     applyKanbanProviderField(
       parsed.kanban as TomlConfig,
-      section.slice('kanban.'.length),
+      section.slice("kanban.".length),
       key,
-      value
+      value,
     );
   }
 
   // Apply the update based on section
   switch (section) {
-    case 'primary':
-      if (key === 'working_directory') {
+    case "primary":
+      if (key === "working_directory") {
         // Update VS Code setting, not the TOML file
         await vscode.workspace
-          .getConfiguration('operator')
-          .update('workingDirectory', value, vscode.ConfigurationTarget.Global);
+          .getConfiguration("operator")
+          .update("workingDirectory", value, vscode.ConfigurationTarget.Global);
         return; // Don't write to TOML
       }
       parsed[key] = value;
       break;
 
-    case 'agents':
-      if (!parsed.agents) { parsed.agents = {}; }
+    case "agents":
+      if (!parsed.agents) {
+        parsed.agents = {};
+      }
       (parsed.agents as TomlConfig)[key] = value;
       break;
 
-    case 'sessions':
-      if (!parsed.sessions) { parsed.sessions = {}; }
+    case "sessions":
+      if (!parsed.sessions) {
+        parsed.sessions = {};
+      }
       (parsed.sessions as TomlConfig)[key] = value;
       break;
 
-    case 'llm_tools':
-      if (!parsed.llm_tools) { parsed.llm_tools = {}; }
+    case "llm_tools":
+      if (!parsed.llm_tools) {
+        parsed.llm_tools = {};
+      }
       (parsed.llm_tools as TomlConfig)[key] = value;
       break;
 
     // kanban.* providers are handled by applyKanbanProviderField above.
 
-    case 'git':
-      if (!parsed.git) { parsed.git = {}; }
+    case "git":
+      if (!parsed.git) {
+        parsed.git = {};
+      }
       (parsed.git as TomlConfig)[key] = value;
       break;
 
-    case 'git.github':
-      if (!parsed.git) { parsed.git = {}; }
-      if (!(parsed.git as TomlConfig).github) { (parsed.git as TomlConfig).github = {}; }
+    case "git.github":
+      if (!parsed.git) {
+        parsed.git = {};
+      }
+      if (!(parsed.git as TomlConfig).github) {
+        (parsed.git as TomlConfig).github = {};
+      }
       ((parsed.git as TomlConfig).github as TomlConfig)[key] = value;
       break;
   }
 
   const output = stringify(parsed);
-  await fs.writeFile(configPath, output, 'utf-8');
+  await fs.writeFile(configPath, output, "utf-8");
 }
 
 /** Generate a random nonce for CSP */
 function getNonce(): string {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let text = "";
+  const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   for (let i = 0; i < 32; i++) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }

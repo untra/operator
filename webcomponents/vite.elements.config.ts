@@ -3,7 +3,7 @@ import path from 'node:path';
 import { defineConfig } from 'vite';
 
 /**
- * Custom-elements build — consumed by the Jekyll docs site.
+ * Custom-elements build - consumed by the Jekyll docs site.
  *
  * Nothing is external: the docs site loads a single `<script type="module">`
  * with no import map, so React and the graph renderer are bundled in. Output

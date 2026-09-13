@@ -4,46 +4,44 @@
  * Slim orchestrator that delegates to per-section modules in ./sections/.
  * Each section owns its state, check logic, and tree item rendering.
  *
- * Sections use progressive disclosure — they only appear when prerequisites are met:
+ * Sections use progressive disclosure - they only appear when prerequisites are met:
  *   Tier 0: Configuration (always visible)
  *   Tier 1: Connections (requires configReady)
  *   Tier 2: Kanban/kanban, LLM Tools/llm, Model Servers/model-servers, Git/git (requires connectionsReady / llmReady)
  *   Tier 3: Issue Types/issuetypes (kanbanConfigured), Delegators/delegators (llmConfigured), Managed Projects/projects (gitConfigured)
  */
 
-import * as vscode from 'vscode';
-import * as fs from 'node:fs/promises';
-import { getResolvedConfigPath } from './config-paths';
-import type { StatusItem } from './status-item';
-import type { SectionContext, StatusSection } from './sections/types';
-import { ConfigSection } from './sections/config-section';
-import { ConnectionsSection } from './sections/connections-section';
-import { KanbanSection } from './sections/kanban-section';
-import { LlmSection } from './sections/llm-section';
-import { GitSection } from './sections/git-section';
-import { IssueTypeSection } from './sections/issuetype-section';
-import { DelegatorSection } from './sections/delegator-section';
-import { ModelServerSection } from './sections/modelserver-section';
-import { ManagedProjectsSection } from './sections/managed-projects-section';
-import { WorkflowsSection } from './sections/workflows-section';
+import * as vscode from "vscode";
+import * as fs from "node:fs/promises";
+import { getResolvedConfigPath } from "./config-paths";
+import type { StatusItem } from "./status-item";
+import type { SectionContext, StatusSection } from "./sections/types";
+import { ConfigSection } from "./sections/config-section";
+import { ConnectionsSection } from "./sections/connections-section";
+import { KanbanSection } from "./sections/kanban-section";
+import { LlmSection } from "./sections/llm-section";
+import { GitSection } from "./sections/git-section";
+import { IssueTypeSection } from "./sections/issuetype-section";
+import { DelegatorSection } from "./sections/delegator-section";
+import { ModelServerSection } from "./sections/modelserver-section";
+import { ManagedProjectsSection } from "./sections/managed-projects-section";
+import { WorkflowsSection } from "./sections/workflows-section";
 
 // Backward-compatible re-exports
-export { StatusItem } from './status-item';
-export type { StatusItemOptions } from './status-item';
-export type { WebhookStatus, ApiStatus } from './sections/types';
+export { StatusItem } from "./status-item";
+export type { StatusItemOptions } from "./status-item";
+export type { WebhookStatus, ApiStatus } from "./sections/types";
 
 // smol-toml is ESM-only, must use dynamic import
 async function importSmolToml() {
-  return  import('smol-toml');
+  return import("smol-toml");
 }
 
 /**
  * TreeDataProvider for hierarchical status information
  */
 export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
-  private _onDidChangeTreeData = new vscode.EventEmitter<
-    StatusItem | undefined
-  >();
+  private _onDidChangeTreeData = new vscode.EventEmitter<StatusItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private context: vscode.ExtensionContext;
@@ -81,7 +79,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     this.managedProjectsSection = new ManagedProjectsSection();
     this.workflowsSection = new WorkflowsSection();
 
-    // Canonical section order — must match the `SectionId` enum in
+    // Canonical section order - must match the `SectionId` enum in
     // src/ui/status_panel.rs (the single source of truth) and the TUI's
     // section registry, so all three surfaces stay in sync.
     this.allSections = [
@@ -96,7 +94,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       this.managedProjectsSection,
       this.workflowsSection,
     ];
-    this.sectionMap = new Map(this.allSections.map(s => [s.sectionId, s]));
+    this.sectionMap = new Map(this.allSections.map((s) => [s.sectionId, s]));
     this.ctx = this.buildContext();
   }
 
@@ -114,7 +112,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     const ctx = this.buildContext();
 
     // All sections run check() regardless of visibility
-    await Promise.allSettled(this.allSections.map(s => s.check(ctx)));
+    await Promise.allSettled(this.allSections.map((s) => s.check(ctx)));
 
     // Set readiness flags after checks complete
     ctx.configReady = this.configSection.isReady();
@@ -142,7 +140,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     }
 
     try {
-      const raw = await fs.readFile(configPath, 'utf-8');
+      const raw = await fs.readFile(configPath, "utf-8");
       if (raw.trim()) {
         const { parse } = await importSmolToml();
         this.parsedConfig = parse(raw);
@@ -181,24 +179,30 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     const healthCache = new Map<string, string>();
 
     const getSectionHealth = (sectionId: string): string => {
-      if (healthCache.has(sectionId)) { return healthCache.get(sectionId)!; }
+      if (healthCache.has(sectionId)) {
+        return healthCache.get(sectionId)!;
+      }
       const section = this.sectionMap.get(sectionId);
-      if (!section) { return 'Red'; }
+      if (!section) {
+        return "Red";
+      }
       const h = section.health();
       healthCache.set(sectionId, h);
       return h;
     };
 
     const prerequisitesMet = (section: StatusSection): boolean => {
-      return section.prerequisites.every(prereqId => {
+      return section.prerequisites.every((prereqId) => {
         // Prerequisite must itself be visible (transitive) and not Red
         const prereqSection = this.sectionMap.get(prereqId);
-        if (!prereqSection) { return false; }
-        return prerequisitesMet(prereqSection) && getSectionHealth(prereqId) !== 'Red';
+        if (!prereqSection) {
+          return false;
+        }
+        return prerequisitesMet(prereqSection) && getSectionHealth(prereqId) !== "Red";
       });
     };
 
-    return this.allSections.filter(s => prerequisitesMet(s));
+    return this.allSections.filter((s) => prerequisitesMet(s));
   }
 
   getTreeItem(element: StatusItem): vscode.TreeItem {
@@ -207,7 +211,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
 
   getChildren(element?: StatusItem): StatusItem[] {
     if (!element) {
-      return this.getVisibleSections().map(s => s.getTopLevelItem(this.ctx));
+      return this.getVisibleSections().map((s) => s.getTopLevelItem(this.ctx));
     }
 
     // Route to section by sectionId

@@ -222,7 +222,11 @@ Coder's own ingress NetworkPolicy has to admit Operator's namespace too.
 kubectl -n operator exec operator-0 --   curl -sSf https://coder.example.com/api/v2/buildinfo
 ```
 
-**3. Nothing else.** The image already ships `openssh-client`, and Operator downloads the `coder` CLI from the deployment on first use, caching it on the persistent volume at `.tickets/operator/bin/coder`. No custom image, no initContainer, and no relaxing of `readOnlyRootFilesystem` - the cache and the SSH fragments both live under `/op`.
+**3. Configure the target in Operator.** On a new installation, finish the getting-started wizard in the web UI, choose **Coder** as the execution target, and enter the child-workspace template. The wizard writes the project configuration to `/op/.tickets/operator/config.toml`; the chart does not own or project an Operator configuration file.
+
+The image already ships `openssh-client`, and Operator downloads the `coder` CLI from the deployment on first use, caching it on the persistent volume at `.tickets/operator/bin/coder`.
+
+No custom image, initContainer, ConfigMap, or relaxing of `readOnlyRootFilesystem` is required - the configuration, cache, and SSH fragments all live under `/op`.
 
 ## Security context
 

@@ -6,26 +6,24 @@
  * `operator.workingDirectory`, falling back to the workspace parent.
  */
 
-import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
-import * as vscode from 'vscode';
+import * as path from "node:path";
+import * as fs from "node:fs/promises";
+import * as vscode from "vscode";
 
 /** Build the config.toml path from a working directory */
 export function getConfigPath(workingDir: string): string {
-  return path.join(workingDir, '.tickets', 'operator', 'config.toml');
+  return path.join(workingDir, ".tickets", "operator", "config.toml");
 }
 
 /** Build the config directory (containing config.toml) from a working directory */
 export function getConfigDir(workingDir: string): string {
-  return path.join(workingDir, '.tickets', 'operator');
+  return path.join(workingDir, ".tickets", "operator");
 }
 
 /** Resolve the working directory from settings or workspace */
 export function resolveWorkingDirectory(): string {
   // Check operator.workingDirectory setting first
-  const configured = vscode.workspace
-    .getConfiguration('operator')
-    .get<string>('workingDirectory');
+  const configured = vscode.workspace.getConfiguration("operator").get<string>("workingDirectory");
   if (configured) {
     return configured;
   }
@@ -36,14 +34,14 @@ export function resolveWorkingDirectory(): string {
     return path.dirname(workspaceFolder.uri.fsPath);
   }
 
-  return '';
+  return "";
 }
 
 /** Get the resolved config.toml path using current settings */
 export function getResolvedConfigPath(): string {
   const workDir = resolveWorkingDirectory();
   if (!workDir) {
-    return '';
+    return "";
   }
   return getConfigPath(workDir);
 }

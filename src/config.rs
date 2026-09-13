@@ -213,6 +213,9 @@ pub struct LaunchConfig {
     pub confirm_autonomous: bool,
     pub confirm_paired: bool,
     pub launch_delay_ms: u64,
+    /// Default named execution target. Per-launch and per-delegator choices take precedence.
+    #[serde(default)]
+    pub target: Option<String>,
     /// Docker execution configuration
     #[serde(default)]
     pub docker: DockerConfig,
@@ -456,7 +459,19 @@ fn default_acp_max_sessions() -> usize {
 }
 
 /// Predefined issue type collections
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    TS,
+    utoipa::ToSchema,
+)]
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum CollectionPreset {
@@ -683,9 +698,15 @@ fn env_source() -> config::Environment {
 }
 
 impl Config {
-    /// Path to the operator config file within .tickets/
+    /// Bootstrap-only config location, relative to cwd. `load()` needs a path
+    /// before a `Config` exists; everything else uses `operator_config_path_for`.
     pub fn operator_config_path() -> PathBuf {
         PathBuf::from(".tickets/operator/config.toml")
+    }
+
+    /// Where this config persists: derived from `paths.state`, not the cwd.
+    pub fn operator_config_path_for(&self) -> PathBuf {
+        self.state_path().join("config.toml")
     }
 
     pub fn load(config_path: Option<&str>) -> Result<Self> {
@@ -761,10 +782,11 @@ impl Config {
         Ok(cfg)
     }
 
-    /// Save config to .tickets/operator/config.toml
+    /// Save config to `paths.state`/config.toml.
     pub fn save(&self) -> Result<()> {
+        validate_targets(self)?;
         crate::git::identity::validate_config(self)?;
-        let config_path = Self::operator_config_path();
+        let config_path = self.operator_config_path_for();
 
         // Ensure parent directory exists
         if let Some(parent) = config_path.parent() {
@@ -775,9 +797,7 @@ impl Config {
         let toml_str =
             toml::to_string_pretty(self).context("Failed to serialize config to TOML")?;
 
-        // Write to a sibling temp file and rename over the target. A plain
-        // write truncates first, so a crash or a full disk mid-write leaves a
-        // half-written config.toml that will not parse. prevents startup failure later
+        // Write to a sibling temp file and rename over the target. prevents startup failure later
         let temp_path = config_path.with_extension(format!("toml.tmp.{}", uuid::Uuid::new_v4()));
         std::fs::write(&temp_path, toml_str).context("Failed to write config file")?;
         if let Err(e) = std::fs::rename(&temp_path, &config_path) {
@@ -867,15 +887,6 @@ impl Config {
     pub fn discover_projects(&self) -> Vec<String> {
         crate::projects::discover_projects(&self.projects_path())
     }
-
-    /// Discover projects with full git and LLM tool information
-    ///
-    /// Returns projects found by scanning for .git directories and LLM marker files.
-    /// Each project includes git repo info (remote URL, default branch, GitHub info)
-    /// and a list of available LLM tools.
-    pub fn discover_projects_full(&self) -> Vec<crate::projects::DiscoveredProject> {
-        crate::projects::discover_projects_with_git(&self.projects_path())
-    }
 }
 
 impl Default for Config {
@@ -920,6 +931,7 @@ impl Default for Config {
                 confirm_autonomous: true,
                 confirm_paired: true,
                 launch_delay_ms: 2000,
+                target: None,
                 docker: DockerConfig::default(),
                 yolo: YoloConfig::default(),
             },
@@ -1017,6 +1029,43 @@ mod tests {
     fn test_env_override_leaves_unset_fields_at_default() {
         let cfg = config_from_env(&[("OPERATOR_REST_API__HOST", "0.0.0.0")]);
         assert_eq!(cfg.rest_api.port, default_rest_port());
+    }
+
+    // --- Save destination ---
+
+    #[test]
+    fn test_operator_config_path_for_derives_from_state_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = Config::default();
+        cfg.paths.state = dir.path().to_string_lossy().to_string();
+
+        assert_eq!(
+            cfg.operator_config_path_for(),
+            dir.path().join("config.toml")
+        );
+    }
+
+    #[test]
+    fn test_operator_config_path_for_matches_legacy_path_on_defaults() {
+        let cfg = Config::default();
+        let cwd = std::env::current_dir().unwrap();
+
+        assert_eq!(
+            cfg.operator_config_path_for(),
+            cwd.join(Config::operator_config_path())
+        );
+    }
+
+    #[test]
+    fn test_save_writes_under_paths_state_not_cwd() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = Config::default();
+        cfg.paths.state = dir.path().join("state").to_string_lossy().to_string();
+
+        cfg.save().unwrap();
+
+        assert!(dir.path().join("state/config.toml").exists());
+        assert!(!dir.path().join(".tickets/operator/config.toml").exists());
     }
 }
 

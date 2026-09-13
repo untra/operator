@@ -3,11 +3,11 @@
 // SectionCard for that section, pulled from the shared sections context. Used by
 // the per-section sidebar routes (connections, kanban, llm, …).
 
-import { CONCEPTS } from '../concepts';
-import { useSection } from '../sections-context';
-import { PageHeader } from '../components/PageHeader';
-import { SectionCard } from '../components/SectionCard';
-import styles from './SectionPage.module.css';
+import { CONCEPTS } from "../concepts";
+import { useSection } from "../sections-context";
+import { PageHeader } from "../components/PageHeader";
+import { SectionCard } from "../components/SectionCard";
+import styles from "./SectionPage.module.css";
 
 export function SectionPage({ conceptKey }: { conceptKey: string }) {
   const concept = CONCEPTS[conceptKey];

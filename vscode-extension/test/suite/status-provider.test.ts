@@ -6,18 +6,18 @@
  * stubs for external dependencies (network, binary discovery, etc.).
  */
 
-import * as assert from 'node:assert';
-import * as sinon from 'sinon';
-import * as vscode from 'vscode';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import * as os from 'node:os';
-import type { StatusItem } from '../../src/status-provider';
-import { StatusTreeProvider } from '../../src/status-provider';
-import * as configPaths from '../../src/config-paths';
-import * as walkthrough from '../../src/walkthrough';
-import * as operatorBinary from '../../src/operator-binary';
-import * as apiClient from '../../src/api-client';
+import * as assert from "node:assert";
+import * as sinon from "sinon";
+import * as vscode from "vscode";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import * as os from "node:os";
+import type { StatusItem } from "../../src/status-provider";
+import { StatusTreeProvider } from "../../src/status-provider";
+import * as configPaths from "../../src/config-paths";
+import * as walkthrough from "../../src/walkthrough";
+import * as operatorBinary from "../../src/operator-binary";
+import * as apiClient from "../../src/api-client";
 
 const EMPTY_STUB = {};
 
@@ -26,10 +26,10 @@ const EMPTY_STUB = {};
  */
 function createMockContext(
   sandbox: sinon.SinonSandbox,
-  workingDir?: string
+  workingDir?: string,
 ): vscode.ExtensionContext {
   const getStub = sandbox.stub();
-  getStub.withArgs('operator.workingDirectory').returns(workingDir ?? '');
+  getStub.withArgs("operator.workingDirectory").returns(workingDir ?? "");
 
   return {
     globalState: {
@@ -39,18 +39,18 @@ function createMockContext(
       setKeysForSync: sandbox.stub(),
     },
     subscriptions: [],
-    extensionPath: '/fake/extension',
-    extensionUri: vscode.Uri.file('/fake/extension'),
-    globalStorageUri: vscode.Uri.file('/fake/storage'),
-    storageUri: vscode.Uri.file('/fake/workspace-storage'),
-    logUri: vscode.Uri.file('/fake/log'),
+    extensionPath: "/fake/extension",
+    extensionUri: vscode.Uri.file("/fake/extension"),
+    globalStorageUri: vscode.Uri.file("/fake/storage"),
+    storageUri: vscode.Uri.file("/fake/workspace-storage"),
+    logUri: vscode.Uri.file("/fake/log"),
     extensionMode: vscode.ExtensionMode.Test,
     extension: EMPTY_STUB as vscode.Extension<unknown>,
     environmentVariableCollection: EMPTY_STUB as vscode.GlobalEnvironmentVariableCollection,
     secrets: EMPTY_STUB as vscode.SecretStorage,
-    storagePath: '/fake/workspace-storage',
-    globalStoragePath: '/fake/storage',
-    logPath: '/fake/log',
+    storagePath: "/fake/workspace-storage",
+    globalStoragePath: "/fake/storage",
+    logPath: "/fake/log",
     asAbsolutePath: (p: string) => p,
     languageModelAccessInformation: EMPTY_STUB as vscode.LanguageModelAccessInformation,
   } as unknown as vscode.ExtensionContext;
@@ -66,7 +66,7 @@ function getSectionLabels(items: StatusItem[]): string[] {
   return items.map((item) => item.label as string);
 }
 
-suite('Status Provider Test Suite', () => {
+suite("Status Provider Test Suite", () => {
   let sandbox: sinon.SinonSandbox;
   let tempDir: string;
 
@@ -74,15 +74,15 @@ suite('Status Provider Test Suite', () => {
     sandbox = sinon.createSandbox();
 
     // Create temp directory for session files
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'status-provider-test-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "status-provider-test-"));
 
     // Stub external dependencies that make network calls or spawn processes
-    sandbox.stub(walkthrough, 'detectInstalledLlmTools').resolves([]);
-    sandbox.stub(walkthrough, 'getKanbanWorkspaces').resolves([]);
-    sandbox.stub(operatorBinary, 'getOperatorPath').resolves(undefined);
-    sandbox.stub(operatorBinary, 'getOperatorVersion').resolves(undefined);
-    sandbox.stub(apiClient, 'discoverApiUrl').resolves('http://localhost:7008');
-    sandbox.stub(global, 'fetch').rejects(new Error('no network in tests'));
+    sandbox.stub(walkthrough, "detectInstalledLlmTools").resolves([]);
+    sandbox.stub(walkthrough, "getKanbanWorkspaces").resolves([]);
+    sandbox.stub(operatorBinary, "getOperatorPath").resolves(undefined);
+    sandbox.stub(operatorBinary, "getOperatorVersion").resolves(undefined);
+    sandbox.stub(apiClient, "discoverApiUrl").resolves("http://localhost:7008");
+    sandbox.stub(global, "fetch").rejects(new Error("no network in tests"));
   });
 
   teardown(async () => {
@@ -94,373 +94,407 @@ suite('Status Provider Test Suite', () => {
     }
   });
 
-  suite('webhook status rendering', () => {
-    test('shows pass icon and Running description when webhook is running', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns('');
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+  suite("webhook status rendering", () => {
+    test("shows pass icon and Running description when webhook is running", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
       // Write a real session file in the temp directory
-      const operatorDir = path.join(tempDir, 'operator');
+      const operatorDir = path.join(tempDir, "operator");
       await fs.mkdir(operatorDir, { recursive: true });
       await fs.writeFile(
-        path.join(operatorDir, 'vscode-session.json'),
+        path.join(operatorDir, "vscode-session.json"),
         JSON.stringify({
-          wrapper: 'vscode',
+          wrapper: "vscode",
           port: 7009,
           pid: 12345,
-          version: '0.1.26',
-          startedAt: '2024-01-01T00:00:00Z',
-          workspace: '/fake/workspace',
-        })
+          version: "0.1.26",
+          startedAt: "2024-01-01T00:00:00Z",
+          workspace: "/fake/workspace",
+        }),
       );
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const sections = provider.getChildren();
-      const connections = findChild(sections, 'Connections');
-      assert.ok(connections, 'Should have Connections section');
+      const connections = findChild(sections, "Connections");
+      assert.ok(connections, "Should have Connections section");
 
       const children = provider.getChildren(connections);
-      const webhook = findChild(children, 'Webhook');
-      assert.ok(webhook, 'Should have Webhook item');
+      const webhook = findChild(children, "Webhook");
+      assert.ok(webhook, "Should have Webhook item");
 
       const icon = webhook.iconPath as vscode.ThemeIcon;
-      assert.strictEqual(icon.id, 'pass', 'Webhook icon should be pass when running');
+      assert.strictEqual(icon.id, "pass", "Webhook icon should be pass when running");
       assert.ok(
-        (webhook.description as string).includes('Running'),
-        `Description "${webhook.description}" should contain "Running"`
+        (webhook.description as string).includes("Running"),
+        `Description "${webhook.description}" should contain "Running"`,
       );
       assert.ok(
-        (webhook.description as string).includes(':7009'),
-        `Description "${webhook.description}" should contain port ":7009"`
+        (webhook.description as string).includes(":7009"),
+        `Description "${webhook.description}" should contain port ":7009"`,
       );
     });
 
-    test('shows circle-slash icon and Stopped when webhook is not running', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns('');
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+    test("shows circle-slash icon and Stopped when webhook is not running", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
-      // No session file — webhook not running
+      // No session file - webhook not running
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const sections = provider.getChildren();
-      const connections = findChild(sections, 'Connections');
-      assert.ok(connections, 'Should have Connections section');
+      const connections = findChild(sections, "Connections");
+      assert.ok(connections, "Should have Connections section");
 
       const children = provider.getChildren(connections);
-      const webhook = findChild(children, 'Webhook');
-      assert.ok(webhook, 'Should have Webhook item');
+      const webhook = findChild(children, "Webhook");
+      assert.ok(webhook, "Should have Webhook item");
 
       const icon = webhook.iconPath as vscode.ThemeIcon;
-      assert.strictEqual(icon.id, 'circle-slash', 'Webhook icon should be circle-slash when stopped');
-      assert.strictEqual(webhook.description, 'Stopped', 'Description should be "Stopped"');
+      assert.strictEqual(
+        icon.id,
+        "circle-slash",
+        "Webhook icon should be circle-slash when stopped",
+      );
+      assert.strictEqual(webhook.description, "Stopped", 'Description should be "Stopped"');
     });
   });
 
-  suite('working directory item', () => {
-    test('has contextValue and no command when working directory is set', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns('');
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+  suite("working directory item", () => {
+    test("has contextValue and no command when working directory is set", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const sections = provider.getChildren();
-      const config = findChild(sections, 'Configuration');
-      assert.ok(config, 'Should have Configuration section');
+      const config = findChild(sections, "Configuration");
+      assert.ok(config, "Should have Configuration section");
 
       const children = provider.getChildren(config);
-      const workDir = findChild(children, 'Working Directory');
-      assert.ok(workDir, 'Should have Working Directory item');
+      const workDir = findChild(children, "Working Directory");
+      assert.ok(workDir, "Should have Working Directory item");
 
       assert.strictEqual(
         workDir.contextValue,
-        'workingDirConfigured',
-        'Should have contextValue "workingDirConfigured"'
+        "workingDirConfigured",
+        'Should have contextValue "workingDirConfigured"',
       );
       assert.strictEqual(
         workDir.command,
         undefined,
-        'Should not have a click command when directory is set'
+        "Should not have a click command when directory is set",
       );
-      assert.strictEqual(workDir.description, '/fake/working-dir');
+      assert.strictEqual(workDir.description, "/fake/working-dir");
     });
 
-    test('has click command and no contextValue when working directory is not set', async () => {
+    test("has click command and no contextValue when working directory is not set", async () => {
       const mockContext = createMockContext(sandbox);
-      sandbox.stub(configPaths, 'configFileExists').resolves(false);
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns('');
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('');
+      sandbox.stub(configPaths, "configFileExists").resolves(false);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("");
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const sections = provider.getChildren();
-      const config = findChild(sections, 'Configuration');
-      assert.ok(config, 'Should have Configuration section');
+      const config = findChild(sections, "Configuration");
+      assert.ok(config, "Should have Configuration section");
 
       const children = provider.getChildren(config);
-      const workDir = findChild(children, 'Working Directory');
-      assert.ok(workDir, 'Should have Working Directory item');
+      const workDir = findChild(children, "Working Directory");
+      assert.ok(workDir, "Should have Working Directory item");
 
-      assert.ok(workDir.command, 'Should have a click command when directory is not set');
+      assert.ok(workDir.command, "Should have a click command when directory is not set");
       assert.strictEqual(
         workDir.command?.command,
-        'operator.selectWorkingDirectory',
-        'Command should be selectWorkingDirectory'
+        "operator.selectWorkingDirectory",
+        "Command should be selectWorkingDirectory",
       );
-      assert.strictEqual(workDir.contextValue, undefined, 'Should not have contextValue');
-      assert.strictEqual(workDir.description, 'Not set');
+      assert.strictEqual(workDir.contextValue, undefined, "Should not have contextValue");
+      assert.strictEqual(workDir.description, "Not set");
     });
   });
 
-  suite('session wrapper item', () => {
-    test('shows pass icon with VS Code Terminal when wrapper defaults to vscode and webhook running', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns('');
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+  suite("session wrapper item", () => {
+    test("shows pass icon with VS Code Terminal when wrapper defaults to vscode and webhook running", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
       // Write webhook session file so webhook shows as running
-      const operatorDir = path.join(tempDir, 'operator');
+      const operatorDir = path.join(tempDir, "operator");
       await fs.mkdir(operatorDir, { recursive: true });
       await fs.writeFile(
-        path.join(operatorDir, 'vscode-session.json'),
+        path.join(operatorDir, "vscode-session.json"),
         JSON.stringify({
-          wrapper: 'vscode',
+          wrapper: "vscode",
           port: 7009,
           pid: 12345,
-          version: '0.1.26',
-          startedAt: '2024-01-01T00:00:00Z',
-          workspace: '/fake/workspace',
-        })
+          version: "0.1.26",
+          startedAt: "2024-01-01T00:00:00Z",
+          workspace: "/fake/workspace",
+        }),
       );
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const sections = provider.getChildren();
-      const connections = findChild(sections, 'Connections');
-      assert.ok(connections, 'Should have Connections section');
+      const connections = findChild(sections, "Connections");
+      assert.ok(connections, "Should have Connections section");
 
       const children = provider.getChildren(connections);
-      const wrapper = findChild(children, 'Session Wrapper');
-      assert.ok(wrapper, 'Should have Session Wrapper item');
+      const wrapper = findChild(children, "Session Wrapper");
+      assert.ok(wrapper, "Should have Session Wrapper item");
 
       const icon = wrapper.iconPath as vscode.ThemeIcon;
-      assert.strictEqual(icon.id, 'pass', 'Should show pass icon when vscode wrapper and webhook running');
-      assert.strictEqual(wrapper.description, 'VS Code Terminal');
+      assert.strictEqual(
+        icon.id,
+        "pass",
+        "Should show pass icon when vscode wrapper and webhook running",
+      );
+      assert.strictEqual(wrapper.description, "VS Code Terminal");
     });
 
-    test('shows warning icon when wrapper is not vscode', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+    test("shows warning icon when wrapper is not vscode", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
       // Write a config.toml with sessions.wrapper = "tmux"
-      const configPath = path.join(tempDir, 'config.toml');
+      const configPath = path.join(tempDir, "config.toml");
       await fs.writeFile(configPath, '[sessions]\nwrapper = "tmux"\n');
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns(configPath);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns(configPath);
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const sections = provider.getChildren();
-      const connections = findChild(sections, 'Connections');
-      assert.ok(connections, 'Should have Connections section');
+      const connections = findChild(sections, "Connections");
+      assert.ok(connections, "Should have Connections section");
 
       const children = provider.getChildren(connections);
-      const wrapper = findChild(children, 'Session Wrapper');
-      assert.ok(wrapper, 'Should have Session Wrapper item');
+      const wrapper = findChild(children, "Session Wrapper");
+      assert.ok(wrapper, "Should have Session Wrapper item");
 
       const icon = wrapper.iconPath as vscode.ThemeIcon;
-      assert.strictEqual(icon.id, 'warning', 'Should show warning icon for non-vscode wrapper');
-      assert.strictEqual(wrapper.description, 'tmux');
+      assert.strictEqual(icon.id, "warning", "Should show warning icon for non-vscode wrapper");
+      assert.strictEqual(wrapper.description, "tmux");
     });
   });
 
-  suite('progressive disclosure', () => {
-    test('tier 0: only Configuration when config not ready', async () => {
+  suite("progressive disclosure", () => {
+    test("tier 0: only Configuration when config not ready", async () => {
       const mockContext = createMockContext(sandbox);
-      sandbox.stub(configPaths, 'configFileExists').resolves(false);
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns('');
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('');
+      sandbox.stub(configPaths, "configFileExists").resolves(false);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("");
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.deepStrictEqual(labels, ['Configuration', 'Workflows']);
+      assert.deepStrictEqual(labels, ["Configuration", "Workflows"]);
     });
 
-    test('tier 1: Configuration + Connections when config ready but no connections', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns('');
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+    test("tier 1: Configuration + Connections when config ready but no connections", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.deepStrictEqual(labels, ['Configuration', 'Connections', 'Workflows']);
+      assert.deepStrictEqual(labels, ["Configuration", "Connections", "Workflows"]);
     });
 
-    test('tier 2: adds Kanban, LLM Tools, Model Servers, Git when connections ready', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns('');
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+    test("tier 2: adds Kanban, LLM Tools, Model Servers, Git when connections ready", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
       // Write webhook session file so connections are ready
-      const operatorDir = path.join(tempDir, 'operator');
+      const operatorDir = path.join(tempDir, "operator");
       await fs.mkdir(operatorDir, { recursive: true });
       await fs.writeFile(
-        path.join(operatorDir, 'vscode-session.json'),
+        path.join(operatorDir, "vscode-session.json"),
         JSON.stringify({
-          wrapper: 'vscode',
+          wrapper: "vscode",
           port: 7009,
           pid: 12345,
-          version: '0.1.26',
-          startedAt: '2024-01-01T00:00:00Z',
-          workspace: '/fake/workspace',
-        })
+          version: "0.1.26",
+          startedAt: "2024-01-01T00:00:00Z",
+          workspace: "/fake/workspace",
+        }),
       );
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.deepStrictEqual(
-        labels,
-        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Model Servers', 'Git', 'Delegators', 'Workflows']
-      );
+      assert.deepStrictEqual(labels, [
+        "Configuration",
+        "Connections",
+        "Kanban",
+        "LLM Tools",
+        "Model Servers",
+        "Git",
+        "Delegators",
+        "Workflows",
+      ]);
     });
 
-    test('tier 3: Issue Types appears when kanban configured', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+    test("tier 3: Issue Types appears when kanban configured", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
       // Write config.toml with kanban section
-      const configPath = path.join(tempDir, 'config.toml');
+      const configPath = path.join(tempDir, "config.toml");
       await fs.writeFile(configPath, '[kanban.jira."test.atlassian.net"]\nenabled = true\n');
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns(configPath);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns(configPath);
 
       // Write webhook session so connections are ready
-      const operatorDir = path.join(tempDir, 'operator');
+      const operatorDir = path.join(tempDir, "operator");
       await fs.mkdir(operatorDir, { recursive: true });
       await fs.writeFile(
-        path.join(operatorDir, 'vscode-session.json'),
+        path.join(operatorDir, "vscode-session.json"),
         JSON.stringify({
-          wrapper: 'vscode',
+          wrapper: "vscode",
           port: 7009,
           pid: 12345,
-          version: '0.1.26',
-          startedAt: '2024-01-01T00:00:00Z',
-          workspace: '/fake/workspace',
-        })
+          version: "0.1.26",
+          startedAt: "2024-01-01T00:00:00Z",
+          workspace: "/fake/workspace",
+        }),
       );
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.ok(labels.includes('Issue Types'), 'Should include Issue Types when kanban configured');
-      assert.ok(!labels.includes('Managed Projects'), 'Should not include Managed Projects when git not configured');
+      assert.ok(
+        labels.includes("Issue Types"),
+        "Should include Issue Types when kanban configured",
+      );
+      assert.ok(
+        !labels.includes("Managed Projects"),
+        "Should not include Managed Projects when git not configured",
+      );
     });
 
-    test('tier 3: Managed Projects appears when git configured', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+    test("tier 3: Managed Projects appears when git configured", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
       // Write config.toml with git section
-      const configPath = path.join(tempDir, 'config.toml');
+      const configPath = path.join(tempDir, "config.toml");
       await fs.writeFile(configPath, '[git]\nprovider = "github"\n');
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns(configPath);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns(configPath);
 
       // Write webhook session so connections are ready
-      const operatorDir = path.join(tempDir, 'operator');
+      const operatorDir = path.join(tempDir, "operator");
       await fs.mkdir(operatorDir, { recursive: true });
       await fs.writeFile(
-        path.join(operatorDir, 'vscode-session.json'),
+        path.join(operatorDir, "vscode-session.json"),
         JSON.stringify({
-          wrapper: 'vscode',
+          wrapper: "vscode",
           port: 7009,
           pid: 12345,
-          version: '0.1.26',
-          startedAt: '2024-01-01T00:00:00Z',
-          workspace: '/fake/workspace',
-        })
+          version: "0.1.26",
+          startedAt: "2024-01-01T00:00:00Z",
+          workspace: "/fake/workspace",
+        }),
       );
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.ok(labels.includes('Managed Projects'), 'Should include Managed Projects when git configured');
-      assert.ok(!labels.includes('Issue Types'), 'Should not include Issue Types when kanban not configured');
+      assert.ok(
+        labels.includes("Managed Projects"),
+        "Should include Managed Projects when git configured",
+      );
+      assert.ok(
+        !labels.includes("Issue Types"),
+        "Should not include Issue Types when kanban not configured",
+      );
     });
 
-    test('all tiers: all sections visible when fully configured', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+    test("all tiers: all sections visible when fully configured", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
       // Write config.toml with kanban + git sections
-      const configPath = path.join(tempDir, 'config.toml');
+      const configPath = path.join(tempDir, "config.toml");
       await fs.writeFile(
         configPath,
-        '[kanban.jira."test.atlassian.net"]\nenabled = true\n\n[git]\nprovider = "github"\n'
+        '[kanban.jira."test.atlassian.net"]\nenabled = true\n\n[git]\nprovider = "github"\n',
       );
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns(configPath);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns(configPath);
 
       // Write webhook session so connections are ready
-      const operatorDir = path.join(tempDir, 'operator');
+      const operatorDir = path.join(tempDir, "operator");
       await fs.mkdir(operatorDir, { recursive: true });
       await fs.writeFile(
-        path.join(operatorDir, 'vscode-session.json'),
+        path.join(operatorDir, "vscode-session.json"),
         JSON.stringify({
-          wrapper: 'vscode',
+          wrapper: "vscode",
           port: 7009,
           pid: 12345,
-          version: '0.1.26',
-          startedAt: '2024-01-01T00:00:00Z',
-          workspace: '/fake/workspace',
-        })
+          version: "0.1.26",
+          startedAt: "2024-01-01T00:00:00Z",
+          workspace: "/fake/workspace",
+        }),
       );
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.deepStrictEqual(
-        labels,
-        ['Configuration', 'Connections', 'Kanban', 'LLM Tools', 'Model Servers', 'Git', 'Issue Types', 'Delegators', 'Managed Projects', 'Workflows']
-      );
+      assert.deepStrictEqual(labels, [
+        "Configuration",
+        "Connections",
+        "Kanban",
+        "LLM Tools",
+        "Model Servers",
+        "Git",
+        "Issue Types",
+        "Delegators",
+        "Managed Projects",
+        "Workflows",
+      ]);
     });
 
-    test('tier 3 not visible when connections disconnected even if kanban/git configured', async () => {
-      const mockContext = createMockContext(sandbox, '/fake/working-dir');
-      sandbox.stub(configPaths, 'configFileExists').resolves(true);
-      sandbox.stub(configPaths, 'resolveWorkingDirectory').returns('/fake/working-dir');
+    test("tier 3 not visible when connections disconnected even if kanban/git configured", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
-      // Write config.toml with kanban + git — but NO webhook session
-      const configPath = path.join(tempDir, 'config.toml');
+      // Write config.toml with kanban + git - but NO webhook session
+      const configPath = path.join(tempDir, "config.toml");
       await fs.writeFile(
         configPath,
-        '[kanban.jira."test.atlassian.net"]\nenabled = true\n\n[git]\nprovider = "github"\n'
+        '[kanban.jira."test.atlassian.net"]\nenabled = true\n\n[git]\nprovider = "github"\n',
       );
-      sandbox.stub(configPaths, 'getResolvedConfigPath').returns(configPath);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns(configPath);
 
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
@@ -468,8 +502,8 @@ suite('Status Provider Test Suite', () => {
       const labels = getSectionLabels(provider.getChildren());
       assert.deepStrictEqual(
         labels,
-        ['Configuration', 'Connections', 'Workflows'],
-        'Should only show tier 0+1 (plus the prerequisite-free Workflows) when connections not ready'
+        ["Configuration", "Connections", "Workflows"],
+        "Should only show tier 0+1 (plus the prerequisite-free Workflows) when connections not ready",
       );
     });
   });

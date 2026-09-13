@@ -99,6 +99,11 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     read("GET", "/api/v1/status"),
     read("GET", "/api/v1/sections"),
     read("GET", "/api/v1/integrations"),
+    // --- Setup --------------------------------------------------------------
+    read("GET", "/api/v1/setup/status"),
+    read("GET", "/api/v1/setup/steps"),
+    read("GET", "/api/v1/setup/collections"),
+    admin("POST", "/api/v1/setup/initialize"),
     // --- Issue types --------------------------------------------------------
     read("GET", "/api/v1/issuetypes"),
     write("POST", "/api/v1/issuetypes"),
@@ -160,6 +165,11 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     // Writing provider config and setting process env are administration.
     admin("PUT", "/api/v1/kanban/config"),
     admin("POST", "/api/v1/kanban/session-env"),
+    // --- Git onboarding -----------------------------------------------------
+    read("GET", "/api/v1/git/providers"),
+    execute("POST", "/api/v1/git/validate"),
+    admin("PUT", "/api/v1/git/config"),
+    admin("POST", "/api/v1/git/session-env"),
     // --- Skills / LLM tools -------------------------------------------------
     read("GET", "/api/v1/skills"),
     read("GET", "/api/v1/llm-tools"),

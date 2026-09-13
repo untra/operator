@@ -2,6 +2,7 @@
 
 use super::types::*;
 use super::SetupScreen;
+use crate::api::providers::model_server::ModelServerKind;
 use crate::config::SessionWrapperType;
 use std::collections::HashMap;
 
@@ -180,9 +181,9 @@ fn test_setup_navigation_to_worktree_preference() {
     screen.selected_wrapper = SessionWrapperType::Tmux;
     screen.wrapper_state.select(Some(0)); // Select tmux
 
-    // SessionWrapperChoice -> WorktreePreference
+    // SessionWrapperChoice -> ExecutionTarget
     screen.confirm();
-    assert_eq!(screen.step, SetupStep::WorktreePreference);
+    assert_eq!(screen.step, SetupStep::ExecutionTarget);
 }
 
 #[test]
@@ -218,7 +219,55 @@ fn test_setup_worktree_preference_go_back() {
     screen.step = SetupStep::WorktreePreference;
 
     screen.go_back();
-    assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
+    assert_eq!(screen.step, SetupStep::ExecutionTarget);
+}
+
+#[test]
+fn test_execution_target_local_is_the_default() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::ExecutionTarget;
+
+    assert_eq!(
+        screen.selected_execution_target().kind,
+        crate::config::TargetKind::Local
+    );
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::WorktreePreference);
+}
+
+#[test]
+fn test_execution_target_coder_requires_template() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::ExecutionTarget;
+    screen.execution_target_state.select(Some(1));
+    screen.coder_template.clear();
+
+    screen.confirm();
+
+    assert_eq!(screen.step, SetupStep::ExecutionTarget);
+    assert!(screen
+        .execution_target_error
+        .as_deref()
+        .unwrap_or_default()
+        .contains("template"));
+}
+
+#[test]
+fn test_execution_target_coder_builds_target_and_disables_worktrees() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::ExecutionTarget;
+    screen.execution_target_state.select(Some(1));
+    screen.coder_template = "operator-agent".to_string();
+    screen.use_worktrees = true;
+
+    screen.confirm();
+
+    assert_eq!(screen.step, SetupStep::WorktreePreference);
+    assert!(!screen.use_worktrees);
+    assert!(matches!(
+        screen.selected_execution_target().kind,
+        crate::config::TargetKind::Coder(_)
+    ));
 }
 
 #[test]
@@ -301,11 +350,15 @@ fn test_welcome_advances_to_kanban_info() {
 }
 
 #[test]
-fn test_kanban_info_no_providers_advances_to_collection_source() {
+fn test_kanban_skip_advances_to_curated_collection_source() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::KanbanInfo;
-    // No valid providers -> straight to the collection source step.
-    screen.confirm();
+    screen.select_next(); // "Skip for now"
+
+    screen.confirm(); // -> ModelServer
+    screen.confirm(); // -> GitProvider
+    skip_git_provider(&mut screen);
+
     assert_eq!(screen.step, SetupStep::CollectionSource);
     // Curated options only (no per-provider import options).
     assert_eq!(screen.source_options, CollectionSourceOption::curated());
@@ -661,4 +714,398 @@ fn test_wizard_command_characters_are_typable_in_a_password() {
 
     assert_eq!(screen.password.value(), "ick j");
     assert_eq!(screen.step, SetupStep::AdminPassword, "still on the step");
+}
+
+// ─── Kanban step (defect A: the step used to be unreachable dead code) ──────
+
+/// Move the git step's cursor to its trailing "continue without" row and
+/// confirm, so a walk does not stall on a live connect attempt.
+fn skip_git_provider(screen: &mut SetupScreen) {
+    for _ in 0..SetupScreen::git_providers().len() {
+        screen.select_next();
+    }
+    screen.confirm();
+}
+
+fn at_kanban_info() -> SetupScreen {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::KanbanInfo;
+    screen
+}
+
+#[test]
+fn test_kanban_info_follows_welcome() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::Welcome;
+
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::KanbanInfo);
+}
+
+#[test]
+fn test_kanban_info_defaults_to_the_connect_row() {
+    let screen = at_kanban_info();
+    assert_eq!(screen.kanban_choice_state.selected(), Some(0));
+}
+
+#[test]
+fn test_kanban_connect_requests_the_dialog_without_advancing() {
+    let mut screen = at_kanban_info();
+
+    screen.confirm();
+
+    assert_eq!(
+        screen.step,
+        SetupStep::KanbanInfo,
+        "the wizard waits on the dialog rather than moving on"
+    );
+    assert!(screen.take_kanban_dialog_request());
+    assert!(
+        !screen.take_kanban_dialog_request(),
+        "the request is consumed once, so the dialog opens once"
+    );
+}
+
+#[test]
+fn test_kanban_skip_advances_without_requesting_the_dialog() {
+    let mut screen = at_kanban_info();
+    screen.select_next();
+
+    screen.confirm();
+
+    assert_eq!(screen.step, SetupStep::ModelServer);
+    assert!(!screen.take_kanban_dialog_request());
+}
+
+#[test]
+fn test_kanban_choice_selection_wraps() {
+    let mut screen = at_kanban_info();
+
+    screen.select_next();
+    assert_eq!(screen.kanban_choice_state.selected(), Some(1));
+    screen.select_next();
+    assert_eq!(screen.kanban_choice_state.selected(), Some(0));
+    screen.select_prev();
+    assert_eq!(screen.kanban_choice_state.selected(), Some(1));
+}
+
+#[test]
+fn test_collection_source_goes_back_to_git_provider() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::CollectionSource;
+
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::GitProvider);
+}
+
+/// Defect A regression: `KanbanProviderSetup` sat in the step enum, rendered a
+/// screen and was never reachable, because the collection it keyed off was
+/// never populated. Walking every wrapper branch proves each catalogued step
+/// is actually selected by the state machine.
+#[test]
+fn test_wizard_walk_visits_every_catalog_step() {
+    // Steps only reachable from a branch the walk below does not take.
+    let conditional = [
+        SetupStep::HostedCollectionFetch, // needs the hosted picker chosen
+    ];
+
+    let mut visited = std::collections::HashSet::new();
+    for wrapper in [
+        SessionWrapperType::Tmux,
+        SessionWrapperType::Vscode,
+        SessionWrapperType::Cmux,
+        SessionWrapperType::Zellij,
+    ] {
+        let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.tmux_status = TmuxDetectionStatus::Available {
+            version: "3.4".to_string(),
+        };
+
+        visited.insert(screen.step);
+        for _ in 0..SetupStep::ALL.len() * 2 {
+            if screen.step == SetupStep::Confirm {
+                break;
+            }
+            // Skip past the kanban hand-off; the dialog is driven by the app.
+            if screen.step == SetupStep::KanbanInfo {
+                screen.select_next();
+            }
+            // Connecting shells out to provider CLIs; take the skip row.
+            if screen.step == SetupStep::GitProvider {
+                for _ in 0..SetupScreen::git_providers().len() {
+                    screen.select_next();
+                }
+            }
+            // `confirm` commits the highlighted wrapper, so steer the list.
+            if screen.step == SetupStep::SessionWrapperChoice {
+                let i = SessionWrapperOption::all()
+                    .iter()
+                    .position(|o| o.to_wrapper_type() == wrapper)
+                    .expect("every wrapper is offered");
+                screen.wrapper_state.select(Some(i));
+            }
+            screen.confirm();
+            screen.take_kanban_dialog_request();
+            visited.insert(screen.step);
+        }
+        assert_eq!(
+            screen.step,
+            SetupStep::Confirm,
+            "{wrapper:?} branch never reached Confirm"
+        );
+    }
+
+    for step in SetupStep::ALL {
+        if conditional.contains(&step) {
+            continue;
+        }
+        assert!(
+            visited.contains(&step),
+            "{step:?} is in the catalog but no wizard path reaches it"
+        );
+    }
+}
+
+// ─── Model server step (D1a) ───────────────────────────────────────────────
+
+fn at_model_server() -> SetupScreen {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::ModelServer;
+    screen
+}
+
+fn select_kind(screen: &mut SetupScreen, kind: ModelServerKind) {
+    let i = SetupScreen::model_providers()
+        .iter()
+        .position(|(_, k)| *k == kind)
+        .expect("kind is offered by the wizard");
+    screen.model_server_state.select(Some(i));
+}
+
+#[test]
+fn test_model_server_step_follows_kanban_skip() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::KanbanInfo;
+    screen.select_next(); // "Skip for now"
+
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::ModelServer);
+}
+
+#[test]
+fn test_model_server_advances_to_git_provider() {
+    let mut screen = at_model_server();
+
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::GitProvider);
+}
+
+#[test]
+fn test_model_server_go_back_returns_to_kanban_info() {
+    let mut screen = at_model_server();
+
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::KanbanInfo);
+}
+
+#[test]
+fn test_model_server_declares_nothing_by_default() {
+    let screen = at_model_server();
+    assert!(screen.declared_model_servers().is_empty());
+}
+
+#[test]
+fn test_model_server_toggle_declares_the_highlighted_kind() {
+    let mut screen = at_model_server();
+    select_kind(&mut screen, ModelServerKind::Ollama);
+
+    screen.toggle_selection();
+
+    let declared = screen.declared_model_servers();
+    assert_eq!(declared.len(), 1);
+    assert_eq!(declared[0].kind, ModelServerKind::Ollama.slug());
+    assert_eq!(
+        declared[0].base_url.as_deref(),
+        ModelServerKind::Ollama.default_base_url()
+    );
+}
+
+#[test]
+fn test_model_server_toggle_is_reversible() {
+    let mut screen = at_model_server();
+    select_kind(&mut screen, ModelServerKind::Ollama);
+
+    screen.toggle_selection();
+    screen.toggle_selection();
+
+    assert!(screen.declared_model_servers().is_empty());
+}
+
+/// The key is referenced by env-var name; the secret never reaches config.
+#[test]
+fn test_declared_server_records_the_key_env_name_not_a_secret() {
+    let mut screen = at_model_server();
+    select_kind(&mut screen, ModelServerKind::AnthropicApi);
+
+    screen.toggle_selection();
+
+    let declared = screen.declared_model_servers();
+    assert_eq!(
+        declared[0].api_key_env.as_deref(),
+        ModelServerKind::AnthropicApi.default_api_key_env()
+    );
+}
+
+/// Declaring writes a `[[model_servers]]` entry from kind defaults, so every
+/// offered provider must actually have a default base URL to write.
+#[test]
+fn test_every_offered_model_provider_is_connectable_from_defaults() {
+    for (entry, kind) in SetupScreen::model_providers() {
+        assert!(
+            kind.connectable_from_defaults(),
+            "{} is offered but has no default base URL to declare",
+            entry.slug
+        );
+    }
+}
+
+#[test]
+fn test_model_server_navigation_wraps_over_every_offered_provider() {
+    let mut screen = at_model_server();
+    let len = SetupScreen::model_providers().len();
+    assert_eq!(screen.model_server_state.selected(), Some(0));
+
+    for _ in 0..len {
+        screen.select_next();
+    }
+    assert_eq!(screen.model_server_state.selected(), Some(0));
+
+    screen.select_prev();
+    assert_eq!(screen.model_server_state.selected(), Some(len - 1));
+}
+
+// ─── Git provider step (D1b) ───────────────────────────────────────────────
+
+fn at_git_provider() -> SetupScreen {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::GitProvider;
+    screen
+}
+
+#[test]
+fn test_git_provider_step_follows_model_server() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::ModelServer;
+
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::GitProvider);
+}
+
+#[test]
+fn test_git_provider_go_back_returns_to_model_server() {
+    let mut screen = at_git_provider();
+
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::ModelServer);
+}
+
+/// The offered set comes from the integration catalog, so promoting a provider
+/// into onboarding is a `SupportStatus` bump rather than an edit here.
+#[test]
+fn test_git_provider_offers_the_catalog_onboardable_set() {
+    let slugs: Vec<&str> = SetupScreen::git_providers()
+        .iter()
+        .map(|e| e.slug)
+        .collect();
+    assert_eq!(slugs, vec!["github", "gitlab", "gitea"]);
+}
+
+/// Proto entries are unadvertised and undocumented, so onboarding must not
+/// surface them - in either provider vertical.
+#[test]
+fn test_wizard_offers_no_proto_providers() {
+    for slug in ["bitbucket", "azure", "forgejo"] {
+        assert!(
+            !SetupScreen::git_providers().iter().any(|e| e.slug == slug),
+            "{slug} is Proto and must not be offered"
+        );
+    }
+    for slug in ["openai-compat", "lmstudio"] {
+        assert!(
+            !SetupScreen::model_providers()
+                .iter()
+                .any(|(e, _)| e.slug == slug),
+            "{slug} is Proto and must not be offered"
+        );
+    }
+}
+
+/// Every offered provider links out to its docs page from the wizard copy.
+#[test]
+fn test_offered_providers_are_documented() {
+    for entry in SetupScreen::git_providers() {
+        assert!(entry.docs_path.is_some(), "{}", entry.slug);
+    }
+    for (entry, _) in SetupScreen::model_providers() {
+        assert!(entry.docs_path.is_some(), "{}", entry.slug);
+    }
+}
+
+#[test]
+fn test_git_provider_enter_requests_the_highlighted_provider() {
+    let mut screen = at_git_provider();
+
+    screen.confirm();
+
+    assert_eq!(
+        screen.step,
+        SetupStep::GitProvider,
+        "the wizard waits on the connect attempt rather than moving on"
+    );
+    assert_eq!(screen.take_git_connect_request().as_deref(), Some("github"));
+    assert!(
+        screen.take_git_connect_request().is_none(),
+        "the request is consumed once"
+    );
+}
+
+#[test]
+fn test_git_provider_last_row_continues_without_a_provider() {
+    let mut screen = at_git_provider();
+    for _ in 0..SetupScreen::git_providers().len() {
+        screen.select_next();
+    }
+
+    screen.confirm();
+
+    assert_eq!(screen.step, SetupStep::CollectionSource);
+    assert!(screen.take_git_connect_request().is_none());
+}
+
+#[test]
+fn test_git_provider_navigation_includes_the_skip_row() {
+    let mut screen = at_git_provider();
+    let rows = SetupScreen::git_providers().len() + 1;
+
+    for _ in 0..rows {
+        screen.select_next();
+    }
+    assert_eq!(screen.git_provider_state.selected(), Some(0));
+
+    screen.select_prev();
+    assert_eq!(screen.git_provider_state.selected(), Some(rows - 1));
+    assert!(screen.selected_git_provider().is_none());
+}
+
+#[test]
+fn test_git_provider_status_is_recorded_per_provider() {
+    let mut screen = at_git_provider();
+
+    screen.set_git_provider_status("gitlab", "connected as octocat".to_string());
+
+    assert_eq!(
+        screen.git_provider_status.get("gitlab").map(String::as_str),
+        Some("connected as octocat")
+    );
+    assert!(!screen.git_provider_status.contains_key("github"));
 }

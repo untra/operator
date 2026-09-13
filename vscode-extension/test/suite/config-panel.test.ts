@@ -5,29 +5,29 @@
  * `KanbanProviderType::ALL` catalog and is projected into the generated
  * `KanbanConfig` TypeScript type (keys: jira, linear, github, …). These tests
  * guard the invariant that the webview config write path supports EVERY
- * provider in that catalog — so a future provider can't be added to the schema
+ * provider in that catalog - so a future provider can't be added to the schema
  * without also being wired into `config-panel.ts`.
  */
 
-import * as assert from 'node:assert';
-import * as path from 'node:path';
-import { readFileSync } from 'node:fs';
+import * as assert from "node:assert";
+import * as path from "node:path";
+import { readFileSync } from "node:fs";
 import {
   KANBAN_PROVIDERS,
   KANBAN_PROVIDER_SLUGS,
   applyKanbanProviderField,
-} from '../../src/config-panel';
+} from "../../src/config-panel";
 
 // __dirname in compiled code is out/test/suite, so go up 3 levels to the
 // extension root, then into the generated types.
 const KANBAN_CONFIG_TYPE = path.join(
   __dirname,
-  '..',
-  '..',
-  '..',
-  'src',
-  'generated',
-  'KanbanConfig.ts'
+  "..",
+  "..",
+  "..",
+  "src",
+  "generated",
+  "KanbanConfig.ts",
 );
 
 /**
@@ -36,7 +36,7 @@ const KANBAN_CONFIG_TYPE = path.join(
  * field, so we scan for those top-level keys.
  */
 function generatedProviderSlugs(): string[] {
-  const source = readFileSync(KANBAN_CONFIG_TYPE, 'utf-8');
+  const source = readFileSync(KANBAN_CONFIG_TYPE, "utf-8");
   const slugs: string[] = [];
   const re = /^(\w+):\s*\{\s*\[key in string\]/gm;
   let match: RegExpExecArray | null;
@@ -46,17 +46,17 @@ function generatedProviderSlugs(): string[] {
   return slugs;
 }
 
-suite('Config Panel Kanban Providers', () => {
+suite("Config Panel Kanban Providers", () => {
   // ---------------------------------------------------------------------
   // Future-provider tripwire: the canonical write table must cover every
   // provider in the generated schema. Add a provider to the Rust catalog,
   // regenerate types, and this fails until config-panel.ts handles it.
   // ---------------------------------------------------------------------
-  test('every generated KanbanConfig provider has a write-path entry', () => {
+  test("every generated KanbanConfig provider has a write-path entry", () => {
     const generated = generatedProviderSlugs();
     assert.ok(
       generated.length >= 3,
-      `Expected to parse provider slugs from KanbanConfig.ts, got [${generated.join(', ')}]`
+      `Expected to parse provider slugs from KanbanConfig.ts, got [${generated.join(", ")}]`,
     );
 
     for (const slug of generated) {
@@ -64,22 +64,22 @@ suite('Config Panel Kanban Providers', () => {
         Object.prototype.hasOwnProperty.call(KANBAN_PROVIDERS, slug),
         `Kanban provider "${slug}" exists in the generated config schema but ` +
           `is missing from KANBAN_PROVIDERS in config-panel.ts. Add an entry ` +
-          `so the webview can read/write its config.`
+          `so the webview can read/write its config.`,
       );
     }
   });
 
-  test('KANBAN_PROVIDER_SLUGS matches the generated schema exactly', () => {
+  test("KANBAN_PROVIDER_SLUGS matches the generated schema exactly", () => {
     const generated = generatedProviderSlugs().toSorted();
     const known = [...KANBAN_PROVIDER_SLUGS].toSorted();
     assert.deepStrictEqual(known, generated);
   });
 
-  test('canonical catalog includes jira, linear, and github', () => {
-    for (const slug of ['jira', 'linear', 'github']) {
+  test("canonical catalog includes jira, linear, and github", () => {
+    for (const slug of ["jira", "linear", "github"]) {
       assert.ok(
         KANBAN_PROVIDER_SLUGS.includes(slug),
-        `Expected "${slug}" in KANBAN_PROVIDER_SLUGS`
+        `Expected "${slug}" in KANBAN_PROVIDER_SLUGS`,
       );
     }
   });
@@ -88,57 +88,57 @@ suite('Config Panel Kanban Providers', () => {
   // Write-path behavior: every provider must round-trip scalar, instance-key,
   // and project-level field writes into the kanban sub-table.
   // ---------------------------------------------------------------------
-  suite('applyKanbanProviderField round-trips for every provider', () => {
+  suite("applyKanbanProviderField round-trips for every provider", () => {
     for (const slug of KANBAN_PROVIDER_SLUGS) {
       const meta = KANBAN_PROVIDERS[slug]!;
 
       test(`${slug}: scalar field writes under the default instance key`, () => {
         const kanban: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban, slug, 'enabled', true);
-        applyKanbanProviderField(kanban, slug, 'api_key_env', 'MY_TOKEN');
+        applyKanbanProviderField(kanban, slug, "enabled", true);
+        applyKanbanProviderField(kanban, slug, "api_key_env", "MY_TOKEN");
 
         const providerMap = kanban[slug] as Record<string, unknown>;
         assert.ok(providerMap, `Expected kanban.${slug} table to exist`);
         const instance = providerMap[meta.defaultInstanceKey] as Record<string, unknown>;
         assert.ok(instance, `Expected default instance "${meta.defaultInstanceKey}"`);
         assert.strictEqual(instance.enabled, true);
-        assert.strictEqual(instance.api_key_env, 'MY_TOKEN');
+        assert.strictEqual(instance.api_key_env, "MY_TOKEN");
       });
 
       test(`${slug}: instance-key field renames the provider map key`, () => {
         const kanban: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban, slug, 'enabled', true);
-        applyKanbanProviderField(kanban, slug, meta.instanceKeyField, 'renamed-instance');
+        applyKanbanProviderField(kanban, slug, "enabled", true);
+        applyKanbanProviderField(kanban, slug, meta.instanceKeyField, "renamed-instance");
 
         const providerMap = kanban[slug] as Record<string, unknown>;
         assert.ok(
-          Object.prototype.hasOwnProperty.call(providerMap, 'renamed-instance'),
-          `Expected ${slug} instance key to be renamed to "renamed-instance"`
+          Object.prototype.hasOwnProperty.call(providerMap, "renamed-instance"),
+          `Expected ${slug} instance key to be renamed to "renamed-instance"`,
         );
         assert.ok(
           !Object.prototype.hasOwnProperty.call(providerMap, meta.defaultInstanceKey),
-          `Expected old instance key "${meta.defaultInstanceKey}" to be gone`
+          `Expected old instance key "${meta.defaultInstanceKey}" to be gone`,
         );
       });
 
       test(`${slug}: project-scoped field writes into a project sub-table`, () => {
         const kanban: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban, slug, 'projects.PROJ.sync_user_id', 'user-123');
+        applyKanbanProviderField(kanban, slug, "projects.PROJ.sync_user_id", "user-123");
 
         const providerMap = kanban[slug] as Record<string, unknown>;
         const instance = providerMap[meta.defaultInstanceKey] as Record<string, unknown>;
         const projects = instance.projects as Record<string, unknown>;
         const proj = projects.PROJ as Record<string, unknown>;
         assert.ok(proj, `Expected project "PROJ" sub-table for ${slug}`);
-        assert.strictEqual(proj.sync_user_id, 'user-123');
+        assert.strictEqual(proj.sync_user_id, "user-123");
       });
 
       test(`${slug}: status_mapping object round-trips via projects path and shorthand`, () => {
-        const mapping = { todo: 'To Do', doing: 'In Progress', done: 'Done' };
+        const mapping = { todo: "To Do", doing: "In Progress", done: "Done" };
 
         // Explicit projects.<key>.status_mapping path (ProjectRow write path)
         const kanban: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban, slug, 'projects.PROJ.status_mapping', mapping);
+        applyKanbanProviderField(kanban, slug, "projects.PROJ.status_mapping", mapping);
         let providerMap = kanban[slug] as Record<string, unknown>;
         let instance = providerMap[meta.defaultInstanceKey] as Record<string, unknown>;
         let proj = (instance.projects as Record<string, unknown>).PROJ as Record<string, unknown>;
@@ -146,7 +146,7 @@ suite('Config Panel Kanban Providers', () => {
 
         // Shorthand project-level key (single-project config forms)
         const kanban2: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban2, slug, 'status_mapping', mapping);
+        applyKanbanProviderField(kanban2, slug, "status_mapping", mapping);
         providerMap = kanban2[slug] as Record<string, unknown>;
         instance = providerMap[meta.defaultInstanceKey] as Record<string, unknown>;
         const projects = instance.projects as Record<string, unknown>;
@@ -157,10 +157,10 @@ suite('Config Panel Kanban Providers', () => {
     }
   });
 
-  test('unknown provider slug throws rather than silently dropping the write', () => {
+  test("unknown provider slug throws rather than silently dropping the write", () => {
     assert.throws(
-      () => applyKanbanProviderField({}, 'notaprovider', 'enabled', true),
-      /Unknown kanban provider/
+      () => applyKanbanProviderField({}, "notaprovider", "enabled", true),
+      /Unknown kanban provider/,
     );
   });
 });

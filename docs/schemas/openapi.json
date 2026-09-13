@@ -2041,6 +2041,212 @@
         "x-operator-scope": "read"
       }
     },
+    "/api/v1/git/config": {
+      "put": {
+        "tags": [
+          "Git"
+        ],
+        "operationId": "git_write_config",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteGitConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriteGitConfigResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/git/providers": {
+      "get": {
+        "tags": [
+          "Git"
+        ],
+        "operationId": "git_providers",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GitProviderOnboardingResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/git/session-env": {
+      "post": {
+        "tags": [
+          "Git"
+        ],
+        "operationId": "git_set_session_env",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetGitSessionEnvRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetGitSessionEnvResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/git/validate": {
+      "post": {
+        "tags": [
+          "Git"
+        ],
+        "operationId": "git_validate",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateGitTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateGitTokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "execute"
+      }
+    },
     "/api/v1/health": {
       "get": {
         "tags": [
@@ -4599,6 +4805,183 @@
         "x-operator-scope": "read"
       }
     },
+    "/api/v1/setup/collections": {
+      "get": {
+        "tags": [
+          "Setup"
+        ],
+        "operationId": "setup_collections",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SetupCollectionResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/setup/initialize": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "operationId": "setup_initialize",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupInitializeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupInitializeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Workspace already initialized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/setup/status": {
+      "get": {
+        "tags": [
+          "Setup"
+        ],
+        "operationId": "setup_status",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/setup/steps": {
+      "get": {
+        "tags": [
+          "Setup"
+        ],
+        "operationId": "setup_steps",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SetupStepResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      }
+    },
     "/api/v1/skills": {
       "get": {
         "tags": [
@@ -5830,6 +6213,16 @@
             "description": "The account name created by bootstrap."
           }
         }
+      },
+      "CollectionPreset": {
+        "type": "string",
+        "description": "Predefined issue type collections",
+        "enum": [
+          "simple",
+          "dev_kanban",
+          "devops_kanban",
+          "custom"
+        ]
       },
       "CollectionResponse": {
         "type": "object",
@@ -7268,6 +7661,59 @@
           }
         }
       },
+      "GitOnboardingState": {
+        "type": "string",
+        "enum": [
+          "cli-missing",
+          "token-required",
+          "authenticated"
+        ]
+      },
+      "GitProviderOnboardingResponse": {
+        "type": "object",
+        "required": [
+          "slug",
+          "label",
+          "docs_url",
+          "configured",
+          "command",
+          "token_env",
+          "state",
+          "action_url"
+        ],
+        "properties": {
+          "action_url": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "docs_url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/GitOnboardingState"
+          },
+          "token_env": {
+            "type": "string"
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "GithubCredentials": {
         "type": "object",
         "description": "Ephemeral GitHub Projects credentials supplied by a client during onboarding.\n\nThe token must have `project` (or `read:project`) scope. A repo-only token\n(the kind used for `GITHUB_TOKEN` and operator's git provider) will be\nrejected at validation time with a friendly \"lacks `project` scope\" error.",
@@ -7388,6 +7834,21 @@
             "type": "string"
           },
           "version": {
+            "type": "string"
+          }
+        }
+      },
+      "HostedCollectionSelection": {
+        "type": "object",
+        "required": [
+          "id",
+          "checksum"
+        ],
+        "properties": {
+          "checksum": {
+            "type": "string"
+          },
+          "id": {
             "type": "string"
           }
         }
@@ -7946,6 +8407,12 @@
           "session_wrapper": {
             "$ref": "#/components/schemas/SessionWrapper"
           },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "yolo_enabled": {
             "type": "boolean"
           }
@@ -8000,6 +8467,13 @@
               {
                 "$ref": "#/components/schemas/SessionWrapper"
               }
+            ],
+            "default": null
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
             ],
             "default": null
           },
@@ -9555,6 +10029,16 @@
           "zellij"
         ]
       },
+      "SessionWrapperType": {
+        "type": "string",
+        "description": "Session wrapper type for terminal session management",
+        "enum": [
+          "tmux",
+          "vscode",
+          "cmux",
+          "zellij"
+        ]
+      },
       "SetDefaultLlmRequest": {
         "type": "object",
         "description": "Request to set the global default LLM tool and model",
@@ -9570,6 +10054,34 @@
           "tool": {
             "type": "string",
             "description": "Tool name (must match a detected tool, e.g., \"claude\")"
+          }
+        }
+      },
+      "SetGitSessionEnvRequest": {
+        "type": "object",
+        "required": [
+          "provider",
+          "token"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true
+          }
+        }
+      },
+      "SetGitSessionEnvResponse": {
+        "type": "object",
+        "required": [
+          "shell_export_block"
+        ],
+        "properties": {
+          "shell_export_block": {
+            "type": "string"
           }
         }
       },
@@ -9633,6 +10145,269 @@
           "shell_export_block": {
             "type": "string",
             "description": "Multi-line `export FOO=\"<your-token>\"` block for the user to copy\ninto `~/.zshrc` / `~/.bashrc`."
+          }
+        }
+      },
+      "SetupCollectionResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "types",
+          "default_selected",
+          "origin",
+          "checksum"
+        ],
+        "properties": {
+          "checksum": {
+            "type": "string"
+          },
+          "default_selected": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "origin": {
+            "type": "string"
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SetupExecutionTarget": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "local"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "name",
+              "template",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "coder"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "template": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "SetupInitializeRequest": {
+        "type": "object",
+        "required": [
+          "preset",
+          "wrapper",
+          "execution_target",
+          "acceptance_criteria"
+        ],
+        "properties": {
+          "acceptance_criteria": {
+            "type": "string"
+          },
+          "execution_target": {
+            "$ref": "#/components/schemas/SetupExecutionTarget"
+          },
+          "hosted_collections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HostedCollectionSelection"
+            }
+          },
+          "model_servers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "preset": {
+            "$ref": "#/components/schemas/CollectionPreset"
+          },
+          "task_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "use_worktrees": {
+            "type": "boolean"
+          },
+          "wrapper": {
+            "$ref": "#/components/schemas/SessionWrapperType"
+          }
+        }
+      },
+      "SetupInitializeResponse": {
+        "type": "object",
+        "required": [
+          "initialized",
+          "config_path",
+          "tickets_path",
+          "files_created",
+          "files_skipped",
+          "projects"
+        ],
+        "properties": {
+          "config_path": {
+            "type": "string"
+          },
+          "files_created": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "files_skipped": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "initialized": {
+            "type": "boolean"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tickets_path": {
+            "type": "string"
+          }
+        }
+      },
+      "SetupStatusResponse": {
+        "type": "object",
+        "required": [
+          "initialized",
+          "admin_configured",
+          "config_path",
+          "tickets_path",
+          "projects_by_tool",
+          "default_acceptance_criteria"
+        ],
+        "properties": {
+          "admin_configured": {
+            "type": "boolean"
+          },
+          "config_path": {
+            "type": "string"
+          },
+          "default_acceptance_criteria": {
+            "type": "string"
+          },
+          "initialized": {
+            "type": "boolean"
+          },
+          "projects_by_tool": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "tickets_path": {
+            "type": "string"
+          }
+        }
+      },
+      "SetupStep": {
+        "type": "string",
+        "description": "A step in the setup wizard.",
+        "enum": [
+          "welcome",
+          "kanban-info",
+          "model-server",
+          "git-provider",
+          "collection-source",
+          "hosted-collections",
+          "task-field-config",
+          "session-wrapper-choice",
+          "execution-target",
+          "worktree-preference",
+          "admin-password",
+          "tmux-onboarding",
+          "vscode-setup",
+          "cmux-setup",
+          "zellij-setup",
+          "acceptance-criteria",
+          "startup-tickets",
+          "confirm"
+        ]
+      },
+      "SetupStepResponse": {
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "description",
+          "help_text",
+          "order"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "help_text": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "slug": {
+            "$ref": "#/components/schemas/SetupStep"
           }
         }
       },
@@ -10572,6 +11347,46 @@
           }
         }
       },
+      "ValidateGitTokenRequest": {
+        "type": "object",
+        "required": [
+          "provider",
+          "token"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true
+          }
+        }
+      },
+      "ValidateGitTokenResponse": {
+        "type": "object",
+        "required": [
+          "valid"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        }
+      },
       "ValidateKanbanCredentialsRequest": {
         "type": "object",
         "description": "Request to validate kanban credentials without persisting them.",
@@ -10805,6 +11620,46 @@
           "suggested_filename": {
             "type": "string",
             "description": "Suggested filename for saving the preview (`<KEY>.preview.workflow.js`)."
+          }
+        }
+      },
+      "WriteGitConfigRequest": {
+        "type": "object",
+        "required": [
+          "provider",
+          "token_env"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "token_env": {
+            "type": "string"
+          }
+        }
+      },
+      "WriteGitConfigResponse": {
+        "type": "object",
+        "required": [
+          "provider",
+          "token_env",
+          "shell_export_block"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "shell_export_block": {
+            "type": "string"
+          },
+          "token_env": {
+            "type": "string"
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -11186,6 +12041,14 @@
     {
       "name": "Auth",
       "description": "Bootstrap, sessions, OAuth device flow, and access keys"
+    },
+    {
+      "name": "Setup",
+      "description": "First-run workspace initialization"
+    },
+    {
+      "name": "Git",
+      "description": "Git provider onboarding"
     }
   ]
 }

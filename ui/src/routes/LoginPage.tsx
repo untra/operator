@@ -2,18 +2,18 @@
 // has no sections to show in the sidebar, and every API call the shell makes
 // would 401.
 
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useHost } from '../host';
-import { OperatorApi, ApiError } from '../api-client';
-import { MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH } from '../auth-constraints';
-import styles from './AuthPage.module.css';
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useHost } from "../host";
+import { OperatorApi, ApiError } from "../api-client";
+import { MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH } from "../auth-constraints";
+import styles from "./AuthPage.module.css";
 
 export function LoginPage() {
   const host = useHost();
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -23,7 +23,9 @@ export function LoginPage() {
     api
       .bootstrapStatus()
       .then((status) => {
-        if (status.state !== 'complete') {void navigate('/setup', { replace: true });}
+        if (status.state !== "complete") {
+          void navigate("/setup", { replace: true });
+        }
         return undefined;
       })
       .catch(() => {
@@ -36,16 +38,18 @@ export function LoginPage() {
     setError(null);
     setBusy(true);
     try {
-      await new OperatorApi(host).login(username, password);
-      void navigate('/', { replace: true });
+      const api = new OperatorApi(host);
+      await api.login(username, password);
+      const setup = await api.setupStatus();
+      void navigate(setup.initialized ? "/" : "/onboarding", { replace: true });
     } catch (e) {
       // 429 carries a wait, not a wrong password; saying "incorrect" would
       // send the operator hunting for a password problem they do not have.
       const status = e instanceof ApiError ? e.status : 0;
       setError(
         status === 429
-          ? 'Too many attempts. Wait a moment and try again.'
-          : 'Incorrect username or password.',
+          ? "Too many attempts. Wait a moment and try again."
+          : "Incorrect username or password.",
       );
     } finally {
       setBusy(false);
@@ -87,7 +91,7 @@ export function LoginPage() {
         </label>
 
         <button className={styles.button} type="submit" disabled={busy || !username || !password}>
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? "Signing in…" : "Sign in"}
         </button>
         <div className={styles.links}>
           <Link to="/forgot-password">Forgot password?</Link>

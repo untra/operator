@@ -1312,7 +1312,7 @@
           }
         },
         "prompt_variations": {
-          "description": "Prompt variations (M) — Handlebars templates, minimum 2",
+          "description": "Prompt variations (M) - Handlebars templates, minimum 2",
           "type": "array",
           "items": {
             "type": "string"
@@ -1353,7 +1353,7 @@
       ]
     },
     "PipelineConfig": {
-      "description": "Configuration for pipeline steps: iterate a list of items through ordered\nstages with no barrier (each item flows through all stages independently).\n\nThe step graph stays linear — a pipeline step still has exactly one\n`next_step`. The fan-out (N items x M stages) lives entirely inside this one\nstep; iteration is an intra-step concern, never a step-to-step edge.",
+      "description": "Configuration for pipeline steps: iterate a list of items through ordered\nstages with no barrier (each item flows through all stages independently).\n\nThe step graph stays linear - a pipeline step still has exactly one\n`next_step`. The fan-out (N items x M stages) lives entirely inside this one\nstep; iteration is an intra-step concern, never a step-to-step edge.",
       "type": "object",
       "properties": {
         "item_source": {
@@ -1390,7 +1390,7 @@
           ]
         },
         {
-          "description": "An array produced by a prior step. Emits that step's result identifier\n(`r_<step>`) — a runtime value, so the graph width is symbolic.",
+          "description": "An array produced by a prior step. Emits that step's result identifier\n(`r_<step>`) - a runtime value, so the graph width is symbolic.",
           "type": "object",
           "properties": {
             "step": {
@@ -1447,7 +1447,7 @@
           ]
         },
         {
-          "description": "A ticket field value split into a list. Resolution is deferred — there\nis no list `FieldType` and ticket field values are not captured at\nexport time yet — so this currently emits a symbolic placeholder.",
+          "description": "A ticket field value split into a list. Resolution is deferred - there\nis no list `FieldType` and ticket field values are not captured at\nexport time yet - so this currently emits a symbolic placeholder.",
           "type": "object",
           "properties": {
             "name": {
@@ -1467,7 +1467,7 @@
       ]
     },
     "PipelineStage": {
-      "description": "A single stage in a pipeline — deliberately flat (not a recursive\n`StepSchema`): \"prompt + optional agent/model/schema\" only. It has no\n`next_step`/`review_type`/`on_reject`, so a stage cannot reopen the\nstep-graph linearity question.",
+      "description": "A single stage in a pipeline - deliberately flat (not a recursive\n`StepSchema`): \"prompt + optional agent/model/schema\" only. It has no\n`next_step`/`review_type`/`on_reject`, so a stage cannot reopen the\nstep-graph linearity question.",
       "type": "object",
       "properties": {
         "prompt": {

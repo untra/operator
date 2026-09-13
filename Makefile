@@ -4,11 +4,12 @@
 # a clean CI run. `make install-hooks` wires the committed pre-push hook, which
 # runs the fast lint gate (fmt + clippy, no tests) before every push.
 
-.PHONY: check fmt clippy test build run install-hooks bindings webcomponents ui docs
+.PHONY: check fmt clippy test build run install-hooks bindings webcomponents ui docs \
+	fmt-ts lint-ts lint-shell relay
 
 # Full CI-parity gate. Keep these commands byte-identical to
 # .github/workflows/build.yaml so local and CI never disagree.
-check: fmt clippy test
+check: fmt clippy test relay fmt-ts lint-ts lint-shell
 
 fmt:
 	cargo fmt --all -- --check
@@ -18,6 +19,29 @@ clippy:
 
 test:
 	cargo test --locked
+
+# crates/relay has its own Cargo.lock and is not a workspace member, so the
+# targets above never reach it.
+relay:
+	cd crates/relay && cargo fmt -- --check
+	cd crates/relay && cargo clippy --locked --all-targets --all-features -- -D warnings
+	cd crates/relay && cargo test --locked --all-features
+
+# oxfmt/oxlint are installed once at the repo root and cover every hand-written
+# JS/TS subproject. `bun run fmt` (no :check) rewrites instead of reporting.
+fmt-ts:
+	bun install --frozen-lockfile
+	bun run fmt:check
+
+lint-ts:
+	bun run lint:ui
+	bun run lint:webcomponents
+	bun run lint:vscode
+	bun run lint:agnt
+	bun run lint:coder-module
+
+lint-shell:
+	shellcheck -S warning scripts/*.sh scripts/ci/*.sh .githooks/*
 
 # Optimized release binary at target/release/operator.
 build:

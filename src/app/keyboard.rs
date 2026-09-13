@@ -17,6 +17,118 @@ impl App {
         let code = key.code;
         let mods = key.modifiers;
 
+        // Modal credential dialogs outrank the setup screen: both can be opened from inside the wizard,
+        // whose bindings would otherwise eat their text input (`c` quits, `i` initializes).
+        if self.git_token_dialog.visible {
+            match code {
+                KeyCode::Esc => {
+                    self.git_token_dialog.hide();
+                }
+                KeyCode::Enter => {
+                    let token = self.git_token_dialog.token().to_string();
+                    if token.is_empty() {
+                        self.git_token_dialog.set_error("Token cannot be empty");
+                    } else {
+                        let provider = self.git_token_dialog.provider.clone();
+                        let provider_display = self.git_token_dialog.provider_display.clone();
+                        match git_onboarding::validate_token_with_config(
+                            &self.config,
+                            &provider,
+                            &token,
+                        ) {
+                            Ok(username) => {
+                                // The wizard persists once at Confirm; saving
+                                // here would strand a partial config on cancel.
+                                let in_setup = self.setup_screen.is_some();
+                                let applied = if in_setup {
+                                    git_onboarding::apply_git_provider(
+                                        &mut self.config,
+                                        &provider,
+                                        &token,
+                                    )
+                                } else {
+                                    git_onboarding::complete_git_onboarding(
+                                        &mut self.config,
+                                        &provider,
+                                        &token,
+                                    )
+                                };
+                                match applied {
+                                    Ok(()) => {
+                                        self.git_token_dialog.hide();
+                                        if let Some(setup) = self.setup_screen.as_mut() {
+                                            setup.set_git_provider_status(
+                                                &provider,
+                                                format!("connected as {username}"),
+                                            );
+                                        } else {
+                                            self.dashboard.update_config(&self.config);
+                                            self.refresh_data()?;
+                                            self.dashboard.set_status(&format!(
+                                                "{provider_display} connected as {username}"
+                                            ));
+                                        }
+                                    }
+                                    Err(e) => {
+                                        self.git_token_dialog
+                                            .set_error(&format!("Failed to save config: {e}"));
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                self.git_token_dialog
+                                    .set_error(&format!("Token validation failed: {e}"));
+                            }
+                        }
+                    }
+                }
+                KeyCode::Char(c) => {
+                    self.git_token_dialog.handle_char(c);
+                }
+                KeyCode::Backspace => {
+                    self.git_token_dialog.handle_backspace();
+                }
+                KeyCode::Delete => {
+                    self.git_token_dialog.handle_delete();
+                }
+                KeyCode::Left => {
+                    self.git_token_dialog.cursor_left();
+                }
+                KeyCode::Right => {
+                    self.git_token_dialog.cursor_right();
+                }
+                KeyCode::Home => {
+                    self.git_token_dialog.cursor_home();
+                }
+                KeyCode::End => {
+                    self.git_token_dialog.cursor_end();
+                }
+                _ => {}
+            }
+            return Ok(());
+        }
+
+        // Sync confirm dialog handling
+        if self.sync_confirm_dialog.visible {
+            if let Some(result) = self.sync_confirm_dialog.handle_key(code) {
+                match result {
+                    SyncConfirmResult::Confirmed => {
+                        self.run_kanban_sync_all().await?;
+                    }
+                    SyncConfirmResult::Cancelled => {
+                        // Already hidden by handle_key
+                    }
+                }
+            }
+            return Ok(());
+        }
+
+        if self.kanban_onboarding_dialog.visible {
+            let action = self.kanban_onboarding_dialog.handle_key(code);
+            self.handle_kanban_onboarding_action(action).await?;
+            return Ok(());
+        }
+
         // Setup screen takes absolute priority
         if let Some(ref mut setup) = self.setup_screen {
             // The password step needs raw characters, and the wizard bindings
@@ -37,6 +149,16 @@ impl App {
                 )
             {
                 setup.handle_password_key(code);
+                return Ok(());
+            }
+            if setup.step == crate::ui::setup::SetupStep::ExecutionTarget
+                && setup.execution_target_state.selected() == Some(1)
+                && matches!(
+                    code,
+                    KeyCode::Char(_) | KeyCode::Backspace | KeyCode::Delete
+                )
+            {
+                setup.handle_execution_target_key(code);
                 return Ok(());
             }
 
@@ -71,6 +193,21 @@ impl App {
                                     .flatten();
                                 let timeout = templates.collections_fetch_timeout_secs;
                                 setup.load_hosted_collections(url.as_deref(), timeout).await;
+                            }
+                            if matches!(setup.step, crate::ui::setup::SetupStep::ModelServer)
+                                && !setup.model_servers_probed
+                            {
+                                setup.probe_model_servers(&self.config).await;
+                            }
+                            // Drain both requests before touching `self`, so
+                            // the borrow on `setup_screen` has ended.
+                            let open_kanban = setup.take_kanban_dialog_request();
+                            let git_slug = setup.take_git_connect_request();
+                            if open_kanban {
+                                self.show_kanban_onboarding_dialog();
+                            }
+                            if let Some(slug) = git_slug {
+                                self.connect_git_provider_from_setup(&slug);
                             }
                         }
                     }
@@ -320,99 +457,6 @@ impl App {
                     }
                 }
             }
-            return Ok(());
-        }
-
-        // Git token dialog handling
-        if self.git_token_dialog.visible {
-            match code {
-                KeyCode::Esc => {
-                    self.git_token_dialog.hide();
-                }
-                KeyCode::Enter => {
-                    let token = self.git_token_dialog.token().to_string();
-                    if token.is_empty() {
-                        self.git_token_dialog.set_error("Token cannot be empty");
-                    } else {
-                        let provider = self.git_token_dialog.provider.clone();
-                        let provider_display = self.git_token_dialog.provider_display.clone();
-                        match git_onboarding::validate_token_with_config(
-                            &self.config,
-                            &provider,
-                            &token,
-                        ) {
-                            Ok(username) => {
-                                match git_onboarding::complete_git_onboarding(
-                                    &mut self.config,
-                                    &provider,
-                                    &token,
-                                ) {
-                                    Ok(()) => {
-                                        self.git_token_dialog.hide();
-                                        self.dashboard.update_config(&self.config);
-                                        self.refresh_data()?;
-                                        self.dashboard.set_status(&format!(
-                                            "{provider_display} connected as {username}"
-                                        ));
-                                    }
-                                    Err(e) => {
-                                        self.git_token_dialog
-                                            .set_error(&format!("Failed to save config: {e}"));
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                self.git_token_dialog
-                                    .set_error(&format!("Token validation failed: {e}"));
-                            }
-                        }
-                    }
-                }
-                KeyCode::Char(c) => {
-                    self.git_token_dialog.handle_char(c);
-                }
-                KeyCode::Backspace => {
-                    self.git_token_dialog.handle_backspace();
-                }
-                KeyCode::Delete => {
-                    self.git_token_dialog.handle_delete();
-                }
-                KeyCode::Left => {
-                    self.git_token_dialog.cursor_left();
-                }
-                KeyCode::Right => {
-                    self.git_token_dialog.cursor_right();
-                }
-                KeyCode::Home => {
-                    self.git_token_dialog.cursor_home();
-                }
-                KeyCode::End => {
-                    self.git_token_dialog.cursor_end();
-                }
-                _ => {}
-            }
-            return Ok(());
-        }
-
-        // Sync confirm dialog handling
-        if self.sync_confirm_dialog.visible {
-            if let Some(result) = self.sync_confirm_dialog.handle_key(code) {
-                match result {
-                    SyncConfirmResult::Confirmed => {
-                        self.run_kanban_sync_all().await?;
-                    }
-                    SyncConfirmResult::Cancelled => {
-                        // Already hidden by handle_key
-                    }
-                }
-            }
-            return Ok(());
-        }
-
-        // Kanban onboarding dialog handling
-        if self.kanban_onboarding_dialog.visible {
-            let action = self.kanban_onboarding_dialog.handle_key(code);
-            self.handle_kanban_onboarding_action(action).await?;
             return Ok(());
         }
 

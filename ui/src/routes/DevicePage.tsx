@@ -4,16 +4,16 @@
 // asking, and approves. It renders inside the authenticated Layout on purpose:
 // approving a device grants a credential, so it requires an admin session.
 
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useHost } from '../host';
-import { OperatorApi, ApiError } from '../api-client';
-import styles from './AuthPage.module.css';
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useHost } from "../host";
+import { OperatorApi, ApiError } from "../api-client";
+import styles from "./AuthPage.module.css";
 
 export function DevicePage() {
   const host = useHost();
   const [params] = useSearchParams();
-  const [userCode, setUserCode] = useState(params.get('user_code') ?? '');
+  const [userCode, setUserCode] = useState(params.get("user_code") ?? "");
   const [approved, setApproved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,8 +36,8 @@ export function DevicePage() {
     } catch (e) {
       setError(
         e instanceof ApiError && e.status === 404
-          ? 'That code is unknown or has expired. Start the connection again from your editor.'
-          : 'Approval failed.',
+          ? "That code is unknown or has expired. Start the connection again from your editor."
+          : "Approval failed.",
       );
     } finally {
       setBusy(false);
@@ -50,8 +50,8 @@ export function DevicePage() {
         <div className={styles.card}>
           <h1 className={styles.title}>Device approved</h1>
           <p className={styles.subtitle}>
-            <strong>{approved}</strong> now has access. You can close this page and
-            return to your editor.
+            <strong>{approved}</strong> now has access. You can close this page and return to your
+            editor.
           </p>
         </div>
       </div>
@@ -80,7 +80,7 @@ export function DevicePage() {
         </label>
 
         <button className={styles.button} type="submit" disabled={busy || !userCode}>
-          {busy ? 'Approving…' : 'Approve'}
+          {busy ? "Approving…" : "Approve"}
         </button>
       </form>
     </div>

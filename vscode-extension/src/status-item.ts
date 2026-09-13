@@ -1,5 +1,5 @@
-import * as vscode from 'vscode';
-import type { SectionHealth } from './generated';
+import * as vscode from "vscode";
+import type { SectionHealth } from "./generated";
 
 /**
  * Map a SectionHealth value to a VS Code theme color id used to tint the
@@ -7,8 +7,8 @@ import type { SectionHealth } from './generated';
  * leave the icon at its default theme color.
  */
 const HEALTH_THEME_COLOR: Partial<Record<SectionHealth, string>> = {
-  Yellow: 'list.warningForeground',
-  Red: 'list.errorForeground',
+  Yellow: "list.warningForeground",
+  Red: "list.errorForeground",
 };
 
 /**
@@ -22,13 +22,13 @@ export interface StatusItemOptions {
   collapsibleState?: vscode.TreeItemCollapsibleState;
   command?: vscode.Command;
   sectionId?: string;
-  contextValue?: string;    // for view/item/context when clause
-  provider?: string;        // 'jira' | 'linear'
-  workspaceKey?: string;    // domain or teamId (config key)
-  projectKey?: string;      // project/team sync config key
-  /** X button (Shift+Enter) — special/tertiary action */
+  contextValue?: string; // for view/item/context when clause
+  provider?: string; // 'jira' | 'linear'
+  workspaceKey?: string; // domain or teamId (config key)
+  projectKey?: string; // project/team sync config key
+  /** X button (Shift+Enter) - special/tertiary action */
   specialCommand?: vscode.Command;
-  /** Y button (Ctrl+Enter) — contextual refresh */
+  /** Y button (Ctrl+Enter) - contextual refresh */
   refreshCommand?: vscode.Command;
   /**
    * Optional health state. When `Yellow` or `Red`, the row icon is tinted
@@ -47,16 +47,13 @@ export class StatusItem extends vscode.TreeItem {
   public readonly provider?: string;
   public readonly workspaceKey?: string;
   public readonly projectKey?: string;
-  /** X button (Shift+Enter) — special/tertiary action */
+  /** X button (Shift+Enter) - special/tertiary action */
   public readonly specialCommand?: vscode.Command;
-  /** Y button (Ctrl+Enter) — contextual refresh */
+  /** Y button (Ctrl+Enter) - contextual refresh */
   public readonly refreshCommand?: vscode.Command;
 
   constructor(opts: StatusItemOptions) {
-    super(
-      opts.label,
-      opts.collapsibleState ?? vscode.TreeItemCollapsibleState.None
-    );
+    super(opts.label, opts.collapsibleState ?? vscode.TreeItemCollapsibleState.None);
     this.sectionId = opts.sectionId;
     this.provider = opts.provider;
     this.workspaceKey = opts.workspaceKey;
@@ -65,16 +62,16 @@ export class StatusItem extends vscode.TreeItem {
     this.refreshCommand = opts.refreshCommand;
 
     // Build description with action indicator titles
-    let desc = opts.description ?? '';
+    let desc = opts.description ?? "";
     const indicators: string[] = [];
     if (opts.specialCommand) {
-      indicators.push(opts.specialCommand.title || '*');
+      indicators.push(opts.specialCommand.title || "*");
     }
     if (opts.refreshCommand) {
-      indicators.push(opts.refreshCommand.title || '\u27F3');
+      indicators.push(opts.refreshCommand.title || "\u27F3");
     }
     if (indicators.length > 0) {
-      desc = desc ? `${desc} ${indicators.join(' ')}` : indicators.join(' ');
+      desc = desc ? `${desc} ${indicators.join(" ")}` : indicators.join(" ");
     }
 
     if (desc) {
@@ -83,9 +80,8 @@ export class StatusItem extends vscode.TreeItem {
 
     // Build rich tooltip with action hints
     const tooltipLines: string[] = [];
-    const baseTooltip = opts.tooltip || (opts.description
-      ? `${opts.label}: ${opts.description}`
-      : opts.label);
+    const baseTooltip =
+      opts.tooltip || (opts.description ? `${opts.label}: ${opts.description}` : opts.label);
     tooltipLines.push(baseTooltip);
     if (opts.command) {
       tooltipLines.push(`Enter: ${opts.command.title}`);
@@ -96,7 +92,7 @@ export class StatusItem extends vscode.TreeItem {
     if (opts.refreshCommand?.tooltip) {
       tooltipLines.push(`Ctrl+Enter: ${opts.refreshCommand.tooltip}`);
     }
-    this.tooltip = tooltipLines.join('\n');
+    this.tooltip = tooltipLines.join("\n");
 
     const themeColorId = opts.health ? HEALTH_THEME_COLOR[opts.health] : undefined;
     this.iconPath = themeColorId

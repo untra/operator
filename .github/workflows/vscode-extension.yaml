@@ -53,6 +53,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check formatting
+        run: npm run fmt:check
+
       - name: Compile
         run: npm run compile
 

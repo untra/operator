@@ -1,25 +1,25 @@
-// The Model Providers view — distinct from the LLM Tools (Coding Agents) page.
+// The Model Providers view - distinct from the LLM Tools (Coding Agents) page.
 // Lists every supported provider (first-party vendors + gateways), shows each
 // one's connection state (a live /models probe), and lets you create a delegator
 // by picking a connected provider + one of its live models.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { OperatorApi } from '../api-client';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { OperatorApi } from "../api-client";
 import type {
   ModelServerKindEntry,
   ModelServerModelsResponse,
   LlmToolsResponse,
   DelegatorResponse,
-} from '../api-client';
-import type { GitExecutionConfig } from '@operator/bindings/GitExecutionConfig';
-import { useHost } from '../host';
-import { CONCEPTS } from '../concepts';
-import { PageHeader } from '../components/PageHeader';
-import { BrandIcon } from '../components/BrandIcon';
-import { ConceptIcon } from '../components/ConceptIcon';
-import styles from './ModelProvidersPage.module.css';
+} from "../api-client";
+import type { GitExecutionConfig } from "@operator/bindings/GitExecutionConfig";
+import { useHost } from "../host";
+import { CONCEPTS } from "../concepts";
+import { PageHeader } from "../components/PageHeader";
+import { BrandIcon } from "../components/BrandIcon";
+import { ConceptIcon } from "../components/ConceptIcon";
+import styles from "./ModelProvidersPage.module.css";
 
-const CONCEPT = CONCEPTS['model-servers'];
+const CONCEPT = CONCEPTS["model-servers"];
 
 /** Live connection probe per provider slug. `undefined` = still loading. */
 type ProbeMap = Record<string, ModelServerModelsResponse | undefined>;
@@ -27,8 +27,8 @@ type ProbeMap = Record<string, ModelServerModelsResponse | undefined>;
 /** A detected llm tool offered in the delegator form; unhealthy ones can't launch. */
 type DetectedToolOption = { name: string; healthOk: boolean };
 
-type GitSettingDraft = GitExecutionConfig['settings'][number] & { id: string };
-type GitExecutionDraft = Omit<GitExecutionConfig, 'settings'> & { settings: GitSettingDraft[] };
+type GitSettingDraft = GitExecutionConfig["settings"][number] & { id: string };
+type GitExecutionDraft = Omit<GitExecutionConfig, "settings"> & { settings: GitSettingDraft[] };
 
 function createGitDraft(config: GitExecutionConfig | null): GitExecutionDraft | null {
   if (!config) {
@@ -65,7 +65,9 @@ export function ModelProvidersPage() {
     api
       .listDelegators()
       .then((r) => setDelegators(r.delegators))
-      .catch(() => {/* non-fatal */});
+      .catch(() => {
+        /* non-fatal */
+      });
   }, [api]);
 
   // Load the catalog + detected tools, then probe each provider for connection.
@@ -75,9 +77,7 @@ export function ModelProvidersPage() {
       .then(([catalog, tools]: [ModelServerKindEntry[], LlmToolsResponse]) => {
         if (!cancelled) {
           setKinds(catalog);
-          setDetectedTools(
-            tools.tools.map((t) => ({ name: t.name, healthOk: t.health_ok })),
-          );
+          setDetectedTools(tools.tools.map((t) => ({ name: t.name, healthOk: t.health_ok })));
           // Probe each provider concurrently; fill the map as results land.
           for (const k of catalog) {
             api
@@ -88,14 +88,19 @@ export function ModelProvidersPage() {
                   !cancelled &&
                   setProbes((p) => ({
                     ...p,
-                    [k.slug]: { server: k.slug, reachable: false, models: [], error: 'probe failed' },
+                    [k.slug]: {
+                      server: k.slug,
+                      reachable: false,
+                      models: [],
+                      error: "probe failed",
+                    },
                   })),
-            );
+              );
           }
         }
         return undefined;
       })
-      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : 'Failed to load'))
+      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -119,14 +124,16 @@ export function ModelProvidersPage() {
       const r = await api.providerModels(kind.slug);
       setProbes((p) => ({ ...p, [kind.slug]: r }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to connect provider');
+      setError(e instanceof Error ? e.message : "Failed to connect provider");
     }
   };
 
-  const firstParty = useMemo(() => kinds.filter((k) => k.category === 'first-party'), [kinds]);
-  const gateways = useMemo(() => kinds.filter((k) => k.category === 'gateway'), [kinds]);
+  const firstParty = useMemo(() => kinds.filter((k) => k.category === "first-party"), [kinds]);
+  const gateways = useMemo(() => kinds.filter((k) => k.category === "gateway"), [kinds]);
 
-  if (loading) {return <div className={styles.loading}>Loading model providers…</div>;}
+  if (loading) {
+    return <div className={styles.loading}>Loading model providers…</div>;
+  }
 
   return (
     <div className={styles.page}>
@@ -178,7 +185,7 @@ export function ModelProvidersPage() {
                 <span className={styles.delegatorName}>{d.display_name ?? d.name}</span>
                 <span className={styles.delegatorMeta}>
                   {d.llm_tool}:{d.model}
-                  {d.model_server ? ` @ ${d.model_server}` : ''}
+                  {d.model_server ? ` @ ${d.model_server}` : ""}
                 </span>
                 <DelegatorGitEditor
                   key={`${d.name}:${JSON.stringify(d.git)}`}
@@ -196,12 +203,16 @@ export function ModelProvidersPage() {
 }
 
 function connectionLabel(probe: ModelServerModelsResponse | undefined): {
-  state: 'connected' | 'disconnected' | 'checking';
+  state: "connected" | "disconnected" | "checking";
   text: string;
 } {
-  if (probe === undefined) {return { state: 'checking', text: 'checking…' };}
-  if (probe.reachable) {return { state: 'connected', text: `${probe.models.length} models` };}
-  return { state: 'disconnected', text: 'not connected' };
+  if (probe === undefined) {
+    return { state: "checking", text: "checking…" };
+  }
+  if (probe.reachable) {
+    return { state: "connected", text: `${probe.models.length} models` };
+  }
+  return { state: "disconnected", text: "not connected" };
 }
 
 function ProviderGroup({
@@ -217,7 +228,9 @@ function ProviderGroup({
   probes: ProbeMap;
   onConnect: (k: ModelServerKindEntry) => Promise<void>;
 }) {
-  if (kinds.length === 0) {return null;}
+  if (kinds.length === 0) {
+    return null;
+  }
   return (
     <section className={styles.group}>
       <h2 className={styles.groupHeading}>{heading}</h2>
@@ -235,12 +248,12 @@ function ProviderGroup({
               <span className={styles.providerDesc}>{k.description}</span>
               <span className={`${styles.dot} ${styles[conn.state]}`} />
               <span className={styles.connText}>{conn.text}</span>
-              {conn.state === 'disconnected' && k.connectable && !k.is_builtin && (
+              {conn.state === "disconnected" && k.connectable && !k.is_builtin && (
                 <button className={styles.connectBtn} onClick={() => onConnect(k)}>
                   Connect
                 </button>
               )}
-              {conn.state === 'disconnected' && k.default_api_key_env && (
+              {conn.state === "disconnected" && k.default_api_key_env && (
                 <span className={styles.hint}>set {k.default_api_key_env}</span>
               )}
               {!k.connectable && (
@@ -271,22 +284,22 @@ function CreateDelegatorForm({
   onCreated: (name: string) => void;
   onError: (msg: string) => void;
 }) {
-  const [tool, setTool] = useState('');
-  const [provider, setProvider] = useState('');
-  const [model, setModel] = useState('');
-  const [name, setName] = useState('');
+  const [tool, setTool] = useState("");
+  const [provider, setProvider] = useState("");
+  const [model, setModel] = useState("");
+  const [name, setName] = useState("");
   const [git, setGit] = useState<GitExecutionDraft | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const preferredTool = detectedTools.find((candidate) => candidate.healthOk) ?? detectedTools[0];
-  const selectedTool = tool || preferredTool?.name || '';
+  const selectedTool = tool || preferredTool?.name || "";
 
   const probe = provider ? probes[provider] : undefined;
   const liveModels = probe?.reachable ? probe.models : [];
 
   const submit = async () => {
     if (!selectedTool || !provider || !model) {
-      onError('Pick a tool, a provider, and a model.');
+      onError("Pick a tool, a provider, and a model.");
       return;
     }
     setSubmitting(true);
@@ -303,11 +316,11 @@ function CreateDelegatorForm({
         launch_config: null,
         remote_agent: null,
       });
-      setName('');
-      setModel('');
+      setName("");
+      setModel("");
       onCreated(delegatorName);
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Failed to create delegator');
+      onError(e instanceof Error ? e.message : "Failed to create delegator");
     } finally {
       setSubmitting(false);
     }
@@ -322,7 +335,11 @@ function CreateDelegatorForm({
       <div className={styles.form}>
         <label className={styles.field}>
           <span className={styles.fieldLabel}>LLM tool</span>
-          <select value={selectedTool} onChange={(e) => setTool(e.target.value)} className={styles.select}>
+          <select
+            value={selectedTool}
+            onChange={(e) => setTool(e.target.value)}
+            className={styles.select}
+          >
             {detectedTools.length === 0 && <option value="">(none detected)</option>}
             {detectedTools.map((t) => (
               <option key={t.name} value={t.name}>
@@ -338,7 +355,7 @@ function CreateDelegatorForm({
             value={provider}
             onChange={(e) => {
               setProvider(e.target.value);
-              setModel('');
+              setModel("");
             }}
             className={styles.select}
           >
@@ -348,7 +365,7 @@ function CreateDelegatorForm({
               return (
                 <option key={k.slug} value={k.slug}>
                   {k.display_name}
-                  {connected ? ' ●' : ' ○'}
+                  {connected ? " ●" : " ○"}
                 </option>
               );
             })}
@@ -371,12 +388,12 @@ function CreateDelegatorForm({
               ))}
             </select>
           ) : (
-            // Provider not connected (or no models) — fall back to free-text so
+            // Provider not connected (or no models) - fall back to free-text so
             // the form still works offline / pre-auth.
             <input
               className={styles.input}
               value={model}
-              placeholder={provider ? 'model id (provider not connected)' : 'pick a provider first'}
+              placeholder={provider ? "model id (provider not connected)" : "pick a provider first"}
               onChange={(e) => setModel(e.target.value)}
             />
           )}
@@ -387,76 +404,239 @@ function CreateDelegatorForm({
           <input
             className={styles.input}
             value={name}
-            placeholder={selectedTool && model ? `${selectedTool}-${model}` : 'delegator name'}
+            placeholder={selectedTool && model ? `${selectedTool}-${model}` : "delegator name"}
             onChange={(e) => setName(e.target.value)}
           />
         </label>
 
         <GitFields value={git} onChange={setGit} disabled={submitting} />
         <button className={styles.submitBtn} onClick={submit} disabled={submitting}>
-          {submitting ? 'Creating…' : 'Create delegator'}
+          {submitting ? "Creating…" : "Create delegator"}
         </button>
       </div>
     </section>
   );
 }
 
-function GitFields({ value, onChange, disabled }: {
+function GitFields({
+  value,
+  onChange,
+  disabled,
+}: {
   value: GitExecutionDraft | null;
   onChange: (value: GitExecutionDraft | null) => void;
   disabled: boolean;
 }) {
   const config: GitExecutionDraft = value ?? { identity: null, credentials: null, settings: [] };
-  const identity = config.identity ?? { name: '', email: '' };
-  const credentials = config.credentials ?? { repository_url: '', username: '', token_env: '' };
-  return <fieldset disabled={disabled}>
-    <legend>Git identity and credentials</legend>
-    <label><input type="checkbox" checked={value !== null} onChange={e => onChange(e.target.checked ? config : null)} />Customize Git for this delegator</label>
-    {value && <>
-      <label><input type="checkbox" checked={config.identity !== null} onChange={e => onChange({ ...config, identity: e.target.checked ? identity : null })} />Set commit identity</label>
-      {config.identity && <>
-        <label className={styles.field}>Commit name<input className={styles.input} value={identity.name} onChange={e => onChange({ ...config, identity: { ...identity, name: e.target.value } })} /></label>
-        <label className={styles.field}>Commit email<input className={styles.input} value={identity.email} onChange={e => onChange({ ...config, identity: { ...identity, email: e.target.value } })} /></label>
-        <p>Templates support {'{ticket_id}'}, {'{project}'}, and {'{ticket_type}'}.</p>
-      </>}
-      <label><input type="checkbox" checked={config.credentials !== null} onChange={e => onChange({ ...config, credentials: e.target.checked ? credentials : null })} />Supply HTTPS credentials</label>
-      {config.credentials && <>
-        <label className={styles.field}>HTTPS repository URL<input className={styles.input} value={credentials.repository_url} onChange={e => onChange({ ...config, credentials: { ...credentials, repository_url: e.target.value } })} /></label>
-        <label className={styles.field}>Git username<input className={styles.input} value={credentials.username} onChange={e => onChange({ ...config, credentials: { ...credentials, username: e.target.value } })} /></label>
-        <label className={styles.field}>Token environment variable<input className={styles.input} value={credentials.token_env} onChange={e => onChange({ ...config, credentials: { ...credentials, token_env: e.target.value } })} /></label>
-        <p>Enter the variable name configured on Operator, such as AGENT_GIT_TOKEN.</p>
-      </>}
-      {config.settings.map((entry, index) => <div key={entry.id}>
-        <label>Git setting<input className={styles.input} value={entry.key} onChange={e => onChange({ ...config, settings: config.settings.map((v, i) => i === index ? { ...v, key: e.target.value } : v) })} /></label>
-        <label>Value<input className={styles.input} value={entry.value} onChange={e => onChange({ ...config, settings: config.settings.map((v, i) => i === index ? { ...v, value: e.target.value } : v) })} /></label>
-        <button type="button" onClick={() => onChange({ ...config, settings: config.settings.filter((_, i) => i !== index) })}>Remove setting</button>
-      </div>)}
-      <button type="button" onClick={() => onChange({ ...config, settings: [...config.settings, { id: crypto.randomUUID(), key: '', value: '' }] })}>Add Git setting</button>
-    </>}
-  </fieldset>;
+  const identity = config.identity ?? { name: "", email: "" };
+  const credentials = config.credentials ?? { repository_url: "", username: "", token_env: "" };
+  return (
+    <fieldset disabled={disabled}>
+      <legend>Git identity and credentials</legend>
+      <label>
+        <input
+          type="checkbox"
+          checked={value !== null}
+          onChange={(e) => onChange(e.target.checked ? config : null)}
+        />
+        Customize Git for this delegator
+      </label>
+      {value && (
+        <>
+          <label>
+            <input
+              type="checkbox"
+              checked={config.identity !== null}
+              onChange={(e) =>
+                onChange({ ...config, identity: e.target.checked ? identity : null })
+              }
+            />
+            Set commit identity
+          </label>
+          {config.identity && (
+            <>
+              <label className={styles.field}>
+                Commit name
+                <input
+                  className={styles.input}
+                  value={identity.name}
+                  onChange={(e) =>
+                    onChange({ ...config, identity: { ...identity, name: e.target.value } })
+                  }
+                />
+              </label>
+              <label className={styles.field}>
+                Commit email
+                <input
+                  className={styles.input}
+                  value={identity.email}
+                  onChange={(e) =>
+                    onChange({ ...config, identity: { ...identity, email: e.target.value } })
+                  }
+                />
+              </label>
+              <p>
+                Templates support {"{ticket_id}"}, {"{project}"}, and {"{ticket_type}"}.
+              </p>
+            </>
+          )}
+          <label>
+            <input
+              type="checkbox"
+              checked={config.credentials !== null}
+              onChange={(e) =>
+                onChange({ ...config, credentials: e.target.checked ? credentials : null })
+              }
+            />
+            Supply HTTPS credentials
+          </label>
+          {config.credentials && (
+            <>
+              <label className={styles.field}>
+                HTTPS repository URL
+                <input
+                  className={styles.input}
+                  value={credentials.repository_url}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      credentials: { ...credentials, repository_url: e.target.value },
+                    })
+                  }
+                />
+              </label>
+              <label className={styles.field}>
+                Git username
+                <input
+                  className={styles.input}
+                  value={credentials.username}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      credentials: { ...credentials, username: e.target.value },
+                    })
+                  }
+                />
+              </label>
+              <label className={styles.field}>
+                Token environment variable
+                <input
+                  className={styles.input}
+                  value={credentials.token_env}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      credentials: { ...credentials, token_env: e.target.value },
+                    })
+                  }
+                />
+              </label>
+              <p>Enter the variable name configured on Operator, such as AGENT_GIT_TOKEN.</p>
+            </>
+          )}
+          {config.settings.map((entry, index) => (
+            <div key={entry.id}>
+              <label>
+                Git setting
+                <input
+                  className={styles.input}
+                  value={entry.key}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      settings: config.settings.map((v, i) =>
+                        i === index ? { ...v, key: e.target.value } : v,
+                      ),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Value
+                <input
+                  className={styles.input}
+                  value={entry.value}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      settings: config.settings.map((v, i) =>
+                        i === index ? { ...v, value: e.target.value } : v,
+                      ),
+                    })
+                  }
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({ ...config, settings: config.settings.filter((_, i) => i !== index) })
+                }
+              >
+                Remove setting
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                ...config,
+                settings: [...config.settings, { id: crypto.randomUUID(), key: "", value: "" }],
+              })
+            }
+          >
+            Add Git setting
+          </button>
+        </>
+      )}
+    </fieldset>
+  );
 }
 
-function DelegatorGitEditor({ api, delegator, onSaved }: { api: OperatorApi; delegator: DelegatorResponse; onSaved: () => void }) {
-  const [git, setGit] = useState<GitExecutionDraft | null>(() => createGitDraft(delegator.git ?? null));
+function DelegatorGitEditor({
+  api,
+  delegator,
+  onSaved,
+}: {
+  api: OperatorApi;
+  delegator: DelegatorResponse;
+  onSaved: () => void;
+}) {
+  const [git, setGit] = useState<GitExecutionDraft | null>(() =>
+    createGitDraft(delegator.git ?? null),
+  );
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const save = async () => {
     setBusy(true);
-    setError('');
+    setError("");
     try {
       await api.updateDelegator(delegator.name, {
-        name: delegator.name, llm_tool: delegator.llm_tool, model: delegator.model,
-        display_name: delegator.display_name ?? null, model_properties: delegator.model_properties,
-        model_server: delegator.model_server ?? null, launch_config: delegator.launch_config ?? null,
-        remote_agent: delegator.remote_agent ?? null, git: serializeGitDraft(git),
+        name: delegator.name,
+        llm_tool: delegator.llm_tool,
+        model: delegator.model,
+        display_name: delegator.display_name ?? null,
+        model_properties: delegator.model_properties,
+        model_server: delegator.model_server ?? null,
+        launch_config: delegator.launch_config ?? null,
+        remote_agent: delegator.remote_agent ?? null,
+        git: serializeGitDraft(git),
       });
       onSaved();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to save Git settings'); }
-    finally { setBusy(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save Git settings");
+    } finally {
+      setBusy(false);
+    }
   };
-  return <details><summary>Git settings</summary>
-    <GitFields value={git} onChange={setGit} disabled={busy} />
-    {error && <p role="alert">{error}</p>}
-    <button type="button" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save Git settings'}</button>
-  </details>;
+  return (
+    <details>
+      <summary>Git settings</summary>
+      <GitFields value={git} onChange={setGit} disabled={busy} />
+      {error && <p role="alert">{error}</p>}
+      <button type="button" onClick={save} disabled={busy}>
+        {busy ? "Saving…" : "Save Git settings"}
+      </button>
+    </details>
+  );
 }

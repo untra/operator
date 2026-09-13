@@ -1,10 +1,10 @@
-import React from 'react';
-import { Button, Chip } from '../primitives';
-import { SectionHeader } from '../SectionHeader';
-import type { AgentsConfig } from '../../../src/generated/AgentsConfig';
-import type { LlmToolsConfig } from '../../../src/generated/LlmToolsConfig';
+import React from "react";
+import { Button, Chip } from "../primitives";
+import { SectionHeader } from "../SectionHeader";
+import type { AgentsConfig } from "../../../src/generated/AgentsConfig";
+import type { LlmToolsConfig } from "../../../src/generated/LlmToolsConfig";
 
-const LLM_ICON_NAMES = new Set(['claude', 'codex', 'gemini']);
+const LLM_ICON_NAMES = new Set(["claude", "codex", "gemini"]);
 
 interface NumberFieldProps {
   label: string;
@@ -55,38 +55,40 @@ export function CodingAgentsSection({
     <div className="op-mb-4">
       <SectionHeader id="section-agents" title="Coding Agents" />
       <p className="op-body1 op-text-secondary op-mb-1">
-        Configure coding agent behavior and detected LLM tools. For more details see the <a href="https://operator.untra.io/getting-started/agents/">agents documentation</a>
+        Configure coding agent behavior and detected LLM tools. For more details see the{" "}
+        <a href="https://operator.untra.io/getting-started/agents/">agents documentation</a>
       </p>
 
       <div className="op-col" style={{ gap: 20 }}>
         <div>
-          <p className="op-body2 op-text-secondary op-mb-05">
-            Detected LLM Tools
-          </p>
+          <p className="op-body2 op-text-secondary op-mb-05">Detected LLM Tools</p>
           <div className="op-row op-gap-1 op-wrap op-mb-1">
             {detected.length > 0 ? (
               detected.map((tool) => (
                 <span
                   key={tool.name}
-                  title={tool.health_ok ? tool.path : `${tool.path} — health check failed; cannot launch`}
+                  title={
+                    tool.health_ok ? tool.path : `${tool.path} - health check failed; cannot launch`
+                  }
                 >
                   <Chip
                     label={
                       <>
                         {LLM_ICON_NAMES.has(tool.name) && (
-                          <i className={`opi-${tool.name}`} style={{ fontSize: '1rem', lineHeight: 1 }} />
+                          <i
+                            className={`opi-${tool.name}`}
+                            style={{ fontSize: "1rem", lineHeight: 1 }}
+                          />
                         )}
                         {`${tool.name} ${tool.version}`}
                       </>
                     }
-                    color={!tool.health_ok ? 'error' : tool.version_ok ? 'default' : 'warning'}
+                    color={!tool.health_ok ? "error" : tool.version_ok ? "default" : "warning"}
                   />
                 </span>
               ))
             ) : (
-              <span className="op-body2 op-text-secondary">
-                No tools detected
-              </span>
+              <span className="op-body2 op-text-secondary">No tools detected</span>
             )}
           </div>
           <Button variant="outlined" size="small" onClick={onDetectTools}>
@@ -100,7 +102,7 @@ export function CodingAgentsSection({
           min={1}
           max={16}
           onChange={(e) =>
-            onUpdate('agents', 'max_parallel', Number.parseInt(e.target.value, 10) || 1)
+            onUpdate("agents", "max_parallel", Number.parseInt(e.target.value, 10) || 1)
           }
           helperText="Maximum number of agents running simultaneously"
         />
@@ -112,9 +114,9 @@ export function CodingAgentsSection({
           max={3600}
           onChange={(e) =>
             onUpdate(
-              'agents',
-              'generation_timeout_secs',
-              Number.parseInt(e.target.value, 10) || 300
+              "agents",
+              "generation_timeout_secs",
+              Number.parseInt(e.target.value, 10) || 300,
             )
           }
           helperText="Timeout for each agent generation step"
@@ -126,11 +128,7 @@ export function CodingAgentsSection({
           min={60}
           max={7200}
           onChange={(e) =>
-            onUpdate(
-              'agents',
-              'step_timeout',
-              Number.parseInt(e.target.value, 10) || 1800
-            )
+            onUpdate("agents", "step_timeout", Number.parseInt(e.target.value, 10) || 1800)
           }
           helperText="Maximum seconds a step can run before timing out"
         />
@@ -141,11 +139,7 @@ export function CodingAgentsSection({
           min={5}
           max={300}
           onChange={(e) =>
-            onUpdate(
-              'agents',
-              'silence_threshold',
-              Number.parseInt(e.target.value, 10) || 30
-            )
+            onUpdate("agents", "silence_threshold", Number.parseInt(e.target.value, 10) || 30)
           }
           helperText="Seconds of silence before considering agent awaiting input"
         />

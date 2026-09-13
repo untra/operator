@@ -41,10 +41,8 @@
     "target/**",
     "docs/_site/**",
     "docs/assets/js/**",
-    "agnt-plugin/**",
-    "coder-module/**",
     "bindings/**",
-    "shared/**",
+    "shared/types.ts",
     "scripts/**",
     "zed-extension/**",
     "opr8r/**"
@@ -221,6 +219,22 @@
         "unicorn/consistent-function-scoping": "off",
         "typescript/unbound-method": "off",
         "typescript/no-misused-promises": "off"
+      }
+    },
+    {
+      "files": ["agnt-plugin/**/*.js"],
+      "env": { "node": true, "es2022": true }
+    },
+    {
+      "files": ["coder-module/*.ts"],
+      "env": { "node": true, "es2022": true },
+      "globals": { "Bun": "readonly" },
+      "rules": {
+        // Terraform state attributes are arbitrary JSON; the helper mirrors the
+        // upstream Coder signature and tests index into it (app.healthcheck[0]).
+        "typescript/no-explicit-any": "off",
+        // Per-case async closures passed to expect().toThrow() read better local.
+        "unicorn/consistent-function-scoping": "off"
       }
     },
     {

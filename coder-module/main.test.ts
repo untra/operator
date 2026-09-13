@@ -58,9 +58,7 @@ describe("operator", async () => {
     expect(app.slug).toBe("operator");
     expect(app.display_name).toBe("Operator");
     expect(app.share).toBe("owner");
-    expect(app.healthcheck[0].url).toBe(
-      "http://localhost:7008/api/v1/health",
-    );
+    expect(app.healthcheck[0].url).toBe("http://localhost:7008/api/v1/health");
   });
 
   it("applies with custom port", async () => {
@@ -71,9 +69,7 @@ describe("operator", async () => {
 
     const app = findResourceInstance(state, "coder_app");
     expect(app.url).toBe("http://localhost:9000");
-    expect(app.healthcheck[0].url).toBe(
-      "http://localhost:9000/api/v1/health",
-    );
+    expect(app.healthcheck[0].url).toBe("http://localhost:9000/api/v1/health");
   });
 
   it("generates config with custom values", async () => {
@@ -91,7 +87,7 @@ describe("operator", async () => {
   });
 
   it("uses config_toml verbatim when provided", async () => {
-    const customConfig = '[rest_api]\nenabled = true\nport = 8080';
+    const customConfig = "[rest_api]\nenabled = true\nport = 8080";
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       config_toml: customConfig,

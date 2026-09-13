@@ -37,6 +37,16 @@ pub(crate) struct LinearCredsInflight {
 
 impl App {
     /// Show the kanban onboarding dialog (entry point from the kanban view).
+    /// `write_config` persists straight to disk (re-reading it first, so
+    /// concurrent writers are not clobbered). Pick the result back up, or the
+    /// next `self.config.save()` would write the section away again.
+    fn reload_config_after_kanban_write(&mut self) {
+        match crate::config::Config::load(None) {
+            Ok(fresh) => self.config = fresh,
+            Err(e) => tracing::warn!(error = %e, "Failed to reload config after kanban write"),
+        }
+    }
+
     pub(super) fn show_kanban_onboarding_dialog(&mut self) {
         self.kanban_onboarding_dialog.show();
         self.kanban_onboarding_creds = KanbanOnboardingCreds::default();
@@ -260,6 +270,7 @@ impl App {
                 };
                 kanban_onboarding::write_config(write_req, None)
                     .map_err(|e| anyhow::anyhow!("write_config failed: {e:?}"))?;
+                self.reload_config_after_kanban_write();
 
                 // Set session env
                 let env_req = SetKanbanSessionEnvRequest {
@@ -310,6 +321,7 @@ impl App {
                 };
                 kanban_onboarding::write_config(write_req, None)
                     .map_err(|e| anyhow::anyhow!("write_config failed: {e:?}"))?;
+                self.reload_config_after_kanban_write();
 
                 let env_req = SetKanbanSessionEnvRequest {
                     provider: KanbanProviderKind::Linear,

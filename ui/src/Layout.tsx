@@ -1,21 +1,21 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import styles from './Layout.module.css';
-import { useTheme } from './theme';
-import type { Concept } from './concepts';
-import { CONCEPTS, STATUS_KEYS, PAGE_KEYS } from './concepts';
-import { ConceptIcon } from './components/ConceptIcon';
-import { SectionsProvider, useSections } from './sections-context';
-import { RightPanelProvider, useRightPanel } from './right-panel';
-import type { SectionDto } from './api-client';
-import { OperatorApi, setCsrfToken } from './api-client';
-import { useHost } from './host';
+import { useState } from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import styles from "./Layout.module.css";
+import { useTheme } from "./theme";
+import type { Concept } from "./concepts";
+import { CONCEPTS, STATUS_KEYS, PAGE_KEYS } from "./concepts";
+import { ConceptIcon } from "./components/ConceptIcon";
+import { SectionsProvider, useSections } from "./sections-context";
+import { RightPanelProvider, useRightPanel } from "./right-panel";
+import type { SectionDto } from "./api-client";
+import { OperatorApi, setCsrfToken } from "./api-client";
+import { useHost } from "./host";
 
 // The "Status" group mirrors the canonical section order shared with the TUI and
 // VS Code extension (the SectionId enum in src/ui/status_panel.rs) and reflects
 // each section's live health from GET /api/v1/sections. A section whose
 // prerequisites aren't met yet is shown disabled with a tooltip naming what it
-// needs — the user sees it exists and why it isn't reachable. "Pages" are
+// needs - the user sees it exists and why it isn't reachable. "Pages" are
 // web-only views (Dashboard, Queue) with no section analog.
 
 function NavRow({ concept, section }: { concept: Concept; section?: SectionDto }) {
@@ -30,14 +30,12 @@ function NavRow({ concept, section }: { concept: Concept; section?: SectionDto }
   );
 
   if (!met) {
-    const needs = (section?.prerequisites ?? [])
-      .map((id) => CONCEPTS[id]?.label ?? id)
-      .join(', ');
+    const needs = (section?.prerequisites ?? []).map((id) => CONCEPTS[id]?.label ?? id).join(", ");
     return (
       <span
         className={`${styles.navLink} ${styles.navDisabled}`}
         aria-disabled="true"
-        title={needs ? `Requires: ${needs}` : 'Not available yet'}
+        title={needs ? `Requires: ${needs}` : "Not available yet"}
       >
         {inner}
       </span>
@@ -47,8 +45,10 @@ function NavRow({ concept, section }: { concept: Concept; section?: SectionDto }
   return (
     <NavLink
       to={concept.route}
-      end={concept.route === '/'}
-      className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
+      end={concept.route === "/"}
+      className={({ isActive }) =>
+        isActive ? `${styles.navLink} ${styles.active}` : styles.navLink
+      }
     >
       {inner}
     </NavLink>
@@ -80,9 +80,11 @@ function NavGroup({ label, keys }: { label: string; keys: readonly string[] }) {
 // with a header (title + close) above the caller-supplied node.
 function RightPanel() {
   const { content, title, close } = useRightPanel();
-  if (!content) {return null;}
+  if (!content) {
+    return null;
+  }
   return (
-    <aside className={styles.rightPanel} aria-label={title ?? 'Detail panel'}>
+    <aside className={styles.rightPanel} aria-label={title ?? "Detail panel"}>
       <div className={styles.rightPanelHeader}>
         <span className={styles.rightPanelTitle}>{title}</span>
         <button
@@ -115,7 +117,7 @@ export function Layout() {
       await api.refreshCsrf();
       await api.logout();
       setCsrfToken(null);
-      void navigate('/login', { replace: true });
+      void navigate("/login", { replace: true });
     } catch {
       setSignOutError(true);
     } finally {
@@ -134,17 +136,22 @@ export function Layout() {
                 type="button"
                 className={styles.themeToggle}
                 onClick={toggleTheme}
-                aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-                title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+                aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+                title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
               >
-                {theme === 'dark' ? '☀' : '☾'}
+                {theme === "dark" ? "☀" : "☾"}
               </button>
             </div>
             <NavGroup label="Status" keys={STATUS_KEYS} />
             <NavGroup label="Pages" keys={PAGE_KEYS} />
             {signOutError && <p className={styles.signOutError}>Could not sign out.</p>}
-            <button className={styles.signOut} type="button" onClick={signOut} disabled={signingOut}>
-              {signingOut ? 'Signing out…' : 'Sign out'}
+            <button
+              className={styles.signOut}
+              type="button"
+              onClick={signOut}
+              disabled={signingOut}
+            >
+              {signingOut ? "Signing out…" : "Sign out"}
             </button>
           </nav>
           <main className={styles.main}>

@@ -1,7 +1,7 @@
 /**
  * Renders an Operator workflow as an interactive graph.
  *
- * Takes the issue type document itself — the native JSON the runtime executes —
+ * Takes the issue type document itself - the native JSON the runtime executes -
  * projects it with `issueTypeToGraph`, and draws it with
  * `@untra/naiveworkflow-react` (React Flow + dagre). Display-only: nothing
  * flows back into operator's domain model.
@@ -10,12 +10,12 @@
  * `<KEY>.json`, so their graphs cannot disagree.
  */
 
-import { useMemo } from 'react';
-import { WorkflowFlow } from '@untra/naiveworkflow-react';
+import { useMemo } from "react";
+import { WorkflowFlow } from "@untra/naiveworkflow-react";
 
-import { usePhaseColors, useDocumentTheme } from '../shared/theme';
-import { issueTypeToGraph } from './issuetype-to-ir';
-import type { IssueType } from '../generated/IssueType';
+import { usePhaseColors, useDocumentTheme } from "../shared/theme";
+import { issueTypeToGraph } from "./issuetype-to-ir";
+import type { IssueType } from "../generated/IssueType";
 
 export interface WorkflowGraphProps {
   issueType: IssueType;
@@ -24,7 +24,7 @@ export interface WorkflowGraphProps {
   /**
    * Lay the graph out top-to-bottom instead of left-to-right.
    *
-   * Orientation is presentation, not content — the nodes and edges are
+   * Orientation is presentation, not content - the nodes and edges are
    * identical either way. Narrow columns fit a vertical chain without downscaling the labels into
    * illegibility; wide panes read better left-to-right.
    */
@@ -47,7 +47,7 @@ export function WorkflowGraph({
   }
 
   return (
-    <div className={className ?? 'operator-workflow-canvas'} style={{ height }}>
+    <div className={className ?? "operator-workflow-canvas"} style={{ height }}>
       <WorkflowFlow
         // Remount when the issue type changes
         key={issueType.key}

@@ -1,5 +1,5 @@
 /**
- * open-operator-ui — link out to the daemon-hosted Operator UI.
+ * open-operator-ui - link out to the daemon-hosted Operator UI.
  *
  * The full Operator UI (issue types, projects, kanban board, queue, agents,
  * dashboard) is served by the running daemon at the same localhost port as the
@@ -7,31 +7,31 @@
  * open the hosted UI in VS Code's built-in Simple Browser.
  *
  * Because the UI lives at the API port, a stopped daemon means there is nothing
- * to render — we health-probe first and surface an actionable message instead of
+ * to render - we health-probe first and surface an actionable message instead of
  * opening a blank tab.
  */
 
-import * as vscode from 'vscode';
-import { discoverApiUrl, OperatorApiClient } from './api-client';
+import * as vscode from "vscode";
+import { discoverApiUrl, OperatorApiClient } from "./api-client";
 
 /** Sections of the hosted UI we can deep-link to (hash routes from ui/src/main.tsx). */
 export type OperatorUiRoute =
-  | 'dashboard'
-  | 'issuetypes'
-  | 'projects'
-  | 'kanban'
-  | 'queue'
-  | 'config'
-  | 'workflows';
+  | "dashboard"
+  | "issuetypes"
+  | "projects"
+  | "kanban"
+  | "queue"
+  | "config"
+  | "workflows";
 
 const ROUTE_HASH: Record<OperatorUiRoute, string> = {
-  dashboard: '#/',
-  issuetypes: '#/issuetypes',
-  projects: '#/projects',
-  kanban: '#/kanban',
-  queue: '#/queue',
-  config: '#/config',
-  workflows: '#/workflows',
+  dashboard: "#/",
+  issuetypes: "#/issuetypes",
+  projects: "#/projects",
+  kanban: "#/kanban",
+  queue: "#/queue",
+  config: "#/config",
+  workflows: "#/workflows",
 };
 
 /**
@@ -43,7 +43,7 @@ const ROUTE_HASH: Record<OperatorUiRoute, string> = {
  */
 export async function openOperatorUi(
   ticketsDir: string | undefined,
-  route: OperatorUiRoute
+  route: OperatorUiRoute,
 ): Promise<void> {
   const apiUrl = await discoverApiUrl(ticketsDir);
 
@@ -52,12 +52,12 @@ export async function openOperatorUi(
   // rather than a blank Simple Browser tab.
   if (!(await new OperatorApiClient(apiUrl).isReachable())) {
     const choice = await vscode.window.showErrorMessage(
-      'The Operator daemon is not running, so the Operator UI is unavailable. ' +
-        'Start the daemon, then try again.',
-      'Start Operator Server'
+      "The Operator daemon is not running, so the Operator UI is unavailable. " +
+        "Start the daemon, then try again.",
+      "Start Operator Server",
     );
-    if (choice === 'Start Operator Server') {
-      await vscode.commands.executeCommand('operator.startOperatorServer');
+    if (choice === "Start Operator Server") {
+      await vscode.commands.executeCommand("operator.startOperatorServer");
     }
     return;
   }
@@ -65,13 +65,13 @@ export async function openOperatorUi(
   // Map the local URL for remote / SSH / Codespaces port forwarding. The hash
   // route is appended after mapping because asExternalUri can drop a fragment.
   const external = await vscode.env.asExternalUri(vscode.Uri.parse(apiUrl));
-  const base = external.toString().replace(/\/+$/, '');
+  const base = external.toString().replace(/\/+$/, "");
   const url = `${base}/${ROUTE_HASH[route]}`;
 
   try {
-    await vscode.commands.executeCommand('simpleBrowser.show', url);
+    await vscode.commands.executeCommand("simpleBrowser.show", url);
   } catch {
-    // Simple Browser unavailable for some reason — fall back to the OS browser.
+    // Simple Browser unavailable for some reason - fall back to the OS browser.
     await vscode.env.openExternal(vscode.Uri.parse(url));
   }
 }

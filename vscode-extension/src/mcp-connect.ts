@@ -5,24 +5,24 @@
  * and registers the Operator MCP server. The registration path depends on
  * the host IDE:
  *
- * - **VS Code (and other Code OSS forks without a special MCP path)** —
+ * - **VS Code (and other Code OSS forks without a special MCP path)** -
  *   writes a workspace-scope `mcp.servers.operator` entry via
  *   `vscode.workspace.getConfiguration('mcp').update('servers', ...)`. When
  *   the operator descriptor advertises stdio, the entry uses the stdio shape;
  *   otherwise it falls back to SSE (preserves existing behavior).
  *
- * - **Cursor** — writes a user-scope entry to `~/.cursor/mcp.json` under
+ * - **Cursor** - writes a user-scope entry to `~/.cursor/mcp.json` under
  *   `mcpServers.operator`. Cursor's MCP UI surfaces this user-scope config,
  *   not VS Code's workspace `mcp.servers`. Stdio-only (Cursor's `mcpServers`
  *   shape does not support an SSE URL); errors out with an actionable message
  *   when the operator descriptor does not advertise stdio.
  */
 
-import * as vscode from 'vscode';
-import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
-import * as path from 'node:path';
-import { ApiError, discoverApiUrl, OperatorApiClient } from './api-client';
+import * as vscode from "vscode";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
+import { ApiError, discoverApiUrl, OperatorApiClient } from "./api-client";
 
 /**
  * Stdio entrypoint advertised by the Operator MCP descriptor when
@@ -51,7 +51,7 @@ export interface McpDescriptorResponse {
 }
 
 /** Host IDE branches the extension knows how to register MCP servers in. */
-export type HostApp = 'cursor' | 'vscode' | 'other';
+export type HostApp = "cursor" | "vscode" | "other";
 
 /**
  * Indirection layer for the small pieces of platform state that need to be
@@ -63,31 +63,31 @@ export const _testable = {
   /**
    * Returns `vscode.env.appName` (or "" if unavailable). The `vscode-test`
    * electron host returns its own string, so production code must NOT
-   * branch on the raw value — go through `detectHostApp()` below.
+   * branch on the raw value - go through `detectHostApp()` below.
    *
    * Observed values:
    * - Stock VS Code: "Visual Studio Code" (or "Visual Studio Code - Insiders")
-   * - Cursor: "Cursor" (verify at runtime — see cursor.md Pre-Flight)
+   * - Cursor: "Cursor" (verify at runtime - see cursor.md Pre-Flight)
    */
   rawAppName(): string {
-    return vscode.env.appName ?? '';
+    return vscode.env.appName ?? "";
   },
   /** Default location of Cursor's user-scope MCP config. */
   cursorMcpConfigPath(): string {
-    return path.join(os.homedir(), '.cursor', 'mcp.json');
+    return path.join(os.homedir(), ".cursor", "mcp.json");
   },
 };
 
 /** Detect which IDE the extension is running inside. */
 export function detectHostApp(): HostApp {
   const name = _testable.rawAppName();
-  if (name.startsWith('Cursor')) {
-    return 'cursor';
+  if (name.startsWith("Cursor")) {
+    return "cursor";
   }
-  if (name.startsWith('Visual Studio Code')) {
-    return 'vscode';
+  if (name.startsWith("Visual Studio Code")) {
+    return "vscode";
   }
-  return 'other';
+  return "other";
 }
 
 /** Public accessor for the default Cursor MCP config path. */
@@ -102,9 +102,7 @@ export function cursorMcpConfigPath(): string {
  * @returns The MCP descriptor
  * @throws Error if the API is unreachable or the descriptor endpoint fails
  */
-export async function fetchMcpDescriptor(
-  apiUrl: string
-): Promise<McpDescriptorResponse> {
+export async function fetchMcpDescriptor(apiUrl: string): Promise<McpDescriptorResponse> {
   const client = new OperatorApiClient(apiUrl);
   try {
     const descriptor = await client.mcpDescriptor();
@@ -113,45 +111,42 @@ export async function fetchMcpDescriptor(
     if (err instanceof ApiError) {
       throw new Error(
         `MCP descriptor unavailable (HTTP ${err.status}). ` +
-          'Ensure Operator is updated to a version that supports MCP.',
+          "Ensure Operator is updated to a version that supports MCP.",
         { cause: err },
       );
     }
-    throw new Error(
-      `Operator API is not running at ${apiUrl}. Start the server first.`,
-      { cause: err },
-    );
+    throw new Error(`Operator API is not running at ${apiUrl}. Start the server first.`, {
+      cause: err,
+    });
   }
 }
 
 /**
  * Check whether an MCP server named "operator" is already registered
  * in VS Code workspace settings. (Cursor users should check
- * `~/.cursor/mcp.json` directly — VS Code's API does not see that file.)
+ * `~/.cursor/mcp.json` directly - VS Code's API does not see that file.)
  */
 export function isMcpServerRegistered(): boolean {
-  const mcpConfig = vscode.workspace.getConfiguration('mcp');
-  const servers = mcpConfig.get<Record<string, unknown>>('servers') ?? {};
-  return 'operator' in servers;
+  const mcpConfig = vscode.workspace.getConfiguration("mcp");
+  const servers = mcpConfig.get<Record<string, unknown>>("servers") ?? {};
+  return "operator" in servers;
 }
 
 /**
  * Build the workspace-scope server entry for VS Code's `mcp.servers`,
  * preferring the stdio transport when the descriptor advertises it.
  */
-function buildVscodeServerEntry(
-  descriptor: McpDescriptorResponse
-): Record<string, unknown> {
+function buildVscodeServerEntry(descriptor: McpDescriptorResponse): Record<string, unknown> {
   if (descriptor.stdio) {
     return {
-      type: 'stdio',
+      type: "stdio",
       command: descriptor.stdio.command,
       args: descriptor.stdio.args,
       cwd: descriptor.stdio.cwd,
     };
   }
   return {
-    type: 'sse',
+    type: "sse",
     url: descriptor.transport_url,
   };
 }
@@ -163,25 +158,21 @@ function buildVscodeServerEntry(
  * preserves the legacy SSE registration so old operator builds keep working.
  */
 export async function registerInVscodeWorkspaceConfig(
-  descriptor: McpDescriptorResponse
+  descriptor: McpDescriptorResponse,
 ): Promise<void> {
-  const mcpConfig = vscode.workspace.getConfiguration('mcp');
-  const servers = mcpConfig.get<Record<string, unknown>>('servers') ?? {};
+  const mcpConfig = vscode.workspace.getConfiguration("mcp");
+  const servers = mcpConfig.get<Record<string, unknown>>("servers") ?? {};
 
-  servers['operator'] = buildVscodeServerEntry(descriptor);
+  servers["operator"] = buildVscodeServerEntry(descriptor);
 
-  await mcpConfig.update(
-    'servers',
-    servers,
-    vscode.ConfigurationTarget.Workspace
-  );
+  await mcpConfig.update("servers", servers, vscode.ConfigurationTarget.Workspace);
 
-  const transport = descriptor.stdio ? 'stdio' : 'sse';
+  const transport = descriptor.stdio ? "stdio" : "sse";
   const detail = descriptor.stdio
-    ? `${descriptor.stdio.command} ${descriptor.stdio.args.join(' ')}`
+    ? `${descriptor.stdio.command} ${descriptor.stdio.args.join(" ")}`
     : descriptor.transport_url;
   void vscode.window.showInformationMessage(
-    `Operator MCP server registered (${transport}: ${detail})`
+    `Operator MCP server registered (${transport}: ${detail})`,
   );
 }
 
@@ -203,13 +194,13 @@ export async function registerInVscodeWorkspaceConfig(
  */
 export async function registerInCursorUserConfig(
   descriptor: McpDescriptorResponse,
-  configPath: string = _testable.cursorMcpConfigPath()
+  configPath: string = _testable.cursorMcpConfigPath(),
 ): Promise<void> {
   if (!descriptor.stdio) {
     void vscode.window.showErrorMessage(
-      'Operator MCP stdio entrypoint is not advertised. Set ' +
-        '`[mcp].stdio_advertised = true` in your operator config and restart ' +
-        'the API, or use stock VS Code which can connect over SSE.'
+      "Operator MCP stdio entrypoint is not advertised. Set " +
+        "`[mcp].stdio_advertised = true` in your operator config and restart " +
+        "the API, or use stock VS Code which can connect over SSE.",
     );
     return;
   }
@@ -218,17 +209,17 @@ export async function registerInCursorUserConfig(
 
   let existing: Record<string, unknown> = {};
   try {
-    const raw = await fs.readFile(configPath, 'utf-8');
+    const raw = await fs.readFile(configPath, "utf-8");
     const parsed = JSON.parse(raw) as unknown;
-    if (parsed !== null && typeof parsed === 'object') {
+    if (parsed !== null && typeof parsed === "object") {
       existing = parsed as Record<string, unknown>;
     }
   } catch (err: unknown) {
     const e = err as NodeJS.ErrnoException;
-    if (e.code !== 'ENOENT') {
+    if (e.code !== "ENOENT") {
       void vscode.window.showErrorMessage(
         `Could not parse existing ${configPath}: ${e.message}. ` +
-          'Please fix or remove the file and retry.'
+          "Please fix or remove the file and retry.",
       );
       return;
     }
@@ -236,27 +227,23 @@ export async function registerInCursorUserConfig(
 
   const existingServers = existing.mcpServers;
   const mcpServers =
-    existingServers && typeof existingServers === 'object'
+    existingServers && typeof existingServers === "object"
       ? { ...(existingServers as Record<string, unknown>) }
       : {};
 
-  mcpServers['operator'] = {
+  mcpServers["operator"] = {
     command: descriptor.stdio.command,
     args: descriptor.stdio.args,
     cwd: descriptor.stdio.cwd,
   };
 
   const merged = { ...existing, mcpServers };
-  await fs.writeFile(
-    configPath,
-    `${JSON.stringify(merged, null, 2)  }\n`,
-    'utf-8'
-  );
+  await fs.writeFile(configPath, `${JSON.stringify(merged, null, 2)}\n`, "utf-8");
 
   void vscode.window.showInformationMessage(
     `Operator MCP server registered in ${configPath} (stdio). ` +
-      'You may need to restart Cursor or toggle the server in ' +
-      'Cursor Settings → MCP.'
+      "You may need to restart Cursor or toggle the server in " +
+      "Cursor Settings → MCP.",
   );
 }
 
@@ -267,9 +254,7 @@ export async function registerInCursorUserConfig(
  * either the Cursor user-scope path (`~/.cursor/mcp.json`) or the VS Code
  * workspace-scope path (`mcp.servers`) based on the detected host.
  */
-export async function connectMcpServer(
-  ticketsDir: string | undefined
-): Promise<void> {
+export async function connectMcpServer(ticketsDir: string | undefined): Promise<void> {
   try {
     const apiUrl = await discoverApiUrl(ticketsDir);
 
@@ -277,20 +262,18 @@ export async function connectMcpServer(
     try {
       descriptor = await fetchMcpDescriptor(apiUrl);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to fetch MCP descriptor';
+      const message = err instanceof Error ? err.message : "Failed to fetch MCP descriptor";
       void vscode.window.showErrorMessage(message);
       return;
     }
 
-    if (detectHostApp() === 'cursor') {
+    if (detectHostApp() === "cursor") {
       await registerInCursorUserConfig(descriptor);
     } else {
       await registerInVscodeWorkspaceConfig(descriptor);
     }
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Failed to connect MCP server';
+    const message = err instanceof Error ? err.message : "Failed to connect MCP server";
     void vscode.window.showErrorMessage(message);
   }
 }

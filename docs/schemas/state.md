@@ -38,6 +38,7 @@ This file tracks the current state of agents, completed tickets, and system stat
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
+| `git_context` | object | No | Non-secret Git configuration captured at launch. |
 | `id` | `string` | Yes |  |
 | `ticket_id` | `string` | Yes |  |
 | `ticket_type` | `string` | Yes |  |
@@ -70,6 +71,42 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `remote_host` | `string` \| `null` | No | Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local) |
 | `step_launch_context` | object | No | Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model. |
 | `target_name` | `string` \| `null` | No | Name of the resolved execution target this agent launched on |
+
+### GitExecutionConfig
+
+Git settings owned by a named delegator.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `identity` | object | No |  |
+| `credentials` | object | No |  |
+| `settings` | `array` | No |  |
+
+### GitIdentityConfig
+
+Commit identity template for delegated work.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes |  |
+| `email` | `string` | Yes |  |
+
+### GitCredentialConfig
+
+Supplied HTTPS credential, bound to a repository; contains no secret value.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `repository_url` | `string` | Yes |  |
+| `username` | `string` | Yes |  |
+| `token_env` | `string` | Yes |  |
+
+### GitConfigEntry
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `key` | `string` | Yes |  |
+| `value` | `string` | Yes |  |
 
 ### StepLaunchContext
 

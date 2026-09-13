@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext } from "react";
 
 export interface Host {
   baseUrl(): string;
@@ -13,7 +13,7 @@ class BrowserHost implements Host {
   }
 
   openExternal(url: string): void {
-    window.open(url, '_blank');
+    window.open(url, "_blank");
   }
 
   browseFolder(): Promise<string | null> {
@@ -43,24 +43,24 @@ class VscodeHost implements Host {
   }
 
   openExternal(url: string): void {
-    this.vscode.postMessage({ type: 'openExternal', url });
+    this.vscode.postMessage({ type: "openExternal", url });
   }
 
   async browseFolder(): Promise<string | null> {
     return new Promise((resolve) => {
       const handler = (event: MessageEvent) => {
-        if (event.data?.type === 'browseResult') {
-          window.removeEventListener('message', handler);
+        if (event.data?.type === "browseResult") {
+          window.removeEventListener("message", handler);
           resolve(event.data.path ?? null);
         }
       };
-      window.addEventListener('message', handler);
-      this.vscode.postMessage({ type: 'browseFolder', field: 'workingDirectory' });
+      window.addEventListener("message", handler);
+      this.vscode.postMessage({ type: "browseFolder", field: "workingDirectory" });
     });
   }
 
   openFile(filePath: string): void {
-    this.vscode.postMessage({ type: 'openFile', filePath });
+    this.vscode.postMessage({ type: "openFile", filePath });
   }
 }
 

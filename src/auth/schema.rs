@@ -7,7 +7,11 @@
 //! silently inconsistent with new ones.
 
 use anyhow::{Context, Result};
-use rusqlite::{Connection, TransactionBehavior};
+use rusqlite::{Connection, ErrorCode, TransactionBehavior};
+use std::time::{Duration, Instant};
+
+const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
+const WAL_RETRY_INTERVAL: Duration = Duration::from_millis(10);
 
 /// Ordered schema migrations. **Append only.**
 const MIGRATIONS: &[&str] = &[
@@ -184,19 +188,33 @@ pub fn migrate(conn: &mut Connection) -> Result<()> {
 
 /// Connection pragmas applied on open.
 pub fn apply_pragmas(conn: &Connection) -> Result<()> {
+    conn.busy_timeout(BUSY_TIMEOUT)
+        .context("setting busy timeout")?;
     // WAL keeps a reader from blocking the writer, which matters because the
     // TUI reads auth state on the same database the API server writes.
-    conn.pragma_update(None, "journal_mode", "WAL")
-        .context("enabling WAL")?;
+    enable_wal(conn, BUSY_TIMEOUT).context("enabling WAL")?;
     conn.pragma_update(None, "foreign_keys", "ON")
         .context("enabling foreign keys")?;
     conn.pragma_update(None, "synchronous", "NORMAL")
         .context("setting synchronous")?;
-    // Wait for a concurrent writer rather than failing instantly. Two Operator
-    // processes on one workspace is normal, not exceptional.
-    conn.busy_timeout(std::time::Duration::from_secs(5))
-        .context("setting busy timeout")?;
     Ok(())
+}
+
+fn enable_wal(conn: &Connection, timeout: Duration) -> rusqlite::Result<()> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        match conn.pragma_update(None, "journal_mode", "WAL") {
+            Err(error) if error.sqlite_error_code() == Some(ErrorCode::DatabaseBusy) => {
+                // WAL conversion can bypass SQLite's busy handler to avoid deadlock.
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if remaining.is_zero() {
+                    return Err(error);
+                }
+                std::thread::sleep(WAL_RETRY_INTERVAL.min(remaining));
+            }
+            result => return result,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -356,6 +374,80 @@ mod tests {
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
         assert_eq!(version as usize, MIGRATIONS.len());
+    }
+
+    #[test]
+    fn test_simultaneous_first_opens_all_reach_wal() {
+        // The one-time WAL conversion takes an exclusive lock and reports
+        // `SQLITE_BUSY` without consulting the busy handler, so `busy_timeout`
+        // does not cover it. Repeat synchronized first opens to exercise retries.
+        const OPENERS: usize = 16;
+        const ROUNDS: usize = 30;
+
+        let mut failures: Vec<String> = Vec::new();
+        for _ in 0..ROUNDS {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("auth.sqlite3");
+            let start = std::sync::Barrier::new(OPENERS);
+
+            failures.extend(std::thread::scope(|scope| {
+                let handles: Vec<_> = (0..OPENERS)
+                    .map(|_| {
+                        let path = path.clone();
+                        let start = &start;
+                        scope.spawn(move || {
+                            let conn = Connection::open(&path);
+                            start.wait();
+                            let conn = conn?;
+                            apply_pragmas(&conn)?;
+                            let mode: String =
+                                conn.query_row("PRAGMA journal_mode", [], |r| r.get(0))?;
+                            anyhow::ensure!(mode == "wal", "journal_mode is {mode}, not wal");
+                            anyhow::Ok(())
+                        })
+                    })
+                    .collect();
+                handles
+                    .into_iter()
+                    .filter_map(|h| h.join().expect("thread should not panic").err())
+                    .map(|e| format!("{e:#}"))
+                    .collect::<Vec<_>>()
+            }));
+        }
+
+        assert!(
+            failures.is_empty(),
+            "every simultaneous opener must reach WAL, got: {failures:#?}"
+        );
+    }
+
+    #[test]
+    fn test_wal_retry_expires_and_recovers_after_lock_release() {
+        const RETRY_TIMEOUT: Duration = Duration::from_millis(30);
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("auth.sqlite3");
+        let mut holder = Connection::open(&path).unwrap();
+        holder
+            .execute_batch("CREATE TABLE lock_test (id INTEGER)")
+            .unwrap();
+        let conn = Connection::open(&path).unwrap();
+        conn.busy_timeout(Duration::ZERO).unwrap();
+        let tx = holder
+            .transaction_with_behavior(TransactionBehavior::Exclusive)
+            .unwrap();
+
+        let started = Instant::now();
+        let error = enable_wal(&conn, RETRY_TIMEOUT).unwrap_err();
+        assert_eq!(error.sqlite_error_code(), Some(ErrorCode::DatabaseBusy));
+        assert!(started.elapsed() >= RETRY_TIMEOUT);
+
+        tx.commit().unwrap();
+        apply_pragmas(&conn).unwrap();
+        let mode: String = conn
+            .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(mode, "wal");
     }
 
     #[test]

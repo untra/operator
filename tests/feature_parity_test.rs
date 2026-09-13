@@ -221,9 +221,11 @@ fn concepts_status_keys() -> Vec<String> {
     let end = start + src[start..].find(']').expect("STATUS_KEYS array end");
     let mut ids = Vec::new();
     let mut rest = &src[start..end];
-    while let Some(i) = rest.find('\'') {
+    // Quote style is the formatter's choice; accept either.
+    while let Some(i) = rest.find(['\'', '"']) {
+        let quote = rest[i..].chars().next().expect("quote char");
         let after = &rest[i + 1..];
-        match after.find('\'') {
+        match after.find(quote) {
             Some(e) => {
                 ids.push(after[..e].to_string());
                 rest = &after[e + 1..];

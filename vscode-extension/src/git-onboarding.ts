@@ -7,12 +7,12 @@
  * existing settings like branch_format and use_worktrees.
  */
 
-import * as vscode from 'vscode';
-import * as fs from 'node:fs/promises';
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
-import { getConfigDir, getResolvedConfigPath, resolveWorkingDirectory } from './config-paths';
-import { showEnvVarInstructions } from './kanban-onboarding';
+import * as vscode from "vscode";
+import * as fs from "node:fs/promises";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import { getConfigDir, getResolvedConfigPath, resolveWorkingDirectory } from "./config-paths";
+import { showEnvVarInstructions } from "./kanban-onboarding";
 
 const execAsync = promisify(exec);
 
@@ -20,10 +20,10 @@ const execAsync = promisify(exec);
  * Detect a CLI tool in PATH, return its path or null
  */
 async function findCliTool(tool: string): Promise<string | null> {
-  const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+  const whichCmd = process.platform === "win32" ? "where" : "which";
   try {
     const { stdout } = await execAsync(`${whichCmd} ${tool}`);
-    return stdout.trim().split('\n')[0] ?? null;
+    return stdout.trim().split("\n")[0] ?? null;
   } catch {
     return null;
   }
@@ -50,7 +50,7 @@ async function getCliToken(command: string): Promise<string | null> {
  */
 async function writeGitConfig(
   provider: string,
-  providerSection: Record<string, unknown>
+  providerSection: Record<string, unknown>,
 ): Promise<boolean> {
   try {
     const configDir = getConfigDir(resolveWorkingDirectory());
@@ -60,16 +60,16 @@ async function writeGitConfig(
   }
 
   const configPath = getResolvedConfigPath();
-  let existing = '';
+  let existing = "";
   try {
-    existing = await fs.readFile(configPath, 'utf-8');
+    existing = await fs.readFile(configPath, "utf-8");
   } catch {
     // file doesn't exist yet
   }
 
   try {
-    const { parse, stringify } = await import('smol-toml');
-    const config = existing.trim() ? parse(existing) as Record<string, unknown> : {};
+    const { parse, stringify } = await import("smol-toml");
+    const config = existing.trim() ? (parse(existing) as Record<string, unknown>) : {};
 
     // Preserve existing git settings
     const existingGit = (config.git ?? {}) as Record<string, unknown>;
@@ -84,11 +84,11 @@ async function writeGitConfig(
 
     config.git = mergedGit;
     const output = stringify(config);
-    await fs.writeFile(configPath, output, 'utf-8');
+    await fs.writeFile(configPath, output, "utf-8");
     return true;
   } catch (err) {
     void vscode.window.showErrorMessage(
-      `Failed to write git config: ${err instanceof Error ? err.message : String(err)}`
+      `Failed to write git config: ${err instanceof Error ? err.message : String(err)}`,
     );
     return false;
   }
@@ -106,76 +106,83 @@ export async function onboardGitHub(): Promise<void> {
   let token: string | undefined;
 
   // Try gh CLI first
-  const ghPath = await findCliTool('gh');
+  const ghPath = await findCliTool("gh");
   if (ghPath) {
-    token = await getCliToken('gh auth token') ?? undefined;
+    token = (await getCliToken("gh auth token")) ?? undefined;
     if (token) {
-      void vscode.window.showInformationMessage('Found GitHub token from gh CLI.');
+      void vscode.window.showInformationMessage("Found GitHub token from gh CLI.");
     }
   }
 
   // Fall back to manual input
   if (!token) {
     if (!ghPath) {
-      // CLI not installed — open install page
-      await vscode.env.openExternal(vscode.Uri.parse('https://cli.github.com/'));
+      // CLI not installed - open install page
+      await vscode.env.openExternal(vscode.Uri.parse("https://cli.github.com/"));
       void vscode.window.showInformationMessage(
-        'Install the GitHub CLI (gh), then re-run this command to connect.'
+        "Install the GitHub CLI (gh), then re-run this command to connect.",
       );
       return;
     }
 
-    // CLI installed but not authenticated — open PAT creation page, then prompt
+    // CLI installed but not authenticated - open PAT creation page, then prompt
     await vscode.env.openExternal(
-      vscode.Uri.parse('https://github.com/settings/personal-access-tokens/new')
+      vscode.Uri.parse("https://github.com/settings/personal-access-tokens/new"),
     );
 
-    token = await vscode.window.showInputBox({
-      title: 'GitHub Authentication',
-      prompt: 'gh CLI found but not authenticated. Enter a GitHub Personal Access Token:',
-      password: true,
-      ignoreFocusOut: true,
-      placeHolder: 'ghp_...',
-    }) ?? undefined;
+    token =
+      (await vscode.window.showInputBox({
+        title: "GitHub Authentication",
+        prompt: "gh CLI found but not authenticated. Enter a GitHub Personal Access Token:",
+        password: true,
+        ignoreFocusOut: true,
+        placeHolder: "ghp_...",
+      })) ?? undefined;
 
-    if (!token) { return; }
+    if (!token) {
+      return;
+    }
   }
 
   // Validate token
   const user = await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: 'Validating GitHub token...' },
+    { location: vscode.ProgressLocation.Notification, title: "Validating GitHub token..." },
     async () => {
       try {
-        const response = await fetch('https://api.github.com/user', {
+        const response = await fetch("https://api.github.com/user", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
-          return await response.json() as { login: string };
+          return (await response.json()) as { login: string };
         }
       } catch {
         // validation failed
       }
       return null;
-    }
+    },
   );
 
   if (!user) {
-    void vscode.window.showErrorMessage('GitHub token validation failed. Check your token and try again.');
+    void vscode.window.showErrorMessage(
+      "GitHub token validation failed. Check your token and try again.",
+    );
     return;
   }
 
   // Write config
-  const written = await writeGitConfig('github', {
+  const written = await writeGitConfig("github", {
     enabled: true,
-    token_env: 'GITHUB_TOKEN',
+    token_env: "GITHUB_TOKEN",
   });
-  if (!written) { return; }
+  if (!written) {
+    return;
+  }
 
   // Set env var for current session
-  process.env['GITHUB_TOKEN'] = token;
+  process.env["GITHUB_TOKEN"] = token;
 
   void vscode.window.showInformationMessage(
-    `GitHub connected as ${user.login}! Config written to ${getResolvedConfigPath()}`
+    `GitHub connected as ${user.login}! Config written to ${getResolvedConfigPath()}`,
   );
 
   await showEnvVarInstructions(`export GITHUB_TOKEN="<your-token>"`);
@@ -192,91 +199,101 @@ export async function onboardGitHub(): Promise<void> {
  */
 export async function onboardGitLab(): Promise<void> {
   // Ask for host
-  const host = await vscode.window.showInputBox({
-    title: 'GitLab Host',
-    prompt: 'Enter your GitLab instance URL',
-    value: 'gitlab.com',
-    ignoreFocusOut: true,
-    placeHolder: 'gitlab.com or your self-hosted domain',
-  }) ?? undefined;
+  const host =
+    (await vscode.window.showInputBox({
+      title: "GitLab Host",
+      prompt: "Enter your GitLab instance URL",
+      value: "gitlab.com",
+      ignoreFocusOut: true,
+      placeHolder: "gitlab.com or your self-hosted domain",
+    })) ?? undefined;
 
-  if (!host) { return; }
+  if (!host) {
+    return;
+  }
 
   let token: string | undefined;
 
   // Try glab CLI first
-  const glabPath = await findCliTool('glab');
+  const glabPath = await findCliTool("glab");
   if (glabPath) {
-    token = await getCliToken('glab auth token') ?? undefined;
+    token = (await getCliToken("glab auth token")) ?? undefined;
     if (token) {
-      void vscode.window.showInformationMessage('Found GitLab token from glab CLI.');
+      void vscode.window.showInformationMessage("Found GitLab token from glab CLI.");
     }
   }
 
   // Fall back to manual input
   if (!token) {
     if (!glabPath) {
-      // CLI not installed — open install page
-      await vscode.env.openExternal(vscode.Uri.parse('https://docs.gitlab.com/cli'));
+      // CLI not installed - open install page
+      await vscode.env.openExternal(vscode.Uri.parse("https://docs.gitlab.com/cli"));
       void vscode.window.showInformationMessage(
-        'Install the GitLab CLI (glab), then re-run this command to connect.'
+        "Install the GitLab CLI (glab), then re-run this command to connect.",
       );
       return;
     }
 
-    // CLI installed but not authenticated — open PAT creation page, then prompt
+    // CLI installed but not authenticated - open PAT creation page, then prompt
     await vscode.env.openExternal(
-      vscode.Uri.parse('https://gitlab.com/-/user_settings/personal_access_tokens')
+      vscode.Uri.parse("https://gitlab.com/-/user_settings/personal_access_tokens"),
     );
 
-    token = await vscode.window.showInputBox({
-      title: 'GitLab Authentication',
-      prompt: 'glab CLI found but not authenticated. Enter a GitLab Personal Access Token:',
-      password: true,
-      ignoreFocusOut: true,
-      placeHolder: 'glpat-...',
-    }) ?? undefined;
+    token =
+      (await vscode.window.showInputBox({
+        title: "GitLab Authentication",
+        prompt: "glab CLI found but not authenticated. Enter a GitLab Personal Access Token:",
+        password: true,
+        ignoreFocusOut: true,
+        placeHolder: "glpat-...",
+      })) ?? undefined;
 
-    if (!token) { return; }
+    if (!token) {
+      return;
+    }
   }
 
   // Validate token
-  const apiHost = host.includes('://') ? host : `https://${host}`;
+  const apiHost = host.includes("://") ? host : `https://${host}`;
   const user = await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: 'Validating GitLab token...' },
+    { location: vscode.ProgressLocation.Notification, title: "Validating GitLab token..." },
     async () => {
       try {
         const response = await fetch(`${apiHost}/api/v4/user`, {
-          headers: { 'Private-Token': token },
+          headers: { "Private-Token": token },
         });
         if (response.ok) {
-          return await response.json() as { username: string };
+          return (await response.json()) as { username: string };
         }
       } catch {
         // validation failed
       }
       return null;
-    }
+    },
   );
 
   if (!user) {
-    void vscode.window.showErrorMessage('GitLab token validation failed. Check your token and host, then try again.');
+    void vscode.window.showErrorMessage(
+      "GitLab token validation failed. Check your token and host, then try again.",
+    );
     return;
   }
 
   // Write config
-  const written = await writeGitConfig('gitlab', {
+  const written = await writeGitConfig("gitlab", {
     enabled: true,
-    token_env: 'GITLAB_TOKEN',
+    token_env: "GITLAB_TOKEN",
     host,
   });
-  if (!written) { return; }
+  if (!written) {
+    return;
+  }
 
   // Set env var for current session
-  process.env['GITLAB_TOKEN'] = token;
+  process.env["GITLAB_TOKEN"] = token;
 
   void vscode.window.showInformationMessage(
-    `GitLab connected as ${user.username}! Config written to ${getResolvedConfigPath()}`
+    `GitLab connected as ${user.username}! Config written to ${getResolvedConfigPath()}`,
   );
 
   await showEnvVarInstructions(`export GITLAB_TOKEN="<your-token>"`);
@@ -288,22 +305,24 @@ export async function onboardGitLab(): Promise<void> {
 export async function startGitOnboarding(): Promise<void> {
   const choice = await vscode.window.showQuickPick(
     [
-      { label: 'GitHub', description: 'Connect to github.com', detail: 'github' },
-      { label: 'GitLab', description: 'Connect to gitlab.com or self-hosted', detail: 'gitlab' },
-      { label: 'Skip', description: 'Configure later' },
+      { label: "GitHub", description: "Connect to github.com", detail: "github" },
+      { label: "GitLab", description: "Connect to gitlab.com or self-hosted", detail: "gitlab" },
+      { label: "Skip", description: "Configure later" },
     ],
     {
-      title: 'Connect Git Provider',
-      placeHolder: 'Select a git hosting provider',
+      title: "Connect Git Provider",
+      placeHolder: "Select a git hosting provider",
       ignoreFocusOut: true,
-    }
+    },
   );
 
-  if (!choice || choice.label === 'Skip') { return; }
+  if (!choice || choice.label === "Skip") {
+    return;
+  }
 
-  if (choice.detail === 'github') {
+  if (choice.detail === "github") {
     await onboardGitHub();
-  } else if (choice.detail === 'gitlab') {
+  } else if (choice.detail === "gitlab") {
     await onboardGitLab();
   }
 }

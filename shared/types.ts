@@ -367,6 +367,11 @@ export type PanelNamesConfig = { status: string, queue: string, in_progress: str
 
 export type LaunchConfig = { confirm_autonomous: boolean, confirm_paired: boolean, launch_delay_ms: bigint, 
 /**
+ * Default named execution target. Per-launch and per-delegator choices
+ * take precedence.
+ */
+target: string | null,
+/**
  * Docker execution configuration
  */
 docker: DockerConfig, 
@@ -415,9 +420,7 @@ export type RestApiConfig = {
  */
 enabled: boolean, 
 /**
- * Address the REST API binds to. Defaults to `127.0.0.1` (local only) so
- * the server — which reports the project directory name — is not reachable
- * from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
+ * Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces.
  */
 host: string, 
 /**
@@ -429,10 +432,7 @@ port: number,
  */
 cors_origins: Array<string>, 
 /**
- * Externally reachable base URL (e.g. `https://operator.example.com`).
- *
- * OAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header,
- * which a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy.
+ * Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host.
  */
 public_url: string | null, };
 
@@ -603,9 +603,9 @@ model_server: string | null,
  * (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).
  *
  * Export-only: Operator has no runtime client for those platforms, so a
- * delegator carrying this CANNOT be launched locally — resolution errors out
+ * delegator carrying this CANNOT be launched locally - resolution errors out
  * (see `delegator_resolution`). It is stored, listed, serialized into an
- * `AgentProfile`, and — for `platform == "agnt"` — surfaced in the
+ * `AgentProfile`, and - for `platform == "agnt"` - surfaced in the
  * `--format agnt` workflow export as a native AGNT `agnt-agent` node, whose
  * `agentId` is this reference's `id` (AGNT identifies agents by UUID, so the
  * `id` must be the agent's UUID, not its display name). `None` = ordinary,
@@ -697,8 +697,7 @@ provider: string,
  */
 model: string, 
 /**
- * System prompt. Operator has no first-class system prompt, so this is
- * preserved opaquely across import (see [`Delegator::unmapped_core`]).
+ * System prompt. This is preserved opaquely across import (see [`Delegator::unmapped_core`]).
  */
 system_prompt?: string | null, 
 /**
@@ -714,25 +713,19 @@ mcp_servers: Array<string>,
  */
 tools: Array<string>, 
 /**
- * Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...).
- * `None` = a locally launchable agent, not bound to a remote platform.
+ * Declarative reference to a remote, named agent. `None` = a locally launchable agent, not bound to a remote target.
  */
 remote_agent?: RemoteAgentRef | null, 
 /**
- * Operator-owned extension fields (typed). `None` when the agent carries no
- * Operator-specific configuration.
+ * Operator-owned extension fields (typed). `None` when the agent carries no Operator-specific configuration.
  */
 x_operator?: XOperator | null, 
 /**
- * AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`,
- * `creditLimit`, ...). Operator never interprets this — pure pass-through.
+ * AGNT-owned extension fields, opaque (`memory`, `assignedWorkflows`, `creditLimit`, ...).
  */
 x_agnt?: JsonValue | null, 
 /**
- * OpenAI-owned extension fields, opaque (`instructions`, `tools`,
- * `tool_resources`, `metadata`, thread refs, ...). Mirror of `x_agnt` for a
- * second platform — never interpreted. This field is the whole per-tool cost
- * of adding `OpenAI`: a passthrough bag, no mapping logic.
+ * OpenAI-owned extension fields, opaque (`instructions`, `tools`, `tool_resources`, `metadata`, thread refs, ...).
  */
 x_openai?: JsonValue | null, };
 
@@ -1190,7 +1183,7 @@ contents: string, };
 
 export type WorkflowFormatDto = { 
 /**
- * Stable slug (e.g. "claude", "agnt") — the value the `format` query param takes.
+ * Stable slug (e.g. "claude", "agnt") - the value the `format` query param takes.
  */
 slug: string, 
 /**
@@ -1709,7 +1702,7 @@ export type VsCodeLaunchOptions = {
  */
 delegator: string | null, 
 /**
- * Model to use (sonnet, opus, haiku) — fallback when no delegator
+ * Model to use (sonnet, opus, haiku) - fallback when no delegator
  */
 model: VsCodeModelOption, 
 /**
@@ -1758,4 +1751,3 @@ worktreePath?: string,
  * Git branch name
  */
 branch?: string, };
-

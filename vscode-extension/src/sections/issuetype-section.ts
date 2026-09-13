@@ -1,10 +1,10 @@
-import * as vscode from 'vscode';
-import { StatusItem } from '../status-item';
-import type { SectionContext, StatusSection } from './types';
-import type { SectionId, SectionHealth } from '../generated';
-import type { IssueTypeSummary } from '../generated/IssueTypeSummary';
-import { DEFAULT_ISSUE_TYPES, GLYPH_TO_ICON, COLOR_TO_THEME } from '../issuetype-service';
-import { discoverApiUrl, OperatorApiClient } from '../api-client';
+import * as vscode from "vscode";
+import { StatusItem } from "../status-item";
+import type { SectionContext, StatusSection } from "./types";
+import type { SectionId, SectionHealth } from "../generated";
+import type { IssueTypeSummary } from "../generated/IssueTypeSummary";
+import { DEFAULT_ISSUE_TYPES, GLYPH_TO_ICON, COLOR_TO_THEME } from "../issuetype-service";
+import { discoverApiUrl, OperatorApiClient } from "../api-client";
 
 interface IssueTypeState {
   apiAvailable: boolean;
@@ -12,14 +12,16 @@ interface IssueTypeState {
 }
 
 export class IssueTypeSection implements StatusSection {
-  readonly sectionId: SectionId = 'issuetypes';
-  readonly prerequisites: SectionId[] = ['kanban'];
+  readonly sectionId: SectionId = "issuetypes";
+  readonly prerequisites: SectionId[] = ["kanban"];
 
   private state: IssueTypeState = { apiAvailable: false, types: [] };
 
   health(): SectionHealth {
-    if (!this.state.apiAvailable) { return 'Yellow'; }
-    return this.state.types.length > 0 ? 'Green' : 'Yellow';
+    if (!this.state.apiAvailable) {
+      return "Yellow";
+    }
+    return this.state.types.length > 0 ? "Green" : "Yellow";
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -41,9 +43,9 @@ export class IssueTypeSection implements StatusSection {
     const count = this.state.types.length;
     if (this.state.apiAvailable) {
       return new StatusItem({
-        label: 'Issue Types',
-        description: `${count} type${count !== 1 ? 's' : ''}`,
-        icon: 'check',
+        label: "Issue Types",
+        description: `${count} type${count !== 1 ? "s" : ""}`,
+        icon: "check",
         collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
         sectionId: this.sectionId,
         health: this.health(),
@@ -51,9 +53,9 @@ export class IssueTypeSection implements StatusSection {
     }
 
     return new StatusItem({
-      label: 'Issue Types',
+      label: "Issue Types",
       description: `${count} defaults (API offline)`,
-      icon: 'warning',
+      icon: "warning",
       collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
       sectionId: this.sectionId,
       health: this.health(),
@@ -64,17 +66,19 @@ export class IssueTypeSection implements StatusSection {
     const items: StatusItem[] = [];
 
     for (const type of this.state.types) {
-      const iconName = GLYPH_TO_ICON[type.glyph] ?? 'file';
+      const iconName = GLYPH_TO_ICON[type.glyph] ?? "file";
       const themeColorId = type.color ? COLOR_TO_THEME[type.color] : undefined;
-      const modeLabel = type.mode === 'autonomous' ? 'autonomous' : 'paired';
+      const modeLabel = type.mode === "autonomous" ? "autonomous" : "paired";
 
-      items.push(new StatusItem({
-        label: type.key,
-        description: `${type.name} · ${modeLabel}`,
-        icon: iconName,
-        tooltip: `${type.description}\nSource: ${type.source} · ${type.stepCount} steps`,
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: type.key,
+          description: `${type.name} · ${modeLabel}`,
+          icon: iconName,
+          tooltip: `${type.description}\nSource: ${type.source} · ${type.stepCount} steps`,
+          sectionId: this.sectionId,
+        }),
+      );
 
       // Apply color to the icon if available
       const item = items[items.length - 1]!;
@@ -84,15 +88,17 @@ export class IssueTypeSection implements StatusSection {
     }
 
     if (this.state.apiAvailable) {
-      items.push(new StatusItem({
-        label: 'Manage Issue Types',
-        icon: 'gear',
-        command: {
-          command: 'operator.openSettings',
-          title: 'Open Settings',
-        },
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: "Manage Issue Types",
+          icon: "gear",
+          command: {
+            command: "operator.openSettings",
+            title: "Open Settings",
+          },
+          sectionId: this.sectionId,
+        }),
+      );
     }
 
     return items;

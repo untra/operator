@@ -8,7 +8,7 @@
 @import "../../docs/assets/css/tokens.css";
 
 :root {
-  /* UI semantic tokens (light) — built on the shared brand palette */
+  /* UI semantic tokens (light) - built on the shared brand palette */
   --surface: var(--color-white);
   --surface-alt: var(--color-cream);
   --border: #e3dcc4;
@@ -33,7 +33,7 @@
 }
 
 [data-theme="dark"] {
-  /* UI semantic tokens (dark) — brand vars themselves are overridden in tokens.css */
+  /* UI semantic tokens (dark) - brand vars themselves are overridden in tokens.css */
   --surface: #1a2426;
   --surface-alt: #141b1c;
   --border: #2c3a3c;

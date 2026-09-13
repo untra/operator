@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { OperatorApi } from '../api-client';
-import type { StatusResponse, CollectionResponse, ProjectSummary } from '../api-client';
-import { useHost } from '../host';
-import { CONCEPTS } from '../concepts';
-import { PageHeader } from '../components/PageHeader';
-import styles from './ConfigPage.module.css';
+import { useEffect, useState } from "react";
+import { OperatorApi } from "../api-client";
+import type { StatusResponse, CollectionResponse, ProjectSummary } from "../api-client";
+import { useHost } from "../host";
+import { CONCEPTS } from "../concepts";
+import { PageHeader } from "../components/PageHeader";
+import styles from "./ConfigPage.module.css";
 
 const CONFIG = CONCEPTS.config;
 
@@ -33,11 +33,13 @@ export function ConfigPage() {
       const updated = await api.listCollections();
       setCollections(updated);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to activate collection');
+      setError(e instanceof Error ? e.message : "Failed to activate collection");
     }
   };
 
-  if (loading) {return <div className={styles.loading}>Loading configuration...</div>;}
+  if (loading) {
+    return <div className={styles.loading}>Loading configuration...</div>;
+  }
 
   return (
     <div className={styles.page}>
@@ -73,13 +75,19 @@ export function ConfigPage() {
         ) : (
           <div className={styles.collectionList}>
             {collections.map((c) => (
-              <div key={c.name} className={`${styles.collectionCard} ${c.is_active ? styles.activeCollection : ''}`}>
+              <div
+                key={c.name}
+                className={`${styles.collectionCard} ${c.is_active ? styles.activeCollection : ""}`}
+              >
                 <div className={styles.collectionHeader}>
                   <span className={styles.collectionName}>{c.name}</span>
                   {c.is_active ? (
                     <span className={styles.activeBadge}>Active</span>
                   ) : (
-                    <button className={styles.activateBtn} onClick={() => handleActivateCollection(c.name)}>
+                    <button
+                      className={styles.activateBtn}
+                      onClick={() => handleActivateCollection(c.name)}
+                    >
                       Activate
                     </button>
                   )}
@@ -87,7 +95,9 @@ export function ConfigPage() {
                 <p className={styles.collectionDesc}>{c.description}</p>
                 <div className={styles.collectionTypes}>
                   {c.types.map((t) => (
-                    <span key={t} className={styles.typeTag}>{t}</span>
+                    <span key={t} className={styles.typeTag}>
+                      {t}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -114,9 +124,9 @@ export function ConfigPage() {
               {projects.map((p) => (
                 <tr key={p.project_name}>
                   <td>{p.project_name}</td>
-                  <td>{p.kind ?? '—'}</td>
-                  <td>{p.languages.join(', ') || '—'}</td>
-                  <td>{p.has_catalog_info ? 'Yes' : 'No'}</td>
+                  <td>{p.kind ?? "-"}</td>
+                  <td>{p.languages.join(", ") || "-"}</td>
+                  <td>{p.has_catalog_info ? "Yes" : "No"}</td>
                 </tr>
               ))}
             </tbody>

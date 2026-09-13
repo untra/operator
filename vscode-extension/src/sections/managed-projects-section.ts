@@ -1,9 +1,9 @@
-import * as vscode from 'vscode';
-import { StatusItem } from '../status-item';
-import type { SectionContext, StatusSection } from './types';
-import type { SectionId, SectionHealth } from '../generated';
-import { discoverApiUrl, OperatorApiClient } from '../api-client';
-import type { ProjectSummary } from '../generated/ProjectSummary';
+import * as vscode from "vscode";
+import { StatusItem } from "../status-item";
+import type { SectionContext, StatusSection } from "./types";
+import type { SectionId, SectionHealth } from "../generated";
+import { discoverApiUrl, OperatorApiClient } from "../api-client";
+import type { ProjectSummary } from "../generated/ProjectSummary";
 
 interface ManagedProjectsState {
   configured: boolean;
@@ -11,14 +11,16 @@ interface ManagedProjectsState {
 }
 
 export class ManagedProjectsSection implements StatusSection {
-  readonly sectionId: SectionId = 'projects';
-  readonly prerequisites: SectionId[] = ['git'];
+  readonly sectionId: SectionId = "projects";
+  readonly prerequisites: SectionId[] = ["git"];
 
   private state: ManagedProjectsState = { configured: false, projects: [] };
 
   health(): SectionHealth {
-    if (!this.state.configured) { return 'Yellow'; }
-    return this.state.projects.length > 0 ? 'Green' : 'Yellow';
+    if (!this.state.configured) {
+      return "Yellow";
+    }
+    return this.state.projects.length > 0 ? "Green" : "Yellow";
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -37,21 +39,22 @@ export class ManagedProjectsSection implements StatusSection {
     if (this.state.configured) {
       const count = this.state.projects.length;
       return new StatusItem({
-        label: 'Managed Projects',
-        description: `${count} project${count !== 1 ? 's' : ''}`,
-        icon: 'project',
-        collapsibleState: count > 0
-          ? vscode.TreeItemCollapsibleState.Collapsed
-          : vscode.TreeItemCollapsibleState.None,
+        label: "Managed Projects",
+        description: `${count} project${count !== 1 ? "s" : ""}`,
+        icon: "project",
+        collapsibleState:
+          count > 0
+            ? vscode.TreeItemCollapsibleState.Collapsed
+            : vscode.TreeItemCollapsibleState.None,
         sectionId: this.sectionId,
         health: this.health(),
       });
     }
 
     return new StatusItem({
-      label: 'Managed Projects',
-      description: 'API required',
-      icon: 'project',
+      label: "Managed Projects",
+      description: "API required",
+      icon: "project",
       collapsibleState: vscode.TreeItemCollapsibleState.None,
       sectionId: this.sectionId,
       health: this.health(),
@@ -65,19 +68,25 @@ export class ManagedProjectsSection implements StatusSection {
 
     return this.state.projects.map((proj) => {
       const details: string[] = [];
-      if (proj.kind) { details.push(proj.kind); }
-      if (proj.languages.length > 0) { details.push(proj.languages.join(', ')); }
+      if (proj.kind) {
+        details.push(proj.kind);
+      }
+      if (proj.languages.length > 0) {
+        details.push(proj.languages.join(", "));
+      }
 
       return new StatusItem({
         label: proj.project_name,
-        description: details.join(' · ') || undefined,
-        icon: proj.exists ? 'folder' : 'folder-library',
+        description: details.join(" · ") || undefined,
+        icon: proj.exists ? "folder" : "folder-library",
         tooltip: proj.project_path,
-        command: proj.exists ? {
-          command: 'vscode.openFolder',
-          title: 'Open Project',
-          arguments: [vscode.Uri.file(proj.project_path), { forceNewWindow: false }],
-        } : undefined,
+        command: proj.exists
+          ? {
+              command: "vscode.openFolder",
+              title: "Open Project",
+              arguments: [vscode.Uri.file(proj.project_path), { forceNewWindow: false }],
+            }
+          : undefined,
         sectionId: this.sectionId,
       });
     });

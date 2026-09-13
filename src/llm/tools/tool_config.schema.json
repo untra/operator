@@ -161,7 +161,7 @@
           "type": "string",
           "enum": ["which", "always"],
           "default": "which",
-          "description": "\"which\" gates detection on the binary being found in PATH, and that verified presence earns the tool its health. \"always\" skips the PATH lookup and uses tool_name verbatim as the invocation path — for tools not installed locally (e.g. invoked over SSH) or binaries without a stable PATH entry; because nothing is locally verifiable, an always-mode tool is unhealthy until a health_command passes."
+          "description": "\"which\" gates detection on the binary being found in PATH, and that verified presence earns the tool its health. \"always\" skips the PATH lookup and uses tool_name verbatim as the invocation path - for tools not installed locally (e.g. invoked over SSH) or binaries without a stable PATH entry; because nothing is locally verifiable, an always-mode tool is unhealthy until a health_command passes."
         },
         "health_command": {
           "type": "string",

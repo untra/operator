@@ -14,8 +14,7 @@ import { expect, it } from "bun:test";
 
 /// OpenTofu is a drop-in for the commands used here; prefer whichever exists
 /// so contributors aren't forced to install a specific CLI.
-const tfBin = (): string =>
-  process.env.TF_CLI ?? (Bun.which("terraform") ? "terraform" : "tofu");
+const tfBin = (): string => process.env.TF_CLI ?? (Bun.which("terraform") ? "terraform" : "tofu");
 
 interface ExecResult {
   code: number;
@@ -23,11 +22,7 @@ interface ExecResult {
   stderr: string;
 }
 
-const exec = (
-  args: string[],
-  cwd: string,
-  env: NodeJS.ProcessEnv = {},
-): Promise<ExecResult> =>
+const exec = (args: string[], cwd: string, env: NodeJS.ProcessEnv = {}): Promise<ExecResult> =>
   new Promise((resolve, reject) => {
     const child = spawn(tfBin(), args, {
       cwd,
@@ -43,7 +38,9 @@ const exec = (
 
 export const runTerraformInit = async (dir: string): Promise<void> => {
   const { code, stderr } = await exec(["init", "-input=false", "-no-color"], dir);
-  if (code !== 0) throw new Error(`terraform init failed:\n${stderr}`);
+  if (code !== 0) {
+    throw new Error(`terraform init failed:\n${stderr}`);
+  }
 };
 
 export interface TerraformStateResource {
@@ -64,7 +61,9 @@ export const runTerraformApply = async (
   vars: Record<string, string>,
 ): Promise<TerraformState> => {
   const env: NodeJS.ProcessEnv = {};
-  for (const [k, v] of Object.entries(vars)) env[`TF_VAR_${k}`] = v;
+  for (const [k, v] of Object.entries(vars)) {
+    env[`TF_VAR_${k}`] = v;
+  }
 
   // Each apply is independent; a stale state file would mask a failed apply.
   const statePath = path.join(dir, "terraform.tfstate");
@@ -75,7 +74,9 @@ export const runTerraformApply = async (
     dir,
     env,
   );
-  if (code !== 0) throw new Error(stderr);
+  if (code !== 0) {
+    throw new Error(stderr);
+  }
 
   return JSON.parse(await readFile(statePath, "utf8")) as TerraformState;
 };
@@ -91,24 +92,17 @@ export const findResourceInstance = (
     (r) => r.type === type && (name === undefined || r.name === name),
   );
   if (!resource) {
-    throw new Error(
-      `Resource ${type}${name ? `.${name}` : ""} not found in state`,
-    );
+    throw new Error(`Resource ${type}${name ? `.${name}` : ""} not found in state`);
   }
   if (resource.instances.length !== 1) {
-    throw new Error(
-      `Expected 1 instance of ${type}, got ${resource.instances.length}`,
-    );
+    throw new Error(`Expected 1 instance of ${type}, got ${resource.instances.length}`);
   }
   return resource.instances[0].attributes;
 };
 
 /// Registers a test per required variable asserting the apply fails when it is
 /// omitted, plus one asserting the module applies with all of them supplied.
-export const testRequiredVariables = (
-  dir: string,
-  vars: Record<string, string>,
-): void => {
+export const testRequiredVariables = (dir: string, vars: Record<string, string>): void => {
   it("applies with all required variables", async () => {
     await runTerraformApply(dir, vars);
   });

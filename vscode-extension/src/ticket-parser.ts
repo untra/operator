@@ -5,17 +5,15 @@
  * metadata stored in YAML frontmatter.
  */
 
-import * as fs from 'node:fs/promises';
-import type { TicketMetadata } from './types';
+import * as fs from "node:fs/promises";
+import type { TicketMetadata } from "./types";
 
 /**
  * Parse YAML frontmatter from ticket markdown file
  */
-export async function parseTicketMetadata(
-  filePath: string
-): Promise<TicketMetadata | null> {
+export async function parseTicketMetadata(filePath: string): Promise<TicketMetadata | null> {
   try {
-    const content = await fs.readFile(filePath, 'utf-8');
+    const content = await fs.readFile(filePath, "utf-8");
     return parseTicketContent(content);
   } catch {
     return null;
@@ -27,7 +25,7 @@ export async function parseTicketMetadata(
  */
 export function parseTicketContent(content: string): TicketMetadata | null {
   // Normalize line endings (handle Windows CRLF)
-  content = content.replace(/\r\n/g, '\n');
+  content = content.replace(/\r\n/g, "\n");
 
   // Extract YAML frontmatter between --- markers
   const match = content.match(/^---\n([\s\S]*?)\n---/);
@@ -37,21 +35,21 @@ export function parseTicketContent(content: string): TicketMetadata | null {
 
   const yaml = match[1]!;
   const metadata: TicketMetadata = {
-    id: '',
-    status: '',
-    step: '',
-    priority: '',
-    project: '',
+    id: "",
+    status: "",
+    step: "",
+    priority: "",
+    project: "",
   };
 
   // Simple YAML parsing for known fields
-  for (const line of yaml.split('\n')) {
+  for (const line of yaml.split("\n")) {
     // Skip empty lines and lines that start with whitespace (nested)
-    if (!line.trim() || line.startsWith(' ') || line.startsWith('\t')) {
+    if (!line.trim() || line.startsWith(" ") || line.startsWith("\t")) {
       continue;
     }
 
-    const colonIndex = line.indexOf(':');
+    const colonIndex = line.indexOf(":");
     if (colonIndex === -1) {
       continue;
     }
@@ -60,25 +58,25 @@ export function parseTicketContent(content: string): TicketMetadata | null {
     const value = line.slice(colonIndex + 1).trim();
 
     switch (key) {
-      case 'id':
+      case "id":
         metadata.id = value;
         break;
-      case 'status':
+      case "status":
         metadata.status = value;
         break;
-      case 'step':
+      case "step":
         metadata.step = value;
         break;
-      case 'priority':
+      case "priority":
         metadata.priority = value;
         break;
-      case 'project':
+      case "project":
         metadata.project = value;
         break;
-      case 'worktree_path':
+      case "worktree_path":
         metadata.worktreePath = value;
         break;
-      case 'branch':
+      case "branch":
         metadata.branch = value;
         break;
     }
@@ -88,7 +86,7 @@ export function parseTicketContent(content: string): TicketMetadata | null {
   const sessionsMatch = yaml.match(/sessions:\s*\n((?:\s{2}\S+:.*\n?)+)/);
   if (sessionsMatch?.[1]) {
     metadata.sessions = {};
-    for (const line of sessionsMatch[1].split('\n')) {
+    for (const line of sessionsMatch[1].split("\n")) {
       const sessionMatch = line.match(/^\s+(\S+):\s*(.+)$/);
       if (sessionMatch?.[1] && sessionMatch[2]) {
         metadata.sessions[sessionMatch[1]] = sessionMatch[2].trim();
@@ -104,9 +102,7 @@ export function parseTicketContent(content: string): TicketMetadata | null {
  *
  * Tries the current step first, then falls back to 'initial'
  */
-export function getCurrentSessionId(
-  metadata: TicketMetadata
-): string | undefined {
+export function getCurrentSessionId(metadata: TicketMetadata): string | undefined {
   if (!metadata.sessions) {
     return undefined;
   }
@@ -117,5 +113,5 @@ export function getCurrentSessionId(
   }
 
   // Fall back to 'initial'
-  return metadata.sessions['initial'];
+  return metadata.sessions["initial"];
 }

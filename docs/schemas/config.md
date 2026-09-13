@@ -145,6 +145,7 @@ Webhook notification configuration.
 | `confirm_autonomous` | `boolean` | Yes |  |
 | `confirm_paired` | `boolean` | Yes |  |
 | `launch_delay_ms` | `integer` | Yes |  |
+| `target` | `string` \| `null` | No | Default named execution target. Per-launch and per-delegator choices take precedence. |
 | `docker` | → `DockerConfig` | No | Docker execution configuration |
 | `yolo` | → `YoloConfig` | No | YOLO (auto-accept) mode configuration |
 
@@ -363,10 +364,10 @@ REST API server configuration
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | No | Whether the REST API is enabled |
-| `host` | `string` | No | Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server - which reports the project directory name - is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces. |
+| `host` | `string` | No | Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces. |
 | `port` | `integer` | No | Port for the REST API server |
 | `cors_origins` | `array` | No | CORS allowed origins. Empty means **same-origin only** |
-| `public_url` | `string` \| `null` | No | Externally reachable base URL (e.g. `https://operator.example.com`).  OAuth and MCP descriptor URLs are generated from this rather than from the request's `Host` header, which a caller controls. Defaults to request host, which is correct for a loopback bind and wrong behind a reverse proxy. |
+| `public_url` | `string` \| `null` | No | Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host. |
 
 ### GitConfig
 

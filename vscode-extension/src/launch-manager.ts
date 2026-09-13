@@ -8,28 +8,24 @@
  * back to local command building when the API is unavailable.
  */
 
-import * as vscode from 'vscode';
-import type { TerminalManager } from './terminal-manager';
-import type { LaunchOptions, TicketInfo } from './types';
-import { parseTicketMetadata, getCurrentSessionId } from './ticket-parser';
-import type {
-  LaunchTicketResponse} from './api-client';
-import {
-  OperatorApiClient,
-  discoverApiUrl
-} from './api-client';
+import * as vscode from "vscode";
+import type { TerminalManager } from "./terminal-manager";
+import type { LaunchOptions, TicketInfo } from "./types";
+import { parseTicketMetadata, getCurrentSessionId } from "./ticket-parser";
+import type { LaunchTicketResponse } from "./api-client";
+import { OperatorApiClient, discoverApiUrl } from "./api-client";
 
-  /**
+/**
  * Build terminal name from ticket ID
  *
  * Sanitizes the ticket ID to be valid for terminal names,
  * matching the Rust sanitize_session_name behavior.
  */
-  function buildTerminalName(ticketId: string): string {
-    // Sanitize for terminal name (same as Rust sanitize_session_name)
-    const sanitized = ticketId.replace(/[^a-zA-Z0-9_-]/g, '-');
-    return `op-${sanitized}`;
-  }
+function buildTerminalName(ticketId: string): string {
+  // Sanitize for terminal name (same as Rust sanitize_session_name)
+  const sanitized = ticketId.replace(/[^a-zA-Z0-9_-]/g, "-");
+  return `op-${sanitized}`;
+}
 
 /**
  * Manages launching and relaunching tickets
@@ -39,7 +35,7 @@ export class LaunchManager {
   private apiClient: OperatorApiClient | undefined;
   private outputChannel: vscode.OutputChannel | undefined;
 
-  constructor(private terminalManager: TerminalManager) { }
+  constructor(private terminalManager: TerminalManager) {}
 
   /**
    * Set the tickets directory
@@ -91,14 +87,15 @@ export class LaunchManager {
     if (this.terminalManager.exists(terminalName)) {
       const choice = await vscode.window.showWarningMessage(
         `Terminal '${terminalName}' already exists`,
-        'Focus Existing',
-        'Kill and Relaunch'
+        "Focus Existing",
+        "Kill and Relaunch",
       );
 
-      if (choice === 'Focus Existing') {
+      if (choice === "Focus Existing") {
         this.terminalManager.focus(terminalName);
         return;
-      }if (choice === 'Kill and Relaunch') {
+      }
+      if (choice === "Kill and Relaunch") {
         this.terminalManager.kill(terminalName);
       } else {
         return; // Cancelled
@@ -109,7 +106,7 @@ export class LaunchManager {
     try {
       await this.launchViaApi(ticket, options);
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
+      const msg = error instanceof Error ? error.message : "Unknown error";
       this.log(`API launch failed: ${msg}`);
       void vscode.window.showErrorMessage(`Failed to launch ticket: ${msg}`);
     }
@@ -118,49 +115,44 @@ export class LaunchManager {
   /**
    * Launch a ticket via the Operator REST API
    */
-  private async launchViaApi(
-    ticket: TicketInfo,
-    options: LaunchOptions
-  ): Promise<void> {
+  private async launchViaApi(ticket: TicketInfo, options: LaunchOptions): Promise<void> {
     const apiClient = await this.ensureApiClient();
 
     // Check API health first
     try {
       await apiClient.health();
     } catch {
-      throw new Error('Operator API not available');
+      throw new Error("Operator API not available");
     }
 
     this.log(`Launching ticket ${ticket.id} via API`);
 
-    const response: LaunchTicketResponse = await apiClient.launchTicket(
-      ticket.id,
-      {
-        delegator: options.delegator ?? null,
-        provider: null,
-        model: options.delegator ? null : options.model,
-        model_server: null,
-        yolo_mode: options.yoloMode,
-        wrapper: 'vscode',
-        retry_reason: null,
-        resume_session_id: null,
-        target: options.target ?? null,
-      }
-    );
+    const response: LaunchTicketResponse = await apiClient.launchTicket(ticket.id, {
+      delegator: options.delegator ?? null,
+      provider: null,
+      model: options.delegator ? null : options.model,
+      model_server: null,
+      yolo_mode: options.yoloMode,
+      wrapper: "vscode",
+      retry_reason: null,
+      resume_session_id: null,
+      target: options.target ?? null,
+    });
 
     this.log(
       `API response: terminal=${response.terminal_name}, ` +
-      `workdir=${response.working_directory}, ` +
-      `worktree=${response.worktree_created}, ` +
-      `serverSide=${response.executed_server_side}`
+        `workdir=${response.working_directory}, ` +
+        `worktree=${response.worktree_created}, ` +
+        `serverSide=${response.executed_server_side}`,
     );
 
     // Non-local targets (docker/coder/ssh) run SERVER-SIDE: the server owns
-    // the session and `command` is empty — nothing to execute here.
+    // the session and `command` is empty - nothing to execute here.
     if (response.executed_server_side) {
       void vscode.window.showInformationMessage(
         `Launched ${ticket.id} on the Operator server${
-          response.terminal_name ? ` (session ${response.terminal_name})` : ''}`
+          response.terminal_name ? ` (session ${response.terminal_name})` : ""
+        }`,
       );
       return;
     }
@@ -174,10 +166,10 @@ export class LaunchManager {
     this.terminalManager.send(response.terminal_name, response.command);
     this.terminalManager.focus(response.terminal_name);
 
-    const worktreeMsg = response.worktree_created ? ' (worktree created)' : '';
-    const branchMsg = response.branch ? ` on branch ${response.branch}` : '';
+    const worktreeMsg = response.worktree_created ? " (worktree created)" : "";
+    const branchMsg = response.branch ? ` on branch ${response.branch}` : "";
     void vscode.window.showInformationMessage(
-      `Launched agent for ${ticket.id}${worktreeMsg}${branchMsg}`
+      `Launched agent for ${ticket.id}${worktreeMsg}${branchMsg}`,
     );
   }
 
@@ -188,28 +180,28 @@ export class LaunchManager {
     const metadata = await parseTicketMetadata(ticket.filePath);
     const sessionId = metadata ? getCurrentSessionId(metadata) : undefined;
 
-    const choices: string[] = ['Launch Fresh'];
+    const choices: string[] = ["Launch Fresh"];
     if (sessionId) {
-      choices.push('Resume Session');
+      choices.push("Resume Session");
     }
-    choices.push('Cancel');
+    choices.push("Cancel");
 
     const choice = await vscode.window.showWarningMessage(
       `Terminal for '${ticket.id}' not found`,
-      ...choices
+      ...choices,
     );
 
-    if (choice === 'Launch Fresh') {
+    if (choice === "Launch Fresh") {
       await this.launchTicket(ticket, {
         delegator: null,
-        model: 'sonnet',
+        model: "sonnet",
         yoloMode: false,
         resumeSession: false,
       });
-    } else if (choice === 'Resume Session') {
+    } else if (choice === "Resume Session") {
       await this.launchTicket(ticket, {
         delegator: null,
-        model: 'sonnet',
+        model: "sonnet",
         yoloMode: false,
         resumeSession: true,
       });

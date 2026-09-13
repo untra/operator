@@ -1,10 +1,10 @@
-import * as vscode from 'vscode';
-import { StatusItem } from '../status-item';
-import type { SectionContext, StatusSection } from './types';
-import type { SectionId, SectionHealth } from '../generated';
-import { discoverApiUrl, OperatorApiClient } from '../api-client';
-import type { DelegatorResponse } from '../generated/DelegatorResponse';
-import type { DelegatorsResponse } from '../generated/DelegatorsResponse';
+import * as vscode from "vscode";
+import { StatusItem } from "../status-item";
+import type { SectionContext, StatusSection } from "./types";
+import type { SectionId, SectionHealth } from "../generated";
+import { discoverApiUrl, OperatorApiClient } from "../api-client";
+import type { DelegatorResponse } from "../generated/DelegatorResponse";
+import type { DelegatorsResponse } from "../generated/DelegatorsResponse";
 
 interface DelegatorState {
   apiAvailable: boolean;
@@ -12,14 +12,16 @@ interface DelegatorState {
 }
 
 export class DelegatorSection implements StatusSection {
-  readonly sectionId: SectionId = 'delegators';
-  readonly prerequisites: SectionId[] = ['llm'];
+  readonly sectionId: SectionId = "delegators";
+  readonly prerequisites: SectionId[] = ["llm"];
 
   private state: DelegatorState = { apiAvailable: false, delegators: [] };
 
   health(): SectionHealth {
-    if (!this.state.apiAvailable) { return 'Yellow'; }
-    return this.state.delegators.length > 0 ? 'Green' : 'Yellow';
+    if (!this.state.apiAvailable) {
+      return "Yellow";
+    }
+    return this.state.delegators.length > 0 ? "Green" : "Yellow";
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -38,23 +40,22 @@ export class DelegatorSection implements StatusSection {
     if (this.state.apiAvailable) {
       const count = this.state.delegators.length;
       return new StatusItem({
-        label: 'Delegators',
-        description: count > 0
-          ? `${count} delegator${count !== 1 ? 's' : ''}`
-          : 'None configured',
-        icon: 'rocket',
-        collapsibleState: count > 0
-          ? vscode.TreeItemCollapsibleState.Collapsed
-          : vscode.TreeItemCollapsibleState.Expanded,
+        label: "Delegators",
+        description: count > 0 ? `${count} delegator${count !== 1 ? "s" : ""}` : "None configured",
+        icon: "rocket",
+        collapsibleState:
+          count > 0
+            ? vscode.TreeItemCollapsibleState.Collapsed
+            : vscode.TreeItemCollapsibleState.Expanded,
         sectionId: this.sectionId,
         health: this.health(),
       });
     }
 
     return new StatusItem({
-      label: 'Delegators',
-      description: 'API required',
-      icon: 'rocket',
+      label: "Delegators",
+      description: "API required",
+      icon: "rocket",
       collapsibleState: vscode.TreeItemCollapsibleState.None,
       sectionId: this.sectionId,
       health: this.health(),
@@ -70,39 +71,51 @@ export class DelegatorSection implements StatusSection {
 
     for (const delegator of this.state.delegators) {
       const label = delegator.display_name || delegator.name;
-      const yoloFlag = delegator.launch_config?.yolo ? ' · yolo' : '';
-      const serverSuffix = delegator.model_server ? ` @ ${delegator.model_server}` : '';
+      const yoloFlag = delegator.launch_config?.yolo ? " · yolo" : "";
+      const serverSuffix = delegator.model_server ? ` @ ${delegator.model_server}` : "";
 
-      items.push(new StatusItem({
-        label,
-        description: `${delegator.llm_tool}:${delegator.model}${yoloFlag}${serverSuffix}`,
-        icon: `operator-${delegator.llm_tool}`,
-        tooltip: this.buildTooltip(delegator),
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label,
+          description: `${delegator.llm_tool}:${delegator.model}${yoloFlag}${serverSuffix}`,
+          icon: `operator-${delegator.llm_tool}`,
+          tooltip: this.buildTooltip(delegator),
+          sectionId: this.sectionId,
+        }),
+      );
     }
 
-    items.push(new StatusItem({
-      label: 'Add Delegator',
-      icon: 'add',
-      command: {
-        command: 'operator.openCreateDelegator',
-        title: 'Add Delegator',
-      },
-      sectionId: this.sectionId,
-    }));
+    items.push(
+      new StatusItem({
+        label: "Add Delegator",
+        icon: "add",
+        command: {
+          command: "operator.openCreateDelegator",
+          title: "Add Delegator",
+        },
+        sectionId: this.sectionId,
+      }),
+    );
 
     return items;
   }
 
   private buildTooltip(d: DelegatorResponse): string {
     const lines = [`${d.name}: ${d.llm_tool} / ${d.model}`];
-    if (d.model_server) { lines.push(`Model server: ${d.model_server}`); }
-    if (d.launch_config) {
-      if (d.launch_config.yolo) { lines.push('YOLO mode: enabled'); }
-      if (d.launch_config.permission_mode) { lines.push(`Permission: ${d.launch_config.permission_mode}`); }
-      if (d.launch_config.flags.length > 0) { lines.push(`Flags: ${d.launch_config.flags.join(' ')}`); }
+    if (d.model_server) {
+      lines.push(`Model server: ${d.model_server}`);
     }
-    return lines.join('\n');
+    if (d.launch_config) {
+      if (d.launch_config.yolo) {
+        lines.push("YOLO mode: enabled");
+      }
+      if (d.launch_config.permission_mode) {
+        lines.push(`Permission: ${d.launch_config.permission_mode}`);
+      }
+      if (d.launch_config.flags.length > 0) {
+        lines.push(`Flags: ${d.launch_config.flags.join(" ")}`);
+      }
+    }
+    return lines.join("\n");
   }
 }

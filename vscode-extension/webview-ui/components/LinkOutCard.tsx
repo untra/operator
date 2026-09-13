@@ -1,6 +1,6 @@
-import React from 'react';
-import { Button, Card, CardContent } from './primitives';
-import { SectionHeader } from './SectionHeader';
+import React from "react";
+import { Button, Card, CardContent } from "./primitives";
+import { SectionHeader } from "./SectionHeader";
 
 interface LinkOutCardProps {
   id: string;

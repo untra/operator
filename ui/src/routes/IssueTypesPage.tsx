@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import { OperatorApi } from '../api-client';
-import type { IssueTypeSummary, IssueTypeResponse } from '../api-client';
-import { useHost } from '../host';
-import { CONCEPTS } from '../concepts';
-import { PageHeader } from '../components/PageHeader';
-import { WorkflowGraph } from '@operator/webcomponents';
-import type { IssueType } from '@operator/bindings/IssueType';
-import styles from './IssueTypesPage.module.css';
+import { useEffect, useState } from "react";
+import { OperatorApi } from "../api-client";
+import type { IssueTypeSummary, IssueTypeResponse } from "../api-client";
+import { useHost } from "../host";
+import { CONCEPTS } from "../concepts";
+import { PageHeader } from "../components/PageHeader";
+import { WorkflowGraph } from "@operator/webcomponents";
+import type { IssueType } from "@operator/bindings/IssueType";
+import styles from "./IssueTypesPage.module.css";
 
 const ISSUE_TYPES = CONCEPTS.issuetypes;
 
@@ -17,7 +17,7 @@ export function IssueTypesPage() {
   const [selected, setSelected] = useState<IssueTypeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'steps' | 'graph'>('steps');
+  const [view, setView] = useState<"steps" | "graph">("steps");
   const [document_, setDocument] = useState<IssueType | null>(null);
 
   useEffect(() => {
@@ -31,8 +31,12 @@ export function IssueTypesPage() {
   // Lazily fetch the native Operator workflow document when the graph opens.
   // Same bytes the docs site renders, so the two graphs cannot disagree.
   useEffect(() => {
-    if (view !== 'graph' || !selected) {return undefined;}
-    if (document_?.key === selected.key) {return undefined;}
+    if (view !== "graph" || !selected) {
+      return undefined;
+    }
+    if (document_?.key === selected.key) {
+      return undefined;
+    }
     let cancelled = false;
     api
       .getIssueTypeDocument(selected.key)
@@ -43,7 +47,9 @@ export function IssueTypesPage() {
         return undefined;
       })
       .catch((e) => {
-        if (!cancelled) {setError(e instanceof Error ? e.message : 'Failed to load workflow');}
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load workflow");
+        }
       });
     return () => {
       cancelled = true;
@@ -55,11 +61,13 @@ export function IssueTypesPage() {
       const detail = await api.getIssueType(key);
       setSelected(detail);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load issue type');
+      setError(e instanceof Error ? e.message : "Failed to load issue type");
     }
   };
 
-  if (loading) {return <div className={styles.loading}>Loading issue types...</div>;}
+  if (loading) {
+    return <div className={styles.loading}>Loading issue types...</div>;
+  }
 
   return (
     <div className={styles.page}>
@@ -77,7 +85,7 @@ export function IssueTypesPage() {
           {issueTypes.map((it) => (
             <button
               key={it.key}
-              className={`${styles.item} ${selected?.key === it.key ? styles.selectedItem : ''}`}
+              className={`${styles.item} ${selected?.key === it.key ? styles.selectedItem : ""}`}
               onClick={() => handleSelect(it.key)}
             >
               <span className={styles.glyph}>{it.glyph}</span>
@@ -115,20 +123,20 @@ export function IssueTypesPage() {
                     <h3 className={styles.stepsTitle}>Workflow</h3>
                     <div className={styles.toggle} role="tablist">
                       <button
-                        className={view === 'steps' ? styles.toggleActive : styles.toggleBtn}
-                        onClick={() => setView('steps')}
+                        className={view === "steps" ? styles.toggleActive : styles.toggleBtn}
+                        onClick={() => setView("steps")}
                       >
                         Steps
                       </button>
                       <button
-                        className={view === 'graph' ? styles.toggleActive : styles.toggleBtn}
-                        onClick={() => setView('graph')}
+                        className={view === "graph" ? styles.toggleActive : styles.toggleBtn}
+                        onClick={() => setView("graph")}
                       >
                         Graph
                       </button>
                     </div>
                   </div>
-                  {view === 'steps' ? (
+                  {view === "steps" ? (
                     <ol className={styles.stepList}>
                       {selected.steps.map((step) => (
                         <li key={step.name} className={styles.step}>

@@ -2,20 +2,20 @@
 // account; once bootstrap completes this redirects to login, so it cannot be
 // used to re-claim the account.
 
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useHost } from '../host';
-import { OperatorApi, ApiError } from '../api-client';
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../auth-constraints';
-import styles from './AuthPage.module.css';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useHost } from "../host";
+import { OperatorApi, ApiError } from "../api-client";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "../auth-constraints";
+import styles from "./AuthPage.module.css";
 
 export function SetupPage() {
   const host = useHost();
   const navigate = useNavigate();
   const [needsTemporary, setNeedsTemporary] = useState(false);
-  const [temporary, setTemporary] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [temporary, setTemporary] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -24,14 +24,14 @@ export function SetupPage() {
     api
       .bootstrapStatus()
       .then((status) => {
-        if (status.state === 'complete') {
-          void navigate('/login', { replace: true });
+        if (status.state === "complete") {
+          void navigate("/login", { replace: true });
         } else {
           setNeedsTemporary(status.requires_temporary_password);
         }
         return undefined;
       })
-      .catch(() => setError('Cannot reach the Operator server.'));
+      .catch(() => setError("Cannot reach the Operator server."));
   }, [host, navigate]);
 
   const tooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
@@ -53,16 +53,16 @@ export function SetupPage() {
       });
       // Bootstrap creates the account but does not sign you in.
       await api.login(result.username, password);
-      void navigate('/', { replace: true });
+      void navigate("/onboarding", { replace: true });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        setError('This server already has an admin account. Sign in instead.');
+        setError("This server already has an admin account. Sign in instead.");
       } else if (e instanceof ApiError && e.status === 401) {
-        setError('The temporary password is incorrect.');
+        setError("The temporary password is incorrect.");
       } else if (e instanceof ApiError && e.status === 429) {
-        setError('Too many attempts. Wait a moment and try again.');
+        setError("Too many attempts. Wait a moment and try again.");
       } else {
-        setError(e instanceof ApiError ? e.message : 'Setup failed.');
+        setError(e instanceof ApiError ? e.message : "Setup failed.");
       }
     } finally {
       setBusy(false);
@@ -74,8 +74,7 @@ export function SetupPage() {
       <form className={styles.card} onSubmit={submit}>
         <h1 className={styles.title}>Set up Operator</h1>
         <p className={styles.subtitle}>
-          Choose the admin password for this workspace. Operator has a single
-          human account.
+          Choose the admin password for this workspace. Operator has a single human account.
         </p>
 
         {error && <p className={styles.error}>{error}</p>}
@@ -83,8 +82,7 @@ export function SetupPage() {
         {needsTemporary && (
           <>
             <p className={styles.notice}>
-              This server was started with a bootstrap secret. Enter it to claim
-              the admin account.
+              This server was started with a bootstrap secret. Enter it to claim the admin account.
             </p>
             <label className={styles.field}>
               <span className={styles.label}>Temporary password</span>
@@ -134,7 +132,7 @@ export function SetupPage() {
         </label>
 
         <button className={styles.button} type="submit" disabled={busy || !ready}>
-          {busy ? 'Creating…' : 'Create admin account'}
+          {busy ? "Creating…" : "Create admin account"}
         </button>
       </form>
     </div>

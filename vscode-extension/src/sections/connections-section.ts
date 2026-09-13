@@ -1,26 +1,26 @@
-import * as vscode from 'vscode';
-import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
-import { StatusItem } from '../status-item';
-import type { SectionContext, StatusSection, WebhookStatus, ApiStatus } from './types';
-import type { SectionId, SectionHealth } from '../generated';
-import type { SessionInfo } from '../types';
-import type { ApiSessionInfo} from '../api-client';
-import { discoverApiUrl, AuthRequiredError, OperatorApiClient } from '../api-client';
-import { SIGN_IN_COMMAND_TITLE } from '../auth/errors';
-import { getOperatorPath, getOperatorVersion } from '../operator-binary';
-import { isMcpServerRegistered } from '../mcp-connect';
+import * as vscode from "vscode";
+import * as path from "node:path";
+import * as fs from "node:fs/promises";
+import { StatusItem } from "../status-item";
+import type { SectionContext, StatusSection, WebhookStatus, ApiStatus } from "./types";
+import type { SectionId, SectionHealth } from "../generated";
+import type { SessionInfo } from "../types";
+import type { ApiSessionInfo } from "../api-client";
+import { discoverApiUrl, AuthRequiredError, OperatorApiClient } from "../api-client";
+import { SIGN_IN_COMMAND_TITLE } from "../auth/errors";
+import { getOperatorPath, getOperatorVersion } from "../operator-binary";
+import { isMcpServerRegistered } from "../mcp-connect";
 
 export class ConnectionsSection implements StatusSection {
-  readonly sectionId: SectionId = 'connections';
-  readonly prerequisites: SectionId[] = ['config'];
+  readonly sectionId: SectionId = "connections";
+  readonly prerequisites: SectionId[] = ["config"];
 
   private webhookStatus: WebhookStatus = { running: false };
   private apiStatus: ApiStatus = { connected: false };
   private operatorVersion: string | undefined;
   private localDirectoryName: string | undefined;
   private mcpRegistered = false;
-  private wrapperType = 'vscode';
+  private wrapperType = "vscode";
   private webUiAvailable = false;
 
   get isApiConnected(): boolean {
@@ -34,9 +34,13 @@ export class ConnectionsSection implements StatusSection {
   health(): SectionHealth {
     const api = this.apiStatus.connected;
     const wh = this.webhookStatus.running;
-    if (api && wh) { return 'Green'; }
-    if (api || wh) { return 'Yellow'; }
-    return 'Red';
+    if (api && wh) {
+      return "Green";
+    }
+    if (api || wh) {
+      return "Yellow";
+    }
+    return "Red";
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -62,9 +66,9 @@ export class ConnectionsSection implements StatusSection {
       return;
     }
 
-    const webhookSessionFile = path.join(ctx.ticketsDir, 'operator', 'vscode-session.json');
+    const webhookSessionFile = path.join(ctx.ticketsDir, "operator", "vscode-session.json");
     try {
-      const content = await fs.readFile(webhookSessionFile, 'utf-8');
+      const content = await fs.readFile(webhookSessionFile, "utf-8");
       const session = JSON.parse(content) as SessionInfo;
 
       this.webhookStatus = {
@@ -89,9 +93,9 @@ export class ConnectionsSection implements StatusSection {
 
   private async checkApiStatus(ctx: SectionContext): Promise<void> {
     if (ctx.ticketsDir) {
-      const apiSessionFile = path.join(ctx.ticketsDir, 'operator', 'api-session.json');
+      const apiSessionFile = path.join(ctx.ticketsDir, "operator", "api-session.json");
       try {
-        const content = await fs.readFile(apiSessionFile, 'utf-8');
+        const content = await fs.readFile(apiSessionFile, "utf-8");
         const session = JSON.parse(content) as ApiSessionInfo;
         const apiUrl = `http://localhost:${session.port}`;
 
@@ -110,12 +114,12 @@ export class ConnectionsSection implements StatusSection {
   private async checkOperatorVersion(ctx: SectionContext): Promise<void> {
     const operatorPath = await getOperatorPath(ctx.extensionContext);
     if (operatorPath) {
-      this.operatorVersion = await getOperatorVersion(operatorPath) || undefined;
+      this.operatorVersion = (await getOperatorVersion(operatorPath)) || undefined;
       return;
     }
 
     try {
-      const response = await fetch('https://operator.untra.io/VERSION');
+      const response = await fetch("https://operator.untra.io/VERSION");
       if (response.ok) {
         this.operatorVersion = (await response.text()).trim() || undefined;
       }
@@ -128,13 +132,13 @@ export class ConnectionsSection implements StatusSection {
     try {
       const config = await ctx.readConfigToml();
       const sessions = config.sessions as Record<string, unknown> | undefined;
-      if (sessions?.wrapper && typeof sessions.wrapper === 'string') {
+      if (sessions?.wrapper && typeof sessions.wrapper === "string") {
         this.wrapperType = sessions.wrapper;
       } else {
-        this.wrapperType = 'vscode';
+        this.wrapperType = "vscode";
       }
     } catch {
-      this.wrapperType = 'vscode';
+      this.wrapperType = "vscode";
     }
   }
 
@@ -156,7 +160,7 @@ export class ConnectionsSection implements StatusSection {
             port,
             url: apiUrl,
             mismatch: {
-              kind: 'version',
+              kind: "version",
               detail: `running v${found}, this binary is v${expected}`,
             },
           };
@@ -176,7 +180,7 @@ export class ConnectionsSection implements StatusSection {
             port,
             url: apiUrl,
             mismatch: {
-              kind: 'project',
+              kind: "project",
               detail: `serves '${health.directory_name}', this workspace is '${this.localDirectoryName}'`,
             },
           };
@@ -201,7 +205,7 @@ export class ConnectionsSection implements StatusSection {
           connected: false,
           port,
           url: apiUrl,
-          mismatch: { kind: 'auth', detail: `at ${apiUrl} requires sign-in` },
+          mismatch: { kind: "auth", detail: `at ${apiUrl} requires sign-in` },
         };
         this.webUiAvailable = false;
         return false;
@@ -215,7 +219,7 @@ export class ConnectionsSection implements StatusSection {
   private async checkWebUi(apiUrl: string): Promise<void> {
     try {
       const res = await fetch(apiUrl);
-      this.webUiAvailable = res.ok && (res.headers.get('content-type') || '').includes('text/html');
+      this.webUiAvailable = res.ok && (res.headers.get("content-type") || "").includes("text/html");
     } catch {
       this.webUiAvailable = false;
     }
@@ -223,16 +227,16 @@ export class ConnectionsSection implements StatusSection {
 
   getTopLevelItem(ctx: SectionContext): StatusItem {
     return new StatusItem({
-      label: 'Connections',
-      description: ctx.configReady ? this.getConnectionsSummary() : 'Not Ready',
-      icon: ctx.configReady ? this.getConnectionsIcon() : 'debug-configure',
+      label: "Connections",
+      description: ctx.configReady ? this.getConnectionsSummary() : "Not Ready",
+      icon: ctx.configReady ? this.getConnectionsIcon() : "debug-configure",
       collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
       sectionId: this.sectionId,
-      command: ctx.configReady ? undefined : (
-        ctx.extensionContext.globalState.get<string>('operator.workingDirectory')
-          ? { command: 'operator.runSetup', title: 'Run Operator Setup' }
-          : { command: 'operator.selectWorkingDirectory', title: 'Select Working Directory' }
-      ),
+      command: ctx.configReady
+        ? undefined
+        : ctx.extensionContext.globalState.get<string>("operator.workingDirectory")
+          ? { command: "operator.runSetup", title: "Run Operator Setup" }
+          : { command: "operator.selectWorkingDirectory", title: "Select Working Directory" },
       health: this.health(),
     });
   }
@@ -241,14 +245,14 @@ export class ConnectionsSection implements StatusSection {
     const configuredBoth = ctx.configReady;
 
     // 1. Session Wrapper
-    const isVscodeWrapper = this.wrapperType === 'vscode';
+    const isVscodeWrapper = this.wrapperType === "vscode";
     const wrapperItem = new StatusItem({
-      label: 'Session Wrapper',
-      description: isVscodeWrapper ? 'VS Code Terminal' : this.wrapperType,
-      icon: isVscodeWrapper ? 'pass' : 'warning',
+      label: "Session Wrapper",
+      description: isVscodeWrapper ? "VS Code Terminal" : this.wrapperType,
+      icon: isVscodeWrapper ? "pass" : "warning",
       tooltip: isVscodeWrapper
-        ? 'Sessions route through the VS Code webhook to managed terminals'
-        : `Sessions use ${this.wrapperType} — VS Code terminal integration unavailable`,
+        ? "Sessions route through the VS Code webhook to managed terminals"
+        : `Sessions use ${this.wrapperType} - VS Code terminal integration unavailable`,
       sectionId: this.sectionId,
     });
 
@@ -257,28 +261,28 @@ export class ConnectionsSection implements StatusSection {
     if (this.apiStatus.connected && this.apiStatus.version) {
       const swaggerUrl = `http://localhost:${this.apiStatus.port ? this.apiStatus.port : 7008}/swagger-ui`;
       versionItem = new StatusItem({
-        label: 'Operator',
-        description: `Version ${  this.apiStatus.version}`,
-        icon: 'versions',
-        tooltip: 'Open Swagger UI',
+        label: "Operator",
+        description: `Version ${this.apiStatus.version}`,
+        icon: "versions",
+        tooltip: "Open Swagger UI",
         command: {
-          command: 'vscode.open',
-          title: 'Open Swagger UI',
+          command: "vscode.open",
+          title: "Open Swagger UI",
           arguments: [vscode.Uri.parse(swaggerUrl)],
         },
         sectionId: this.sectionId,
       });
     } else {
       versionItem = new StatusItem({
-        label: 'Operator Version',
-        description: this.operatorVersion ? `Version ${  this.operatorVersion}` : 'Not installed',
-        icon: 'versions',
+        label: "Operator Version",
+        description: this.operatorVersion ? `Version ${this.operatorVersion}` : "Not installed",
+        icon: "versions",
         tooltip: this.operatorVersion
-          ? `Installed: ${this.operatorVersion} — click to update`
-          : 'Click to download Operator',
+          ? `Installed: ${this.operatorVersion} - click to update`
+          : "Click to download Operator",
         command: {
-          command: 'operator.downloadOperator',
-          title: 'Download Operator',
+          command: "operator.downloadOperator",
+          title: "Download Operator",
         },
         sectionId: this.sectionId,
       });
@@ -288,53 +292,55 @@ export class ConnectionsSection implements StatusSection {
     let apiItem: StatusItem;
     if (this.apiStatus.connected) {
       apiItem = new StatusItem({
-        label: 'API',
-        description: this.apiStatus.url ? this.apiStatus.url : 'Connected',
-        icon: 'pass',
+        label: "API",
+        description: this.apiStatus.url ? this.apiStatus.url : "Connected",
+        icon: "pass",
         tooltip: this.apiStatus.directoryName
           ? `Operator REST API at ${this.apiStatus.url} (project '${this.apiStatus.directoryName}')`
           : `Operator REST API at ${this.apiStatus.url}`,
         sectionId: this.sectionId,
       });
-    } else if (this.apiStatus.mismatch?.kind === 'auth') {
+    } else if (this.apiStatus.mismatch?.kind === "auth") {
       apiItem = new StatusItem({
-        label: 'API',
-        description: 'Sign-in required',
-        icon: 'key',
+        label: "API",
+        description: "Sign-in required",
+        icon: "key",
         tooltip:
           `The Operator API ${this.apiStatus.mismatch.detail}. ` +
           `Run "${SIGN_IN_COMMAND_TITLE}" to authorize this editor.`,
-        command: { command: 'operator.signIn', title: SIGN_IN_COMMAND_TITLE },
+        command: { command: "operator.signIn", title: SIGN_IN_COMMAND_TITLE },
         sectionId: this.sectionId,
       });
     } else if (this.apiStatus.mismatch) {
       // An API answered on the port but is not adoptable as ours.
       const mismatch = this.apiStatus.mismatch;
       apiItem = new StatusItem({
-        label: 'API',
-        description: mismatch.kind === 'version' ? 'Version mismatch' : 'Different project',
-        icon: 'warning',
+        label: "API",
+        description: mismatch.kind === "version" ? "Version mismatch" : "Different project",
+        icon: "warning",
         tooltip:
           `An Operator API on this port ${mismatch.detail}. ` +
-          'Stop the other instance or configure a different port (operator.apiUrl), then start your own server.',
+          "Stop the other instance or configure a different port (operator.apiUrl), then start your own server.",
         command: {
-          command: 'operator.startOperatorServer',
-          title: 'Start Operator Server',
+          command: "operator.startOperatorServer",
+          title: "Start Operator Server",
         },
         sectionId: this.sectionId,
       });
     } else {
       apiItem = new StatusItem({
-        label: 'API',
-        description: configuredBoth ? 'Disconnected' : 'Not Ready',
-        icon: 'error',
+        label: "API",
+        description: configuredBoth ? "Disconnected" : "Not Ready",
+        icon: "error",
         tooltip: configuredBoth
-          ? 'Click to start Operator API server'
-          : 'Complete configuration first',
-        command: configuredBoth ? {
-          command: 'operator.startOperatorServer',
-          title: 'Start Operator Server',
-        } : undefined,
+          ? "Click to start Operator API server"
+          : "Complete configuration first",
+        command: configuredBoth
+          ? {
+              command: "operator.startOperatorServer",
+              title: "Start Operator Server",
+            }
+          : undefined,
         sectionId: this.sectionId,
       });
     }
@@ -342,47 +348,53 @@ export class ConnectionsSection implements StatusSection {
     // 4. Web UI
     const webUiItem = this.webUiAvailable
       ? new StatusItem({
-          label: 'Web UI',
+          label: "Web UI",
           description: `http://localhost:${this.apiStatus.port ? this.apiStatus.port : 7008}`,
-          icon: 'pass',
-          tooltip: 'Click to open the embedded web UI in browser',
+          icon: "pass",
+          tooltip: "Click to open the embedded web UI in browser",
           command: {
-            command: 'vscode.open',
-            title: 'Open Web UI',
-            arguments: [vscode.Uri.parse(`http://localhost:${this.apiStatus.port ? this.apiStatus.port : 7008}`)],
+            command: "vscode.open",
+            title: "Open Web UI",
+            arguments: [
+              vscode.Uri.parse(
+                `http://localhost:${this.apiStatus.port ? this.apiStatus.port : 7008}`,
+              ),
+            ],
           },
           sectionId: this.sectionId,
         })
       : new StatusItem({
-          label: 'Web UI',
-          description: this.apiStatus.connected ? 'Not available' : 'API required',
-          icon: 'circle-slash',
+          label: "Web UI",
+          description: this.apiStatus.connected ? "Not available" : "API required",
+          icon: "circle-slash",
           tooltip: this.apiStatus.connected
-            ? 'The embedded web UI requires the binary to be built with --features embed-ui'
-            : 'Start the Operator API to enable the web UI',
+            ? "The embedded web UI requires the binary to be built with --features embed-ui"
+            : "Start the Operator API to enable the web UI",
           sectionId: this.sectionId,
         });
 
     // 5. Webhook Connection
     const webhookItem = this.webhookStatus.running
       ? new StatusItem({
-          label: 'Webhook',
-          description: `Running${this.webhookStatus.port ? ` :${this.webhookStatus.port}` : ''}`,
-          icon: 'pass',
+          label: "Webhook",
+          description: `Running${this.webhookStatus.port ? ` :${this.webhookStatus.port}` : ""}`,
+          icon: "pass",
           tooltip: `Webhook bridge: Operator API \u2192 VS Code terminals (port ${this.webhookStatus.port})`,
           sectionId: this.sectionId,
         })
       : new StatusItem({
-          label: 'Webhook',
-          description: configuredBoth ? `Stopped` : 'Not Ready',
-          icon: 'circle-slash',
+          label: "Webhook",
+          description: configuredBoth ? `Stopped` : "Not Ready",
+          icon: "circle-slash",
           tooltip: configuredBoth
-            ? 'Click to start webhook server'
-            : 'Complete configuration first',
-          command: configuredBoth ? {
-            command: 'operator.startWebhookServer',
-            title: 'Start Webhook Server',
-          } : undefined,
+            ? "Click to start webhook server"
+            : "Complete configuration first",
+          command: configuredBoth
+            ? {
+                command: "operator.startWebhookServer",
+                title: "Start Webhook Server",
+              }
+            : undefined,
           sectionId: this.sectionId,
         });
 
@@ -390,34 +402,36 @@ export class ConnectionsSection implements StatusSection {
     let mcpItem: StatusItem;
     if (this.mcpRegistered) {
       mcpItem = new StatusItem({
-        label: 'MCP',
-        description: 'Connected',
-        icon: 'pass',
-        tooltip: 'Operator MCP server is registered in workspace settings',
-        command: this.apiStatus.connected ? {
-          command: 'operator.connectMcpServer',
-          title: 'Reconnect MCP Server',
-        } : undefined,
+        label: "MCP",
+        description: "Connected",
+        icon: "pass",
+        tooltip: "Operator MCP server is registered in workspace settings",
+        command: this.apiStatus.connected
+          ? {
+              command: "operator.connectMcpServer",
+              title: "Reconnect MCP Server",
+            }
+          : undefined,
         sectionId: this.sectionId,
       });
     } else if (this.apiStatus.connected) {
       mcpItem = new StatusItem({
-        label: 'MCP',
-        description: 'Connect',
-        icon: 'plug',
-        tooltip: 'Connect Operator as MCP server in VS Code',
+        label: "MCP",
+        description: "Connect",
+        icon: "plug",
+        tooltip: "Connect Operator as MCP server in VS Code",
         command: {
-          command: 'operator.connectMcpServer',
-          title: 'Connect MCP Server',
+          command: "operator.connectMcpServer",
+          title: "Connect MCP Server",
         },
         sectionId: this.sectionId,
       });
     } else {
       mcpItem = new StatusItem({
-        label: 'MCP',
-        description: 'API required',
-        icon: 'circle-slash',
-        tooltip: 'Start the Operator API to enable MCP connection',
+        label: "MCP",
+        description: "API required",
+        icon: "circle-slash",
+        tooltip: "Start the Operator API to enable MCP connection",
         sectionId: this.sectionId,
       });
     }
@@ -427,21 +441,21 @@ export class ConnectionsSection implements StatusSection {
 
   private getConnectionsSummary(): string {
     if (this.apiStatus.connected && this.webhookStatus.running) {
-      return 'All connected';
+      return "All connected";
     }
     if (this.apiStatus.connected || this.webhookStatus.running) {
-      return 'Partial';
+      return "Partial";
     }
-    return 'Disconnected';
+    return "Disconnected";
   }
 
   private getConnectionsIcon(): string {
     if (this.apiStatus.connected && this.webhookStatus.running) {
-      return 'pass';
+      return "pass";
     }
     if (this.apiStatus.connected || this.webhookStatus.running) {
-      return 'warning';
+      return "warning";
     }
-    return 'error';
+    return "error";
   }
 }

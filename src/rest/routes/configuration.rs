@@ -44,6 +44,7 @@ fn response(config: &Config) -> ConfigurationResponse {
             confirm_autonomous: config.launch.confirm_autonomous,
             confirm_paired: config.launch.confirm_paired,
             launch_delay_ms: config.launch.launch_delay_ms,
+            target: config.launch.target.clone(),
             docker_enabled: config.launch.docker.enabled,
             docker_image: config.launch.docker.image.clone(),
             yolo_enabled: config.launch.yolo.enabled,
@@ -134,6 +135,9 @@ fn apply_patch(config: &mut Config, patch: UpdateConfigurationRequest) {
         if let Some(value) = launch.launch_delay_ms {
             config.launch.launch_delay_ms = value;
         }
+        if let Some(value) = launch.target {
+            config.launch.target = Some(value);
+        }
         if let Some(value) = launch.docker_enabled {
             config.launch.docker.enabled = value;
         }
@@ -191,6 +195,8 @@ pub async fn patch_config(
     let updated = state
         .mutate_config(move |config| {
             apply_patch(config, patch);
+            crate::config::validate_targets(config)
+                .map_err(|error| ApiError::ValidationError(error.to_string()))?;
             Ok(response(config))
         })
         .await?;

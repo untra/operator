@@ -176,10 +176,10 @@ pub fn chain_step(config: &Config, ticket: &Ticket, step_name: &str) -> bool {
 
 /// Resolve the opr8r invocation for the launch environment.
 ///
-/// Inside a container the image ships `opr8r` on PATH; locally the binary
-/// sits alongside `operator` (or on PATH as a fallback).
-pub fn resolve_opr8r_invocation(containerized: bool) -> String {
-    if containerized {
+/// Commands that execute on another target resolve `opr8r` from that target's
+/// PATH; local commands prefer the binary alongside `operator`.
+pub fn resolve_opr8r_invocation(on_target_path: bool) -> String {
+    if on_target_path {
         return "opr8r".to_string();
     }
     locate_opr8r_binary().map_or_else(|| "opr8r".to_string(), |p| p.display().to_string())
@@ -517,8 +517,27 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_opr8r_invocation_containerized_uses_path_name() {
+    fn test_resolve_opr8r_invocation_on_target_uses_path_name() {
         assert_eq!(resolve_opr8r_invocation(true), "opr8r");
+    }
+
+    #[test]
+    fn test_resolve_opr8r_invocation_coder_uses_path_name() {
+        let options = crate::agents::launcher::LaunchOptions {
+            target: crate::config::TargetDef {
+                name: crate::config::DEFAULT_CODER_TARGET_NAME.to_string(),
+                display_name: None,
+                kind: crate::config::TargetKind::Coder(crate::config::CoderConfig {
+                    template: "operator-agent".to_string(),
+                    ..Default::default()
+                }),
+            },
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_opr8r_invocation(options.resolves_on_target_path()),
+            "opr8r"
+        );
     }
 
     #[test]

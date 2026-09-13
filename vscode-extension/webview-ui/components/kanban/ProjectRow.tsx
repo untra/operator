@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { Chip, IconButton, SelectInput } from '../primitives';
-import { MappingPanel } from './MappingPanel';
-import type { ProjectSyncConfig } from '../../../src/generated/ProjectSyncConfig';
-import type { KanbanStatusMapping } from '../../../src/generated/KanbanStatusMapping';
-import type { IssueTypeSummary, CollectionResponse, ExternalIssueTypeSummary } from '../../types/messages';
+import React, { useEffect, useState } from "react";
+import { Chip, IconButton, SelectInput } from "../primitives";
+import { MappingPanel } from "./MappingPanel";
+import type { ProjectSyncConfig } from "../../../src/generated/ProjectSyncConfig";
+import type { KanbanStatusMapping } from "../../../src/generated/KanbanStatusMapping";
+import type {
+  IssueTypeSummary,
+  CollectionResponse,
+  ExternalIssueTypeSummary,
+} from "../../types/messages";
 
 interface ProjectRowProps {
   provider: string;
@@ -22,12 +26,13 @@ interface ProjectRowProps {
 }
 
 const OPERATOR_STATES = [
-  { field: 'todo', label: 'Todo', helper: 'Pulled into the queue; requeue pushes back here' },
-  { field: 'doing', label: 'Doing', helper: 'Pushed when a ticket is launched/claimed' },
-  { field: 'done', label: 'Done', helper: 'Pushed when a ticket completes' },
+  { field: "todo", label: "Todo", helper: "Pulled into the queue; requeue pushes back here" },
+  { field: "doing", label: "Doing", helper: "Pushed when a ticket is launched/claimed" },
+  { field: "done", label: "Done", helper: "Pushed when a ticket completes" },
 ] as const;
 
-const DIVIDER_BORDER = '1px solid var(--vscode-sideBar-border, var(--vscode-widget-border, #45454580))';
+const DIVIDER_BORDER =
+  "1px solid var(--vscode-sideBar-border, var(--vscode-widget-border, #45454580))";
 
 export function ProjectRow({
   provider,
@@ -58,7 +63,7 @@ export function ProjectRow({
 
   const handleMappingChange = (externalName: string, operatorKey: string) => {
     const newMappings = { ...project.type_mappings };
-    if (operatorKey === '') {
+    if (operatorKey === "") {
       delete newMappings[externalName];
     } else {
       newMappings[externalName] = operatorKey;
@@ -66,9 +71,9 @@ export function ProjectRow({
     onUpdate(sectionKey, `projects.${projectKey}.type_mappings`, newMappings);
   };
 
-  const handleStatusMappingChange = (field: 'todo' | 'doing' | 'done', column: string) => {
+  const handleStatusMappingChange = (field: "todo" | "doing" | "done", column: string) => {
     const next: KanbanStatusMapping = { ...statusMapping };
-    if (column === '') {
+    if (column === "") {
       delete next[field];
     } else {
       next[field] = column;
@@ -88,7 +93,7 @@ export function ProjectRow({
   const toggleExpanded = () => setExpanded((current) => !current);
 
   return (
-    <div style={{ borderBottom: DIVIDER_BORDER, padding: '8px 0' }}>
+    <div style={{ borderBottom: DIVIDER_BORDER, padding: "8px 0" }}>
       <div className="op-row op-gap-2">
         <span className="op-body2" style={{ fontWeight: 600, minWidth: 80 }}>
           {projectKey}
@@ -97,14 +102,16 @@ export function ProjectRow({
         <div style={{ minWidth: 160 }}>
           <SelectInput
             label="Collection"
-            value={project.collection_name || ''}
-            onChange={(e) => onUpdate(sectionKey, `projects.${projectKey}.collection_name`, e.target.value)}
+            value={project.collection_name || ""}
+            onChange={(e) =>
+              onUpdate(sectionKey, `projects.${projectKey}.collection_name`, e.target.value)
+            }
           >
             <option value="">None</option>
             {collections.map((c) => (
               <option key={c.name} value={c.name}>
                 {c.name}
-                {c.is_active && ' ✓'}
+                {c.is_active && " ✓"}
               </option>
             ))}
           </SelectInput>
@@ -118,13 +125,16 @@ export function ProjectRow({
 
         {mappingCount > 0 && <Chip label={`${mappingCount} mapped`} variant="outlined" />}
 
-        <IconButton aria-label={expanded ? 'Collapse project' : 'Expand project'} onClick={toggleExpanded}>
+        <IconButton
+          aria-label={expanded ? "Collapse project" : "Expand project"}
+          onClick={toggleExpanded}
+        >
           <span
             className="op-body2"
             style={{
-              display: 'inline-block',
-              transform: expanded ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s',
+              display: "inline-block",
+              transform: expanded ? "rotate(180deg)" : "none",
+              transition: "transform 0.2s",
             }}
           >
             ▾
@@ -134,15 +144,15 @@ export function ProjectRow({
 
       {expanded && (
         <div style={{ paddingLeft: 16, paddingTop: 8 }}>
-          <span className="op-caption op-text-secondary op-mb-05" style={{ display: 'block' }}>
-            Column Mapping — map operator's todo/doing/done to this board's columns
+          <span className="op-caption op-text-secondary op-mb-05" style={{ display: "block" }}>
+            Column Mapping - map operator's todo/doing/done to this board's columns
           </span>
           <div className="op-row op-gap-1 op-mb-1">
             {OPERATOR_STATES.map(({ field, label, helper }) => (
               <div key={field} title={helper} style={{ minWidth: 160, flex: 1 }}>
                 <SelectInput
                   label={label}
-                  value={statusMapping[field] ?? ''}
+                  value={statusMapping[field] ?? ""}
                   onChange={(e) => handleStatusMappingChange(field, e.target.value)}
                 >
                   <option value="">Unmapped</option>
@@ -160,7 +170,7 @@ export function ProjectRow({
             provider={provider}
             domain={domain}
             projectKey={projectKey}
-            collectionName={project.collection_name || ''}
+            collectionName={project.collection_name || ""}
             typeMappings={project.type_mappings ?? {}}
             issueTypes={issueTypes}
             externalTypes={externalTypes}

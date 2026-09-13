@@ -1,22 +1,29 @@
-import * as vscode from 'vscode';
-import { StatusItem } from '../status-item';
-import type { SectionContext, StatusSection, LlmState, LlmToolInfo } from './types';
-import type { SectionId, SectionHealth } from '../generated';
-import { detectInstalledLlmTools } from '../walkthrough';
-import { discoverApiUrl, OperatorApiClient } from '../api-client';
+import * as vscode from "vscode";
+import { StatusItem } from "../status-item";
+import type { SectionContext, StatusSection, LlmState, LlmToolInfo } from "./types";
+import type { SectionId, SectionHealth } from "../generated";
+import { detectInstalledLlmTools } from "../walkthrough";
+import { discoverApiUrl, OperatorApiClient } from "../api-client";
 
 export class LlmSection implements StatusSection {
-  readonly sectionId: SectionId = 'llm';
-  readonly prerequisites: SectionId[] = ['connections'];
+  readonly sectionId: SectionId = "llm";
+  readonly prerequisites: SectionId[] = ["connections"];
 
-  private state: LlmState = { detected: false, tools: [], configDetected: [], toolDetails: [], defaultTool: undefined, defaultModel: undefined };
+  private state: LlmState = {
+    detected: false,
+    tools: [],
+    configDetected: [],
+    toolDetails: [],
+    defaultTool: undefined,
+    defaultModel: undefined,
+  };
 
   isConfigured(): boolean {
     return this.state.detected;
   }
 
   health(): SectionHealth {
-    return this.state.detected ? 'Green' : 'Yellow';
+    return this.state.detected ? "Green" : "Yellow";
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -43,27 +50,33 @@ export class LlmSection implements StatusSection {
     if (toolDetails.length === 0) {
       const config = await ctx.readConfigToml();
       const llmTools = config.llm_tools as Record<string, unknown> | undefined;
-      const detectedArray = Array.isArray(llmTools?.detected) ? llmTools.detected as Array<Record<string, unknown>> : [];
+      const detectedArray = Array.isArray(llmTools?.detected)
+        ? (llmTools.detected as Array<Record<string, unknown>>)
+        : [];
       for (const entry of detectedArray) {
-        if (typeof entry === 'object' && entry !== null && typeof entry.name === 'string') {
+        if (typeof entry === "object" && entry !== null && typeof entry.name === "string") {
           const name = entry.name;
-          if (seen.has(name)) { continue; }
+          if (seen.has(name)) {
+            continue;
+          }
           seen.add(name);
-          const models = Array.isArray(entry.model_aliases) ? entry.model_aliases as string[] : [];
-          const version = typeof entry.version === 'string' ? entry.version : undefined;
+          const models = Array.isArray(entry.model_aliases)
+            ? (entry.model_aliases as string[])
+            : [];
+          const version = typeof entry.version === "string" ? entry.version : undefined;
           toolDetails.push({ name, version, models });
         }
       }
     }
 
-    // Priority 3: PATH detection (no model info — tools won't be expandable)
+    // Priority 3: PATH detection (no model info - tools won't be expandable)
     const tools = await detectInstalledLlmTools();
     for (const tool of tools) {
       if (!seen.has(tool.name)) {
         seen.add(tool.name);
         toolDetails.push({
           name: tool.name,
-          version: tool.version !== 'unknown' ? tool.version : undefined,
+          version: tool.version !== "unknown" ? tool.version : undefined,
           models: [],
         });
       }
@@ -73,14 +86,12 @@ export class LlmSection implements StatusSection {
     const config = await ctx.readConfigToml();
     const llmTools = config.llm_tools as Record<string, unknown> | undefined;
     const configDetected = Array.isArray(llmTools?.detected)
-      ? (llmTools.detected as Array<string | { name: string; version?: string }>).map(
-          (entry) => {
-            if (typeof entry === 'string') {
-              return { name: entry };
-            }
-            return { name: entry.name, version: entry.version };
+      ? (llmTools.detected as Array<string | { name: string; version?: string }>).map((entry) => {
+          if (typeof entry === "string") {
+            return { name: entry };
           }
-        )
+          return { name: entry.name, version: entry.version };
+        })
       : [];
 
     // Fetch current default LLM tool + model
@@ -89,13 +100,20 @@ export class LlmSection implements StatusSection {
     try {
       const client = new OperatorApiClient(await discoverApiUrl(ctx.ticketsDir));
       const data = await client.getDefaultLlm();
-      if (data.tool) { defaultTool = data.tool; defaultModel = data.model; }
+      if (data.tool) {
+        defaultTool = data.tool;
+        defaultModel = data.model;
+      }
     } catch {
-      // API not available — fall back to config TOML
+      // API not available - fall back to config TOML
       const cfgForDefault = await ctx.readConfigToml();
       const llmToolsCfg = cfgForDefault.llm_tools as Record<string, unknown> | undefined;
-      if (typeof llmToolsCfg?.default_tool === 'string') { defaultTool = llmToolsCfg.default_tool; }
-      if (typeof llmToolsCfg?.default_model === 'string') { defaultModel = llmToolsCfg.default_model; }
+      if (typeof llmToolsCfg?.default_tool === "string") {
+        defaultTool = llmToolsCfg.default_tool;
+      }
+      if (typeof llmToolsCfg?.default_model === "string") {
+        defaultModel = llmToolsCfg.default_model;
+      }
     }
 
     this.state = {
@@ -110,27 +128,27 @@ export class LlmSection implements StatusSection {
 
   getTopLevelItem(_ctx: SectionContext): StatusItem {
     return new StatusItem({
-      label: 'LLM Tools',
-      description: this.state.detected
-        ? this.getLlmSummary()
-        : 'No tools detected',
-      icon: this.state.detected ? 'check' : 'warning',
+      label: "LLM Tools",
+      description: this.state.detected ? this.getLlmSummary() : "No tools detected",
+      icon: this.state.detected ? "check" : "warning",
       collapsibleState: this.state.detected
         ? vscode.TreeItemCollapsibleState.Collapsed
         : vscode.TreeItemCollapsibleState.Expanded,
       sectionId: this.sectionId,
-      command: this.state.detected ? undefined : {
-        command: 'operator.detectLlmTools',
-        title: 'Detect LLM Tools',
-      },
+      command: this.state.detected
+        ? undefined
+        : {
+            command: "operator.detectLlmTools",
+            title: "Detect LLM Tools",
+          },
       health: this.health(),
     });
   }
 
   getChildren(_ctx: SectionContext, element?: StatusItem): StatusItem[] {
     // Expanding a tool item: show model aliases
-    if (element?.contextValue?.startsWith('llmTool:')) {
-      const toolName = element.contextValue.slice('llmTool:'.length);
+    if (element?.contextValue?.startsWith("llmTool:")) {
+      const toolName = element.contextValue.slice("llmTool:".length);
       return this.getModelChildren(toolName);
     }
 
@@ -139,68 +157,77 @@ export class LlmSection implements StatusSection {
     if (this.state.detected) {
       for (const tool of this.state.toolDetails) {
         const hasModels = tool.models.length > 0;
-        items.push(new StatusItem({
-          label: tool.name,
-          description: tool.version,
-          icon: `operator-${tool.name}`,
-          collapsibleState: hasModels
-            ? vscode.TreeItemCollapsibleState.Collapsed
-            : vscode.TreeItemCollapsibleState.None,
-          contextValue: `llmTool:${tool.name}`,
-          sectionId: this.sectionId,
-        }));
+        items.push(
+          new StatusItem({
+            label: tool.name,
+            description: tool.version,
+            icon: `operator-${tool.name}`,
+            collapsibleState: hasModels
+              ? vscode.TreeItemCollapsibleState.Collapsed
+              : vscode.TreeItemCollapsibleState.None,
+            contextValue: `llmTool:${tool.name}`,
+            sectionId: this.sectionId,
+          }),
+        );
       }
 
-      items.push(new StatusItem({
-        label: 'Detect Tools',
-        icon: 'search',
-        command: {
-          command: 'operator.detectLlmTools',
-          title: 'Detect LLM Tools',
-        },
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: "Detect Tools",
+          icon: "search",
+          command: {
+            command: "operator.detectLlmTools",
+            title: "Detect LLM Tools",
+          },
+          sectionId: this.sectionId,
+        }),
+      );
     } else {
-      items.push(new StatusItem({
-        label: 'Detect Tools',
-        icon: 'search',
-        command: {
-          command: 'operator.detectLlmTools',
-          title: 'Detect LLM Tools',
-        },
-        sectionId: this.sectionId,
-      }));
-      items.push(new StatusItem({
-        label: 'Install Claude Code',
-        icon: 'link-external',
-        command: {
-          command: 'vscode.open',
-          title: 'Install Claude Code',
-          arguments: [vscode.Uri.parse('https://docs.anthropic.com/en/docs/claude-code')],
-        },
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: "Detect Tools",
+          icon: "search",
+          command: {
+            command: "operator.detectLlmTools",
+            title: "Detect LLM Tools",
+          },
+          sectionId: this.sectionId,
+        }),
+      );
+      items.push(
+        new StatusItem({
+          label: "Install Claude Code",
+          icon: "link-external",
+          command: {
+            command: "vscode.open",
+            title: "Install Claude Code",
+            arguments: [vscode.Uri.parse("https://docs.anthropic.com/en/docs/claude-code")],
+          },
+          sectionId: this.sectionId,
+        }),
+      );
     }
 
     return items;
   }
 
   private getModelChildren(toolName: string): StatusItem[] {
-    const tool = this.state.toolDetails.find(t => t.name === toolName);
-    if (!tool) { return []; }
+    const tool = this.state.toolDetails.find((t) => t.name === toolName);
+    if (!tool) {
+      return [];
+    }
 
-    return tool.models.map(model => {
-      const isDefault = this.state.defaultTool === toolName
-        && this.state.defaultModel === model;
+    return tool.models.map((model) => {
+      const isDefault = this.state.defaultTool === toolName && this.state.defaultModel === model;
       return new StatusItem({
         label: isDefault ? `${model} (default)` : model,
-        icon: isDefault ? 'check' : 'symbol-field',
+        icon: isDefault ? "check" : "symbol-field",
         tooltip: isDefault
           ? `${toolName}:${model} is the current default`
           : `Set ${toolName}:${model} as default`,
         command: {
-          command: 'operator.setDefaultLlm',
-          title: 'Set as Default LLM',
+          command: "operator.setDefaultLlm",
+          title: "Set as Default LLM",
           arguments: [toolName, model],
         },
         sectionId: this.sectionId,
@@ -216,7 +243,9 @@ export class LlmSection implements StatusSection {
       return `Default: ${this.state.defaultTool}`;
     }
     const count = this.state.toolDetails.length;
-    if (count === 0) { return ''; }
+    if (count === 0) {
+      return "";
+    }
     const first = this.state.toolDetails[0]!;
     const label = first.version ? `${first.name} v${first.version}` : first.name;
     return count > 1 ? `${label} +${count - 1}` : label;

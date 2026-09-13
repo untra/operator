@@ -1,12 +1,12 @@
-import * as vscode from 'vscode';
-import { StatusItem } from '../status-item';
-import type { SectionContext, StatusSection, KanbanState, KanbanProviderState } from './types';
-import type { SectionId, SectionHealth } from '../generated';
-import { getKanbanWorkspaces } from '../walkthrough';
+import * as vscode from "vscode";
+import { StatusItem } from "../status-item";
+import type { SectionContext, StatusSection, KanbanState, KanbanProviderState } from "./types";
+import type { SectionId, SectionHealth } from "../generated";
+import { getKanbanWorkspaces } from "../walkthrough";
 
 export class KanbanSection implements StatusSection {
-  readonly sectionId: SectionId = 'kanban';
-  readonly prerequisites: SectionId[] = ['connections'];
+  readonly sectionId: SectionId = "kanban";
+  readonly prerequisites: SectionId[] = ["connections"];
 
   private state: KanbanState = { configured: false, providers: [] };
 
@@ -15,7 +15,7 @@ export class KanbanSection implements StatusSection {
   }
 
   health(): SectionHealth {
-    return this.state.configured ? 'Green' : 'Red';
+    return this.state.configured ? "Green" : "Red";
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -29,21 +29,23 @@ export class KanbanSection implements StatusSection {
       if (jiraSection) {
         for (const [domain, wsConfig] of Object.entries(jiraSection)) {
           const ws = wsConfig as Record<string, unknown>;
-          if (ws.enabled === false) { continue; }
-          const projects: KanbanProviderState['projects'] = [];
+          if (ws.enabled === false) {
+            continue;
+          }
+          const projects: KanbanProviderState["projects"] = [];
           const projectsSection = ws.projects as Record<string, unknown> | undefined;
           if (projectsSection) {
             for (const [projectKey, projConfig] of Object.entries(projectsSection)) {
               const proj = projConfig as Record<string, unknown>;
               projects.push({
                 key: projectKey,
-                collectionName: (proj.collection_name as string) || 'dev_kanban',
+                collectionName: (proj.collection_name as string) || "dev_kanban",
                 url: `https://${domain}/browse/${projectKey}`,
               });
             }
           }
           providers.push({
-            provider: 'jira',
+            provider: "jira",
             key: domain,
             enabled: ws.enabled !== false,
             displayName: domain,
@@ -58,25 +60,27 @@ export class KanbanSection implements StatusSection {
       if (linearSection) {
         for (const [teamId, wsConfig] of Object.entries(linearSection)) {
           const ws = wsConfig as Record<string, unknown>;
-          if (ws.enabled === false) { continue; }
-          const projects: KanbanProviderState['projects'] = [];
+          if (ws.enabled === false) {
+            continue;
+          }
+          const projects: KanbanProviderState["projects"] = [];
           const projectsSection = ws.projects as Record<string, unknown> | undefined;
           if (projectsSection) {
             for (const [projectKey, projConfig] of Object.entries(projectsSection)) {
               const proj = projConfig as Record<string, unknown>;
               projects.push({
                 key: projectKey,
-                collectionName: (proj.collection_name as string) || 'dev_kanban',
+                collectionName: (proj.collection_name as string) || "dev_kanban",
                 url: `https://linear.app/team/${projectKey}`,
               });
             }
           }
           providers.push({
-            provider: 'linear',
+            provider: "linear",
             key: teamId,
             enabled: ws.enabled !== false,
             displayName: teamId,
-            url: 'https://linear.app',
+            url: "https://linear.app",
             projects,
           });
         }
@@ -87,8 +91,10 @@ export class KanbanSection implements StatusSection {
       if (githubSection) {
         for (const [owner, wsConfig] of Object.entries(githubSection)) {
           const ws = wsConfig as Record<string, unknown>;
-          if (ws.enabled === false) { continue; }
-          const projects: KanbanProviderState['projects'] = [];
+          if (ws.enabled === false) {
+            continue;
+          }
+          const projects: KanbanProviderState["projects"] = [];
           const projectsSection = ws.projects as Record<string, unknown> | undefined;
           if (projectsSection) {
             for (const [projectKey, projConfig] of Object.entries(projectsSection)) {
@@ -98,13 +104,13 @@ export class KanbanSection implements StatusSection {
               // projects index page.
               projects.push({
                 key: projectKey,
-                collectionName: (proj.collection_name as string) || 'dev_kanban',
+                collectionName: (proj.collection_name as string) || "dev_kanban",
                 url: `https://github.com/${owner}?tab=projects`,
               });
             }
           }
           providers.push({
-            provider: 'github',
+            provider: "github",
             key: owner,
             enabled: ws.enabled !== false,
             displayName: owner,
@@ -115,18 +121,20 @@ export class KanbanSection implements StatusSection {
       }
 
       // Parse OpenSpec roots from config.toml (experimental, pull-only;
-      // no per-project sub-tables — the instance itself is the source)
+      // no per-project sub-tables - the instance itself is the source)
       const openspecSection = kanbanSection.openspec as Record<string, unknown> | undefined;
       if (openspecSection) {
         for (const [instance, wsConfig] of Object.entries(openspecSection)) {
           const ws = wsConfig as Record<string, unknown>;
-          if (ws.enabled === false) { continue; }
+          if (ws.enabled === false) {
+            continue;
+          }
           providers.push({
-            provider: 'openspec',
+            provider: "openspec",
             key: instance,
             enabled: ws.enabled !== false,
             displayName: (ws.root_path as string) || instance,
-            url: 'https://operator.untra.io/getting-started/kanban/openspec/',
+            url: "https://operator.untra.io/getting-started/kanban/openspec/",
             projects: [],
           });
         }
@@ -156,19 +164,19 @@ export class KanbanSection implements StatusSection {
 
   getTopLevelItem(_ctx: SectionContext): StatusItem {
     return new StatusItem({
-      label: 'Kanban',
-      description: this.state.configured
-        ? this.getKanbanSummary()
-        : 'No provider connected',
-      icon: this.state.configured ? 'check' : 'warning',
+      label: "Kanban",
+      description: this.state.configured ? this.getKanbanSummary() : "No provider connected",
+      icon: this.state.configured ? "check" : "warning",
       collapsibleState: this.state.configured
         ? vscode.TreeItemCollapsibleState.Collapsed
         : vscode.TreeItemCollapsibleState.Expanded,
       sectionId: this.sectionId,
-      command: this.state.configured ? undefined : {
-        command: 'operator.startKanbanOnboarding',
-        title: 'Configure Kanban',
-      },
+      command: this.state.configured
+        ? undefined
+        : {
+            command: "operator.startKanbanOnboarding",
+            title: "Configure Kanban",
+          },
       health: this.health(),
     });
   }
@@ -185,61 +193,75 @@ export class KanbanSection implements StatusSection {
     if (this.state.configured) {
       for (const prov of this.state.providers) {
         const providerLabel =
-          prov.provider === 'jira' ? 'Jira'
-            : prov.provider === 'linear' ? 'Linear'
-              : prov.provider === 'openspec' ? 'OpenSpec'
-                : 'GitHub Projects';
+          prov.provider === "jira"
+            ? "Jira"
+            : prov.provider === "linear"
+              ? "Linear"
+              : prov.provider === "openspec"
+                ? "OpenSpec"
+                : "GitHub Projects";
         const providerIcon =
-          prov.provider === 'jira' ? 'operator-atlassian'
-            : prov.provider === 'linear' ? 'operator-linear'
-              : prov.provider === 'openspec' ? 'checklist'
-                : 'github';
-        items.push(new StatusItem({
-          label: providerLabel,
-          description: prov.displayName,
-          icon: providerIcon,
-          tooltip: prov.url,
-          collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-          command: {
-            command: 'vscode.open',
-            title: 'Open in Browser',
-            arguments: [vscode.Uri.parse(prov.url)],
-          },
-          contextValue: 'kanbanWorkspace',
-          provider: prov.provider,
-          workspaceKey: prov.key,
-          sectionId: this.sectionId,
-        }));
+          prov.provider === "jira"
+            ? "operator-atlassian"
+            : prov.provider === "linear"
+              ? "operator-linear"
+              : prov.provider === "openspec"
+                ? "checklist"
+                : "github";
+        items.push(
+          new StatusItem({
+            label: providerLabel,
+            description: prov.displayName,
+            icon: providerIcon,
+            tooltip: prov.url,
+            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
+            command: {
+              command: "vscode.open",
+              title: "Open in Browser",
+              arguments: [vscode.Uri.parse(prov.url)],
+            },
+            contextValue: "kanbanWorkspace",
+            provider: prov.provider,
+            workspaceKey: prov.key,
+            sectionId: this.sectionId,
+          }),
+        );
       }
 
-      items.push(new StatusItem({
-        label: 'Add Provider',
-        icon: 'add',
-        command: {
-          command: 'operator.startKanbanOnboarding',
-          title: 'Add Kanban Provider',
-        },
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: "Add Provider",
+          icon: "add",
+          command: {
+            command: "operator.startKanbanOnboarding",
+            title: "Add Kanban Provider",
+          },
+          sectionId: this.sectionId,
+        }),
+      );
     } else {
-      items.push(new StatusItem({
-        label: 'Configure Jira',
-        icon: 'operator-atlassian',
-        command: {
-          command: 'operator.configureJira',
-          title: 'Configure Jira',
-        },
-        sectionId: this.sectionId,
-      }));
-      items.push(new StatusItem({
-        label: 'Configure Linear',
-        icon: 'operator-linear',
-        command: {
-          command: 'operator.configureLinear',
-          title: 'Configure Linear',
-        },
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: "Configure Jira",
+          icon: "operator-atlassian",
+          command: {
+            command: "operator.configureJira",
+            title: "Configure Jira",
+          },
+          sectionId: this.sectionId,
+        }),
+      );
+      items.push(
+        new StatusItem({
+          label: "Configure Linear",
+          icon: "operator-linear",
+          command: {
+            command: "operator.configureLinear",
+            title: "Configure Linear",
+          },
+          sectionId: this.sectionId,
+        }),
+      );
     }
 
     return items;
@@ -248,47 +270,57 @@ export class KanbanSection implements StatusSection {
   private getKanbanProjectChildren(provider: string, workspaceKey: string): StatusItem[] {
     const items: StatusItem[] = [];
     const prov = this.state.providers.find(
-      (p) => p.provider === provider && p.key === workspaceKey
+      (p) => p.provider === provider && p.key === workspaceKey,
     );
-    if (!prov) { return items; }
+    if (!prov) {
+      return items;
+    }
 
     for (const proj of prov.projects) {
-      items.push(new StatusItem({
-        label: proj.key,
-        description: proj.collectionName,
-        icon: 'project',
-        tooltip: proj.url,
-        command: {
-          command: 'vscode.open',
-          title: 'Open in Browser',
-          arguments: [vscode.Uri.parse(proj.url)],
-        },
-        contextValue: 'kanbanSyncConfig',
-        provider: prov.provider,
-        workspaceKey: prov.key,
-        projectKey: proj.key,
-        sectionId: this.sectionId,
-      }));
+      items.push(
+        new StatusItem({
+          label: proj.key,
+          description: proj.collectionName,
+          icon: "project",
+          tooltip: proj.url,
+          command: {
+            command: "vscode.open",
+            title: "Open in Browser",
+            arguments: [vscode.Uri.parse(proj.url)],
+          },
+          contextValue: "kanbanSyncConfig",
+          provider: prov.provider,
+          workspaceKey: prov.key,
+          projectKey: proj.key,
+          sectionId: this.sectionId,
+        }),
+      );
     }
 
     const addLabel =
-      provider === 'jira' ? 'Add Jira Project'
-        : provider === 'linear' ? 'Add Linear Workspace'
-          : 'Add GitHub Project';
+      provider === "jira"
+        ? "Add Jira Project"
+        : provider === "linear"
+          ? "Add Linear Workspace"
+          : "Add GitHub Project";
     const addCommand =
-      provider === 'jira' ? 'operator.addJiraProject'
-        : provider === 'linear' ? 'operator.addLinearTeam'
-          : 'operator.addGithubProject';
-    items.push(new StatusItem({
-      label: addLabel,
-      icon: 'add',
-      command: {
-        command: addCommand,
-        title: addLabel,
-        arguments: [workspaceKey],
-      },
-      sectionId: this.sectionId,
-    }));
+      provider === "jira"
+        ? "operator.addJiraProject"
+        : provider === "linear"
+          ? "operator.addLinearTeam"
+          : "operator.addGithubProject";
+    items.push(
+      new StatusItem({
+        label: addLabel,
+        icon: "add",
+        command: {
+          command: addCommand,
+          title: addLabel,
+          arguments: [workspaceKey],
+        },
+        sectionId: this.sectionId,
+      }),
+    );
 
     return items;
   }
@@ -296,12 +328,10 @@ export class KanbanSection implements StatusSection {
   private getKanbanSummary(): string {
     const prov = this.state.providers[0];
     if (!prov) {
-      return '';
+      return "";
     }
     const provider =
-      prov.provider === 'jira' ? 'Jira'
-        : prov.provider === 'linear' ? 'Linear'
-          : 'GitHub';
+      prov.provider === "jira" ? "Jira" : prov.provider === "linear" ? "Linear" : "GitHub";
     return `${provider}: ${prov.displayName}`;
   }
 }

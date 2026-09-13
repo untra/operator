@@ -1,7 +1,7 @@
-import type * as vscode from 'vscode';
-import type { StatusItem } from '../status-item';
-import type { DetectedToolResult } from '../walkthrough';
-import type { SectionId, SectionHealth } from '../generated';
+import type * as vscode from "vscode";
+import type { StatusItem } from "../status-item";
+import type { DetectedToolResult } from "../walkthrough";
+import type { SectionId, SectionHealth } from "../generated";
 
 /** Shared context provided by the orchestrator to all sections */
 export interface SectionContext {
@@ -33,7 +33,7 @@ export interface StatusSection {
   readonly prerequisites: SectionId[];
   /** Run health/state checks */
   check(ctx: SectionContext): Promise<void>;
-  /** Current health state — controls header icon/color */
+  /** Current health state - controls header icon/color */
   health(): SectionHealth;
   getTopLevelItem(ctx: SectionContext): StatusItem;
   getChildren(ctx: SectionContext, element?: StatusItem): StatusItem[];
@@ -60,7 +60,7 @@ export interface ApiStatus {
   url?: string;
   directoryName?: string;
   /** `auth`: the daemon answered but rejected every credential the extension holds. */
-  mismatch?: { kind: 'version' | 'project' | 'auth'; detail: string };
+  mismatch?: { kind: "version" | "project" | "auth"; detail: string };
 }
 
 /** Internal state for the Configuration section */
@@ -78,7 +78,7 @@ export interface ConfigState {
 
 /** Config-driven state for a single kanban provider */
 export interface KanbanProviderState {
-  provider: 'jira' | 'linear' | 'github' | 'openspec';
+  provider: "jira" | "linear" | "github" | "openspec";
   key: string;
   enabled: boolean;
   displayName: string;

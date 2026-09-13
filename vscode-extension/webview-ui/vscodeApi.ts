@@ -1,4 +1,4 @@
-import type { WebviewToExtensionMessage, ExtensionToWebviewMessage } from './types/messages';
+import type { WebviewToExtensionMessage, ExtensionToWebviewMessage } from "./types/messages";
 
 interface VSCodeApi {
   postMessage(message: WebviewToExtensionMessage): void;
@@ -19,12 +19,10 @@ export function postMessage(message: WebviewToExtensionMessage): void {
   getApi().postMessage(message);
 }
 
-export function onMessage(
-  handler: (message: ExtensionToWebviewMessage) => void
-): () => void {
+export function onMessage(handler: (message: ExtensionToWebviewMessage) => void): () => void {
   const listener = (event: MessageEvent<ExtensionToWebviewMessage>) => {
     handler(event.data);
   };
-  window.addEventListener('message', listener);
-  return () => window.removeEventListener('message', listener);
+  window.addEventListener("message", listener);
+  return () => window.removeEventListener("message", listener);
 }

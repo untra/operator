@@ -147,7 +147,7 @@
   background: var(--color-green-l3);
 }
 
-/* On the active pill (bg green-l3) a green-l3 dot would vanish — lighten it so
+/* On the active pill (bg green-l3) a green-l3 dot would vanish - lighten it so
  * the healthy dot stays a filled mark, not just the cream ring. */
 .active .navDot[data-health='green'] {
   background: var(--color-green-l1);
@@ -182,7 +182,7 @@
 
 /* Right-hand detail sidepanel (see right-panel.tsx). Fixed width, scrolls
  * independently of the main view, divided from it by a left border. Minimal by
- * design — content components own their own styling. */
+ * design - content components own their own styling. */
 .rightPanel {
   width: 380px;
   flex-shrink: 0;

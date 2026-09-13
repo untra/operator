@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo } from 'react';
-import { Alert, Spinner } from '../primitives';
-import { MappingRow } from './MappingRow';
-import type { ExternalIssueTypeSummary, IssueTypeSummary } from '../../types/messages';
+import React, { useEffect, useMemo } from "react";
+import { Alert, Spinner } from "../primitives";
+import { MappingRow } from "./MappingRow";
+import type { ExternalIssueTypeSummary, IssueTypeSummary } from "../../types/messages";
 
 interface MappingPanelProps {
   provider: string;
@@ -19,14 +19,14 @@ interface MappingPanelProps {
 function autoMap(externalName: string, operatorTypes: IssueTypeSummary[]): string | null {
   const name = externalName.toLowerCase();
   const rules: [RegExp, string][] = [
-    [/bug|defect|fix|issue/, 'FIX'],
-    [/story|feature|enhancement/, 'FEAT'],
-    [/task|subtask|item|card/, 'TASK'],
-    [/spike|research|milestone/, 'SPIKE'],
-    [/incident|investigation|initiative/, 'INV'],
+    [/bug|defect|fix|issue/, "FIX"],
+    [/story|feature|enhancement/, "FEAT"],
+    [/task|subtask|item|card/, "TASK"],
+    [/spike|research|milestone/, "SPIKE"],
+    [/incident|investigation|initiative/, "INV"],
   ];
   for (const [pattern, key] of rules) {
-    if (pattern.test(name) && operatorTypes.some(t => t.key === key)) {
+    if (pattern.test(name) && operatorTypes.some((t) => t.key === key)) {
       return key;
     }
   }
@@ -63,7 +63,7 @@ export function MappingPanel({
 
   if (!externalTypes) {
     return (
-      <div className="op-row" style={{ padding: '16px 0', justifyContent: 'center' }}>
+      <div className="op-row" style={{ padding: "16px 0", justifyContent: "center" }}>
         <Spinner size={20} />
         <span className="op-body2 op-text-secondary" style={{ marginLeft: 8 }}>
           Loading issue types from {provider}...
@@ -82,7 +82,7 @@ export function MappingPanel({
 
   return (
     <div className="op-mt-1">
-      <span className="op-caption op-text-secondary op-mb-1" style={{ display: 'block' }}>
+      <span className="op-caption op-text-secondary op-mb-1" style={{ display: "block" }}>
         Issue Type Mappings for {projectKey}
         {collectionName && ` (collection: ${collectionName})`}
       </span>

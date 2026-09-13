@@ -6,7 +6,7 @@ class LaunchAgentTool {
     this.name = "operator-launch-agent";
   }
   async execute(params, _inputData, _workflowEngine) {
-    if (!params || !params.id) {
+    if (!params?.id) {
       return { success: false, result: null, error: "missing required param: id" };
     }
     return callOperator({

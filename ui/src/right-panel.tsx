@@ -1,15 +1,15 @@
 // A generic, context-driven right-hand detail sidepanel. Any view can open it
-// with arbitrary content (a React node) and an optional title — clicking a
+// with arbitrary content (a React node) and an optional title - clicking a
 // kanban ticket, for example, opens it with that ticket's detail + launch form.
 // Mounted once by Layout alongside SectionsProvider, mirroring that pattern; the
 // <aside> that renders this state lives in Layout next to <main>.
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 interface RightPanelState {
   /** The node currently shown in the panel, or null when the panel is closed. */
-  content: ReactNode | null;
+  content: ReactNode;
   /** Optional heading shown in the panel's header row. */
   title: string | null;
   /** Open the panel with `content` and an optional `title`. */
@@ -26,7 +26,7 @@ const RightPanelContext = createContext<RightPanelState>({
 });
 
 export function RightPanelProvider({ children }: { children: ReactNode }) {
-  const [content, setContent] = useState<ReactNode | null>(null);
+  const [content, setContent] = useState<ReactNode>(null);
   const [title, setTitle] = useState<string | null>(null);
 
   const open = useCallback((node: ReactNode, t?: string) => {
@@ -38,10 +38,7 @@ export function RightPanelProvider({ children }: { children: ReactNode }) {
     setTitle(null);
   }, []);
 
-  const value = useMemo(
-    () => ({ content, title, open, close }),
-    [content, title, open, close],
-  );
+  const value = useMemo(() => ({ content, title, open, close }), [content, title, open, close]);
 
   return <RightPanelContext.Provider value={value}>{children}</RightPanelContext.Provider>;
 }

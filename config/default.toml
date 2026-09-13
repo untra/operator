@@ -89,6 +89,9 @@ confirm_paired = true
 # Delay between launching multiple agents (milliseconds)
 launch_delay_ms = 2000
 
+# Default execution target. Named targets are declared with [[targets]].
+# target = "local"
+
 # Session wrapper configuration
 # Controls how operator creates and manages terminal sessions for agents
 [sessions]
@@ -140,8 +143,7 @@ connect_timeout_ms = 5000
 
 # Agent delegator configurations
 # Delegators are named {tool, model, model_server} triples for autonomous
-# ticket launching. `model_server` is optional — omit it to use the llm_tool's
-# implicit vendor default (claude → anthropic-api, codex → openai-api, etc.).
+# ticket launching. `model_server` is optional.  omit it to use the llm_tool's implicit vendor default (claude → anthropic-api, codex → openai-api, etc.).
 # [[delegators]]
 # name = "claude-opus-auto"
 # llm_tool = "claude"

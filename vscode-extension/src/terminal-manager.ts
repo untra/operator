@@ -5,9 +5,9 @@
  * Terminals are styled by ticket type with colors and icons.
  */
 
-import * as vscode from 'vscode';
-import type { TerminalCreateOptions, TerminalState, ActivityState } from './types';
-import type { IssueTypeService } from './issuetype-service';
+import * as vscode from "vscode";
+import type { TerminalCreateOptions, TerminalState, ActivityState } from "./types";
+import type { IssueTypeService } from "./issuetype-service";
 
 /**
  * Manages operator terminals with activity detection and styling
@@ -21,20 +21,20 @@ export class TerminalManager {
 
   constructor() {
     // Track shell execution for activity detection (requires VS Code 1.93+)
-    if (typeof vscode.window.onDidStartTerminalShellExecution === 'function') {
+    if (typeof vscode.window.onDidStartTerminalShellExecution === "function") {
       this.disposables.push(
         vscode.window.onDidStartTerminalShellExecution((e) => {
           const name = this.findTerminalName(e.terminal);
           if (name && this.terminals.has(name)) {
-            this.activityState.set(name, 'running');
+            this.activityState.set(name, "running");
           }
         }),
         vscode.window.onDidEndTerminalShellExecution((e) => {
           const name = this.findTerminalName(e.terminal);
           if (name && this.terminals.has(name)) {
-            this.activityState.set(name, 'idle');
+            this.activityState.set(name, "idle");
           }
-        })
+        }),
       );
     }
 
@@ -47,7 +47,7 @@ export class TerminalManager {
           this.activityState.delete(name);
           this.createdAt.delete(name);
         }
-      })
+      }),
     );
   }
 
@@ -83,7 +83,7 @@ export class TerminalManager {
 
     const terminal = vscode.window.createTerminal(terminalOptions);
     this.terminals.set(name, terminal);
-    this.activityState.set(name, 'idle');
+    this.activityState.set(name, "idle");
     this.createdAt.set(name, Date.now());
 
     // Show terminal immediately after creation
@@ -149,7 +149,7 @@ export class TerminalManager {
    * Get activity state
    */
   getActivity(name: string): ActivityState {
-    return this.activityState.get(name) ?? 'unknown';
+    return this.activityState.get(name) ?? "unknown";
   }
 
   /**
@@ -162,7 +162,7 @@ export class TerminalManager {
       result.push({
         name,
         pid: undefined, // processId is a Thenable, would need async handling
-        activity: this.activityState.get(name) ?? 'unknown',
+        activity: this.activityState.get(name) ?? "unknown",
         createdAt: this.createdAt.get(name) ?? Date.now(),
       });
     }
@@ -178,7 +178,7 @@ export class TerminalManager {
       return this.issueTypeService.getColorForTerminal(name);
     }
     // Fallback if service not set
-    return new vscode.ThemeColor('terminal.ansiWhite');
+    return new vscode.ThemeColor("terminal.ansiWhite");
   }
 
   /**
@@ -189,7 +189,7 @@ export class TerminalManager {
       return this.issueTypeService.getIconForTerminal(name);
     }
     // Fallback if service not set
-    return new vscode.ThemeIcon('terminal');
+    return new vscode.ThemeIcon("terminal");
   }
 
   /**
@@ -208,8 +208,12 @@ export class TerminalManager {
    * Dispose all resources
    */
   dispose(): void {
-    this.disposables.forEach((d) => { d.dispose(); });
-    this.terminals.forEach((t) => { t.dispose(); });
+    this.disposables.forEach((d) => {
+      d.dispose();
+    });
+    this.terminals.forEach((t) => {
+      t.dispose();
+    });
     this.terminals.clear();
     this.activityState.clear();
     this.createdAt.clear();

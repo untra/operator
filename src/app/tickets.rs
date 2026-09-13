@@ -1,13 +1,9 @@
 use anyhow::Result;
-use std::fs;
 
-use crate::agents::{generate_status_script, generate_tmux_conf};
 use crate::agents::{AgentTicketCreator, AssessTicketCreator};
 use crate::auth::store::AuthStore;
 use crate::queue::TicketCreator;
-use crate::setup::filter_schema_fields;
 use crate::state::State;
-use crate::templates::TemplateType;
 use crate::ui::create_dialog::CreateDialogResult;
 use crate::ui::projects_dialog::{ProjectAction, ProjectsDialogResult};
 use crate::ui::with_suspended_tui;
@@ -15,108 +11,43 @@ use crate::ui::with_suspended_tui;
 use super::{App, AppTerminal};
 
 impl App {
+    /// Build setup options from the wizard's collected choices.
+    fn setup_options(&self) -> crate::setup::SetupOptions {
+        let Some(screen) = self.setup_screen.as_ref() else {
+            return crate::setup::SetupOptions::default();
+        };
+
+        let hosted: Vec<crate::setup::FetchedCollection> = screen
+            .selected_hosted_collections()
+            .into_iter()
+            .map(|r| (r.manifest.clone(), r.files.clone(), r.icon_svg.clone()))
+            .collect();
+        let active_collection = match hosted.as_slice() {
+            [single] => Some(single.0.id.clone()),
+            _ => None,
+        };
+
+        crate::setup::SetupOptions {
+            preset: screen.preset(),
+            task_fields: screen.configured_task_fields(),
+            use_worktrees: screen.use_worktrees,
+            wrapper: Some(screen.selected_wrapper),
+            acceptance_criteria: Some(screen.acceptance_criteria_text.clone()),
+            custom_collection: screen.collection(),
+            active_collection,
+            hosted_collections: hosted,
+            model_servers: screen.declared_model_servers(),
+            execution_target: Some(screen.selected_execution_target()),
+            ..Default::default()
+        }
+    }
+
     /// Initialize the tickets directory with default templates and save config
     pub(super) fn initialize_tickets(&mut self) -> Result<()> {
-        let tickets_path = self.config.tickets_path();
-
-        // Create directories
-        fs::create_dir_all(tickets_path.join("queue"))?;
-        fs::create_dir_all(tickets_path.join("in-progress"))?;
-        fs::create_dir_all(tickets_path.join("completed"))?;
-        fs::create_dir_all(tickets_path.join("templates"))?;
-        fs::create_dir_all(tickets_path.join("operator"))?;
-
-        // Get selected issuetype collection and configured fields from setup screen
-        let (selected_preset, selected_collection, task_fields) = self
-            .setup_screen
-            .as_ref()
-            .map(|s| (s.preset(), s.collection(), s.configured_task_fields()))
-            .unwrap_or_else(|| {
-                (
-                    crate::config::CollectionPreset::Simple,
-                    vec!["TASK".to_string()],
-                    vec!["priority".to_string(), "context".to_string()],
-                )
-            });
-
-        // Update config with selected preset and collection
-        self.config.templates.preset = selected_preset;
-        if selected_preset == crate::config::CollectionPreset::Custom {
-            self.config.templates.collection = selected_collection.clone();
-        } else {
-            self.config.templates.collection.clear();
-        }
-
-        // Write template files (only for selected types)
-        for template_type in TemplateType::all() {
-            let type_str = template_type.as_str();
-            if !selected_collection.contains(&type_str.to_string()) {
-                continue;
-            }
-
-            let filename = match template_type {
-                TemplateType::Feature => "feature.md",
-                TemplateType::Fix => "fix.md",
-                TemplateType::Task => "task.md",
-                TemplateType::Spike => "spike.md",
-                TemplateType::Investigation => "investigation.md",
-                TemplateType::Assess => "assess.md",
-                TemplateType::Sync => "sync.md",
-                TemplateType::Init => "init.md",
-            };
-            let filepath = tickets_path.join("templates").join(filename);
-            fs::write(&filepath, template_type.template_content())?;
-
-            // Also write the JSON schema (with field filtering applied)
-            let schema_filename = match template_type {
-                TemplateType::Feature => "feature.json",
-                TemplateType::Fix => "fix.json",
-                TemplateType::Task => "task.json",
-                TemplateType::Spike => "spike.json",
-                TemplateType::Investigation => "investigation.json",
-                TemplateType::Assess => "assess.json",
-                TemplateType::Sync => "sync.json",
-                TemplateType::Init => "init.json",
-            };
-            let schema_filepath = tickets_path.join("templates").join(schema_filename);
-            let filtered_schema = filter_schema_fields(template_type.schema(), &task_fields)?;
-            fs::write(&schema_filepath, filtered_schema)?;
-        }
-
-        // If the user picked hosted collections, scaffold each into its own
-        // collection-scoped directory (manifest + verified issuetype files). The
-        // loader discovers every templates/<id>/collection.json; when exactly one
-        // was chosen it also becomes the active collection.
-        let hosted: Vec<_> = self
-            .setup_screen
-            .as_ref()
-            .map(|s| {
-                s.selected_hosted_collections()
-                    .into_iter()
-                    .map(|r| (r.manifest.clone(), r.files.clone(), r.icon_svg.clone()))
-                    .collect()
-            })
-            .unwrap_or_default();
-        for (manifest, files, icon_svg) in &hosted {
-            crate::startup::templates::write_fetched_collection(
-                &tickets_path.join("templates"),
-                manifest,
-                files,
-                icon_svg.as_deref(),
-            )?;
-        }
-        if let [single] = hosted.as_slice() {
-            self.config.templates.active_collection = Some(single.0.id.clone());
-        }
-
-        // Generate tmux configuration files
-        self.generate_tmux_config()?;
-
-        // Discover projects (one-time scan during setup)
-        // Use full discovery to get git info for filtering
-        let discovered_full = self.config.discover_projects_full();
-        let discovered_projects: Vec<String> =
-            discovered_full.iter().map(|p| p.name.clone()).collect();
+        let options = self.setup_options();
+        let result = crate::setup::initialize_workspace(&mut self.config, &options)?;
+        let discovered_full = result.discovered;
+        let discovered_projects = self.config.projects.clone();
 
         // Create the admin account before the config is written.
         if let Some(password) = self
@@ -128,13 +59,11 @@ impl App {
             persist_admin_password(&store, Some(password))?;
         }
 
-        // Update config with discovered projects and save
-        self.config.projects = discovered_projects.clone();
         self.config.save()?;
 
         // Reload the issue type registry so the chosen collection is active
         // without requiring a restart (mirrors App::new's load path).
-        let mut registry = crate::startup::templates::load_registry(&tickets_path);
+        let mut registry = crate::startup::templates::load_registry(&self.config.tickets_path());
         if let Some(ref active) = self.config.templates.active_collection {
             if let Err(e) = registry.activate_collection(active) {
                 tracing::warn!("Failed to activate collection '{}': {}", active, e);
@@ -216,41 +145,6 @@ impl App {
                 }
             }
         }
-
-        Ok(())
-    }
-
-    /// Generate custom tmux config and status script
-    pub(super) fn generate_tmux_config(&mut self) -> Result<()> {
-        let state_path = self.config.state_path();
-        let tmux_conf_path = self.config.tmux_config_path();
-        let status_script_path = self.config.tmux_status_script_path();
-
-        // Generate tmux.conf
-        let tmux_conf_content = generate_tmux_conf(&status_script_path, &state_path);
-        fs::write(&tmux_conf_path, tmux_conf_content)?;
-
-        // Generate status script
-        let status_script_content = generate_status_script();
-        fs::write(&status_script_path, status_script_content)?;
-
-        // Make status script executable
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&status_script_path)?.permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(&status_script_path, perms)?;
-        }
-
-        // Mark config as generated
-        self.config.tmux.config_generated = true;
-
-        tracing::info!(
-            tmux_conf = %tmux_conf_path.display(),
-            status_script = %status_script_path.display(),
-            "Generated tmux configuration files"
-        );
 
         Ok(())
     }

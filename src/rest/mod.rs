@@ -94,6 +94,18 @@ fn auth_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::auth::revoke_access_key))
 }
 
+fn first_run_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(routes::setup::status))
+        .routes(routes!(routes::setup::steps))
+        .routes(routes!(routes::setup::collections))
+        .routes(routes!(routes::setup::initialize))
+        .routes(routes!(routes::git_onboarding::providers))
+        .routes(routes!(routes::git_onboarding::validate))
+        .routes(routes!(routes::git_onboarding::write_config))
+        .routes(routes!(routes::git_onboarding::set_session_env))
+}
+
 /// Build the documented API surface as a `utoipa_axum::OpenApiRouter`.
 ///
 /// Every always-on route is mounted here via `routes!`, so mounting a route
@@ -115,6 +127,8 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::sections::list))
         // Vertical integration catalog + support status
         .routes(routes!(routes::integrations::catalog))
+        // First-run setup
+        .merge(first_run_router())
         // Issue type endpoints
         .routes(routes!(
             routes::issuetypes::list,

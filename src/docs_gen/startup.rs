@@ -2,7 +2,7 @@
 
 use super::markdown::{heading, table};
 use super::{format_header, DocGenerator};
-use crate::startup::SETUP_STEPS;
+use crate::startup::steps::setup_steps;
 use anyhow::Result;
 
 /// Generates setup wizard documentation from the startup step registry
@@ -14,7 +14,7 @@ impl DocGenerator for StartupDocGenerator {
     }
 
     fn source(&self) -> &'static str {
-        "src/startup/mod.rs"
+        "src/startup/steps.rs"
     }
 
     fn output_path(&self) -> &'static str {
@@ -37,7 +37,7 @@ impl DocGenerator for StartupDocGenerator {
         output.push_str(&heading(2, "Step Details"));
         output.push('\n');
 
-        for (i, step) in SETUP_STEPS.iter().enumerate() {
+        for (i, step) in setup_steps().iter().enumerate() {
             output.push_str(&heading(3, &format!("{}. {}", i + 1, step.name)));
             output.push_str(&format!("*{}*\n\n", step.description));
             output.push_str(step.help_text);
@@ -68,7 +68,7 @@ impl DocGenerator for StartupDocGenerator {
 impl StartupDocGenerator {
     fn generate_overview_table(&self) -> String {
         let headers = &["Step", "Name", "Description"];
-        let rows: Vec<Vec<String>> = SETUP_STEPS
+        let rows: Vec<Vec<String>> = setup_steps()
             .iter()
             .enumerate()
             .map(|(i, step)| {
@@ -95,7 +95,7 @@ mod tests {
 
         // Should have the auto-generated header
         assert!(result.contains("AUTO-GENERATED FROM"));
-        assert!(result.contains("startup/mod.rs"));
+        assert!(result.contains("startup/steps.rs"));
 
         // Should have the main heading
         assert!(result.contains("title: \"Setup Wizard\""));
@@ -117,7 +117,7 @@ mod tests {
         let result = generator.generate().unwrap();
 
         // Check that all step names appear in the documentation
-        for step in SETUP_STEPS {
+        for step in setup_steps() {
             assert!(
                 result.contains(step.name),
                 "Step '{}' should be documented",
@@ -134,7 +134,7 @@ mod tests {
         // Count table rows (lines starting with |)
         let row_count = overview.lines().filter(|l| l.starts_with('|')).count();
         // Should have header + separator + all steps
-        assert_eq!(row_count, SETUP_STEPS.len() + 2);
+        assert_eq!(row_count, setup_steps().len() + 2);
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
         let result = generator.generate().unwrap();
 
         // Check that numbered headings exist
-        for i in 1..=SETUP_STEPS.len() {
+        for i in 1..=setup_steps().len() {
             assert!(
                 result.contains(&format!("### {i}.")),
                 "Step {i} should be numbered"

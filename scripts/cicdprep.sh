@@ -68,7 +68,7 @@ fail() {
 }
 
 skip() {
-  echo -e "  ${YELLOW}⊘ $1 (skipped — no changes)${RESET}"
+  echo -e "  ${YELLOW}⊘ $1 (skipped - no changes)${RESET}"
   SKIPPED+=("$1")
 }
 
@@ -95,7 +95,7 @@ run_step() {
 
 # Verify a bun project's lockfile is in sync with its package.json, exactly the
 # way CI does (`bun install --frozen-lockfile`). This is the check that catches
-# the "lockfile had changes, but lockfile is frozen" CI failure locally — it
+# the "lockfile had changes, but lockfile is frozen" CI failure locally - it
 # happens when package.json is edited but bun.lock isn't regenerated/committed.
 check_bun_lockfile() {
   local dir="$1"
@@ -107,7 +107,7 @@ check_bun_lockfile() {
   if (cd "$dir" && bun install --frozen-lockfile) >/dev/null 2>&1; then
     pass "Lockfile sync: $dir"
   else
-    echo -e "  ${YELLOW}lockfile out of sync — run: ${BOLD}(cd $dir && bun install)${RESET}${YELLOW} and commit bun.lock${RESET}"
+    echo -e "  ${YELLOW}lockfile out of sync - run: ${BOLD}(cd $dir && bun install)${RESET}${YELLOW} and commit bun.lock${RESET}"
     fail "Lockfile sync: $dir"
   fi
 }
@@ -124,7 +124,7 @@ fi
 MERGE_BASE=$(git merge-base "$MAIN_BRANCH" HEAD 2>/dev/null || echo "")
 
 if [ -z "$MERGE_BASE" ]; then
-  echo -e "${YELLOW}Could not find merge base with $MAIN_BRANCH — running all checks.${RESET}"
+  echo -e "${YELLOW}Could not find merge base with $MAIN_BRANCH - running all checks.${RESET}"
   RUN_ALL=true
   CHANGED_FILES=""
 else
@@ -163,8 +163,11 @@ needs_operator() {
 }
 
 needs_opr8r()      { has_changes '^opr8r/'; }
-needs_vscode()     { has_changes '^(vscode-extension/|icons/)'; }
+needs_vscode()     { has_changes '^(vscode-extension/|icons/|\.oxlintrc\.jsonc$)'; }
 needs_zed()        { has_changes '^zed-extension/'; }
+needs_relay()      { has_changes '^crates/relay/'; }
+needs_charts()     { has_changes '^(charts/|\.github/workflows/build\.yaml$)'; }
+needs_shell()      { has_changes '^(scripts/|\.githooks/)'; }
 needs_coder()      { has_changes '^(coder-module/|\.github/workflows/coder-module\.yaml$|scripts/ci/check-coder-module\.sh$)'; }
 needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/taxonomy/taxonomy\.toml|src/templates/.*\.json|src/collections/|collections/|src/schemas/|webcomponents/|src/workflow_gen/)'; }
 
@@ -173,6 +176,16 @@ needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/taxonomy/taxonomy\.t
 needs_bun_root()       { has_changes '^(package\.json|bun\.lock)$'; }
 needs_bun_ui()         { has_changes '^ui/(package\.json|bun\.lock)$'; }
 needs_bun_webcomp()    { has_changes '^webcomponents/(package\.json|bun\.lock)$'; }
+
+# Hand-written JS/TS, per subproject. oxlint/oxfmt and their configs live at the
+# repo root, so touching either config re-checks every frontend subproject.
+TS_CONFIG='^(package\.json|bun\.lock|\.oxlintrc\.jsonc|\.oxfmtrc\.json)$'
+needs_ts_ui()       { has_changes "^ui/|$TS_CONFIG"; }
+needs_ts_webcomp()  { has_changes "^webcomponents/|$TS_CONFIG"; }
+needs_ts_vscode()   { has_changes "^vscode-extension/|$TS_CONFIG"; }
+needs_ts_agnt()     { has_changes "^agnt-plugin/|$TS_CONFIG"; }
+needs_ts_coder()    { has_changes "^coder-module/.*\.ts$|$TS_CONFIG"; }
+needs_ts_any()      { needs_ts_ui || needs_ts_webcomp || needs_ts_vscode || needs_ts_agnt || needs_ts_coder; }
 
 # --- 0. Bun lockfiles ---
 #
@@ -191,7 +204,45 @@ else
   skip "Bun lockfiles"
 fi
 
-# --- 1. Operator (main crate) ---
+# --- 1. Frontend format + lint ---
+#
+# Root-installed oxfmt/oxlint cover every hand-written JS/TS subproject;
+# generated output is excluded by .oxfmtrc.json / .oxlintrc.jsonc.
+
+if needs_ts_any; then
+  section "Frontend format + lint"
+  require_tool bun "frontend format + lint"
+
+  step "Root toolchain install"
+  (bun install --frozen-lockfile) >/dev/null 2>&1 \
+    && pass "Root toolchain install" || fail "Root toolchain install"
+
+  # One formatter pass covers every subproject; a failure names the files.
+  run_step "oxfmt --check (all frontend)" bun run fmt:check
+
+  if needs_ts_ui;      then run_step "lint: ui"            bun run lint:ui;            else skip "lint: ui"; fi
+  if needs_ts_webcomp; then run_step "lint: webcomponents" bun run lint:webcomponents; else skip "lint: webcomponents"; fi
+  if needs_ts_agnt;    then run_step "lint: agnt-plugin"   bun run lint:agnt;          else skip "lint: agnt-plugin"; fi
+  if needs_ts_coder;   then run_step "lint: coder-module"  bun run lint:coder-module;  else skip "lint: coder-module"; fi
+else
+  skip "Frontend format + lint"
+fi
+
+# --- 2. Shell scripts ---
+#
+# Every committed script, not just the rendered coder-module one. Severity is
+# capped at warning: the info-level findings are style notes CI does not gate.
+
+if needs_shell; then
+  section "Shell scripts"
+  require_tool shellcheck "shell script lint"
+
+  run_step "shellcheck" bash -c 'shellcheck -S warning scripts/*.sh scripts/ci/*.sh .githooks/*'
+else
+  skip "Shell scripts"
+fi
+
+# --- 3. Operator (main crate) ---
 
 if needs_operator; then
   section "Operator (main crate)"
@@ -200,13 +251,13 @@ if needs_operator; then
   require_tool cargo-deny "operator dependency audit"
 
   # The frontend is typed against types generated from Rust, so bindings come
-  # first — the same script .github/workflows/build.yaml runs as its gate.
+  # first - the same script .github/workflows/build.yaml runs as its gate.
   run_step "Bindings fresh" scripts/check-bindings-fresh.sh
 
   # CI additionally requires them committed; surface that here as a reminder
   BINDING_CHANGES="$(git status --porcelain --untracked-files=all bindings/ || true)"
   if [ -n "$BINDING_CHANGES" ]; then
-    echo -e "  ${YELLOW}note: bindings/ has uncommitted changes — CI requires them committed:${RESET}"
+    echo -e "  ${YELLOW}note: bindings/ has uncommitted changes - CI requires them committed:${RESET}"
     echo "$BINDING_CHANGES" | sed 's/^/    /'
   fi
 
@@ -233,7 +284,7 @@ if needs_operator; then
     fi
   ) && pass "UI build + size check" || fail "UI build + size check"
 
-  run_step "cargo fmt" cargo fmt -- --check
+  run_step "cargo fmt" cargo fmt --all -- --check
   run_step "cargo clippy" cargo clippy --locked --all-targets --all-features -- -D warnings
   run_step "cargo test" cargo test --locked --all-features
   run_step "cargo deny" cargo deny --manifest-path Cargo.toml check
@@ -241,7 +292,46 @@ else
   skip "Operator (main crate)"
 fi
 
-# --- 2. opr8r ---
+# --- 4. Helm chart ---
+#
+# build.yaml lint-test lints the chart and renders it with the optional
+# features turned on, which is where template errors actually surface.
+
+if needs_charts; then
+  section "Helm chart"
+  require_tool helm "helm chart lint"
+
+  run_step "helm lint" helm lint charts/operator
+  run_step "helm template" bash -c 'helm template operator charts/operator \
+    --set ingress.enabled=true \
+    --set ingress.host=operator.example.com \
+    --set ingress.tls.secretName=operator-tls \
+    --set networkPolicy.enabled=true \
+    --set bootstrap.existingSecret=operator-bootstrap \
+    > /dev/null'
+else
+  skip "Helm chart"
+fi
+
+# --- 5. crates/relay ---
+#
+# relay is a standalone crate (its own Cargo.lock), not a workspace member, so
+# the root cargo fmt/clippy never reach it despite its strict [lints.clippy].
+
+if needs_relay; then
+  section "crates/relay"
+  require_tool cargo "crates/relay"
+  require_tool cargo-deny "crates/relay dependency audit"
+
+  run_step "relay fmt" bash -c "cd crates/relay && cargo fmt -- --check"
+  run_step "relay clippy" bash -c "cd crates/relay && cargo clippy --locked --all-targets --all-features -- -D warnings"
+  run_step "relay test" bash -c "cd crates/relay && cargo test --locked --all-features"
+  run_step "relay cargo deny" cargo deny --manifest-path crates/relay/Cargo.toml check
+else
+  skip "crates/relay"
+fi
+
+# --- 6. opr8r ---
 
 if needs_opr8r; then
   section "opr8r"
@@ -256,7 +346,7 @@ else
   skip "opr8r"
 fi
 
-# --- 3. vscode-extension ---
+# --- 7. vscode-extension ---
 
 if needs_vscode; then
   section "vscode-extension"
@@ -275,7 +365,7 @@ else
   skip "vscode-extension"
 fi
 
-# --- 4. zed-extension ---
+# --- 8. zed-extension ---
 
 if needs_zed; then
   section "zed-extension"
@@ -295,7 +385,7 @@ else
   skip "zed-extension"
 fi
 
-# --- 5. coder-module ---
+# --- 9. coder-module ---
 
 if needs_coder; then
   section "coder-module"
@@ -315,7 +405,7 @@ else
   skip "coder-module"
 fi
 
-# --- 6. docs ---
+# --- 10. docs ---
 
 if needs_docs; then
   section "docs"

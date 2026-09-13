@@ -4,6 +4,10 @@ import type { YoloConfig } from "./YoloConfig";
 
 export type LaunchConfig = { confirm_autonomous: boolean, confirm_paired: boolean, launch_delay_ms: bigint, 
 /**
+ * Default named execution target. Per-launch and per-delegator choices take precedence.
+ */
+target: string | null, 
+/**
  * Docker execution configuration
  */
 docker: DockerConfig, 

@@ -5,25 +5,21 @@
  * Supports in-progress, queue, and completed ticket states.
  */
 
-import * as vscode from 'vscode';
-import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
-import type { TerminalManager } from './terminal-manager';
-import type { IssueTypeService } from './issuetype-service';
-import type { TicketInfo } from './types';
-import type { OperatorApiClient } from './api-client';
-import { parseTicketContent } from './ticket-parser';
-import type { KanbanTicketCard } from './generated';
+import * as vscode from "vscode";
+import * as path from "node:path";
+import * as fs from "node:fs/promises";
+import type { TerminalManager } from "./terminal-manager";
+import type { IssueTypeService } from "./issuetype-service";
+import type { TicketInfo } from "./types";
+import type { OperatorApiClient } from "./api-client";
+import { parseTicketContent } from "./ticket-parser";
+import type { KanbanTicketCard } from "./generated";
 
 /**
  * TreeDataProvider for ticket lists
  */
-export class TicketTreeProvider
-  implements vscode.TreeDataProvider<TicketItem>
-{
-  private _onDidChangeTreeData = new vscode.EventEmitter<
-    TicketItem | undefined
-  >();
+export class TicketTreeProvider implements vscode.TreeDataProvider<TicketItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<TicketItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private tickets: TicketInfo[] = [];
@@ -31,9 +27,9 @@ export class TicketTreeProvider
   private apiClient: OperatorApiClient | undefined;
 
   constructor(
-    private readonly status: 'in-progress' | 'queue' | 'completed',
+    private readonly status: "in-progress" | "queue" | "completed",
     private readonly issueTypeService: IssueTypeService,
-    private terminalManager?: TerminalManager
+    private terminalManager?: TerminalManager,
   ) {}
 
   setTerminalManager(manager: TerminalManager): void {
@@ -58,9 +54,9 @@ export class TicketTreeProvider
       try {
         const board = await this.apiClient.getKanban();
         const cards =
-          this.status === 'queue'
+          this.status === "queue"
             ? board.queue
-            : this.status === 'in-progress'
+            : this.status === "in-progress"
               ? [...board.running, ...board.awaiting]
               : board.done;
         this.tickets = cards.map((c) => this.cardToTicket(c));
@@ -68,7 +64,7 @@ export class TicketTreeProvider
         this._onDidChangeTreeData.fire(undefined);
         return;
       } catch {
-        // Server went away — fall through to disk.
+        // Server went away - fall through to disk.
       }
     }
 
@@ -81,14 +77,14 @@ export class TicketTreeProvider
     const subDir = path.join(this.ticketsDir, this.status);
     try {
       const files = await fs.readdir(subDir);
-      const mdFiles = files.filter((f) => f.endsWith('.md'));
+      const mdFiles = files.filter((f) => f.endsWith(".md"));
 
       this.tickets = await Promise.all(
         mdFiles.map(async (file) => {
           const filePath = path.join(subDir, file);
-          const content = await fs.readFile(filePath, 'utf-8');
+          const content = await fs.readFile(filePath, "utf-8");
           return this.parseTicket(file, filePath, content);
-        })
+        }),
       );
 
       // Sort by ticket ID
@@ -107,7 +103,7 @@ export class TicketTreeProvider
     const filePath =
       this.ticketsDir && card.filename
         ? path.join(this.ticketsDir, this.status, card.filename)
-        : '';
+        : "";
     return {
       id: card.id,
       title: card.summary,
@@ -117,24 +113,18 @@ export class TicketTreeProvider
     };
   }
 
-  private parseTicket(
-    filename: string,
-    filePath: string,
-    content: string
-  ): TicketInfo {
-    const { id: filenameId, type } =
-      this.issueTypeService.parseTicketFilename(filename);
+  private parseTicket(filename: string, filePath: string, content: string): TicketInfo {
+    const { id: filenameId, type } = this.issueTypeService.parseTicketFilename(filename);
     const parsedId = parseTicketContent(content)?.id;
     const id = parsedId ? parsedId : filenameId;
 
     // Parse title from first heading or frontmatter
-    const titleMatch =
-      content.match(/^#\s+(.+)$/m) ?? content.match(/^title:\s*(.+)$/m);
+    const titleMatch = content.match(/^#\s+(.+)$/m) ?? content.match(/^title:\s*(.+)$/m);
     const parsedTitle = titleMatch?.[1]?.trim();
     const title = parsedTitle ? parsedTitle : id;
 
     // Sanitize ID for terminal name (same as Rust sanitize_session_name)
-    const sanitizedId = id.replace(/[^a-zA-Z0-9_-]/g, '-');
+    const sanitizedId = id.replace(/[^a-zA-Z0-9_-]/g, "-");
 
     return {
       id,
@@ -142,7 +132,7 @@ export class TicketTreeProvider
       type,
       status: this.status,
       filePath,
-      terminalName: this.status === 'in-progress' ? `op-${sanitizedId}` : undefined,
+      terminalName: this.status === "in-progress" ? `op-${sanitizedId}` : undefined,
     };
   }
 
@@ -152,7 +142,7 @@ export class TicketTreeProvider
 
   getChildren(): TicketItem[] {
     return this.tickets.map(
-      (ticket) => new TicketItem(ticket, this.issueTypeService, this.terminalManager)
+      (ticket) => new TicketItem(ticket, this.issueTypeService, this.terminalManager),
     );
   }
 
@@ -171,7 +161,7 @@ export class TicketItem extends vscode.TreeItem {
   constructor(
     public readonly ticket: TicketInfo,
     private readonly issueTypeService: IssueTypeService,
-    private readonly terminalManager?: TerminalManager
+    private readonly terminalManager?: TerminalManager,
   ) {
     super(ticket.title, vscode.TreeItemCollapsibleState.None);
 
@@ -186,24 +176,24 @@ export class TicketItem extends vscode.TreeItem {
     this.contextValue = ticket.status;
 
     // Make in-progress items clickable to focus terminal (pass ticket for relaunch)
-    if (ticket.status === 'in-progress' && ticket.terminalName) {
+    if (ticket.status === "in-progress" && ticket.terminalName) {
       this.command = {
-        command: 'operator.focusTicket',
-        title: 'Focus Terminal',
+        command: "operator.focusTicket",
+        title: "Focus Terminal",
         arguments: [ticket.terminalName, ticket],
       };
-    } else if (ticket.status === 'queue') {
+    } else if (ticket.status === "queue") {
       // Queue items open the launch confirmation dialog
       this.command = {
-        command: 'operator.launchTicketWithOptions',
-        title: 'Launch Ticket',
+        command: "operator.launchTicketWithOptions",
+        title: "Launch Ticket",
         arguments: [this],
       };
     } else {
       // Completed items open the file
       this.command = {
-        command: 'operator.openTicket',
-        title: 'Open Ticket',
+        command: "operator.openTicket",
+        title: "Open Ticket",
         arguments: [ticket.filePath],
       };
     }

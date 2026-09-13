@@ -1,15 +1,15 @@
-import * as vscode from 'vscode';
-import { StatusItem } from '../status-item';
-import type { SectionContext, StatusSection } from './types';
-import type { SectionId, SectionHealth } from '../generated';
-import { discoverApiUrl, OperatorApiClient } from '../api-client';
-import type { WorkflowFormatDto } from '../generated/WorkflowFormatDto';
+import * as vscode from "vscode";
+import { StatusItem } from "../status-item";
+import type { SectionContext, StatusSection } from "./types";
+import type { SectionId, SectionHealth } from "../generated";
+import { discoverApiUrl, OperatorApiClient } from "../api-client";
+import type { WorkflowFormatDto } from "../generated/WorkflowFormatDto";
 
 /**
- * Workflows section — the export formats a ticket + issue type can be rendered
+ * Workflows section - the export formats a ticket + issue type can be rendered
  * into (Claude `.js`, AGNT `.json`). Info-only and always visible (no
  * prerequisites): formats need no configuration. Rows link out to the hosted
- * Operator UI's Workflows page, where preview/export run — the extension does
+ * Operator UI's Workflows page, where preview/export run - the extension does
  * not reimplement that surface.
  */
 interface WorkflowsState {
@@ -18,13 +18,13 @@ interface WorkflowsState {
 }
 
 export class WorkflowsSection implements StatusSection {
-  readonly sectionId: SectionId = 'workflows';
+  readonly sectionId: SectionId = "workflows";
   readonly prerequisites: SectionId[] = [];
 
   private state: WorkflowsState = { apiAvailable: false, formats: [] };
 
   health(): SectionHealth {
-    return 'Gray';
+    return "Gray";
   }
 
   async check(ctx: SectionContext): Promise<void> {
@@ -34,7 +34,7 @@ export class WorkflowsSection implements StatusSection {
       this.state = { apiAvailable: true, formats };
       return;
     } catch {
-      // API not available — fall through to the unavailable state.
+      // API not available - fall through to the unavailable state.
     }
     this.state = { apiAvailable: false, formats: [] };
   }
@@ -42,27 +42,31 @@ export class WorkflowsSection implements StatusSection {
   getTopLevelItem(_ctx: SectionContext): StatusItem {
     const count = this.state.formats.length;
     return new StatusItem({
-      label: 'Workflows',
-      description: this.state.apiAvailable ? `${count} export formats` : 'API required',
-      icon: 'type-hierarchy',
-      collapsibleState: count > 0
-        ? vscode.TreeItemCollapsibleState.Collapsed
-        : vscode.TreeItemCollapsibleState.None,
+      label: "Workflows",
+      description: this.state.apiAvailable ? `${count} export formats` : "API required",
+      icon: "type-hierarchy",
+      collapsibleState:
+        count > 0
+          ? vscode.TreeItemCollapsibleState.Collapsed
+          : vscode.TreeItemCollapsibleState.None,
       sectionId: this.sectionId,
       health: this.health(),
     });
   }
 
   getChildren(_ctx: SectionContext, _element?: StatusItem): StatusItem[] {
-    return this.state.formats.map((fmt) => new StatusItem({
-      label: fmt.label,
-      description: `${fmt.status} · .${fmt.extension}`,
-      icon: 'tools',
-      collapsibleState: vscode.TreeItemCollapsibleState.None,
-      sectionId: this.sectionId,
-      health: this.health(),
-      // Link out to the hosted UI's Workflows page (preview/export live there).
-      command: { command: 'operator.openWorkflows', title: 'Open Workflows in Operator UI' },
-    }));
+    return this.state.formats.map(
+      (fmt) =>
+        new StatusItem({
+          label: fmt.label,
+          description: `${fmt.status} · .${fmt.extension}`,
+          icon: "tools",
+          collapsibleState: vscode.TreeItemCollapsibleState.None,
+          sectionId: this.sectionId,
+          health: this.health(),
+          // Link out to the hosted UI's Workflows page (preview/export live there).
+          command: { command: "operator.openWorkflows", title: "Open Workflows in Operator UI" },
+        }),
+    );
   }
 }

@@ -2,8 +2,8 @@
  * Test doubles for the credential layer.
  */
 
-import * as vscode from 'vscode';
-import type { CredentialProvider } from '../../../src/auth/credentials';
+import * as vscode from "vscode";
+import type { CredentialProvider } from "../../../src/auth/credentials";
 
 /** In-memory SecretStorage: enough of the interface for the token store. */
 export class MemorySecrets implements vscode.SecretStorage {
@@ -41,7 +41,7 @@ export interface FakeCredentials extends CredentialProvider {
 }
 
 /** A provider whose answers tests control directly. */
-export function fakeCredentials(token: string | undefined = 'test-token'): FakeCredentials {
+export function fakeCredentials(token: string | undefined = "test-token"): FakeCredentials {
   const fake: FakeCredentials = {
     token,
     refreshed: undefined,

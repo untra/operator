@@ -1,0 +1,17 @@
+# Checkout with LF everywhere; Windows runners default to core.autocrlf=true,
+# which makes oxfmt/cargo fmt see every file as unformatted.
+* text=auto eol=lf
+
+# Batch files need CRLF for goto/label parsing.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.vsix binary

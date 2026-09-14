@@ -108,6 +108,9 @@ jobs:
             exit 1
           fi
 
+      - name: Set up Helm
+        uses: azure/setup-helm@v5.0.1
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -139,9 +142,6 @@ jobs:
           manifest-path: crates/relay/Cargo.toml
           arguments: --all-features
           command: check
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v5.0.1
 
       - name: Lint and render Helm chart
         run: |
@@ -183,7 +183,6 @@ jobs:
 
   # Compute the next version once, before anything is built, so the compiled
   # binaries embed the same version that the release tag + Docker tag will use.
-  # The actual file edits + commit + tag still happen in the release job.
   version:
     needs: lint-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

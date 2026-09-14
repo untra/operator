@@ -35,24 +35,22 @@ fn helm(args: &[&str]) -> String {
     String::from_utf8_lossy(&out.stdout).into_owned()
 }
 
-/// `helm install --dry-run` is the only way to render NOTES.txt; `helm template`
-/// skips it.
+/// `helm install --dry-run` is the only way to render NOTES.txt; `helm template` skips it.
 fn rendered_notes(args: &[&str]) -> String {
     let mut full = vec!["install", "op"];
     let dir = chart_dir();
     let dir = dir.to_str().unwrap();
     full.push(dir);
-    full.push("--dry-run");
+    full.push("--dry-run=client");
     full.extend_from_slice(args);
     let output = helm(&full);
     output
         .split_once("NOTES:")
         .map(|(_, notes)| notes.trim().to_string())
-        .expect("helm install --dry-run must render NOTES.txt")
+        .expect("helm install --dry-run=client must render NOTES.txt")
 }
 
-/// The README is the packaged install guide - `helm show readme` and the GHCR
-/// listing both read it out of the archive. Packaging it is easy to lose.
+/// The README is the packaged install guide
 #[test]
 fn test_readme_is_packaged_into_the_chart_archive() {
     if !helm_available() {
@@ -87,8 +85,7 @@ fn test_readme_is_packaged_into_the_chart_archive() {
     );
 }
 
-/// The ingress branch of NOTES dereferences `.Values.ingress.tls.secretName`,
-/// which the default render never reaches.
+/// The ingress branch of NOTES dereferences `.Values.ingress.tls.secretName`
 #[test]
 fn test_notes_render_a_usable_setup_url_on_both_branches() {
     if !helm_available() {
@@ -120,8 +117,7 @@ fn test_notes_render_a_usable_setup_url_on_both_branches() {
     );
 }
 
-/// `publicUrl` only changes generated links; it provisions no Ingress. Saying
-/// otherwise sends operators looking for a route that does not exist.
+/// `publicUrl` only changes generated links; it provisions no Ingress.
 #[test]
 fn test_notes_separate_public_url_from_ingress() {
     if !helm_available() {

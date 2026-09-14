@@ -10,6 +10,7 @@ pub(crate) mod coder;
 pub mod interpolation;
 pub(crate) mod llm_command;
 mod options;
+pub(crate) mod process;
 pub(crate) mod prompt;
 pub(crate) mod remote;
 pub(crate) mod step_command;

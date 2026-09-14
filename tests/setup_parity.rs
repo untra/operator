@@ -208,3 +208,76 @@ fn test_web_parity_scope_cuts_are_explicit() {
     assert!(web_steps_tsx().contains("Ticket creation is read-only"));
     assert!(tsx_contains_code("wrapperSteps.has(step)"));
 }
+
+/// Coder template parameters are held in `draft.coderParameters` (stable row ids)
+/// and only folded into the request payload at submit. Editing the target
+/// name or template must not clear them - the earlier version of these handlers
+/// wrote `parameters: {}` back into the target on every keystroke.
+#[test]
+fn test_coder_parameter_rows_survive_target_name_and_template_edits() {
+    assert!(
+        tsx_contains_code("coderParameters: current.coderParameters.map("),
+        "parameter rows must be edited in place by id, not rebuilt from the target"
+    );
+    let carried = WEB_STEPS_TSX
+        .matches("? current.executionTarget.parameters")
+        .count();
+    assert_eq!(
+        carried, 2,
+        "both the target-name and the template handler must carry existing parameters \
+         through an edit instead of resetting them to an empty map"
+    );
+
+    // The only legitimate empty initialisation is selecting the coder kind for
+    // the first time; every other site would silently drop entered parameters.
+    let reset = WEB_STEPS_TSX.matches("parameters: {},").count();
+    assert_eq!(
+        reset, 1,
+        "only the coder-kind selection may initialise parameters to an empty map"
+    );
+}
+
+/// Parameter values can carry credentials-adjacent template input. The review
+/// step acknowledges that parameters exist and where they land, but never renders a value.
+#[test]
+fn test_confirm_step_reports_parameter_count_without_values() {
+    let confirm = WEB_STEPS_TSX
+        .split_once("const Confirm: StepComponent")
+        .expect("steps.tsx must define a Confirm step")
+        .1
+        .split_once("export const STEP_COMPONENTS")
+        .expect("Confirm must precede the component map")
+        .0;
+
+    assert!(
+        confirm.contains("draft.coderParameters.length"),
+        "the review summary must report how many Coder parameters were entered"
+    );
+    assert!(
+        confirm.contains("stored in the project configuration"),
+        "the review summary must say where parameter values are persisted"
+    );
+    assert!(
+        !confirm.contains("parameter.value") && !confirm.contains(".value}"),
+        "the review summary must never render a Coder parameter value"
+    );
+}
+
+/// Empty and duplicate names are rejected before submit; values are sent verbatim
+#[test]
+fn test_web_wizard_validates_coder_parameter_names() {
+    const PAGE_TSX: &str = include_str!("../ui/src/routes/onboarding/OnboardingPage.tsx");
+
+    assert!(
+        PAGE_TSX.contains("Coder parameter names cannot be empty."),
+        "the wizard must reject an empty parameter name"
+    );
+    assert!(
+        PAGE_TSX.contains("Coder parameter names must be unique."),
+        "the wizard must reject duplicate parameter names"
+    );
+    assert!(
+        PAGE_TSX.contains("[name.trim(), value]"),
+        "parameter names are trimmed but values must be submitted verbatim"
+    );
+}

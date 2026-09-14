@@ -303,10 +303,10 @@ pub struct RestApiConfig {
     pub public_url: Option<String>,
     /// Maximum time to wait for active agents before shutdown cleanup begins.
     #[serde(default = "default_shutdown_drain_seconds")]
-    pub shutdown_drain_seconds: u64,
+    pub shutdown_drain_seconds: u32,
     /// Maximum time reserved for final callbacks and persistent cleanup.
     #[serde(default = "default_shutdown_cleanup_seconds")]
-    pub shutdown_cleanup_seconds: u64,
+    pub shutdown_cleanup_seconds: u32,
 }
 
 fn default_rest_enabled() -> bool {
@@ -321,11 +321,11 @@ fn default_rest_port() -> u16 {
     7008
 }
 
-fn default_shutdown_drain_seconds() -> u64 {
+fn default_shutdown_drain_seconds() -> u32 {
     60
 }
 
-fn default_shutdown_cleanup_seconds() -> u64 {
+fn default_shutdown_cleanup_seconds() -> u32 {
     15
 }
 

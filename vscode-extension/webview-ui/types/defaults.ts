@@ -109,6 +109,8 @@ const DEFAULT_CONFIG: Config = {
     port: 7008,
     cors_origins: [],
     public_url: null,
+    shutdown_drain_seconds: 60,
+    shutdown_cleanup_seconds: 15,
   },
   git: {
     provider: null,

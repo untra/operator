@@ -73,7 +73,7 @@ export function DevicePage() {
           <input
             className={styles.input}
             value={userCode}
-            onChange={(e) => setUserCode(e.target.value.toUpperCase())}
+            onChange={(event) => setUserCode(event.target.value.toUpperCase())}
             placeholder="XXXX-XXXX"
             required
           />

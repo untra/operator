@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { Button } from "./primitives";
 import { SidebarNav, type NavItem } from "./SidebarNav";
 import { OperatorBrand } from "./OperatorBrand";
@@ -67,6 +67,11 @@ export function ConfigPage({
   // When no config file exists yet (or it's empty), nudge the user into the
   // setup walkthrough instead of trying to open a non-existent config.toml.
   const needsSetup = !config.config_exists;
+  const handleOpenConfig = useCallback(
+    () => onOpenFile(config.config_path),
+    [config.config_path, onOpenFile],
+  );
+  const handleOpenProjects = useCallback(() => onOpenOperatorUi("projects"), [onOpenOperatorUi]);
 
   const navItems: NavItem[] = useMemo(
     () => [
@@ -97,7 +102,7 @@ export function ConfigPage({
             <Button
               variant="outlined"
               accent="sage"
-              onClick={() => onOpenFile(config.config_path)}
+              onClick={handleOpenConfig}
               disabled={!config.working_directory}
             >
               edit config.toml
@@ -143,7 +148,7 @@ export function ConfigPage({
           id="section-projects"
           title="Operator Managed Projects"
           description="Browse, assess, and open managed projects in the Operator UI."
-          onOpen={() => onOpenOperatorUi("projects")}
+          onOpen={handleOpenProjects}
         />
       </div>
     </div>

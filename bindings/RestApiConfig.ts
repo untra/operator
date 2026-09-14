@@ -27,8 +27,8 @@ public_url: string | null,
 /**
  * Maximum time to wait for active agents before shutdown cleanup begins.
  */
-shutdown_drain_seconds: bigint, 
+shutdown_drain_seconds: number, 
 /**
  * Maximum time reserved for final callbacks and persistent cleanup.
  */
-shutdown_cleanup_seconds: bigint, };
+shutdown_cleanup_seconds: number, };

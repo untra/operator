@@ -74,7 +74,6 @@ llm_tool: string | null,
 llm_model: string | null, 
 /**
  * Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`
- * (derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match)
  */
 launch_mode: string | null, 
 /**

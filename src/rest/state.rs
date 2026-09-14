@@ -126,7 +126,6 @@ impl ApiState {
     /// Build with a caller-supplied auth context, so tests and the TUI can share
     /// one already-open store instead of racing to open the same database file.
     pub fn with_auth(config: Config, tickets_path: PathBuf, auth: Arc<AuthContext>) -> Self {
-        reconcile_shutdown_recovery(&config);
         // Shared loader; keeps the API's issue-type resolution identical to the CLI/TUI `workflow export` produces the same output on every surface.
         let registry = load_registry(&tickets_path);
 
@@ -265,39 +264,6 @@ impl ApiState {
     }
 }
 
-fn reconcile_shutdown_recovery(config: &Config) {
-    let Ok(mut app_state) = crate::state::State::load(config) else {
-        return;
-    };
-    let mut changed = false;
-    for agent in &mut app_state.agents {
-        match agent.shutdown_recovery {
-            Some(crate::state::ShutdownRecovery::RemoteAwaitingReconciliation) => {
-                if matches!(
-                    agent.status.as_str(),
-                    "running" | "awaiting_input" | "completing"
-                ) {
-                    agent.last_message = Some(
-                        "Remote work is awaiting reconciliation after Operator restart".to_string(),
-                    );
-                } else {
-                    agent.shutdown_recovery = None;
-                }
-                changed = true;
-            }
-            Some(crate::state::ShutdownRecovery::InterruptedLocal) => {
-                agent.status = "failed".to_string();
-            }
-            None => {}
-        }
-    }
-    if changed {
-        if let Err(error) = app_state.save() {
-            tracing::error!(%error, "Failed to persist shutdown recovery state");
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,6 +332,118 @@ mod tests {
             state.kanban_sync.is_some(),
             "kanban_sync should be Some when at least one project has bidirectional: true"
         );
+    }
+
+    fn lifecycle_state(temp: &tempfile::TempDir) -> ApiState {
+        let mut config = Config::default();
+        config.paths.state = temp.path().join("state").display().to_string();
+        config.paths.tickets = temp.path().join("tickets").display().to_string();
+        ApiState::new(config, temp.path().join("tickets"))
+    }
+
+    /// A launch admitted moments before the drain begins must stay counted
+    /// until it finishes; the drain waits for it rather than racing past.
+    #[test]
+    fn admitted_launch_keeps_the_drain_waiting_until_it_finishes() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = lifecycle_state(&temp);
+
+        let permit = state.begin_launch().unwrap();
+        assert!(state.start_draining());
+        assert_eq!(
+            state.in_flight_operations(),
+            1,
+            "draining must not discard an already-admitted launch"
+        );
+
+        drop(permit);
+        assert_eq!(state.in_flight_operations(), 0);
+    }
+
+    /// Repeated signals must not reopen admission or restart the deadline; only
+    /// the first transition out of Running wins.
+    #[test]
+    fn repeated_drain_signals_do_not_reopen_admission() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = lifecycle_state(&temp);
+
+        assert!(state.start_draining(), "first signal starts the drain");
+        assert!(
+            !state.start_draining(),
+            "a second signal must not restart the drain"
+        );
+        assert!(!state.start_draining());
+        assert!(state.is_draining());
+        assert!(state.begin_launch().is_err());
+    }
+
+    /// Callbacks stay open through the drain window so work in flight can report
+    /// completion; only the stopping phase closes them.
+    #[test]
+    fn callbacks_stay_open_through_draining_and_close_on_stopping() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = lifecycle_state(&temp);
+
+        state.start_draining();
+        let callback = state
+            .begin_callback()
+            .expect("a completion callback must still be accepted while draining");
+        assert_eq!(state.in_flight_operations(), 1);
+        drop(callback);
+
+        state.start_stopping();
+        assert!(matches!(
+            state.begin_callback(),
+            Err(ApiError::Unavailable(_))
+        ));
+    }
+
+    /// Permits are counted, not boolean: concurrent launches must each be
+    /// tracked, and the count must return to zero exactly.
+    #[test]
+    fn concurrent_permits_are_counted_independently() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = lifecycle_state(&temp);
+
+        let permits: Vec<_> = (0..5).map(|_| state.begin_launch().unwrap()).collect();
+        assert_eq!(state.in_flight_operations(), 5);
+
+        state.start_draining();
+        drop(permits);
+        assert_eq!(state.in_flight_operations(), 0);
+    }
+
+    /// Admission is checked again after the counter is incremented, so a drain
+    /// landing between the two cannot leak an uncounted permit.
+    #[test]
+    fn launch_admission_under_concurrent_drain_never_leaks_a_permit() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = lifecycle_state(&temp);
+
+        std::thread::scope(|scope| {
+            let drainer = {
+                let state = state.clone();
+                scope.spawn(move || state.start_draining())
+            };
+            let launchers: Vec<_> = (0..16)
+                .map(|_| {
+                    let state = state.clone();
+                    scope.spawn(move || state.begin_launch().ok())
+                })
+                .collect();
+
+            drainer.join().unwrap();
+            for launcher in launchers {
+                drop(launcher.join().unwrap());
+            }
+        });
+
+        assert_eq!(
+            state.in_flight_operations(),
+            0,
+            "every admitted permit must be released and every rejection must not count"
+        );
+        assert!(state.begin_launch().is_err());
     }
 
     #[test]

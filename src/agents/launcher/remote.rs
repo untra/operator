@@ -427,6 +427,9 @@ fn preflight_script(
     checks
 }
 
+/// Budget for the whole preflight probe, handshake included.
+const PREFLIGHT_TIMEOUT_SECS: u64 = 60;
+
 /// Check the remote host can run the agent before any session is created:
 /// reachable over SSH (`BatchMode` so a password prompt can't wedge the TUI),
 /// tmux and the tool on the remote PATH, and the workdir present.
@@ -439,12 +442,16 @@ pub(crate) fn run_preflight(
     if let Some(ref frag) = host.ssh_config_path {
         cmd.args(["-F", frag]);
     }
-    let status = cmd
-        .args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=5"])
+    cmd.args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=5"])
         .arg(&host.ssh_alias)
-        .arg(preflight_script(host, tool_name, provider))
-        .status()
-        .context("Failed to run ssh for remote preflight")?;
+        .arg(preflight_script(host, tool_name, provider));
+    // ConnectTimeout bounds only the handshake
+    let status = super::process::output_with_timeout(
+        cmd,
+        std::time::Duration::from_secs(PREFLIGHT_TIMEOUT_SECS),
+        "remote preflight over ssh",
+    )?
+    .status;
 
     match status.code() {
         Some(0) => Ok(()),

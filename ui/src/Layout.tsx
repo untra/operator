@@ -11,6 +11,10 @@ import type { SectionDto } from "./api-client";
 import { OperatorApi, setCsrfToken } from "./api-client";
 import { useHost } from "./host";
 
+function navLinkClassName({ isActive }: { isActive: boolean }): string {
+  return isActive ? `${styles.navLink} ${styles.active}` : styles.navLink;
+}
+
 // The "Status" group mirrors the canonical section order shared with the TUI and
 // VS Code extension (the SectionId enum in src/ui/status_panel.rs) and reflects
 // each section's live health from GET /api/v1/sections. A section whose
@@ -43,13 +47,7 @@ function NavRow({ concept, section }: { concept: Concept; section?: SectionDto }
   }
 
   return (
-    <NavLink
-      to={concept.route}
-      end={concept.route === "/"}
-      className={({ isActive }) =>
-        isActive ? `${styles.navLink} ${styles.active}` : styles.navLink
-      }
-    >
+    <NavLink to={concept.route} end={concept.route === "/"} className={navLinkClassName}>
       {inner}
     </NavLink>
   );

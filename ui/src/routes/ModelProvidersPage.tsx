@@ -109,24 +109,35 @@ export function ModelProvidersPage() {
 
   useEffect(refreshDelegators, [refreshDelegators]);
 
-  const connectGateway = async (kind: ModelServerKindEntry) => {
-    setError(null);
-    try {
-      await api.createModelServer({
-        name: kind.slug,
-        kind: kind.slug,
-        base_url: kind.default_base_url ?? null,
-        api_key_env: kind.default_api_key_env ?? null,
-        extra_env: {},
-        display_name: kind.display_name,
-      });
-      setNotice(`Declared "${kind.slug}". Re-probing…`);
-      const r = await api.providerModels(kind.slug);
-      setProbes((p) => ({ ...p, [kind.slug]: r }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to connect provider");
-    }
-  };
+  const connectGateway = useCallback(
+    async (kind: ModelServerKindEntry) => {
+      setError(null);
+      try {
+        await api.createModelServer({
+          name: kind.slug,
+          kind: kind.slug,
+          base_url: kind.default_base_url ?? null,
+          api_key_env: kind.default_api_key_env ?? null,
+          extra_env: {},
+          display_name: kind.display_name,
+        });
+        setNotice(`Declared "${kind.slug}". Re-probing…`);
+        const r = await api.providerModels(kind.slug);
+        setProbes((p) => ({ ...p, [kind.slug]: r }));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to connect provider");
+      }
+    },
+    [api],
+  );
+
+  const handleDelegatorCreated = useCallback(
+    (name: string) => {
+      setNotice(`Created delegator "${name}".`);
+      refreshDelegators();
+    },
+    [refreshDelegators],
+  );
 
   const firstParty = useMemo(() => kinds.filter((k) => k.category === "first-party"), [kinds]);
   const gateways = useMemo(() => kinds.filter((k) => k.category === "gateway"), [kinds]);
@@ -167,10 +178,7 @@ export function ModelProvidersPage() {
         kinds={kinds}
         probes={probes}
         detectedTools={detectedTools}
-        onCreated={(name) => {
-          setNotice(`Created delegator "${name}".`);
-          refreshDelegators();
-        }}
+        onCreated={handleDelegatorCreated}
         onError={setError}
       />
 

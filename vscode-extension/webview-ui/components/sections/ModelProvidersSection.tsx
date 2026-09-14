@@ -18,6 +18,13 @@ interface ModelProvidersSectionProps {
 
 type ProbeMap = Record<string, ModelServerModelsResponse | undefined>;
 
+function connectProvider(event: React.MouseEvent<HTMLButtonElement>): void {
+  const slug = event.currentTarget.dataset.providerSlug;
+  if (slug) {
+    postMessage({ type: "connectProvider", slug });
+  }
+}
+
 function DismissableAlert({
   severity,
   onClose,
@@ -45,6 +52,8 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
   const [delegators, setDelegators] = useState<DelegatorResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const dismissError = useCallback(() => setError(null), [setError]);
+  const dismissNotice = useCallback(() => setNotice(null), [setNotice]);
 
   const load = useCallback(() => {
     if (apiReachable) {
@@ -126,12 +135,12 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
         </Alert>
       )}
       {error && (
-        <DismissableAlert severity="error" onClose={() => setError(null)}>
+        <DismissableAlert severity="error" onClose={dismissError}>
           {error}
         </DismissableAlert>
       )}
       {notice && (
-        <DismissableAlert severity="success" onClose={() => setNotice(null)}>
+        <DismissableAlert severity="success" onClose={dismissNotice}>
           {notice}
         </DismissableAlert>
       )}
@@ -203,10 +212,7 @@ function ProviderGroup({
               </span>
               <Chip label={conn.label} color={conn.color} variant="outlined" />
               {conn.label === "not connected" && k.connectable && !k.is_builtin && (
-                <Button
-                  size="small"
-                  onClick={() => postMessage({ type: "connectProvider", slug: k.slug })}
-                >
+                <Button size="small" data-provider-slug={k.slug} onClick={connectProvider}>
                   Connect
                 </Button>
               )}
@@ -245,7 +251,7 @@ function CreateDelegatorForm({
   const probe = provider ? probes[provider] : undefined;
   const liveModels = probe?.reachable ? probe.models : [];
 
-  const submit = () => {
+  const submit = useCallback(() => {
     if (!selectedTool || !provider || !model) {
       return;
     }
@@ -264,7 +270,27 @@ function CreateDelegatorForm({
     });
     setName("");
     setModel("");
-  };
+  }, [model, name, provider, selectedTool]);
+  const handleToolChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => setTool(event.target.value),
+    [setTool],
+  );
+  const handleProviderChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      setProvider(event.target.value);
+      setModel("");
+    },
+    [setModel, setProvider],
+  );
+  const handleModelChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setModel(event.target.value),
+    [setModel],
+  );
+  const handleNameChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => setName(event.target.value),
+    [setName],
+  );
 
   return (
     <div className="op-mt-2 op-mb-1">
@@ -272,11 +298,7 @@ function CreateDelegatorForm({
         Create delegator - pair a tool with a connected provider and a live model.
       </p>
       <div className="op-col" style={{ gap: 12, maxWidth: 420 }}>
-        <SelectInput
-          label="LLM tool"
-          value={selectedTool}
-          onChange={(e) => setTool(e.target.value)}
-        >
+        <SelectInput label="LLM tool" value={selectedTool} onChange={handleToolChange}>
           {detectedTools.length === 0 && <option value="">(none detected)</option>}
           {detectedTools.map((t) => (
             <option key={t} value={t}>
@@ -285,14 +307,7 @@ function CreateDelegatorForm({
           ))}
         </SelectInput>
 
-        <SelectInput
-          label="Provider"
-          value={provider}
-          onChange={(e) => {
-            setProvider(e.target.value);
-            setModel("");
-          }}
-        >
+        <SelectInput label="Provider" value={provider} onChange={handleProviderChange}>
           {kinds.map((k) => (
             <option key={k.slug} value={k.slug}>
               {k.display_name} {probes[k.slug]?.reachable ? "●" : "○"}
@@ -301,7 +316,7 @@ function CreateDelegatorForm({
         </SelectInput>
 
         {liveModels.length > 0 ? (
-          <SelectInput label="Model" value={model} onChange={(e) => setModel(e.target.value)}>
+          <SelectInput label="Model" value={model} onChange={handleModelChange}>
             {liveModels.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.display_name ?? m.id}
@@ -313,7 +328,7 @@ function CreateDelegatorForm({
             label="Model"
             value={model}
             placeholder={provider ? "model id (provider not connected)" : "pick a provider first"}
-            onChange={(e) => setModel(e.target.value)}
+            onChange={handleModelChange}
           />
         )}
 
@@ -321,7 +336,7 @@ function CreateDelegatorForm({
           label="Name (optional)"
           value={name}
           placeholder={selectedTool && model ? `${selectedTool}-${model}` : "delegator name"}
-          onChange={(e) => setName(e.target.value)}
+          onChange={handleNameChange}
         />
 
         <Button

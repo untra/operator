@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { SetupStatusResponse } from "../../api-client";
@@ -91,11 +91,14 @@ export function OnboardingPage() {
   const current = steps.find((step) => step.slug === walk[currentIndex]);
   const Step = current ? STEP_COMPONENTS[current.slug] : null;
 
-  function addExport(value: string) {
-    setExports((currentExports) =>
-      currentExports.includes(value) ? currentExports : [...currentExports, value],
-    );
-  }
+  const addExport = useCallback(
+    (value: string) => {
+      setExports((currentExports) =>
+        currentExports.includes(value) ? currentExports : [...currentExports, value],
+      );
+    },
+    [setExports],
+  );
 
   function next() {
     if (!current) {

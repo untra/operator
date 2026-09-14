@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { SelectInput } from "../primitives";
 import type { ExternalIssueTypeSummary, IssueTypeSummary } from "../../types/messages";
 
@@ -25,6 +25,10 @@ export function MappingRow({
 }: MappingRowProps) {
   const effectiveKey = selectedKey ?? autoMatchedKey;
   const isOverride = selectedKey !== null && selectedKey !== autoMatchedKey;
+  const handleSelectionChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => onSelect(external.name, event.target.value),
+    [external.name, onSelect],
+  );
 
   return (
     <div style={{ padding: "8px 0", borderBottom: DIVIDER_BORDER }}>
@@ -46,10 +50,7 @@ export function MappingRow({
 
         {/* Operator type selector */}
         <div style={{ flex: 1 }}>
-          <SelectInput
-            value={effectiveKey ?? ""}
-            onChange={(e) => onSelect(external.name, e.target.value)}
-          >
+          <SelectInput value={effectiveKey ?? ""} onChange={handleSelectionChange}>
             <option value="">Unmapped</option>
             {operatorTypes.map((ot) => (
               <option key={ot.key} value={ot.key}>

@@ -161,7 +161,21 @@ pub async fn launch_ticket(
     Path(ticket_id): Path<String>,
     Json(request): Json<LaunchTicketRequest>,
 ) -> Result<Json<LaunchTicketResponse>, ApiError> {
-    let _launch_permit = state.begin_launch()?;
+    let permit = state.begin_launch()?;
+    tokio::spawn(async move {
+        let _launch_permit = permit;
+        launch_admitted_ticket(state, ticket_id, request).await
+    })
+    .await
+    .map_err(|error| ApiError::InternalError(format!("Launch task failed: {error}")))?
+}
+
+/// The launch itself, past admission control.
+async fn launch_admitted_ticket(
+    state: ApiState,
+    ticket_id: String,
+    request: LaunchTicketRequest,
+) -> Result<Json<LaunchTicketResponse>, ApiError> {
     let recovery_state = crate::state::State::load(&state.config())
         .map_err(|error| ApiError::InternalError(error.to_string()))?;
     if recovery_state.agents.iter().any(|agent| {
@@ -258,24 +272,21 @@ pub async fn launch_ticket(
         }
     };
 
-    let mut recovery_state = crate::state::State::load(&state.config())
-        .map_err(|error| ApiError::InternalError(error.to_string()))?;
-    let mut recovery_cleared = false;
-    for agent in recovery_state
-        .agents
-        .iter_mut()
-        .filter(|agent| agent.ticket_id == ticket_id)
-    {
-        if agent.shutdown_recovery == Some(crate::state::ShutdownRecovery::InterruptedLocal) {
-            agent.shutdown_recovery = None;
-            recovery_cleared = true;
+    // An explicit relaunch is the retry this ticket's interrupted local work was
+    // waiting for, so clear the marker. Under the write lock, because the launch
+    // above has already registered its own agent record.
+    crate::state::State::mutate(&state.config(), |app_state| {
+        for agent in app_state
+            .agents
+            .iter_mut()
+            .filter(|agent| agent.ticket_id == ticket_id)
+        {
+            if agent.shutdown_recovery == Some(crate::state::ShutdownRecovery::InterruptedLocal) {
+                agent.shutdown_recovery = None;
+            }
         }
-    }
-    if recovery_cleared {
-        recovery_state
-            .save()
-            .map_err(|error| ApiError::InternalError(error.to_string()))?;
-    }
+    })
+    .map_err(|error| ApiError::InternalError(error.to_string()))?;
 
     Ok(Json(response))
 }
@@ -1700,6 +1711,98 @@ mod tests {
             Some(&built.session_id),
             "minted session id must be persisted in the ticket's session map"
         );
+    }
+
+    /// During the drain window a completion must still be recorded - the agent
+    /// did the work - but Operator must not hand back anything that would start
+    /// the next step in a process that is going away.
+    #[tokio::test]
+    async fn test_complete_step_records_work_but_defers_progression_while_draining() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9010", "scan");
+        add_chain_agent(&fixture.state, &ticket, "sonnet", "session-scan");
+
+        assert!(fixture.state.start_draining());
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "scan".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
+            Json(make_chain_complete_request("session-scan")),
+        )
+        .await
+        .expect("a completion callback must still be accepted while draining");
+
+        assert!(
+            !response.0.auto_proceed,
+            "draining must not auto-advance the chain"
+        );
+        assert!(
+            response.0.next_command.is_none(),
+            "no executable next-step instruction may be returned while draining"
+        );
+        assert!(
+            response.0.next_step.is_some(),
+            "the caller is still told what comes next, just not told to run it"
+        );
+    }
+
+    /// Once stopping, even callbacks are refused; the drain window is over.
+    #[tokio::test]
+    async fn test_complete_step_is_refused_once_stopping() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9011", "scan");
+        add_chain_agent(&fixture.state, &ticket, "sonnet", "session-scan");
+
+        fixture.state.start_draining();
+        fixture.state.start_stopping();
+
+        let result = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "scan".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
+            Json(make_chain_complete_request("session-scan")),
+        )
+        .await;
+
+        assert!(matches!(result, Err(ApiError::Unavailable(_))));
+    }
+
+    /// Launch admission is closed for every caller that reaches this handler,
+    /// REST and MCP alike, and the refusal is a 503-shaped error.
+    #[tokio::test]
+    async fn test_launch_ticket_is_refused_while_draining() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9012", "scan");
+
+        fixture.state.start_draining();
+
+        let result = launch_ticket(
+            State(fixture.state.clone()),
+            Path(ticket.id.clone()),
+            Json(LaunchTicketRequest {
+                target: None,
+                delegator: None,
+                provider: None,
+                model: None,
+                model_server: None,
+                yolo_mode: false,
+                wrapper: None,
+                retry_reason: None,
+                resume_session_id: None,
+            }),
+        )
+        .await;
+
+        match result {
+            Err(ApiError::Unavailable(message)) => {
+                assert!(
+                    message.contains("draining"),
+                    "unexpected message: {message}"
+                );
+            }
+            other => panic!("expected an Unavailable rejection, got {other:?}"),
+        }
     }
 
     #[tokio::test]

@@ -51,9 +51,10 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        let (status, error, message) = match self {
+impl ApiError {
+    /// Status, stable machine-readable code, and human message.
+    pub fn parts(self) -> (StatusCode, &'static str, String) {
+        match self {
             ApiError::NotFound(msg) => (StatusCode::NOT_FOUND, "not_found", msg),
             ApiError::ValidationError(msg) => (StatusCode::BAD_REQUEST, "validation_error", msg),
             ApiError::Conflict(msg) => (StatusCode::CONFLICT, "conflict", msg),
@@ -66,7 +67,13 @@ impl IntoResponse for ApiError {
             ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, "unauthorized", msg),
             ApiError::Forbidden(msg) => (StatusCode::FORBIDDEN, "forbidden", msg),
             ApiError::CsrfFailed(msg) => (StatusCode::FORBIDDEN, "csrf_failed", msg),
-        };
+        }
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        let (status, error, message) = self.parts();
 
         let body = Json(ErrorResponse {
             error: error.to_string(),

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Button, Chip } from "../primitives";
 import { SectionHeader } from "../SectionHeader";
 import type { AgentsConfig } from "../../../src/generated/AgentsConfig";
@@ -50,6 +50,26 @@ export function CodingAgentsSection({
   const stepTimeout = Number(agents.step_timeout);
   const silenceThreshold = Number(agents.silence_threshold);
   const detected = llm_tools.detected;
+  const handleMaxParallelChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate("agents", "max_parallel", Number.parseInt(event.target.value, 10) || 1),
+    [onUpdate],
+  );
+  const handleGenerationTimeoutChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate("agents", "generation_timeout_secs", Number.parseInt(event.target.value, 10) || 300),
+    [onUpdate],
+  );
+  const handleStepTimeoutChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate("agents", "step_timeout", Number.parseInt(event.target.value, 10) || 1800),
+    [onUpdate],
+  );
+  const handleSilenceThresholdChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate("agents", "silence_threshold", Number.parseInt(event.target.value, 10) || 30),
+    [onUpdate],
+  );
 
   return (
     <div className="op-mb-4">
@@ -101,9 +121,7 @@ export function CodingAgentsSection({
           value={maxParallel}
           min={1}
           max={16}
-          onChange={(e) =>
-            onUpdate("agents", "max_parallel", Number.parseInt(e.target.value, 10) || 1)
-          }
+          onChange={handleMaxParallelChange}
           helperText="Maximum number of agents running simultaneously"
         />
 
@@ -112,13 +130,7 @@ export function CodingAgentsSection({
           value={generationTimeout}
           min={30}
           max={3600}
-          onChange={(e) =>
-            onUpdate(
-              "agents",
-              "generation_timeout_secs",
-              Number.parseInt(e.target.value, 10) || 300,
-            )
-          }
+          onChange={handleGenerationTimeoutChange}
           helperText="Timeout for each agent generation step"
         />
 
@@ -127,9 +139,7 @@ export function CodingAgentsSection({
           value={stepTimeout}
           min={60}
           max={7200}
-          onChange={(e) =>
-            onUpdate("agents", "step_timeout", Number.parseInt(e.target.value, 10) || 1800)
-          }
+          onChange={handleStepTimeoutChange}
           helperText="Maximum seconds a step can run before timing out"
         />
 
@@ -138,9 +148,7 @@ export function CodingAgentsSection({
           value={silenceThreshold}
           min={5}
           max={300}
-          onChange={(e) =>
-            onUpdate("agents", "silence_threshold", Number.parseInt(e.target.value, 10) || 30)
-          }
+          onChange={handleSilenceThresholdChange}
           helperText="Seconds of silence before considering agent awaiting input"
         />
       </div>

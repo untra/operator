@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { OperatorBrand } from "./OperatorBrand";
 
 export interface NavItem {
@@ -12,18 +12,22 @@ interface SidebarNavProps {
   scrollContainerRef: React.RefObject<HTMLElement | null>;
 }
 
+function scrollToItem(item: NavItem): void {
+  if (item.disabled) {
+    return;
+  }
+  document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
   const [activeId, setActiveId] = useState<string>(items[0]?.id ?? "");
 
-  const handleClick = useCallback((item: NavItem) => {
-    if (item.disabled) {
-      return;
+  function handleNavigationClick(event: React.MouseEvent<HTMLButtonElement>) {
+    const item = items.find(({ id }) => id === event.currentTarget.dataset.sectionId);
+    if (item) {
+      scrollToItem(item);
     }
-    const element = document.getElementById(item.id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, []);
+  }
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -71,7 +75,8 @@ export function SidebarNav({ items, scrollContainerRef }: SidebarNavProps) {
           className="op-nav-item"
           data-selected={activeId === item.id && !item.disabled ? "true" : undefined}
           disabled={item.disabled}
-          onClick={() => handleClick(item)}
+          data-section-id={item.id}
+          onClick={handleNavigationClick}
         >
           {item.label}
         </button>

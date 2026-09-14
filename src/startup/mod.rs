@@ -21,6 +21,7 @@
 //! init_default_templates(&templates_path)?;
 //! ```
 
+pub mod recovery;
 pub mod steps;
 pub mod templates;
 

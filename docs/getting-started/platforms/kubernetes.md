@@ -291,6 +291,22 @@ The chart defaults the Kubernetes grace period to 90 seconds; it must be greater
 than the sum of both shutdown intervals. A custom `lifecycle` hook consumes the
 same grace period.
 
+SIGTERM is the supported drain trigger; there is no HTTP drain endpoint. During
+the drain window `/readyz` returns 503 while `/livez` keeps succeeding, so the
+kubelet stops routing new traffic without restarting the pod. Launch requests
+are refused with 503, but in-flight agent completion callbacks and status reads
+keep working: a step that finishes mid-drain is still recorded, it simply does
+not start the next one.
+
+On restart, agents that were interrupted locally come back as failed with an
+explicit shutdown-interruption reason and are available for retry. Remote Coder
+and SSH work is left running - Operator never stops a remote workspace just
+because it is shutting down - and comes back marked as awaiting reconciliation.
+Operator does not probe the remote host to resolve that state: a relaunch of the
+same ticket is refused with 409 until you decide whether the remote work
+survived. Remote computation can outlive Operator while its callback path is
+down, so reconciliation surfaces that gap rather than guessing at it.
+
 The authentication database migrates forward automatically on start.
 
 ## Backup and restore

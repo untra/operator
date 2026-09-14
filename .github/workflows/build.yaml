@@ -604,7 +604,7 @@ jobs:
 
       - name: Update TypeScript VERSION constant
         run: |
-          sed -i "s/const VERSION = '[^']*'/const VERSION = '${{ needs.version.outputs.version }}'/" vscode-extension/src/webhook-server.ts
+          sed -i "s/const VERSION = [\"'][^\"']*[\"']/const VERSION = \\"${{ needs.version.outputs.version }}\\"/" vscode-extension/src/webhook-server.ts
 
       # Pinned by tests/version_parity.rs; the range keeps the sed inside the
       # install_version block so sibling variable defaults are untouched.

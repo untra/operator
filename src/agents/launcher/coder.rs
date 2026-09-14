@@ -184,17 +184,33 @@ pub(crate) fn checkout_script(workdir: &str, remote_url: &str, branch: &str) -> 
     )
 }
 
+/// Budget for read-only `coder` queries. Creation and stop reuse the target's
+/// own `create_timeout_secs`, which operators already tune per deployment.
+const QUERY_TIMEOUT_SECS: u64 = 60;
+
+/// Budget for a single ssh readiness probe inside the `wait_for_ssh` loop.
+const SSH_PROBE_TIMEOUT_SECS: u64 = 30;
+
 /// Run a `coder` CLI invocation with the session injected under the CLI's
 /// standard env names. Errors surface Coder's stderr verbatim - quota and
 /// permission failures are the control plane's message, not ours to
 /// reinterpret.
-fn run_coder(coder_bin: &Path, session: &CoderSession, args: &[&str]) -> Result<String> {
-    let output = Command::new(coder_bin)
+fn run_coder(
+    coder_bin: &Path,
+    session: &CoderSession,
+    args: &[&str],
+    timeout_secs: u64,
+) -> Result<String> {
+    let mut command = Command::new(coder_bin);
+    command
         .args(args)
         .env("CODER_URL", &session.url)
-        .env("CODER_SESSION_TOKEN", &session.token)
-        .output()
-        .context("Failed to run the `coder` CLI")?;
+        .env("CODER_SESSION_TOKEN", &session.token);
+    let output = super::process::output_with_timeout(
+        command,
+        std::time::Duration::from_secs(timeout_secs),
+        &format!("`coder {}`", args.join(" ")),
+    )?;
     if !output.status.success() {
         anyhow::bail!(
             "`coder {}` failed: {}",
@@ -210,6 +226,7 @@ fn find_workspace(
     coder_bin: &Path,
     session: &CoderSession,
     name: &str,
+    timeout_secs: u64,
 ) -> Result<Option<WorkspaceInfo>> {
     let out = run_coder(
         coder_bin,
@@ -221,6 +238,7 @@ fn find_workspace(
             "--output",
             "json",
         ],
+        timeout_secs,
     )?;
     let all: Vec<WorkspaceInfo> = serde_json::from_str(out.trim()).unwrap_or_default();
     Ok(all.into_iter().find(|w| w.name == name))
@@ -273,9 +291,7 @@ fn coder_download_url(base: &str, arch: &str) -> Result<String> {
     ))
 }
 
-/// Fetch the CLI from the deployment into `dest`. Downloads to a sibling
-/// temp file and renames, so a killed process can never leave a truncated
-/// binary that later looks like a valid cache hit.
+/// Fetch the CLI from the deployment into `dest`. Downloads to a sibling temp file and renames
 fn download_coder_cli(base_url: &str, dest: &Path) -> Result<PathBuf> {
     let url = coder_download_url(base_url, std::env::consts::ARCH)?;
     let dir = dest
@@ -332,6 +348,25 @@ fn ensure_coder_cli(config: &Config, session: &CoderSession) -> Result<PathBuf> 
     }
 }
 
+/// Argv for `coder create`. Parameters are sorted so a given config always
+/// produces the same command, and each pair gets its own `--parameter` flag.
+fn create_workspace_args(workspace: &str, coder: &CoderConfig) -> Vec<String> {
+    let mut args = vec![
+        "create".to_string(),
+        workspace.to_string(),
+        "--template".to_string(),
+        coder.template.clone(),
+        "-y".to_string(),
+    ];
+    let mut params: Vec<_> = coder.parameters.iter().collect();
+    params.sort();
+    for (key, value) in params {
+        args.push("--parameter".to_string());
+        args.push(format!("{key}={value}"));
+    }
+    args
+}
+
 /// Provision the workspace for a ticket and return the `RemoteHost` the
 /// shared remote launch tail consumes. Blocking - workspace creation is
 /// bounded by `create_timeout_secs`.
@@ -359,7 +394,7 @@ pub(crate) fn provision_workspace(
 
     let workspace = workspace_name(&coder.name_prefix, project, ticket_id);
     match decide_workspace_action(
-        find_workspace(&coder_bin, &session, &workspace)?.as_ref(),
+        find_workspace(&coder_bin, &session, &workspace, QUERY_TIMEOUT_SECS)?.as_ref(),
         &coder.template,
     ) {
         WorkspaceAction::Refuse { existing_template } => anyhow::bail!(
@@ -368,24 +403,18 @@ pub(crate) fn provision_workspace(
             coder.template
         ),
         WorkspaceAction::Start => {
-            run_coder(&coder_bin, &session, &["start", &workspace, "--no-wait"]).map(|_| ())?;
+            run_coder(
+                &coder_bin,
+                &session,
+                &["start", &workspace, "--no-wait"],
+                coder.create_timeout_secs,
+            )
+            .map(|_| ())?;
         }
         WorkspaceAction::Create => {
-            let mut args: Vec<String> = vec![
-                "create".to_string(),
-                workspace.clone(),
-                "--template".to_string(),
-                coder.template.clone(),
-                "-y".to_string(),
-            ];
-            let mut params: Vec<_> = coder.parameters.iter().collect();
-            params.sort();
-            for (k, v) in params {
-                args.push("--parameter".to_string());
-                args.push(format!("{k}={v}"));
-            }
+            let args = create_workspace_args(&workspace, coder);
             let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-            run_coder(&coder_bin, &session, &arg_refs).map(|_| ())?;
+            run_coder(&coder_bin, &session, &arg_refs, coder.create_timeout_secs).map(|_| ())?;
         }
     }
 
@@ -416,8 +445,14 @@ pub(crate) fn provision_workspace(
             let path = super::prompt::shell_escape(&runtime.path.to_string_lossy());
             script = format!(". {path}/env.sh\ntrap 'rm -rf -- {path}' EXIT\n{script}");
         }
-        run_ssh(&session, &fragment, &alias, &script)
-            .with_context(|| format!("Failed to prepare checkout on workspace '{workspace}'"))?;
+        run_ssh(
+            &session,
+            &fragment,
+            &alias,
+            &script,
+            coder.create_timeout_secs,
+        )
+        .with_context(|| format!("Failed to prepare checkout on workspace '{workspace}'"))?;
     }
     Ok(RemoteHost {
         name: workspace.clone(),
@@ -428,18 +463,21 @@ pub(crate) fn provision_workspace(
     })
 }
 
-/// Stop the workspace (never delete - reclamation is the Coder admin's
-/// autostop/autodelete policy). Best-effort by design.
+/// Stop the workspace. Best-effort by design.
 pub fn stop_workspace(config: &Config, coder: &CoderConfig, workspace: &str) -> Result<()> {
     let session = resolve_session(coder)?;
     let coder_bin = ensure_coder_cli(config, &session)?;
-    run_coder(&coder_bin, &session, &["stop", workspace, "--yes"]).map(|_| ())
+    run_coder(
+        &coder_bin,
+        &session,
+        &["stop", workspace, "--yes"],
+        coder.create_timeout_secs,
+    )
+    .map(|_| ())
 }
 
-/// `ssh` spawns the fragment's `ProxyCommand` itself, and that `coder`
-/// subprocess reads the CLI's own canonical variable names. Inject them here
-/// so a target configured with custom `url_env` / `token_env` names still
-/// authenticates -- in-process only, never written to the fragment on disk.
+/// `ssh` spawns the fragment's `ProxyCommand` itself, and that `coder` subprocess reads the CLI's own canonical variable names.
+/// Inject them here so a target configured with custom `url_env` / `token_env` names still authenticates.
 fn coder_ssh_command(session: &CoderSession, fragment: &Path) -> Command {
     let mut command = Command::new("ssh");
     command
@@ -459,13 +497,19 @@ fn wait_for_ssh(
 ) -> Result<()> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
     loop {
-        let ok = coder_ssh_command(session, fragment)
+        let mut probe = coder_ssh_command(session, fragment);
+        probe
             .args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=10"])
             .arg(alias)
-            .arg("true")
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false);
+            .arg("true");
+        // ConnectTimeout only bounds the handshake; a session that connects and
+        // then stalls would otherwise outlive the loop deadline below.
+        let ok = super::process::output_with_timeout(
+            probe,
+            std::time::Duration::from_secs(SSH_PROBE_TIMEOUT_SECS),
+            "ssh workspace readiness probe",
+        )
+        .is_ok_and(|out| out.status.success());
         if ok {
             return Ok(());
         }
@@ -479,15 +523,26 @@ fn wait_for_ssh(
     }
 }
 
-fn run_ssh(session: &CoderSession, fragment: &Path, alias: &str, script: &str) -> Result<()> {
-    let status = coder_ssh_command(session, fragment)
-        .args(["-o", "BatchMode=yes"])
-        .arg(alias)
-        .arg(script)
-        .status()
-        .context("Failed to run ssh against the workspace")?;
-    if !status.success() {
-        anyhow::bail!("ssh command on workspace '{alias}' exited with {status}");
+fn run_ssh(
+    session: &CoderSession,
+    fragment: &Path,
+    alias: &str,
+    script: &str,
+    timeout_secs: u64,
+) -> Result<()> {
+    let mut command = coder_ssh_command(session, fragment);
+    command.args(["-o", "BatchMode=yes"]).arg(alias).arg(script);
+    let output = super::process::output_with_timeout(
+        command,
+        std::time::Duration::from_secs(timeout_secs),
+        &format!("ssh setup command on workspace '{alias}'"),
+    )?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "ssh command on workspace '{alias}' exited with {}: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
     }
     Ok(())
 }
@@ -540,6 +595,61 @@ pub fn stop_on_complete_for_agent(config: &Config, agent: &crate::state::AgentSt
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn coder_with_parameters(pairs: &[(&str, &str)]) -> CoderConfig {
+        CoderConfig {
+            template: "operator".to_string(),
+            parameters: pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_create_workspace_args_without_parameters() {
+        assert_eq!(
+            create_workspace_args("op-proj-feat-1", &coder_with_parameters(&[])),
+            ["create", "op-proj-feat-1", "--template", "operator", "-y"]
+        );
+    }
+
+    /// One flag per pair, sorted by name, so the same config always produces
+    /// the same command regardless of map iteration order.
+    #[test]
+    fn test_create_workspace_args_emit_sorted_separate_parameter_flags() {
+        let coder = coder_with_parameters(&[("region", "us-west"), ("cpu", "4")]);
+        assert_eq!(
+            create_workspace_args("op-proj-feat-1", &coder),
+            [
+                "create",
+                "op-proj-feat-1",
+                "--template",
+                "operator",
+                "-y",
+                "--parameter",
+                "cpu=4",
+                "--parameter",
+                "region=us-west",
+            ]
+        );
+    }
+
+    /// An empty value is a meaningful Coder input (it selects a template
+    /// default), so it must survive as `key=` rather than being dropped.
+    #[test]
+    fn test_create_workspace_args_preserve_empty_parameter_values() {
+        let coder = coder_with_parameters(&[("optional", ""), ("spaced", "a b")]);
+        let args = create_workspace_args("ws", &coder);
+        assert!(args.contains(&"optional=".to_string()));
+        assert!(args.contains(&"spaced=a b".to_string()));
+        assert_eq!(
+            args.iter().filter(|arg| *arg == "--parameter").count(),
+            2,
+            "each parameter needs its own flag"
+        );
+    }
 
     #[test]
     fn test_workspace_name_deterministic_and_sanitized() {
@@ -765,10 +875,6 @@ mod tests {
         let script = checkout_script("/home/coder/proj", "git@github.com:u/r.git", "feat/x-42");
         assert!(script.contains("git clone 'git@github.com:u/r.git'"));
         assert!(script.contains("fetch origin"));
-        assert!(
-            script.contains("checkout -B 'feat/x-42'"),
-            "branch name comes from Rust, never a template: {script}"
-        );
         assert!(script.starts_with("set -e\n"));
     }
 

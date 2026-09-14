@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Alert, Button, Card, CardContent, Chip, Spinner, TextInput, Toggle } from "../primitives";
 import { ProjectRow } from "./ProjectRow";
 import type { JiraConfig } from "../../../src/generated/JiraConfig";
@@ -56,6 +56,43 @@ export function ProviderCard({
 
   const isConnected = validationResult?.valid === true;
   const projectCount = projectEntries.length;
+  const handleEnabledChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate(sectionKey, "enabled", event.target.checked),
+    [onUpdate, sectionKey],
+  );
+  const showCredentialFields = useCallback(() => setShowCredentials(true), [setShowCredentials]);
+  const hideCredentialFields = useCallback(() => setShowCredentials(false), [setShowCredentials]);
+  const handleDomainChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate(sectionKey, isJira ? "domain" : "team_id", event.target.value),
+    [isJira, onUpdate, sectionKey],
+  );
+  const handleEmailChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate(sectionKey, "email", event.target.value),
+    [onUpdate, sectionKey],
+  );
+  const handleApiKeyEnvChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate(sectionKey, "api_key_env", event.target.value),
+    [onUpdate, sectionKey],
+  );
+  const handleApiTokenChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => setApiToken(event.target.value),
+    [setApiToken],
+  );
+  const handleValidate = useCallback(() => {
+    if (isJira) {
+      onValidate(domain, jiraConfig?.email ?? "", apiToken);
+    } else {
+      onValidate(apiToken);
+    }
+  }, [apiToken, domain, isJira, jiraConfig?.email, onValidate]);
+  const handleAddProject = useCallback(
+    (key: string) => onUpdate(sectionKey, `projects.${key}.collection_name`, ""),
+    [onUpdate, sectionKey],
+  );
 
   return (
     <Card accent="terracotta">
@@ -82,11 +119,7 @@ export function ProviderCard({
               />
             )}
           </div>
-          <Toggle
-            checked={enabled}
-            onChange={(e) => onUpdate(sectionKey, "enabled", e.target.checked)}
-            label="Enabled"
-          />
+          <Toggle checked={enabled} onChange={handleEnabledChange} label="Enabled" />
         </div>
 
         <div style={{ opacity: enabled ? 1 : 0.5 }}>
@@ -96,7 +129,7 @@ export function ProviderCard({
               <span className="op-body2 op-text-secondary">
                 {isJira ? `${domain} · ${jiraConfig?.email || "no email"}` : domain}
               </span>
-              <Button size="small" onClick={() => setShowCredentials(true)} disabled={!enabled}>
+              <Button size="small" onClick={showCredentialFields} disabled={!enabled}>
                 Edit Credentials
               </Button>
             </div>
@@ -110,7 +143,7 @@ export function ProviderCard({
                   <TextInput
                     label="Domain"
                     value={domain}
-                    onChange={(e) => onUpdate(sectionKey, "domain", e.target.value)}
+                    onChange={handleDomainChange}
                     placeholder="your-org.atlassian.net"
                     disabled={!enabled}
                     helperText="Jira Cloud instance domain"
@@ -118,14 +151,14 @@ export function ProviderCard({
                   <TextInput
                     label="Email"
                     value={jiraConfig?.email ?? ""}
-                    onChange={(e) => onUpdate(sectionKey, "email", e.target.value)}
+                    onChange={handleEmailChange}
                     placeholder="you@example.com"
                     disabled={!enabled}
                   />
                   <TextInput
                     label="API Key Env Var"
                     value={config.api_key_env}
-                    onChange={(e) => onUpdate(sectionKey, "api_key_env", e.target.value)}
+                    onChange={handleApiKeyEnvChange}
                     disabled={!enabled}
                   />
                 </>
@@ -134,13 +167,13 @@ export function ProviderCard({
                   <TextInput
                     label="Team ID"
                     value={domain}
-                    onChange={(e) => onUpdate(sectionKey, "team_id", e.target.value)}
+                    onChange={handleDomainChange}
                     disabled={!enabled}
                   />
                   <TextInput
                     label="API Key Env Var"
                     value={config.api_key_env}
-                    onChange={(e) => onUpdate(sectionKey, "api_key_env", e.target.value)}
+                    onChange={handleApiKeyEnvChange}
                     disabled={!enabled}
                   />
                 </>
@@ -151,20 +184,14 @@ export function ProviderCard({
                   type="password"
                   label={isJira ? "API Token" : "API Key"}
                   value={apiToken}
-                  onChange={(e) => setApiToken(e.target.value)}
+                  onChange={handleApiTokenChange}
                   placeholder={isJira ? "Paste token to validate" : "lin_api_xxxxx"}
                   disabled={!enabled}
                   style={{ flexGrow: 1 }}
                 />
                 <Button
                   variant="contained"
-                  onClick={() => {
-                    if (isJira) {
-                      onValidate(domain, jiraConfig?.email ?? "", apiToken);
-                    } else {
-                      onValidate(apiToken);
-                    }
-                  }}
+                  onClick={handleValidate}
                   disabled={!enabled || !apiToken || validating}
                   style={{ minWidth: "auto", paddingLeft: 16, paddingRight: 16 }}
                 >
@@ -182,7 +209,7 @@ export function ProviderCard({
                 </Alert>
               )}
 
-              <Button size="small" onClick={() => setShowCredentials(false)}>
+              <Button size="small" onClick={hideCredentialFields}>
                 Hide Credentials
               </Button>
             </div>
@@ -217,12 +244,7 @@ export function ProviderCard({
 
             {/* Add project shortcut */}
             <div className="op-mt-1">
-              <AddProjectInput
-                disabled={!enabled}
-                onAdd={(key) => {
-                  onUpdate(sectionKey, `projects.${key}.collection_name`, "");
-                }}
-              />
+              <AddProjectInput disabled={!enabled} onAdd={handleAddProject} />
             </div>
           </div>
         </div>
@@ -233,12 +255,20 @@ export function ProviderCard({
 
 function AddProjectInput({ disabled, onAdd }: { disabled: boolean; onAdd: (key: string) => void }) {
   const [value, setValue] = useState("");
+  const handleValueChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => setValue(event.target.value.toUpperCase()),
+    [setValue],
+  );
+  const handleAdd = useCallback(() => {
+    onAdd(value.trim());
+    setValue("");
+  }, [onAdd, value]);
   return (
     <div className="op-row op-gap-1">
       <TextInput
         label="Add Project Key"
         value={value}
-        onChange={(e) => setValue(e.target.value.toUpperCase())}
+        onChange={handleValueChange}
         placeholder="PROJ"
         disabled={disabled}
         style={{ flex: 1 }}
@@ -247,10 +277,7 @@ function AddProjectInput({ disabled, onAdd }: { disabled: boolean; onAdd: (key: 
         size="small"
         variant="outlined"
         disabled={disabled || !value.trim()}
-        onClick={() => {
-          onAdd(value.trim());
-          setValue("");
-        }}
+        onClick={handleAdd}
       >
         Add
       </Button>

@@ -265,6 +265,11 @@ fn require_write_tools(state: &ApiState, scopes: &[Scope]) -> Result<(), String>
     }
     Ok(())
 }
+/// Render an `ApiError` as a stable `code: message` string.
+fn mcp_error(error: crate::rest::error::ApiError) -> String {
+    let (_, code, message) = error.parts();
+    format!("{code}: {message}")
+}
 
 /// Execute an MCP tool by name with the given arguments
 pub async fn execute_tool(
@@ -388,7 +393,7 @@ pub async fn execute_tool(
             .await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(format!("{e:?}")),
+                Err(e) => Err(mcp_error(e)),
             }
         }
         "operator_pause_queue" => {
@@ -396,7 +401,7 @@ pub async fn execute_tool(
             let result = routes::queue::pause(State(state.clone())).await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(format!("{e:?}")),
+                Err(e) => Err(mcp_error(e)),
             }
         }
         "operator_resume_queue" => {
@@ -404,7 +409,7 @@ pub async fn execute_tool(
             let result = routes::queue::resume(State(state.clone())).await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(format!("{e:?}")),
+                Err(e) => Err(mcp_error(e)),
             }
         }
         "operator_sync_kanban" => {
@@ -412,7 +417,7 @@ pub async fn execute_tool(
             let result = routes::queue::sync(State(state.clone())).await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(format!("{e:?}")),
+                Err(e) => Err(mcp_error(e)),
             }
         }
         "operator_approve_agent" => {
@@ -425,7 +430,7 @@ pub async fn execute_tool(
                 routes::agents::approve_review(State(state.clone()), Path(id.to_string())).await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(format!("{e:?}")),
+                Err(e) => Err(mcp_error(e)),
             }
         }
         "operator_reject_agent" => {
@@ -449,7 +454,7 @@ pub async fn execute_tool(
             .await;
             match result {
                 Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(format!("{e:?}")),
+                Err(e) => Err(mcp_error(e)),
             }
         }
         _ => Err(format!("Unknown tool: {name}")),
@@ -459,6 +464,26 @@ pub async fn execute_tool(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A drain rejection must be machine-readable and carry the same code the
+    /// HTTP surface uses, not a debug-formatted Rust variant.
+    #[test]
+    fn test_mcp_error_uses_the_shared_stable_code_table() {
+        use crate::rest::error::ApiError;
+
+        assert_eq!(
+            mcp_error(ApiError::Unavailable("draining".to_string())),
+            "unavailable: draining"
+        );
+        assert_eq!(
+            mcp_error(ApiError::Conflict("already running".to_string())),
+            "conflict: already running"
+        );
+        assert!(
+            !mcp_error(ApiError::NotFound("x".to_string())).contains("NotFound("),
+            "the MCP error must not leak Rust debug syntax"
+        );
+    }
     use crate::config::Config;
     use std::path::PathBuf;
 

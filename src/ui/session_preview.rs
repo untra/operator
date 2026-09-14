@@ -348,6 +348,7 @@ mod tests {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            shutdown_recovery: None,
             session_wrapper: None,
             session_window_ref: None,
             session_context_ref: None,

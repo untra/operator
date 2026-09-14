@@ -13,6 +13,37 @@ use uuid::Uuid;
 use crate::config::Config;
 use crate::types::llm_stats::ProjectLlmStats;
 
+const STATE_FILE: &str = "state.json";
+const STATE_TEMP_FILE: &str = "state.json.tmp";
+
+/// Serializes every `state.json` read-modify-write in this process. One
+/// Operator process owns one state directory, so a single lock is enough.
+struct WriteLock(Option<std::sync::MutexGuard<'static, ()>>);
+
+thread_local! {
+    static LOCK_HELD: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+impl Drop for WriteLock {
+    fn drop(&mut self) {
+        if self.0.is_some() {
+            LOCK_HELD.with(|held| held.set(false));
+        }
+    }
+}
+
+fn write_lock() -> WriteLock {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    if LOCK_HELD.with(std::cell::Cell::get) {
+        return WriteLock(None);
+    }
+    let guard = LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    LOCK_HELD.with(|held| held.set(true));
+    WriteLock(Some(guard))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct State {
@@ -105,7 +136,6 @@ pub struct AgentState {
     #[serde(default)]
     pub llm_model: Option<String>,
     /// Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`
-    /// (derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match)
     #[serde(default)]
     pub launch_mode: Option<String>,
     /// Review state for `awaiting_input` agents
@@ -124,9 +154,20 @@ pub struct AgentState {
     /// Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model.
     #[serde(default)]
     pub step_launch_context: Option<crate::agents::launcher::step_command::StepLaunchContext>,
-    /// Name of the resolved execution target this agent launched on
+    /// Name of the resolved execution target this agent launched on.
     #[serde(default)]
     pub target_name: Option<String>,
+    /// Shutdown recovery strategy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shutdown_recovery: Option<ShutdownRecovery>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum ShutdownRecovery {
+    InterruptedLocal,
+    RemoteAwaitingReconciliation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -216,10 +257,15 @@ pub enum MultiAgentPhase {
 
 impl State {
     pub fn load(config: &Config) -> Result<Self> {
+        let _guard = write_lock();
+        Self::load_unlocked(config)
+    }
+
+    fn load_unlocked(config: &Config) -> Result<Self> {
         let state_path = config.state_path();
         fs::create_dir_all(&state_path).context("Failed to create state directory")?;
 
-        let state_file = state_path.join("state.json");
+        let state_file = state_path.join(STATE_FILE);
 
         if state_file.exists() {
             let contents = fs::read_to_string(&state_file).context("Failed to read state file")?;
@@ -241,9 +287,31 @@ impl State {
     }
 
     pub fn save(&self) -> Result<()> {
-        let state_file = self.state_path.join("state.json");
+        let _guard = write_lock();
+        self.write_unlocked()
+    }
+
+    /// Read-modify-write under the process write lock, rereading from disk
+    /// first so a concurrent writer's committed changes are not clobbered.
+    /// Every mutation that races with another writer belongs here, not in a
+    /// `load` / mutate / `save` triple.
+    pub fn mutate<T>(config: &Config, apply: impl FnOnce(&mut Self) -> T) -> Result<T> {
+        let _guard = write_lock();
+        let mut state = Self::load_unlocked(config)?;
+        let outcome = apply(&mut state);
+        state.write_unlocked()?;
+        Ok(outcome)
+    }
+
+    /// Write via a sibling temp file and rename
+    fn write_unlocked(&self) -> Result<()> {
+        let state_file = self.state_path.join(STATE_FILE);
+        let temp_file = self.state_path.join(STATE_TEMP_FILE);
         let contents = serde_json::to_string_pretty(self)?;
-        fs::write(state_file, contents)?;
+        fs::write(&temp_file, contents)
+            .with_context(|| format!("Failed to write {}", temp_file.display()))?;
+        fs::rename(&temp_file, &state_file)
+            .with_context(|| format!("Failed to commit {}", state_file.display()))?;
         Ok(())
     }
 
@@ -345,6 +413,7 @@ impl State {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            shutdown_recovery: None,
         });
 
         self.save()?;
@@ -403,6 +472,7 @@ impl State {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            shutdown_recovery: None,
         });
 
         self.save()?;
@@ -1116,6 +1186,133 @@ mod tests {
         let mut config = Config::default();
         config.paths.state = state_path.to_string_lossy().to_string();
         config
+    }
+
+    // ─── Persistence Concurrency Tests ───────────────────────────────────────────
+
+    /// The defect `mutate` exists to prevent: a writer holding a handle loaded
+    /// before someone else's commit writes its whole snapshot back and silently
+    /// discards that commit. Shutdown bookkeeping racing a completion write hit
+    /// exactly this, so contrast both paths against the same race.
+    #[test]
+    fn test_mutate_rereads_so_a_concurrent_write_is_not_clobbered() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+
+        let mut seed = State::load(&config).unwrap();
+        let id = seed
+            .add_agent(
+                "FEAT-1".to_string(),
+                "FEAT".to_string(),
+                "p".to_string(),
+                false,
+            )
+            .unwrap();
+
+        // A handle taken before the completion below - the shutdown coordinator's
+        // view of the world when a callback lands mid-drain.
+        let mut stale = State::load(&config).unwrap();
+
+        let complete = |config: &Config| {
+            State::mutate(config, |state| {
+                state.agents[0].status = "completed".to_string();
+            })
+            .unwrap();
+        };
+
+        // Old path: whole-snapshot save from the stale handle loses the completion.
+        complete(&config);
+        stale.agents[0].last_message = Some("shutdown bookkeeping".to_string());
+        stale.save().unwrap();
+        assert_eq!(
+            State::load(&config).unwrap().agents[0].status,
+            "running",
+            "precondition: a stale whole-snapshot save is what loses the completion"
+        );
+
+        // mutate rereads under the lock, so the same bookkeeping keeps it.
+        complete(&config);
+        State::mutate(&config, |state| {
+            state.agents[0].last_message = Some("shutdown bookkeeping".to_string());
+        })
+        .unwrap();
+
+        let reloaded = State::load(&config).unwrap();
+        let agent = reloaded.agents.iter().find(|a| a.id == id).unwrap();
+        assert_eq!(
+            agent.status, "completed",
+            "mutate must reread, not overwrite a committed completion"
+        );
+        assert_eq!(agent.last_message.as_deref(), Some("shutdown bookkeeping"));
+    }
+
+    /// Most `State` methods save as they go, so `mutate` must tolerate a closure
+    /// that saves rather than deadlocking on its own lock.
+    #[test]
+    fn test_mutate_tolerates_a_closure_that_saves() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+
+        State::mutate(&config, |state| {
+            state.set_paused(true).unwrap();
+        })
+        .unwrap();
+
+        assert!(State::load(&config).unwrap().paused);
+    }
+
+    /// The temp file must not be left behind.
+    #[test]
+    fn test_save_commits_atomically_and_leaves_no_temp_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+
+        let mut state = State::load(&config).unwrap();
+        state
+            .add_agent(
+                "FEAT-1".to_string(),
+                "FEAT".to_string(),
+                "p".to_string(),
+                false,
+            )
+            .unwrap();
+
+        assert!(temp_dir.path().join(STATE_FILE).exists());
+        assert!(
+            !temp_dir.path().join(STATE_TEMP_FILE).exists(),
+            "the staging file must be renamed away, not left in the state directory"
+        );
+        assert!(State::load(&config).is_ok(), "committed state must parse");
+    }
+
+    /// Concurrent writers from several threads must all land; none may be lost.
+    #[test]
+    fn test_concurrent_mutations_all_land() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        State::load(&config).unwrap().save().unwrap();
+
+        std::thread::scope(|scope| {
+            for index in 0..8 {
+                let config = &config;
+                scope.spawn(move || {
+                    State::mutate(config, |state| {
+                        state
+                            .project_collection_prefs
+                            .insert(format!("project-{index}"), "core".to_string());
+                    })
+                    .unwrap();
+                });
+            }
+        });
+
+        let reloaded = State::load(&config).unwrap();
+        assert_eq!(
+            reloaded.project_collection_prefs.len(),
+            8,
+            "every concurrent mutation must survive; got {:?}",
+            reloaded.project_collection_prefs
+        );
     }
 
     // ─── Load/Save Tests ─────────────────────────────────────────────────────────

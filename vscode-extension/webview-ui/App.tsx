@@ -16,6 +16,34 @@ import type { JiraConfig } from "../src/generated/JiraConfig";
 import type { LinearConfig } from "../src/generated/LinearConfig";
 import type { ProjectSyncConfig } from "../src/generated/ProjectSyncConfig";
 
+function browseFolder(field: string): void {
+  postMessage({ type: "browseFolder", field });
+}
+
+function openFile(filePath: string): void {
+  postMessage({ type: "openFile", filePath });
+}
+
+function startSetup(): void {
+  postMessage({ type: "openWalkthrough" });
+}
+
+function detectTools(): void {
+  postMessage({ type: "detectLlmTools" });
+}
+
+function getExternalIssueTypes(provider: string, domain: string, projectKey: string): void {
+  postMessage({ type: "getExternalIssueTypes", provider, domain, projectKey });
+}
+
+function getKanbanStatuses(provider: string, projectKey: string): void {
+  postMessage({ type: "getKanbanStatuses", provider, projectKey });
+}
+
+function openOperatorUi(route: "issuetypes" | "projects"): void {
+  postMessage({ type: "openOperatorUi", route });
+}
+
 export function App() {
   const [config, setConfig] = useState<WebviewConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -126,60 +154,38 @@ export function App() {
     return cleanup;
   }, []);
 
-  const handleUpdate = useCallback((section: string, key: string, value: unknown) => {
-    postMessage({ type: "updateConfig", section, key, value });
+  const handleUpdate = useCallback(
+    (section: string, key: string, value: unknown) => {
+      postMessage({ type: "updateConfig", section, key, value });
 
-    // Optimistic update for responsiveness
-    setConfig((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      return applyUpdate(prev, section, key, value);
-    });
-  }, []);
-
-  const handleBrowseFolder = useCallback((field: string) => {
-    postMessage({ type: "browseFolder", field });
-  }, []);
-
-  const handleOpenFile = useCallback((filePath: string) => {
-    postMessage({ type: "openFile", filePath });
-  }, []);
-
-  const handleStartSetup = useCallback(() => {
-    postMessage({ type: "openWalkthrough" });
-  }, []);
-
-  const handleValidateJira = useCallback((domain: string, email: string, apiToken: string) => {
-    setValidatingJira(true);
-    setJiraResult(null);
-    postMessage({ type: "validateJira", domain, email, apiToken });
-  }, []);
-
-  const handleValidateLinear = useCallback((apiKey: string) => {
-    setValidatingLinear(true);
-    setLinearResult(null);
-    postMessage({ type: "validateLinear", apiKey });
-  }, []);
-
-  const handleDetectTools = useCallback(() => {
-    postMessage({ type: "detectLlmTools" });
-  }, []);
-
-  const handleGetExternalIssueTypes = useCallback(
-    (provider: string, domain: string, projectKey: string) => {
-      postMessage({ type: "getExternalIssueTypes", provider, domain, projectKey });
+      // Optimistic update for responsiveness
+      setConfig((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        return applyUpdate(prev, section, key, value);
+      });
     },
-    [],
+    [setConfig],
   );
 
-  const handleGetKanbanStatuses = useCallback((provider: string, projectKey: string) => {
-    postMessage({ type: "getKanbanStatuses", provider, projectKey });
-  }, []);
+  const handleValidateJira = useCallback(
+    (domain: string, email: string, apiToken: string) => {
+      setValidatingJira(true);
+      setJiraResult(null);
+      postMessage({ type: "validateJira", domain, email, apiToken });
+    },
+    [setJiraResult, setValidatingJira],
+  );
 
-  const handleOpenOperatorUi = useCallback((route: "issuetypes" | "projects") => {
-    postMessage({ type: "openOperatorUi", route });
-  }, []);
+  const handleValidateLinear = useCallback(
+    (apiKey: string) => {
+      setValidatingLinear(true);
+      setLinearResult(null);
+      postMessage({ type: "validateLinear", apiKey });
+    },
+    [setLinearResult, setValidatingLinear],
+  );
 
   return (
     <>
@@ -192,12 +198,12 @@ export function App() {
         <ConfigPage
           config={config}
           onUpdate={handleUpdate}
-          onBrowseFolder={handleBrowseFolder}
-          onOpenFile={handleOpenFile}
-          onStartSetup={handleStartSetup}
+          onBrowseFolder={browseFolder}
+          onOpenFile={openFile}
+          onStartSetup={startSetup}
           onValidateJira={handleValidateJira}
           onValidateLinear={handleValidateLinear}
-          onDetectTools={handleDetectTools}
+          onDetectTools={detectTools}
           jiraResult={jiraResult}
           linearResult={linearResult}
           validatingJira={validatingJira}
@@ -206,10 +212,10 @@ export function App() {
           issueTypes={issueTypes}
           collections={collections}
           externalIssueTypes={externalIssueTypes}
-          onGetExternalIssueTypes={handleGetExternalIssueTypes}
+          onGetExternalIssueTypes={getExternalIssueTypes}
           kanbanStatuses={kanbanStatuses}
-          onGetKanbanStatuses={handleGetKanbanStatuses}
-          onOpenOperatorUi={handleOpenOperatorUi}
+          onGetKanbanStatuses={getKanbanStatuses}
+          onOpenOperatorUi={openOperatorUi}
         />
       ) : (
         <div

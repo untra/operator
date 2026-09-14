@@ -4,6 +4,7 @@
 //! and collections. Designed to run alongside the TUI or as a standalone server.
 
 use std::net::SocketAddr;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use axum::{
@@ -352,7 +353,7 @@ pub async fn serve(state: ApiState, port: u16) -> Result<()> {
     let tickets_path = state.tickets_path.clone();
     let state_path = state.config().state_path();
     let host_ip = state.config().rest_api.host_ip();
-    let app = build_router(state);
+    let app = build_router(state.clone());
     let addr = SocketAddr::new(host_ip, port);
 
     tracing::info!("REST API listening on http://{}", addr);
@@ -365,7 +366,7 @@ pub async fn serve(state: ApiState, port: u16) -> Result<()> {
 
     // Serve with graceful shutdown
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(shutdown_signal(state.clone()))
         .await?;
 
     // Clean up session file on shutdown
@@ -412,7 +413,7 @@ fn remove_session_file(tickets_path: &std::path::Path) {
 }
 
 /// Shutdown signal handler for graceful termination
-async fn shutdown_signal() {
+async fn shutdown_signal(state: state::ApiState) {
     let ctrl_c = async {
         tokio::signal::ctrl_c()
             .await
@@ -438,6 +439,124 @@ async fn shutdown_signal() {
             println!("\nReceived terminate signal, shutting down...");
         },
     }
+
+    if !state.start_draining() {
+        return;
+    }
+
+    let config = state.config();
+    let drain_deadline =
+        Instant::now() + Duration::from_secs(u64::from(config.rest_api.shutdown_drain_seconds));
+    tracing::info!(
+        drain_seconds = config.rest_api.shutdown_drain_seconds,
+        "Shutdown drain started"
+    );
+
+    loop {
+        let active_agents = crate::state::State::load(&config)
+            .map(|app_state| {
+                app_state.agents.iter().any(|agent| {
+                    matches!(
+                        agent.status.as_str(),
+                        "running" | "awaiting_input" | "completing"
+                    )
+                })
+            })
+            .unwrap_or(true);
+        if !active_agents && state.in_flight_operations() == 0 {
+            break;
+        }
+        if Instant::now() >= drain_deadline {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+
+    state.start_stopping();
+    state.mcp_sessions.lock().await.clear();
+    let cleanup_deadline =
+        Instant::now() + Duration::from_secs(u64::from(config.rest_api.shutdown_cleanup_seconds));
+    while state.in_flight_operations() != 0 && Instant::now() < cleanup_deadline {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    if state.in_flight_operations() == 0 {
+        let cleanup_config = (*config).clone();
+        let cleanup =
+            tokio::task::spawn_blocking(move || interrupt_agents_for_shutdown(&cleanup_config));
+        let remaining = cleanup_deadline.saturating_duration_since(Instant::now());
+        match tokio::time::timeout(remaining, cleanup).await {
+            Ok(Ok(Ok(()))) => {}
+            Ok(Ok(Err(error))) => tracing::error!(%error, "Shutdown agent cleanup failed"),
+            Ok(Err(error)) => tracing::error!(%error, "Shutdown cleanup task failed"),
+            Err(_) => tracing::error!("Shutdown cleanup exceeded its deadline"),
+        }
+    } else {
+        tracing::error!(
+            in_flight = state.in_flight_operations(),
+            "Skipping agent state cleanup to avoid overwriting in-flight completion writes"
+        );
+    }
+}
+
+fn interrupt_agents_for_shutdown(config: &crate::config::Config) -> Result<()> {
+    use crate::state::ShutdownRecovery;
+
+    const INTERRUPTION_MESSAGE: &str = "Interrupted by Operator shutdown; retry explicitly";
+
+    let launcher = match crate::agents::Launcher::new(config) {
+        Ok(launcher) => Some(launcher),
+        Err(error) => {
+            tracing::warn!(%error, "Session controls are unavailable during shutdown");
+            None
+        }
+    };
+
+    // Reread under the write lock: a completion callback may have landed between the drain loop's last poll and here
+    crate::state::State::mutate(config, |app_state| {
+        for agent in &mut app_state.agents {
+            if !matches!(
+                agent.status.as_str(),
+                "running" | "awaiting_input" | "completing"
+            ) {
+                continue;
+            }
+            let configured_remote = agent
+                .target_name
+                .as_deref()
+                .and_then(|name| config.targets.iter().find(|target| target.name == name))
+                .is_some_and(|target| {
+                    matches!(
+                        &target.kind,
+                        crate::config::TargetKind::Coder(_) | crate::config::TargetKind::Ssh(_)
+                    )
+                });
+            let remote = agent.remote_host.is_some()
+                || configured_remote
+                || agent
+                    .launch_mode
+                    .as_deref()
+                    .is_some_and(|mode| mode.starts_with("coder") || mode.starts_with("ssh"));
+            if remote {
+                agent.shutdown_recovery = Some(ShutdownRecovery::RemoteAwaitingReconciliation);
+                agent.last_message =
+                    Some("Remote work preserved during Operator shutdown".to_string());
+                continue;
+            }
+
+            if agent.session_name.is_some() {
+                if let Some(launcher) = &launcher {
+                    if let Err(error) = launcher.kill_local_agent_session(agent) {
+                        tracing::warn!(%error, agent_id = %agent.id, "Failed to stop local session during shutdown");
+                    }
+                }
+            }
+            agent.status = "failed".to_string();
+            agent.last_message = Some(INTERRUPTION_MESSAGE.to_string());
+            agent.shutdown_recovery = Some(ShutdownRecovery::InterruptedLocal);
+            agent.last_activity = chrono::Utc::now();
+        }
+    })
 }
 
 #[cfg(test)]
@@ -452,5 +571,174 @@ mod tests {
         let state = ApiState::new(config, PathBuf::from("/tmp/test"));
         let _router = build_router(state);
         // Router builds without panicking
+    }
+
+    fn shutdown_config(temp: &tempfile::TempDir) -> Config {
+        let mut config = Config::default();
+        config.paths.state = temp.path().join("state").display().to_string();
+        config.paths.tickets = temp.path().join("tickets").display().to_string();
+        config.paths.projects = temp.path().join("projects").display().to_string();
+        config
+    }
+
+    fn seed_agent(config: &Config, ticket: &str, launch_mode: Option<&str>) -> String {
+        crate::state::State::mutate(config, |state| {
+            state
+                .add_agent_with_options(
+                    ticket.to_string(),
+                    "FEAT".to_string(),
+                    "project".to_string(),
+                    false,
+                    None,
+                    launch_mode.map(str::to_string),
+                )
+                .unwrap()
+        })
+        .unwrap()
+    }
+
+    /// Shutdown bookkeeping must not resurrect an agent that reported completion
+    /// while the drain was running. Both writes go through `State::mutate`, so
+    /// the later one rereads the earlier one's result.
+    #[test]
+    fn shutdown_does_not_overwrite_a_completion_recorded_during_the_drain() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let config = shutdown_config(&temp);
+        let finished = seed_agent(&config, "DONE-1", None);
+        let still_running = seed_agent(&config, "BUSY-1", None);
+
+        // The callback lands mid-drain, before cleanup runs.
+        crate::state::State::mutate(&config, |state| {
+            let agent = state
+                .agents
+                .iter_mut()
+                .find(|agent| agent.id == finished)
+                .unwrap();
+            agent.status = "completed".to_string();
+        })
+        .unwrap();
+
+        interrupt_agents_for_shutdown(&config).unwrap();
+
+        let state = crate::state::State::load(&config).unwrap();
+        let done = state.agents.iter().find(|a| a.id == finished).unwrap();
+        assert_eq!(
+            done.status, "completed",
+            "a completion recorded during the drain must survive shutdown bookkeeping"
+        );
+        assert_eq!(
+            done.shutdown_recovery, None,
+            "finished work needs no recovery marker"
+        );
+
+        let busy = state.agents.iter().find(|a| a.id == still_running).unwrap();
+        assert_eq!(busy.status, "failed");
+        assert_eq!(
+            busy.shutdown_recovery,
+            Some(crate::state::ShutdownRecovery::InterruptedLocal)
+        );
+    }
+
+    /// Running shutdown bookkeeping twice (a second signal, or a retry) must be
+    /// idempotent rather than compounding.
+    #[test]
+    fn shutdown_bookkeeping_is_idempotent() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let config = shutdown_config(&temp);
+        let id = seed_agent(&config, "LOCAL-2", None);
+
+        interrupt_agents_for_shutdown(&config).unwrap();
+        let first = crate::state::State::load(&config).unwrap();
+        interrupt_agents_for_shutdown(&config).unwrap();
+        let second = crate::state::State::load(&config).unwrap();
+
+        let before = first.agents.iter().find(|a| a.id == id).unwrap();
+        let after = second.agents.iter().find(|a| a.id == id).unwrap();
+        assert_eq!(before.status, after.status);
+        assert_eq!(before.shutdown_recovery, after.shutdown_recovery);
+        assert_eq!(second.agents.len(), 1, "no records may be duplicated");
+    }
+
+    /// Remote work is left alone on the way down and picked up by startup
+    /// reconciliation, which must not resolve it either.
+    #[test]
+    fn remote_work_survives_shutdown_and_restart_as_unresolved() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let config = shutdown_config(&temp);
+        let id = seed_agent(&config, "REMOTE-2", Some("coder"));
+
+        interrupt_agents_for_shutdown(&config).unwrap();
+        crate::startup::recovery::reconcile(&config).unwrap();
+
+        let agent = crate::state::State::load(&config)
+            .unwrap()
+            .agents
+            .into_iter()
+            .find(|a| a.id == id)
+            .unwrap();
+        assert_eq!(
+            agent.status, "running",
+            "a surviving remote workspace must not be failed or completed by us"
+        );
+        assert_eq!(
+            agent.shutdown_recovery,
+            Some(crate::state::ShutdownRecovery::RemoteAwaitingReconciliation)
+        );
+    }
+
+    #[test]
+    fn shutdown_marks_local_work_interrupted_and_preserves_remote_work() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let mut config = Config::default();
+        config.paths.state = temp.path().join("state").display().to_string();
+        config.paths.tickets = temp.path().join("tickets").display().to_string();
+        config.paths.projects = temp.path().join("projects").display().to_string();
+
+        let mut app_state = crate::state::State::load(&config).unwrap();
+        let local_id = app_state
+            .add_agent_with_full_options(
+                "LOCAL-1".to_string(),
+                "FEAT".to_string(),
+                "project".to_string(),
+                false,
+                None,
+                Some("default".to_string()),
+                None,
+            )
+            .unwrap();
+        let remote_id = app_state
+            .add_agent_with_full_options(
+                "REMOTE-1".to_string(),
+                "FEAT".to_string(),
+                "project".to_string(),
+                false,
+                None,
+                Some("coder".to_string()),
+                None,
+            )
+            .unwrap();
+
+        interrupt_agents_for_shutdown(&config).unwrap();
+        let app_state = crate::state::State::load(&config).unwrap();
+        let local = app_state
+            .agents
+            .iter()
+            .find(|agent| agent.id == local_id)
+            .unwrap();
+        assert_eq!(local.status, "failed");
+        assert_eq!(
+            local.shutdown_recovery,
+            Some(crate::state::ShutdownRecovery::InterruptedLocal)
+        );
+        let remote = app_state
+            .agents
+            .iter()
+            .find(|agent| agent.id == remote_id)
+            .unwrap();
+        assert_eq!(remote.status, "running");
+        assert_eq!(
+            remote.shutdown_recovery,
+            Some(crate::state::ShutdownRecovery::RemoteAwaitingReconciliation)
+        );
     }
 }

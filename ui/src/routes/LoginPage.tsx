@@ -72,7 +72,7 @@ export function LoginPage() {
             autoComplete="username"
             maxLength={MAX_USERNAME_LENGTH}
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(event) => setUsername(event.target.value)}
             required
           />
         </label>
@@ -85,7 +85,7 @@ export function LoginPage() {
             autoComplete="current-password"
             maxLength={MAX_PASSWORD_LENGTH}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
             required
           />
         </label>

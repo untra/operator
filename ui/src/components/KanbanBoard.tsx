@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import type { KanbanBoardResponse } from "@operator/bindings/KanbanBoardResponse";
 import type { KanbanTicketCard } from "@operator/bindings/KanbanTicketCard";
 import { useRightPanel } from "../right-panel";
@@ -16,8 +17,10 @@ import styles from "./KanbanBoard.module.css";
  */
 export function KanbanBoard({ board }: { board: KanbanBoardResponse }) {
   const { open } = useRightPanel();
-  const openTicket = (ticket: KanbanTicketCard) =>
-    open(<TicketDetailPanel ticket={ticket} />, ticket.id);
+  const openTicket = useCallback(
+    (ticket: KanbanTicketCard) => open(<TicketDetailPanel ticket={ticket} />, ticket.id),
+    [open],
+  );
 
   const inProgress = [...board.running, ...board.awaiting];
   return (
@@ -60,6 +63,7 @@ function Card({
   ticket: KanbanTicketCard;
   onOpen?: (ticket: KanbanTicketCard) => void;
 }) {
+  const handleOpen = useCallback(() => onOpen?.(ticket), [onOpen, ticket]);
   const inner = (
     <>
       <div className={styles.cardHeader}>
@@ -86,7 +90,7 @@ function Card({
       type="button"
       className={`${styles.card} ${styles.cardClickable}`}
       data-priority={priorityKey(ticket.priority)}
-      onClick={() => onOpen(ticket)}
+      onClick={handleOpen}
       title="Open ticket detail"
     >
       {inner}

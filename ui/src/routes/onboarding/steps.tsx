@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { KanbanProviderKind } from "@operator/bindings/KanbanProviderKind";
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { StepComponent, StepProps } from "./types";
@@ -7,25 +7,33 @@ import styles from "./OnboardingPage.module.css";
 const TASK_FIELDS = ["priority", "points", "user_story"] as const;
 const WRAPPERS = ["tmux", "vscode", "cmux", "zellij"] as const;
 const KANBAN_KINDS = ["jira", "linear", "github", "openspec"] as const;
+const COLLECTION_SOURCES = [
+  ["simple", "Simple"],
+  ["dev_kanban", "Development"],
+  ["devops_kanban", "DevOps"],
+  ["custom", "Hosted collections"],
+] as const;
 
 function Intro({ children }: { children: React.ReactNode }) {
   return <div className={styles.intro}>{children}</div>;
 }
 
-function Choice({
+function Choice<Value extends string>({
   selected,
-  onClick,
+  value,
+  onSelect,
   children,
 }: {
   selected: boolean;
-  onClick: () => void;
+  value: Value;
+  onSelect: (value: Value) => void;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       className={`${styles.choice} ${selected ? styles.selected : ""}`}
-      onClick={onClick}
+      onClick={() => onSelect(value)}
     >
       {children}
     </button>
@@ -85,6 +93,11 @@ function KanbanInfo({ api, addExport }: StepProps) {
       .then(setProviders)
       .catch((error: Error) => setMessage(error.message));
   }, [api]);
+
+  const selectProvider = useCallback(
+    (slug: string) => setProvider(KANBAN_KINDS.find((kind) => kind === slug) ?? ""),
+    [setProvider],
+  );
 
   const credentials = () => ({
     provider: provider as KanbanProviderKind,
@@ -250,7 +263,8 @@ function KanbanInfo({ api, addExport }: StepProps) {
           <Choice
             key={item.slug}
             selected={provider === item.slug}
-            onClick={() => setProvider(KANBAN_KINDS.find((kind) => kind === item.slug) ?? "")}
+            value={item.slug}
+            onSelect={selectProvider}
           >
             <strong>{item.display_name}</strong>
             <span>{item.description}</span>
@@ -386,6 +400,16 @@ function ModelServer({ api, integrations, draft, setDraft }: StepProps) {
     const env = kinds.find((kind) => kind.slug === slug)?.default_api_key_env;
     return env ? [`export ${env}="<your-token>"`] : [];
   });
+  const toggleProvider = useCallback(
+    (provider: string) =>
+      setDraft((current) => ({
+        ...current,
+        modelServers: current.modelServers.includes(provider)
+          ? current.modelServers.filter((slug) => slug !== provider)
+          : [...current.modelServers, provider],
+      })),
+    [setDraft],
+  );
   return (
     <Intro>
       <h2>Model providers</h2>
@@ -398,14 +422,8 @@ function ModelServer({ api, integrations, draft, setDraft }: StepProps) {
           <Choice
             key={entry.slug}
             selected={draft.modelServers.includes(entry.slug)}
-            onClick={() =>
-              setDraft((current) => ({
-                ...current,
-                modelServers: current.modelServers.includes(entry.slug)
-                  ? current.modelServers.filter((slug) => slug !== entry.slug)
-                  : [...current.modelServers, entry.slug],
-              }))
-            }
+            value={entry.slug}
+            onSelect={toggleProvider}
           >
             <strong>{entry.label}</strong>
             <span>{probes[entry.slug] ?? "checking…"}</span>
@@ -470,7 +488,8 @@ function GitProvider({ api, addExport }: StepProps) {
           <Choice
             key={item.slug}
             selected={selected === item.slug}
-            onClick={() => setSelected(item.slug)}
+            value={item.slug}
+            onSelect={setSelected}
           >
             <strong>{item.label}</strong>
             <span>
@@ -510,198 +529,309 @@ function GitProvider({ api, addExport }: StepProps) {
   );
 }
 
-const CollectionSource: StepComponent = ({ draft, setDraft }) => (
-  <Intro>
-    <h2>Issue type collection</h2>
-    <div className={styles.choices}>
-      {(
-        [
-          ["simple", "Simple"],
-          ["dev_kanban", "Development"],
-          ["devops_kanban", "DevOps"],
-          ["custom", "Hosted collections"],
-        ] as const
-      ).map(([value, label]) => (
-        <Choice
-          key={value}
-          selected={draft.preset === value}
-          onClick={() => setDraft((current) => ({ ...current, preset: value }))}
-        >
-          <strong>{label}</strong>
-        </Choice>
-      ))}
-    </div>
-  </Intro>
-);
-
-const HostedCollections: StepComponent = ({ collections, draft, setDraft }) => (
-  <Intro>
-    <h2>Hosted collections</h2>
-    <p>Select one or more. The checksum locks initialization to the version you reviewed.</p>
-    <div className={styles.choices}>
-      {collections.map((item) => (
-        <Choice
-          key={item.id}
-          selected={draft.hostedCollectionIds.includes(item.id)}
-          onClick={() =>
-            setDraft((current) => ({
-              ...current,
-              hostedCollectionIds: current.hostedCollectionIds.includes(item.id)
-                ? current.hostedCollectionIds.filter((id) => id !== item.id)
-                : [...current.hostedCollectionIds, item.id],
-            }))
-          }
-        >
-          <strong>{item.name}</strong>
-          <span>{item.description}</span>
-          <small>{item.types.join(", ")}</small>
-        </Choice>
-      ))}
-    </div>
-  </Intro>
-);
-
-const TaskFieldConfig: StepComponent = ({ draft, setDraft }) => (
-  <Intro>
-    <h2>Optional task fields</h2>
-    <div className={styles.choices}>
-      {TASK_FIELDS.map((field) => (
-        <Choice
-          key={field}
-          selected={draft.taskFields.includes(field)}
-          onClick={() =>
-            setDraft((current) => ({
-              ...current,
-              taskFields: current.taskFields.includes(field)
-                ? current.taskFields.filter((item) => item !== field)
-                : [...current.taskFields, field],
-            }))
-          }
-        >
-          <strong>{field.replace("_", " ")}</strong>
-        </Choice>
-      ))}
-    </div>
-  </Intro>
-);
-
-const SessionWrapperChoice: StepComponent = ({ draft, setDraft }) => (
-  <Intro>
-    <h2>Session wrapper</h2>
-    <div className={styles.choices}>
-      {WRAPPERS.map((wrapper) => (
-        <Choice
-          key={wrapper}
-          selected={draft.wrapper === wrapper}
-          onClick={() =>
-            setDraft((current) => ({
-              ...current,
-              wrapper,
-              executionTarget:
-                wrapper === "zellij" && current.executionTarget.kind === "coder"
-                  ? { kind: "local" }
-                  : current.executionTarget,
-            }))
-          }
-        >
-          <strong>{wrapper}</strong>
-        </Choice>
-      ))}
-    </div>
-  </Intro>
-);
-
-const ExecutionTarget: StepComponent = ({ draft, setDraft }) => (
-  <Intro>
-    <h2>Execution target</h2>
-    <div className={styles.choices}>
-      <Choice
-        selected={draft.executionTarget.kind === "local"}
-        onClick={() => setDraft((current) => ({ ...current, executionTarget: { kind: "local" } }))}
-      >
-        <strong>Local</strong>
-        <span>Run beside Operator</span>
-      </Choice>
-      <Choice
-        selected={draft.executionTarget.kind === "coder"}
-        onClick={() =>
-          setDraft((current) => ({
-            ...current,
-            useWorktrees: false,
-            executionTarget: { kind: "coder", name: "coder-agents", template: "" },
-          }))
-        }
-      >
-        <strong>Coder</strong>
-        <span>One workspace per ticket over SSH</span>
-      </Choice>
-    </div>
-    {draft.executionTarget.kind === "coder" && (
-      <div className={styles.form}>
-        <label>
-          Target name
-          <input
-            value={draft.executionTarget.name}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                executionTarget: {
-                  kind: "coder",
-                  name: event.target.value,
-                  template:
-                    current.executionTarget.kind === "coder"
-                      ? current.executionTarget.template
-                      : "",
-                },
-              }))
-            }
-          />
-        </label>
-        <label>
-          Coder template
-          <input
-            value={draft.executionTarget.template}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                executionTarget: {
-                  kind: "coder",
-                  name:
-                    current.executionTarget.kind === "coder"
-                      ? current.executionTarget.name
-                      : "coder-agents",
-                  template: event.target.value,
-                },
-              }))
-            }
-          />
-        </label>
-        <p>Set CODER_URL and CODER_SESSION_TOKEN in the server environment.</p>
+const CollectionSource: StepComponent = ({ draft, setDraft }) => {
+  const selectPreset = useCallback(
+    (preset: (typeof COLLECTION_SOURCES)[number][0]) =>
+      setDraft((current) => ({ ...current, preset })),
+    [setDraft],
+  );
+  return (
+    <Intro>
+      <h2>Issue type collection</h2>
+      <div className={styles.choices}>
+        {COLLECTION_SOURCES.map(([value, label]) => (
+          <Choice
+            key={value}
+            selected={draft.preset === value}
+            value={value}
+            onSelect={selectPreset}
+          >
+            <strong>{label}</strong>
+          </Choice>
+        ))}
       </div>
-    )}
-  </Intro>
-);
+    </Intro>
+  );
+};
 
-const WorktreePreference: StepComponent = ({ draft, setDraft }) => (
-  <Intro>
-    <h2>Git worktrees</h2>
-    <p>Coder targets always isolate work remotely, so local worktrees are disabled for them.</p>
-    <div className={styles.choices}>
-      <Choice
-        selected={!draft.useWorktrees}
-        onClick={() => setDraft((current) => ({ ...current, useWorktrees: false }))}
-      >
-        <strong>In-place branches</strong>
-      </Choice>
-      <Choice
-        selected={draft.useWorktrees}
-        onClick={() => setDraft((current) => ({ ...current, useWorktrees: true }))}
-      >
-        <strong>Per-ticket worktrees</strong>
-      </Choice>
-    </div>
-  </Intro>
-);
+const HostedCollections: StepComponent = ({ collections, draft, setDraft }) => {
+  const toggleCollection = useCallback(
+    (id: string) =>
+      setDraft((current) => ({
+        ...current,
+        hostedCollectionIds: current.hostedCollectionIds.includes(id)
+          ? current.hostedCollectionIds.filter((collectionId) => collectionId !== id)
+          : [...current.hostedCollectionIds, id],
+      })),
+    [setDraft],
+  );
+  return (
+    <Intro>
+      <h2>Hosted collections</h2>
+      <p>Select one or more. The checksum locks initialization to the version you reviewed.</p>
+      <div className={styles.choices}>
+        {collections.map((item) => (
+          <Choice
+            key={item.id}
+            selected={draft.hostedCollectionIds.includes(item.id)}
+            value={item.id}
+            onSelect={toggleCollection}
+          >
+            <strong>{item.name}</strong>
+            <span>{item.description}</span>
+            <small>{item.types.join(", ")}</small>
+          </Choice>
+        ))}
+      </div>
+    </Intro>
+  );
+};
+
+const TaskFieldConfig: StepComponent = ({ draft, setDraft }) => {
+  const toggleTaskField = useCallback(
+    (field: string) =>
+      setDraft((current) => ({
+        ...current,
+        taskFields: current.taskFields.includes(field)
+          ? current.taskFields.filter((item) => item !== field)
+          : [...current.taskFields, field],
+      })),
+    [setDraft],
+  );
+  return (
+    <Intro>
+      <h2>Optional task fields</h2>
+      <div className={styles.choices}>
+        {TASK_FIELDS.map((field) => (
+          <Choice
+            key={field}
+            selected={draft.taskFields.includes(field)}
+            value={field}
+            onSelect={toggleTaskField}
+          >
+            <strong>{field.replace("_", " ")}</strong>
+          </Choice>
+        ))}
+      </div>
+    </Intro>
+  );
+};
+
+const SessionWrapperChoice: StepComponent = ({ draft, setDraft }) => {
+  const selectWrapper = useCallback(
+    (wrapper: (typeof WRAPPERS)[number]) =>
+      setDraft((current) => ({
+        ...current,
+        wrapper,
+        executionTarget:
+          wrapper === "zellij" && current.executionTarget.kind === "coder"
+            ? { kind: "local" }
+            : current.executionTarget,
+      })),
+    [setDraft],
+  );
+  return (
+    <Intro>
+      <h2>Session wrapper</h2>
+      <div className={styles.choices}>
+        {WRAPPERS.map((wrapper) => (
+          <Choice
+            key={wrapper}
+            selected={draft.wrapper === wrapper}
+            value={wrapper}
+            onSelect={selectWrapper}
+          >
+            <strong>{wrapper}</strong>
+          </Choice>
+        ))}
+      </div>
+    </Intro>
+  );
+};
+
+const ExecutionTarget: StepComponent = ({ draft, setDraft }) => {
+  const selectExecutionTarget = useCallback(
+    (kind: "local" | "coder") =>
+      setDraft((current) => ({
+        ...current,
+        useWorktrees: kind === "coder" ? false : current.useWorktrees,
+        executionTarget:
+          kind === "local"
+            ? { kind: "local" }
+            : {
+                kind: "coder",
+                name: "coder-agents",
+                template: "",
+                parameters: {},
+              },
+      })),
+    [setDraft],
+  );
+  return (
+    <Intro>
+      <h2>Execution target</h2>
+      <div className={styles.choices}>
+        <Choice
+          selected={draft.executionTarget.kind === "local"}
+          value="local"
+          onSelect={selectExecutionTarget}
+        >
+          <strong>Local</strong>
+          <span>Run beside Operator</span>
+        </Choice>
+        <Choice
+          selected={draft.executionTarget.kind === "coder"}
+          value="coder"
+          onSelect={selectExecutionTarget}
+        >
+          <strong>Coder</strong>
+          <span>One workspace per ticket over SSH</span>
+        </Choice>
+      </div>
+      {draft.executionTarget.kind === "coder" && (
+        <div className={styles.form}>
+          <label>
+            Target name
+            <input
+              value={draft.executionTarget.name}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  executionTarget: {
+                    kind: "coder",
+                    name: event.target.value,
+                    template:
+                      current.executionTarget.kind === "coder"
+                        ? current.executionTarget.template
+                        : "",
+                    parameters:
+                      current.executionTarget.kind === "coder"
+                        ? current.executionTarget.parameters
+                        : {},
+                  },
+                }))
+              }
+            />
+          </label>
+          <label>
+            Coder template
+            <input
+              value={draft.executionTarget.template}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  executionTarget: {
+                    kind: "coder",
+                    name:
+                      current.executionTarget.kind === "coder"
+                        ? current.executionTarget.name
+                        : "coder-agents",
+                    template: event.target.value,
+                    parameters:
+                      current.executionTarget.kind === "coder"
+                        ? current.executionTarget.parameters
+                        : {},
+                  },
+                }))
+              }
+            />
+          </label>
+          <fieldset className={styles.parameters}>
+            <legend>Template parameters (optional)</legend>
+            {draft.coderParameters.map((parameter, index) => (
+              <div className={styles.parameterRow} key={parameter.id}>
+                <input
+                  aria-label={`Coder parameter ${index + 1} name`}
+                  placeholder="name"
+                  value={parameter.name}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      coderParameters: current.coderParameters.map((item) =>
+                        item.id === parameter.id ? { ...item, name: event.target.value } : item,
+                      ),
+                    }))
+                  }
+                />
+                <input
+                  aria-label={`Coder parameter ${index + 1} value`}
+                  placeholder="value"
+                  value={parameter.value}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      coderParameters: current.coderParameters.map((item) =>
+                        item.id === parameter.id ? { ...item, value: event.target.value } : item,
+                      ),
+                    }))
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      coderParameters: current.coderParameters.filter(
+                        (item) => item.id !== parameter.id,
+                      ),
+                    }))
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
+                setDraft((current) => ({
+                  ...current,
+                  coderParameters: [
+                    ...current.coderParameters,
+                    {
+                      id:
+                        current.coderParameters.reduce(
+                          (highest, parameter) => Math.max(highest, parameter.id),
+                          0,
+                        ) + 1,
+                      name: "",
+                      value: "",
+                    },
+                  ],
+                }))
+              }
+            >
+              Add parameter
+            </button>
+          </fieldset>
+          <p>Set CODER_URL and CODER_SESSION_TOKEN in the server environment.</p>
+        </div>
+      )}
+    </Intro>
+  );
+};
+
+const WorktreePreference: StepComponent = ({ draft, setDraft }) => {
+  const selectWorktreePreference = useCallback(
+    (preference: "in-place" | "worktree") =>
+      setDraft((current) => ({ ...current, useWorktrees: preference === "worktree" })),
+    [setDraft],
+  );
+  return (
+    <Intro>
+      <h2>Git worktrees</h2>
+      <p>Coder targets always isolate work remotely, so local worktrees are disabled for them.</p>
+      <div className={styles.choices}>
+        <Choice selected={!draft.useWorktrees} value="in-place" onSelect={selectWorktreePreference}>
+          <strong>In-place branches</strong>
+        </Choice>
+        <Choice selected={draft.useWorktrees} value="worktree" onSelect={selectWorktreePreference}>
+          <strong>Per-ticket worktrees</strong>
+        </Choice>
+      </div>
+    </Intro>
+  );
+};
 
 const AdminPassword: StepComponent = () => (
   <Intro>
@@ -775,6 +905,12 @@ const Confirm: StepComponent = ({ status, draft, exports }) => (
       <dd>{draft.wrapper}</dd>
       <dt>Execution</dt>
       <dd>{draft.executionTarget.kind}</dd>
+      {draft.executionTarget.kind === "coder" && (
+        <>
+          <dt>Coder parameters</dt>
+          <dd>{draft.coderParameters.length} stored in the project configuration</dd>
+        </>
+      )}
       <dt>Worktrees</dt>
       <dd>{draft.useWorktrees ? "enabled" : "disabled"}</dd>
     </dl>

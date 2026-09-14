@@ -25,6 +25,8 @@ pub enum ApiError {
     InternalError(String),
     /// Bad request
     BadRequest(String),
+    /// Server is unavailable for new work.
+    Unavailable(String),
     /// Cannot modify builtin resource
     BuiltinReadOnly(String),
     // The three auth variants below are constructed by the authorization
@@ -49,9 +51,10 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        let (status, error, message) = match self {
+impl ApiError {
+    /// Status, stable machine-readable code, and human message.
+    pub fn parts(self) -> (StatusCode, &'static str, String) {
+        match self {
             ApiError::NotFound(msg) => (StatusCode::NOT_FOUND, "not_found", msg),
             ApiError::ValidationError(msg) => (StatusCode::BAD_REQUEST, "validation_error", msg),
             ApiError::Conflict(msg) => (StatusCode::CONFLICT, "conflict", msg),
@@ -59,11 +62,18 @@ impl IntoResponse for ApiError {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", msg)
             }
             ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, "bad_request", msg),
+            ApiError::Unavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, "unavailable", msg),
             ApiError::BuiltinReadOnly(msg) => (StatusCode::FORBIDDEN, "builtin_readonly", msg),
             ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, "unauthorized", msg),
             ApiError::Forbidden(msg) => (StatusCode::FORBIDDEN, "forbidden", msg),
             ApiError::CsrfFailed(msg) => (StatusCode::FORBIDDEN, "csrf_failed", msg),
-        };
+        }
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        let (status, error, message) = self.parts();
 
         let body = Json(ErrorResponse {
             error: error.to_string(),

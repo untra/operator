@@ -176,10 +176,9 @@
     "typescript/no-unsafe-member-access": "off",
     "typescript/no-unsafe-return": "off",
 
-    // ---- react-perf: new class of finding, land as warn ----
     "react-perf/jsx-no-new-object-as-prop": "warn",
     "react-perf/jsx-no-new-array-as-prop": "warn",
-    "react-perf/jsx-no-new-function-as-prop": "warn",
+    "react-perf/jsx-no-new-function-as-prop": ["error", { "nativeAllowList": "all" }],
     "react-perf/jsx-no-jsx-as-prop": "warn"
   },
 

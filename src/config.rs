@@ -301,6 +301,12 @@ pub struct RestApiConfig {
     /// Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host.
     #[serde(default)]
     pub public_url: Option<String>,
+    /// Maximum time to wait for active agents before shutdown cleanup begins.
+    #[serde(default = "default_shutdown_drain_seconds")]
+    pub shutdown_drain_seconds: u32,
+    /// Maximum time reserved for final callbacks and persistent cleanup.
+    #[serde(default = "default_shutdown_cleanup_seconds")]
+    pub shutdown_cleanup_seconds: u32,
 }
 
 fn default_rest_enabled() -> bool {
@@ -315,6 +321,14 @@ fn default_rest_port() -> u16 {
     7008
 }
 
+fn default_shutdown_drain_seconds() -> u32 {
+    60
+}
+
+fn default_shutdown_cleanup_seconds() -> u32 {
+    15
+}
+
 impl Default for RestApiConfig {
     fn default() -> Self {
         Self {
@@ -323,6 +337,8 @@ impl Default for RestApiConfig {
             port: default_rest_port(),
             cors_origins: Vec::new(),
             public_url: None,
+            shutdown_drain_seconds: default_shutdown_drain_seconds(),
+            shutdown_cleanup_seconds: default_shutdown_cleanup_seconds(),
         }
     }
 }
@@ -1014,9 +1030,13 @@ mod tests {
         let cfg = config_from_env(&[
             ("OPERATOR_REST_API__HOST", "0.0.0.0"),
             ("OPERATOR_REST_API__PORT", "7099"),
+            ("OPERATOR_REST_API__SHUTDOWN_DRAIN_SECONDS", "45"),
+            ("OPERATOR_REST_API__SHUTDOWN_CLEANUP_SECONDS", "10"),
         ]);
         assert_eq!(cfg.rest_api.host, "0.0.0.0");
         assert_eq!(cfg.rest_api.port, 7099);
+        assert_eq!(cfg.rest_api.shutdown_drain_seconds, 45);
+        assert_eq!(cfg.rest_api.shutdown_cleanup_seconds, 10);
     }
 
     #[test]

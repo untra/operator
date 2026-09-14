@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { TextInput, SelectInput, Toggle } from "../primitives";
 import { SectionHeader } from "../SectionHeader";
 import type { GitConfig } from "../../../src/generated/GitConfig";
@@ -14,6 +14,31 @@ export function GitRepositoriesSection({ git, onUpdate }: GitRepositoriesSection
   const githubTokenEnv = git.github.token_env;
   const branchFormat = git.branch_format;
   const useWorktrees = git.use_worktrees;
+  const handleProviderChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) =>
+      onUpdate("git", "provider", event.target.value),
+    [onUpdate],
+  );
+  const handleGithubEnabledChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate("git.github", "enabled", event.target.checked),
+    [onUpdate],
+  );
+  const handleGithubTokenChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate("git.github", "token_env", event.target.value),
+    [onUpdate],
+  );
+  const handleBranchFormatChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate("git", "branch_format", event.target.value),
+    [onUpdate],
+  );
+  const handleWorktreesChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate("git", "use_worktrees", event.target.checked),
+    [onUpdate],
+  );
 
   return (
     <div className="op-mb-4">
@@ -27,7 +52,7 @@ export function GitRepositoriesSection({ git, onUpdate }: GitRepositoriesSection
         <SelectInput
           label="Git Provider"
           value={provider || "github"}
-          onChange={(e) => onUpdate("git", "provider", e.target.value)}
+          onChange={handleProviderChange}
         >
           <option value="github">GitHub</option>
           <option value="gitlab">GitLab</option>
@@ -37,14 +62,14 @@ export function GitRepositoriesSection({ git, onUpdate }: GitRepositoriesSection
 
         <Toggle
           checked={githubEnabled}
-          onChange={(e) => onUpdate("git.github", "enabled", e.target.checked)}
+          onChange={handleGithubEnabledChange}
           label="GitHub integration enabled"
         />
 
         <TextInput
           label="GitHub Token Environment Variable"
           value={githubTokenEnv}
-          onChange={(e) => onUpdate("git.github", "token_env", e.target.value)}
+          onChange={handleGithubTokenChange}
           placeholder="GITHUB_TOKEN"
           helperText="Name of the environment variable containing your GitHub personal access token"
           disabled={!githubEnabled}
@@ -53,14 +78,14 @@ export function GitRepositoriesSection({ git, onUpdate }: GitRepositoriesSection
         <TextInput
           label="Branch Format"
           value={branchFormat}
-          onChange={(e) => onUpdate("git", "branch_format", e.target.value)}
+          onChange={handleBranchFormatChange}
           placeholder="{type}/{ticket_id}-{slug}"
           helperText="Template for branch names. Variables: {type}, {ticket_id}, {slug}"
         />
 
         <Toggle
           checked={useWorktrees}
-          onChange={(e) => onUpdate("git", "use_worktrees", e.target.checked)}
+          onChange={handleWorktreesChange}
           label="Use git worktrees for parallel agent branches"
         />
       </div>

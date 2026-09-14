@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Button, TextInput, SelectInput } from "../primitives";
 import { SectionHeader } from "../SectionHeader";
 import { OperatorBrand } from "../OperatorBrand";
@@ -16,6 +16,21 @@ export function PrimaryConfigSection({
   onUpdate,
   onBrowseFolder,
 }: PrimaryConfigSectionProps) {
+  const handleWorkingDirectoryChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onUpdate("primary", "working_directory", event.target.value),
+    [onUpdate],
+  );
+  const handleBrowseFolder = useCallback(
+    () => onBrowseFolder("workingDirectory"),
+    [onBrowseFolder],
+  );
+  const handleSessionWrapperChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) =>
+      onUpdate("sessions", "wrapper", event.target.value),
+    [onUpdate],
+  );
+
   return (
     <div className="op-mb-4">
       <SectionHeader id="section-primary" title="Workspace Configuration" />
@@ -33,13 +48,13 @@ export function PrimaryConfigSection({
           <TextInput
             style={{ flex: 1 }}
             value={working_directory}
-            onChange={(e) => onUpdate("primary", "working_directory", e.target.value)}
+            onChange={handleWorkingDirectoryChange}
             placeholder="/path/to/your/repos"
             helperText="Parent directory of Operator! managed code repositories containing .tickets/ working directory"
           />
           <Button
             variant="outlined"
-            onClick={() => onBrowseFolder("workingDirectory")}
+            onClick={handleBrowseFolder}
             style={{
               alignSelf: "flex-start",
               marginTop: 8,
@@ -55,7 +70,7 @@ export function PrimaryConfigSection({
       <SelectInput
         label="Session Wrapper"
         value={sessions_wrapper || "vscode"}
-        onChange={(e) => onUpdate("sessions", "wrapper", e.target.value)}
+        onChange={handleSessionWrapperChange}
         helperText="Only VS Code Terminal is available when running from the extension. Other wrappers require running Operator from the CLI."
       >
         <option value="vscode">VS Code Terminal</option>

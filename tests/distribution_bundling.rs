@@ -101,11 +101,93 @@ fn test_docker_ci_job_stages_opr8r_artifacts() {
     let docker_job = &content[docker_job_start..];
 
     assert!(
-        docker_job.contains("opr8r-linux-*"),
-        "the docker job must download opr8r-linux-* release artifacts, like it does for operator-linux-*"
+        docker_job.contains("opr8r_artifact: opr8r-linux-x86_64")
+            && docker_job.contains("opr8r_artifact: opr8r-linux-arm64"),
+        "the docker matrix must download the opr8r artifact for both architectures"
     );
     assert!(
-        docker_job.contains("opr8r-linux-amd64") && docker_job.contains("opr8r-linux-arm64"),
-        "the docker job must stage opr8r-linux-amd64/arm64 into the build context, like it does for operator"
+        docker_job.contains("opr8r-linux-${{ matrix.arch }}"),
+        "the docker job must stage opr8r under the Dockerfile's TARGETARCH naming convention"
+    );
+}
+
+/// Slice one top-level job block out of build.yaml: from its `  <name>:`
+/// header up to the next two-space-indented key.
+fn job_block<'a>(workflow: &'a str, name: &str) -> &'a str {
+    let header = format!("\n  {name}:\n");
+    let start = workflow
+        .find(&header)
+        .unwrap_or_else(|| panic!("build.yaml must have a top-level `{name}:` job"))
+        + header.len();
+    let body = &workflow[start..];
+    let end = body
+        .match_indices("\n  ")
+        .find(|(i, _)| {
+            let line = &body[i + 1..];
+            !line.starts_with("   ") && line.lines().next().is_some_and(|l| l.ends_with(':'))
+        })
+        .map_or(body.len(), |(i, _)| i);
+    &body[..end]
+}
+
+/// The whole point of splitting build/scan from publish is that the bytes that
+/// were scanned are the bytes that get pushed. A `build-push-action` in the
+/// publish job would rebuild them and defeat the blocking scan.
+#[test]
+fn test_docker_publish_job_never_rebuilds_the_scanned_image() {
+    let content = read(&repo_root().join(".github/workflows/build.yaml"));
+    let publish = job_block(&content, "docker-publish");
+
+    assert!(
+        !publish.contains("docker/build-push-action"),
+        "docker-publish must load the scanned image archives, not rebuild them; \
+         a rebuild would publish bytes that Trivy never saw"
+    );
+    assert!(
+        publish.contains("docker load -i"),
+        "docker-publish must load the exact archives exported by the scanned build jobs"
+    );
+    assert!(
+        publish.contains("pattern: operator-image-*"),
+        "docker-publish must download the per-architecture scanned image artifacts"
+    );
+}
+
+/// Chart publication must trail successful image publication, so a scan failure
+/// cannot leave a chart pointing at an image tag that was never published.
+#[test]
+fn test_chart_job_depends_on_successful_image_publication() {
+    let content = read(&repo_root().join(".github/workflows/build.yaml"));
+    let chart = job_block(&content, "chart");
+
+    let needs = chart
+        .lines()
+        .find(|line| line.trim_start().starts_with("needs:"))
+        .expect("the chart job must declare `needs:`");
+    assert!(
+        needs.contains("docker-publish"),
+        "the chart job must depend on docker-publish so a blocked image scan also blocks \
+         chart publication; found {needs:?}"
+    );
+    assert!(
+        needs.contains("release"),
+        "the chart job must depend on release to package from the version-bump commit; \
+         found {needs:?}"
+    );
+    assert!(
+        chart.contains("ref: ${{ needs.release.outputs.commit }}"),
+        "the chart job must check out the release commit so chart version, appVersion \
+         and image version match the published release"
+    );
+}
+
+#[test]
+fn test_job_block_slices_a_single_job() {
+    let content = read(&repo_root().join(".github/workflows/build.yaml"));
+    let publish = job_block(&content, "docker-publish");
+    assert!(publish.contains("Push scanned platform images"));
+    assert!(
+        !publish.contains("Package and push Helm chart"),
+        "job_block leaked into the following job"
     );
 }

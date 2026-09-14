@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { SetupStatusResponse } from "../../api-client";
@@ -25,6 +25,7 @@ export function OnboardingPage() {
     taskFields: ["priority", "points", "user_story"],
     wrapper: "tmux",
     executionTarget: { kind: "local" },
+    coderParameters: [],
     useWorktrees: false,
     acceptanceCriteria: "",
     modelServers: [],
@@ -61,6 +62,7 @@ export function OnboardingPage() {
           taskFields: ["priority", "points", "user_story"],
           wrapper: "tmux",
           executionTarget: { kind: "local" },
+          coderParameters: [],
           useWorktrees: false,
           acceptanceCriteria: nextStatus.default_acceptance_criteria,
           modelServers: [],
@@ -89,11 +91,14 @@ export function OnboardingPage() {
   const current = steps.find((step) => step.slug === walk[currentIndex]);
   const Step = current ? STEP_COMPONENTS[current.slug] : null;
 
-  function addExport(value: string) {
-    setExports((currentExports) =>
-      currentExports.includes(value) ? currentExports : [...currentExports, value],
-    );
-  }
+  const addExport = useCallback(
+    (value: string) => {
+      setExports((currentExports) =>
+        currentExports.includes(value) ? currentExports : [...currentExports, value],
+      );
+    },
+    [setExports],
+  );
 
   function next() {
     if (!current) {
@@ -111,6 +116,17 @@ export function OnboardingPage() {
       setError("Coder target name and template are required.");
       return;
     }
+    if (current.slug === "execution-target" && draft.executionTarget.kind === "coder") {
+      const names = draft.coderParameters.map((parameter) => parameter.name.trim());
+      if (names.some((name) => !name.trim())) {
+        setError("Coder parameter names cannot be empty.");
+        return;
+      }
+      if (new Set(names).size !== names.length) {
+        setError("Coder parameter names must be unique.");
+        return;
+      }
+    }
     setError(null);
     setCurrentSlug(walk[Math.min(currentIndex + 1, walk.length - 1)]);
   }
@@ -119,11 +135,20 @@ export function OnboardingPage() {
     setBusy(true);
     setError(null);
     try {
+      const executionTarget: WizardDraft["executionTarget"] =
+        draft.executionTarget.kind === "coder"
+          ? {
+              ...draft.executionTarget,
+              parameters: Object.fromEntries(
+                draft.coderParameters.map(({ name, value }) => [name.trim(), value]),
+              ),
+            }
+          : draft.executionTarget;
       await api.initializeSetup({
         preset: draft.preset,
         task_fields: draft.taskFields,
         wrapper: draft.wrapper,
-        execution_target: draft.executionTarget,
+        execution_target: executionTarget,
         use_worktrees: draft.executionTarget.kind === "coder" ? false : draft.useWorktrees,
         acceptance_criteria: draft.acceptanceCriteria,
         model_servers: draft.modelServers,

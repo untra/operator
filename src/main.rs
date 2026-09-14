@@ -1107,6 +1107,13 @@ async fn cmd_api(config: &Config, port: Option<u16>, open: bool) -> Result<()> {
         });
     }
 
+    // Settle what the last shutdown left behind before the API can admit work
+    match startup::recovery::reconcile(&config) {
+        Ok(0) => {}
+        Ok(count) => println!("Reconciled {count} agent(s) interrupted by a previous shutdown"),
+        Err(error) => eprintln!("Warning: shutdown recovery reconciliation failed: {error}"),
+    }
+
     let state = rest::ApiState::new(config.clone(), config.tickets_path());
     rest::serve(state, port).await?;
 

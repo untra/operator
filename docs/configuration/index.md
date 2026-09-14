@@ -275,6 +275,8 @@ enabled = true
 host = "127.0.0.1"
 port = 7008
 cors_origins = []
+shutdown_drain_seconds = 60
+shutdown_cleanup_seconds = 15
 
 [git]
 branch_format = "{type}/{ticket_id}"

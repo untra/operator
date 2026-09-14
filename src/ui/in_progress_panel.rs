@@ -375,6 +375,7 @@ mod tests {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            shutdown_recovery: None,
         }
     }
 

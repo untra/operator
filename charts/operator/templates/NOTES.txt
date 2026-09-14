@@ -1,0 +1,23 @@
+Operator is installed in namespace {{ .Release.Namespace }}.
+
+Wait for the pod:
+  kubectl -n {{ .Release.Namespace }} rollout status statefulset/{{ include "operator.fullname" . }}
+
+{{- if .Values.ingress.enabled }}
+Open {{ printf "%s://%s%s/setup" (ternary "https" "http" (ne .Values.ingress.tls.secretName "")) .Values.ingress.host (trimSuffix "/" .Values.ingress.path) }} to finish bootstrap and the workspace wizard.
+{{- else }}
+Forward the service locally:
+  kubectl -n {{ .Release.Namespace }} port-forward service/{{ include "operator.fullname" . }} 7008:{{ .Values.service.port }}
+
+Then open http://127.0.0.1:7008/setup to finish bootstrap and the workspace wizard.
+{{- end }}
+{{- with .Values.publicUrl }}
+
+Operator will use {{ trimSuffix "/" . }}/setup in generated public links. publicUrl does not create an Ingress.
+{{- end }}
+
+The wizard stores configuration and application state on the workspace PVC. Back up that volume.
+{{- if not .Values.bootstrap.existingSecret }}
+
+No bootstrap Secret is configured. If this is a fresh installation, see the chart README before opening /setup.
+{{- end }}

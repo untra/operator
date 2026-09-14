@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { SectionHeader } from "../SectionHeader";
 import { LinkOutCard } from "../LinkOutCard";
 import { ProviderCard } from "../kanban/ProviderCard";
@@ -73,9 +73,13 @@ export function KanbanProvidersSection({
   const defaultLinearTeam = "default-team";
 
   // Viewing an issue type now links out to the hosted Operator UI.
-  const handleViewIssueType = () => {
+  const handleViewIssueType = useCallback(() => {
     onOpenOperatorUi("issuetypes");
-  };
+  }, [onOpenOperatorUi]);
+  const handleOpenIssueTypes = useCallback(
+    () => onOpenOperatorUi("issuetypes"),
+    [onOpenOperatorUi],
+  );
 
   return (
     <div className="op-mb-4">
@@ -174,7 +178,7 @@ export function KanbanProvidersSection({
             id="section-issuetypes"
             title="Issue Types & Collections"
             description="Create and manage issue types and collections in the Operator UI."
-            onOpen={() => onOpenOperatorUi("issuetypes")}
+            onOpen={handleOpenIssueTypes}
           />
         </div>
       )}

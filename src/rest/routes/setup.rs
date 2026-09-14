@@ -232,7 +232,11 @@ fn selected_execution_target(
 ) -> Result<crate::config::TargetDef, ApiError> {
     match target {
         SetupExecutionTarget::Local => Ok(crate::config::TargetDef::local()),
-        SetupExecutionTarget::Coder { name, template } => {
+        SetupExecutionTarget::Coder {
+            name,
+            template,
+            parameters,
+        } => {
             let name = name.trim();
             let template = template.trim();
             if wrapper == crate::config::SessionWrapperType::Zellij {
@@ -260,6 +264,7 @@ fn selected_execution_target(
                 display_name: Some("Coder".to_string()),
                 kind: crate::config::TargetKind::Coder(crate::config::CoderConfig {
                     template: template.to_string(),
+                    parameters,
                     ..Default::default()
                 }),
             })
@@ -382,10 +387,46 @@ mod tests {
             SetupExecutionTarget::Coder {
                 name: "coder-agents".to_string(),
                 template: "operator".to_string(),
+                parameters: std::collections::HashMap::new(),
             },
             crate::config::SessionWrapperType::Zellij,
         );
         assert!(matches!(result, Err(ApiError::ValidationError(_))));
+    }
+
+    #[test]
+    fn test_coder_target_preserves_template_parameters() {
+        let parameters = std::collections::HashMap::from([
+            ("region".to_string(), "us-west".to_string()),
+            ("optional".to_string(), String::new()),
+        ]);
+        let target = selected_execution_target(
+            SetupExecutionTarget::Coder {
+                name: "coder-agents".to_string(),
+                template: "operator".to_string(),
+                parameters: parameters.clone(),
+            },
+            crate::config::SessionWrapperType::Tmux,
+        )
+        .unwrap();
+        let crate::config::TargetKind::Coder(coder) = target.kind else {
+            panic!("expected coder target");
+        };
+        assert_eq!(coder.parameters, parameters);
+    }
+
+    #[test]
+    fn test_coder_target_without_parameters_remains_compatible() {
+        let target: SetupExecutionTarget = serde_json::from_value(serde_json::json!({
+            "kind": "coder",
+            "name": "coder-agents",
+            "template": "operator"
+        }))
+        .unwrap();
+        let SetupExecutionTarget::Coder { parameters, .. } = target else {
+            panic!("expected coder target");
+        };
+        assert!(parameters.is_empty());
     }
 
     #[tokio::test]

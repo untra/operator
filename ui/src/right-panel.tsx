@@ -29,14 +29,17 @@ export function RightPanelProvider({ children }: { children: ReactNode }) {
   const [content, setContent] = useState<ReactNode>(null);
   const [title, setTitle] = useState<string | null>(null);
 
-  const open = useCallback((node: ReactNode, t?: string) => {
-    setContent(node);
-    setTitle(t ?? null);
-  }, []);
+  const open = useCallback(
+    (node: ReactNode, t?: string) => {
+      setContent(node);
+      setTitle(t ?? null);
+    },
+    [setContent, setTitle],
+  );
   const close = useCallback(() => {
     setContent(null);
     setTitle(null);
-  }, []);
+  }, [setContent, setTitle]);
 
   const value = useMemo(() => ({ content, title, open, close }), [content, title, open, close]);
 

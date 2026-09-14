@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Chip, IconButton, SelectInput } from "../primitives";
 import { MappingPanel } from "./MappingPanel";
 import type { ProjectSyncConfig } from "../../../src/generated/ProjectSyncConfig";
@@ -52,7 +52,10 @@ export function ProjectRow({
   const [expanded, setExpanded] = useState(false);
 
   const mappingCount = Object.keys(project.type_mappings ?? {}).length;
-  const statusMapping: KanbanStatusMapping = project.status_mapping ?? {};
+  const statusMapping = useMemo<KanbanStatusMapping>(
+    () => project.status_mapping ?? {},
+    [project.status_mapping],
+  );
 
   // Lazily discover the board's real columns the first time the row expands.
   useEffect(() => {
@@ -61,25 +64,31 @@ export function ProjectRow({
     }
   }, [expanded, statuses, provider, projectKey, onGetKanbanStatuses]);
 
-  const handleMappingChange = (externalName: string, operatorKey: string) => {
-    const newMappings = { ...project.type_mappings };
-    if (operatorKey === "") {
-      delete newMappings[externalName];
-    } else {
-      newMappings[externalName] = operatorKey;
-    }
-    onUpdate(sectionKey, `projects.${projectKey}.type_mappings`, newMappings);
-  };
+  const handleMappingChange = useCallback(
+    (externalName: string, operatorKey: string) => {
+      const newMappings = { ...project.type_mappings };
+      if (operatorKey === "") {
+        delete newMappings[externalName];
+      } else {
+        newMappings[externalName] = operatorKey;
+      }
+      onUpdate(sectionKey, `projects.${projectKey}.type_mappings`, newMappings);
+    },
+    [onUpdate, project.type_mappings, projectKey, sectionKey],
+  );
 
-  const handleStatusMappingChange = (field: "todo" | "doing" | "done", column: string) => {
-    const next: KanbanStatusMapping = { ...statusMapping };
-    if (column === "") {
-      delete next[field];
-    } else {
-      next[field] = column;
-    }
-    onUpdate(sectionKey, `projects.${projectKey}.status_mapping`, next);
-  };
+  const handleStatusMappingChange = useCallback(
+    (field: "todo" | "doing" | "done", column: string) => {
+      const next: KanbanStatusMapping = { ...statusMapping };
+      if (column === "") {
+        delete next[field];
+      } else {
+        next[field] = column;
+      }
+      onUpdate(sectionKey, `projects.${projectKey}.status_mapping`, next);
+    },
+    [onUpdate, projectKey, sectionKey, statusMapping],
+  );
 
   /** Discovered columns plus the currently-mapped value (so a stale mapping stays visible). */
   const optionsFor = (current: string | null | undefined): string[] => {
@@ -90,7 +99,12 @@ export function ProjectRow({
     return opts;
   };
 
-  const toggleExpanded = () => setExpanded((current) => !current);
+  const toggleExpanded = useCallback(() => setExpanded((current) => !current), [setExpanded]);
+  const handleCollectionChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) =>
+      onUpdate(sectionKey, `projects.${projectKey}.collection_name`, event.target.value),
+    [onUpdate, projectKey, sectionKey],
+  );
 
   return (
     <div style={{ borderBottom: DIVIDER_BORDER, padding: "8px 0" }}>
@@ -103,9 +117,7 @@ export function ProjectRow({
           <SelectInput
             label="Collection"
             value={project.collection_name || ""}
-            onChange={(e) =>
-              onUpdate(sectionKey, `projects.${projectKey}.collection_name`, e.target.value)
-            }
+            onChange={handleCollectionChange}
           >
             <option value="">None</option>
             {collections.map((c) => (
@@ -149,20 +161,15 @@ export function ProjectRow({
           </span>
           <div className="op-row op-gap-1 op-mb-1">
             {OPERATOR_STATES.map(({ field, label, helper }) => (
-              <div key={field} title={helper} style={{ minWidth: 160, flex: 1 }}>
-                <SelectInput
-                  label={label}
-                  value={statusMapping[field] ?? ""}
-                  onChange={(e) => handleStatusMappingChange(field, e.target.value)}
-                >
-                  <option value="">Unmapped</option>
-                  {optionsFor(statusMapping[field]).map((column) => (
-                    <option key={column} value={column}>
-                      {column}
-                    </option>
-                  ))}
-                </SelectInput>
-              </div>
+              <StatusMappingSelect
+                key={field}
+                field={field}
+                label={label}
+                helper={helper}
+                value={statusMapping[field]}
+                options={optionsFor(statusMapping[field])}
+                onChange={handleStatusMappingChange}
+              />
             ))}
           </div>
 
@@ -180,6 +187,39 @@ export function ProjectRow({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+function StatusMappingSelect({
+  field,
+  label,
+  helper,
+  value,
+  options,
+  onChange,
+}: {
+  field: "todo" | "doing" | "done";
+  label: string;
+  helper: string;
+  value: string | null | undefined;
+  options: string[];
+  onChange: (field: "todo" | "doing" | "done", column: string) => void;
+}) {
+  const handleChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => onChange(field, event.target.value),
+    [field, onChange],
+  );
+  return (
+    <div title={helper} style={{ minWidth: 160, flex: 1 }}>
+      <SelectInput label={label} value={value ?? ""} onChange={handleChange}>
+        <option value="">Unmapped</option>
+        {options.map((column) => (
+          <option key={column} value={column}>
+            {column}
+          </option>
+        ))}
+      </SelectInput>
     </div>
   );
 }

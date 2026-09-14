@@ -24,19 +24,14 @@ Operator in a kubernetes cluster is an application with a volume and a port. It 
 
 ## Install
 
-```bash
-helm install operator oci://ghcr.io/untra/charts/operator \
-  --namespace operator --create-namespace \
-  --set publicUrl=https://operator.example.com
-```
-
 The chart's `appVersion` is the image tag. It is pinned to an exact release - the chart never deploys `latest`.
 
 ### Bootstrap the admin account
 
-Operator's API is [always authenticated](/security/authentication/). Before installing, create the bootstrap Secret holding a temporary password:
+Operator's API is [always authenticated](/security/authentication/). Before installing, create the namespace and bootstrap Secret holding a temporary password:
 
 ```bash
+kubectl create namespace operator
 kubectl -n operator create secret generic operator-bootstrap \
   --from-literal=password="$(openssl rand -base64 24)"
 ```
@@ -45,7 +40,7 @@ Then reference it:
 
 ```bash
 helm install operator oci://ghcr.io/untra/charts/operator \
-  --namespace operator --create-namespace \
+  --namespace operator \
   --set publicUrl=https://operator.example.com \
   --set bootstrap.existingSecret=operator-bootstrap
 ```
@@ -158,7 +153,7 @@ Note default: with `enabled: true` and an empty `egress.to`, the rendered policy
 The base image ships `git`, `tmux`, `openssh-client`, `curl`, and `ca-certificates`, but **no agent CLI** - no `claude`, `codex`, or `gemini`, and no credentials for them.
 
 ```dockerfile
-FROM untra/operator:0.2.7
+FROM untra/operator:{{ site.version }}
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
  && npm install -g @anthropic-ai/claude-code \
@@ -169,7 +164,7 @@ USER 10001
 ```yaml
 image:
   repository: registry.example.com/operator-claude
-  tag: "0.2.7"
+  tag: "{{ site.version }}"
 ```
 
 Provide the agent's credentials as environment variables from a Secret:
@@ -228,6 +223,37 @@ The image already ships `openssh-client`, and Operator downloads the `coder` CLI
 
 No custom image, initContainer, ConfigMap, or relaxing of `readOnlyRootFilesystem` is required - the configuration, cache, and SSH fragments all live under `/op`.
 
+### Private certificate authorities
+
+When Coder or a Git forge uses an internal CA, create a ConfigMap containing a
+bundle with both public and internal roots, then mount it and configure the
+clients that use it:
+
+```yaml
+extraEnv:
+  - name: SSL_CERT_FILE
+    value: /etc/operator-ca/ca-bundle.crt
+  - name: GIT_SSL_CAINFO
+    value: /etc/operator-ca/ca-bundle.crt
+extraVolumes:
+  - name: operator-ca
+    configMap:
+      name: operator-ca
+extraVolumeMounts:
+  - name: operator-ca
+    mountPath: /etc/operator-ca
+    readOnly: true
+```
+
+Mounting a certificate does not modify the image's system trust store. Verify
+Operator, `coder`, `curl`, and Git separately because they can use different TLS
+implementations and environment variables.
+
+For Git over SSH, mount a Secret containing the private key and a pinned
+`known_hosts` file at a path readable by UID/GID 10001. Set `GIT_SSH_COMMAND`
+to reference both paths with `StrictHostKeyChecking=yes`; do not disable host-key
+verification.
+
 ## Security context
 
 Applied by default; you should not need to change any of it:
@@ -256,6 +282,30 @@ helm upgrade operator oci://ghcr.io/untra/charts/operator --reuse-values
 ```
 
 The StatefulSet uses `RollingUpdate`, but with one replica on a ReadWriteOnce volume the old pod must terminate before the new one attaches.
+
+On SIGTERM, Operator becomes unready and stops accepting new launches. It waits
+up to `shutdownDrainSeconds` for active agents, then preserves remote Coder/SSH
+work for reconciliation after restart and interrupts remaining local sessions.
+`shutdownCleanupSeconds` reserves time for state persistence and server cleanup.
+The chart defaults the Kubernetes grace period to 90 seconds; it must be greater
+than the sum of both shutdown intervals. A custom `lifecycle` hook consumes the
+same grace period.
+
+SIGTERM is the supported drain trigger; there is no HTTP drain endpoint. During
+the drain window `/readyz` returns 503 while `/livez` keeps succeeding, so the
+kubelet stops routing new traffic without restarting the pod. Launch requests
+are refused with 503, but in-flight agent completion callbacks and status reads
+keep working: a step that finishes mid-drain is still recorded, it simply does
+not start the next one.
+
+On restart, agents that were interrupted locally come back as failed with an
+explicit shutdown-interruption reason and are available for retry. Remote Coder
+and SSH work is left running - Operator never stops a remote workspace just
+because it is shutting down - and comes back marked as awaiting reconciliation.
+Operator does not probe the remote host to resolve that state: a relaunch of the
+same ticket is refused with 409 until you decide whether the remote work
+survived. Remote computation can outlive Operator while its callback path is
+down, so reconciliation surfaces that gap rather than guessing at it.
 
 The authentication database migrates forward automatically on start.
 

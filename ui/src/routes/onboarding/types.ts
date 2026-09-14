@@ -14,6 +14,7 @@ export type WizardDraft = {
   taskFields: string[];
   wrapper: SessionWrapperType;
   executionTarget: SetupExecutionTarget;
+  coderParameters: Array<{ id: number; name: string; value: string }>;
   useWorktrees: boolean;
   acceptanceCriteria: string;
   modelServers: string[];

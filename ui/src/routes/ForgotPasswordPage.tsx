@@ -10,7 +10,6 @@ export function ForgotPasswordPage() {
   const [username, setUsername] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
   async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);

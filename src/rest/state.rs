@@ -2,11 +2,16 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use std::sync::RwLock as StdRwLock;
 
 use tokio::sync::{Mutex, RwLock};
+
+const PHASE_RUNNING: u8 = 0;
+const PHASE_DRAINING: u8 = 1;
+const PHASE_STOPPING: u8 = 2;
 
 use crate::api::kanban_sync::KanbanBidirectionalSync;
 use crate::auth::store::AuthStore;
@@ -35,6 +40,22 @@ pub struct ApiState {
     pub kanban_sync: Option<Arc<KanbanBidirectionalSync>>,
     /// Authentication store and signing key.
     pub auth: Arc<AuthContext>,
+    lifecycle: Arc<LifecycleState>,
+}
+
+struct LifecycleState {
+    phase: AtomicU8,
+    in_flight: AtomicUsize,
+}
+
+pub struct OperationPermit {
+    lifecycle: Arc<LifecycleState>,
+}
+
+impl Drop for OperationPermit {
+    fn drop(&mut self) {
+        self.lifecycle.in_flight.fetch_sub(1, Ordering::AcqRel);
+    }
 }
 
 /// An open MCP SSE session.
@@ -105,6 +126,7 @@ impl ApiState {
     /// Build with a caller-supplied auth context, so tests and the TUI can share
     /// one already-open store instead of racing to open the same database file.
     pub fn with_auth(config: Config, tickets_path: PathBuf, auth: Arc<AuthContext>) -> Self {
+        reconcile_shutdown_recovery(&config);
         // Shared loader; keeps the API's issue-type resolution identical to the CLI/TUI `workflow export` produces the same output on every surface.
         let registry = load_registry(&tickets_path);
 
@@ -126,7 +148,77 @@ impl ApiState {
             mcp_sessions: Arc::new(Mutex::new(HashMap::new())),
             kanban_sync,
             auth,
+            lifecycle: Arc::new(LifecycleState {
+                phase: AtomicU8::new(PHASE_RUNNING),
+                in_flight: AtomicUsize::new(0),
+            }),
         }
+    }
+
+    pub fn is_accepting_launches(&self) -> bool {
+        self.lifecycle.phase.load(Ordering::Acquire) == PHASE_RUNNING
+    }
+
+    pub fn is_draining(&self) -> bool {
+        self.lifecycle.phase.load(Ordering::Acquire) != PHASE_RUNNING
+    }
+
+    pub fn begin_launch(&self) -> Result<OperationPermit, ApiError> {
+        if !self.is_accepting_launches() {
+            return Err(ApiError::Unavailable(
+                "Operator is draining and is not accepting new launches".to_string(),
+            ));
+        }
+        self.lifecycle.in_flight.fetch_add(1, Ordering::AcqRel);
+        if !self.is_accepting_launches() {
+            self.lifecycle.in_flight.fetch_sub(1, Ordering::AcqRel);
+            return Err(ApiError::Unavailable(
+                "Operator is draining and is not accepting new launches".to_string(),
+            ));
+        }
+        Ok(OperationPermit {
+            lifecycle: Arc::clone(&self.lifecycle),
+        })
+    }
+
+    pub fn begin_callback(&self) -> Result<OperationPermit, ApiError> {
+        if self.lifecycle.phase.load(Ordering::Acquire) == PHASE_STOPPING {
+            return Err(ApiError::Unavailable(
+                "Operator is stopping and cannot accept more completion callbacks".to_string(),
+            ));
+        }
+        self.lifecycle.in_flight.fetch_add(1, Ordering::AcqRel);
+        if self.lifecycle.phase.load(Ordering::Acquire) == PHASE_STOPPING {
+            self.lifecycle.in_flight.fetch_sub(1, Ordering::AcqRel);
+            return Err(ApiError::Unavailable(
+                "Operator is stopping and cannot accept more completion callbacks".to_string(),
+            ));
+        }
+        Ok(OperationPermit {
+            lifecycle: Arc::clone(&self.lifecycle),
+        })
+    }
+
+    pub fn start_draining(&self) -> bool {
+        self.lifecycle
+            .phase
+            .compare_exchange(
+                PHASE_RUNNING,
+                PHASE_DRAINING,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .is_ok()
+    }
+
+    pub fn start_stopping(&self) {
+        self.lifecycle
+            .phase
+            .store(PHASE_STOPPING, Ordering::Release);
+    }
+
+    pub fn in_flight_operations(&self) -> usize {
+        self.lifecycle.in_flight.load(Ordering::Acquire)
     }
 
     /// A snapshot of the live configuration.
@@ -170,6 +262,39 @@ impl ApiState {
     /// Get the templates directory path
     pub fn templates_path(&self) -> PathBuf {
         self.tickets_path.join("templates")
+    }
+}
+
+fn reconcile_shutdown_recovery(config: &Config) {
+    let Ok(mut app_state) = crate::state::State::load(config) else {
+        return;
+    };
+    let mut changed = false;
+    for agent in &mut app_state.agents {
+        match agent.shutdown_recovery {
+            Some(crate::state::ShutdownRecovery::RemoteAwaitingReconciliation) => {
+                if matches!(
+                    agent.status.as_str(),
+                    "running" | "awaiting_input" | "completing"
+                ) {
+                    agent.last_message = Some(
+                        "Remote work is awaiting reconciliation after Operator restart".to_string(),
+                    );
+                } else {
+                    agent.shutdown_recovery = None;
+                }
+                changed = true;
+            }
+            Some(crate::state::ShutdownRecovery::InterruptedLocal) => {
+                agent.status = "failed".to_string();
+            }
+            None => {}
+        }
+    }
+    if changed {
+        if let Err(error) = app_state.save() {
+            tracing::error!(%error, "Failed to persist shutdown recovery state");
+        }
     }
 }
 
@@ -241,5 +366,31 @@ mod tests {
             state.kanban_sync.is_some(),
             "kanban_sync should be Some when at least one project has bidirectional: true"
         );
+    }
+
+    #[test]
+    fn draining_closes_launch_admission_without_losing_in_flight_tracking() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let mut config = Config::default();
+        config.paths.state = temp.path().join("state").display().to_string();
+        config.paths.tickets = temp.path().join("tickets").display().to_string();
+        let state = ApiState::new(config, temp.path().join("tickets"));
+
+        let permit = state.begin_launch().unwrap();
+        assert_eq!(state.in_flight_operations(), 1);
+        assert!(state.start_draining());
+        assert!(matches!(
+            state.begin_launch(),
+            Err(ApiError::Unavailable(_))
+        ));
+        assert!(state.begin_callback().is_ok());
+        drop(permit);
+        assert_eq!(state.in_flight_operations(), 0);
+
+        state.start_stopping();
+        assert!(matches!(
+            state.begin_callback(),
+            Err(ApiError::Unavailable(_))
+        ));
     }
 }

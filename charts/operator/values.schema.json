@@ -68,6 +68,29 @@
     "resources": { "type": "object" },
     "extraEnv": { "type": "array", "items": { "type": "object" } },
     "extraEnvFrom": { "type": "array", "items": { "type": "object" } },
+    "extraVolumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "extraVolumeMounts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "mountPath"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "mountPath": { "type": "string", "pattern": "^/" }
+        }
+      }
+    },
+    "lifecycle": { "type": "object" },
+    "terminationGracePeriodSeconds": { "type": "integer", "minimum": 1 },
+    "shutdownDrainSeconds": { "type": "integer", "minimum": 0 },
+    "shutdownCleanupSeconds": { "type": "integer", "minimum": 0 },
     "ingress": {
       "type": "object",
       "additionalProperties": false,

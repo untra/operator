@@ -153,6 +153,25 @@ jobs:
             --set networkPolicy.enabled=true \
             --set bootstrap.existingSecret=operator-bootstrap \
             > operator-chart.yaml
+          helm template operator charts/operator \
+            --set-json 'extraVolumes=[{"name":"custom-ca","configMap":{"name":"custom-ca"}}]' \
+            --set-json 'extraVolumeMounts=[{"name":"custom-ca","mountPath":"/etc/custom-ca","readOnly":true}]' \
+            --set-json 'lifecycle={"preStop":{"exec":{"command":["/bin/sh","-c","true"]}}}' \
+            > operator-chart-extensions.yaml
+          if helm template operator charts/operator --set terminationGracePeriodSeconds=75; then
+            echo "::error::invalid shutdown budget rendered successfully"
+            exit 1
+          fi
+          if helm template operator charts/operator \
+            --set-json 'extraVolumes=[{"name":"workspace","emptyDir":{}}]'; then
+            echo "::error::chart-owned volume collision rendered successfully"
+            exit 1
+          fi
+          if helm template operator charts/operator \
+            --set-json 'extraVolumeMounts=[{"name":"one","mountPath":"/shared"},{"name":"two","mountPath":"/shared"}]'; then
+            echo "::error::duplicate mount path rendered successfully"
+            exit 1
+          fi
 
       - name: Scan rendered Helm chart
         uses: aquasecurity/trivy-action@v0.36.0
@@ -672,38 +691,98 @@ jobs:
 
   docker:
     needs: [build, build-opr8r, release]
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            operator_artifact: operator-linux-x86_64
+            opr8r_artifact: opr8r-linux-x86_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            operator_artifact: operator-linux-arm64
+            opr8r_artifact: opr8r-linux-arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.commit }}
 
-      - name: Download linux operator binaries
+      - name: Download operator binary
         uses: actions/download-artifact@v8
         with:
-          pattern: operator-linux-*
+          name: ${{ matrix.operator_artifact }}
           path: bins
-          merge-multiple: true
 
-      # The image ships both halves of the server-client pair, so agent
-      # sessions inside the container can report step completion via opr8r.
-      - name: Download linux opr8r binaries
+      - name: Download opr8r binary
         uses: actions/download-artifact@v8
         with:
-          pattern: opr8r-linux-*
+          name: ${{ matrix.opr8r_artifact }}
           path: bins
-          merge-multiple: true
 
-      # buildx exposes TARGETARCH as amd64/arm64; map the x86_64 artifact name.
       - name: Stage binaries for build context
         run: |
-          cp bins/operator-linux-x86_64 ./operator-linux-amd64
-          cp bins/operator-linux-arm64  ./operator-linux-arm64
-          cp bins/opr8r-linux-x86_64    ./opr8r-linux-amd64
-          cp bins/opr8r-linux-arm64     ./opr8r-linux-arm64
-          chmod +x operator-linux-amd64 operator-linux-arm64 \
-                   opr8r-linux-amd64 opr8r-linux-arm64
+          cp "bins/${{ matrix.operator_artifact }}" "operator-linux-${{ matrix.arch }}"
+          cp "bins/${{ matrix.opr8r_artifact }}" "opr8r-linux-${{ matrix.arch }}"
+          chmod +x "operator-linux-${{ matrix.arch }}" "opr8r-linux-${{ matrix.arch }}"
 
-      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
+
+      - name: Build image for scanning
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: operator-ci:${{ needs.release.outputs.version }}-${{ matrix.arch }}
+
+      - name: Scan container image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: operator-ci:${{ needs.release.outputs.version }}-${{ matrix.arch }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-${{ matrix.arch }}.sarif
+          exit-code: '1'
+
+      - name: Upload scan report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-${{ matrix.arch }}
+          path: trivy-${{ matrix.arch }}.sarif
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Export scanned image
+        run: docker save "operator-ci:${{ needs.release.outputs.version }}-${{ matrix.arch }}" -o "operator-${{ matrix.arch }}.tar"
+
+      - name: Upload scanned image
+        uses: actions/upload-artifact@v7
+        with:
+          name: operator-image-${{ matrix.arch }}
+          path: operator-${{ matrix.arch }}.tar
+          compression-level: 0
+          retention-days: 1
+
+      - name: Report scan result
+        if: always()
+        run: echo "### linux/${{ matrix.arch }} blocking Trivy scan — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+
+  docker-publish:
+    needs: [release, docker]
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.manifest.outputs.digest }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: operator-image-*
+          path: images
+          merge-multiple: true
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
@@ -711,27 +790,35 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push multi-arch image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            untra/operator:${{ needs.release.outputs.version }}
-            untra/operator:latest
+      - name: Push scanned platform images
+        id: platforms
+        run: |
+          for arch in amd64 arm64; do
+            docker load -i "images/operator-${arch}.tar"
+            source="operator-ci:${{ needs.release.outputs.version }}-${arch}"
+            candidate="untra/operator:${{ needs.release.outputs.version }}-${arch}-${{ github.run_id }}"
+            docker tag "$source" "$candidate"
+            docker push "$candidate"
+            digest=$(docker buildx imagetools inspect "$candidate" --format '{{json .Manifest.Digest}}' | tr -d '"')
+            echo "${arch}=untra/operator@${digest}" >> "$GITHUB_OUTPUT"
+          done
 
-      - name: Scan container image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: untra/operator:${{ needs.release.outputs.version }}
-          scanners: vuln
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
+      - name: Publish multi-platform manifests
+        id: manifest
+        run: |
+          version="${{ needs.release.outputs.version }}"
+          amd64="${{ steps.platforms.outputs.amd64 }}"
+          arm64="${{ steps.platforms.outputs.arm64 }}"
+          docker buildx imagetools create -t "untra/operator:${version}" -t untra/operator:latest "$amd64" "$arm64"
+          digest=$(docker buildx imagetools inspect "untra/operator:${version}" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          docker buildx imagetools inspect "untra/operator:${version}"
+          docker buildx imagetools inspect "untra/operator:${version}" --raw \
+            | jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]'
+          echo "### Published untra/operator:${version} at ${digest}" >> "$GITHUB_STEP_SUMMARY"
 
   chart:
-    needs: [release, docker]
+    needs: [release, docker-publish]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -752,8 +839,20 @@ jobs:
           helm package charts/operator --destination dist
           helm push "dist/operator-${{ needs.release.outputs.version }}.tgz" oci://ghcr.io/untra/charts
 
+      - name: Verify public chart
+        run: |
+          mkdir -p /tmp/helm-public
+          export HELM_REGISTRY_CONFIG=/tmp/helm-public/config.json
+          version="${{ needs.release.outputs.version }}"
+          helm pull oci://ghcr.io/untra/charts/operator --version "$version" --destination /tmp/helm-public
+          chart_version=$(helm show chart "/tmp/helm-public/operator-${version}.tgz" | awk '/^version:/ {print $2}')
+          image=$(helm template verify "/tmp/helm-public/operator-${version}.tgz" | awk '/image: "untra\/operator:/ {print $2; exit}' | tr -d '"')
+          test "$chart_version" = "$version"
+          test "$image" = "untra/operator:$version"
+          echo "### Published and anonymously verified operator chart ${version}" >> "$GITHUB_STEP_SUMMARY"
+
   deploy-docs:
-    needs: release
+    needs: [release, chart]
     runs-on: ubuntu-latest
     steps:
       - name: Trigger docs workflow

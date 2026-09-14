@@ -23,4 +23,12 @@ cors_origins: Array<string>,
 /**
  * Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host.
  */
-public_url: string | null, };
+public_url: string | null, 
+/**
+ * Maximum time to wait for active agents before shutdown cleanup begins.
+ */
+shutdown_drain_seconds: bigint, 
+/**
+ * Maximum time reserved for final callbacks and persistent cleanup.
+ */
+shutdown_cleanup_seconds: bigint, };

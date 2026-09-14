@@ -1889,6 +1889,35 @@ impl Launcher {
         Ok(())
     }
 
+    pub fn kill_local_agent_session(&self, agent: &crate::state::AgentState) -> Result<()> {
+        let session_name = agent
+            .session_name
+            .as_deref()
+            .context("Agent has no session name")?;
+        match agent.session_wrapper.as_deref().unwrap_or("tmux") {
+            "tmux" => self.kill_session(session_name),
+            "cmux" => {
+                let workspace = agent
+                    .session_context_ref
+                    .as_deref()
+                    .context("cmux agent has no workspace reference")?;
+                self.cmux
+                    .as_ref()
+                    .context("cmux client is unavailable")?
+                    .close_workspace(workspace)
+                    .context("Failed to close cmux workspace")
+            }
+            "zellij" => self
+                .zellij
+                .as_ref()
+                .context("zellij client is unavailable")?
+                .close_tab(session_name)
+                .context("Failed to close zellij tab"),
+            "vscode" => anyhow::bail!("VS Code does not expose session termination to Operator"),
+            wrapper => anyhow::bail!("Unknown session wrapper '{wrapper}'"),
+        }
+    }
+
     /// Capture the current content of a session's pane
     pub fn capture_session_content(&self, session_name: &str) -> Result<String> {
         self.tmux

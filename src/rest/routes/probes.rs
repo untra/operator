@@ -43,6 +43,9 @@ pub async fn livez() -> impl IntoResponse {
     )
 )]
 pub async fn readyz(State(state): State<ApiState>) -> impl IntoResponse {
+    if state.is_draining() {
+        return (StatusCode::SERVICE_UNAVAILABLE, "draining");
+    }
     let store = state.auth.store.clone();
     let reachable = tokio::task::spawn_blocking(move || store.bootstrap_state())
         .await
@@ -52,5 +55,29 @@ pub async fn readyz(State(state): State<ApiState>) -> impl IntoResponse {
         (StatusCode::OK, "ready")
     } else {
         (StatusCode::SERVICE_UNAVAILABLE, "auth store unavailable")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn readiness_closes_when_shutdown_draining_starts() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let mut config = crate::config::Config::default();
+        config.paths.state = temp.path().join("state").display().to_string();
+        config.paths.tickets = temp.path().join("tickets").display().to_string();
+        let state = ApiState::new(config, temp.path().join("tickets"));
+
+        assert_eq!(
+            readyz(State(state.clone())).await.into_response().status(),
+            StatusCode::OK
+        );
+        assert!(state.start_draining());
+        assert_eq!(
+            readyz(State(state)).await.into_response().status(),
+            StatusCode::SERVICE_UNAVAILABLE
+        );
     }
 }

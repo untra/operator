@@ -52,6 +52,13 @@ resources:
 
 extraEnv: []
 extraEnvFrom: []
+extraVolumes: []
+extraVolumeMounts: []
+
+lifecycle: {}
+terminationGracePeriodSeconds: 90
+shutdownDrainSeconds: 60
+shutdownCleanupSeconds: 15
 
 ingress:
   enabled: false

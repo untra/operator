@@ -5264,6 +5264,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Operator is draining",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -10227,6 +10237,15 @@
               },
               "name": {
                 "type": "string"
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
               },
               "template": {
                 "type": "string"

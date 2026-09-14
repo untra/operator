@@ -25,6 +25,8 @@ pub enum ApiError {
     InternalError(String),
     /// Bad request
     BadRequest(String),
+    /// Server is unavailable for new work.
+    Unavailable(String),
     /// Cannot modify builtin resource
     BuiltinReadOnly(String),
     // The three auth variants below are constructed by the authorization
@@ -59,6 +61,7 @@ impl IntoResponse for ApiError {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", msg)
             }
             ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, "bad_request", msg),
+            ApiError::Unavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, "unavailable", msg),
             ApiError::BuiltinReadOnly(msg) => (StatusCode::FORBIDDEN, "builtin_readonly", msg),
             ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, "unauthorized", msg),
             ApiError::Forbidden(msg) => (StatusCode::FORBIDDEN, "forbidden", msg),

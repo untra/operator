@@ -101,11 +101,12 @@ fn test_docker_ci_job_stages_opr8r_artifacts() {
     let docker_job = &content[docker_job_start..];
 
     assert!(
-        docker_job.contains("opr8r-linux-*"),
-        "the docker job must download opr8r-linux-* release artifacts, like it does for operator-linux-*"
+        docker_job.contains("opr8r_artifact: opr8r-linux-x86_64")
+            && docker_job.contains("opr8r_artifact: opr8r-linux-arm64"),
+        "the docker matrix must download the opr8r artifact for both architectures"
     );
     assert!(
-        docker_job.contains("opr8r-linux-amd64") && docker_job.contains("opr8r-linux-arm64"),
-        "the docker job must stage opr8r-linux-amd64/arm64 into the build context, like it does for operator"
+        docker_job.contains("opr8r-linux-${{ matrix.arch }}"),
+        "the docker job must stage opr8r under the Dockerfile's TARGETARCH naming convention"
     );
 }

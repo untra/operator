@@ -628,7 +628,12 @@ const ExecutionTarget: StepComponent = ({ draft, setDraft }) => (
           setDraft((current) => ({
             ...current,
             useWorktrees: false,
-            executionTarget: { kind: "coder", name: "coder-agents", template: "" },
+            executionTarget: {
+              kind: "coder",
+              name: "coder-agents",
+              template: "",
+              parameters: {},
+            },
           }))
         }
       >
@@ -652,6 +657,7 @@ const ExecutionTarget: StepComponent = ({ draft, setDraft }) => (
                     current.executionTarget.kind === "coder"
                       ? current.executionTarget.template
                       : "",
+                  parameters: {},
                 },
               }))
             }
@@ -671,11 +677,80 @@ const ExecutionTarget: StepComponent = ({ draft, setDraft }) => (
                       ? current.executionTarget.name
                       : "coder-agents",
                   template: event.target.value,
+                  parameters: {},
                 },
               }))
             }
           />
         </label>
+        <fieldset className={styles.parameters}>
+          <legend>Template parameters (optional)</legend>
+          {draft.coderParameters.map((parameter, index) => (
+            <div className={styles.parameterRow} key={parameter.id}>
+              <input
+                aria-label={`Coder parameter ${index + 1} name`}
+                placeholder="name"
+                value={parameter.name}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    coderParameters: current.coderParameters.map((item) =>
+                      item.id === parameter.id ? { ...item, name: event.target.value } : item,
+                    ),
+                  }))
+                }
+              />
+              <input
+                aria-label={`Coder parameter ${index + 1} value`}
+                placeholder="value"
+                value={parameter.value}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    coderParameters: current.coderParameters.map((item) =>
+                      item.id === parameter.id ? { ...item, value: event.target.value } : item,
+                    ),
+                  }))
+                }
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    coderParameters: current.coderParameters.filter(
+                      (item) => item.id !== parameter.id,
+                    ),
+                  }))
+                }
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              setDraft((current) => ({
+                ...current,
+                coderParameters: [
+                  ...current.coderParameters,
+                  {
+                    id:
+                      current.coderParameters.reduce(
+                        (highest, parameter) => Math.max(highest, parameter.id),
+                        0,
+                      ) + 1,
+                    name: "",
+                    value: "",
+                  },
+                ],
+              }))
+            }
+          >
+            Add parameter
+          </button>
+        </fieldset>
         <p>Set CODER_URL and CODER_SESSION_TOKEN in the server environment.</p>
       </div>
     )}

@@ -55,7 +55,12 @@ pub struct HostedCollectionSelection {
 #[ts(export)]
 pub enum SetupExecutionTarget {
     Local,
-    Coder { name: String, template: String },
+    Coder {
+        name: String,
+        template: String,
+        #[serde(default)]
+        parameters: HashMap<String, String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]

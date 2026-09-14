@@ -124,9 +124,20 @@ pub struct AgentState {
     /// Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model.
     #[serde(default)]
     pub step_launch_context: Option<crate::agents::launcher::step_command::StepLaunchContext>,
-    /// Name of the resolved execution target this agent launched on
+    /// Name of the resolved execution target this agent launched on.
     #[serde(default)]
     pub target_name: Option<String>,
+    /// Shutdown recovery strategy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shutdown_recovery: Option<ShutdownRecovery>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum ShutdownRecovery {
+    InterruptedLocal,
+    RemoteAwaitingReconciliation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -345,6 +356,7 @@ impl State {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            shutdown_recovery: None,
         });
 
         self.save()?;
@@ -403,6 +415,7 @@ impl State {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            shutdown_recovery: None,
         });
 
         self.save()?;

@@ -152,6 +152,7 @@ fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse
         (status = 200, description = "Ticket launched successfully", body = LaunchTicketResponse),
         (status = 404, description = "Ticket not found"),
         (status = 409, description = "Ticket already in progress"),
+        (status = 503, description = "Operator is draining"),
         (status = 400, description = "Invalid request")
     )
 )]
@@ -160,6 +161,22 @@ pub async fn launch_ticket(
     Path(ticket_id): Path<String>,
     Json(request): Json<LaunchTicketRequest>,
 ) -> Result<Json<LaunchTicketResponse>, ApiError> {
+    let _launch_permit = state.begin_launch()?;
+    let recovery_state = crate::state::State::load(&state.config())
+        .map_err(|error| ApiError::InternalError(error.to_string()))?;
+    if recovery_state.agents.iter().any(|agent| {
+        agent.ticket_id == ticket_id
+            && matches!(
+                agent.status.as_str(),
+                "running" | "awaiting_input" | "completing"
+            )
+            && agent.shutdown_recovery
+                == Some(crate::state::ShutdownRecovery::RemoteAwaitingReconciliation)
+    }) {
+        return Err(ApiError::Conflict(format!(
+            "Ticket '{ticket_id}' has remote work awaiting reconciliation"
+        )));
+    }
     // Create a queue to find the ticket
     let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
@@ -240,6 +257,25 @@ pub async fn launch_ticket(
             server_side_response(&state, &ticket)?
         }
     };
+
+    let mut recovery_state = crate::state::State::load(&state.config())
+        .map_err(|error| ApiError::InternalError(error.to_string()))?;
+    let mut recovery_cleared = false;
+    for agent in recovery_state
+        .agents
+        .iter_mut()
+        .filter(|agent| agent.ticket_id == ticket_id)
+    {
+        if agent.shutdown_recovery == Some(crate::state::ShutdownRecovery::InterruptedLocal) {
+            agent.shutdown_recovery = None;
+            recovery_cleared = true;
+        }
+    }
+    if recovery_cleared {
+        recovery_state
+            .save()
+            .map_err(|error| ApiError::InternalError(error.to_string()))?;
+    }
 
     Ok(Json(response))
 }
@@ -631,10 +667,8 @@ pub async fn complete_step(
     Authenticated(principal): Authenticated,
     Json(request): Json<StepCompleteRequest>,
 ) -> Result<Json<StepCompleteResponse>, ApiError> {
-    // A callback token is pinned to one ticket and step. Presenting a valid but
-    // *different* one here would let an agent working on one ticket drive
-    // another ticket's workflow forward, so the claims are matched against the
-    // path rather than trusted for having verified at all.
+    let _callback_permit = state.begin_callback()?;
+    // A callback token is pinned to one ticket and step. The claims are matched against the path
     if principal.kind == PrincipalKind::AgentCallback {
         let matches_ticket = principal.ticket_id.as_deref() == Some(ticket_id.as_str());
         let matches_step = principal.step.as_deref() == Some(step_name.as_str());
@@ -670,12 +704,7 @@ pub async fn complete_step(
         ))
     })?;
 
-    // Clone what the rest of the function needs from the registry, then drop
-    // the read guard before any `.await`. The proof hook below runs an
-    // assertion command synchronously (up to its configured timeout, default
-    // 120s) - holding `registry.read()` across that would stall every
-    // `registry.write()` caller (issuetypes/collections/steps routes) for
-    // the duration of each Proof-reviewed step completion.
+    // Clone what the rest of the function needs from the registry, then drop the read guard before any `.await`.
     let current_step = current_step.clone();
     let next_step_schema = current_step
         .next_step
@@ -732,7 +761,8 @@ pub async fn complete_step(
     });
 
     // Determine if we should auto-proceed
-    let auto_proceed = status == "completed"
+    let auto_proceed = !state.is_draining()
+        && status == "completed"
         && next_step_info.is_some()
         && current_step.review_type == crate::templates::schema::ReviewType::None;
 

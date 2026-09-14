@@ -1,4 +1,5 @@
 apiVersion: apps/v1
+{{- include "operator.validatePodExtensions" . }}
 kind: StatefulSet
 metadata:
   name: {{ include "operator.fullname" . }}
@@ -32,7 +33,7 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -43,6 +44,10 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             - api
+          {{- with .Values.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           ports:
@@ -60,6 +65,10 @@ spec:
               value: 0.0.0.0
             - name: OPERATOR_REST_API__PORT
               value: {{ .Values.service.port | quote }}
+            - name: OPERATOR_REST_API__SHUTDOWN_DRAIN_SECONDS
+              value: {{ .Values.shutdownDrainSeconds | quote }}
+            - name: OPERATOR_REST_API__SHUTDOWN_CLEANUP_SECONDS
+              value: {{ .Values.shutdownCleanupSeconds | quote }}
             {{- with .Values.publicUrl }}
             - name: OPERATOR_REST_API__PUBLIC_URL
               value: {{ . | quote }}
@@ -101,6 +110,9 @@ spec:
               mountPath: /run/secrets/operator-bootstrap
               readOnly: true
             {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: home
           emptyDir: {}
@@ -114,6 +126,9 @@ spec:
             items:
               - key: {{ $.Values.bootstrap.passwordKey | quote }}
                 path: password
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
   volumeClaimTemplates:
     - metadata:

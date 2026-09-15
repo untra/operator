@@ -1,0 +1,64 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.fieldLabel {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.select {
+  padding: 0.4rem 0.5rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.checkboxField {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.error {
+  padding: 0.6rem 0.75rem;
+  color: var(--danger);
+  font-size: 0.8rem;
+  background: var(--danger-bg);
+  border-radius: var(--radius);
+}
+
+.launchBtn {
+  padding: 0.5rem 0.75rem;
+  color: var(--action-text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--action-bg);
+  border: 0;
+  border-radius: var(--radius);
+  transition: background 0.15s;
+}
+
+.launchBtn:hover:not(:disabled) { background: var(--action-bg-hover); }
+.launchBtn:disabled { cursor: progress; opacity: 0.6; }

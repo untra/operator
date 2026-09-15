@@ -4,7 +4,7 @@
 # a clean CI run. `make install-hooks` wires the committed pre-push hook, which
 # runs the fast lint gate (fmt + clippy, no tests) before every push.
 
-.PHONY: check fmt clippy test build run install-hooks bindings webcomponents ui docs \
+.PHONY: check fmt clippy test build run install-hooks bindings webcomponents storybook ui docs \
 	fmt-ts lint-ts lint-shell relay
 
 # Full CI-parity gate. Keep these commands byte-identical to
@@ -63,6 +63,11 @@ bindings:
 # components are typed against the generated Rust types.
 webcomponents: bindings
 	cd webcomponents && bun install --frozen-lockfile && bun run typecheck && bun test && bun run build
+
+# Deterministic visual fixtures consumed locally by Storybook and later by Pixel.
+storybook: webcomponents
+	cd webcomponents && bun run typecheck:stories
+	cd webcomponents && bun run storybook:build && bun run test:storybook
 
 # The embedded SPA, which resolves @operator/webcomponents from its dist/.
 ui: webcomponents

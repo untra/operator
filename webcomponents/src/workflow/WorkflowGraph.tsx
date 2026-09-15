@@ -42,12 +42,14 @@ export function WorkflowGraph({
   const phaseColors = usePhaseColors();
   const { nodes, edges } = useMemo(() => issueTypeToGraph(issueType), [issueType]);
 
+  const canvasStyle = useMemo(() => ({ height }), [height]);
+
   if (!nodes.length) {
     return <div className="operator-workflow-empty">This issue type defines no steps.</div>;
   }
 
   return (
-    <div className={className ?? "operator-workflow-canvas"} style={{ height }}>
+    <div className={className ?? "operator-workflow-canvas"} style={canvasStyle}>
       <WorkflowFlow
         // Remount when the issue type changes
         key={issueType.key}

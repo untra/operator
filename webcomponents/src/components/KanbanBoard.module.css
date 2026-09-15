@@ -1,20 +1,20 @@
 .columns {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
 .column {
+  overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
 }
 
 .columnHeader {
   padding: 0.6rem 0.75rem;
-  font-weight: 600;
   font-size: 0.8rem;
+  font-weight: 600;
   letter-spacing: 0.04em;
   border-bottom: 1px solid var(--border);
 }
@@ -25,91 +25,82 @@
 }
 
 .cardList {
-  padding: 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
   min-height: 100px;
+  padding: 0.5rem;
 }
 
 .card {
-  background: var(--surface-alt);
-  border-radius: var(--radius);
   padding: 0.6rem 0.75rem;
+  background: var(--surface-alt);
   border-left: 3px solid var(--border);
+  border-radius: var(--radius);
 }
 
-/* Clickable cards (TODO / IN PROGRESS) reset the native button chrome. */
 .cardClickable {
   display: block;
   width: 100%;
-  text-align: left;
-  font: inherit;
   color: inherit;
-  border-top: none;
-  border-right: none;
-  border-bottom: none;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
   transition: background 0.15s;
 }
 
-.cardClickable:hover {
-  background: var(--surface);
-}
-
-/* Priority colors mirror the TUI glyph coloring: P0 red, P1 yellow, P2 default, P3 muted. */
-.card[data-priority='p0'] {
-  border-left-color: var(--danger);
-}
-.card[data-priority='p1'] {
-  border-left-color: var(--warning);
-}
-.card[data-priority='p2'] {
-  border-left-color: var(--color-green-l1);
-}
-.card[data-priority='p3'] {
-  border-left-color: var(--border);
-}
+.cardClickable:hover { background: var(--surface); }
+.card[data-priority='p0'] { border-left-color: var(--danger); }
+.card[data-priority='p1'] { border-left-color: var(--warning); }
+.card[data-priority='p2'] { border-left-color: var(--color-green-l1); }
+.card[data-priority='p3'] { border-left-color: var(--border); }
 
 .cardHeader {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   margin-bottom: 0.25rem;
 }
 
 .statusIcon {
+  color: var(--accent-text);
   font-size: 0.7rem;
-  color: var(--color-salmon);
 }
 
 .ticketType {
+  color: var(--accent-text);
   font-size: 0.65rem;
   font-weight: 600;
-  color: var(--color-salmon);
   text-transform: uppercase;
 }
 
 .ticketId {
-  font-size: 0.75rem;
-  color: var(--text-muted);
   margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.75rem;
 }
 
 .cardSummary {
-  font-size: 0.8rem;
   margin-bottom: 0.25rem;
+  font-size: 0.8rem;
   line-height: 1.3;
 }
 
 .cardMeta {
-  font-size: 0.7rem;
   color: var(--text-muted);
+  font-size: 0.7rem;
 }
 
 .empty {
+  padding: 1.5rem 0;
   color: var(--text-muted);
   font-size: 0.8rem;
   text-align: center;
-  padding: 1.5rem 0;
+}
+
+@media (max-width: 900px) {
+  .columns { grid-template-columns: 1fr; }
 }

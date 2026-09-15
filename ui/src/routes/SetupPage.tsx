@@ -2,12 +2,12 @@
 // account; once bootstrap completes this redirects to login, so it cannot be
 // used to re-claim the account.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHost } from "../host";
 import { OperatorApi, ApiError } from "../api-client";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "../auth-constraints";
-import styles from "./AuthPage.module.css";
+import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function SetupPage() {
   const host = useHost();
@@ -41,100 +41,89 @@ export function SetupPage() {
     password === confirm &&
     (!needsTemporary || temporary.length > 0);
 
-  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setBusy(true);
-    try {
-      const api = new OperatorApi(host);
-      const result = await api.bootstrap({
-        temporary_password: needsTemporary ? temporary : null,
-        new_password: password,
-      });
-      // Bootstrap creates the account but does not sign you in.
-      await api.login(result.username, password);
-      void navigate("/onboarding", { replace: true });
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        setError("This server already has an admin account. Sign in instead.");
-      } else if (e instanceof ApiError && e.status === 401) {
-        setError("The temporary password is incorrect.");
-      } else if (e instanceof ApiError && e.status === 429) {
-        setError("Too many attempts. Wait a moment and try again.");
-      } else {
-        setError(e instanceof ApiError ? e.message : "Setup failed.");
+  const submit = useCallback(
+    async (event: React.SubmitEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      setError(null);
+      setBusy(true);
+      try {
+        const api = new OperatorApi(host);
+        const result = await api.bootstrap({
+          temporary_password: needsTemporary ? temporary : null,
+          new_password: password,
+        });
+        // Bootstrap creates the account but does not sign you in.
+        await api.login(result.username, password);
+        void navigate("/onboarding", { replace: true });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) {
+          setError("This server already has an admin account. Sign in instead.");
+        } else if (e instanceof ApiError && e.status === 401) {
+          setError("The temporary password is incorrect.");
+        } else if (e instanceof ApiError && e.status === 429) {
+          setError("Too many attempts. Wait a moment and try again.");
+        } else {
+          setError(e instanceof ApiError ? e.message : "Setup failed.");
+        }
+      } finally {
+        setBusy(false);
       }
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+    [host, needsTemporary, temporary, password, navigate],
+  );
 
   return (
-    <div className={styles.screen}>
-      <form className={styles.card} onSubmit={submit}>
-        <h1 className={styles.title}>Set up Operator</h1>
-        <p className={styles.subtitle}>
-          Choose the admin password for this workspace. Operator has a single human account.
-        </p>
-
-        {error && <p className={styles.error}>{error}</p>}
-
-        {needsTemporary && (
-          <>
-            <p className={styles.notice}>
-              This server was started with a bootstrap secret. Enter it to claim the admin account.
-            </p>
-            <label className={styles.field}>
-              <span className={styles.label}>Temporary password</span>
-              <input
-                className={styles.input}
-                type="password"
-                autoComplete="one-time-code"
-                maxLength={MAX_PASSWORD_LENGTH}
-                value={temporary}
-                onChange={(e) => setTemporary(e.target.value)}
-                required
-              />
-            </label>
-          </>
-        )}
-
-        <label className={styles.field}>
-          <span className={styles.label}>New admin password</span>
-          <input
-            className={styles.input}
-            type="password"
-            autoComplete="new-password"
-            maxLength={MAX_PASSWORD_LENGTH}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <span className={styles.hint}>
-            {tooShort
-              ? `At least ${MIN_PASSWORD_LENGTH} characters.`
-              : `A passphrase of ${MIN_PASSWORD_LENGTH} characters or more.`}
-          </span>
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.label}>Confirm password</span>
-          <input
-            className={styles.input}
-            type="password"
-            autoComplete="new-password"
-            maxLength={MAX_PASSWORD_LENGTH}
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-          />
-          {mismatch && <span className={styles.hint}>Passwords do not match.</span>}
-        </label>
-
-        <button className={styles.button} type="submit" disabled={busy || !ready}>
-          {busy ? "Creating…" : "Create admin account"}
-        </button>
-      </form>
-    </div>
+    <AuthCard
+      title="Set up Operator"
+      subtitle="Choose the admin password for this workspace. Operator has a single human account."
+      error={error}
+      notice={
+        needsTemporary
+          ? "This server was started with a bootstrap secret. Enter it to claim the admin account."
+          : null
+      }
+      onSubmit={submit}
+      actions={
+        <AuthSubmit busy={busy} busyLabel="Creating…" disabled={!ready}>
+          Create admin account
+        </AuthSubmit>
+      }
+    >
+      {needsTemporary && (
+        <AuthField
+          label="Temporary password"
+          type="password"
+          autoComplete="one-time-code"
+          maxLength={MAX_PASSWORD_LENGTH}
+          value={temporary}
+          onChange={setTemporary}
+          required
+        />
+      )}
+      <AuthField
+        label="New admin password"
+        type="password"
+        autoComplete="new-password"
+        maxLength={MAX_PASSWORD_LENGTH}
+        value={password}
+        onChange={setPassword}
+        hint={
+          tooShort
+            ? `At least ${MIN_PASSWORD_LENGTH} characters.`
+            : `A passphrase of ${MIN_PASSWORD_LENGTH} characters or more.`
+        }
+        required
+      />
+      <AuthField
+        label="Confirm password"
+        type="password"
+        autoComplete="new-password"
+        maxLength={MAX_PASSWORD_LENGTH}
+        value={confirm}
+        onChange={setConfirm}
+        hint={mismatch ? "Passwords do not match." : undefined}
+        required
+      />
+    </AuthCard>
   );
 }

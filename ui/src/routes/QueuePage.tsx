@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { QueueView } from "@operator/webcomponents";
 import { OperatorApi } from "../api-client";
 import type { KanbanBoardResponse } from "../api-client";
+import type { KanbanTicketCard } from "@operator/bindings/KanbanTicketCard";
 import { useHost } from "../host";
+import { useRightPanel } from "../right-panel";
 import { CONCEPTS } from "../concepts";
-import { PageHeader } from "../components/PageHeader";
-import { KanbanBoard } from "../components/KanbanBoard";
-import styles from "./QueuePage.module.css";
+import { TicketDetailPanel } from "../components/TicketDetailPanel";
 
 const QUEUE = CONCEPTS.queue;
 
@@ -13,10 +14,16 @@ const POLL_INTERVAL_MS = 3000;
 
 export function QueuePage() {
   const host = useHost();
+  const { open } = useRightPanel();
   const [api] = useState(() => new OperatorApi(host));
   const [board, setBoard] = useState<KanbanBoardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const openTicket = useCallback(
+    (ticket: KanbanTicketCard) =>
+      open(<TicketDetailPanel key={ticket.id} ticket={ticket} />, ticket.id),
+    [open],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -51,30 +58,24 @@ export function QueuePage() {
     };
   }, [api]);
 
-  if (loading) {
-    return <div className={styles.loading}>Loading queue...</div>;
-  }
-
   return (
-    <div className={styles.page}>
-      <PageHeader
-        title={QUEUE.label}
-        summary={QUEUE.summary}
-        docsUrl={QUEUE.docsUrl}
-        icon={QUEUE.icon}
-      />
-
-      {error && <div className={styles.error}>{error}</div>}
-
-      {board && (
-        <>
-          <div className={styles.meta}>
-            {board.total_count} tickets &middot; updated{" "}
-            {new Date(board.last_updated).toLocaleTimeString()}
-          </div>
-          <KanbanBoard board={board} />
-        </>
-      )}
-    </div>
+    <QueueView
+      header={{
+        title: QUEUE.label,
+        summary: QUEUE.summary,
+        docsUrl: QUEUE.docsUrl,
+        icon: QUEUE.icon,
+      }}
+      board={
+        loading
+          ? { status: "loading", message: "Loading queue..." }
+          : board
+            ? { status: "ready", data: board }
+            : { status: "empty", message: "No tickets" }
+      }
+      error={error}
+      updatedLabel={board ? new Date(board.last_updated).toLocaleTimeString() : undefined}
+      onOpenTicket={openTicket}
+    />
   );
 }

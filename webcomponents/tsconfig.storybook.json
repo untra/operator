@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["bun", "vite/client"]
+  },
+  "include": ["src", "stories", ".storybook", "vitest.config.ts"]
+}

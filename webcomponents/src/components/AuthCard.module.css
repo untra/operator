@@ -71,8 +71,8 @@
   padding: 0.5rem;
   font: inherit;
   font-weight: 600;
-  color: var(--bg);
-  background: var(--accent);
+  color: var(--action-text);
+  background: var(--action-bg);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -108,5 +108,5 @@
 }
 
 .links a {
-  color: var(--accent);
+  color: var(--accent-text);
 }

@@ -1,8 +1,8 @@
 //! Asserts every managed manifest carries the canonical version from `VERSION`.
 //!
-//! Adding a new versioned manifest is a one-line addition to `MANAGED` below.
-//! Keep this list in sync with the files revved by `bump-version.sh` and the
-//! `release` job in `.github/workflows/build.yaml`.
+//! Adding a new versioned manifest is a one-line addition to `MANAGED` below
+//! plus a rewrite in `scripts/ci/bump-version.sh`, which the `release` job in
+//! `.github/workflows/build.yaml` runs. The pairing is asserted below.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -117,7 +117,7 @@ fn test_all_managed_manifests_match_version_file() {
 
     assert!(
         mismatches.is_empty(),
-        "version drift from VERSION={expected:?}:\n{}\nRun ./bump-version.sh or correct the files above; regenerate docs/schemas/openapi.json with `cargo run -- docs --only openapi`.",
+        "version drift from VERSION={expected:?}:\n{}\nRun ./scripts/ci/bump-version.sh [version] or correct the files above; regenerate docs/schemas/openapi.json with `cargo run -- docs --only openapi`.",
         mismatches.join("\n")
     );
 
@@ -127,4 +127,20 @@ fn test_all_managed_manifests_match_version_file() {
         .find(|line| line.trim_start().starts_with("appVersion:"))
         .and_then(|line| between_quotes_after(line, ":"));
     assert_eq!(app_version.as_deref(), Some(expected.as_str()));
+}
+
+/// The bump script is what CI runs; a manifest listed here but absent there
+/// would drift silently until the next release.
+#[test]
+fn test_bump_script_rewrites_every_managed_manifest() {
+    let script = read(&repo_root().join("scripts/ci/bump-version.sh"));
+    let missing: Vec<_> = MANAGED
+        .iter()
+        .map(|(rel, _)| rel)
+        .filter(|rel| **rel != "docs/schemas/openapi.json" && !script.contains(**rel))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "scripts/ci/bump-version.sh does not rewrite: {missing:?}"
+    );
 }

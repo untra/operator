@@ -12,16 +12,11 @@
  * manifest's first entry wins.
  */
 
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import { WorkflowGraph } from "../workflow/WorkflowGraph";
+import { WorkflowExplorerView, type ManifestEntry } from "../views/WorkflowExplorerView";
 import type { IssueType } from "../generated/IssueType";
-
-interface ManifestEntry {
-  key: string;
-  schema_path: string;
-}
 
 interface Manifest {
   name?: string;
@@ -81,50 +76,22 @@ function Explorer({ base, initial }: { base: string; initial?: string | null }) 
     };
   }, [base, entries, selected]);
 
+  const handleSelect = useCallback((key: string) => {
+    // Clear a stale failure so a later successful selection is not masked by it.
+    setError(null);
+    setSelected(key);
+  }, []);
+
   const selectedDocument = document_?.key === selected ? document_ : null;
 
-  if (error) {
-    return <div className="workflow-explorer-error">Could not load this collection: {error}</div>;
-  }
-  if (!entries) {
-    return <div className="workflow-explorer-loading">Loading collection…</div>;
-  }
-
   return (
-    <div className="workflow-explorer-body">
-      <nav className="workflow-explorer-rail" aria-label="Issue types">
-        <ul>
-          {entries.map((entry) => (
-            <li key={entry.key}>
-              <button
-                type="button"
-                aria-current={entry.key === selected}
-                className={entry.key === selected ? "is-selected" : undefined}
-                onClick={() => setSelected(entry.key)}
-              >
-                {entry.key}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <div className="workflow-explorer-canvas">
-        {selectedDocument ? (
-          <>
-            <h3 className="workflow-explorer-title">
-              {selectedDocument.name} <code>{selectedDocument.key}</code>
-            </h3>
-            {selectedDocument.description && (
-              <p className="workflow-explorer-description">{selectedDocument.description}</p>
-            )}
-            {/* The docs prose column is narrow; vertical keeps labels legible. */}
-            <WorkflowGraph issueType={selectedDocument} vertical />
-          </>
-        ) : (
-          <div className="workflow-explorer-loading">Loading workflow…</div>
-        )}
-      </div>
-    </div>
+    <WorkflowExplorerView
+      entries={entries}
+      selected={selected}
+      document={selectedDocument}
+      error={error}
+      onSelect={handleSelect}
+    />
   );
 }
 

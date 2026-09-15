@@ -44,16 +44,17 @@ operator-workflow-explorer {
   padding: 0.4rem 0.6rem;
   border: 1px solid transparent;
   border-radius: 4px;
-  background: var(--color-green-l1);
+  background: var(--color-green-l3);
   color: var(--color-cream);
 }
 
 .workflow-explorer-rail button:hover {
-  background: var(--color-green-l2);
+  background: var(--color-green-l4);
 }
 
 .workflow-explorer-rail button.is-selected {
-  background: var(--color-green-l3);
+  background: var(--color-green-l4);
+  border-color: var(--color-salmon);
 }
 
 .workflow-explorer-canvas {
@@ -66,12 +67,11 @@ operator-workflow-explorer {
 
 .workflow-explorer-title code {
   font-size: 0.85em;
-  opacity: 0.75;
 }
 
 .workflow-explorer-description {
   margin: 0 0 0.75rem;
-  color: var(--color-cornflower);
+  color: var(--color-teal);
 }
 
 .operator-workflow-canvas {
@@ -86,9 +86,9 @@ operator-workflow-explorer {
 .operator-workflow-empty {
   padding: 1rem;
   border-radius: 6px;
-  color: var(--color-cornflower);
+  color: var(--color-teal);
 }
 
 .workflow-explorer-error {
-  color: var(--color-salmon);
+  color: var(--color-salmon-text);
 }

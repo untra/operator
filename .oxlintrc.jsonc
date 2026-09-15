@@ -192,6 +192,23 @@
       "env": { "browser": true, "es2022": true }
     },
     {
+      "files": [
+        "webcomponents/stories/**/*.ts",
+        "webcomponents/stories/**/*.tsx",
+        "webcomponents/.storybook/preview.tsx",
+        "webcomponents/.storybook/vitest.setup.ts"
+      ],
+      "env": { "browser": true, "es2022": true }
+    },
+    {
+      "files": [
+        "webcomponents/.storybook/main.ts",
+        "webcomponents/.storybook/icon-assets.ts",
+        "webcomponents/vitest.config.ts"
+      ],
+      "env": { "node": true, "es2022": true }
+    },
+    {
       "files": ["webcomponents/src/**/*.test.ts", "webcomponents/src/**/*.test.tsx"],
       "globals": { "Bun": "readonly" },
       "rules": { "eslint/no-console": "off" }

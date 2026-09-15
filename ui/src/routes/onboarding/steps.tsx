@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { KanbanProviderKind } from "@operator/bindings/KanbanProviderKind";
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { StepComponent, StepProps } from "./types";
+import { Choice, ChoiceGroup } from "@operator/webcomponents";
 import styles from "./OnboardingPage.module.css";
 
 const TASK_FIELDS = ["priority", "points", "user_story"] as const;
@@ -16,28 +17,6 @@ const COLLECTION_SOURCES = [
 
 function Intro({ children }: { children: React.ReactNode }) {
   return <div className={styles.intro}>{children}</div>;
-}
-
-function Choice<Value extends string>({
-  selected,
-  value,
-  onSelect,
-  children,
-}: {
-  selected: boolean;
-  value: Value;
-  onSelect: (value: Value) => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      className={`${styles.choice} ${selected ? styles.selected : ""}`}
-      onClick={() => onSelect(value)}
-    >
-      {children}
-    </button>
-  );
 }
 
 function ExportBlock({ value }: { value: string }) {
@@ -258,7 +237,7 @@ function KanbanInfo({ api, addExport }: StepProps) {
     <Intro>
       <h2>Kanban</h2>
       <p>Connect a board now, or continue and connect one later.</p>
-      <div className={styles.choices}>
+      <ChoiceGroup>
         {providers.map((item) => (
           <Choice
             key={item.slug}
@@ -270,7 +249,7 @@ function KanbanInfo({ api, addExport }: StepProps) {
             <span>{item.description}</span>
           </Choice>
         ))}
-      </div>
+      </ChoiceGroup>
       {provider && (
         <div className={styles.form}>
           {provider === "jira" && (
@@ -417,7 +396,7 @@ function ModelServer({ api, integrations, draft, setDraft }: StepProps) {
         Select the providers this workspace uses. Operator stores environment-variable names, never
         API keys.
       </p>
-      <div className={styles.choices}>
+      <ChoiceGroup>
         {entries.map((entry) => (
           <Choice
             key={entry.slug}
@@ -429,7 +408,7 @@ function ModelServer({ api, integrations, draft, setDraft }: StepProps) {
             <span>{probes[entry.slug] ?? "checking…"}</span>
           </Choice>
         ))}
-      </div>
+      </ChoiceGroup>
       {keyExports.length > 0 && <ExportBlock value={keyExports.join("\n")} />}
     </Intro>
   );
@@ -483,7 +462,7 @@ function GitProvider({ api, addExport }: StepProps) {
     <Intro>
       <h2>Git provider</h2>
       <p>Choose a catalog provider. Existing CLI authentication is adopted when available.</p>
-      <div className={styles.choices}>
+      <ChoiceGroup>
         {providers.map((item) => (
           <Choice
             key={item.slug}
@@ -499,7 +478,7 @@ function GitProvider({ api, addExport }: StepProps) {
             </span>
           </Choice>
         ))}
-      </div>
+      </ChoiceGroup>
       {provider && (
         <div className={styles.form}>
           {provider.state !== "authenticated" && (
@@ -538,7 +517,7 @@ const CollectionSource: StepComponent = ({ draft, setDraft }) => {
   return (
     <Intro>
       <h2>Issue type collection</h2>
-      <div className={styles.choices}>
+      <ChoiceGroup>
         {COLLECTION_SOURCES.map(([value, label]) => (
           <Choice
             key={value}
@@ -549,7 +528,7 @@ const CollectionSource: StepComponent = ({ draft, setDraft }) => {
             <strong>{label}</strong>
           </Choice>
         ))}
-      </div>
+      </ChoiceGroup>
     </Intro>
   );
 };
@@ -569,7 +548,7 @@ const HostedCollections: StepComponent = ({ collections, draft, setDraft }) => {
     <Intro>
       <h2>Hosted collections</h2>
       <p>Select one or more. The checksum locks initialization to the version you reviewed.</p>
-      <div className={styles.choices}>
+      <ChoiceGroup>
         {collections.map((item) => (
           <Choice
             key={item.id}
@@ -582,7 +561,7 @@ const HostedCollections: StepComponent = ({ collections, draft, setDraft }) => {
             <small>{item.types.join(", ")}</small>
           </Choice>
         ))}
-      </div>
+      </ChoiceGroup>
     </Intro>
   );
 };
@@ -601,7 +580,7 @@ const TaskFieldConfig: StepComponent = ({ draft, setDraft }) => {
   return (
     <Intro>
       <h2>Optional task fields</h2>
-      <div className={styles.choices}>
+      <ChoiceGroup>
         {TASK_FIELDS.map((field) => (
           <Choice
             key={field}
@@ -612,7 +591,7 @@ const TaskFieldConfig: StepComponent = ({ draft, setDraft }) => {
             <strong>{field.replace("_", " ")}</strong>
           </Choice>
         ))}
-      </div>
+      </ChoiceGroup>
     </Intro>
   );
 };
@@ -633,7 +612,7 @@ const SessionWrapperChoice: StepComponent = ({ draft, setDraft }) => {
   return (
     <Intro>
       <h2>Session wrapper</h2>
-      <div className={styles.choices}>
+      <ChoiceGroup>
         {WRAPPERS.map((wrapper) => (
           <Choice
             key={wrapper}
@@ -644,7 +623,7 @@ const SessionWrapperChoice: StepComponent = ({ draft, setDraft }) => {
             <strong>{wrapper}</strong>
           </Choice>
         ))}
-      </div>
+      </ChoiceGroup>
     </Intro>
   );
 };
@@ -670,7 +649,7 @@ const ExecutionTarget: StepComponent = ({ draft, setDraft }) => {
   return (
     <Intro>
       <h2>Execution target</h2>
-      <div className={styles.choices}>
+      <ChoiceGroup>
         <Choice
           selected={draft.executionTarget.kind === "local"}
           value="local"
@@ -687,7 +666,7 @@ const ExecutionTarget: StepComponent = ({ draft, setDraft }) => {
           <strong>Coder</strong>
           <span>One workspace per ticket over SSH</span>
         </Choice>
-      </div>
+      </ChoiceGroup>
       {draft.executionTarget.kind === "coder" && (
         <div className={styles.form}>
           <label>
@@ -821,14 +800,14 @@ const WorktreePreference: StepComponent = ({ draft, setDraft }) => {
     <Intro>
       <h2>Git worktrees</h2>
       <p>Coder targets always isolate work remotely, so local worktrees are disabled for them.</p>
-      <div className={styles.choices}>
+      <ChoiceGroup>
         <Choice selected={!draft.useWorktrees} value="in-place" onSelect={selectWorktreePreference}>
           <strong>In-place branches</strong>
         </Choice>
         <Choice selected={draft.useWorktrees} value="worktree" onSelect={selectWorktreePreference}>
           <strong>Per-ticket worktrees</strong>
         </Choice>
-      </div>
+      </ChoiceGroup>
     </Intro>
   );
 };

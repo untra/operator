@@ -270,6 +270,21 @@ if needs_operator; then
     bun run build
   ) && pass "Web components build" || fail "Web components build"
 
+  # Mirrors the standalone `storybook` job in build.yaml, which is a peer of
+  # lint-test rather than part of the release chain.
+  if needs_ts_webcomp; then
+    step "Storybook"
+    (
+      cd webcomponents
+      bun run typecheck:stories
+      bunx playwright install --with-deps chromium
+      bun run storybook:build
+      bun run test:storybook
+    ) && pass "Storybook" || fail "Storybook"
+  else
+    skip "Storybook (no webcomponents changes)"
+  fi
+
   step "UI build"
   (
     cd ui

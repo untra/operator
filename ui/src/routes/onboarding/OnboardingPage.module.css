@@ -16,11 +16,6 @@
 .intro h2 { margin-top: 0; }
 .intro dl { display: grid; grid-template-columns: max-content 1fr; gap: .5rem 1rem; }
 .intro dd { margin: 0; overflow-wrap: anywhere; }
-.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .75rem; margin-block: 1.25rem; }
-.choice { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; padding: 1rem; text-align: left; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; cursor: pointer; }
-.choice:hover, .choice.selected { border-color: var(--accent); }
-.choice.selected { box-shadow: inset 3px 0 var(--accent); }
-.choice span, .choice small { color: var(--text-muted); }
 .form { display: grid; gap: .9rem; margin-top: 1rem; padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; }
 .form label, .mapping label { display: grid; gap: .35rem; }
 .form input, .form select, .mapping select, .editor { box-sizing: border-box; width: 100%; padding: .65rem; color: inherit; background: var(--color-bg); border: 1px solid var(--border); border-radius: .25rem; }

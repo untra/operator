@@ -4,20 +4,13 @@
 // `brand_icon` field. Unlike `ConceptIcon` (a recolorable codicon font glyph),
 // brand logos are full-color SVGs, so they don't inherit `currentColor`.
 
+import { BrandIcon as SharedBrandIcon } from "@operator/webcomponents";
+
 interface BrandIconProps {
   name: string;
   className?: string;
 }
 
 export function BrandIcon({ name, className }: BrandIconProps) {
-  return (
-    <img
-      className={className}
-      src={`/icons/${name}.svg`}
-      width={16}
-      height={16}
-      alt=""
-      aria-hidden="true"
-    />
-  );
+  return <SharedBrandIcon className={className} src={`/icons/${name}.svg`} />;
 }

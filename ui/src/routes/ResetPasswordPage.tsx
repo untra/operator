@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError, OperatorApi } from "../api-client";
 import { useHost } from "../host";
 import { MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, MIN_PASSWORD_LENGTH } from "../auth-constraints";
-import styles from "./AuthPage.module.css";
+import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function ResetPasswordPage() {
   const host = useHost();
@@ -20,95 +20,84 @@ export function ResetPasswordPage() {
     newPassword.length >= MIN_PASSWORD_LENGTH &&
     newPassword === confirmPassword;
 
-  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const api = new OperatorApi(host);
-      await api.resetPassword({
-        username,
-        current_password: currentPassword,
-        new_password: newPassword,
-      });
-      await api.login(username, newPassword);
-      void navigate("/", { replace: true });
-    } catch (caught) {
-      const status = caught instanceof ApiError ? caught.status : 0;
-      setError(
-        status === 429
-          ? "Too many attempts. Wait a moment and try again."
-          : status === 400
-            ? caught instanceof ApiError
-              ? caught.message
-              : "The new password is invalid."
-            : "Incorrect username or current password.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
+  const submit = useCallback(
+    async (event: React.SubmitEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      setBusy(true);
+      setError(null);
+      try {
+        const api = new OperatorApi(host);
+        await api.resetPassword({
+          username,
+          current_password: currentPassword,
+          new_password: newPassword,
+        });
+        await api.login(username, newPassword);
+        void navigate("/", { replace: true });
+      } catch (caught) {
+        const status = caught instanceof ApiError ? caught.status : 0;
+        setError(
+          status === 429
+            ? "Too many attempts. Wait a moment and try again."
+            : status === 400
+              ? caught instanceof ApiError
+                ? caught.message
+                : "The new password is invalid."
+              : "Incorrect username or current password.",
+        );
+      } finally {
+        setBusy(false);
+      }
+    },
+    [host, username, currentPassword, newPassword, navigate],
+  );
 
   return (
-    <div className={styles.screen}>
-      <form className={styles.card} onSubmit={submit}>
-        <h1 className={styles.title}>Change password</h1>
-        <p className={styles.subtitle}>
-          Changing the password revokes all sessions and access keys.
-        </p>
-        {error && <p className={styles.error}>{error}</p>}
-        <label className={styles.field}>
-          <span className={styles.label}>Username</span>
-          <input
-            className={styles.input}
-            autoComplete="username"
-            maxLength={MAX_USERNAME_LENGTH}
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            required
-          />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Current password</span>
-          <input
-            className={styles.input}
-            type="password"
-            maxLength={MAX_PASSWORD_LENGTH}
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-            required
-          />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.label}>New password</span>
-          <input
-            className={styles.input}
-            type="password"
-            maxLength={MAX_PASSWORD_LENGTH}
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-            required
-          />
-          <span className={styles.hint}>At least {MIN_PASSWORD_LENGTH} characters.</span>
-        </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Confirm new password</span>
-          <input
-            className={styles.input}
-            type="password"
-            maxLength={MAX_PASSWORD_LENGTH}
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            required
-          />
-        </label>
-        <button className={styles.button} type="submit" disabled={busy || !ready}>
-          {busy ? "Changing…" : "Change password"}
-        </button>
-        <div className={styles.links}>
-          <Link to="/login">Back to sign in</Link>
-        </div>
-      </form>
-    </div>
+    <AuthCard
+      title="Change password"
+      subtitle="Changing the password revokes all sessions and access keys."
+      error={error}
+      onSubmit={submit}
+      actions={
+        <AuthSubmit busy={busy} busyLabel="Changing…" disabled={!ready}>
+          Change password
+        </AuthSubmit>
+      }
+      links={<Link to="/login">Back to sign in</Link>}
+    >
+      <AuthField
+        label="Username"
+        autoComplete="username"
+        maxLength={MAX_USERNAME_LENGTH}
+        value={username}
+        onChange={setUsername}
+        required
+      />
+      <AuthField
+        label="Current password"
+        type="password"
+        maxLength={MAX_PASSWORD_LENGTH}
+        value={currentPassword}
+        onChange={setCurrentPassword}
+        required
+      />
+      <AuthField
+        label="New password"
+        type="password"
+        maxLength={MAX_PASSWORD_LENGTH}
+        value={newPassword}
+        onChange={setNewPassword}
+        hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
+        required
+      />
+      <AuthField
+        label="Confirm new password"
+        type="password"
+        maxLength={MAX_PASSWORD_LENGTH}
+        value={confirmPassword}
+        onChange={setConfirmPassword}
+        required
+      />
+    </AuthCard>
   );
 }

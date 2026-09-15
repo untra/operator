@@ -24,6 +24,10 @@ src/
 │   └── WorkflowGraph.tsx       The renderer
 ├── elements/                   Custom-element wrappers
 └── shared/theme.ts             data-theme + brand-token plumbing
+stories/
+├── components/                 Focused component states
+├── pages/                      Bounded page compositions
+└── fixtures/                   Fixed, local Operator data
 ```
 
 ## The native projection
@@ -48,10 +52,16 @@ Never declare a brand hex here - see `docs/design-system/`.
 ```bash
 bun install
 bun run typecheck
+bun run typecheck:stories
 bun test         # mapper tests, run against the real src/collections/ fixtures
 bun run build    # dist/index.js (+ .d.ts) and dist/elements.js (+ .css)
+bun run storybook
+bun run storybook:build
+bun run test:storybook
 ```
 
-`dist/` is gitignored. `make webcomponents` runs the full sequence, and both
-`make ui` and `make docs` depend on it so the artifact always exists before its
-consumers build.
+`dist/` is gitignored. `make webcomponents` runs the full sequence, and both `make ui` and `make docs` depend on it so the artifact always exists before its consumers build.
+
+All Storybook files live under `stories/`. They render fixed controller outputs; API calls, routing, and application state remain in `ui/`.
+
+This keeps the stories deterministic and gives Pixel a static Storybook build without shipping Storybook stories in the product package.

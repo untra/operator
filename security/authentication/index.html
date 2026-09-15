@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authentication | Operator! Documentation</title>
+  <meta name="description" content="How Operator authenticates: the admin account, bootstrap, browser sessions, OAuth device flow, access keys, scopes, and recovery.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Authentication | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Authentication" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="How Operator authenticates: the admin account, bootstrap, browser sessions, OAuth device flow, access keys, scopes, and recovery." />
+<meta name="twitter:description" property="og:description" content="How Operator authenticates: the admin account, bootstrap, browser sessions, OAuth device flow, access keys, scopes, and recovery." />
+<link rel="canonical" href="https://operator.untra.io/security/authentication/" />
+<meta property="og:url" content="https://operator.untra.io/security/authentication/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Authentication" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"How Operator authenticates: the admin account, bootstrap, browser sessions, OAuth device flow, access keys, scopes, and recovery.","headline":"Authentication","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/security/authentication/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/remote-hosts/" >Remote Hosts (SSH)</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/kubernetes/" ><span class="nav-icon"><img src="/assets/icons/kubernetes.svg" alt="" width="16" height="16"></span>Kubernetes</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/security/" class="nav-parent-link "><i class="codicon codicon-shield nav-codicon"></i>Security</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/security/authentication/" class="active"
+                    >Authentication</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/security/authentication.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.12</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-09-15</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Authentication</h1>
+  
+
+  <p>Operator’s HTTP surface is authenticated <strong>always</strong>.</p>
+
+<p>For trust boundaries and residual risks, see <a href="/security/">Security</a>.</p>
+
+<h2 id="one-human-account">One human account</h2>
+
+<p>Operator has exactly one human account: <strong><code class="language-plaintext highlighter-rouge">admin</code></strong>. This is a deliberate constraint, not a limitation waiting to be lifted.
+Operator orchestrates one operator’s attention across their projects, and multi-user access control would imply an ownership model the ticket queue does not have.</p>
+
+<p>Everything else that authenticates is a delegated, scoped credential:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Identity</th>
+      <th>Kind</th>
+      <th>How it authenticates</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">admin</code></td>
+      <td>Human</td>
+      <td>Password, then a browser session or a device-flow token</td>
+    </tr>
+    <tr>
+      <td>IDE clients</td>
+      <td>Delegated</td>
+      <td>Local token when on the daemon’s host; otherwise OAuth device authorization, all four scopes</td>
+    </tr>
+    <tr>
+      <td>Integrations</td>
+      <td>Delegated</td>
+      <td>Service access key exchanged for a short-lived token, only the scopes selected</td>
+    </tr>
+    <tr>
+      <td>Agent callbacks</td>
+      <td>Delegated</td>
+      <td>Single-purpose token minted at launch, pinned to one ticket and step</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Delegated credentials are not additional users. They act on the admin’s authority, they carry only the scopes granted, and they can all be revoked individually.</p>
+
+<p>These are distinct from the operating-system and Kubernetes identities, which are separate boundaries: the container runs as Unix user <code class="language-plaintext highlighter-rouge">operator</code> (UID/GID 10001) and the Kubernetes ServiceAccount is <code class="language-plaintext highlighter-rouge">operator</code> with no token and no RBAC. Neither has anything to do with logging in.</p>
+
+<h2 id="scopes">Scopes</h2>
+
+<p>Four typed scopes, checked per route:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Scope</th>
+      <th>Grants</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">read</code></td>
+      <td>Observing the queue, agents, tickets, projects, and issue types</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">write</code></td>
+      <td>Mutating tickets, issue types, steps, and collections</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">execute</code></td>
+      <td>Launching agents, completing steps, probing providers, calling MCP tools</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">admin</code></td>
+      <td>Configuration, delegators, model servers, and authentication administration</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Scopes are not hierarchical. A credential holding <code class="language-plaintext highlighter-rouge">write</code> does not implicitly hold <code class="language-plaintext highlighter-rouge">read</code>; it is granted both, or neither.
+This makes an integration’s grant legible in one glance rather than requiring you to reason about implication.</p>
+
+<p>IDE clients receive all four, because an IDE client <em>is</em> the human admin working through a different surface. Integrations receive only what you select.</p>
+
+<h2 id="bootstrap">Bootstrap</h2>
+
+<p>On first start the authentication database does not exist, and Operator is in
+the <code class="language-plaintext highlighter-rouge">Uninitialized</code> state. Only the bootstrap and probe endpoints respond;
+everything else returns <code class="language-plaintext highlighter-rouge">401</code>.</p>
+
+<p>The state machine:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Uninitialized ──► AwaitingPassword ──► Complete
+     │                   │                 │
+     │                   │                 └─ normal operation; login required
+     │                   └─ temporary password accepted, new password required
+     └─ no admin exists; bootstrap endpoint open
+</code></pre></div></div>
+
+<p>Admin creation is <strong>atomic</strong>. The account row is constrained to a single identity.</p>
+
+<h3 id="bootstrap-in-a-container">Bootstrap in a container</h3>
+
+<p>Supply a temporary password out of band and mount it as a read-only file. While the database is uninitialized, Operator reads it and requires the visitor to set a new admin password before anything else works.</p>
+
+<h3 id="bootstrap-locally">Bootstrap locally</h3>
+
+<p>A local run needs none of this. See <a href="#local-access">local access</a> below.</p>
+
+<p>The first-run setup wizard offers a <strong>Web UI password</strong> step as a shortcut. It is optional and skippable: the terminal and the CLI authenticate without it, and it exists only so the web dashboard is reachable. Skipping it leaves the deployment uninitialized. The step is hidden once an admin account exists.</p>
+
+<h2 id="browser-sessions">Browser sessions</h2>
+
+<p>Logging in through the dashboard creates an <strong>opaque server-side session</strong>. The cookie carries a random identifier; all session state lives in the database, so a cookie is not a token and cannot be replayed anywhere else.</p>
+
+<p>The cookie is named <code class="language-plaintext highlighter-rouge">__Host-operator_session</code> and is set <code class="language-plaintext highlighter-rouge">Secure</code>, <code class="language-plaintext highlighter-rouge">HttpOnly</code>, <code class="language-plaintext highlighter-rouge">SameSite=Strict</code>, <code class="language-plaintext highlighter-rouge">Path=/</code>. The <code class="language-plaintext highlighter-rouge">__Host-</code> prefix is enforced by the browser: it refuses the cookie unless it is <code class="language-plaintext highlighter-rouge">Secure</code>, has no <code class="language-plaintext highlighter-rouge">Domain</code> attribute, and has <code class="language-plaintext highlighter-rouge">Path=/</code>. That makes it impossible for a sibling subdomain to set or overwrite the session cookie.</p>
+
+<p>Because a cookie is sent automatically, cookie-authenticated <strong>mutations</strong> additionally require a CSRF token and a matching <code class="language-plaintext highlighter-rouge">Origin</code>.</p>
+
+<p>Logging out deletes the session server-side. The cookie becoming invalid is a consequence, not the mechanism, so a copied cookie dies with the session.</p>
+
+<h2 id="access-tokens-and-refresh-tokens">Access tokens and refresh tokens</h2>
+
+<p>Non-browser clients use bearer tokens.</p>
+
+<p><strong>Access tokens</strong> are signed bearer tokens with a <strong>15-minute</strong> lifetime. Clients must use the returned expiry and scopes rather than depending on token internals.</p>
+
+<p>Access tokens are not revocable individually, so their blast radius is bounded by expiry rather than by revocation.</p>
+
+<p><strong>Refresh tokens</strong> are opaque, rotating, and stored only as hashes. Each has a <strong>30-day idle</strong> lifetime and a <strong>90-day absolute</strong> lifetime. Using it resets the idle clock, but the absolute deadline is fixed at issuance, so a continuously refreshed session still requires re-authentication quarterly.</p>
+
+<p>Refresh tokens rotate on every use: redeeming one issues a replacement and retires the original. If a <em>retired</em> token is presented again, that means two
+parties hold the same token - the legitimate client and a thief. Operator cannot tell which is which, so it <strong>revokes the entire token family</strong>. Both are
+logged out, and the admin re-authenticates. This is deliberate: a noisy failure is preferable.</p>
+
+<h2 id="oauth-device-authorization">OAuth device authorization</h2>
+
+<p>IDE clients and other public clients, which cannot keep a client secret, use the
+OAuth device authorization flow when they cannot use the <a href="#local-access">local token</a>:</p>
+
+<ol>
+  <li>The client requests a device code and receives a user code and a verification URL.</li>
+  <li>The client opens the browser to that URL; the human approves in an authenticated session.</li>
+  <li>The client polls the token endpoint, honoring the returned interval, until approval completes.</li>
+</ol>
+
+<p>The client never handles the password, and the approval happens in a context
+where the human can see what is being authorized.</p>
+
+<p><strong>VS Code stores refresh credentials in <code class="language-plaintext highlighter-rouge">SecretStorage</code> only</strong> - never in settings, workspace files, logs, or webview state. Settings sync to other machines and workspace files land in Git; neither is an acceptable home for a credential.</p>
+
+<h2 id="service-access-keys">Service access keys</h2>
+
+<p>Integrations authenticate with access keys, which are exchanged at the token endpoint for a short-lived access token. The key itself is never a bearer credential for the API - it buys a token, and the token does the work.</p>
+
+<p>Access keys have:</p>
+
+<ul>
+  <li><strong>selected scopes</strong>, only what you grant,</li>
+  <li><strong>mandatory expiry</strong> - there is no non-expiring key,</li>
+  <li><strong>hash-only storage</strong> - the secret is displayed exactly once, at creation, and
+cannot be retrieved afterward,</li>
+  <li><strong>revocation</strong> and <strong>last-use tracking</strong>, so a key that stopped being used is
+visible and can be retired.</li>
+</ul>
+
+<p>If a key is lost, create a new one and revoke the old. There is no recovery path, by design.</p>
+
+<h2 id="agent-callback-credentials">Agent callback credentials</h2>
+
+<p>When Operator launches an agent, it mints a <strong>single-purpose token</strong> pinned to that ticket, step, and session, and injects it into the agent’s environment.The agent’s wrapper presents it when reporting step completion.</p>
+
+<p>Its lifetime is tied to the step rather than the standard 15 minutes, because a step may legitimately run for hours and a callback that expires mid-work would strand the agent. The narrow claims are what bound it: the token completes one step of one ticket and is useful for nothing else.</p>
+
+<p>Per the <a href="/security/#the-agent-process-is-inside-the-trust-boundary">threat model</a>, the agent can read this token - as it can read everything else in its environment.</p>
+
+<h2 id="rate-limiting">Rate limiting</h2>
+
+<p>Bootstrap, login, device-code creation, device-code polling, and token exchange are all rate-limited with persisted backoff,
+so restarting the process does not reset an attacker’s budget.</p>
+
+<p>Backoff <strong>never becomes a permanent lockout</strong>. A permanent lockout on a single-account system is a denial-of-service vector against the only human who
+can fix it: an attacker who can guess wrong repeatedly could otherwise lock the admin out of their own deployment. Delay grows; the door does not lock.</p>
+
+<h2 id="local-access">Local access</h2>
+
+<p>A local <code class="language-plaintext highlighter-rouge">operator</code> run - the TUI, the CLI, and the agent wrapper talking to loopback - requires no login and no bootstrap.</p>
+
+<p>The VS Code extension host runs as the same user, so when it talks to a loopback daemon it reads the same file and needs no sign-in either; this holds under Remote-SSH too, where the extension host runs on the remote machine. The daemon advertises the state directory in its session file so a non-default <code class="language-plaintext highlighter-rouge">paths.state</code> is still found. The token is only ever presented to a loopback address.</p>
+
+<p>When Operator binds loopback, it issues itself a local admin credential and writes it to the state directory with <strong>owner-only permissions</strong>. Only the user
+account running Operator can read it, which is the same trust boundary a local login would establish.</p>
+
+<p>This is not an authentication bypass. The credential is a real one, checked the same way as any other; it is simply issued automatically to a caller who has already proven, through file ownership, that they are the user who started the process.</p>
+
+<h2 id="recovery">Recovery</h2>
+
+<p>Run <code class="language-plaintext highlighter-rouge">operator auth reset-admin-password</code> only <strong>locally</strong>, against the database file.
+It sets a new admin password and revokes every session, refresh-token family, issued token record, and access key.</p>
+
+<p>The dashboard’s password-change form also revokes all credentials.</p>
+
+<p>In Kubernetes that means <code class="language-plaintext highlighter-rouge">kubectl exec</code>, which is itself an audited, RBAC-gated action.</p>
+
+<h2 id="audit-records">Audit records</h2>
+
+<p>Operator records security-relevant authentication activity without secret
+material. In particular, alert on refresh-token reuse: it means a retired token
+was presented again and the affected token family was revoked.</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

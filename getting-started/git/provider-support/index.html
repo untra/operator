@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Provider Support | Operator! Documentation</title>
+  <meta name="description" content="Architecture guide for adding new Git provider integrations.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Provider Support | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Provider Support" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Architecture guide for adding new Git provider integrations." />
+<meta name="twitter:description" property="og:description" content="Architecture guide for adding new Git provider integrations." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/git/provider-support/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/git/provider-support/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Provider Support" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Architecture guide for adding new Git provider integrations.","headline":"Provider Support","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/git/provider-support/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cursor/" ><span class="nav-icon"><img src="/assets/icons/cursor.svg" alt="" width="16" height="16"></span>Cursor</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/remote-hosts/" >Remote Hosts (SSH)</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" class="active"
+                    >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/kubernetes/" ><span class="nav-icon"><img src="/assets/icons/kubernetes.svg" alt="" width="16" height="16"></span>Kubernetes</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/security/" class="nav-parent-link "><i class="codicon codicon-shield nav-codicon"></i>Security</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/security/authentication/" >Authentication</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/git/provider-support.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.12</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-09-15</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Provider Support</h1>
+  
+
+  <p>This guide explains how Operator integrates with Git hosting providers, and
+how to add support for a new one.</p>
+
+<h2 id="support-tiers">Support Tiers</h2>
+
+<p>Statuses follow the <a href="/maturity/">feature maturity</a> scale.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Provider</th>
+      <th>CLI</th>
+      <th>Tier</th>
+      <th>Operations</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="/getting-started/git/github/">GitHub</a></td>
+      <td><code class="language-plaintext highlighter-rouge">gh</code></td>
+      <td>Beta</td>
+      <td>Full - read, create, list, read comments</td>
+    </tr>
+    <tr>
+      <td><a href="/getting-started/git/gitlab/">GitLab</a></td>
+      <td><code class="language-plaintext highlighter-rouge">glab</code></td>
+      <td>Alpha</td>
+      <td>Full - read, create, list, read comments</td>
+    </tr>
+    <tr>
+      <td>Bitbucket</td>
+      <td><code class="language-plaintext highlighter-rouge">bb</code></td>
+      <td>Proto</td>
+      <td>Detection only</td>
+    </tr>
+    <tr>
+      <td>Azure DevOps</td>
+      <td><code class="language-plaintext highlighter-rouge">az</code></td>
+      <td>Proto</td>
+      <td>Detection only</td>
+    </tr>
+    <tr>
+      <td>Forgejo</td>
+      <td><code class="language-plaintext highlighter-rouge">fj</code></td>
+      <td>Proto</td>
+      <td>Detection only</td>
+    </tr>
+    <tr>
+      <td><a href="/getting-started/git/gitea/">Gitea</a></td>
+      <td><code class="language-plaintext highlighter-rouge">tea api</code></td>
+      <td>Alpha</td>
+      <td>Read, create, list, comments, reviews</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>“Detection only” means Operator recognizes the provider from its remote URL and can report which CLI to install, but has no operational <code class="language-plaintext highlighter-rouge">PrService</code>
+implementation yet - creating, reading, or listing code review requests (including reading their comments) for that provider isn’t wired up.</p>
+
+<p>Delegator Git identity and supplied HTTPS credentials are provider-independent, including for detect-only providers. PR authentication is operational for GitHub, GitLab, and Gitea. Forgejo CLI integration remains deferred.</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PrWorkflow / PrMonitorService
+            |
+      PrServiceRouter (configuration + captured delegator context)
+       /             |               \
+GitHubService   GitLabService    GiteaService
+      |               |               |
+    GhCli           GlabCli          TeaCli
+      |               |               |
+     gh              glab          tea api
+</code></pre></div></div>
+
+<p>Gitea uses Tea’s JSON API interface and per-invocation private login configuration. Reads retry transient failures; PR creation reconciles an ambiguous response before returning an error and never blindly repeats the POST.</p>
+
+<p><code class="language-plaintext highlighter-rouge">GitHubService</code> and <code class="language-plaintext highlighter-rouge">GitLabService</code> both wrap their CLI with exponential
+backoff retry (via <code class="language-plaintext highlighter-rouge">backon</code>) and implement the same trait, so every layer
+above the retry services is provider-agnostic. Bitbucket, Azure DevOps,
+Forgejo, and Gitea are detected (<code class="language-plaintext highlighter-rouge">GitProvider::from_remote_url</code>) but have no
+service/CLI-wrapper pair yet, so <code class="language-plaintext highlighter-rouge">pr_service_for</code> returns an
+<code class="language-plaintext highlighter-rouge">UnsupportedProviderError</code> for them.</p>
+
+<h3 id="the-prservice-trait">The <code class="language-plaintext highlighter-rouge">PrService</code> trait</h3>
+
+<p><code class="language-plaintext highlighter-rouge">src/api/pr_service.rs</code> defines the provider-agnostic contract every service
+implements:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[async_trait]</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="n">PrService</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="nb">Sync</span> <span class="p">{</span>
+    <span class="cd">/// Get the provider name (e.g., "github", "gitlab")</span>
+    <span class="k">fn</span> <span class="nf">provider_name</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">;</span>
+
+    <span class="cd">/// Check if the service is available and authenticated</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">check_available</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">bool</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Get the authenticated user</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_authenticated_user</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Get PR/MR information</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_pr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo_info</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span> <span class="n">pr_number</span><span class="p">:</span> <span class="nb">i64</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">PullRequestInfo</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Check if PR/MR is ready to merge (approved + checks pass)</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">is_ready_to_merge</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo_info</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span> <span class="n">pr_number</span><span class="p">:</span> <span class="nb">i64</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">bool</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Get the review state of a PR/MR</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_review_state</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo_info</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span> <span class="n">pr_number</span><span class="p">:</span> <span class="nb">i64</span><span class="p">)</span>
+        <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">PrReviewState</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Create a new PR/MR</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">create_pr</span><span class="p">(</span>
+        <span class="o">&amp;</span><span class="k">self</span><span class="p">,</span>
+        <span class="n">repo_info</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CreatePrRequest</span><span class="p">,</span>
+        <span class="n">cwd</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Path</span><span class="p">,</span>
+    <span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">PullRequestInfo</span><span class="p">,</span> <span class="n">CreatePrError</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// List PRs/MRs for a branch</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">list_prs_for_branch</span><span class="p">(</span>
+        <span class="o">&amp;</span><span class="k">self</span><span class="p">,</span>
+        <span class="n">repo_info</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span>
+        <span class="n">branch</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">PullRequestInfo</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Get all comments on a PR/MR</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_all_comments</span><span class="p">(</span>
+        <span class="o">&amp;</span><span class="k">self</span><span class="p">,</span>
+        <span class="n">repo_info</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span>
+        <span class="n">pr_number</span><span class="p">:</span> <span class="nb">i64</span><span class="p">,</span>
+    <span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">UnifiedPrComment</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Open PR/MR in browser</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">open_in_browser</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">repo_info</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span> <span class="n">pr_number</span><span class="p">:</span> <span class="nb">i64</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="p">()</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Get comments since a given time</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">get_comments_since</span><span class="p">(</span>
+        <span class="o">&amp;</span><span class="k">self</span><span class="p">,</span>
+        <span class="n">repo_info</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span>
+        <span class="n">pr_number</span><span class="p">:</span> <span class="nb">i64</span><span class="p">,</span>
+        <span class="n">since</span><span class="p">:</span> <span class="nn">chrono</span><span class="p">::</span><span class="n">DateTime</span><span class="o">&lt;</span><span class="nn">chrono</span><span class="p">::</span><span class="n">Utc</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">UnifiedPrComment</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+
+    <span class="cd">/// Find an existing PR for a branch</span>
+    <span class="k">async</span> <span class="k">fn</span> <span class="nf">find_pr_for_branch</span><span class="p">(</span>
+        <span class="o">&amp;</span><span class="k">self</span><span class="p">,</span>
+        <span class="n">repo_info</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RepoInfo</span><span class="p">,</span>
+        <span class="n">branch</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">PullRequestInfo</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">PrServiceRouter</code> also implements <code class="language-plaintext highlighter-rouge">PrService</code>: it holds a resolver
+(<code class="language-plaintext highlighter-rouge">pr_service_for</code> by default) and dispatches every per-repo call to the
+operational service for <code class="language-plaintext highlighter-rouge">repo_info.provider</code>. <code class="language-plaintext highlighter-rouge">provider_name()</code>,
+<code class="language-plaintext highlighter-rouge">check_available()</code>, and <code class="language-plaintext highlighter-rouge">get_authenticated_user()</code> take no <code class="language-plaintext highlighter-rouge">RepoInfo</code>, so the
+router falls back to GitHub for those and reports its own name as <code class="language-plaintext highlighter-rouge">"auto"</code>.</p>
+
+<h2 id="terminology">Terminology</h2>
+
+<p>Providers name the same underlying concepts differently. Operator’s code and
+UI default to the neutral term “code review request (PR/MR)”; provider brand
+names appear only when talking about that specific provider.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Concept</th>
+      <th>GitHub</th>
+      <th>GitLab</th>
+      <th>Bitbucket</th>
+      <th>Azure DevOps</th>
+      <th>Forgejo</th>
+      <th>Gitea</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Code Review Request</td>
+      <td>Pull Request</td>
+      <td>Merge Request</td>
+      <td>Pull Request</td>
+      <td>Pull Request</td>
+      <td>Pull Request</td>
+      <td>Pull Request</td>
+    </tr>
+    <tr>
+      <td>CI Status</td>
+      <td>Checks</td>
+      <td>Pipelines</td>
+      <td>Build status</td>
+      <td>Checks</td>
+      <td>Checks</td>
+      <td>Checks</td>
+    </tr>
+    <tr>
+      <td>CI Automation</td>
+      <td>Actions</td>
+      <td>CI/CD</td>
+      <td>Pipelines</td>
+      <td>Azure Pipelines</td>
+      <td>Actions</td>
+      <td>Actions</td>
+    </tr>
+    <tr>
+      <td>Approval</td>
+      <td>Review</td>
+      <td>Approval</td>
+      <td>Approval</td>
+      <td>Approval</td>
+      <td>Review</td>
+      <td>Review</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>GitHub and GitLab are operational today; Bitbucket, Azure DevOps, Forgejo,
+and Gitea terminology above is provided for reference ahead of their
+<code class="language-plaintext highlighter-rouge">PrService</code> implementations.</p>
+
+<h2 id="provider-detection">Provider Detection</h2>
+
+<p><code class="language-plaintext highlighter-rouge">src/types/pr.rs</code> detects the provider straight from a repo’s remote URL -
+there’s no separate “detect” step to configure:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">GitProvider::from_remote_url(remote_url: &amp;str) -&gt; Option&lt;GitProvider&gt;</code> -
+matches on hostname substrings (<code class="language-plaintext highlighter-rouge">github.com</code>, <code class="language-plaintext highlighter-rouge">gitlab.</code> / <code class="language-plaintext highlighter-rouge">gitlab.com</code>,
+<code class="language-plaintext highlighter-rouge">bitbucket.org</code>, <code class="language-plaintext highlighter-rouge">dev.azure.com</code> / <code class="language-plaintext highlighter-rouge">visualstudio.com</code>, <code class="language-plaintext highlighter-rouge">codeberg.org</code>,
+<code class="language-plaintext highlighter-rouge">gitea.com</code>).</li>
+  <li><code class="language-plaintext highlighter-rouge">RepoInfo::from_remote_url(remote_url: &amp;str) -&gt; Result&lt;RepoInfo, RepoInfoError&gt;</code> -
+calls the above, then parses <code class="language-plaintext highlighter-rouge">owner</code>/<code class="language-plaintext highlighter-rouge">repo_name</code> out of the URL with a
+provider-specific regex.</li>
+</ul>
+
+<p>GitLab subgroups are supported: <code class="language-plaintext highlighter-rouge">https://gitlab.com/group/subgroup/repo.git</code>
+parses to <code class="language-plaintext highlighter-rouge">owner = "group/subgroup"</code>, <code class="language-plaintext highlighter-rouge">repo_name = "repo"</code> (the owner regex
+for GitLab captures everything up to the final path segment, unlike the other
+providers’ single-segment owner).</p>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>Git provider configuration lives in <code class="language-plaintext highlighter-rouge">src/config/git_config.rs</code>:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">GitConfig</code> - top-level <code class="language-plaintext highlighter-rouge">[git]</code> table: <code class="language-plaintext highlighter-rouge">provider</code> (<code class="language-plaintext highlighter-rouge">Option&lt;GitProviderConfig&gt;</code>,
+auto-detected from the remote when unset), <code class="language-plaintext highlighter-rouge">github</code> (<code class="language-plaintext highlighter-rouge">GitHubConfig</code>), <code class="language-plaintext highlighter-rouge">gitlab</code>
+(<code class="language-plaintext highlighter-rouge">GitLabConfig</code>), <code class="language-plaintext highlighter-rouge">branch_format</code> (default <code class="language-plaintext highlighter-rouge">"{type}/{ticket_id}"</code>), and
+<code class="language-plaintext highlighter-rouge">use_worktrees</code> (default <code class="language-plaintext highlighter-rouge">false</code>).</li>
+  <li><code class="language-plaintext highlighter-rouge">GitProviderConfig</code> - the explicit-override enum (<code class="language-plaintext highlighter-rouge">GitHub</code>, <code class="language-plaintext highlighter-rouge">GitLab</code>,
+<code class="language-plaintext highlighter-rouge">Bitbucket</code>, <code class="language-plaintext highlighter-rouge">AzureDevOps</code>, <code class="language-plaintext highlighter-rouge">Forgejo</code>, <code class="language-plaintext highlighter-rouge">Gitea</code>), serialized <code class="language-plaintext highlighter-rouge">#[serde(rename_all
+= "lowercase")]</code>; <code class="language-plaintext highlighter-rouge">From&lt;GitProviderConfig&gt; for GitProvider</code> converts it into
+the runtime enum used by <code class="language-plaintext highlighter-rouge">pr_service_for</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">GitHubConfig</code> - <code class="language-plaintext highlighter-rouge">enabled</code> (default <code class="language-plaintext highlighter-rouge">true</code>), <code class="language-plaintext highlighter-rouge">token_env</code> (default
+<code class="language-plaintext highlighter-rouge">"GITHUB_TOKEN"</code>).</li>
+  <li><code class="language-plaintext highlighter-rouge">GitLabConfig</code> - <code class="language-plaintext highlighter-rouge">enabled</code> (default <code class="language-plaintext highlighter-rouge">false</code>), <code class="language-plaintext highlighter-rouge">token_env</code> (default
+<code class="language-plaintext highlighter-rouge">"GITLAB_TOKEN"</code>), <code class="language-plaintext highlighter-rouge">host</code> (<code class="language-plaintext highlighter-rouge">Option&lt;String&gt;</code>, for self-hosted instances).</li>
+</ul>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">git</span><span class="k">]</span>
+<span class="n">provider</span> <span class="o">=</span><span class="w"> </span><span class="s">"gitlab"</span>            <span class="c"># optional; auto-detected from the remote if omitted</span>
+<span class="n">branch_format</span> <span class="o">=</span><span class="w"> </span><span class="s">"{type}/{ticket_id}"</span>
+<span class="n">use_worktrees</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+
+<span class="k">[</span><span class="n">git</span><span class="k">.</span><span class="n">github</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">token_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"GITHUB_TOKEN"</span>
+
+<span class="k">[</span><span class="n">git</span><span class="k">.</span><span class="n">gitlab</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">token_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"GITLAB_TOKEN"</span>
+<span class="n">host</span> <span class="o">=</span><span class="w"> </span><span class="s">"gitlab.example.com"</span>    <span class="c"># self-hosted instances only</span>
+</code></pre></div></div>
+
+<h2 id="code-review-gating">Code-Review Gating</h2>
+
+<p>Once a code review request exists, <code class="language-plaintext highlighter-rouge">PrMonitorService</code>
+(<code class="language-plaintext highlighter-rouge">src/services/pr_monitor.rs</code>) polls it every 60 seconds through the same
+<code class="language-plaintext highlighter-rouge">PrService</code> (routed via <code class="language-plaintext highlighter-rouge">PrServiceRouter</code>), watching for merge, close,
+approval, changes-requested, and ready-to-merge/ready-for-review transitions.</p>
+
+<p>An agent working a ticket carries a <code class="language-plaintext highlighter-rouge">review_state</code> marker
+(<code class="language-plaintext highlighter-rouge">src/state.rs</code>) while it waits on a human:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">pending_pr_creation</code> - the agent finished and Operator is opening the PR/MR.</li>
+  <li><code class="language-plaintext highlighter-rouge">pending_pr_merge</code> - the PR/MR is open and awaiting merge.</li>
+</ul>
+
+<p>Both surface in the in-progress panel (<code class="language-plaintext highlighter-rouge">src/ui/in_progress_panel.rs</code>) with
+their own icon and status text. A human resolves the gate either from the
+TUI’s agents panel (<code class="language-plaintext highlighter-rouge">y</code> to approve, <code class="language-plaintext highlighter-rouge">x</code> to reject - see
+<code class="language-plaintext highlighter-rouge">src/ui/keybindings.rs</code>) or via REST (<code class="language-plaintext highlighter-rouge">POST /api/v1/agents/{agent_id}/approve</code>
+/ <code class="language-plaintext highlighter-rouge">.../reject</code>, <code class="language-plaintext highlighter-rouge">src/rest/routes/agents.rs</code>), which write a review signal file
+the agent picks back up. See <a href="/getting-started/agents/">Supported Coding Agents</a>
+for the agent-side half of this flow.</p>
+
+<h2 id="adding-a-new-provider">Adding a New Provider</h2>
+
+<p>Checklist for taking a provider from detect-only to fully operational (this
+is what GitHub and GitLab already went through):</p>
+
+<ol>
+  <li><strong>Enum variants</strong> - add the provider to both <code class="language-plaintext highlighter-rouge">GitProvider</code>
+(<code class="language-plaintext highlighter-rouge">src/types/pr.rs</code>, <code class="language-plaintext highlighter-rouge">#[serde(rename_all = "lowercase")]</code>) and
+<code class="language-plaintext highlighter-rouge">GitProviderConfig</code> (<code class="language-plaintext highlighter-rouge">src/config/git_config.rs</code>), plus the
+<code class="language-plaintext highlighter-rouge">From&lt;GitProviderConfig&gt; for GitProvider</code> arm.</li>
+  <li><strong>Catalog entry</strong> - add a row in <code class="language-plaintext highlighter-rouge">src/integrations/catalog.rs</code>’s
+<code class="language-plaintext highlighter-rouge">all_integrations()</code> under <code class="language-plaintext highlighter-rouge">Vertical::Git</code>. <code class="language-plaintext highlighter-rouge">tests/vertical_parity.rs</code>
+enforces the tier rules: <code class="language-plaintext highlighter-rouge">Alpha</code>+ needs a <code class="language-plaintext highlighter-rouge">docs_path</code> pointing at a real
+docs page; <code class="language-plaintext highlighter-rouge">Beta</code>+ additionally needs <code class="language-plaintext highlighter-rouge">readme_badge: true</code> (and a matching
+README badge).</li>
+  <li><strong>CLI detection row</strong> - add a <code class="language-plaintext highlighter-rouge">CliSpec</code> to <code class="language-plaintext highlighter-rouge">CLI_SPECS</code> in
+<code class="language-plaintext highlighter-rouge">src/api/cli_detection.rs</code> so <code class="language-plaintext highlighter-rouge">detect_all_clis</code>/<code class="language-plaintext highlighter-rouge">detect_for</code> can probe the
+new CLI.</li>
+  <li><strong>CLI wrapper + retry service + <code class="language-plaintext highlighter-rouge">PrService</code> impl</strong> - a <code class="language-plaintext highlighter-rouge">src/api/&lt;provider&gt;_cli.rs</code>
+wrapper (mirroring <code class="language-plaintext highlighter-rouge">GhCli</code>/<code class="language-plaintext highlighter-rouge">GlabCli</code>), a <code class="language-plaintext highlighter-rouge">src/api/&lt;provider&gt;_service.rs</code>
+retry wrapper around it (mirroring <code class="language-plaintext highlighter-rouge">GitHubService</code>/<code class="language-plaintext highlighter-rouge">GitLabService</code>), and a
+<code class="language-plaintext highlighter-rouge">PrService</code> impl for that service in <code class="language-plaintext highlighter-rouge">src/api/pr_service.rs</code>.</li>
+  <li><strong>Router wiring</strong> - add the new service to the <code class="language-plaintext highlighter-rouge">match</code> in <code class="language-plaintext highlighter-rouge">pr_service_for</code>
+(<code class="language-plaintext highlighter-rouge">src/api/pr_service.rs</code>), replacing its <code class="language-plaintext highlighter-rouge">UnsupportedProviderError</code> arm.</li>
+  <li><strong>Onboarding metadata</strong> - once operational, add a <code class="language-plaintext highlighter-rouge">ProviderMeta</code> entry (and
+a <code class="language-plaintext highlighter-rouge">meta_for</code> arm) in <code class="language-plaintext highlighter-rouge">src/app/git_onboarding.rs</code> so the TUI’s onboarding
+flow can walk a user through CLI install / token setup for it.</li>
+  <li><strong>Live test row</strong> - add a <code class="language-plaintext highlighter-rouge">ProviderCase</code> to <code class="language-plaintext highlighter-rouge">PROVIDER_CASES</code> in
+<code class="language-plaintext highlighter-rouge">tests/gitprovider_integration.rs</code> (a template comment there shows the
+shape) plus a <code class="language-plaintext highlighter-rouge">#[tokio::test]</code> calling <code class="language-plaintext highlighter-rouge">run_provider_case</code> for it.</li>
+  <li><strong>Docs page + nav</strong> - a <code class="language-plaintext highlighter-rouge">docs/getting-started/git/&lt;provider&gt;/index.md</code>
+page, added to <code class="language-plaintext highlighter-rouge">navigation.yml</code>.</li>
+</ol>
+
+<p>Forgejo (CLI <code class="language-plaintext highlighter-rouge">fj</code>, see
+<a href="https://codeberg.org/forgejo-contrib/forgejo-cli">codeberg.org/forgejo-contrib/forgejo-cli</a>)
+and Gitea (CLI <code class="language-plaintext highlighter-rouge">tea</code>, see
+<a href="https://gitea.com/gitea/tea">gitea.com/gitea/tea</a>) are the most likely next
+operational candidates - both are currently detect-only (<code class="language-plaintext highlighter-rouge">Proto</code>).</p>
+
+<h2 id="legacy-note">Legacy Note</h2>
+
+<p><code class="language-plaintext highlighter-rouge">src/api/providers/repo/</code> is a separate, experimental REST-polling module
+(its own <code class="language-plaintext highlighter-rouge">RepoProvider</code> trait, currently only a <code class="language-plaintext highlighter-rouge">GitHubProvider</code> impl). It
+predates the <code class="language-plaintext highlighter-rouge">PrService</code> stack, is not part of the provider contract
+described above, and is slated for consolidation into <code class="language-plaintext highlighter-rouge">PrService</code>. Don’t
+extend it for new provider support - follow the checklist above instead.</p>
+
+<h2 id="testing">Testing</h2>
+
+<p><code class="language-plaintext highlighter-rouge">tests/gitprovider_integration.rs</code> drives the live <code class="language-plaintext highlighter-rouge">PrService</code> stack
+(<code class="language-plaintext highlighter-rouge">gh</code>/<code class="language-plaintext highlighter-rouge">glab</code>) against real, external test repositories. It’s strictly
+read-only - no create/write operations against any provider. Table-shape
+invariants (env-var name uniqueness, slug/provider matching) run under plain
+<code class="language-plaintext highlighter-rouge">cargo test</code>, no setup required:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cargo <span class="nb">test</span> <span class="nt">--test</span> gitprovider_integration provider_case_table
+</code></pre></div></div>
+
+<p>The live per-provider tests are opt-in and gated on:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">OPERATOR_GITPROVIDER_TEST_ENABLED=true</code> - required to run any test in the
+file.</li>
+  <li><code class="language-plaintext highlighter-rouge">OPERATOR_GITPROVIDER_TEST_REPO_GITHUB</code> - full remote URL of a GitHub test
+repo (e.g. <code class="language-plaintext highlighter-rouge">https://github.com/owner/repo</code>).</li>
+  <li><code class="language-plaintext highlighter-rouge">OPERATOR_GITPROVIDER_TEST_PR_GITHUB</code> - number of an open GitHub PR on that
+repo with <strong>at least one comment</strong>.</li>
+  <li><code class="language-plaintext highlighter-rouge">OPERATOR_GITPROVIDER_TEST_REPO_GITLAB</code> - full remote URL of a GitLab test
+repo.</li>
+  <li><code class="language-plaintext highlighter-rouge">OPERATOR_GITPROVIDER_TEST_PR_GITLAB</code> - number of an open GitLab MR on that
+repo with <strong>at least one comment</strong>.</li>
+</ul>
+
+<p>Each row also needs its CLI (<code class="language-plaintext highlighter-rouge">gh</code>, <code class="language-plaintext highlighter-rouge">glab</code>) installed and authenticated; a row
+skips itself (rather than failing the suite) if its env var is unset or its
+CLI isn’t available:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">OPERATOR_GITPROVIDER_TEST_ENABLED</span><span class="o">=</span><span class="nb">true</span> <span class="se">\</span>
+    <span class="nv">OPERATOR_GITPROVIDER_TEST_REPO_GITHUB</span><span class="o">=</span>https://github.com/owner/repo <span class="se">\</span>
+    <span class="nv">OPERATOR_GITPROVIDER_TEST_PR_GITHUB</span><span class="o">=</span>1 <span class="se">\</span>
+    <span class="nv">OPERATOR_GITPROVIDER_TEST_REPO_GITLAB</span><span class="o">=</span>https://gitlab.com/owner/repo <span class="se">\</span>
+    <span class="nv">OPERATOR_GITPROVIDER_TEST_PR_GITLAB</span><span class="o">=</span>1 <span class="se">\</span>
+    cargo <span class="nb">test</span> <span class="nt">--test</span> gitprovider_integration <span class="nt">--</span> <span class="nt">--nocapture</span>
+</code></pre></div></div>
+
+<p>The comment requirement matters: <code class="language-plaintext highlighter-rouge">get_all_comments</code> is asserted non-empty, so
+the test repo’s designated PR/MR needs at least one existing comment (general
+or inline) before the run.</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

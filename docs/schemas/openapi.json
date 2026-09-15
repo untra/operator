@@ -10,7 +10,7 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.2.10"
+    "version": "0.2.11"
   },
   "paths": {
     "/api/v1/agents/active": {

@@ -32,13 +32,10 @@ variable "slug" {
   default     = "operator"
 }
 
-# `default` is revved by bump-version.sh and pinned to the VERSION file by
-# tests/version_parity.rs -- an unbumped tag points workspaces at a
-# nonexistent GitHub release.
 variable "install_version" {
   type        = string
   description = "The version of operator to install (must match a GitHub release tag)."
-  default     = "0.2.10"
+  default     = "0.2.11"
 }
 
 variable "install_prefix" {

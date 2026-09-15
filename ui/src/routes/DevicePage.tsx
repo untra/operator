@@ -4,11 +4,11 @@
 // asking, and approves. It renders inside the authenticated Layout on purpose:
 // approving a device grants a credential, so it requires an admin session.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useHost } from "../host";
 import { OperatorApi, ApiError } from "../api-client";
-import styles from "./AuthPage.module.css";
+import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function DevicePage() {
   const host = useHost();
@@ -26,63 +26,59 @@ export function DevicePage() {
     });
   }, [host]);
 
-  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await new OperatorApi(host).approveDevice(userCode.trim());
-      setApproved(res.client_id);
-    } catch (e) {
-      setError(
-        e instanceof ApiError && e.status === 404
-          ? "That code is unknown or has expired. Start the connection again from your editor."
-          : "Approval failed.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
+  const submit = useCallback(
+    async (event: React.SubmitEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      setError(null);
+      setBusy(true);
+      try {
+        const res = await new OperatorApi(host).approveDevice(userCode.trim());
+        setApproved(res.client_id);
+      } catch (e) {
+        setError(
+          e instanceof ApiError && e.status === 404
+            ? "That code is unknown or has expired. Start the connection again from your editor."
+            : "Approval failed.",
+        );
+      } finally {
+        setBusy(false);
+      }
+    },
+    [host, userCode],
+  );
+
+  const onCodeChange = useCallback((value: string) => setUserCode(value.toUpperCase()), []);
 
   if (approved) {
     return (
-      <div className={styles.screen}>
-        <div className={styles.card}>
-          <h1 className={styles.title}>Device approved</h1>
-          <p className={styles.subtitle}>
-            <strong>{approved}</strong> now has access. You can close this page and return to your
-            editor.
-          </p>
-        </div>
-      </div>
+      <AuthCard title="Device approved">
+        <p>
+          <strong>{approved}</strong> now has access. You can close this page and return to your
+          editor.
+        </p>
+      </AuthCard>
     );
   }
 
   return (
-    <div className={styles.screen}>
-      <form className={styles.card} onSubmit={submit}>
-        <h1 className={styles.title}>Approve a device</h1>
-        <p className={styles.subtitle}>
-          Enter the code shown in the application requesting access.
-        </p>
-
-        {error && <p className={styles.error}>{error}</p>}
-
-        <label className={styles.field}>
-          <span className={styles.label}>Code</span>
-          <input
-            className={styles.input}
-            value={userCode}
-            onChange={(event) => setUserCode(event.target.value.toUpperCase())}
-            placeholder="XXXX-XXXX"
-            required
-          />
-        </label>
-
-        <button className={styles.button} type="submit" disabled={busy || !userCode}>
-          {busy ? "Approving…" : "Approve"}
-        </button>
-      </form>
-    </div>
+    <AuthCard
+      title="Approve a device"
+      subtitle="Enter the code shown in the application requesting access."
+      error={error}
+      onSubmit={submit}
+      actions={
+        <AuthSubmit busy={busy} busyLabel="Approving…" disabled={!userCode}>
+          Approve
+        </AuthSubmit>
+      }
+    >
+      <AuthField
+        label="Code"
+        value={userCode}
+        placeholder="XXXX-XXXX"
+        onChange={onCodeChange}
+        required
+      />
+    </AuthCard>
   );
 }

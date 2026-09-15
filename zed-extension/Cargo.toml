@@ -1,6 +1,6 @@
 [package]
 name = "operator-zed"
-version = "0.2.10"
+version = "0.2.11"
 edition = "2021"
 description = "Zed extension for Operator multi-agent orchestration"
 license = "MIT"

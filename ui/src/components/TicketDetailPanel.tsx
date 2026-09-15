@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { KanbanTicketCard } from "@operator/bindings/KanbanTicketCard";
 import type { ConfigurationResponse } from "@operator/bindings/ConfigurationResponse";
 import type { DelegatorResponse } from "@operator/bindings/DelegatorResponse";
 import type { LaunchTicketResponse } from "@operator/bindings/LaunchTicketResponse";
+import { LaunchForm, TicketDetailView } from "@operator/webcomponents";
+import type { LaunchFormValue } from "@operator/webcomponents";
 import { OperatorApi } from "../api-client";
 import { useHost } from "../host";
 import { useRightPanel } from "../right-panel";
 import { wrapperSessionLink } from "../session-links";
-import { WorkflowGraph } from "@operator/webcomponents";
 import type { IssueType } from "@operator/bindings/IssueType";
 import styles from "./TicketDetailPanel.module.css";
 
@@ -45,6 +46,16 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
   const [focusBusy, setFocusBusy] = useState(false);
   const [focusError, setFocusError] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
+  const launchRequest = useRef(0);
+  const focusRequest = useRef(0);
+
+  useEffect(
+    () => () => {
+      launchRequest.current += 1;
+      focusRequest.current += 1;
+    },
+    [],
+  );
 
   // Config (delegator names + the configured control wrapper) for the dropdowns.
   useEffect(() => {
@@ -85,7 +96,8 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
 
   const defaultWrapperLabel = config?.launch.session_wrapper ?? "configured";
 
-  const onLaunch = () => {
+  const onLaunch = useCallback(() => {
+    const request = ++launchRequest.current;
     setLaunching(true);
     setLaunchError(null);
     api
@@ -100,159 +112,135 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
         resume_session_id: null,
         target: target || null,
       })
-      .then((r) => setResult(r))
-      .catch((e) => setLaunchError(e instanceof Error ? e.message : "Launch failed"))
-      .finally(() => setLaunching(false));
-  };
+      .then((response) => {
+        if (request === launchRequest.current) {
+          setResult(response);
+        }
+        return undefined;
+      })
+      .catch((e) => {
+        if (request === launchRequest.current) {
+          setLaunchError(e instanceof Error ? e.message : "Launch failed");
+        }
+      })
+      .finally(() => {
+        if (request === launchRequest.current) {
+          setLaunching(false);
+        }
+      });
+  }, [api, delegator, target, ticket.id, wrapper, yolo]);
 
-  const onFocus = (agentId: string) => {
-    setFocusBusy(true);
-    setFocusError(null);
-    api
-      .focusSession(agentId)
-      .then(() => setFocused(true))
-      .catch((e) => setFocusError(e instanceof Error ? e.message : "Focus failed"))
-      .finally(() => setFocusBusy(false));
-  };
+  const onFocus = useCallback(
+    (agentId: string) => {
+      const request = ++focusRequest.current;
+      setFocusBusy(true);
+      setFocusError(null);
+      api
+        .focusSession(agentId)
+        .then(() => {
+          if (request === focusRequest.current) {
+            setFocused(true);
+          }
+          return undefined;
+        })
+        .catch((e) => {
+          if (request === focusRequest.current) {
+            setFocusError(e instanceof Error ? e.message : "Focus failed");
+          }
+        })
+        .finally(() => {
+          if (request === focusRequest.current) {
+            setFocusBusy(false);
+          }
+        });
+    },
+    [api],
+  );
 
-  const link = result ? wrapperSessionLink(result) : null;
+  const handleFormChange = useCallback((value: LaunchFormValue) => {
+    setDelegator(value.delegator);
+    setWrapper(value.wrapper);
+    setTarget(value.target);
+    setYolo(value.yolo);
+  }, []);
 
-  return (
-    <div className={styles.panel}>
-      {/* Detail */}
-      <div className={styles.detail}>
-        <div className={styles.detailRow}>
-          <span className={styles.ticketType}>{ticket.ticket_type}</span>
-          <span className={styles.ticketId}>{ticket.id}</span>
-        </div>
-        <p className={styles.summary}>{ticket.summary}</p>
-        <p className={styles.meta}>
-          {ticket.project} &middot; {ticket.step_display_name ?? ticket.step}
-        </p>
-      </div>
-
-      {/* Launch form */}
-      {!result && (
-        <div className={styles.form}>
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>Delegator</span>
-            <select
-              className={styles.select}
-              value={delegator}
-              onChange={(e) => setDelegator(e.target.value)}
-            >
-              <option value="">Default (auto)</option>
-              {delegators.map((d) => (
-                <option key={d.name} value={d.name}>
-                  {d.display_name ?? d.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>Wrapper</span>
-            <select
-              className={styles.select}
-              value={wrapper}
-              onChange={(e) => setWrapper(e.target.value)}
-            >
-              <option value="">Default ({defaultWrapperLabel})</option>
-              <option value="tmux">tmux</option>
-              <option value="vscode">vscode</option>
-              <option value="cmux">cmux</option>
-              <option value="zellij">zellij</option>
-            </select>
-          </label>
-
-          {targets.length > 0 && (
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Target</span>
-              <select
-                className={styles.select}
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-              >
-                <option value="">Delegator&apos;s target (auto)</option>
-                {targets.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <label className={styles.checkboxField}>
-            <input type="checkbox" checked={yolo} onChange={(e) => setYolo(e.target.checked)} />
-            <span>YOLO mode (auto-accept prompts)</span>
-          </label>
-
-          {launchError && <div className={styles.error}>{launchError}</div>}
-
-          <button
-            type="button"
-            className={styles.launchBtn}
-            onClick={onLaunch}
-            disabled={launching}
-          >
-            {launching ? "Launching…" : "Launch ▸"}
-          </button>
-        </div>
+  const link = useMemo(() => (result ? wrapperSessionLink(result) : null), [result]);
+  const openAgentDetail = useCallback(() => {
+    if (!result) {
+      return;
+    }
+    void navigate(`/agent/${encodeURIComponent(result.agent_id)}`);
+    close();
+  }, [close, navigate, result]);
+  const openSession = useCallback(() => {
+    if (link?.kind === "open-url") {
+      host.openExternal(link.url);
+    }
+  }, [host, link]);
+  const focusSession = useCallback(() => {
+    if (result) {
+      onFocus(result.agent_id);
+    }
+  }, [onFocus, result]);
+  const formValue: LaunchFormValue = { delegator, wrapper, target, yolo };
+  const launchActions = result ? (
+    <>
+      <button type="button" className={styles.linkBtn} onClick={openAgentDetail}>
+        Open agent detail
+      </button>
+      {link?.kind === "open-url" && (
+        <button type="button" className={styles.linkBtn} onClick={openSession}>
+          {link.label}
+        </button>
       )}
-
-      {/* Launch result + session links */}
-      {result && (
-        <div className={styles.result}>
-          <div className={styles.resultHeader}>Launched ✓ {result.ticket_id}</div>
+      {link?.kind === "focus-api" && (
+        <>
           <button
             type="button"
             className={styles.linkBtn}
-            onClick={() => {
-              void navigate(`/agent/${encodeURIComponent(result.agent_id)}`);
-              close();
-            }}
+            onClick={focusSession}
+            disabled={focusBusy}
           >
-            Open agent detail
+            {focusBusy ? "Focusing…" : focused ? `${link.label} ✓` : link.label}
           </button>
-          {link?.kind === "open-url" && (
-            <button
-              type="button"
-              className={styles.linkBtn}
-              onClick={() => host.openExternal(link.url)}
-            >
-              {link.label}
-            </button>
-          )}
-          {link?.kind === "focus-api" && (
-            <>
-              <button
-                type="button"
-                className={styles.linkBtn}
-                onClick={() => onFocus(result.agent_id)}
-                disabled={focusBusy}
-              >
-                {focusBusy ? "Focusing…" : focused ? `${link.label} ✓` : link.label}
-              </button>
-              {focusError && <div className={styles.error}>{focusError}</div>}
-            </>
-          )}
-          {link?.kind === "display" && (
-            <div className={styles.sessionRef}>
-              <span className={styles.fieldLabel}>{link.label}</span>
-              <code>{link.detail}</code>
-            </div>
-          )}
+          {focusError && <div className={styles.error}>{focusError}</div>}
+        </>
+      )}
+      {link?.kind === "display" && (
+        <div className={styles.sessionRef}>
+          <span className={styles.fieldLabel}>{link.label}</span>
+          <code>{link.detail}</code>
         </div>
       )}
+    </>
+  ) : undefined;
 
-      {/* Issue-type workflow graph (the launch steps) */}
-      <div className={styles.graphSection}>
-        <div className={styles.graphLabel}>Workflow steps</div>
-        {workflowError && <div className={styles.error}>{workflowError}</div>}
-        {!workflowError && !workflow && <div className={styles.loading}>Loading workflow…</div>}
-        {workflow && <WorkflowGraph issueType={workflow} />}
-      </div>
-    </div>
+  return (
+    <TicketDetailView
+      ticket={ticket}
+      launchControls={
+        result ? undefined : (
+          <LaunchForm
+            value={formValue}
+            delegators={delegators}
+            targets={targets}
+            defaultWrapperLabel={defaultWrapperLabel}
+            busy={launching}
+            error={launchError}
+            onChange={handleFormChange}
+            onSubmit={onLaunch}
+          />
+        )
+      }
+      launchedTicketId={result?.ticket_id}
+      launchActions={launchActions}
+      workflow={
+        workflowError
+          ? { status: "error", message: workflowError }
+          : workflow
+            ? { status: "ready", data: workflow }
+            : { status: "loading", message: "Loading workflow…" }
+      }
+    />
   );
 }

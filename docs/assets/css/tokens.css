@@ -13,6 +13,7 @@
 :root {
   /* Brand palette */
   --color-salmon: #e05d44; /* Terracotta : primary brand */
+  --color-salmon-text: #a33a29; /* Terracotta, darkened for text on --color-bg */
   --color-cornflower: #6688aa; /* Muted blue : secondary text / separators */
   --color-cream: #f2eac9; /* Warm accent / highlights */
   --color-coral: #e05d44; /* Link / accent (alias of salmon in light) */
@@ -32,6 +33,7 @@
 
 [data-theme="dark"] {
   --color-salmon: #e05d44;
+  --color-salmon-text: #ff8a76;
   --color-cornflower: #88aabb;
   --color-cream: #1a1d1e;
   --color-coral: #ff7a66;

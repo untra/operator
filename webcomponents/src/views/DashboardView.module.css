@@ -1,0 +1,11 @@
+.page { max-width: 1200px; }
+.subBar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
+.statusLink { margin-left: auto; font-size: 0.8rem; }
+.statusLink a { color: var(--accent-text); }
+.error { padding: 0.75rem 1rem; margin-bottom: 1rem; color: var(--danger); font-size: 0.875rem; background: var(--danger-bg); border-radius: var(--radius-lg); }
+.statusBanner { padding: 0.25rem 0.75rem; color: var(--success); font-size: 0.8rem; background: var(--success-bg); border-radius: var(--radius-lg); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.card { padding: 1rem; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.cardValue { color: var(--accent-text); font-size: 2rem; font-weight: 700; }
+.cardLabel { margin-top: 0.25rem; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.meta { margin-bottom: 1rem; color: var(--text-muted); font-size: 0.825rem; }

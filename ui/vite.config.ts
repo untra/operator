@@ -6,11 +6,17 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   resolve: {
-    alias: {
-      '@operator/bindings': path.resolve(__dirname, '../bindings'),
-      // Built by `make webcomponents` before any ui build.
-      '@operator/webcomponents': path.resolve(__dirname, '../webcomponents/dist/index.js'),
-    },
+    alias: [
+      { find: '@operator/bindings', replacement: path.resolve(__dirname, '../bindings') },
+      {
+        find: '@operator/webcomponents/styles.css',
+        replacement: path.resolve(__dirname, '../webcomponents/dist/index.css'),
+      },
+      {
+        find: /^@operator\/webcomponents$/,
+        replacement: path.resolve(__dirname, '../webcomponents/dist/index.js'),
+      },
+    ],
   },
   server: {
     host: '127.0.0.1',

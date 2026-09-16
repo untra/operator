@@ -46,6 +46,7 @@ cargo fmt --all -- --check                                   # Format check
 cargo clippy --locked --all-targets --all-features -- -D warnings  # Lint (warnings are errors)
 cargo test --locked                                          # Run all tests
 make relay                                                   # crates/relay (not a workspace member)
+make opr8r                                                   # opr8r (not a workspace member)
 make fmt-ts                                                  # oxfmt --check, every JS/TS subproject
 make lint-ts                                                 # oxlint, every JS/TS subproject
 make lint-shell                                              # shellcheck -S warning
@@ -127,7 +128,7 @@ make check
 ## Quick Reference
 
 ```bash
-make check                     # Full CI-parity gate (Rust + relay + JS/TS + shell)
+make check                     # Full CI-parity gate (Rust + relay + opr8r + JS/TS + shell)
 bun run fmt                    # Format every JS/TS subproject in place
 bun run lint                   # oxlint across every JS/TS subproject
 make install-hooks             # Install the lint-only pre-push hook (once per clone)

@@ -22,10 +22,7 @@ use operator::integrations::{all_integrations, SupportStatus, Vertical};
 const NAV_DEFERRED: &[(&str, &str)] = &[("workflows", "claude"), ("workflows", "agnt")];
 
 /// Leaf URLs under a vertical section that are supporting pages rather than catalog integrations.
-const NAV_EXTRA_PAGES: &[&str] = &[
-    "/getting-started/git/provider-support/",
-    "/getting-started/sessions/remote-hosts/", // execution-target concept page, not a session wrapper vertical
-];
+const NAV_EXTRA_PAGES: &[&str] = &["/getting-started/git/provider-support/"];
 
 /// Published pages intentionally not linked from the sidebar.
 const NAV_ORPHAN_ALLOWLIST: &[&str] = &[
@@ -48,7 +45,7 @@ const NAV_TITLE_EXCEPTIONS: &[(&str, &str)] = &[
     ("/getting-started/sessions/tmux/", "tmux"),
     ("/getting-started/sessions/cmux/", "cmux"),
     ("/getting-started/sessions/zellij/", "Zellij"),
-    ("/getting-started/sessions/vscode/", "VS Code Extension"),
+    ("/getting-started/ides/vscode/", "VS Code Extension"),
     ("/cli/", "CLI"),
     ("/shortcuts/", "Shortcuts"),
     ("/schemas/", "Overview"),
@@ -195,7 +192,9 @@ fn published_pages() -> Vec<String> {
                 let content = std::fs::read_to_string(&path).expect("page should be readable");
                 let unpublished = front_matter(&content)
                     .is_some_and(|fm| fm.lines().any(|l| l.trim() == "published: false"));
-                if !unpublished {
+                let redirect = front_matter(&content)
+                    .is_some_and(|fm| fm.lines().any(|l| l.trim().starts_with("redirect_to:")));
+                if !unpublished && !redirect {
                     let rel = path.strip_prefix(&docs).unwrap();
                     pages.push(rel.to_string_lossy().to_string());
                 }
@@ -270,6 +269,7 @@ fn test_nav_vertical_leaves_map_to_catalog() {
         .collect();
     let catalog_urls: BTreeSet<String> = all_integrations()
         .iter()
+        .filter(|e| e.is_public())
         .filter_map(|e| e.docs_path.map(|p| format!("/{p}/")))
         .collect();
     for (item_url, leaves) in &by_item {
@@ -299,7 +299,10 @@ fn test_catalog_icons_exist() {
                 e.slug
             );
         }
-        if e.status >= SupportStatus::Alpha && e.docs_path.is_some() {
+        if e.status >= SupportStatus::Alpha
+            && e.docs_path.is_some()
+            && !matches!(e.vertical, Vertical::Transport | Vertical::RemoteTargets)
+        {
             assert!(
                 e.icon.is_some(),
                 "documented Alpha+ entry '{}/{}' must declare a brand icon",
@@ -351,7 +354,7 @@ fn test_nav_icons_match_catalog() {
             .to_string();
         if let Some(stem) = name.strip_suffix(".svg") {
             assert!(
-                referenced.contains(stem),
+                referenced.contains(stem) || all_integrations().iter().any(|e| !e.is_public() && e.icon == Some(stem)),
                 "docs/assets/icons/{name} is referenced by no navigation.yml entry - remove it or wire it up"
             );
         }

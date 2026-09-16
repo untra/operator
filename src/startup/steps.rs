@@ -33,9 +33,15 @@ pub struct SetupStepInfo {
 )]
 #[ts(export)]
 pub enum SetupStep {
-    /// Splash screen with discovered projects and detected LLM tools
+    /// Welcome to Operator. What is this project called? What tools are you bringing? How can we help you?
     #[serde(rename = "welcome")]
     Welcome,
+    /// Operator Premium licence status for this configuration
+    #[serde(rename = "license")]
+    License,
+    /// Where agents run: this machine, or remote targets
+    #[serde(rename = "execution-mode")]
+    ExecutionMode,
     /// Kanban integration overview and provider credential detection
     #[serde(rename = "kanban-info")]
     KanbanInfo,
@@ -93,8 +99,10 @@ pub enum SetupStep {
 impl SetupStep {
     /// Every step, in the order the wizard walks them. Conditional steps
     /// (the per-wrapper ones) appear here even though a given run skips most.
-    pub const ALL: [SetupStep; 18] = [
+    pub const ALL: [SetupStep; 20] = [
         SetupStep::Welcome,
+        SetupStep::License,
+        SetupStep::ExecutionMode,
         SetupStep::KanbanInfo,
         SetupStep::ModelServer,
         SetupStep::GitProvider,
@@ -118,6 +126,8 @@ impl SetupStep {
     pub fn slug(self) -> &'static str {
         match self {
             SetupStep::Welcome => "welcome",
+            SetupStep::License => "license",
+            SetupStep::ExecutionMode => "execution-mode",
             SetupStep::KanbanInfo => "kanban-info",
             SetupStep::ModelServer => "model-server",
             SetupStep::GitProvider => "git-provider",
@@ -143,13 +153,38 @@ impl SetupStep {
         match self {
             SetupStep::Welcome => SetupStepInfo {
                 name: "Welcome",
-                description: "Splash screen showing detected LLM tools and discovered projects",
-                help_text: "The welcome screen displays:\n\
+                description: "Name the configuration and review detected tools and projects",
+                help_text: "Choose a configuration name containing only lowercase letters, \
+                    digits, hyphens, and underscores. The name identifies this configuration in \
+                    the web UI, TUI, CLI, and MCP clients; its UUID remains stable when renamed.\n\n\
+                    The welcome screen also displays:\n\
                     - Detected LLM tools (Claude, Gemini, Codex, etc.) with version and model count\n\
                     - Discovered projects organized by which LLM tool marker files they contain\n\
                     - The path where the tickets directory will be created\n\n\
                     This gives you an overview of your development environment before proceeding.",
                 navigation: "Enter to continue, Esc to cancel",
+            },
+            SetupStep::License => SetupStepInfo {
+                name: "Operator Premium",
+                description: "Install or review the Premium licence for this configuration",
+                help_text: "Multiple local agents and local containers are free. Premium adds \
+                    remote execution: SSH hosts and Coder workspaces.\n\n\
+                    A licence is verified offline - Operator never contacts a licensing service. \
+                    It is bound to this configuration's identifier, shown on this screen, and \
+                    survives renaming the configuration.\n\n\
+                    Paste a licence key to install one, or continue without: every local \
+                    workflow stays available.",
+                navigation: "Enter to install, Tab to skip, Esc to go back",
+            },
+            SetupStep::ExecutionMode => SetupStepInfo {
+                name: "Execution Mode",
+                description: "Run agents on this machine, or on remote targets",
+                help_text: "Both modes support multiple agents running at once.\n\n\
+                    - **This machine**: agents and local containers run beside Operator.\n\
+                    - **Remote targets**: agents run on SSH hosts or Coder workspaces and \
+                    report back to this Operator server. Requires Premium.\n\n\
+                    Choosing remote leads to target registration; choosing this machine skips it.",
+                navigation: "↑/↓ to select, Enter to continue, Esc to go back",
             },
             SetupStep::KanbanInfo => SetupStepInfo {
                 name: "Kanban Info",
@@ -391,6 +426,8 @@ mod tests {
             slugs,
             vec![
                 "welcome",
+                "license",
+                "execution-mode",
                 "kanban-info",
                 "model-server",
                 "git-provider",

@@ -51,3 +51,13 @@ pub fn public_base_url(state: &crate::rest::state::ApiState, host: &str) -> Stri
         .public_base_url()
         .unwrap_or_else(|| format!("http://{host}"))
 }
+
+pub fn profile_api_base(state: &crate::rest::state::ApiState, host: &str) -> String {
+    let base = public_base_url(state, host);
+    let profile_id = state.config().profile.id;
+    if profile_id.is_nil() {
+        format!("{base}/api/v1")
+    } else {
+        format!("{base}/api/v1/profiles/{profile_id}")
+    }
+}

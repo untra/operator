@@ -52,6 +52,8 @@ import type {
   LlmToolsResponse,
   ExecutionTargetsResponse,
   McpDescriptorResponse,
+  LicenseResponse,
+  TargetsResponse,
 } from "./generated";
 
 // Re-export generated types for consumers
@@ -167,6 +169,26 @@ export interface ApiSessionInfo {
   version: string;
   /** State directory holding `local-token`; absent from files written by older daemons. */
   state_dir?: string;
+  /** Configuration the daemon serves; absent from files written by older daemons. */
+  profile_id?: string;
+}
+
+/**
+ * Configuration id per daemon URL, learned from `api-session.json`.
+ *
+ * Keyed by URL rather than threaded through the ~40 `OperatorApiClient`
+ * construction sites, because that is what it is: a property of the server
+ * listening there, discovered from the same file the port came from. The
+ * credential provider is already keyed the same way.
+ */
+const PROFILE_BY_URL = new Map<string, string>();
+
+/** Routes a request at the configuration the daemon serves. */
+export function profileApiPath(apiPath: string, profileId: string | undefined): string {
+  if (!profileId || /^\/api\/v1\/(auth|health|integrations|profiles)(\/|$)/.test(apiPath)) {
+    return apiPath;
+  }
+  return apiPath.replace("/api/v1/", `/api/v1/profiles/${encodeURIComponent(profileId)}/`);
 }
 
 export const DEFAULT_API_URL = "http://localhost:7008";
@@ -204,7 +226,11 @@ export async function discoverApiUrl(ticketsDir: string | undefined): Promise<st
     try {
       const content = await fs.readFile(sessionFile, "utf-8");
       const session = JSON.parse(content) as ApiSessionInfo;
-      return `http://localhost:${session.port}`;
+      const url = `http://localhost:${session.port}`;
+      if (session.profile_id) {
+        PROFILE_BY_URL.set(url, session.profile_id);
+      }
+      return url;
     } catch {
       // Session file doesn't exist or is invalid, fall through
     }
@@ -254,7 +280,7 @@ export class OperatorApiClient {
    */
   private async send(apiPath: string, init: RequestInit = {}): Promise<Response> {
     const provider = credentialProvider();
-    const url = `${this.baseUrl}${apiPath}`;
+    const url = `${this.baseUrl}${profileApiPath(apiPath, PROFILE_BY_URL.get(this.baseUrl))}`;
 
     const token = await provider.bearer(this.baseUrl);
     let response = await fetch(url, withBearer(init, token));
@@ -645,5 +671,17 @@ export class OperatorApiClient {
 
   async mcpDescriptor(): Promise<McpDescriptorResponse> {
     return this.request("/api/v1/mcp/descriptor");
+  }
+
+  // --- Premium ---
+
+  /** Verified licence terms for the configuration. Never carries the raw key. */
+  async license(): Promise<LicenseResponse> {
+    return this.request("/api/v1/license");
+  }
+
+  /** Remote targets with their entitlement state. */
+  async listTargets(): Promise<TargetsResponse> {
+    return this.request("/api/v1/targets");
   }
 }

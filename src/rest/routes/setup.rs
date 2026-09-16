@@ -280,6 +280,7 @@ fn selected_execution_target(
     request_body = SetupInitializeRequest,
     responses(
         (status = 200, body = SetupInitializeResponse),
+        (status = 402, description = "Premium required for remote execution"),
         (status = 409, description = "Workspace already initialized")
     )
 )]
@@ -297,6 +298,7 @@ pub async fn initialize(
     let (hosted_collections, custom_collection, active_collection) =
         selected_collections(&request, resolved)?;
     let execution_target = selected_execution_target(request.execution_target, request.wrapper)?;
+    crate::licensing::require_target(&state.config(), &execution_target)?;
     let options = SetupOptions {
         preset: request.preset,
         task_fields,
@@ -321,6 +323,7 @@ pub async fn initialize(
             initialize_workspace(config, &options).map_err(ApiError::from)
         })
         .await?;
+    crate::startup::mark_workspace_initialized(&state.config()).map_err(ApiError::from)?;
 
     let registry = crate::startup::templates::load_registry(&tickets_path);
     *state.registry.write().await = registry;

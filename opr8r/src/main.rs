@@ -144,13 +144,14 @@ async fn main() -> ExitCode {
     }
 
     // Discover and connect to API
-    let api_client = match ApiClient::discover(args.api_url.as_deref()).await {
-        Ok(client) => client,
-        Err(e) => {
-            print_api_unreachable_error(&e.to_string());
-            return ExitCode::from(EXIT_API_UNREACHABLE);
-        }
-    };
+    let api_client =
+        match ApiClient::discover(args.api_url.as_deref(), args.profile_id.as_deref()).await {
+            Ok(client) => client,
+            Err(e) => {
+                print_api_unreachable_error(&e.to_string());
+                return ExitCode::from(EXIT_API_UNREACHABLE);
+            }
+        };
 
     // Report completion to API with operator output
     let request = build_step_complete_request(

@@ -13,6 +13,8 @@ pub mod collections;
 pub mod config;
 pub mod editors;
 pub mod git;
+pub mod licensing;
+pub mod profiles;
 pub mod queue;
 pub mod rest;
 pub mod setup;

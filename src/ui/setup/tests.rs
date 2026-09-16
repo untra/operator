@@ -4,6 +4,7 @@ use super::types::*;
 use super::SetupScreen;
 use crate::api::providers::model_server::ModelServerKind;
 use crate::config::SessionWrapperType;
+use ratatui::crossterm::event::KeyCode;
 use std::collections::HashMap;
 
 #[test]
@@ -39,6 +40,22 @@ fn test_setup_screen_with_no_detected_tools() {
     let screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     assert!(screen.visible);
     assert_eq!(screen.step, SetupStep::Welcome);
+}
+
+#[test]
+fn welcome_requires_a_valid_configuration_name() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.configuration_name.clear();
+
+    assert!(matches!(screen.confirm(), SetupResult::Continue));
+    assert_eq!(screen.step, SetupStep::Welcome);
+    assert!(screen.configuration_name_error.is_some());
+
+    for character in "team_1".chars() {
+        screen.handle_configuration_name_key(KeyCode::Char(character));
+    }
+    assert!(matches!(screen.confirm(), SetupResult::Continue));
+    assert_eq!(screen.step, SetupStep::License);
 }
 
 #[test]
@@ -180,8 +197,9 @@ fn test_setup_navigation_to_worktree_preference() {
     screen.step = SetupStep::SessionWrapperChoice;
     screen.selected_wrapper = SessionWrapperType::Tmux;
     screen.wrapper_state.select(Some(0)); // Select tmux
+    screen.remote_execution = true;
 
-    // SessionWrapperChoice -> ExecutionTarget
+    // SessionWrapperChoice -> ExecutionTarget, for a remote setup
     screen.confirm();
     assert_eq!(screen.step, SetupStep::ExecutionTarget);
 }
@@ -217,6 +235,7 @@ fn test_setup_navigation_vscode_path() {
 fn test_setup_worktree_preference_go_back() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::WorktreePreference;
+    screen.remote_execution = true;
 
     screen.go_back();
     assert_eq!(screen.step, SetupStep::ExecutionTarget);
@@ -332,20 +351,21 @@ fn test_tmux_onboarding_proceeds_if_available() {
 }
 
 #[test]
-fn test_kanban_info_go_back_returns_to_welcome() {
+fn test_kanban_info_go_back_returns_to_execution_mode() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
-    // Kanban setup is now the first step after Welcome.
+    // Kanban setup follows the licence and execution-mode screens.
     screen.step = SetupStep::KanbanInfo;
     screen.go_back();
-    assert_eq!(screen.step, SetupStep::Welcome);
+    assert_eq!(screen.step, SetupStep::ExecutionMode);
 }
 
 #[test]
-fn test_welcome_advances_to_kanban_info() {
+fn test_welcome_advances_to_license_and_detects_kanban_providers() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.configuration_name = "workspace".to_string();
     assert_eq!(screen.step, SetupStep::Welcome);
     screen.confirm();
-    assert_eq!(screen.step, SetupStep::KanbanInfo);
+    assert_eq!(screen.step, SetupStep::License);
     assert!(screen.kanban_detection_complete);
 }
 
@@ -734,9 +754,9 @@ fn at_kanban_info() -> SetupScreen {
 }
 
 #[test]
-fn test_kanban_info_follows_welcome() {
+fn test_kanban_info_follows_execution_mode() {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
-    screen.step = SetupStep::Welcome;
+    screen.step = SetupStep::ExecutionMode;
 
     screen.confirm();
     assert_eq!(screen.step, SetupStep::KanbanInfo);
@@ -798,6 +818,17 @@ fn test_collection_source_goes_back_to_git_provider() {
     assert_eq!(screen.step, SetupStep::GitProvider);
 }
 
+/// A licence that verifies as currently valid, for walks that need entitlement.
+fn premium_license() -> crate::licensing::LicenseResponse {
+    crate::licensing::LicenseResponse {
+        status: crate::licensing::LicenseStatus::Valid,
+        profile_id: uuid::Uuid::new_v4(),
+        premium: true,
+        terms: None,
+        purchase_url: None,
+    }
+}
+
 /// Defect A regression: `KanbanProviderSetup` sat in the step enum, rendered a
 /// screen and was never reachable, because the collection it keyed off was
 /// never populated. Walking every wrapper branch proves each catalogued step
@@ -810,16 +841,29 @@ fn test_wizard_walk_visits_every_catalog_step() {
     ];
 
     let mut visited = std::collections::HashSet::new();
-    for wrapper in [
-        SessionWrapperType::Tmux,
-        SessionWrapperType::Vscode,
-        SessionWrapperType::Cmux,
-        SessionWrapperType::Zellij,
+    // The remote branch is walked too: execution-target is only reachable from
+    // it, and exempting it here would hide exactly the defect this test exists
+    // for. Coder cannot combine with Zellij, so remote is walked on tmux.
+    for (wrapper, remote) in [
+        (SessionWrapperType::Tmux, false),
+        (SessionWrapperType::Vscode, false),
+        (SessionWrapperType::Cmux, false),
+        (SessionWrapperType::Zellij, false),
+        (SessionWrapperType::Tmux, true),
     ] {
         let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+        screen.configuration_name = "workspace".to_string();
         screen.tmux_status = TmuxDetectionStatus::Available {
             version: "3.4".to_string(),
         };
+        if remote {
+            screen.license = Some(premium_license());
+            screen
+                .execution_mode_state
+                .select(Some(super::REMOTE_EXECUTION_OPTION_INDEX));
+            screen.coder_target_name = "coder-agents".to_string();
+            screen.coder_template = "rust".to_string();
+        }
 
         visited.insert(screen.step);
         for _ in 0..SetupStep::ALL.len() * 2 {
@@ -835,6 +879,13 @@ fn test_wizard_walk_visits_every_catalog_step() {
                 for _ in 0..SetupScreen::git_providers().len() {
                     screen.select_next();
                 }
+            }
+            // The remote branch must pick the Coder target, not fall back to
+            // local, or execution-target would be visited without exercising it.
+            if remote && screen.step == SetupStep::ExecutionTarget {
+                screen
+                    .execution_target_state
+                    .select(Some(super::CODER_TARGET_OPTION_INDEX));
             }
             // `confirm` commits the highlighted wrapper, so steer the list.
             if screen.step == SetupStep::SessionWrapperChoice {
@@ -1108,4 +1159,87 @@ fn test_git_provider_status_is_recorded_per_provider() {
         Some("connected as octocat")
     );
     assert!(!screen.git_provider_status.contains_key("github"));
+}
+
+/// A local-only setup must never stop on the execution-target step: the step
+/// exists to configure a remote target, and asking about one twice was the
+/// defect that made it unreachable in the web wizard.
+#[test]
+fn test_execution_target_is_skipped_in_both_directions_for_local_execution() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.remote_execution = false;
+
+    screen.step = SetupStep::SessionWrapperChoice;
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::WorktreePreference);
+
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
+}
+
+#[test]
+fn test_execution_target_is_visited_in_both_directions_for_remote_execution() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.remote_execution = true;
+
+    screen.step = SetupStep::SessionWrapperChoice;
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::ExecutionTarget);
+
+    screen.step = SetupStep::WorktreePreference;
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::ExecutionTarget);
+}
+
+/// The first three screens are welcome, licence, execution mode - in that
+/// order, on this renderer as well as the web one.
+#[test]
+fn test_wizard_opens_with_welcome_then_license_then_execution_mode() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.configuration_name = "workspace".to_string();
+    assert_eq!(screen.step, SetupStep::Welcome);
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::License);
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::ExecutionMode);
+    screen.confirm();
+    assert_eq!(screen.step, SetupStep::KanbanInfo);
+
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::ExecutionMode);
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::License);
+    screen.go_back();
+    assert_eq!(screen.step, SetupStep::Welcome);
+}
+
+/// Choosing remote execution without a licence must not advance: the paywall
+/// is the whole point of the step.
+#[test]
+fn test_remote_execution_without_entitlement_does_not_advance() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::ExecutionMode;
+    screen
+        .execution_mode_state
+        .select(Some(super::REMOTE_EXECUTION_OPTION_INDEX));
+
+    screen.confirm();
+
+    assert_eq!(screen.step, SetupStep::ExecutionMode);
+    assert!(screen.license_error.is_some());
+    assert!(!screen.remote_execution || !screen.premium_entitled());
+}
+
+#[test]
+fn test_a_rejected_license_key_returns_to_the_license_step() {
+    let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
+    screen.step = SetupStep::ExecutionMode;
+
+    screen.set_license_outcome(Err("unknown license signing key".to_string()));
+
+    assert_eq!(screen.step, SetupStep::License);
+    assert_eq!(
+        screen.license_error.as_deref(),
+        Some("unknown license signing key")
+    );
 }

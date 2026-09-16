@@ -12,33 +12,37 @@ When Operator starts and no `.tickets/` directory exists, the setup wizard guide
 
 | Step | Name | Description |
 | --- | --- | --- |
-| 1 | Welcome | Splash screen showing detected LLM tools and discovered projects |
-| 2 | Kanban Info | Connect a kanban provider, or skip and connect one later |
-| 3 | Model Server | Declare which model providers this workspace uses |
-| 4 | Git Provider | Connect a git provider so agents can branch, push and open PRs |
-| 5 | Collection Source | Choose which issue type collection to use |
-| 6 | Hosted Collections | Browse and select hosted collections (only shown if Browse chosen) |
-| 7 | Task Field Config | Configure optional fields for TASK issue type |
-| 8 | Session Wrapper Choice | Select which session wrapper to use for launching coding agents |
-| 9 | Execution Target | Choose whether agents run locally or in Coder workspaces |
-| 10 | Worktree Preference | Choose whether to use git worktrees for ticket isolation |
-| 11 | Web UI Password | Optionally set the admin password for the web dashboard |
-| 12 | Tmux Onboarding | Help and documentation about tmux session management (shown if tmux selected) |
-| 13 | VS Code Setup | VS Code extension setup and verification (shown if VS Code selected) |
-| 14 | Cmux Setup | cmux session wrapper setup (shown if cmux selected) |
-| 15 | Zellij Setup | Zellij session wrapper setup (shown if Zellij selected) |
-| 16 | Acceptance Criteria | Review and configure acceptance criteria for ticket completion |
-| 17 | Startup Tickets | Optionally create tickets to bootstrap your projects |
-| 18 | Confirm | Review settings and confirm initialization |
+| 1 | Welcome | Name the configuration and review detected tools and projects |
+| 2 | Operator Premium | Install or review the Premium licence for this configuration |
+| 3 | Execution Mode | Run agents on this machine, or on remote targets |
+| 4 | Kanban Info | Connect a kanban provider, or skip and connect one later |
+| 5 | Model Server | Declare which model providers this workspace uses |
+| 6 | Git Provider | Connect a git provider so agents can branch, push and open PRs |
+| 7 | Collection Source | Choose which issue type collection to use |
+| 8 | Hosted Collections | Browse and select hosted collections (only shown if Browse chosen) |
+| 9 | Task Field Config | Configure optional fields for TASK issue type |
+| 10 | Session Wrapper Choice | Select which session wrapper to use for launching coding agents |
+| 11 | Execution Target | Choose whether agents run locally or in Coder workspaces |
+| 12 | Worktree Preference | Choose whether to use git worktrees for ticket isolation |
+| 13 | Web UI Password | Optionally set the admin password for the web dashboard |
+| 14 | Tmux Onboarding | Help and documentation about tmux session management (shown if tmux selected) |
+| 15 | VS Code Setup | VS Code extension setup and verification (shown if VS Code selected) |
+| 16 | Cmux Setup | cmux session wrapper setup (shown if cmux selected) |
+| 17 | Zellij Setup | Zellij session wrapper setup (shown if Zellij selected) |
+| 18 | Acceptance Criteria | Review and configure acceptance criteria for ticket completion |
+| 19 | Startup Tickets | Optionally create tickets to bootstrap your projects |
+| 20 | Confirm | Review settings and confirm initialization |
 
 ## Step Details
 
 
 ### 1. Welcome
 
-*Splash screen showing detected LLM tools and discovered projects*
+*Name the configuration and review detected tools and projects*
 
-The welcome screen displays:
+Choose a configuration name containing only lowercase letters, digits, hyphens, and underscores. The name identifies this configuration in the web UI, TUI, CLI, and MCP clients; its UUID remains stable when renamed.
+
+The welcome screen also displays:
 - Detected LLM tools (Claude, Gemini, Codex, etc.) with version and model count
 - Discovered projects organized by which LLM tool marker files they contain
 - The path where the tickets directory will be created
@@ -47,7 +51,32 @@ This gives you an overview of your development environment before proceeding.
 
 **Navigation**: Enter to continue, Esc to cancel
 
-### 2. Kanban Info
+### 2. Operator Premium
+
+*Install or review the Premium licence for this configuration*
+
+Multiple local agents and local containers are free. Premium adds remote execution: SSH hosts and Coder workspaces.
+
+A licence is verified offline - Operator never contacts a licensing service. It is bound to this configuration's identifier, shown on this screen, and survives renaming the configuration.
+
+Paste a licence key to install one, or continue without: every local workflow stays available.
+
+**Navigation**: Enter to install, Tab to skip, Esc to go back
+
+### 3. Execution Mode
+
+*Run agents on this machine, or on remote targets*
+
+Both modes support multiple agents running at once.
+
+- **This machine**: agents and local containers run beside Operator.
+- **Remote targets**: agents run on SSH hosts or Coder workspaces and report back to this Operator server. Requires Premium.
+
+Choosing remote leads to target registration; choosing this machine skips it.
+
+**Navigation**: ↑/↓ to select, Enter to continue, Esc to go back
+
+### 4. Kanban Info
 
 *Connect a kanban provider, or skip and connect one later*
 
@@ -62,7 +91,7 @@ Credentials already exported (e.g. OPERATOR_JIRA_API_KEY) are listed as detected
 
 **Navigation**: ↑/↓ to select, Enter to confirm, Esc to go back
 
-### 3. Model Server
+### 5. Model Server
 
 *Declare which model providers this workspace uses*
 
@@ -78,7 +107,7 @@ This step is optional - Operator ships working defaults for the first-party vend
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to declare, Enter to continue, Esc to go back
 
-### 4. Git Provider
+### 6. Git Provider
 
 *Connect a git provider so agents can branch, push and open PRs*
 
@@ -92,7 +121,7 @@ This step is optional; Operator works against a local repository with no provide
 
 **Navigation**: ↑/↓ or j/k to navigate, Enter to connect, Esc to go back
 
-### 5. Collection Source
+### 7. Collection Source
 
 *Choose which issue type collection to use*
 
@@ -104,7 +133,7 @@ Select a preset collection of issue types:
 
 **Navigation**: ↑/↓ or j/k to navigate, Enter to select, Esc to go back
 
-### 6. Hosted Collections
+### 8. Hosted Collections
 
 *Browse and select hosted collections (only shown if Browse chosen)*
 
@@ -116,7 +145,7 @@ Selections are additive - choose as many as apply.
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
 
-### 7. Task Field Config
+### 9. Task Field Config
 
 *Configure optional fields for TASK issue type*
 
@@ -129,7 +158,7 @@ These choices propagate to other issue types. The 'summary' field is always requ
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
 
-### 8. Session Wrapper Choice
+### 10. Session Wrapper Choice
 
 *Select which session wrapper to use for launching coding agents*
 
@@ -143,7 +172,7 @@ Your choice determines which setup steps follow.
 
 **Navigation**: ↑/↓ or j/k to navigate, Enter to select, Esc to go back
 
-### 9. Execution Target
+### 11. Execution Target
 
 *Choose whether agents run locally or in Coder workspaces*
 
@@ -155,7 +184,7 @@ Coder targets disable git worktrees and relay injection, and cannot be combined 
 
 **Navigation**: ↑/↓ to select, Tab to switch fields, Enter to continue, Esc to go back
 
-### 10. Worktree Preference
+### 12. Worktree Preference
 
 *Choose whether to use git worktrees for ticket isolation*
 
@@ -167,7 +196,7 @@ Worktrees allow multiple agents to work on different tickets simultaneously with
 
 **Navigation**: ↑/↓ or j/k to navigate, Enter to select, Esc to go back
 
-### 11. Web UI Password
+### 13. Web UI Password
 
 *Optionally set the admin password for the web dashboard*
 
@@ -181,7 +210,7 @@ The password must be at least 12 characters. This step is hidden             whe
 
 **Navigation**: Tab to switch fields, Enter to continue (blank to skip), Esc to go back
 
-### 12. Tmux Onboarding
+### 14. Tmux Onboarding
 
 *Help and documentation about tmux session management (shown if tmux selected)*
 
@@ -195,7 +224,7 @@ Operator session names start with 'op-' for easy identification.
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 13. VS Code Setup
+### 15. VS Code Setup
 
 *VS Code extension setup and verification (shown if VS Code selected)*
 
@@ -206,7 +235,7 @@ Install the extension from the VS Code marketplace if prompted.
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 14. Cmux Setup
+### 16. Cmux Setup
 
 *cmux session wrapper setup (shown if cmux selected)*
 
@@ -216,7 +245,7 @@ This step verifies the cmux app's CLI binary exists at the configured binary_pat
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 15. Zellij Setup
+### 17. Zellij Setup
 
 *Zellij session wrapper setup (shown if Zellij selected)*
 
@@ -226,7 +255,7 @@ This step verifies Zellij is installed and configures the layout Operator will u
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 16. Acceptance Criteria
+### 18. Acceptance Criteria
 
 *Review and configure acceptance criteria for ticket completion*
 
@@ -237,7 +266,7 @@ The default criteria cover formatting, tests, and lint checks. You can customize
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 17. Startup Tickets
+### 19. Startup Tickets
 
 *Optionally create tickets to bootstrap your projects*
 
@@ -250,7 +279,7 @@ These tickets are optional and help automate common setup tasks.
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
 
-### 18. Confirm
+### 20. Confirm
 
 *Review settings and confirm initialization*
 

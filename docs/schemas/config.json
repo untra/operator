@@ -7,6 +7,13 @@
   "title": "Config",
   "type": "object",
   "properties": {
+    "profile": {
+      "$ref": "#/$defs/ProfileIdentity",
+      "default": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "name": "legacy"
+      }
+    },
     "projects": {
       "description": "List of projects operator can assign work to",
       "type": "array",
@@ -98,7 +105,9 @@
         "host": "127.0.0.1",
         "port": 7008,
         "cors_origins": [],
-        "public_url": null
+        "public_url": null,
+        "shutdown_drain_seconds": 60,
+        "shutdown_cleanup_seconds": 15
       }
     },
     "git": {
@@ -218,6 +227,22 @@
     "templates"
   ],
   "$defs": {
+    "ProfileIdentity": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
     "AgentsConfig": {
       "type": "object",
       "properties": {
@@ -529,7 +554,7 @@
           "minimum": 0
         },
         "target": {
-          "description": "Default named execution target. Per-launch and per-delegator choices\ntake precedence.",
+          "description": "Default named execution target. Per-launch and per-delegator choices take precedence.",
           "type": [
             "string",
             "null"
@@ -1153,6 +1178,20 @@
             "null"
           ],
           "default": null
+        },
+        "shutdown_drain_seconds": {
+          "description": "Maximum time to wait for active agents before shutdown cleanup begins.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "default": 60
+        },
+        "shutdown_cleanup_seconds": {
+          "description": "Maximum time reserved for final callbacks and persistent cleanup.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "default": 15
         }
       }
     },

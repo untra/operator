@@ -13,6 +13,7 @@ const API_SESSION_FILE: &str = ".tickets/operator/api-session.json";
 /// The operator REST API is authenticated, and the step-completion endpoint
 /// launches processes. This token is scoped to exactly one ticket and step.
 const API_TOKEN_ENV: &str = "OPERATOR_API_TOKEN";
+const PROFILE_ID_ENV: &str = "OPERATOR_PROFILE_ID";
 
 /// Retry configuration
 const MAX_RETRIES: u32 = 3;
@@ -22,6 +23,8 @@ const INITIAL_BACKOFF_MS: u64 = 1000;
 #[derive(Debug, Deserialize)]
 pub struct ApiSession {
     pub port: u16,
+    #[serde(default)]
+    pub profile_id: Option<String>,
     #[allow(dead_code)]
     pub pid: u32,
     #[allow(dead_code)]
@@ -175,6 +178,7 @@ pub struct ApiClient {
     /// Callback credential injected by operator at launch. Absent only when
     /// running against a server that pre-dates authentication.
     token: Option<String>,
+    profile_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -217,13 +221,9 @@ fn resolve_base_url(
 }
 
 impl ApiClient {
-    /// Create a new API client with the given base URL
-    pub fn new(base_url: &str) -> Self {
-        Self::with_token(base_url, std::env::var(API_TOKEN_ENV).ok())
-    }
-
-    /// Create a client with an explicit callback credential.
-    pub fn with_token(base_url: &str, token: Option<String>) -> Self {
+    /// Create a client with an explicit callback credential and, when the
+    /// configuration is known, the id its callbacks must be routed to.
+    pub fn with_profile(base_url: &str, token: Option<String>, profile_id: Option<String>) -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .build()
@@ -233,22 +233,35 @@ impl ApiClient {
             client,
             base_url: base_url.trim_end_matches('/').to_string(),
             token: token.filter(|t| !t.trim().is_empty()),
+            profile_id: profile_id.filter(|id| !id.trim().is_empty()),
         }
     }
 
     /// Discover the API endpoint: explicit `--api-url`, then the
     /// `OPERATOR_API_URL` env var (set by remote launches so callbacks route
     /// through the SSH reverse tunnel), then api-session.json, then default.
-    pub async fn discover(api_url: Option<&str>) -> Result<Self, ApiError> {
+    pub async fn discover(
+        api_url: Option<&str>,
+        profile_id: Option<&str>,
+    ) -> Result<Self, ApiError> {
         let env_url = std::env::var("OPERATOR_API_URL").ok();
+        let env_profile = std::env::var(PROFILE_ID_ENV).ok();
 
         // Try to read api-session.json (sync is fine for a tiny JSON file)
-        let session_port = std::fs::read_to_string(API_SESSION_FILE)
+        let session = std::fs::read_to_string(API_SESSION_FILE)
             .ok()
-            .and_then(|content| serde_json::from_str::<ApiSession>(&content).ok())
-            .map(|session| session.port);
+            .and_then(|content| serde_json::from_str::<ApiSession>(&content).ok());
+        let session_port = session.as_ref().map(|session| session.port);
+        let profile_id = profile_id
+            .map(str::to_owned)
+            .or(env_profile)
+            .or_else(|| session.and_then(|session| session.profile_id));
 
-        Ok(Self::new(&resolve_base_url(api_url, env_url, session_port)))
+        Ok(Self::with_profile(
+            &resolve_base_url(api_url, env_url, session_port),
+            std::env::var(API_TOKEN_ENV).ok(),
+            profile_id,
+        ))
     }
 
     /// Report step completion to the API with retry logic
@@ -258,10 +271,13 @@ impl ApiClient {
         step: &str,
         request: StepCompleteRequest,
     ) -> Result<StepCompleteResponse, ApiError> {
-        let url = format!(
-            "{}/api/v1/tickets/{}/steps/{}/complete",
-            self.base_url, ticket_id, step
-        );
+        let route = match &self.profile_id {
+            Some(profile_id) => {
+                format!("/api/v1/profiles/{profile_id}/tickets/{ticket_id}/steps/{step}/complete")
+            }
+            None => format!("/api/v1/tickets/{ticket_id}/steps/{step}/complete"),
+        };
+        let url = format!("{}{route}", self.base_url);
 
         self.post_with_retry(&url, &request).await
     }
@@ -298,7 +314,11 @@ impl ApiClient {
                             .text()
                             .await
                             .unwrap_or_else(|_| "Unknown error".to_string());
-                        last_error = Some(ApiError::ResponseError(status.as_u16(), error_text));
+                        let error = ApiError::ResponseError(status.as_u16(), error_text);
+                        if matches!(status.as_u16(), 400 | 401 | 402 | 403 | 404 | 409) {
+                            return Err(error);
+                        }
+                        last_error = Some(error);
                     }
                 }
                 Err(e) => {
@@ -386,10 +406,10 @@ mod tests {
 
     #[test]
     fn test_api_client_new() {
-        let client = ApiClient::with_token("http://localhost:7008/", None);
+        let client = ApiClient::with_profile("http://localhost:7008/", None, None);
         assert_eq!(client.base_url, "http://localhost:7008");
 
-        let client = ApiClient::with_token("http://localhost:7008", None);
+        let client = ApiClient::with_profile("http://localhost:7008", None, None);
         assert_eq!(client.base_url, "http://localhost:7008");
     }
 
@@ -398,7 +418,8 @@ mod tests {
         // An unset env var arrives as an empty string through some shells;
         // sending `Authorization: Bearer ` would be worse than sending nothing.
         for blank in ["", "   ", "\n"] {
-            let client = ApiClient::with_token("http://localhost:7008", Some(blank.to_string()));
+            let client =
+                ApiClient::with_profile("http://localhost:7008", Some(blank.to_string()), None);
             assert!(
                 client.token.is_none(),
                 "blank token {blank:?} should be dropped"
@@ -408,7 +429,8 @@ mod tests {
 
     #[test]
     fn test_token_is_retained_when_supplied() {
-        let client = ApiClient::with_token("http://localhost:7008", Some("cb-token".to_string()));
+        let client =
+            ApiClient::with_profile("http://localhost:7008", Some("cb-token".to_string()), None);
         assert_eq!(client.token.as_deref(), Some("cb-token"));
     }
 

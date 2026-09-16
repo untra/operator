@@ -204,6 +204,8 @@ mod tests {
             acp_stdio_advertised: true,
             acp_active_sessions: 0,
             embed_ui_available: true,
+            license: crate::licensing::LicenseResponse::free(uuid::Uuid::nil()),
+            remote_targets: Vec::new(),
         }
     }
 

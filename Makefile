@@ -5,11 +5,11 @@
 # runs the fast lint gate (fmt + clippy, no tests) before every push.
 
 .PHONY: check fmt clippy test build run install-hooks bindings webcomponents storybook ui docs \
-	fmt-ts lint-ts lint-shell relay
+	fmt-ts lint-ts lint-shell relay opr8r
 
 # Full CI-parity gate. Keep these commands byte-identical to
 # .github/workflows/build.yaml so local and CI never disagree.
-check: fmt clippy test relay fmt-ts lint-ts lint-shell
+check: fmt clippy test relay opr8r fmt-ts lint-ts lint-shell
 
 fmt:
 	cargo fmt --all -- --check
@@ -26,6 +26,12 @@ relay:
 	cd crates/relay && cargo fmt -- --check
 	cd crates/relay && cargo clippy --locked --all-targets --all-features -- -D warnings
 	cd crates/relay && cargo test --locked --all-features
+
+# opr8r has its own Cargo.lock and is not a workspace member
+opr8r:
+	cd opr8r && cargo fmt -- --check
+	cd opr8r && cargo clippy --locked --all-targets --all-features -- -D warnings
+	cd opr8r && cargo test --locked --all-features
 
 # oxfmt/oxlint are installed once at the repo root and cover every hand-written
 # JS/TS subproject. `bun run fmt` (no :check) rewrites instead of reporting.

@@ -1,5 +1,7 @@
 import "./styles/semantic.css";
 
+export { PremiumPaywall, type PremiumPaywallProps } from "./components/PremiumPaywall";
+
 export {
   AppShell,
   BrandName,

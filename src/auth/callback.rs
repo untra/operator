@@ -27,12 +27,12 @@ const CALLBACK_TTL: Duration = Duration::hours(24);
 /// Opens the auth database rather than holding a handle: launches are infrequent, `Launcher` is constructed from a bare `Config` in the CLI,
 /// the TUI, and the REST API alike, and threading an auth handle through all three would be a large change for a per-launch cost that is already dominated by spawning a process.
 pub fn mint(config: &Config, ticket_id: &str, step: &str, session_id: &str) -> Result<String> {
-    let store = AuthStore::open(&config.state_path()).context("opening the auth store")?;
+    let store = AuthStore::open(&config.auth_state_path()).context("opening the auth store")?;
     let key = store
         .load_or_create_signing_key()
         .context("loading the token signing key")?;
 
-    let claims = callback_claims(
+    let mut claims = callback_claims(
         ADMIN_SUBJECT,
         ticket_id,
         step,
@@ -41,6 +41,7 @@ pub fn mint(config: &Config, ticket_id: &str, step: &str, session_id: &str) -> R
         Utc::now(),
         uuid::Uuid::new_v4().to_string(),
     );
+    claims.profile_id = Some(config.profile.id);
     key.sign(&claims).context("signing the callback token")
 }
 
@@ -63,7 +64,7 @@ mod tests {
 
         let token = mint(&config, "FEAT-42", "build", "sess-1").unwrap();
 
-        let store = AuthStore::open(&config.state_path()).unwrap();
+        let store = AuthStore::open(&config.auth_state_path()).unwrap();
         let key = store.load_or_create_signing_key().unwrap();
         let claims = key.verify(&token, AUDIENCE_CALLBACK).unwrap();
 
@@ -81,7 +82,7 @@ mod tests {
         let config = config_in(dir.path());
         let token = mint(&config, "FEAT-42", "build", "sess-1").unwrap();
 
-        let store = AuthStore::open(&config.state_path()).unwrap();
+        let store = AuthStore::open(&config.auth_state_path()).unwrap();
         let key = store.load_or_create_signing_key().unwrap();
         assert!(key.verify(&token, AUDIENCE_API).is_err());
     }
@@ -96,7 +97,7 @@ mod tests {
         let first = mint(&config, "FEAT-1", "build", "s1").unwrap();
         let second = mint(&config, "FEAT-2", "review", "s2").unwrap();
 
-        let store = AuthStore::open(&config.state_path()).unwrap();
+        let store = AuthStore::open(&config.auth_state_path()).unwrap();
         let key = store.load_or_create_signing_key().unwrap();
         assert!(key.verify(&first, AUDIENCE_CALLBACK).is_ok());
         assert!(key.verify(&second, AUDIENCE_CALLBACK).is_ok());
@@ -108,7 +109,7 @@ mod tests {
         let config = config_in(dir.path());
         let token = mint(&config, "FEAT-1", "build", "s1").unwrap();
 
-        let store = AuthStore::open(&config.state_path()).unwrap();
+        let store = AuthStore::open(&config.auth_state_path()).unwrap();
         let key = store.load_or_create_signing_key().unwrap();
         let claims = key.verify(&token, AUDIENCE_CALLBACK).unwrap();
 

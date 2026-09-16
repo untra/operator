@@ -7,8 +7,7 @@
 //! defines a namespaced interchange format both sides can serialize to and from
 //! *losslessly*: a shared core, an Operator-namespaced bag (`x_operator`), and an
 //! AGNT-namespaced bag (`x_agnt`). Each side reads the core and its own bag, and
-//! preserves the other side's bag verbatim - the same lossy-but-honest discipline
-//! as the `OPERATOR-GAP` markers in [`crate::workflow_gen`].
+//! preserves the other side's bag verbatim .
 //!
 //! This is the schema half of the remote-agent bridge. There is deliberately
 //! **no** runtime client for any remote platform: a profile carrying

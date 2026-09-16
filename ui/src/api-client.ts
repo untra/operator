@@ -1,4 +1,10 @@
 import type { Host } from "./host";
+import type { TargetDef } from "@operator/bindings/TargetDef";
+import type { ProfileSummary } from "@operator/bindings/ProfileSummary";
+import type { LicenseResponse } from "@operator/bindings/LicenseResponse";
+import type { TargetResponse } from "@operator/bindings/TargetResponse";
+import type { TargetsResponse } from "@operator/bindings/TargetsResponse";
+import type { TargetProbeResponse } from "@operator/bindings/TargetProbeResponse";
 import type { HealthResponse } from "@operator/bindings/HealthResponse";
 import type { StatusResponse } from "@operator/bindings/StatusResponse";
 import type { SectionDto } from "@operator/bindings/SectionDto";
@@ -78,6 +84,8 @@ import type { ResetPasswordResponse } from "@operator/bindings/ResetPasswordResp
 import type { RevokeAccessKeyResponse } from "@operator/bindings/RevokeAccessKeyResponse";
 import type { SessionListResponse } from "@operator/bindings/SessionListResponse";
 
+export type { ProfileSummary, LicenseResponse, TargetResponse, TargetsResponse };
+
 export type {
   AccessKeyListResponse,
   BootstrapStatusResponse,
@@ -138,9 +146,19 @@ export type {
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  code?: string;
+  feature?: string;
+  requiredTier?: string;
+  constructor(
+    status: number,
+    message: string,
+    details?: { code?: string; feature?: string; required_tier?: string },
+  ) {
     super(message);
     this.status = status;
+    this.code = details?.code;
+    this.feature = details?.feature;
+    this.requiredTier = details?.required_tier;
   }
 }
 
@@ -215,32 +233,132 @@ function authInit(init?: RequestInit): RequestInit {
   return { ...init, headers, credentials: "same-origin" };
 }
 
-async function send(base: string, path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(`${base}${path}`, authInit(init));
+type ApiConnection = { origin: string; profileId?: string; signal?: AbortSignal };
+
+export function profileApiPath(path: string, profileId?: string): string {
+  if (!profileId || /^\/api\/v1\/(auth|health|integrations|profiles)(\/|$)/.test(path)) {
+    return path;
+  }
+  return path.replace("/api/v1/", `/api/v1/profiles/${encodeURIComponent(profileId)}/`);
+}
+
+async function send(
+  connection: string | ApiConnection,
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const base = typeof connection === "string" ? connection : connection.origin;
+  const signal = typeof connection === "string" ? undefined : connection.signal;
+  const scopedPath = profileApiPath(
+    path,
+    typeof connection === "string" ? undefined : connection.profileId,
+  );
+  signal?.throwIfAborted();
+  const res = await fetch(
+    `${base}${scopedPath}`,
+    authInit({ ...init, signal: signal ?? init?.signal }),
+  );
+  signal?.throwIfAborted();
   if (res.status === 401) {
     await redirectToAuth(base);
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
-    throw new ApiError(res.status, body.message ?? body.error ?? `HTTP ${res.status}`);
+    throw new ApiError(res.status, body.message ?? body.error ?? `HTTP ${res.status}`, body);
   }
   return res;
 }
 
-async function request<T>(base: string, path: string, init?: RequestInit): Promise<T> {
+async function request<T>(
+  base: string | ApiConnection,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const res = await send(base, path, init);
-  return res.json() as Promise<T>;
+  const result = (await res.json()) as T;
+  if (typeof base !== "string") {
+    base.signal?.throwIfAborted();
+  }
+  return result;
 }
 
-async function requestVoid(base: string, path: string, init?: RequestInit): Promise<void> {
+async function requestVoid(
+  base: string | ApiConnection,
+  path: string,
+  init?: RequestInit,
+): Promise<void> {
   await send(base, path, init);
 }
 
 export class OperatorApi {
-  private base: string;
+  private readonly base: ApiConnection;
 
   constructor(host: Host) {
-    this.base = host.baseUrl();
+    this.base = { origin: host.baseUrl(), profileId: host.profileId, signal: host.signal };
+  }
+
+  profiles(): Promise<ProfileSummary[]> {
+    return request(this.base, "/api/v1/profiles");
+  }
+
+  license(): Promise<LicenseResponse> {
+    return request(this.base, "/api/v1/license");
+  }
+
+  installLicense(license_key: string): Promise<LicenseResponse> {
+    return request(this.base, "/api/v1/license", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: toJson({ license_key }),
+    });
+  }
+
+  removeLicense(): Promise<LicenseResponse> {
+    return request(this.base, "/api/v1/license", { method: "DELETE" });
+  }
+
+  targets(): Promise<TargetsResponse> {
+    return request(this.base, "/api/v1/targets");
+  }
+
+  saveTarget(target: TargetDef, existingName?: string): Promise<TargetResponse> {
+    return request(
+      this.base,
+      existingName ? `/api/v1/targets/${encodeURIComponent(existingName)}` : "/api/v1/targets",
+      {
+        method: existingName ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: toJson(target),
+      },
+    );
+  }
+
+  removeTarget(name: string): Promise<void> {
+    return requestVoid(this.base, `/api/v1/targets/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    });
+  }
+
+  probeTarget(name: string): Promise<TargetProbeResponse> {
+    return request(this.base, `/api/v1/targets/${encodeURIComponent(name)}/probe`, {
+      method: "POST",
+    });
+  }
+
+  createProfile(name: string): Promise<ProfileSummary> {
+    return request(this.base, "/api/v1/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson({ name }),
+    });
+  }
+
+  renameProfile(id: string, name: string): Promise<ProfileSummary> {
+    return request(this.base, `/api/v1/profiles/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: toJson({ name }),
+    });
   }
 
   // --- Auth ---

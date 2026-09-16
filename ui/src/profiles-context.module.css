@@ -1,0 +1,23 @@
+.selector {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.selector label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.selector select,
+.selector button {
+  width: 100%;
+  min-height: 2rem;
+}
+
+.gate {
+  padding: 1.5rem;
+}

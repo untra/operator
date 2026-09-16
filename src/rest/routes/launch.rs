@@ -151,6 +151,7 @@ fn prepared_launch_to_response(prepared: PreparedLaunch) -> LaunchTicketResponse
     responses(
         (status = 200, description = "Ticket launched successfully", body = LaunchTicketResponse),
         (status = 404, description = "Ticket not found"),
+        (status = 402, description = "Premium required for the selected execution target"),
         (status = 409, description = "Ticket already in progress"),
         (status = 503, description = "Operator is draining"),
         (status = 400, description = "Invalid request")
@@ -244,13 +245,13 @@ async fn launch_admitted_ticket(
             let prepared = launcher
                 .prepare_relaunch(&ticket, relaunch_options)
                 .await
-                .map_err(|e| ApiError::InternalError(e.to_string()))?;
+                .map_err(ApiError::from)?;
             prepared_launch_to_response(prepared)
         } else {
             launcher
                 .relaunch(&ticket, relaunch_options)
                 .await
-                .map_err(|e| ApiError::InternalError(e.to_string()))?;
+                .map_err(ApiError::from)?;
             server_side_response(&state, &ticket)?
         }
     } else {
@@ -261,13 +262,13 @@ async fn launch_admitted_ticket(
             let prepared = launcher
                 .prepare_launch(&ticket, launch_options)
                 .await
-                .map_err(|e| ApiError::InternalError(e.to_string()))?;
+                .map_err(ApiError::from)?;
             prepared_launch_to_response(prepared)
         } else {
             launcher
                 .launch_with_options(&ticket, launch_options)
                 .await
-                .map_err(|e| ApiError::InternalError(e.to_string()))?;
+                .map_err(ApiError::from)?;
             server_side_response(&state, &ticket)?
         }
     };
@@ -416,6 +417,30 @@ fn build_next_step_command(
     let config: &crate::config::Config = &state.config();
     let app_state = crate::state::State::load(config)?;
     let agent = find_completing_agent(&app_state.agents, &ticket.id, request.session_id.as_deref());
+
+    if let Some(agent) = agent {
+        let remote_mode = agent
+            .launch_mode
+            .as_deref()
+            .map(crate::agents::launcher::parse_launch_mode)
+            .is_some_and(|mode| {
+                matches!(
+                    mode.kind,
+                    crate::agents::launcher::LaunchModeKind::Ssh
+                        | crate::agents::launcher::LaunchModeKind::Coder
+                )
+            });
+        if remote_mode || agent.remote_host.is_some() {
+            crate::licensing::require_premium(
+                config,
+                crate::licensing::PremiumFeature::RemoteTargets,
+            )?;
+        }
+        if let Some(name) = &agent.target_name {
+            let target = crate::agents::delegator_resolution::resolve_named_target(config, name)?;
+            crate::licensing::require_target(config, &target)?;
+        }
+    }
 
     let ctx = agent
         .and_then(|a| a.step_launch_context.clone())
@@ -669,6 +694,7 @@ async fn run_proof_review_hook(
     responses(
         (status = 200, description = "Step completion recorded", body = StepCompleteResponse),
         (status = 404, description = "Ticket not found"),
+        (status = 402, description = "Premium required for the next execution target"),
         (status = 400, description = "Invalid request")
     )
 )]
@@ -841,7 +867,7 @@ pub async fn complete_step(
     Ok(Json(StepCompleteResponse {
         status,
         next_step: next_step_info,
-        auto_proceed,
+        auto_proceed: auto_proceed && next_command.is_some(),
         next_command,
         output_valid,
         should_iterate,
@@ -1635,6 +1661,67 @@ mod tests {
             .find(|a| a.id == agent_id)
             .and_then(|a| a.step_launch_context.as_ref())
             .and_then(|c| c.session_id.clone())
+    }
+
+    /// Workflow continuity: an agent that finishes a step on a remote host
+    /// while the licence is gone must still have its completion recorded. What
+    /// stops is the *next* command - never the report of work already done.
+    #[tokio::test]
+    async fn completion_is_recorded_when_entitlement_is_unavailable() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9100", "scan");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "opus", "session-remote");
+        State::mutate(&fixture.state.config(), |app_state| {
+            app_state
+                .update_agent_remote_host(&agent_id, "build-host")
+                .unwrap();
+        })
+        .unwrap();
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "scan".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
+            Json(make_chain_complete_request("session-remote")),
+        )
+        .await
+        .expect("the completion report itself must be accepted")
+        .0;
+
+        assert!(
+            !response.auto_proceed,
+            "an unentitled continuation must not claim it is proceeding"
+        );
+        assert!(
+            response.next_command.is_none(),
+            "no next command may be issued without entitlement"
+        );
+        assert!(
+            response.output_valid,
+            "the work that was done is still reported as done"
+        );
+    }
+
+    /// The same agent, once entitled, does proceed - so the assertion above is
+    /// about entitlement and not about some unrelated reason to stop.
+    #[tokio::test]
+    async fn the_same_local_agent_does_proceed() {
+        let fixture = make_chain_fixture();
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9101", "scan");
+        add_chain_agent(&fixture.state, &ticket, "opus", "session-local");
+
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "scan".to_string())),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
+            Json(make_chain_complete_request("session-local")),
+        )
+        .await
+        .unwrap()
+        .0;
+
+        assert!(response.auto_proceed);
+        assert!(response.next_command.is_some());
     }
 
     #[tokio::test]

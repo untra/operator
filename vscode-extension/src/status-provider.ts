@@ -25,6 +25,8 @@ import { IssueTypeSection } from "./sections/issuetype-section";
 import { DelegatorSection } from "./sections/delegator-section";
 import { ModelServerSection } from "./sections/modelserver-section";
 import { ManagedProjectsSection } from "./sections/managed-projects-section";
+import { RemoteTargetsSection } from "./sections/remote-targets-section";
+import { LicenseSection } from "./sections/license-section";
 import { WorkflowsSection } from "./sections/workflows-section";
 
 // Backward-compatible re-exports
@@ -59,6 +61,8 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   private delegatorSection: DelegatorSection;
   private modelServerSection: ModelServerSection;
   private managedProjectsSection: ManagedProjectsSection;
+  private remoteTargetsSection: RemoteTargetsSection;
+  private licenseSection: LicenseSection;
   private workflowsSection: WorkflowsSection;
 
   // All sections for check() and routing
@@ -77,6 +81,8 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     this.delegatorSection = new DelegatorSection();
     this.modelServerSection = new ModelServerSection();
     this.managedProjectsSection = new ManagedProjectsSection();
+    this.remoteTargetsSection = new RemoteTargetsSection();
+    this.licenseSection = new LicenseSection();
     this.workflowsSection = new WorkflowsSection();
 
     // Canonical section order - must match the `SectionId` enum in
@@ -93,6 +99,8 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       this.delegatorSection,
       this.managedProjectsSection,
       this.workflowsSection,
+      this.remoteTargetsSection,
+      this.licenseSection,
     ];
     this.sectionMap = new Map(this.allSections.map((s) => [s.sectionId, s]));
     this.ctx = this.buildContext();

@@ -10,13 +10,12 @@ Operator supports multiple session management backends for running AI coding age
 
 | Option | Status | Notes |
 |--------|--------|-------|
-| [VS Code Extension](/getting-started/sessions/vscode/) | Recommended (Preferred) | Integrated terminals in VS Code, works on all platforms |
-| [Cursor](/getting-started/sessions/cursor/) | Supported | Cursor IDE (VS Code fork); same extension, native MCP via `~/.cursor/mcp.json` |
+| [VS Code Terminals](/getting-started/sessions/vscode-terminals/) | Beta | Integrated terminals controlled by the VS Code extension |
 | [tmux](/getting-started/sessions/tmux/) | Supported | Terminal multiplexer, ideal for headless/server environments |
 | [cmux](/getting-started/sessions/cmux/) | Supported | macOS terminal multiplexer, manages workspaces within cmux |
 | [Zellij](/getting-started/sessions/zellij/) | Supported | Terminal workspace manager, tab-per-agent model (macOS/Linux) |
-| [Zed](/getting-started/sessions/zed/) | Supported | Zed editor extension; MCP context server, ACP agent, slash commands |
-| [Remote Hosts (SSH)](/getting-started/sessions/remote-hosts/) | Supported | Run agent CLIs on a remote machine over SSH; dashboard stays local |
+
+[IDE integrations](/getting-started/ides/) and [execution transports](/getting-started/transports/) are separate choices. A controller manages its own terminal environment: cmux cannot control terminals inside VS Code.
 
 ## How It Works
 
@@ -30,8 +29,6 @@ Session managers provide:
 ## Choosing a Session Manager
 
 **VS Code Extension** is the recommended choice for most users. It provides an integrated experience with ticket management, color-coded terminals, and works seamlessly on macOS, Linux, and Windows without additional setup.
-
-**Cursor** is the right choice if you already use Cursor as your daily editor. The same `operator-terminals` extension installs from OpenVSX, and `Operator: Connect MCP Server` writes to Cursor's native `~/.cursor/mcp.json` (stdio) so the operator tool surface shows up in Cursor's MCP UI and chat.
 
 **tmux** remains an excellent choice for headless/server environments, SSH sessions, and users who prefer terminal-based workflows. It's particularly useful for remote servers where VS Code may not be available.
 

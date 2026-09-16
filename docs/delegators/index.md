@@ -78,9 +78,7 @@ prompt_suffix    = "\n\nBe concise."
 
 ## Execution targets
 
-*Where does the agent process run?* One `[[targets]]` registry answers it for
-every launch path (TUI, web, VS Code, REST). A delegator references a target
-by name, exactly like `model_server`:
+*Where does the agent process run?* One `[[targets]]` registry answers it for every launch path (TUI, web, VS Code, REST). A delegator references a target by name, exactly like `model_server`:
 
 ```toml
 [[targets]]
@@ -124,34 +122,23 @@ target = "cloud"                 # default when a launch/delegator does not over
    a real fallback, so REST/CLI/auto launches with it set run in docker.
 7. otherwise - local
 
-Legacy inputs are synthesized rather than special-cased: `[launch.docker]`
-becomes a target named `docker`, and every `[[hosts]]` entry becomes an ssh
-target of the same name. Setting both `docker` and `host` now resolves
-deterministically to the host (with a deprecation warning) instead of
-erroring.
+Legacy inputs are synthesized rather than special-cased: `[launch.docker]` becomes a target named `docker`, and every `[[hosts]]` entry becomes an ssh target of the same name.
+Setting both `docker` and `host` now resolves deterministically to the host.
 
 ### Coder targets
 
-A coder target's execution shape is an SSH target with a dynamically
-provisioned alias: Operator creates (or restarts) a per-ticket workspace from
-`template`, writes an SSH config fragment (`ProxyCommand coder ssh --stdio <workspace>`), prepares the git checkout, and launches over the shared SSH remote path. Workspaces are stopped on completion and **never deleted** - reclamation belongs to the Coder admin's
-autostop policy.
+A coder target's execution shape is an SSH target with a dynamically provisioned alias: Operator creates a per-ticket workspace from `template`, writes an SSH config fragment (`ProxyCommand coder ssh --stdio <workspace>`), prepares the git checkout, and launches over the shared SSH remote path. Workspaces are stopped on completion. Workspace reclamation belongs to the Coder admin's autostop policy.
 
-Credentials are held **by name**: `url_env` / `token_env` name environment
-variables, and the token variable is stripped from every agent's spawn
-environment on all target kinds. **Blast radius:** a Coder session token can
-create, delete, and SSH into every workspace its user owns - scope accordingly.
+Credentials are held **by name**: `url_env` / `token_env` name environment variables, and the token variable is stripped from every agent's spawn environment on all target kinds.
+
+**Blast radius:** a Coder session token can create, delete, and SSH into every workspace its user owns - scope accordingly.
 
 No shared filesystem is required: the prompt and command payload are written on the operator side and pushed over SSH into the workspace before the session starts, so Operator can drive Coder from anywhere it can reach the deployment - a [Kubernetes deployment](/getting-started/platforms/kubernetes/#coder-targets), a server, or a laptop.
 `callback_url` keeps multi-step chains reporting when the SSH tunnel drops.
 
-The `coder` CLI is resolved from `PATH`, then a cache in the state directory, and is otherwise downloaded from the deployment itself - so nothing has to be baked into an image and the CLI cannot drift from the server. `ssh` does have to be present. Keep `url_env` and `token_env` at their default names unless you have a reason not to: the SSH `ProxyCommand` runs the CLI as a subprocess, and
-it reads `CODER_URL` / `CODER_SESSION_TOKEN` from the environment it inherits.
+The `coder` CLI is resolved from `PATH`, then a cache in the state directory, and is otherwise downloaded from the deployment itself - so nothing has to be baked into an image and the CLI cannot drift from the server. `ssh` does have to be present. Keep `url_env` and `token_env` at their default names unless you have a reason not to: the SSH `ProxyCommand` runs the CLI as a subprocess, and it reads `CODER_URL` / `CODER_SESSION_TOKEN` from the environment it inherits.
 
-Remote constraints for ssh and coder targets: worktrees and relay MCP
-injection are forced off, and the zellij session wrapper is unsupported. See
-[Remote Hosts (SSH)](/getting-started/sessions/remote-hosts/) for the
-underlying mechanics.
+Remote constraints for ssh and coder targets: worktrees and relay MCP injection are forced off, and the zellij session wrapper is unsupported. See [Remote Hosts (SSH)](/getting-started/sessions/remote-hosts/) for the underlying mechanics.
 
 ### Relay MCP injection
 
@@ -210,11 +197,9 @@ A delegator can be serialized to a portable **agent profile** (`agent-profile.js
 tool-agnostic interchange format with a shared core (`provider`, `model`, `system_prompt`,
 `skills`, `mcp_servers`, `tools`) plus namespaced extension bags: `x_operator` (Operator's
 launch config and model properties) and per-platform opaque bags (`x_agnt`, `x_openai`) that are
-preserved verbatim. Profiles round-trip losslessly in both directions, so a profile authored on
-another platform survives `import → export` byte-for-byte.
+preserved verbatim. Profiles round-trip losslessly in both directions, so a profile authored on another platform survives `import → export` byte-for-byte.
 
-A delegator may also carry a **`remote_agent`** reference - a `{ platform, id }` pointer to a
-remote, named agent that lives on another service:
+A delegator may also carry a **`remote_agent`** reference - a `{ platform, id }` pointer to a remote, named agent that lives on another service:
 
 ```toml
 [[delegators]]

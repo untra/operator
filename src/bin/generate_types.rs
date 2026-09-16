@@ -29,23 +29,30 @@ use operator::api::providers::kanban::{
     JiraProjectStatus, JiraSearchResponse, JiraStatus, JiraStatusRef, JiraUser,
 };
 use operator::config::{
-    AgentProfile, AgentsConfig, ApiConfig, CollectionPreset, Config, Delegator,
-    DelegatorLaunchConfig, DetectedTool, DockerConfig, LaunchConfig, LlmProvider, LlmToolsConfig,
-    LoggingConfig, NotificationsConfig, PanelNamesConfig, PathsConfig, QueueConfig, RemoteAgentRef,
-    RestApiConfig, SkillDirectoriesOverride, TemplatesConfig, TmuxConfig, ToolCapabilities,
-    UiConfig, XOperator, YoloConfig,
+    AcpConfig, AgentProfile, AgentsConfig, ApiConfig, CmuxPlacementPolicy, CoderConfig,
+    CollectionPreset, Config, Delegator, DelegatorLaunchConfig, DetectedTool, DockerConfig,
+    ExternalMcpServer, ForgejoConfig, GitConfig, GitHubConfig, GitLabConfig, GiteaConfig,
+    KanbanConfig, LaunchConfig, LlmProvider, LlmToolsConfig, LoggingConfig, McpConfig, ModelServer,
+    NotificationsConfig, OsNotificationConfig, PanelNamesConfig, PathsConfig, QueueConfig,
+    RelayConfig, RemoteAgentRef, RemoteHost, RestApiConfig, SessionWrapperType, SessionsCmuxConfig,
+    SessionsConfig, SessionsTmuxConfig, SessionsVSCodeConfig, SessionsZellijConfig,
+    SkillDirectoriesOverride, SshTarget, TargetDef, TargetKind, TemplatesConfig, TmuxConfig,
+    ToolCapabilities, UiConfig, VersionCheckConfig, WebhookConfig, XOperator, YoloConfig,
 };
+use operator::profiles::ProfileIdentity;
 use operator::queue::LlmTask;
 use operator::rest::dto::{
     CollectionResponse, CreateAlertRequest, CreateAlertResponse, CreateDelegatorRequest,
     CreateFieldRequest, CreateIssueTypeRequest, CreateStepRequest, CreateTicketRequest,
     CreateTicketResponse, DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse,
     FieldResponse, HealthResponse, IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary,
-    KanbanProviderCatalogEntry, SectionDto, SectionRowDto, SkillEntry, SkillsResponse,
-    StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
+    KanbanProviderCatalogEntry, RowActionDto, SectionDto, SectionRowDto, SkillEntry,
+    SkillsResponse, StatusResponse, StepResponse, UpdateIssueTypeRequest, UpdateStepRequest,
     WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto, WorkflowPreviewResponse,
 };
-use operator::state::{AgentState, CompletedTicket, State};
+use operator::state::{
+    AgentState, CompletedTicket, MultiAgentGroup, MultiAgentPhase, PendingSubAgent, State,
+};
 use operator::types::{
     AttemptStatus, ExecutionProcess, ProcessStatus, Project, ProjectRepo, RunReason, Session,
     StepAttempt,
@@ -127,10 +134,42 @@ fn generate_typescript() -> String {
         TemplatesConfig::decl(&cfg),
         LoggingConfig::decl(&cfg),
         ApiConfig::decl(&cfg),
+        AcpConfig::decl(&cfg),
+        McpConfig::decl(&cfg),
+        RelayConfig::decl(&cfg),
+        VersionCheckConfig::decl(&cfg),
+        SessionsConfig::decl(&cfg),
+        SessionWrapperType::decl(&cfg),
+        SessionsTmuxConfig::decl(&cfg),
+        SessionsVSCodeConfig::decl(&cfg),
+        SessionsCmuxConfig::decl(&cfg),
+        CmuxPlacementPolicy::decl(&cfg),
+        SessionsZellijConfig::decl(&cfg),
+        ExternalMcpServer::decl(&cfg),
+        GitConfig::decl(&cfg),
+        GitHubConfig::decl(&cfg),
+        GitLabConfig::decl(&cfg),
+        GiteaConfig::decl(&cfg),
+        ForgejoConfig::decl(&cfg),
+        KanbanConfig::decl(&cfg),
+        ModelServer::decl(&cfg),
+        RemoteHost::decl(&cfg),
+        OsNotificationConfig::decl(&cfg),
+        WebhookConfig::decl(&cfg),
+        // Execution targets (src/config/targets.rs)
+        TargetDef::decl(&cfg),
+        TargetKind::decl(&cfg),
+        SshTarget::decl(&cfg),
+        CoderConfig::decl(&cfg),
+        // Configuration identity (src/profiles.rs)
+        ProfileIdentity::decl(&cfg),
         // State types (src/state.rs)
         State::decl(&cfg),
         AgentState::decl(&cfg),
         CompletedTicket::decl(&cfg),
+        MultiAgentGroup::decl(&cfg),
+        MultiAgentPhase::decl(&cfg),
+        PendingSubAgent::decl(&cfg),
         // REST DTOs (src/rest/dto.rs)
         IssueTypeResponse::decl(&cfg),
         IssueTypeSummary::decl(&cfg),
@@ -147,6 +186,7 @@ fn generate_typescript() -> String {
         StatusResponse::decl(&cfg),
         SectionDto::decl(&cfg),
         SectionRowDto::decl(&cfg),
+        RowActionDto::decl(&cfg),
         // Integration catalog + support status DTO
         operator::integrations::SupportStatus::decl(&cfg),
         IntegrationCatalogEntryDto::decl(&cfg),
@@ -169,6 +209,10 @@ fn generate_typescript() -> String {
         DelegatorsResponse::decl(&cfg),
         CreateDelegatorRequest::decl(&cfg),
         DelegatorLaunchConfigDto::decl(&cfg),
+        // `serde_json::Value`, which ts-rs names `JsonValue`. Several DTOs
+        // carry free-form JSON, and the bundle has no imports, so its
+        // declaration has to be emitted here or every use dangles.
+        <serde_json::Value as TS>::decl(&cfg),
         // Queue types (src/queue/ticket.rs)
         LlmTask::decl(&cfg),
         // Jira API types (src/api/providers/kanban/jira.rs)

@@ -27,6 +27,7 @@ JSON Schema for the Operator configuration file (`config.toml`).
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
+| `profile` | → `ProfileIdentity` | No |  |
 | `projects` | `array` | No | List of projects operator can assign work to |
 | `agents` | → `AgentsConfig` | Yes |  |
 | `notifications` | → `NotificationsConfig` | Yes |  |
@@ -53,6 +54,13 @@ JSON Schema for the Operator configuration file (`config.toml`).
 | `acp` | → `AcpConfig` | No | Agent Client Protocol (ACP) agent configuration |
 
 ## Type Definitions
+
+### ProfileIdentity
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `string` | Yes |  |
+| `name` | `string` | Yes |  |
 
 ### AgentsConfig
 
@@ -368,6 +376,8 @@ REST API server configuration
 | `port` | `integer` | No | Port for the REST API server |
 | `cors_origins` | `array` | No | CORS allowed origins. Empty means **same-origin only** |
 | `public_url` | `string` \| `null` | No | Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host. |
+| `shutdown_drain_seconds` | `integer` | No | Maximum time to wait for active agents before shutdown cleanup begins. |
+| `shutdown_cleanup_seconds` | `integer` | No | Maximum time reserved for final callbacks and persistent cleanup. |
 
 ### GitConfig
 

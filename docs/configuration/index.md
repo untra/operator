@@ -157,6 +157,10 @@ model_servers = []
 hosts = []
 targets = []
 
+[profile]
+id = "00000000-0000-0000-0000-000000000000"
+name = "legacy"
+
 [agents]
 max_parallel = 5
 cores_reserved = 1

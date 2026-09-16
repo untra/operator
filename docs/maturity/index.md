@@ -17,84 +17,98 @@ Operator integrates with many providers and tools across several **verticals**. 
 
 ## Kanban Provider
 
-| Integration | Status | Docs |
-|---|---|---|
-| Jira | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Jira](https://operator.untra.io/getting-started/kanban/jira/) |
-| Linear | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Linear](https://operator.untra.io/getting-started/kanban/linear/) |
-| GitHub Projects | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [GitHub Projects](https://operator.untra.io/getting-started/kanban/github/) |
-| OpenSpec | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [OpenSpec](https://operator.untra.io/getting-started/kanban/openspec/) |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Jira | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Jira](https://operator.untra.io/getting-started/kanban/jira/) |
+| Linear | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Linear](https://operator.untra.io/getting-started/kanban/linear/) |
+| GitHub Projects | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [GitHub Projects](https://operator.untra.io/getting-started/kanban/github/) |
+| OpenSpec | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [OpenSpec](https://operator.untra.io/getting-started/kanban/openspec/) |
 
 ## Model Provider
 
-| Integration | Status | Docs |
-|---|---|---|
-| Anthropic | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Anthropic](https://operator.untra.io/getting-started/model-servers/anthropic/) |
-| OpenAI | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [OpenAI](https://operator.untra.io/getting-started/model-servers/openai/) |
-| Google | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Google](https://operator.untra.io/getting-started/model-servers/google/) |
-| Ollama | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Ollama](https://operator.untra.io/getting-started/model-servers/ollama/) |
-| OpenRouter | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [OpenRouter](https://operator.untra.io/getting-started/model-servers/openrouter/) |
-| OpenAI-compatible | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
-| LM Studio | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Anthropic | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Anthropic](https://operator.untra.io/getting-started/model-servers/anthropic/) |
+| OpenAI | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [OpenAI](https://operator.untra.io/getting-started/model-servers/openai/) |
+| Google | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Google](https://operator.untra.io/getting-started/model-servers/google/) |
+| Ollama | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Ollama](https://operator.untra.io/getting-started/model-servers/ollama/) |
+| OpenRouter | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [OpenRouter](https://operator.untra.io/getting-started/model-servers/openrouter/) |
 
 ## Git Version Control
 
-| Integration | Status | Docs |
-|---|---|---|
-| GitHub | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [GitHub](https://operator.untra.io/getting-started/git/github/) |
-| GitLab | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [GitLab](https://operator.untra.io/getting-started/git/gitlab/) |
-| Bitbucket | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
-| Azure DevOps | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
-| Forgejo | ![Proto](https://img.shields.io/badge/Proto-6B7280) | - |
-| Gitea | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Gitea](https://operator.untra.io/getting-started/git/gitea/) |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| GitHub | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [GitHub](https://operator.untra.io/getting-started/git/github/) |
+| GitLab | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [GitLab](https://operator.untra.io/getting-started/git/gitlab/) |
+| Gitea | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Gitea](https://operator.untra.io/getting-started/git/gitea/) |
 
-## Session
+## Session Management
 
-| Integration | Status | Docs |
-|---|---|---|
-| tmux | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [tmux](https://operator.untra.io/getting-started/sessions/tmux/) |
-| cmux | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [cmux](https://operator.untra.io/getting-started/sessions/cmux/) |
-| Zellij | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Zellij](https://operator.untra.io/getting-started/sessions/zellij/) |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| tmux | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [tmux](https://operator.untra.io/getting-started/sessions/tmux/) |
+| cmux | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [cmux](https://operator.untra.io/getting-started/sessions/cmux/) |
+| Zellij | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Zellij](https://operator.untra.io/getting-started/sessions/zellij/) |
+| VS Code Terminals | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [VS Code Terminals](https://operator.untra.io/getting-started/sessions/vscode-terminals/) |
 
-## Editor
+## IDE
 
-| Integration | Status | Docs |
-|---|---|---|
-| VS Code | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [VS Code](https://operator.untra.io/getting-started/sessions/vscode/) |
-| Zed | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Zed](https://operator.untra.io/getting-started/sessions/zed/) |
-| Cursor | ![Proto](https://img.shields.io/badge/Proto-6B7280) | [Cursor](https://operator.untra.io/getting-started/sessions/cursor/) |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| VS Code | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [VS Code](https://operator.untra.io/getting-started/ides/vscode/) |
+| Zed | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Zed](https://operator.untra.io/getting-started/ides/zed/) |
 
 ## LLM Tool
 
-| Integration | Status | Docs |
-|---|---|---|
-| Claude | ![GA](https://img.shields.io/badge/GA-1BB91F) | [Claude](https://operator.untra.io/getting-started/agents/claude/) |
-| Codex | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Codex](https://operator.untra.io/getting-started/agents/codex/) |
-| Gemini CLI | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Gemini CLI](https://operator.untra.io/getting-started/agents/gemini-cli/) |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Claude | ![GA](https://img.shields.io/badge/GA-1BB91F) | Included | [Claude](https://operator.untra.io/getting-started/agents/claude/) |
+| Codex | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Codex](https://operator.untra.io/getting-started/agents/codex/) |
+| Gemini CLI | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Gemini CLI](https://operator.untra.io/getting-started/agents/gemini-cli/) |
 
 ## Platform
 
-| Integration | Status | Docs |
-|---|---|---|
-| Docker | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Docker](https://operator.untra.io/getting-started/platforms/docker/) |
-| Coder | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Coder](https://operator.untra.io/getting-started/platforms/coder/) |
-| Kubernetes | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [Kubernetes](https://operator.untra.io/getting-started/platforms/kubernetes/) |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Docker | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Docker](https://operator.untra.io/getting-started/platforms/docker/) |
+| Kubernetes | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Kubernetes](https://operator.untra.io/getting-started/platforms/kubernetes/) |
 
 ## Integration
 
-| Integration | Status | Docs |
-|---|---|---|
-| AGNT | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [AGNT](https://operator.untra.io/getting-started/integrations/agnt/) |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| AGNT | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [AGNT](https://operator.untra.io/getting-started/integrations/agnt/) |
 
 ## Workflow Export Format
 
-| Integration | Status | Docs |
-|---|---|---|
-| Claude Workflow | ![GA](https://img.shields.io/badge/GA-1BB91F) | [Claude Workflow](https://operator.untra.io/getting-started/workflows/claude/) |
-| AGNT Workflow | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | [AGNT Workflow](https://operator.untra.io/getting-started/workflows/agnt/) |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Claude Workflow | ![GA](https://img.shields.io/badge/GA-1BB91F) | Included | [Claude Workflow](https://operator.untra.io/getting-started/workflows/claude/) |
+| AGNT Workflow | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [AGNT Workflow](https://operator.untra.io/getting-started/workflows/agnt/) |
 
 ## Notification Channel
 
-| Integration | Status | Docs |
-|---|---|---|
-| Operating System | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Operating System](https://operator.untra.io/getting-started/notifications/os/) |
-| Webhooks | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | [Webhooks](https://operator.untra.io/getting-started/notifications/webhooks/) |
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Operating System | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Operating System](https://operator.untra.io/getting-started/notifications/os/) |
+| Webhooks | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Webhooks](https://operator.untra.io/getting-started/notifications/webhooks/) |
+
+## Execution Transport
+
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Local | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Local](https://operator.untra.io/getting-started/transports/local/) |
+| SSH | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [SSH](https://operator.untra.io/getting-started/transports/ssh/) |
+
+## Agent Relay
+
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Claude Relay | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Claude Relay](https://operator.untra.io/getting-started/agent-relays/claude-relay/) |
+
+## Remote Targets
+
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Coder | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [Coder](https://operator.untra.io/getting-started/remote-targets/coder/) |
+| SSH Hosts | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [SSH Hosts](https://operator.untra.io/getting-started/remote-targets/ssh/) |

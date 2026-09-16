@@ -32,6 +32,8 @@ pub const AUDIENCE_CALLBACK: &str = "opr8r-callback";
 /// Registered and Operator-specific claims.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_id: Option<uuid::Uuid>,
     /// Issuer.
     pub iss: String,
     /// Audience.
@@ -174,6 +176,7 @@ impl SigningKey {
 /// Build the claims for an ordinary API access token.
 pub fn api_claims(subject: &str, scopes: &[Scope], now: DateTime<Utc>, jti: String) -> Claims {
     Claims {
+        profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_API.to_string(),
         sub: subject.to_string(),
@@ -209,6 +212,7 @@ pub fn callback_claims(
     jti: String,
 ) -> Claims {
     Claims {
+        profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_CALLBACK.to_string(),
         sub: subject.to_string(),

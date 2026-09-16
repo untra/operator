@@ -28,17 +28,41 @@ docs:
           - title: Zellij
             url: /getting-started/sessions/zellij/
             icon: zellij
-          - title: VS Code Extension
-            url: /getting-started/sessions/vscode/
+          - title: VS Code Terminals
+            url: /getting-started/sessions/vscode-terminals/
             icon: vscode
-          - title: Cursor
-            url: /getting-started/sessions/cursor/
-            icon: cursor
+      - title: IDEs
+        url: /getting-started/ides/
+        children:
+          - title: VS Code Extension
+            url: /getting-started/ides/vscode/
+            icon: vscode
           - title: Zed
-            url: /getting-started/sessions/zed/
+            url: /getting-started/ides/zed/
             icon: zed
-          - title: Remote Hosts (SSH)
-            url: /getting-started/sessions/remote-hosts/
+      - title: Execution Transports
+        url: /getting-started/transports/
+        children:
+          - title: Local
+            url: /getting-started/transports/local/
+          - title: SSH
+            url: /getting-started/transports/ssh/
+      - title: Agent Relays
+        url: /getting-started/agent-relays/
+        children:
+          - title: Claude Relay
+            url: /getting-started/agent-relays/claude-relay/
+            icon: claude
+      - title: Operator Premium
+        url: /getting-started/premium/
+      - title: Remote Targets
+        url: /getting-started/remote-targets/
+        children:
+          - title: SSH Hosts
+            url: /getting-started/remote-targets/ssh/
+          - title: Coder
+            url: /getting-started/remote-targets/coder/
+            icon: coder
       - title: Supported Kanban Providers
         url: /getting-started/kanban/
         children:
@@ -110,9 +134,6 @@ docs:
       - title: Supported Workspace Platforms
         url: /getting-started/platforms/
         children:
-          - title: Coder
-            url: /getting-started/platforms/coder/
-            icon: coder
           - title: Docker
             url: /getting-started/platforms/docker/
             icon: docker

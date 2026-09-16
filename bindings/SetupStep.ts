@@ -3,4 +3,4 @@
 /**
  * A step in the setup wizard.
  */
-export type SetupStep = "welcome" | "kanban-info" | "model-server" | "git-provider" | "collection-source" | "hosted-collections" | "task-field-config" | "session-wrapper-choice" | "execution-target" | "worktree-preference" | "admin-password" | "tmux-onboarding" | "vscode-setup" | "cmux-setup" | "zellij-setup" | "acceptance-criteria" | "startup-tickets" | "confirm";
+export type SetupStep = "welcome" | "license" | "execution-mode" | "kanban-info" | "model-server" | "git-provider" | "collection-source" | "hosted-collections" | "task-field-config" | "session-wrapper-choice" | "execution-target" | "worktree-preference" | "admin-password" | "tmux-onboarding" | "vscode-setup" | "cmux-setup" | "zellij-setup" | "acceptance-criteria" | "startup-tickets" | "confirm";

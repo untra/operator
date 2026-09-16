@@ -66,21 +66,25 @@ impl DocGenerator for MaturityDocGenerator {
         // One table per vertical, in README order.
         let entries = all_integrations();
         for vertical in Vertical::ALL {
-            let rows: Vec<_> = entries.iter().filter(|e| e.vertical == vertical).collect();
+            let rows: Vec<_> = entries
+                .iter()
+                .filter(|e| e.vertical == vertical && e.is_public())
+                .collect();
             if rows.is_empty() {
                 continue;
             }
             content.push_str(&format!("\n## {}\n\n", vertical.label()));
-            content.push_str("| Integration | Status | Docs |\n|---|---|---|\n");
+            content.push_str("| Integration | Status | Availability | Docs |\n|---|---|---|---|\n");
             for e in rows {
                 let docs = match e.docs_url() {
                     Some(url) => format!("[{}]({})", e.label, url),
                     None => "-".to_string(),
                 };
                 content.push_str(&format!(
-                    "| {label} | {badge} | {docs} |\n",
+                    "| {label} | {badge} | {availability} | {docs} |\n",
                     label = e.label,
                     badge = status_badge(e.status),
+                    availability = if e.premium { "Premium" } else { "Included" },
                 ));
             }
         }
@@ -118,6 +122,9 @@ mod tests {
         // Per-vertical tables.
         assert!(content.contains("## Kanban Provider"));
         assert!(content.contains("## Model Provider"));
+        assert!(content.contains("## Remote Targets"));
+        assert!(content.contains("| Premium |"));
+        assert!(!content.contains("| Cursor |"));
         // A known row with a docs link.
         assert!(content.contains("[Jira](https://operator.untra.io/getting-started/kanban/jira/)"));
         // AUTO-GENERATED header present.

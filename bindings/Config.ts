@@ -12,6 +12,7 @@ import type { McpConfig } from "./McpConfig";
 import type { ModelServer } from "./ModelServer";
 import type { NotificationsConfig } from "./NotificationsConfig";
 import type { PathsConfig } from "./PathsConfig";
+import type { ProfileIdentity } from "./ProfileIdentity";
 import type { QueueConfig } from "./QueueConfig";
 import type { RelayConfig } from "./RelayConfig";
 import type { RemoteHost } from "./RemoteHost";
@@ -23,7 +24,7 @@ import type { TmuxConfig } from "./TmuxConfig";
 import type { UiConfig } from "./UiConfig";
 import type { VersionCheckConfig } from "./VersionCheckConfig";
 
-export type Config = { 
+export type Config = { profile: ProfileIdentity, 
 /**
  * List of projects operator can assign work to
  */

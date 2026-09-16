@@ -31,6 +31,17 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct Config {
+    #[serde(default)]
+    pub profile: crate::profiles::ProfileIdentity,
+    #[serde(skip)]
+    #[ts(skip)]
+    pub config_file: Option<PathBuf>,
+    #[serde(skip)]
+    #[ts(skip)]
+    pub profile_registry: Option<PathBuf>,
+    #[serde(skip)]
+    #[ts(skip)]
+    pub server_auth_path: Option<PathBuf>,
     /// List of projects operator can assign work to
     #[serde(default)]
     pub projects: Vec<String>,
@@ -714,6 +725,17 @@ fn env_source() -> config::Environment {
 }
 
 impl Config {
+    /// Where the auth database lives.
+    ///
+    /// Authentication is server-scoped, not per configuration: one login serves
+    /// every configuration the server hosts. Opening `state_path()` instead
+    /// silently targets a different database, which is why nothing outside this
+    /// method should reach for the state directory to find auth.
+    pub fn auth_state_path(&self) -> PathBuf {
+        self.server_auth_path
+            .clone()
+            .unwrap_or_else(|| self.state_path())
+    }
     /// Bootstrap-only config location, relative to cwd. `load()` needs a path
     /// before a `Config` exists; everything else uses `operator_config_path_for`.
     pub fn operator_config_path() -> PathBuf {
@@ -722,7 +744,9 @@ impl Config {
 
     /// Where this config persists: derived from `paths.state`, not the cwd.
     pub fn operator_config_path_for(&self) -> PathBuf {
-        self.state_path().join("config.toml")
+        self.config_file
+            .clone()
+            .unwrap_or_else(|| self.state_path().join("config.toml"))
     }
 
     pub fn load(config_path: Option<&str>) -> Result<Self> {
@@ -759,7 +783,7 @@ impl Config {
         builder = builder.add_source(env_source());
 
         let config = builder.build().context("Failed to load configuration")?;
-        let cfg: Self = config.try_deserialize().map_err(|e| {
+        let mut cfg: Self = config.try_deserialize().map_err(|e| {
             let mut sources = vec![];
             let operator_config = Self::operator_config_path();
             if operator_config.exists() {
@@ -792,6 +816,9 @@ impl Config {
             );
         }
 
+        if let Some(path) = config_path {
+            cfg.config_file = Some(std::fs::canonicalize(path)?);
+        }
         validate_targets(&cfg)?;
         crate::git::identity::validate_config(&cfg)?;
 
@@ -908,6 +935,10 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            profile: crate::profiles::ProfileIdentity::default(),
+            config_file: None,
+            profile_registry: None,
+            server_auth_path: None,
             projects: Vec::new(), // Populated during setup
             agents: AgentsConfig {
                 max_parallel: 5,

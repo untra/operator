@@ -450,11 +450,16 @@ pub fn set_session_env(req: SetKanbanSessionEnvRequest) -> SetKanbanSessionEnvRe
     match req.provider {
         KanbanProviderKind::Jira => {
             if let Some(body) = req.jira {
-                // SAFETY: set_var is safe in single-threaded startup contexts;
-                // the operator REST server runs inside a tokio runtime, but
-                // the set_var pattern is already established in
-                // src/app/git_onboarding.rs and src/main.rs. Kanban onboarding
-                // is a user-driven one-shot and we accept the same tradeoff.
+                // HAZARD: this writes to the process environment while other
+                // threads run - the REST server calls it from a tokio worker,
+                // not from single-threaded startup. That is unsound, not merely
+                // untidy, and it also means two configurations cannot hold
+                // different credentials at once. The fix is the credential
+                // overlay in the configuration-isolation plan: writes go to a
+                // process-wide store, reads go through a resolver, and each
+                // launched child gets the store merged into its spawn env.
+                // Kept as-is for now because a single configuration cannot
+                // observe the difference.
                 std::env::set_var(&body.api_key_env, &body.api_token);
                 std::env::set_var("OPERATOR_JIRA_DOMAIN", &body.domain);
                 std::env::set_var("OPERATOR_JIRA_EMAIL", &body.email);

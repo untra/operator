@@ -2289,7 +2289,7 @@
           "Status"
         ],
         "summary": "GET `/api/v1/integrations`",
-        "description": "Returns the catalog of advertised integrations across every vertical, each\nwith its docs link and official support status (`proto` | `alpha` | `beta` |\n`ga`).",
+        "description": "Returns the catalog of advertised integrations across every vertical, each\nwith its docs link, Premium availability, and support status (`alpha` | `beta` |\n`ga`). Prototype entries are not advertised.",
         "operationId": "integrations_catalog",
         "responses": {
           "200": {
@@ -3619,6 +3619,149 @@
         "x-operator-scope": "read"
       }
     },
+    "/api/v1/license": {
+      "get": {
+        "tags": [
+          "License"
+        ],
+        "operationId": "license_get",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      },
+      "put": {
+        "tags": [
+          "License"
+        ],
+        "operationId": "license_install",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallLicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "License rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      },
+      "delete": {
+        "tags": [
+          "License"
+        ],
+        "operationId": "license_remove",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
     "/api/v1/llm-tools": {
       "get": {
         "tags": [
@@ -4376,6 +4519,219 @@
         "x-operator-scope": "execute"
       }
     },
+    "/api/v1/profiles": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "profiles_list",
+        "responses": {
+          "200": {
+            "description": "Server configurations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileSummary"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      },
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "profiles_create",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Draft configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Name already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/profiles/{profile_id}": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "profiles_get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Configuration ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuration metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      },
+      "patch": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "profiles_rename",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Configuration ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Renamed configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "tags": [
@@ -4884,6 +5240,16 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "402": {
+            "description": "Premium required for remote execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
@@ -5052,6 +5418,301 @@
           }
         ],
         "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/targets": {
+      "get": {
+        "tags": [
+          "Targets"
+        ],
+        "operationId": "targets_list",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      },
+      "post": {
+        "tags": [
+          "Targets"
+        ],
+        "operationId": "targets_create",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/targets/{name}": {
+      "put": {
+        "tags": [
+          "Targets"
+        ],
+        "operationId": "targets_update",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      },
+      "delete": {
+        "tags": [
+          "Targets"
+        ],
+        "operationId": "targets_remove",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Target is referenced",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/targets/{name}/probe": {
+      "post": {
+        "tags": [
+          "Targets"
+        ],
+        "operationId": "targets_probe",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetProbeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/tickets": {
@@ -5241,6 +5902,16 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required for the selected execution target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
@@ -5444,6 +6115,16 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required for the next execution target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
@@ -7417,8 +8098,24 @@
           "error": {
             "type": "string"
           },
+          "feature": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PremiumFeature"
+              }
+            ]
+          },
           "message": {
             "type": "string"
+          },
+          "required_tier": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -7863,6 +8560,17 @@
           }
         }
       },
+      "InstallLicenseRequest": {
+        "type": "object",
+        "required": [
+          "license_key"
+        ],
+        "properties": {
+          "license_key": {
+            "type": "string"
+          }
+        }
+      },
       "IntegrationCatalogEntryDto": {
         "type": "object",
         "description": "One advertised integration: its vertical, identity, docs link, and support\nstatus.",
@@ -7872,7 +8580,8 @@
           "slug",
           "label",
           "readme_badge",
-          "status"
+          "status",
+          "premium"
         ],
         "properties": {
           "docs_url": {
@@ -7886,9 +8595,22 @@
             "type": "string",
             "description": "Display label for the entry (e.g. \"Jira\", \"Anthropic\")."
           },
+          "premium": {
+            "type": "boolean"
+          },
           "readme_badge": {
             "type": "boolean",
             "description": "Whether this entry carries a curated README badge."
+          },
+          "session_wrappers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Implemented session controllers for an IDE; absent for other categories."
           },
           "slug": {
             "type": "string",
@@ -8640,6 +9362,105 @@
           "worktree_created": {
             "type": "boolean",
             "description": "Whether a worktree was created"
+          }
+        }
+      },
+      "LicenseResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "profile_id",
+          "premium"
+        ],
+        "properties": {
+          "premium": {
+            "type": "boolean"
+          },
+          "profile_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purchase_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/LicenseStatus"
+          },
+          "terms": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LicenseTerms"
+              }
+            ]
+          }
+        }
+      },
+      "LicenseStatus": {
+        "type": "string",
+        "enum": [
+          "missing",
+          "valid",
+          "expired",
+          "not_yet_valid",
+          "invalid"
+        ]
+      },
+      "LicenseTerms": {
+        "type": "object",
+        "required": [
+          "version",
+          "iss",
+          "aud",
+          "sub",
+          "jti",
+          "profile_id",
+          "tier",
+          "iat",
+          "nbf",
+          "exp"
+        ],
+        "properties": {
+          "aud": {
+            "type": "string"
+          },
+          "exp": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "iat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "iss": {
+            "type": "string"
+          },
+          "jti": {
+            "type": "string"
+          },
+          "nbf": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "profile_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sub": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           }
         }
       },
@@ -9443,6 +10264,12 @@
         },
         "additionalProperties": false
       },
+      "PremiumFeature": {
+        "type": "string",
+        "enum": [
+          "remote_targets"
+        ]
+      },
       "PrincipalKind": {
         "type": "string",
         "description": "What kind of credential authenticated a request.",
@@ -9452,6 +10279,41 @@
           "local_process",
           "agent_callback"
         ]
+      },
+      "ProfileNameRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ProfileSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "initialized",
+          "is_default"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "initialized": {
+            "type": "boolean"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
       },
       "ProjectSummary": {
         "type": "object",
@@ -10383,6 +11245,8 @@
         "description": "A step in the setup wizard.",
         "enum": [
           "welcome",
+          "license",
+          "execution-mode",
           "kanban-info",
           "model-server",
           "git-provider",
@@ -10766,6 +11630,66 @@
               "$ref": "#/components/schemas/KanbanIssueTypeResponse"
             },
             "description": "The synced issue types"
+          }
+        }
+      },
+      "TargetProbeResponse": {
+        "type": "object",
+        "required": [
+          "reachable",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "reachable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TargetResponse": {
+        "allOf": [
+          {
+            "type": "object"
+          },
+          {
+            "type": "object",
+            "required": [
+              "premium",
+              "entitled",
+              "user_declared"
+            ],
+            "properties": {
+              "entitled": {
+                "type": "boolean"
+              },
+              "premium": {
+                "type": "boolean"
+              },
+              "user_declared": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "TargetsResponse": {
+        "type": "object",
+        "required": [
+          "targets",
+          "total"
+        ],
+        "properties": {
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TargetResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },

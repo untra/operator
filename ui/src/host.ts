@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
 
 export interface Host {
+  readonly profileId?: string;
+  readonly signal?: AbortSignal;
   baseUrl(): string;
   openExternal(url: string): void;
   browseFolder(): Promise<string | null>;

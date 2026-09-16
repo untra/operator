@@ -34,9 +34,7 @@ impl Default for PrWorkflow {
 }
 
 impl PrWorkflow {
-    /// Build a workflow over an explicit `PrService`. The injection seam the
-    /// orchestration layer was missing -- both real constructors hardcoded a
-    /// router, so nothing above `PrService` could be tested with a mock.
+    /// Build a workflow over an explicit `PrService`.
     pub fn with_service(service: Arc<dyn PrService>) -> Self {
         Self {
             hosts: crate::types::pr::ProviderHosts::default(),

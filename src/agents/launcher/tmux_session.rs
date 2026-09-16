@@ -233,7 +233,7 @@ pub fn launch_in_tmux_with_options(
     )?;
 
     // Inject relay env vars so agents can find the hub and register with their ticket ID
-    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+    if let Some(socket_path) = crate::relay::active_hub_socket() {
         let export_cmd = format!(
             "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}",
             ticket.id
@@ -501,7 +501,7 @@ pub fn launch_in_tmux_with_relaunch_options(
     )?;
 
     // Inject relay env vars so agents can find the hub and register with their ticket ID
-    if let Ok(socket_path) = std::env::var("RELAY_HUB_SOCKET") {
+    if let Some(socket_path) = crate::relay::active_hub_socket() {
         let export_cmd = format!(
             "export RELAY_HUB_SOCKET={socket_path} RELAY_AGENT_NAME={}",
             ticket.id

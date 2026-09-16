@@ -131,6 +131,12 @@ impl App {
 
         // Setup screen takes absolute priority
         if let Some(ref mut setup) = self.setup_screen {
+            if setup.step == crate::ui::setup::SetupStep::Welcome
+                && matches!(code, KeyCode::Char(_) | KeyCode::Backspace)
+            {
+                setup.handle_configuration_name_key(code);
+                return Ok(());
+            }
             // The password step needs raw characters, and the wizard bindings
             // below would eat them: `i` runs initialize_tickets() outright,
             // `c` quits the app, and `j`/`k`/space navigate. Route text keys to
@@ -149,6 +155,21 @@ impl App {
                 )
             {
                 setup.handle_password_key(code);
+                return Ok(());
+            }
+            if setup.step == crate::ui::setup::SetupStep::License
+                && matches!(
+                    code,
+                    KeyCode::Char(_)
+                        | KeyCode::Backspace
+                        | KeyCode::Delete
+                        | KeyCode::Left
+                        | KeyCode::Right
+                        | KeyCode::Home
+                        | KeyCode::End
+                )
+            {
+                setup.handle_license_key(code);
                 return Ok(());
             }
             if setup.step == crate::ui::setup::SetupStep::ExecutionTarget
@@ -203,11 +224,15 @@ impl App {
                             // the borrow on `setup_screen` has ended.
                             let open_kanban = setup.take_kanban_dialog_request();
                             let git_slug = setup.take_git_connect_request();
+                            let license_key = setup.take_license_install_request();
                             if open_kanban {
                                 self.show_kanban_onboarding_dialog();
                             }
                             if let Some(slug) = git_slug {
                                 self.connect_git_provider_from_setup(&slug);
+                            }
+                            if let Some(key) = license_key {
+                                self.install_license_from_setup(&key);
                             }
                         }
                     }

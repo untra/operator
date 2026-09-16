@@ -12,19 +12,11 @@ RUN apt-get update \
 
 WORKDIR /src
 
-# bindings/ is committed (CI only verifies freshness), so `make bindings` --
-# i.e. a full cargo test run -- is not needed to type the frontend.
 COPY bindings/ ./bindings/
-
-# webcomponents first: ui/ resolves @operator/webcomponents to
-# ../webcomponents/dist/index.js by vite alias, a dist-artifact dependency
-# rather than a package dependency, so the order is load-bearing.
 COPY webcomponents/ ./webcomponents/
 RUN cd webcomponents && bun install --frozen-lockfile && bun run build
 
-# ui/src/index.css @imports the brand tokens from the docs site, which is the
-# single source of truth for them (docs/design-system/). The SPA build needs
-# that one file even though nothing else of docs/ is involved.
+# ui/src/index.css @imports the brand tokens from the docs site, which is the source of truth for them (docs/design-system/).
 COPY docs/assets/css/ ./docs/assets/css/
 COPY ui/ ./ui/
 RUN cd ui && bun install --frozen-lockfile && bun run build
@@ -38,8 +30,7 @@ COPY --from=web /src/ui/dist ./ui/dist
 
 RUN cargo build --release --locked --bin operator
 
-# opr8r is a separate cargo project with its own Cargo.lock, not a workspace
-# member, so it needs its own invocation.
+# opr8r is a separate cargo project with its own Cargo.lock, not a workspace member, so it needs its own invocation.
 RUN cd opr8r && cargo build --release --locked
 
 # Mirrors Dockerfile; only the operator/opr8r binary source differs.

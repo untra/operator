@@ -64,14 +64,24 @@ const fn admin(method: &'static str, path: &'static str) -> RouteRule {
 
 /// Every mounted route and what it requires.
 ///
-/// Two classifications here are load-bearing and worth stating:
-///
 /// * **Configuration is `Admin` in both directions.** Even the narrowed public
 ///   projection controls process launch and resource limits.
 /// * **Health and status are `Read`, not public.** They report the workspace
 ///   directory name and id. `/livez` and `/readyz` exist precisely so probes
 ///   never need that.
 pub static ROUTE_RULES: &[RouteRule] = &[
+    read("GET", "/api/v1/license"),
+    admin("PUT", "/api/v1/license"),
+    admin("DELETE", "/api/v1/license"),
+    read("GET", "/api/v1/targets"),
+    admin("POST", "/api/v1/targets"),
+    admin("PUT", "/api/v1/targets/{name}"),
+    admin("DELETE", "/api/v1/targets/{name}"),
+    admin("POST", "/api/v1/targets/{name}/probe"),
+    read("GET", "/api/v1/profiles"),
+    admin("POST", "/api/v1/profiles"),
+    read("GET", "/api/v1/profiles/{profile_id}"),
+    admin("PATCH", "/api/v1/profiles/{profile_id}"),
     // --- Public: probes -----------------------------------------------------
     public("GET", "/livez"),
     public("GET", "/readyz"),

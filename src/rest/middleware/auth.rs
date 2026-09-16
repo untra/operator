@@ -113,6 +113,11 @@ pub async fn resolve_principal(state: &ApiState, headers: &HeaderMap) -> Option<
         // audience, so it can never satisfy an ordinary API route; the handler
         // additionally matches its ticket/step claims against the request path.
         if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_CALLBACK) {
+            if claims.profile_id != Some(state.config().profile.id)
+                && !(claims.profile_id.is_none() && state.config().profile.id.is_nil())
+            {
+                return None;
+            }
             return Some(Principal {
                 subject: claims.sub.clone(),
                 scopes: claims.scopes(),

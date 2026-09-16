@@ -17,7 +17,28 @@
 //! Adding a new vertical entry here, plus its docs page (and README badge for
 //! `Alpha`+), is all that is required to keep the surfaces aligned.
 
+use crate::config::SessionWrapperType;
 use crate::integrations::SupportStatus;
+
+pub fn ide_session_wrappers(ide: &str) -> Option<&'static [SessionWrapperType]> {
+    match ide {
+        "vscode" => Some(&[SessionWrapperType::Vscode]),
+        "zed" | "cursor" => Some(&[]),
+        _ => None,
+    }
+}
+
+pub fn validate_ide_session(ide: &str, wrapper: SessionWrapperType) -> Result<(), String> {
+    let wrappers = ide_session_wrappers(ide).ok_or_else(|| format!("Unknown IDE: {ide}"))?;
+    if wrappers.contains(&wrapper) {
+        Ok(())
+    } else {
+        Err(format!(
+            "{} cannot manage sessions in {ide}",
+            wrapper.display_name()
+        ))
+    }
+}
 
 /// A top-level advertised vertical. The [`label`](Self::label) matches the
 /// bolded category in `README.md`'s badge list.
@@ -33,11 +54,14 @@ pub enum Vertical {
     Integration,
     Workflows,
     Notification,
+    Transport,
+    AgentRelay,
+    RemoteTargets,
 }
 
 impl Vertical {
     /// All verticals, in README display order.
-    pub const ALL: [Vertical; 10] = [
+    pub const ALL: [Vertical; 13] = [
         Vertical::Kanban,
         Vertical::Model,
         Vertical::Git,
@@ -48,6 +72,9 @@ impl Vertical {
         Vertical::Integration,
         Vertical::Workflows,
         Vertical::Notification,
+        Vertical::Transport,
+        Vertical::AgentRelay,
+        Vertical::RemoteTargets,
     ];
 
     /// Stable lowercase slug (wire id for the REST DTO).
@@ -63,6 +90,9 @@ impl Vertical {
             Vertical::Integration => "integration",
             Vertical::Workflows => "workflows",
             Vertical::Notification => "notification",
+            Vertical::Transport => "transport",
+            Vertical::AgentRelay => "agent-relay",
+            Vertical::RemoteTargets => "remote-targets",
         }
     }
 
@@ -72,30 +102,36 @@ impl Vertical {
             Vertical::Kanban => "Kanban Provider",
             Vertical::Model => "Model Provider",
             Vertical::Git => "Git Version Control",
-            Vertical::Session => "Session",
-            Vertical::Editor => "Editor",
+            Vertical::Session => "Session Management",
+            Vertical::Editor => "IDE",
             Vertical::LlmTool => "LLM Tool",
             Vertical::Platform => "Platform",
             Vertical::Integration => "Integration",
             Vertical::Workflows => "Workflow Export Format",
             Vertical::Notification => "Notification Channel",
+            Vertical::Transport => "Execution Transport",
+            Vertical::AgentRelay => "Agent Relay",
+            Vertical::RemoteTargets => "Remote Targets",
         }
     }
 
     /// Docs section directory (site-root-relative) that hosts this vertical's
     /// entry pages - the sidebar nav item URL and the section `index.md`.
-    /// `Session` and `Editor` deliberately share one section.
     pub fn docs_section(&self) -> &'static str {
         match self {
             Vertical::Kanban => "getting-started/kanban",
             Vertical::Model => "getting-started/model-servers",
             Vertical::Git => "getting-started/git",
-            Vertical::Session | Vertical::Editor => "getting-started/sessions",
+            Vertical::Session => "getting-started/sessions",
+            Vertical::Editor => "getting-started/ides",
             Vertical::LlmTool => "getting-started/agents",
             Vertical::Platform => "getting-started/platforms",
             Vertical::Integration => "getting-started/integrations",
             Vertical::Workflows => "getting-started/workflows",
             Vertical::Notification => "getting-started/notifications",
+            Vertical::Transport => "getting-started/transports",
+            Vertical::AgentRelay => "getting-started/agent-relays",
+            Vertical::RemoteTargets => "getting-started/remote-targets",
         }
     }
 }
@@ -122,9 +158,19 @@ pub struct CatalogEntry {
     pub readme_badge: bool,
     /// Official support / maturity status.
     pub status: SupportStatus,
+    pub premium: bool,
 }
 
 impl CatalogEntry {
+    pub fn is_public(&self) -> bool {
+        self.status >= SupportStatus::Alpha
+    }
+
+    fn premium(mut self) -> Self {
+        self.premium = true;
+        self
+    }
+
     /// The absolute docs URL this entry resolves to, if documented.
     pub fn docs_url(&self) -> Option<String> {
         self.docs_path
@@ -140,8 +186,8 @@ impl CatalogEntry {
 pub fn all_integrations() -> Vec<CatalogEntry> {
     use SupportStatus::{Alpha, Beta, Ga, Proto};
     use Vertical::{
-        Editor, Git, Integration, Kanban, LlmTool, Model, Notification, Platform, Session,
-        Workflows,
+        AgentRelay, Editor, Git, Integration, Kanban, LlmTool, Model, Notification, Platform,
+        RemoteTargets, Session, Transport, Workflows,
     };
     vec![
         // --- Kanban providers (mirror KanbanProviderType::ALL) ---
@@ -268,7 +314,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             false,
             Alpha,
         ),
-        // --- Session wrappers (mirror SessionWrapperType::ALL; vscode lives under Editor) ---
+        // --- Session wrappers (mirror SessionWrapperType::ALL) ---
         entry(
             Session,
             "tmux",
@@ -296,12 +342,21 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             true,
             Beta,
         ),
-        // --- Editors ---
+        entry(
+            Session,
+            "vscode",
+            "VS Code Terminals",
+            Some("getting-started/sessions/vscode-terminals"),
+            Some("vscode"),
+            true,
+            Beta,
+        ),
+        // --- IDEs ---
         entry(
             Editor,
             "vscode",
             "VS Code",
-            Some("getting-started/sessions/vscode"),
+            Some("getting-started/ides/vscode"),
             Some("vscode"),
             true,
             Beta,
@@ -310,7 +365,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             Editor,
             "zed",
             "Zed",
-            Some("getting-started/sessions/zed"),
+            Some("getting-started/ides/zed"),
             Some("zed"),
             true,
             Alpha,
@@ -319,7 +374,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             Editor,
             "cursor",
             "Cursor",
-            Some("getting-started/sessions/cursor"),
+            Some("getting-started/ides/cursor"),
             Some("cursor"),
             false,
             Proto,
@@ -363,14 +418,15 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             Beta,
         ),
         entry(
-            Platform,
+            RemoteTargets,
             "coder",
             "Coder",
-            Some("getting-started/platforms/coder"),
+            Some("getting-started/remote-targets/coder"),
             Some("coder"),
             true,
             Alpha,
-        ),
+        )
+        .premium(),
         entry(
             Platform,
             "kubernetes",
@@ -380,6 +436,44 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             true,
             Alpha,
         ),
+        entry(
+            Transport,
+            "local",
+            "Local",
+            Some("getting-started/transports/local"),
+            None,
+            false,
+            Alpha,
+        ),
+        entry(
+            Transport,
+            "ssh",
+            "SSH",
+            Some("getting-started/transports/ssh"),
+            None,
+            false,
+            Alpha,
+        )
+        .premium(),
+        entry(
+            AgentRelay,
+            "claude-relay",
+            "Claude Relay",
+            Some("getting-started/agent-relays/claude-relay"),
+            Some("claude"),
+            false,
+            Alpha,
+        ),
+        entry(
+            RemoteTargets,
+            "ssh",
+            "SSH Hosts",
+            Some("getting-started/remote-targets/ssh"),
+            None,
+            false,
+            Alpha,
+        )
+        .premium(),
         // --- Integrations (documented, no README badge row) ---
         entry(
             Integration,
@@ -441,9 +535,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
 pub fn onboardable(vertical: Vertical) -> Vec<CatalogEntry> {
     all_integrations()
         .into_iter()
-        .filter(|e| {
-            e.vertical == vertical && e.status >= SupportStatus::Alpha && e.docs_path.is_some()
-        })
+        .filter(|e| e.vertical == vertical && e.is_public() && e.docs_path.is_some())
         .collect()
 }
 
@@ -471,6 +563,7 @@ fn entry(
         icon,
         readme_badge,
         status,
+        premium: false,
     }
 }
 
@@ -481,6 +574,28 @@ mod tests {
     #[test]
     fn test_catalog_non_empty() {
         assert!(!all_integrations().is_empty());
+    }
+
+    #[test]
+    fn remote_execution_is_premium_independently_of_maturity() {
+        for entry in all_integrations()
+            .into_iter()
+            .filter(|e| e.vertical == Vertical::RemoteTargets)
+        {
+            assert!(entry.premium);
+            assert!(entry.is_public());
+        }
+        assert!(!entry_for(Vertical::Transport, "local").unwrap().premium);
+        assert!(entry_for(Vertical::Transport, "ssh").unwrap().premium);
+        assert!(!entry_for(Vertical::Editor, "cursor").unwrap().is_public());
+    }
+
+    #[test]
+    fn ide_controllers_are_not_interchangeable() {
+        assert!(validate_ide_session("vscode", SessionWrapperType::Vscode).is_ok());
+        assert!(validate_ide_session("vscode", SessionWrapperType::Cmux).is_err());
+        assert!(validate_ide_session("cursor", SessionWrapperType::Vscode).is_err());
+        assert!(validate_ide_session("zed", SessionWrapperType::Tmux).is_err());
     }
 
     #[test]

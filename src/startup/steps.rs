@@ -188,10 +188,13 @@ impl SetupStep {
             },
             SetupStep::KanbanInfo => SetupStepInfo {
                 name: "Kanban Info",
-                description: "Connect a kanban provider, or skip and connect one later",
+                description: "Connect an external kanban provider, or skip and connect one later",
                 help_text:
-                    "Operator can sync with external kanban providers to pull in issues as tickets.\n\
-                    Supported providers: Jira, Linear, GitHub Projects.\n\n\
+                    "**Operator** is the board. Tickets worked by agents move through the columns.\n\
+                    It is always on and needs no setup or credentials.\n\n\
+                    External providers are optional *sync sources*: their issues are pulled in \
+                    as tickets on the Operator board, and transitions are pushed back.\n\
+                    Supported: Jira, Linear, GitHub Projects, OpenSpec.\n\n\
                     Credentials already exported (e.g. OPERATOR_JIRA_API_KEY) are listed as \
                     detected providers.\n\n\
                     **Connect a kanban provider** opens the same onboarding dialog the dashboard \
@@ -199,7 +202,8 @@ impl SetupStep {
                     API, and choose a project. The provider section is written to config.toml and \
                     the token is exported into this session, with a shell snippet to make it \
                     permanent.\n\n\
-                    **Skip for now** moves on; press `K` from the dashboard at any time.",
+                    **Skip for now** moves on with just the Operator board; press `K` from the \
+                    dashboard at any time.",
                 navigation: "↑/↓ to select, Enter to confirm, Esc to go back",
             },
             SetupStep::ModelServer => SetupStepInfo {

@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use utoipa::ToSchema;
 
+use crate::queue::{TicketPriority, TicketStatus};
+
 // =============================================================================
 // Health/Status DTOs
 // =============================================================================
@@ -50,15 +52,15 @@ pub struct KanbanTicketCard {
     pub ticket_type: String,
     /// Project name
     pub project: String,
-    /// Current status: queued, running, awaiting, completed
-    pub status: String,
+    /// Current status
+    pub status: TicketStatus,
     /// Current step name
     pub step: String,
     /// Human-readable step name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub step_display_name: Option<String>,
-    /// Priority: P0-critical, P1-high, P2-medium, P3-low
-    pub priority: String,
+    /// Priority level
+    pub priority: TicketPriority,
     /// Timestamp for sorting (YYYYMMDD-HHMM format)
     pub timestamp: String,
     /// Ticket markdown filename (joins with the tickets dir + status folder
@@ -89,15 +91,14 @@ pub struct KanbanBoardResponse {
 // Queue Status DTOs
 // =============================================================================
 
-/// Ticket counts by type for queue status
-#[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+/// Ticket counts keyed by issuetype.
+///
+/// Issuetypes are an open set defined by collections, so this is a map rather
+/// than fixed fields. `BTreeMap` keeps the JSON key order stable.
+#[derive(Debug, Default, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
-pub struct QueueByType {
-    pub inv: usize,
-    pub fix: usize,
-    pub feat: usize,
-    pub spike: usize,
-}
+#[serde(transparent)]
+pub struct QueueByType(pub std::collections::BTreeMap<String, usize>);
 
 /// Queue status response with ticket counts
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
@@ -559,9 +560,9 @@ pub struct UpdateTicketStatusResponse {
     /// Ticket ID
     pub id: String,
     /// Previous status before the update
-    pub previous_status: String,
+    pub previous_status: TicketStatus,
     /// New status after the update
-    pub status: String,
+    pub status: TicketStatus,
     /// Human-readable message
     pub message: String,
 }
@@ -594,10 +595,10 @@ mod tests {
             summary: "Add thing".to_string(),
             ticket_type: "FEAT".to_string(),
             project: "gamesvc".to_string(),
-            status: "queued".to_string(),
+            status: TicketStatus::Queued,
             step: "execute".to_string(),
             step_display_name: None,
-            priority: "P2-medium".to_string(),
+            priority: TicketPriority::P2Medium,
             timestamp: "20260616-1200".to_string(),
         };
         let json = serde_json::to_string(&card).unwrap();
@@ -612,10 +613,10 @@ mod tests {
             summary: "Add thing".to_string(),
             ticket_type: "FEAT".to_string(),
             project: "gamesvc".to_string(),
-            status: "queued".to_string(),
+            status: TicketStatus::Queued,
             step: "execute".to_string(),
             step_display_name: Some("Execute".to_string()),
-            priority: "P2-medium".to_string(),
+            priority: TicketPriority::P2Medium,
             timestamp: "20260616-1200".to_string(),
         };
         let json = serde_json::to_string(&card).unwrap();
@@ -629,18 +630,24 @@ mod tests {
             in_progress: 1,
             awaiting: 2,
             completed: 7,
-            by_type: QueueByType {
-                inv: 1,
-                fix: 1,
-                feat: 1,
-                spike: 0,
-            },
+            by_type: QueueByType(
+                [
+                    ("INV".to_string(), 1),
+                    ("FIX".to_string(), 1),
+                    ("FEAT".to_string(), 1),
+                    ("SPIKE".to_string(), 0),
+                    ("CHORE".to_string(), 2),
+                ]
+                .into_iter()
+                .collect(),
+            ),
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"by_type\":{"));
         let parsed: QueueStatusResponse = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.by_type.inv, 1);
-        assert_eq!(parsed.by_type.spike, 0);
+        assert_eq!(parsed.by_type.0.get("INV"), Some(&1));
+        assert_eq!(parsed.by_type.0.get("SPIKE"), Some(&0));
+        assert_eq!(parsed.by_type.0.get("CHORE"), Some(&2));
         assert_eq!(parsed.completed, 7);
     }
 

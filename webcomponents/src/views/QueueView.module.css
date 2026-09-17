@@ -1,2 +1,54 @@
-.page { max-width: 1200px; }
-.meta { margin-bottom: 1.25rem; color: var(--text-muted); font-size: 0.825rem; }
+.page {
+  max-width: 1200px;
+}
+
+.meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  color: var(--text-muted);
+  font-size: 0.825rem;
+}
+
+.newTicketBtn {
+  padding: 0.35rem 0.7rem;
+  color: var(--action-text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--action-bg);
+  border: 0;
+  border-radius: var(--radius);
+  transition: background 0.15s;
+}
+
+.newTicketBtn:hover {
+  background: var(--action-bg-hover);
+}
+
+.noMatches {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  background: var(--surface-alt);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.linkBtn {
+  padding: 0;
+  color: var(--color-cornflower);
+  font: inherit;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}

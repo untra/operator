@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Coder Manifest",
+  "description": "Schema for https://coder.com/download",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "latest", "dev", "supported"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "const": "Coder"
+    },
+    "latest": { "$ref": "#/$defs/channel" },
+    "dev": { "$ref": "#/$defs/channel" },
+    "supported": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/channel" }
+    }
+  },
+  "$defs": {
+    "channel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assets", "timestamp", "version", "title", "description"],
+      "properties": {
+        "assets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/releaseAsset" }
+        },
+        "timestamp": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Unix timestamp"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "title": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "releaseAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset",
+        "version",
+        "name",
+        "url",
+        "sha256",
+        "fileSizeMb",
+        "architecture"
+      ],
+      "properties": {
+        "asset": { "$ref": "#/$defs/assetMeta" },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "name": { "type": "string" },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "fileSizeMb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "architecture": {
+          "type": "string",
+          "enum": ["arm64", "x64", ""]
+        }
+      }
+    },
+    "assetMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group",
+        "name",
+        "extension",
+        "description",
+        "architecture",
+        "osRequired",
+        "published"
+      ],
+      "properties": {
+        "group": {
+          "type": "string",
+          "enum": [
+            "darwin-arm64",
+            "darwin-x64",
+            "linux-x64",
+            "linux-aarch64",
+            "windows-x64",
+            "windows-arm64",
+            "sdk",
+            "tools"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "extension": {
+          "type": "string"
+        },
+        "description": { "type": "string" },
+        "architecture": {
+          "type": "string",
+          "enum": ["arm64", "x64", ""]
+        },
+        "osRequired": {
+          "type": "string",
+          "enum": ["macos", "linux", "windows", ""]
+        },
+        "published": { "type": "boolean" }
+      }
+    }
+  }
+}

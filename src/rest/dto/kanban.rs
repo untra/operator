@@ -95,7 +95,10 @@ pub struct KanbanProviderCatalogEntry {
 // Kanban Onboarding DTOs
 // =============================================================================
 
-/// Which kanban provider an onboarding request targets.
+/// Which external kanban provider an onboarding request targets.
+/// Deliberately one variant smaller than [`KanbanProviderType`]
+///
+/// [`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS, PartialEq, Eq)]
 #[ts(export)]
 #[serde(rename_all = "lowercase")]
@@ -104,6 +107,20 @@ pub enum KanbanProviderKind {
     Linear,
     Github,
     Openspec,
+}
+
+impl KanbanProviderKind {
+    /// Every provider a client can submit credentials for, in catalog order.
+    ///
+    /// Exists for the parity guard below; the runtime surfaces are driven by
+    /// `KanbanProviderType::ALL` and the serde tags on this enum.
+    #[cfg(test)]
+    pub const ALL: [KanbanProviderKind; 4] = [
+        KanbanProviderKind::Jira,
+        KanbanProviderKind::Linear,
+        KanbanProviderKind::Github,
+        KanbanProviderKind::Openspec,
+    ];
 }
 
 /// Ephemeral Jira credentials supplied by a client during onboarding.
@@ -539,6 +556,35 @@ mod tests {
         assert!(!json.contains("\"jira\":"));
         assert!(!json.contains("\"linear\":"));
         assert!(!json.contains("\"github\":"));
+    }
+
+    /// The onboarding surface must stay a projection of the provider catalog:
+    /// every connectable provider appears here.
+    #[test]
+    fn test_onboarding_kinds_cover_every_non_builtin_provider() {
+        use crate::api::providers::kanban::KanbanProviderType;
+
+        let connectable: Vec<&str> = KanbanProviderType::ALL
+            .into_iter()
+            .filter(|p| !p.is_builtin())
+            .map(|p| p.slug())
+            .collect();
+        let kinds: Vec<String> = KanbanProviderKind::ALL
+            .iter()
+            .map(|k| {
+                serde_json::to_value(k)
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect();
+
+        assert_eq!(connectable, kinds);
+        assert_eq!(
+            KanbanProviderType::ALL.len(),
+            KanbanProviderKind::ALL.len() + 1
+        );
     }
 
     #[test]

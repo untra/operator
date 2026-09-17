@@ -4,6 +4,23 @@ import type { SectionContext, StatusSection, KanbanState, KanbanProviderState } 
 import type { SectionId, SectionHealth } from "../generated";
 import { getKanbanWorkspaces } from "../walkthrough";
 
+/** Row label and icon per provider, keyed by the canonical slug. */
+const PROVIDER_LABELS: Record<KanbanProviderState["provider"], string> = {
+  operator: "Operator",
+  jira: "Jira",
+  linear: "Linear",
+  github: "GitHub Projects",
+  openspec: "OpenSpec",
+};
+
+const PROVIDER_ICONS: Record<KanbanProviderState["provider"], string> = {
+  operator: "layout",
+  jira: "operator-atlassian",
+  linear: "operator-linear",
+  github: "github",
+  openspec: "checklist",
+};
+
 export class KanbanSection implements StatusSection {
   readonly sectionId: SectionId = "kanban";
   readonly prerequisites: SectionId[] = ["connections"];
@@ -156,8 +173,19 @@ export class KanbanSection implements StatusSection {
       }
     }
 
+    // The built-in board leads every list: it is always on, has no config
+    // section to parse, and is what the other providers sync into.
+    providers.unshift({
+      provider: "operator",
+      key: "operator",
+      enabled: true,
+      displayName: ".tickets",
+      url: "https://operator.untra.io/getting-started/kanban/operator/",
+      projects: [],
+    });
+
     this.state = {
-      configured: providers.length > 0,
+      configured: true,
       providers,
     };
   }
@@ -192,22 +220,8 @@ export class KanbanSection implements StatusSection {
 
     if (this.state.configured) {
       for (const prov of this.state.providers) {
-        const providerLabel =
-          prov.provider === "jira"
-            ? "Jira"
-            : prov.provider === "linear"
-              ? "Linear"
-              : prov.provider === "openspec"
-                ? "OpenSpec"
-                : "GitHub Projects";
-        const providerIcon =
-          prov.provider === "jira"
-            ? "operator-atlassian"
-            : prov.provider === "linear"
-              ? "operator-linear"
-              : prov.provider === "openspec"
-                ? "checklist"
-                : "github";
+        const providerLabel = PROVIDER_LABELS[prov.provider];
+        const providerIcon = PROVIDER_ICONS[prov.provider];
         items.push(
           new StatusItem({
             label: providerLabel,

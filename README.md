@@ -9,7 +9,7 @@
 
 * **IDE** [![VS Code](https://img.shields.io/badge/VS_Code-007ACC)](https://operator.untra.io/getting-started/ides/vscode/) [![Zed](https://img.shields.io/badge/Zed-084CCF?logo=zedindustries&logoColor=white)](https://operator.untra.io/getting-started/ides/zed/)
 
-* **Kanban Provider** [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) [![GitHub Projects](https://img.shields.io/badge/GitHub_Projects-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/kanban/github/)
+* **Kanban Provider** [![Operator](https://img.shields.io/badge/Operator-C8613F)](https://operator.untra.io/getting-started/kanban/operator/) [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) [![GitHub Projects](https://img.shields.io/badge/GitHub_Projects-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/kanban/github/)
 
 * **LLM Tool** [![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/agents/claude/) [![Codex](https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/agents/codex/) [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](https://operator.untra.io/getting-started/agents/gemini-cli/)
 
@@ -32,7 +32,7 @@ An orchestration tool for [**AI-assisted**](https://operator.untra.io/getting-st
 
 **Operator** is for you if:
 
-- you do work assigned from tickets on a kanban board, such as [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/), [_Linear_](https://operator.untra.io/getting-started/kanban/linear/), or [_GitHub Projects_](https://operator.untra.io/getting-started/kanban/github/)
+- you do work assigned from tickets on a kanban board - [_Operator's own_](https://operator.untra.io/getting-started/kanban/operator/), or synced in from [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/), [_Linear_](https://operator.untra.io/getting-started/kanban/linear/), or [_GitHub Projects_](https://operator.untra.io/getting-started/kanban/github/)
 - you use LLM assisted coding agent tools to accomplish work, such as [_Claude Code_](https://operator.untra.io/getting-started/agents/claude/), [_OpenAI Codex_](https://operator.untra.io/getting-started/agents/codex/), or [_Google Gemini CLI_](https://operator.untra.io/getting-started/agents/gemini-cli/)
 - you reach many models through a provider like [_OpenRouter_](https://operator.untra.io/getting-started/model-servers/openrouter/) or a local [_Ollama_](https://operator.untra.io/getting-started/model-servers/ollama/) server
 - your work is version controlled with a git repository provider like [_GitHub_](https://operator.untra.io/getting-started/git/github/) or [_GitLab_](https://operator.untra.io/getting-started/git/gitlab/)

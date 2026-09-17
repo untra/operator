@@ -32,3 +32,15 @@
 .choice small {
   color: var(--text-muted);
 }
+
+/* An option that leads the set spans the whole grid row. */
+.wide {
+  grid-column: 1 / -1;
+}
+
+/* Already in effect: shown as chosen, but nothing to click. */
+.locked {
+  cursor: default;
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 var(--accent);
+}

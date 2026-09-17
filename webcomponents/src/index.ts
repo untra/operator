@@ -32,8 +32,12 @@ export { ConceptIcon } from "./components/ConceptIcon";
 export type { ConceptIconProps } from "./components/ConceptIcon";
 export { KanbanBoard } from "./components/KanbanBoard";
 export type { KanbanBoardProps } from "./components/KanbanBoard";
+export { KanbanFilterBar } from "./components/KanbanFilterBar";
+export type { KanbanFilterBarProps } from "./components/KanbanFilterBar";
 export { LaunchForm } from "./components/LaunchForm";
 export type { LaunchFormProps, LaunchFormValue } from "./components/LaunchForm";
+export { TicketCreateForm } from "./components/TicketCreateForm";
+export type { TicketCreateFormProps, TicketCreateFormValue } from "./components/TicketCreateForm";
 export { PageHeader } from "./components/PageHeader";
 export type { PageHeaderProps } from "./components/PageHeader";
 export { RightPanel } from "./components/RightPanel";
@@ -63,3 +67,13 @@ export type { QueueViewProps } from "./views/QueueView";
 
 export { useDocumentTheme, usePhaseColors } from "./shared/theme";
 export type { Theme } from "./shared/theme";
+
+export {
+  DEFAULT_FILTER_STATE,
+  facetsFromBoard,
+  filterBoard,
+  hasActiveFilters,
+  useKanbanFilters,
+} from "./shared/kanban-filters";
+export type { KanbanFacets, KanbanFilterState } from "./shared/kanban-filters";
+export { PRIORITY_KEY, PRIORITY_ORDER, STATUS_GLYPH } from "./shared/ticket-fields";

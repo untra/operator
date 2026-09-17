@@ -22,6 +22,8 @@ fn build_provider_catalog(kanban: &KanbanConfig) -> Vec<KanbanProviderCatalogEnt
         .into_iter()
         .map(|p| {
             let configured = match p {
+                // The built-in board needs no configuration to exist.
+                KanbanProviderType::Operator => true,
                 KanbanProviderType::Jira => !kanban.jira.is_empty(),
                 KanbanProviderType::Linear => !kanban.linear.is_empty(),
                 KanbanProviderType::Github => !kanban.github.is_empty(),
@@ -273,7 +275,10 @@ mod tests {
         let catalog = build_provider_catalog(&kanban);
 
         let slugs: Vec<&str> = catalog.iter().map(|e| e.slug.as_str()).collect();
-        assert_eq!(slugs, vec!["jira", "linear", "github", "openspec"]);
+        assert_eq!(
+            slugs,
+            vec!["operator", "jira", "linear", "github", "openspec"]
+        );
 
         let github = catalog.iter().find(|e| e.slug == "github").unwrap();
         assert!(github.configured);
@@ -290,6 +295,12 @@ mod tests {
         let openspec = catalog.iter().find(|e| e.slug == "openspec").unwrap();
         assert!(!openspec.configured);
         assert_eq!(openspec.display_name, "OpenSpec");
+
+        // The built-in board leads the list and is configured out of the box.
+        let operator = catalog.first().unwrap();
+        assert_eq!(operator.slug, "operator");
+        assert!(operator.configured);
+        assert_eq!(operator.display_name, "Operator");
     }
 
     #[test]

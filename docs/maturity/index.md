@@ -19,6 +19,7 @@ Operator integrates with many providers and tools across several **verticals**. 
 
 | Integration | Status | Availability | Docs |
 |---|---|---|---|
+| Operator | ![GA](https://img.shields.io/badge/GA-1BB91F) | Included | [Operator](https://operator.untra.io/getting-started/kanban/operator/) |
 | Jira | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Jira](https://operator.untra.io/getting-started/kanban/jira/) |
 | Linear | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Linear](https://operator.untra.io/getting-started/kanban/linear/) |
 | GitHub Projects | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [GitHub Projects](https://operator.untra.io/getting-started/kanban/github/) |

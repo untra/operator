@@ -1,0 +1,77 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.search {
+  flex: 1 1 14rem;
+  min-width: 10rem;
+  padding: 0.35rem 0.6rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.facet {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.facetLabel {
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.group {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.option,
+.optionActive {
+  padding: 0.25rem 0.6rem;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.optionActive {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--surface-alt);
+}
+
+.clear {
+  padding: 0.25rem 0.6rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 900px) {
+  .search {
+    flex-basis: 100%;
+  }
+}

@@ -182,6 +182,9 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
       onFocus(result.agent_id);
     }
   }, [onFocus, result]);
+  // A completed ticket opens read-only: there is nothing left to launch.
+  const isFinished = ticket.status === "completed";
+
   const formValue: LaunchFormValue = { delegator, wrapper, target, yolo };
   const launchActions = result ? (
     <>
@@ -219,7 +222,7 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
     <TicketDetailView
       ticket={ticket}
       launchControls={
-        result ? undefined : (
+        result || isFinished ? undefined : (
           <LaunchForm
             value={formValue}
             delegators={delegators}

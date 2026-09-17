@@ -15,7 +15,7 @@ When Operator starts and no `.tickets/` directory exists, the setup wizard guide
 | 1 | Welcome | Name the configuration and review detected tools and projects |
 | 2 | Operator Premium | Install or review the Premium licence for this configuration |
 | 3 | Execution Mode | Run agents on this machine, or on remote targets |
-| 4 | Kanban Info | Connect a kanban provider, or skip and connect one later |
+| 4 | Kanban Info | Connect an external kanban provider, or skip and connect one later |
 | 5 | Model Server | Declare which model providers this workspace uses |
 | 6 | Git Provider | Connect a git provider so agents can branch, push and open PRs |
 | 7 | Collection Source | Choose which issue type collection to use |
@@ -78,16 +78,19 @@ Choosing remote leads to target registration; choosing this machine skips it.
 
 ### 4. Kanban Info
 
-*Connect a kanban provider, or skip and connect one later*
+*Connect an external kanban provider, or skip and connect one later*
 
-Operator can sync with external kanban providers to pull in issues as tickets.
-Supported providers: Jira, Linear, GitHub Projects.
+**Operator** is the board. Tickets worked by agents move through the columns.
+It is always on and needs no setup or credentials.
+
+External providers are optional *sync sources*: their issues are pulled in as tickets on the Operator board, and transitions are pushed back.
+Supported: Jira, Linear, GitHub Projects, OpenSpec.
 
 Credentials already exported (e.g. OPERATOR_JIRA_API_KEY) are listed as detected providers.
 
 **Connect a kanban provider** opens the same onboarding dialog the dashboard uses: pick a provider, enter its credentials, validate them against the live API, and choose a project. The provider section is written to config.toml and the token is exported into this session, with a shell snippet to make it permanent.
 
-**Skip for now** moves on; press `K` from the dashboard at any time.
+**Skip for now** moves on with just the Operator board; press `K` from the dashboard at any time.
 
 **Navigation**: ↑/↓ to select, Enter to confirm, Esc to go back
 

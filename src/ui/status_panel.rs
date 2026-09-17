@@ -700,6 +700,12 @@ impl StatusSnapshot {
         // catalog the Kanban section renders against.
         use crate::api::providers::kanban::KanbanProviderType;
         let mut kanban_providers: Vec<KanbanProviderInfo> = Vec::new();
+        // The built-in board leads and is always present: it is the destination
+        // every other provider syncs into, and it has no config to enumerate.
+        kanban_providers.push(KanbanProviderInfo {
+            provider_type: KanbanProviderType::Operator.slug().to_string(),
+            domain: tickets_dir.clone(),
+        });
         for domain in config.kanban.jira.keys() {
             kanban_providers.push(KanbanProviderInfo {
                 provider_type: KanbanProviderType::Jira.slug().to_string(),
@@ -1650,8 +1656,14 @@ mod tests {
             .find(|d| d.id == "kanban")
             .expect("kanban section present");
 
-        // Every supported provider is offered when none are connected.
-        assert_eq!(kanban.children.len(), 4);
+        // The built-in board leads as a connected row, then every external
+        // provider is offered.
+        assert_eq!(kanban.children.len(), 5);
+        assert_eq!(kanban.children[0].label, "operator");
+        assert!(
+            !kanban.children[0].id.starts_with("configure-"),
+            "the built-in board is not something to configure"
+        );
 
         for (id, expected_url) in [
             ("configure-jira", "id.atlassian.com"),

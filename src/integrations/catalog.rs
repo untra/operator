@@ -191,6 +191,16 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
     };
     vec![
         // --- Kanban providers (mirror KanbanProviderType::ALL) ---
+        // The built-in board leads the vertical: every other entry syncs into it.
+        entry(
+            Kanban,
+            "operator",
+            "Operator",
+            Some("getting-started/kanban/operator"),
+            Some("operator"),
+            true,
+            Ga,
+        ),
         entry(
             Kanban,
             "jira",

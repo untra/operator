@@ -4843,7 +4843,7 @@
           "Queue"
         ],
         "summary": "Get kanban board data with tickets grouped by status column",
-        "description": "Returns tickets organized into four columns: queue, running, awaiting, done.\nTickets are sorted by priority within each column, then by timestamp (FIFO).",
+        "description": "Returns tickets organized into four columns: queue, running, awaiting, done.\nActive columns follow `queue.priority_order`, then the ticket's `priority:`\nfield, then timestamp (FIFO). The done column is newest first.",
         "operationId": "queue_kanban",
         "responses": {
           "200": {
@@ -5964,7 +5964,7 @@
           "Tickets"
         ],
         "summary": "Update a ticket's status",
-        "description": "Moves a ticket between queue directories based on the target status.\nValid transitions: queued, running, awaiting, done.",
+        "description": "Moves a ticket between queue directories based on the target status.\nAccepts queued, running, awaiting and completed; `done` is an accepted\nalias for `completed`, which is what gets written to frontmatter.",
         "operationId": "tickets_update_status",
         "parameters": [
           {
@@ -8975,7 +8975,7 @@
       },
       "KanbanProviderKind": {
         "type": "string",
-        "description": "Which kanban provider an onboarding request targets.",
+        "description": "Which external kanban provider an onboarding request targets.\nDeliberately one variant smaller than [`KanbanProviderType`]\n\n[`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType",
         "enum": [
           "jira",
           "linear",
@@ -9071,16 +9071,16 @@
             "description": "Ticket ID (e.g., \"FEAT-7598\")"
           },
           "priority": {
-            "type": "string",
-            "description": "Priority: P0-critical, P1-high, P2-medium, P3-low"
+            "$ref": "#/components/schemas/TicketPriority",
+            "description": "Priority level"
           },
           "project": {
             "type": "string",
             "description": "Project name"
           },
           "status": {
-            "type": "string",
-            "description": "Current status: queued, running, awaiting, completed"
+            "$ref": "#/components/schemas/TicketStatus",
+            "description": "Current status"
           },
           "step": {
             "type": "string",
@@ -10440,30 +10440,13 @@
       },
       "QueueByType": {
         "type": "object",
-        "description": "Ticket counts by type for queue status",
-        "required": [
-          "inv",
-          "fix",
-          "feat",
-          "spike"
-        ],
-        "properties": {
-          "feat": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "fix": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "inv": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "spike": {
-            "type": "integer",
-            "minimum": 0
-          }
+        "description": "Ticket counts keyed by issuetype.\n\nIssuetypes are an open set defined by collections, so this is a map rather\nthan fixed fields. `BTreeMap` keeps the JSON key order stable.",
+        "additionalProperties": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "propertyNames": {
+          "type": "string"
         }
       },
       "QueueConfiguration": {
@@ -11820,6 +11803,26 @@
           }
         }
       },
+      "TicketPriority": {
+        "type": "string",
+        "description": "Ticket urgency, as constrained by `src/schemas/ticket_metadata.schema.json`.\n\nVariants are declared most-urgent first, so the derived `Ord` is the sort order.",
+        "enum": [
+          "P0-critical",
+          "P1-high",
+          "P2-medium",
+          "P3-low"
+        ]
+      },
+      "TicketStatus": {
+        "type": "string",
+        "description": "Workflow status, as constrained by `src/schemas/ticket_metadata.schema.json`.",
+        "enum": [
+          "queued",
+          "running",
+          "awaiting",
+          "completed"
+        ]
+      },
       "TokenRequest": {
         "oneOf": [
           {
@@ -12281,11 +12284,11 @@
             "description": "Human-readable message"
           },
           "previous_status": {
-            "type": "string",
+            "$ref": "#/components/schemas/TicketStatus",
             "description": "Previous status before the update"
           },
           "status": {
-            "type": "string",
+            "$ref": "#/components/schemas/TicketStatus",
             "description": "New status after the update"
           }
         }

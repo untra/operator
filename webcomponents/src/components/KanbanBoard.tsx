@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import type { KanbanBoardResponse } from "../generated/KanbanBoardResponse";
 import type { KanbanTicketCard } from "../generated/KanbanTicketCard";
+import { PRIORITY_KEY, STATUS_GLYPH } from "../shared/ticket-fields";
 import styles from "./KanbanBoard.module.css";
 
 export interface KanbanBoardProps {
@@ -17,7 +18,7 @@ export function KanbanBoard({ board, onOpenTicket }: KanbanBoardProps) {
     <div className={styles.columns}>
       <Column title="TODO QUEUE" tickets={board.queue} onOpen={onOpenTicket} />
       <Column title="IN PROGRESS" tickets={inProgress} onOpen={onOpenTicket} />
-      <Column title="DONE" tickets={board.done} />
+      <Column title="DONE" tickets={board.done} onOpen={onOpenTicket} />
     </div>
   );
 }
@@ -57,7 +58,7 @@ function Card({
   const contents = (
     <>
       <div className={styles.cardHeader}>
-        <span className={styles.statusIcon}>{statusIcon(ticket.status)}</span>
+        <span className={styles.statusIcon}>{STATUS_GLYPH[ticket.status]}</span>
         <span className={styles.ticketType}>{ticket.ticket_type}</span>
         <span className={styles.ticketId}>{ticket.id}</span>
       </div>
@@ -69,7 +70,7 @@ function Card({
   );
   if (!onOpen) {
     return (
-      <div className={styles.card} data-priority={priorityKey(ticket.priority)}>
+      <div className={styles.card} data-priority={PRIORITY_KEY[ticket.priority]}>
         {contents}
       </div>
     );
@@ -78,32 +79,11 @@ function Card({
     <button
       type="button"
       className={`${styles.card} ${styles.cardClickable}`}
-      data-priority={priorityKey(ticket.priority)}
+      data-priority={PRIORITY_KEY[ticket.priority]}
       onClick={handleOpen}
       title="Open ticket detail"
     >
       {contents}
     </button>
   );
-}
-
-function statusIcon(status: string): string {
-  switch (status) {
-    case "running":
-      return "▶";
-    case "awaiting":
-    case "waiting":
-    case "blocked":
-      return "⏸";
-    case "completed":
-    case "done":
-      return "✓";
-    default:
-      return "•";
-  }
-}
-
-function priorityKey(priority: string): string {
-  const match = priority.match(/^P([0-3])/i);
-  return match ? `p${match[1]}` : "p2";
 }

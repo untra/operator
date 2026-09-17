@@ -809,7 +809,6 @@ async fn cmd_import(
     provider: Option<String>,
     reference: Option<String>,
 ) -> Result<()> {
-    use api::providers::kanban::KanbanProviderType;
     use services::kanban_sync::KanbanSyncService;
 
     let service = KanbanSyncService::new(config);
@@ -824,10 +823,8 @@ async fn cmd_import(
         Some(p) => p.to_lowercase(),
     };
 
-    if KanbanProviderType::from_slug(&provider).is_none() {
-        anyhow::bail!(
-            "Unknown kanban provider: {provider}. Use 'jira', 'linear', 'github', or 'openspec'."
-        );
+    if let Err(message) = api::providers::kanban::validate_sync_source(&provider) {
+        anyhow::bail!(message);
     }
 
     let collections: Vec<(String, String)> = if let Some(reference) = reference {
@@ -1175,11 +1172,8 @@ fn cmd_setup(
 
     // Validate kanban provider if specified
     if let Some(ref provider) = kanban_provider {
-        if api::providers::kanban::KanbanProviderType::from_slug(&provider.to_lowercase()).is_none()
-        {
-            anyhow::bail!(
-                "Unknown kanban provider: {provider}. Use 'jira', 'linear', 'github', or 'openspec'."
-            );
+        if let Err(message) = api::providers::kanban::validate_sync_source(provider) {
+            anyhow::bail!(message);
         }
     }
 

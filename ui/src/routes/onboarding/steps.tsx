@@ -180,6 +180,10 @@ function KanbanInfo({ api, addExport }: StepProps) {
     [setProvider],
   );
 
+  // The catalog carries one more provider than `KANBAN_KINDS`: the built-in board
+  const builtInBoard = providers.find((item) => !KANBAN_KINDS.some((kind) => kind === item.slug));
+  const connectable = providers.filter((item) => KANBAN_KINDS.some((kind) => kind === item.slug));
+
   const credentials = () => ({
     provider: provider as KanbanProviderKind,
     jira: provider === "jira" ? { domain, email, api_token: token } : null,
@@ -338,9 +342,26 @@ function KanbanInfo({ api, addExport }: StepProps) {
   return (
     <Intro>
       <h2>Kanban</h2>
-      <p>Connect a board now, or continue and connect one later.</p>
+      <p>
+        Connect an external Kanban provider to sync its issues in, or continue and connect one later.
+      </p>
       <ChoiceGroup>
-        {providers.map((item) => (
+        {builtInBoard && (
+          <Choice
+            key={builtInBoard.slug}
+            value={builtInBoard.slug}
+            selected
+            locked
+            wide
+            onSelect={selectProvider}
+          >
+            <strong>{builtInBoard.display_name}</strong>
+            <span>
+              Built in and already active - your tickets in <code>.tickets/</code> are the board.
+            </span>
+          </Choice>
+        )}
+        {connectable.map((item) => (
           <Choice
             key={item.slug}
             selected={provider === item.slug}

@@ -20,6 +20,7 @@ use crate::api::providers::kanban::{
 };
 use crate::config::{Config, KanbanStatusMapping, ProjectSyncConfig};
 use crate::issuetypes::kanban_type::KanbanIssueTypeRef;
+use crate::queue::TicketPriority;
 
 /// A collection that can be synced from a kanban provider
 #[derive(Debug, Clone)]
@@ -79,7 +80,11 @@ impl KanbanSyncService {
         }
     }
 
-    /// Get all configured syncable collections
+    /// Get all configured syncable collections.
+    ///
+    /// Only *external* providers appear here. The built-in Operator board is the
+    /// sync destination - listing it would make every sync re-import operator's
+    /// own tickets. Pinned by `test_configured_collections_never_include_the_builtin_board`.
     pub fn configured_collections(&self) -> Vec<SyncableCollection> {
         let mut collections = Vec::new();
 
@@ -501,15 +506,16 @@ fn leak_string(s: &str) -> &'static str {
     Box::leak(s.to_string().into_boxed_str())
 }
 
-/// Map external priority to Operator priority
-fn map_priority(priority: &Option<String>) -> &'static str {
+/// Map external priority to Operator priority.
+///
+/// A provider's "lowest" tier folds into `P3-low`: operator's set is closed at
+/// four, and a fifth value would not validate against the metadata schema.
+fn map_priority(priority: &Option<String>) -> TicketPriority {
     match priority.as_deref().map(str::to_lowercase).as_deref() {
-        Some("highest" | "critical" | "urgent" | "p0") => "P0-critical",
-        Some("high" | "p1") => "P1-high",
-        Some("medium" | "normal" | "p2") => "P2-medium",
-        Some("low" | "p3") => "P3-low",
-        Some("lowest" | "trivial" | "p4") => "P4-trivial",
-        _ => "P2-medium", // Default to medium
+        Some("highest" | "critical" | "urgent" | "p0") => TicketPriority::P0Critical,
+        Some("high" | "p1") => TicketPriority::P1High,
+        Some("low" | "p3" | "lowest" | "trivial" | "p4") => TicketPriority::P3Low,
+        _ => TicketPriority::P2Medium,
     }
 }
 
@@ -581,6 +587,16 @@ mod tests {
             url: "https://example.atlassian.net/browse/PROJ-42".to_string(),
             priority: Some("Medium".to_string()),
         }
+    }
+
+    /// The built-in board is the sync destination. If it ever became a
+    /// syncable collection, every sync would re-import operator's own tickets.
+    #[test]
+    fn test_configured_collections_never_include_the_builtin_board() {
+        let mut config = Config::default();
+        config.kanban = crate::config::KanbanConfig::default();
+        let collections = KanbanSyncService::new(&config).configured_collections();
+        assert!(!collections.iter().any(|c| c.provider == "operator"));
     }
 
     #[test]
@@ -669,12 +685,28 @@ mod tests {
 
     #[test]
     fn test_map_priority() {
-        assert_eq!(map_priority(&Some("Highest".to_string())), "P0-critical");
-        assert_eq!(map_priority(&Some("high".to_string())), "P1-high");
-        assert_eq!(map_priority(&Some("medium".to_string())), "P2-medium");
-        assert_eq!(map_priority(&Some("low".to_string())), "P3-low");
-        assert_eq!(map_priority(&Some("lowest".to_string())), "P4-trivial");
-        assert_eq!(map_priority(&None), "P2-medium");
+        assert_eq!(
+            map_priority(&Some("Highest".to_string())),
+            TicketPriority::P0Critical
+        );
+        assert_eq!(
+            map_priority(&Some("high".to_string())),
+            TicketPriority::P1High
+        );
+        assert_eq!(
+            map_priority(&Some("medium".to_string())),
+            TicketPriority::P2Medium
+        );
+        assert_eq!(
+            map_priority(&Some("low".to_string())),
+            TicketPriority::P3Low
+        );
+        // A provider's lowest tier has no operator equivalent; it folds into low.
+        assert_eq!(
+            map_priority(&Some("lowest".to_string())),
+            TicketPriority::P3Low
+        );
+        assert_eq!(map_priority(&None), TicketPriority::P2Medium);
     }
 
     #[test]

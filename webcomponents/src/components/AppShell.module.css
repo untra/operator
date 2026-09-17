@@ -109,7 +109,9 @@
   text-decoration: none;
   font-size: 0.875rem;
   border-radius: var(--radius);
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 
 .navLink:hover {
@@ -144,22 +146,22 @@
   box-shadow: 0 0 0 1px var(--color-cream);
 }
 
-.navDot[data-health='green'] {
+.navDot[data-health="green"] {
   background: var(--color-green-l3);
 }
 
 /* On the active pill (bg green-l3) a green-l3 dot would vanish - lighten it so
  * the healthy dot stays a filled mark, not just the cream ring. */
-.active .navDot[data-health='green'] {
+.active .navDot[data-health="green"] {
   background: var(--color-green-l1);
 }
-.navDot[data-health='yellow'] {
+.navDot[data-health="yellow"] {
   background: var(--warning);
 }
-.navDot[data-health='red'] {
+.navDot[data-health="red"] {
   background: var(--danger);
 }
-.navDot[data-health='gray'] {
+.navDot[data-health="gray"] {
   background: var(--text-muted);
 }
 

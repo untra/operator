@@ -33,3 +33,16 @@ pub use projects_dialog::ProjectsDialog;
 pub use session_preview::SessionPreview;
 pub use terminal_guard::{install_panic_hook, TerminalGuard};
 pub use terminal_suspend::with_suspended_tui;
+
+use crate::queue::TicketPriority;
+use ratatui::style::Color;
+
+/// The one urgency-to-ANSI mapping for the TUI.
+pub fn color_for_priority(priority: TicketPriority) -> Color {
+    match priority {
+        TicketPriority::P0Critical => Color::Red,
+        TicketPriority::P1High => Color::Yellow,
+        TicketPriority::P2Medium => Color::White,
+        TicketPriority::P3Low => Color::Gray,
+    }
+}

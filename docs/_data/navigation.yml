@@ -66,6 +66,9 @@ docs:
       - title: Supported Kanban Providers
         url: /getting-started/kanban/
         children:
+          - title: Operator
+            url: /getting-started/kanban/operator/
+            icon: operator
           - title: Jira Cloud
             url: /getting-started/kanban/jira/
             icon: jira

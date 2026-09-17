@@ -20,6 +20,10 @@ export interface ChoiceProps<Value extends string> {
   selected: boolean;
   onSelect: (value: Value) => void;
   children: ReactNode;
+  /** Span the whole grid row, for an option that leads the set. */
+  wide?: boolean;
+  /** Already in effect and not something to pick; renders without a click. */
+  locked?: boolean;
 }
 
 export function Choice<Value extends string>({
@@ -27,12 +31,29 @@ export function Choice<Value extends string>({
   selected,
   onSelect,
   children,
+  wide = false,
+  locked = false,
 }: ChoiceProps<Value>) {
+  const className = [
+    styles.choice,
+    selected ? styles.selected : "",
+    wide ? styles.wide : "",
+    locked ? styles.locked : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (locked) {
+    return (
+      <div className={className} aria-current="true">
+        {children}
+      </div>
+    );
+  }
   return (
     <button
       type="button"
       aria-pressed={selected}
-      className={selected ? `${styles.choice} ${styles.selected}` : styles.choice}
+      className={className}
       onClick={() => onSelect(value)}
     >
       {children}

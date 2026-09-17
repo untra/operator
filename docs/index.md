@@ -38,8 +38,9 @@ Welcome friend! <span class="operator-brand">Operator!</span> is an application 
 
 ## Similar
 
-These are tools that comparable and aspirational for Operator
+These are tools that are comparable and aspirational for Operator
 
+- [12 factor agents](https://hlyr.dev/12fa)
 - [agnt.gg](https://agnt.gg)
 - [agtx](https://github.com/fynnfluegge/agtx)
 - [claude-relay](https://github.com/Innestic/claude-relay)

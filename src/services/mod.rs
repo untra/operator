@@ -10,6 +10,7 @@ pub mod kanban_issuetype_service;
 pub mod kanban_onboarding;
 pub mod kanban_sync;
 pub mod pr_monitor;
+pub mod ticket_transitions;
 
 pub use kanban_sync::{KanbanSyncService, SyncResult, SyncableCollection};
 pub use pr_monitor::{PrMonitorService, PrStatusEvent, TrackedPr};

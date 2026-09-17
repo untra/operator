@@ -50,12 +50,7 @@ impl QueuePanel {
             .map(|t| {
                 let glyph = glyph_for_key(&t.ticket_type);
 
-                let priority_color = match t.priority.as_str() {
-                    "P0-critical" => Color::Red,
-                    "P1-high" => Color::Yellow,
-                    "P2-medium" => Color::White,
-                    _ => Color::Gray,
-                };
+                let priority_color = crate::ui::color_for_priority(t.priority_level());
 
                 // Get glyph color from template, fall back to priority color
                 let glyph_color =

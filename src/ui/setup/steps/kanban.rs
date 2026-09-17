@@ -72,6 +72,21 @@ impl SetupScreen {
         let supported = Paragraph::new(vec![
             Line::from(vec![
                 Span::raw("  • "),
+                Span::styled(
+                    "Operator",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" ("),
+                Span::styled(
+                    "built in - your tickets are the board",
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::raw(")"),
+            ]),
+            Line::from(vec![
+                Span::raw("  • "),
                 Span::styled("Jira Cloud", Style::default().fg(Color::White)),
                 Span::raw(" ("),
                 Span::styled(
@@ -137,6 +152,7 @@ impl SetupScreen {
                 };
 
                 let provider_name = match provider.provider_type {
+                    KanbanProviderType::Operator => "Operator",
                     KanbanProviderType::Jira => "Jira",
                     KanbanProviderType::Linear => "Linear",
                     KanbanProviderType::Github => "GitHub",

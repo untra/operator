@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use ts_rs::TS;
+use utoipa::ToSchema;
 
 use crate::templates::{schema::TemplateSchema, TemplateType};
 
@@ -37,6 +38,134 @@ pub struct LlmTask {
     /// List of task IDs that must resolve before this task
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blocked_by: Vec<String>,
+}
+
+/// Ticket urgency, as constrained by `src/schemas/ticket_metadata.schema.json`.
+///
+/// Variants are declared most-urgent first, so the derived `Ord` is the sort order.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    JsonSchema,
+    TS,
+)]
+#[ts(export)]
+pub enum TicketPriority {
+    #[serde(rename = "P0-critical")]
+    P0Critical,
+    #[serde(rename = "P1-high")]
+    P1High,
+    #[default]
+    #[serde(rename = "P2-medium")]
+    P2Medium,
+    #[serde(rename = "P3-low")]
+    P3Low,
+}
+
+impl TicketPriority {
+    /// The frontmatter spelling of this level.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TicketPriority::P0Critical => "P0-critical",
+            TicketPriority::P1High => "P1-high",
+            TicketPriority::P2Medium => "P2-medium",
+            TicketPriority::P3Low => "P3-low",
+        }
+    }
+
+    /// Read a frontmatter value, never failing: a hand-edited ticket must not
+    /// break the board. `P4-trivial` predates the closed set and folds into low.
+    pub fn from_frontmatter(raw: &str) -> Self {
+        let raw = raw.trim().to_lowercase();
+        match raw.as_str() {
+            _ if raw.starts_with("p0") || raw == "critical" => TicketPriority::P0Critical,
+            _ if raw.starts_with("p1") => TicketPriority::P1High,
+            _ if raw.starts_with("p3") => TicketPriority::P3Low,
+            _ if raw.starts_with("p4") || raw == "trivial" || raw == "lowest" => {
+                TicketPriority::P3Low
+            }
+            _ => TicketPriority::P2Medium,
+        }
+    }
+}
+
+impl std::fmt::Display for TicketPriority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Workflow status, as constrained by `src/schemas/ticket_metadata.schema.json`.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Default,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    JsonSchema,
+    TS,
+)]
+#[ts(export)]
+#[serde(rename_all = "lowercase")]
+pub enum TicketStatus {
+    #[default]
+    Queued,
+    Running,
+    Awaiting,
+    /// Older API clients still send `done`; `completed` is what we write.
+    #[serde(alias = "done")]
+    Completed,
+}
+
+impl TicketStatus {
+    /// The frontmatter spelling of this status.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TicketStatus::Queued => "queued",
+            TicketStatus::Running => "running",
+            TicketStatus::Awaiting => "awaiting",
+            TicketStatus::Completed => "completed",
+        }
+    }
+
+    /// Recognise a status, including the spellings older tickets and API
+    /// clients still use. `None` means "not a status we know", which callers
+    /// bucketing by directory need in order to keep their fallback arm.
+    pub fn parse(raw: &str) -> Option<Self> {
+        match raw.trim().to_lowercase().as_str() {
+            "queued" => Some(TicketStatus::Queued),
+            "running" | "active" => Some(TicketStatus::Running),
+            "awaiting" | "waiting" | "blocked" => Some(TicketStatus::Awaiting),
+            "completed" | "done" => Some(TicketStatus::Completed),
+            _ => None,
+        }
+    }
+
+    /// Read a frontmatter value, defaulting the way `Ticket::from_file` does.
+    pub fn from_frontmatter(raw: &str) -> Self {
+        Self::parse(raw).unwrap_or(TicketStatus::Queued)
+    }
+}
+
+impl std::fmt::Display for TicketStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -355,6 +484,11 @@ impl Ticket {
         self.current_step_schema()
             .and_then(|s| s.display_name)
             .unwrap_or_else(|| self.step.clone())
+    }
+
+    /// The `priority:` frontmatter field as a comparable level.
+    pub fn priority_level(&self) -> TicketPriority {
+        TicketPriority::from_frontmatter(&self.priority)
     }
 
     /// Advance to the next step in the workflow
@@ -875,6 +1009,107 @@ fn extract_summary(content: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_ticket_priority_parses_schema_values() {
+        for (raw, expected) in [
+            ("P0-critical", TicketPriority::P0Critical),
+            ("P1-high", TicketPriority::P1High),
+            ("P2-medium", TicketPriority::P2Medium),
+            ("P3-low", TicketPriority::P3Low),
+        ] {
+            assert_eq!(TicketPriority::from_frontmatter(raw), expected);
+            assert_eq!(expected.as_str(), raw);
+        }
+    }
+
+    #[test]
+    fn test_ticket_priority_unknown_falls_back_to_medium() {
+        for raw in ["", "urgent", "high", "P9-nonsense"] {
+            assert_eq!(
+                TicketPriority::from_frontmatter(raw),
+                TicketPriority::P2Medium
+            );
+        }
+    }
+
+    #[test]
+    fn test_ticket_priority_p4_trivial_parses_as_low() {
+        for raw in ["P4-trivial", "p4", "trivial", "lowest"] {
+            assert_eq!(TicketPriority::from_frontmatter(raw), TicketPriority::P3Low);
+        }
+    }
+
+    #[test]
+    fn test_ticket_priority_ord_is_urgency_order() {
+        let mut levels = vec![
+            TicketPriority::P3Low,
+            TicketPriority::P0Critical,
+            TicketPriority::P2Medium,
+            TicketPriority::P1High,
+        ];
+        levels.sort();
+        assert_eq!(
+            levels,
+            vec![
+                TicketPriority::P0Critical,
+                TicketPriority::P1High,
+                TicketPriority::P2Medium,
+                TicketPriority::P3Low,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_ticket_priority_serializes_to_schema_values() {
+        let json = serde_json::to_string(&TicketPriority::P1High).unwrap();
+        assert_eq!(json, "\"P1-high\"");
+        let parsed: TicketPriority = serde_json::from_str("\"P0-critical\"").unwrap();
+        assert_eq!(parsed, TicketPriority::P0Critical);
+    }
+
+    #[test]
+    fn test_ticket_status_parses_schema_values() {
+        for (raw, expected) in [
+            ("queued", TicketStatus::Queued),
+            ("running", TicketStatus::Running),
+            ("awaiting", TicketStatus::Awaiting),
+            ("completed", TicketStatus::Completed),
+        ] {
+            assert_eq!(TicketStatus::parse(raw), Some(expected));
+            assert_eq!(expected.as_str(), raw);
+        }
+    }
+
+    #[test]
+    fn test_ticket_status_accepts_done_alias() {
+        assert_eq!(TicketStatus::parse("done"), Some(TicketStatus::Completed));
+        let parsed: TicketStatus = serde_json::from_str("\"done\"").unwrap();
+        assert_eq!(parsed, TicketStatus::Completed);
+    }
+
+    #[test]
+    fn test_ticket_status_serializes_completed_not_done() {
+        let json = serde_json::to_string(&TicketStatus::Completed).unwrap();
+        assert_eq!(json, "\"completed\"");
+    }
+
+    #[test]
+    fn test_ticket_status_maps_legacy_waiting_and_blocked_to_awaiting() {
+        for raw in ["waiting", "blocked"] {
+            assert_eq!(TicketStatus::parse(raw), Some(TicketStatus::Awaiting));
+        }
+        assert_eq!(TicketStatus::parse("active"), Some(TicketStatus::Running));
+    }
+
+    #[test]
+    fn test_ticket_status_parse_returns_none_for_unknown() {
+        assert_eq!(TicketStatus::parse("gibberish"), None);
+        assert_eq!(
+            TicketStatus::from_frontmatter("gibberish"),
+            TicketStatus::Queued
+        );
+    }
 
     #[test]
     fn test_parse_filename() {

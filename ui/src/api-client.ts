@@ -13,6 +13,8 @@ import type { QueueStatusResponse } from "@operator/bindings/QueueStatusResponse
 import type { KanbanBoardResponse } from "@operator/bindings/KanbanBoardResponse";
 import type { KanbanTicketCard } from "@operator/bindings/KanbanTicketCard";
 import type { ActiveAgentsResponse } from "@operator/bindings/ActiveAgentsResponse";
+import type { CreateTicketRequest } from "@operator/bindings/CreateTicketRequest";
+import type { CreateTicketResponse } from "@operator/bindings/CreateTicketResponse";
 import type { IssueTypeSummary } from "@operator/bindings/IssueTypeSummary";
 import type { IssueTypeResponse } from "@operator/bindings/IssueTypeResponse";
 import type { CollectionResponse } from "@operator/bindings/CollectionResponse";
@@ -101,6 +103,8 @@ export type {
   KanbanBoardResponse,
   KanbanTicketCard,
   ActiveAgentsResponse,
+  CreateTicketRequest,
+  CreateTicketResponse,
   IssueTypeSummary,
   IssueTypeResponse,
   CollectionResponse,
@@ -641,6 +645,14 @@ export class OperatorApi {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: toJson(options),
+    });
+  }
+
+  createTicket(req: CreateTicketRequest): Promise<CreateTicketResponse> {
+    return request(this.base, "/api/v1/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(req),
     });
   }
 

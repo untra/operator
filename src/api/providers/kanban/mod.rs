@@ -242,7 +242,8 @@ pub trait KanbanProvider: Send + Sync {
 
 /// Detect which kanban providers are configured based on environment variables
 pub fn detect_configured_providers() -> Vec<String> {
-    let mut providers = Vec::new();
+    // The built-in board needs no credentials and is always available.
+    let mut providers = vec![KanbanProviderType::Operator.slug().to_string()];
 
     if JiraProvider::from_env()
         .map(|p| p.is_configured())
@@ -271,6 +272,10 @@ pub fn detect_configured_providers() -> Vec<String> {
 /// Type of kanban provider
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KanbanProviderType {
+    /// The built-in board: operator's own markdown tickets under `.tickets/`.
+    /// Always present, never connected, and never a sync *source* - every other
+    /// variant syncs *into* this one.
+    Operator,
     Jira,
     Linear,
     Github,
@@ -284,7 +289,8 @@ impl KanbanProviderType {
     /// surface (TUI status section, web `/#/kanban`, the REST provider catalog
     /// endpoint, and the VS Code onboarding picker) derives its list from here
     /// so the options can't drift apart.
-    pub const ALL: [KanbanProviderType; 4] = [
+    pub const ALL: [KanbanProviderType; 5] = [
+        KanbanProviderType::Operator,
         KanbanProviderType::Jira,
         KanbanProviderType::Linear,
         KanbanProviderType::Github,
@@ -294,6 +300,7 @@ impl KanbanProviderType {
     /// Get the display name
     pub fn display_name(&self) -> &'static str {
         match self {
+            KanbanProviderType::Operator => "Operator",
             KanbanProviderType::Jira => "Jira Cloud",
             KanbanProviderType::Linear => "Linear",
             KanbanProviderType::Github => "GitHub Projects",
@@ -305,6 +312,7 @@ impl KanbanProviderType {
     /// `ConfigureKanbanProvider` action, and the REST catalog.
     pub fn slug(&self) -> &'static str {
         match self {
+            KanbanProviderType::Operator => "operator",
             KanbanProviderType::Jira => "jira",
             KanbanProviderType::Linear => "linear",
             KanbanProviderType::Github => "github",
@@ -319,9 +327,15 @@ impl KanbanProviderType {
             .find(|p| p.slug() == slug)
     }
 
+    /// Whether this provider is operator's own board rather than an external service
+    pub fn is_builtin(&self) -> bool {
+        matches!(self, KanbanProviderType::Operator)
+    }
+
     /// One-line "connect" description shown next to the provider in list views.
     pub fn connect_blurb(&self) -> &'static str {
         match self {
+            KanbanProviderType::Operator => "Built in - your tickets are the board",
             KanbanProviderType::Jira => "Connect to Jira Cloud",
             KanbanProviderType::Linear => "Connect to Linear",
             KanbanProviderType::Github => "Connect to GitHub Projects",
@@ -329,11 +343,13 @@ impl KanbanProviderType {
         }
     }
 
-    /// The provider's credential/token page. Opened by the TUI "Configure"
-    /// action and surfaced as the clickable link on the web `/#/kanban` rows
-    /// (there is no in-browser onboarding wizard - this opens the token page).
+    /// The provider's credential/token page. Opened by the TUI "Configure" action
     pub fn setup_url(&self) -> &'static str {
         match self {
+            // Nothing to connect - link the docs.
+            KanbanProviderType::Operator => {
+                "https://operator.untra.io/getting-started/kanban/operator/"
+            }
             KanbanProviderType::Jira => {
                 "https://id.atlassian.com/manage-profile/security/api-tokens"
             }
@@ -349,6 +365,8 @@ impl KanbanProviderType {
     /// Codicon hint for the VS Code onboarding picker (rendered as `$(icon)`).
     pub fn icon(&self) -> &'static str {
         match self {
+            // A stock codicon, as OpenSpec uses: the `operator-*` glyphs come from the generated icon font
+            KanbanProviderType::Operator => "layout",
             KanbanProviderType::Jira => "operator-atlassian",
             KanbanProviderType::Linear => "operator-linear",
             KanbanProviderType::Github => "github",
@@ -359,6 +377,8 @@ impl KanbanProviderType {
     /// Get the default environment variable name for the API key
     pub fn default_api_key_env(&self) -> &'static str {
         match self {
+            // The built-in board reads local files; there is no credential.
+            KanbanProviderType::Operator => "",
             KanbanProviderType::Jira => "OPERATOR_JIRA_API_KEY",
             KanbanProviderType::Linear => "OPERATOR_LINEAR_API_KEY",
             KanbanProviderType::Github => "OPERATOR_GITHUB_TOKEN",
@@ -426,8 +446,9 @@ impl DetectedKanbanProvider {
                     .iter()
                     .any(|v| v.contains("TOKEN") || v.contains("API_KEY"))
             }
-            // OpenSpec needs no env vars - configuration is a local path.
-            KanbanProviderType::Openspec => true,
+            // Neither needs env vars: OpenSpec is a local path, and the
+            // built-in board is always available.
+            KanbanProviderType::Operator | KanbanProviderType::Openspec => true,
         }
     }
 }
@@ -680,10 +701,40 @@ pub async fn test_provider_credentials(provider: &DetectedKanbanProvider) -> Res
 
             Ok(())
         }
+        // The built-in board is always available; there is nothing to test.
+        KanbanProviderType::Operator => Ok(()),
         KanbanProviderType::Openspec => Err(
             "OpenSpec has no credentials to test; configure [kanban.openspec.<name>] root_path"
                 .to_string(),
         ),
+    }
+}
+
+/// Validate a provider slug for a command that pulls issues *from* a provider.
+///
+/// Rejects the built-in board: it is the sync destination, so pulling from it
+/// would re-import operator's own tickets.
+pub fn validate_sync_source(slug: &str) -> Result<KanbanProviderType, String> {
+    let sources = || {
+        KanbanProviderType::ALL
+            .into_iter()
+            .filter(|p| !p.is_builtin())
+            .map(|p| format!("'{}'", p.slug()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    match KanbanProviderType::from_slug(&slug.to_lowercase()) {
+        Some(p) if p.is_builtin() => Err(format!(
+            "{} is the built-in board, not a sync source; its tickets already live in .tickets/. \
+             Use one of: {}.",
+            p.display_name(),
+            sources()
+        )),
+        Some(p) => Ok(p),
+        None => Err(format!(
+            "Unknown kanban provider: {slug}. Use one of: {}.",
+            sources()
+        )),
     }
 }
 
@@ -699,7 +750,8 @@ pub fn get_provider(name: &str) -> Option<Box<dyn KanbanProvider>> {
         "github" => GithubProjectsProvider::from_env()
             .ok()
             .map(|p| Box::new(p) as Box<dyn KanbanProvider>),
-        // openspec cannot be built from env - use get_provider_from_config
+        // Neither can be built from env: openspec needs a configured root path
+        // (use get_provider_from_config), and operator is not a sync source.
         _ => None,
     }
 }
@@ -761,6 +813,11 @@ pub fn get_provider_from_config(
                 })?;
             Ok(Box::new(OpenspecProvider::from_config(instance, cfg)) as Box<dyn KanbanProvider>)
         }
+        // The built-in board is the sync *destination*; pulling from it would
+        // re-import operator's own tickets.
+        "operator" => Err(ApiError::not_configured(
+            "operator is the built-in local board, not a sync source",
+        )),
         _ => Err(ApiError::not_configured(format!(
             "Unknown provider: '{provider_name}'. Supported: jira, linear, github, openspec"
         ))),
@@ -1022,16 +1079,60 @@ mod tests {
     }
 
     #[test]
-    fn test_provider_type_all_covers_four_providers() {
-        assert_eq!(KanbanProviderType::ALL.len(), 4);
+    fn test_provider_type_all_lists_the_builtin_board_first() {
+        assert_eq!(KanbanProviderType::ALL.len(), 5);
         assert_eq!(
             KanbanProviderType::ALL,
             [
+                KanbanProviderType::Operator,
                 KanbanProviderType::Jira,
                 KanbanProviderType::Linear,
                 KanbanProviderType::Github,
                 KanbanProviderType::Openspec,
             ]
+        );
+    }
+
+    #[test]
+    fn test_validate_sync_source_rejects_the_builtin_board() {
+        let err = validate_sync_source("operator").unwrap_err();
+        assert!(err.contains("not a sync source"), "{err}");
+        assert!(err.contains("'jira'"), "{err}");
+        assert!(!err.contains("'operator'"), "{err}");
+    }
+
+    #[test]
+    fn test_validate_sync_source_accepts_external_providers() {
+        for provider in KanbanProviderType::ALL {
+            let result = validate_sync_source(provider.slug());
+            assert_eq!(result.is_ok(), !provider.is_builtin(), "{provider:?}");
+        }
+        assert!(validate_sync_source("nope").is_err());
+    }
+
+    #[test]
+    fn test_operator_is_the_only_builtin_provider() {
+        let builtin: Vec<_> = KanbanProviderType::ALL
+            .into_iter()
+            .filter(KanbanProviderType::is_builtin)
+            .collect();
+        assert_eq!(builtin, vec![KanbanProviderType::Operator]);
+    }
+
+    /// The built-in board is the sync destination. Constructing it as a
+    /// provider would let `KanbanSyncService` re-import operator's own tickets.
+    #[test]
+    fn test_operator_cannot_be_built_as_a_sync_source() {
+        assert!(get_provider("operator").is_none());
+        let kanban = crate::config::KanbanConfig::default();
+        assert!(get_provider_from_config(&kanban, "operator", "ANY").is_err());
+    }
+
+    #[test]
+    fn test_detect_configured_providers_always_includes_the_builtin_board() {
+        assert_eq!(
+            detect_configured_providers().first().map(String::as_str),
+            Some("operator")
         );
     }
 

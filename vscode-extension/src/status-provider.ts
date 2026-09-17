@@ -4,11 +4,11 @@
  * Slim orchestrator that delegates to per-section modules in ./sections/.
  * Each section owns its state, check logic, and tree item rendering.
  *
- * Sections use progressive disclosure - they only appear when prerequisites are met:
- *   Tier 0: Configuration (always visible)
- *   Tier 1: Connections (requires configReady)
- *   Tier 2: Kanban/kanban, LLM Tools/llm, Model Servers/model-servers, Git/git (requires connectionsReady / llmReady)
- *   Tier 3: Issue Types/issuetypes (kanbanConfigured), Delegators/delegators (llmConfigured), Managed Projects/projects (gitConfigured)
+ * Sections use progressive disclosure - they only appear when every prerequisite
+ * section is visible and not Red, mirroring the Rust TUI's section registry:
+ *   Configuration, Workflows, Remote Targets, License: no prerequisites
+ *   Connections <- config; Kanban, LLM Tools, Git <- connections
+ *   Model Servers, Delegators <- llm; Issue Types <- kanban; Managed Projects <- git
  */
 
 import * as vscode from "vscode";

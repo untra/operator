@@ -343,7 +343,7 @@ function KanbanInfo({ api, addExport }: StepProps) {
     <Intro>
       <h2>Kanban</h2>
       <p>
-        Connect an external Kanban provider to sync its issues in, or continue and connect one later.
+        Connect an external Kanban provider to sync its issues, or continue and connect one later.
       </p>
       <ChoiceGroup>
         {builtInBoard && (

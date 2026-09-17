@@ -306,7 +306,7 @@ suite("Status Provider Test Suite", () => {
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.deepStrictEqual(labels, ["Configuration", "Workflows"]);
+      assert.deepStrictEqual(labels, ["Configuration", "Workflows", "Remote Targets", "License"]);
     });
 
     test("tier 1: Configuration + Connections when config ready but no connections", async () => {
@@ -319,10 +319,16 @@ suite("Status Provider Test Suite", () => {
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.deepStrictEqual(labels, ["Configuration", "Connections", "Workflows"]);
+      assert.deepStrictEqual(labels, [
+        "Configuration",
+        "Connections",
+        "Workflows",
+        "Remote Targets",
+        "License",
+      ]);
     });
 
-    test("tier 2: adds Kanban, LLM Tools, Model Servers, Git when connections ready", async () => {
+    test("tier 2: adds Kanban, LLM Tools, Model Servers, Git, Issue Types when connections ready", async () => {
       const mockContext = createMockContext(sandbox, "/fake/working-dir");
       sandbox.stub(configPaths, "configFileExists").resolves(true);
       sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
@@ -354,8 +360,11 @@ suite("Status Provider Test Suite", () => {
         "LLM Tools",
         "Model Servers",
         "Git",
+        "Issue Types",
         "Delegators",
         "Workflows",
+        "Remote Targets",
+        "License",
       ]);
     });
 
@@ -432,8 +441,8 @@ suite("Status Provider Test Suite", () => {
         "Should include Managed Projects when git configured",
       );
       assert.ok(
-        !labels.includes("Issue Types"),
-        "Should not include Issue Types when kanban not configured",
+        labels.includes("Issue Types"),
+        "Issue Types stays visible with no kanban config: the built-in board keeps Kanban green",
       );
     });
 
@@ -480,6 +489,8 @@ suite("Status Provider Test Suite", () => {
         "Delegators",
         "Managed Projects",
         "Workflows",
+        "Remote Targets",
+        "License",
       ]);
     });
 
@@ -502,8 +513,8 @@ suite("Status Provider Test Suite", () => {
       const labels = getSectionLabels(provider.getChildren());
       assert.deepStrictEqual(
         labels,
-        ["Configuration", "Connections", "Workflows"],
-        "Should only show tier 0+1 (plus the prerequisite-free Workflows) when connections not ready",
+        ["Configuration", "Connections", "Workflows", "Remote Targets", "License"],
+        "Should only show tier 0+1 plus the prerequisite-free sections when connections not ready",
       );
     });
   });

@@ -5,7 +5,7 @@
 # runs the fast lint gate (fmt + clippy, no tests) before every push.
 
 .PHONY: check fmt clippy test build run install-hooks bindings webcomponents storybook ui docs \
-	fmt-ts lint-ts lint-shell relay opr8r
+	fmt-ts lint-ts lint-shell relay opr8r vscode-extension
 
 # Full CI-parity gate. Keep these commands byte-identical to
 # .github/workflows/build.yaml so local and CI never disagree.
@@ -78,6 +78,17 @@ storybook: webcomponents
 # The embedded SPA, which resolves @operator/webcomponents from its dist/.
 ui: webcomponents
 	cd ui && bun install --frozen-lockfile && bun run build
+
+# The VS Code extension. Mirrors the compile steps of the CI
+# `test-vscode-extension` job; `compile:webview` type-checks the webview bundle,
+# which no other target reaches. Depends on `bindings` because copy-types copies
+# them into vscode-extension/src/generated.
+vscode-extension: bindings
+	cd vscode-extension && npm ci
+	cd vscode-extension && npm run compile
+	cd vscode-extension && npm run compile:webview
+	cd vscode-extension && npm run lint
+	cd vscode-extension && npm run fmt:check
 
 # Full docs pipeline: bindings, generated reference docs and the hosted
 # collection bundle, the shared components bundle, then Jekyll. Mirrors the

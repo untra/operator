@@ -96,13 +96,13 @@ utoipa-swagger-ui = { version = "9", features = ["axum"] }
 agent-client-protocol = "2.0"
 
 # Authentication: local credential store, password hashing, and token signing.
-rusqlite = { version = "0.37", features = ["bundled"] }
-argon2 = "0.5"
-password-hash = { version = "0.5", features = ["getrandom"] }
-jsonwebtoken = "9"
+rusqlite = { version = "0.40", features = ["bundled"] }
+argon2 = "0.6"
+password-hash = { version = "0.6", features = ["getrandom"] }
+jsonwebtoken = "11"
 ring = "0.17"
-rand = "0.9"
-base64 = "0.22"
+rand = "0.10"
+base64 = "0.23"
 subtle = "2"
 url = "2"
 

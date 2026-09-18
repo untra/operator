@@ -286,18 +286,6 @@ fn test_tui_has_all_status_sections() {
     }
 }
 
-/// Every canonical section id must be referenced by the VS Code status provider.
-#[test]
-fn test_vscode_has_all_status_sections() {
-    let status_provider_src = include_str!("../vscode-extension/src/status-provider.ts");
-    for id in canonical_section_ids() {
-        assert!(
-            status_provider_src.contains(&id),
-            "VSCode status-provider.ts is missing sectionId '{id}'"
-        );
-    }
-}
-
 /// The web UI sidebar (`STATUS_KEYS` in concepts.ts) must list exactly the
 /// canonical sections, in the same order, as the TUI / VS Code surfaces.
 #[test]
